@@ -59,7 +59,7 @@ struct StartEpochApplyRaceTests {
     @Test func aParkedBetweenItsEpochCheckAndTheApplyCannotArmTheGateAfterStartBOnABackgroundThread() async throws {
       try await withGlobalCaptureStateLock {
         let captureConfig = CaptureConfig(logs: false, network: true)
-        try Everframe.shared.start(config: EverframeConfig(appId: appA, capture: captureConfig))
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: appA, capture: captureConfig))
         let epochAtACreation = Everframe.shared.currentStartEpoch
 
         let onBody = Data(#"""
@@ -68,7 +68,7 @@ struct StartEpochApplyRaceTests {
             """#.utf8)
         let providerA = ReplayConfigProvider(
             configUrl: URL(string: "https://x/api/config")!,
-            apiKey: "a",
+            sdkKey: "a",
             fetcher: ImmediateFetcher(body: onBody),
             ttlSec: 300,
             now: { 0 }
@@ -99,7 +99,7 @@ struct StartEpochApplyRaceTests {
         // against this, since `start()` itself is synchronous and NOT
         // actor-isolated.
         let bThread = Thread {
-            try? Everframe.shared.start(config: EverframeConfig(appId: appB, capture: captureConfig))
+            try? Everframe.shared.start(config: EverframeConfig(sdkKey: appB, capture: captureConfig))
         }
         bThread.start()
 
@@ -145,7 +145,7 @@ struct StartEpochApplyRaceTests {
     @Test func aParkedBetweenItsEpochCheckAndTheIdentityFlagWriteCannotReEnableIdentityAfterStartBOnABackgroundThread() async throws {
       try await withGlobalCaptureStateLock {
         let captureConfig = CaptureConfig(logs: false, network: true)
-        try Everframe.shared.start(config: EverframeConfig(appId: appA, capture: captureConfig))
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: appA, capture: captureConfig))
         let epochAtACreation = Everframe.shared.currentStartEpoch
 
         let onBody = Data(#"""
@@ -154,7 +154,7 @@ struct StartEpochApplyRaceTests {
             """#.utf8)
         let providerA = ReplayConfigProvider(
             configUrl: URL(string: "https://x/api/config")!,
-            apiKey: "a",
+            sdkKey: "a",
             fetcher: ImmediateFetcher(body: onBody),
             ttlSec: 300,
             now: { 0 }
@@ -189,7 +189,7 @@ struct StartEpochApplyRaceTests {
         // section) runs as part of this call, synchronously, before this
         // thread returns.
         let bThread = Thread {
-            try? Everframe.shared.start(config: EverframeConfig(appId: appB, capture: captureConfig))
+            try? Everframe.shared.start(config: EverframeConfig(sdkKey: appB, capture: captureConfig))
         }
         bThread.start()
 
@@ -232,7 +232,7 @@ struct StartEpochApplyRaceTests {
     @Test func aParkedBetweenItsEpochCheckAndTheBadgeBoxWriteCannotResurrectTheOverrideAfterKill() async throws {
       try await withGlobalCaptureStateLock {
         let captureConfig = CaptureConfig(logs: false, network: true)
-        try Everframe.shared.start(config: EverframeConfig(appId: appA, capture: captureConfig))
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: appA, capture: captureConfig))
         let epochAtACreation = Everframe.shared.currentStartEpoch
         CompanionBadgeServerConfigBox.shared.value = nil
         defer { CompanionBadgeServerConfigBox.shared.value = nil }
@@ -249,7 +249,7 @@ struct StartEpochApplyRaceTests {
             """#.utf8)
         let providerA = ReplayConfigProvider(
             configUrl: URL(string: "https://x/api/config")!,
-            apiKey: "a",
+            sdkKey: "a",
             fetcher: ImmediateFetcher(body: onBody),
             ttlSec: 300,
             now: { 0 }
@@ -309,7 +309,7 @@ struct StartEpochApplyRaceTests {
             """
         )
 
-        try Everframe.shared.start(config: EverframeConfig(appId: appA, capture: captureConfig))
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: appA, capture: captureConfig))
       }
     }
 
@@ -328,7 +328,7 @@ struct StartEpochApplyRaceTests {
     @Test func aNonSupersededApplyPublishesBothTheCompanionBadgeAndBrandingBoxes() async throws {
       try await withGlobalCaptureStateLock {
         let captureConfig = CaptureConfig(logs: false, network: true)
-        try Everframe.shared.start(config: EverframeConfig(appId: appA, capture: captureConfig))
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: appA, capture: captureConfig))
         let epochAtCreation = Everframe.shared.currentStartEpoch
         CompanionBadgeServerConfigBox.shared.value = nil
         defer { CompanionBadgeServerConfigBox.shared.value = nil }
@@ -344,7 +344,7 @@ struct StartEpochApplyRaceTests {
             """#.utf8)
         let provider = ReplayConfigProvider(
             configUrl: URL(string: "https://x/api/config")!,
-            apiKey: "a",
+            sdkKey: "a",
             fetcher: ImmediateFetcher(body: onBody),
             ttlSec: 300,
             now: { 0 }
@@ -370,7 +370,7 @@ struct StartEpochApplyRaceTests {
             "an ordinary, non-superseded apply must publish into the vitals server box too (absent fields default to off/full-rate)"
         )
 
-        try Everframe.shared.start(config: EverframeConfig(appId: appA, capture: captureConfig))
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: appA, capture: captureConfig))
       }
     }
 
@@ -392,7 +392,7 @@ struct StartEpochApplyRaceTests {
         }
         defer { Everframe.__resetBodyStateResetHookForTesting() }
 
-        try Everframe.shared.start(config: EverframeConfig(appId: appA, capture: CaptureConfig(logs: false)))
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: appA, capture: CaptureConfig(logs: false)))
 
         #expect(
             epochObservedAtResetHook != nil,

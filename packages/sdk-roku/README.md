@@ -90,6 +90,7 @@ end sub
 | `sdkKey` | required | Your Everframe SDK key |
 | `endpoint` | `https://everframe.dev` | Ingest host. For self-testing only |
 | `enabled` | `true` | Set `false` to turn the SDK off. This is remembered on the device: queued reports are discarded, and instrumented code records nothing until a later `start()` without it. |
+| `debugBuild` | detected | `true` or `false` to say whether this is a debug build. By default a sideloaded channel (`roAppInfo.IsDev()`) is one. Everframe never creates a release from a debug build. |
 | `maxBreadcrumbs` | `50` | Breadcrumb ring size. An integer, clamped to 1–50; other values are ignored |
 
 ## Tier 1: ComponentLibrary, remote

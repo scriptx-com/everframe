@@ -49,7 +49,7 @@ class RnVideoPrivacyAdapterTest {
                 okhttp3.Response.Builder().request(request).protocol(okhttp3.Protocol.HTTP_1_1).code(200).message("ok")
                     .body("""{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"nativeVideo":{"framesPerSecond":5}}""".toResponseBody()).build()
             })
-        val session = dev.everframe.capture.replay.ReplaySession(apiKey = "key", provider = provider)
+        val session = dev.everframe.capture.replay.ReplaySession(sdkKey = "key", provider = provider)
         val queue = ArrayDeque<() -> Unit>()
         val view = View(app)
         val registry = RnSensitiveRegistration({ view }) { queue.add(it) }

@@ -44,7 +44,7 @@ afterEach(() => {
 });
 
 const APP_KEY = 'txx_live_identity_gate_test';
-const config = { apiKey: APP_KEY };
+const config = { sdkKey: APP_KEY };
 
 /** A minimal well-formed (unsigned) JWT — content doesn't matter for these
  *  specs, which only observe DRAIN TIMING, not header attribution. */

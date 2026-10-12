@@ -46,8 +46,9 @@ internal object VideoSensitiveViews {
         return if (overflowed) null else visited
     }
 
-    /** Returns SDK nodes consumed, or null for sensitive/uncertain/over-budget. */
+    /** Returns SDK nodes consumed, or null for uncertain/over-budget/unmaskable sensitive views. */
     fun inspect(windowIdentity: Any?, deadlineNs: Long, remaining: Int, now: () -> Long,
+                masked: (View, Int) -> Int? = { _, _ -> null },
                 hiddenWebView: (View, Int) -> Int? = { _, _ -> null }): Int? {
         if (overflowed) return null
         var visited = 0
@@ -58,7 +59,12 @@ internal object VideoSensitiveViews {
             val view = entry.reference.get()
             if (view == null) { iterator.remove(); continue }
             if (view.isAttachedToWindow && view.windowToken === windowIdentity) {
-                if (!entry.automaticWebView) return null
+                if (!entry.automaticWebView) {
+                    // Masked when its on-screen bounds are known; otherwise (an overlay, a broken
+                    // parent chain) the whole frame is refused.
+                    visited += masked(view, remaining - visited) ?: return null
+                    continue
+                }
                 visited += hiddenWebView(view, remaining - visited) ?: return null
             }
         }

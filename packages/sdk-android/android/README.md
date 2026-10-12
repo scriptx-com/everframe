@@ -7,7 +7,9 @@ Native Android SDK for Everframe — in-app bug reporting with annotated screens
 session replay, log/network ring buffers, and a built-in Compose reporter UI.
 Covers phone, tablet, and Android TV.
 
-Maven Central serves version `0.10.2`, including the shorter Gradle plugin
+Replays also attach to errors; see [session replay](../../../docs/session-replay.md).
+
+Maven Central serves version `1.1.0`, including the shorter Gradle plugin
 artifact name.
 
 ---
@@ -21,6 +23,7 @@ artifact name.
 | `dev.everframe:reporter-ui` | Compose Material 3 reporter UI for phone + tablet (bubble, modal, annotation) | yes for in-app reporting |
 | `dev.everframe:media3` | Media3 and ExoPlayer diagnostics | optional |
 | `dev.everframe:gradle-plugin` | Optional R8 keep rules and Compose display name preservation | optional; available with 0.10.2 |
+| `dev.everframe:native-crash` | Native fault frames on Android 8–11 (API 26–30); needs `useLegacyPackaging = true` | optional; not yet on Maven Central, see [`../native`](../native/README.md) |
 
 Android modules ship under one version. The older `0.10.0` plugin uses the
 older `dev.everframe:everframe-gradle-plugin` artifact; Gradle plugin users keep
@@ -47,10 +50,14 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation("dev.everframe:core:0.10.0")
-    implementation("dev.everframe:reporter-ui:0.10.0")
+    implementation("dev.everframe:core:1.1.0")
+    implementation("dev.everframe:reporter-ui:1.1.0")
 }
 ```
+
+`core` declares `android.permission.INTERNET`, and the manifest merger adds it to
+your app. SDK 1.1.0 and earlier do not: with those, declare it in your app's
+`AndroidManifest.xml`, or the SDK sends nothing.
 
 ### 3. Initialize at startup
 
@@ -61,13 +68,9 @@ class MyApp : Application() {
         Everframe.start(
             this,
             EverframeConfig(
-                appId = "your-app-id",
-                endpoint = "https://ingest.your-tenant.example/api/ingest",
+                appId = "<App ID>", // the UUID on the app's Setup tab in the dashboard
                 sdkKey = BuildConfig.EVERFRAME_SDK_KEY,
                 environment = Environment.production,
-                // Exact public identity of this optimized build's R8 mapping.
-                // Generate a fresh value in CI for every distinct mapping.txt.
-                r8MappingId = BuildConfig.EVERFRAME_R8_MAPPING_ID,
                 // Hint to the host that a bubble UX is desired. Only mobile
                 // shake-to-report is built in; the bubble remains host-owned.
                 bubble = true,
@@ -81,11 +84,36 @@ class MyApp : Application() {
 scope). It throws `EverframeConfigError` on bad config — let that exception
 escape; the SDK never crashes the host app from inside `start()`.
 
-`r8MappingId` is optional and must match
-`[A-Za-z0-9][A-Za-z0-9._-]{0,127}` exactly. Treat it as immutable build
-identity and upload the matching mapping only from trusted CI.
+Crash capture — JVM exceptions, native crashes and ANRs — is on by default.
+See [crash capture](../README.md#crash-capture-on-by-default).
+
+With the `dev.everframe` Gradle plugin (below), `start()` reads the build's R8
+mapping ID from the APK, so crashes from minified builds retrace without any
+configuration. Set `r8MappingId` only to override it; it must match
+`[A-Za-z0-9][A-Za-z0-9._-]{0,127}` exactly.
 
 ---
+
+## Release health
+
+Release health counts crash-free foreground sessions for each version of your
+app. It is on by default, and debug builds (a debuggable app) aren't counted.
+Turn it off in `EverframeConfig`:
+
+```kotlin
+releaseHealth = null,
+```
+
+The SDK reads the version from `versionName` (or `versionCode` when there is no
+usable `versionName`) and the build from `versionCode`, and crash reports carry
+the same version. Pass `ReleaseHealthConfig(userId = accountId)` to count
+crash-free users, and call `Everframe.start` again with the new value on login,
+logout or an account switch. `ReleaseHealthConfig(includeDebugBuilds = true)`
+counts debug builds too. Sessions open in the default process only, through
+AndroidX App Startup's `ProcessLifecycleInitializer`. `releaseHealth = null` or
+`kill()` turns release health off and erases its queued records. In a React
+Native app, use the Provider's `releaseHealth` option instead. See
+[release health](../../../docs/release-health.md).
 
 ## Triggers are host-app concern
 
@@ -98,6 +126,23 @@ overrides a dashboard disable. It uses the optional system accelerometer,
 requests no permission, declares no required sensor feature, and safely no-ops
 when the device has no accelerometer. Android TV and Leanback devices are
 excluded.
+
+### Crash-only sessions
+
+`EverframeConfig(..., reporterEnabled = false)` reports crashes and errors
+without offering the reporter, for example in production builds. Shake never
+installs and `Everframe.report.open()` throws `ReporterDisabledException`
+(`openAsync` passes it to `onError`). Network bodies stay off, and replay
+records only the share of these sessions set by the dashboard's crash-only
+coverage, none by default, so errors from the other sessions carry no replay.
+Crash and error capture, breadcrumbs, vitals, release health and companion
+work as usual.
+
+When a companion bonds (a phone scans the QR code or a dashboard member
+attaches), the rest of that session gets normal replay coverage and server
+body rules, so a report filed through companion has a replay from the bond
+on. A detach keeps it; the next `start` or `kill` ends it. The on-device
+entry points stay off.
 
 All other trigger detection stays in the host app. Below are the canonical
 recipes the sample apps demonstrate and that real hosts can copy-paste.
@@ -364,6 +409,9 @@ Everframe.report.openAsync(new Everframe.Callback<ReportResult>() {
 });
 ```
 
+In a [crash-only session](#crash-only-sessions) both forms fail with
+`ReporterDisabledException` instead of opening the reporter.
+
 ### Android TV
 
 The SDK does NOT register any TV remote handler. Open the reporter from your
@@ -374,44 +422,64 @@ at `examples/android-compose/app/src/tv/kotlin/com/example/composesample/tv/Samp
 below for the full Android TV recipe and the reserved-key list (`KEYCODE_BACK
 / HOME / MENU / single-press KEYCODE_MEDIA_PLAY_PAUSE`).
 
-### Optional Gradle plugin
+### Gradle plugin: automatic symbol upload
 
 ```kotlin
-// settings.gradle.kts (or root build.gradle.kts)
+// app/build.gradle.kts
 plugins {
-    id("dev.everframe") version "0.10.0"
+    id("com.android.application")
+    id("dev.everframe") version "<everframe version>"
+}
+
+everframe {
+    appId.set("00000000-0000-4000-8000-000000000000") // defaults to EVERFRAME_APP_ID
+    // uploadEnabled.set(true)              // default
+    // buildTypes.set(setOf("release"))     // default
 }
 ```
 
-What it does:
-- Auto-applies `everframe-keep.pro` (a copy of `:everframe-core`'s
-  `consumer-rules.pro`) to the host module's R8 keep set.
-- Adds `-Xandroidx-compose-runtime-keep-all-composables` to KotlinCompile so
-  composable function names survive R8 minification (used by Everframe's
-  `componentPath` reflection).
-- Optionally embeds and uploads the exact final mapping for selected minified
-  application variants:
+After `assembleRelease` or `bundleRelease` (and every selected flavor, such as
+`assembleTvRelease`), the plugin uploads the build's symbols with the Everframe
+CLI:
 
-```kotlin
-everframeR8 {
-    enabled.set(true)
-    buildId.set(providers.environmentVariable("EVERFRAME_R8_BUILD_ID"))
-    appId.set(providers.environmentVariable("EVERFRAME_APP_ID"))
-}
+- **R8 mapping** (`uploadEverframe<Variant>R8Mapping`, minified variants). The
+  mapping ID is `r8-` plus the SHA-256 of the final `mapping.txt`. The plugin
+  packages it as `assets/everframe/build-identity.properties`, and
+  `Everframe.start` reports it, so there is no `r8MappingId` to wire up.
+  Rebuilding identical sources yields the same ID, so retries are idempotent.
+- **Native libraries** (`uploadEverframe<Variant>NativeSymbols`). Every shipped
+  `.so` is matched to its unstripped copy from `merge<Variant>NativeLibs` by GNU
+  build ID and ABI, for the ABIs the build packages: APKs follow
+  `ndk.abiFilters` narrowed by ABI splits, a bundle (`bundle<Variant>`) every
+  `ndk.abiFilters` ABI, and `assemble` with `bundle` in one build the union.
+  Prebuilt libraries from AARs without debug information
+  (`libc++_shared.so`, prebuilt Hermes, AndroidX) are expected and only listed
+  at `--info`. Libraries your own CMake or ndk-build produces without debug
+  information (`-g0`, `-s`) get one warning naming them and the fix: build with
+  `-g` (CMake `RelWithDebInfo`, AGP's release default) and leave stripping to
+  AGP. Other libraries without symbols produce one warning with their count,
+  and `--info` lists them. A variant without native code does nothing.
 
-// In app startup:
-// r8MappingId = BuildConfig.EVERFRAME_R8_MAPPING_ID.takeIf { it.isNotEmpty() }
-```
+Set `EVERFRAME_API_TOKEN` (a token with `artifacts:write`) in CI. **Symbols
+never fail the build by default**: without the token, without an app ID, or
+when an upload fails, the plugin prints a `warning:` line and the build
+continues. Set `EVERFRAME_SYMBOLS_STRICT=1` to fail the build instead. Uploads
+stop after `EVERFRAME_UPLOAD_TIMEOUT_SECONDS` (600 by default). The plugin stops
+the CLI process itself once it has run that long plus up to a minute (no more
+than the budget again) for `npx` to fetch it, and warns.
 
-CI sets `EVERFRAME_API_TOKEN` and runs
-`./gradlew :app:assembleRelease :app:uploadEverframeR8ReleaseMapping`. Retain the
-same build ID for retries of that build; generate a fresh ID before rebuilding.
-The upload task is explicit and always contacts the service. Configure its
-build type and credentials only in trusted CI.
+The plugin runs the CLI from `EVERFRAME_CLI_JS` (a built `dist/index.js`), then
+`node_modules/@everframe/cli`, then `npx --yes --prefer-offline @everframe/cli@<version>`,
+which needs the published CLI and Node. npm gets a 20-second fetch timeout and
+one retry unless your environment sets `npm_config_fetch_timeout`,
+`npm_config_fetch_retries` or `npm_config_fetch_retry_maxtimeout`. Override the
+command with `everframe { cliCommand }`. The CLI runs in the module's directory,
+so relative paths in `cliCommand` and `EVERFRAME_CLI_JS` resolve against it.
 
-The plugin is OPTIONAL: `:everframe-core`'s `consumer-rules.pro` already
-auto-merges via the AAR. The plugin is a customer-opt-in convenience for
-stricter R8 setups that prefer explicit keep files.
+The plugin also applies `everframe-keep.pro` (a copy of `:everframe-core`'s
+`consumer-rules.pro`) to the host module's R8 keep set, and adds
+`-Xandroidx-compose-runtime-keep-all-composables` to Kotlin compilation so
+composable function names survive R8 (used by Everframe's `componentPath`).
 
 ---
 
@@ -473,6 +541,10 @@ release R8 config when you depend on the AAR. It preserves:
   `SourceFile`, `LineNumberTable` (KFunction.name walks).
 - kotlinx.serialization companion serializers (envelope JSON).
 - The OkHttp interceptor entry surface.
+- The class names of React Native views and of Flutter's host View
+  (`io.flutter.embedding.android.FlutterView`), by which native video recognises windows it must
+  not record. Flutter minifies release builds by default; without this rule a renamed Flutter host
+  would be recorded like an ordinary view.
 
 To verify your release APK preserves the names Everframe needs, run:
 
@@ -519,8 +591,9 @@ the Compose sample app on every PR.
 
 ## Privacy
 
-By default the SDK captures no permissions. The published AAR has `0` `<uses-permission>`
-entries (CI gate enforced — `aapt dump permissions everframe-core-release.aar`).
+The SDK asks for no runtime permissions. `core`'s manifest declares one install-time
+permission, `android.permission.INTERNET`, which Gradle's manifest merger adds to
+your app; the other modules declare none.
 Sensitive UI is redacted at bake time (PRIV-03): pixels in
 `Modifier.txSensitive()` / `TXSensitiveView` / `inputType="textPassword"` regions
 are baked BLACK before the screenshot bytes ever reach the reporter UI or the
@@ -540,23 +613,90 @@ MIT. See top-level `LICENSE`.
 
 ### Native video privacy boundaries
 
-Native video currently excludes Compose windows. A typed semantics prototype is retained only
-in shared test sources: Compose can walk thousands of nonsemantic layout nodes while computing
-a public semantics child list, exceeding the SDK's 2,048-node / 2 ms admission budget. Screenshot
-semantics handling is unchanged.
+Each native video frame is checked against the window's view tree before it is drawn, after the
+copy is committed and again when the copy returns. The frame is either recorded with sensitive
+areas painted black, or refused (not recorded) when the SDK cannot prove where those areas are
+drawn.
 
-Mark sensitive overlay content **before attachment**, for example
+**Painted black.** Views marked with `Everframe.markSensitive`, `TXSensitiveView` or the
+`R.id.tx_sensitive` tag (any value except `false`), React Native `<EverframeSensitive>`, `EditText`s,
+editable or password `TextView`s, and `TextureView`s are painted black over their bounds, mapped
+through every ancestor's transform and scroll and padded by a pixel. A platform adapter's
+`VideoPrivacyAdapter.Classification.EXCLUDE` means the same. A view whose parent clips children
+confines its whole subtree to its own bounds, so that subtree is not inspected. Where parents do not
+clip children (React Native views never do), the masked view's descendants are inspected too, down
+to those confined that way: the part of a descendant's bounds outside the masked view is painted as
+well, so a child laid out or moved outside the view stays covered, and a descendant whose position
+cannot be proven refuses the frame (see below). Masks are clipped to the window. Only these views
+are masked: content that repeats a secret elsewhere, such as one-time-code digit cells, a card
+preview or a search echo, needs its own marker. Copies that other code draws are not covered either:
+a snapshot of a view drawn in a transition overlay, a view drawn after it was removed from the
+window (a container transform still draws a container the app removed instead of hiding), or a
+container that a transition or container transform draws elsewhere while it sits inside a masked
+view. Such a container is not evaluated on its own, whether it is `GONE` or not, so frames are
+recorded with only the outer mask unless a descendant check below refuses them. Mark the container
+itself with `Everframe.markSensitive` (`TXSensitiveView` and `<EverframeSensitive>` call it), which
+tracks it (see below) so that it is evaluated on its own: native video ignores a bare
+`R.id.tx_sensitive` tag on a view inside another masked view.
+
+**SurfaceViews.** A `SurfaceView` renders into its own surface, which a window copy never contains.
+Its area is left empty without a mask, and views drawn above it, such as subtitles and player
+controls, are recorded.
+
+**Refused frames.** No frame is recorded while:
+
+- a WebView is visible (see the exception below), or the window shows Compose or Flutter content.
+  Compose can walk thousands of nonsemantic layout nodes while computing a public semantics child
+  list, exceeding the SDK's 2,048-node / 2 ms admission budget; a typed semantics prototype is
+  retained only in shared test sources. Flutter pixels are recorded only through the Flutter
+  plugin's masked Dart replay. Screenshot handling is unchanged.
+- a view cannot be classified, a React Native view appears without the platform adapter, or the
+  adapter answers `UNKNOWN`.
+- the drawn position of a masked view the walk reaches (in the window's child tree and not inside
+  another masked view), or of a tracked one (see below), cannot be proven: it or an ancestor sits in
+  an overlay or under a broken parent chain; a legacy `Animation` or an animation matrix applies to
+  it or an ancestor (an `Animation` kept with `fillAfter` keeps refusing frames until
+  `clearAnimation()`); a layout transition is running above it; it or an ancestor is `INVISIBLE`,
+  has transition alpha below one, or is fully transparent (alpha 0) even while `GONE`, because then
+  only another drawing can show it (a shared-element ghost draws a hidden original from an overlay,
+  and a container transform makes both containers transparent, the closing one usually also `GONE`,
+  while it draws them from an overlay with `View.draw`, which ignores visibility); or it is `GONE`
+  while a removal transition still draws it. Otherwise a `GONE` ordinary child needs no mask. This
+  refuses frames while an inline `NumberPicker` (including spinner-mode date and time pickers) is
+  shown after its first touch, which hides its input as `INVISIBLE`; while a React Native
+  `TextInput` is hidden with `display: 'none'` or styled with `opacity: 0`, as one-time-code fields
+  often are; and for as long as a container faded to alpha 0 and then set `GONE` holds such a masked
+  view. Restore such a container's alpha once it is hidden, or remove it.
+- an inspected descendant of a masked view (see above) is animated, `INVISIBLE` or
+  transition-hidden, or runs a layout transition, for the same reasons. React Native hides
+  `display: 'none'` content and the spinner of `<ActivityIndicator animating={false}>` as
+  `INVISIBLE`: inside `<EverframeSensitive>` they refuse frames for as long as they stay mounted, so
+  unmount hidden content instead.
+- the keyboard pans the window (`adjustPan`) and the frame needs masks: the panned window is drawn
+  shifted, so the masks would miss the views they cover.
+- the window is `FLAG_SECURE`, wide-gamut or HDR, or unfocused, the 2,048-node / 2 ms budget runs
+  out, or sensitive-view tracking is uncertain or full.
+
+A masked area that moves on screen while a copy is pending, for example while a list scrolls, drops
+that frame too. Masked areas that stay still or move entirely outside the window do not, and neither
+does a descendant moving within its masked ancestor's bounds, such as a pulsing indicator.
+
+Mark sensitive overlay content **before attachment** with `Everframe.markSensitive`
+(`TXSensitiveView` and `<EverframeSensitive>` call it), for example
 `Everframe.markSensitive(overlayView)` before `container.overlay.add(overlayView)`. Android's public
 View child traversal cannot enumerate views inserted directly into an overlay. An input that was
-never observed in the normal child tree therefore requires this explicit marker. The SDK retains
-bounded weak tracking for explicitly marked and previously observed sensitive Views, including
-Views moved into overlays or retained by removal transitions. Explicit sensitivity and unsupported
-inputs/surfaces continue excluding their window until detachment. Tracking uncertainty or capacity
-exhaustion excludes video.
+never observed in the normal child tree therefore requires this marker; a bare `R.id.tx_sensitive`
+tag, or an unmarked input, on a view added straight to an overlay is never tracked and is recorded
+unmasked. The SDK retains bounded weak tracking for views marked with `Everframe.markSensitive` and
+previously observed sensitive Views until they detach: one retained by a removal transition stays
+masked, and one moved into an overlay, directly or with a container (as a fade-out transition does),
+refuses its window's frames. Tracking uncertainty or capacity exhaustion excludes video.
 
 Automatically detected WebViews are an exception: an attached background WebView does not block
 replay when its ordinary child ancestry proves it `GONE`, fully transparent, or fully clipped in a
-hierarchy that clips children. Nearly transparent and partially visible WebViews remain excluded.
+hierarchy that clips children. That proof also accepts a WebView whose container a container
+transform has made transparent while drawing it from an overlay, so mark a WebView in such a
+container sensitive. Nearly transparent and partially visible WebViews remain excluded.
 `INVISIBLE` ancestors and non-default transition alpha remain excluded: transitions can draw an
 overlay ghost while hiding the original. Removal-transition children that retain a parent without
 normal child membership are also excluded. Legacy animations, animation matrices, running layout
@@ -564,8 +704,7 @@ transitions, uninspectable overlay ancestry, and exhausted inspection budgets re
 Visibility is rechecked during frame capture and in weak history, so hiding a previously visible
 WebView can resume recording without unmounting it. Initially hidden WebViews are tracked too, to
 protect later moves into overlays. Explicit markers and platform-adapter exclusions take precedence
-over this exception. This does not add WebView or text-input masking; visible login inputs still
-exclude native video.
+over this exception: a marked WebView is painted black like any other marked view.
 
 For React Native Android first paint, use `<EverframeSensitive>`: its native host constructor marks
 the existing wrapper node before mounting. The imperative `useEverframeSensitiveRef` hook runs

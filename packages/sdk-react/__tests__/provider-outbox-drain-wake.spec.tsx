@@ -39,7 +39,7 @@ afterEach(() => {
 });
 
 const APP_KEY = 'txx_live_drain_wake_test';
-const config = { apiKey: APP_KEY };
+const config = { sdkKey: APP_KEY };
 
 /** Surfaces the adapter's thread client synchronously, before any drain promise settles. */
 function AdapterProbe({ onAdapter }: { onAdapter: (threads: ThreadClient | undefined) => void }) {

@@ -39,7 +39,7 @@ class ReporterOwnershipTest {
                 Everframe.addBreadcrumb("after-screenshot-start")
                 ScreenshotCapture.CaptureResult(bitmap, 2, 2, byteArrayOf(1))
             },
-            showDialog = { _, _, capture, _ ->
+            showDialog = { _, _, capture, _, _ ->
                 old = capture
                 messagesAtMount = capture.takeBreadcrumbs()?.map { it.message }
                 Everframe.start(activity, config.copy(appId = "b"))

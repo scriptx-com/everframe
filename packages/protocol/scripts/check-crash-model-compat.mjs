@@ -25,11 +25,15 @@ function one(name) {
   return entries[0];
 }
 
+const model = one('--model') ?? 'Crash';
+if (!/^[A-Z][A-Za-z0-9]*$/u.test(model)) throw new Error('invalid model name');
+const modelClass = `dev.everframe.protocol.generated.${model}`;
+
 function javap(jar) {
   const result = spawnSync('javap', [
     '-classpath', jar,
     '-s', '-p',
-    'dev.everframe.protocol.generated.Crash',
+    modelClass,
   ], { encoding: 'utf8' });
   if (result.status !== 0) {
     throw new Error(`javap failed for ${jar}: ${result.stderr.trim()}`);
@@ -47,7 +51,7 @@ function memberDescriptors(output) {
       || !descriptorLine.startsWith('descriptor: ')) continue;
     const beforeArguments = declaration.slice(0, declaration.indexOf('(')).trim();
     const declaredName = beforeArguments.split(/\s+/u).at(-1);
-    const name = declaredName === 'dev.everframe.protocol.generated.Crash' ? '<init>' : declaredName;
+    const name = declaredName === modelClass ? '<init>' : declaredName;
     const descriptor = descriptorLine.slice('descriptor: '.length);
     // kotlinx.serialization changes this synthetic construction implementation
     // when an optional serial field is appended. Saved public callers use the
@@ -79,12 +83,12 @@ const baselineDescriptors = memberDescriptors(baselineText);
 const candidateDescriptors = memberDescriptors(candidateText);
 const missing = [...baselineDescriptors].filter(member => !candidateDescriptors.has(member)).sort();
 if (missing.length > 0) {
-  throw new Error(`candidate lost supported Crash descriptors:\n${missing.join('\n')}`);
+  throw new Error(`candidate lost supported ${model} descriptors:\n${missing.join('\n')}`);
 }
 
 for (const requirement of values.get('--require-member') ?? []) {
   if (!candidateDescriptors.has(requirement)) {
-    throw new Error(`candidate missing required new Crash descriptor: ${requirement}`);
+    throw new Error(`candidate missing required new ${model} descriptor: ${requirement}`);
   }
 }
 

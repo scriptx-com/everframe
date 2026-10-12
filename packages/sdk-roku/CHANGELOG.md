@@ -1,5 +1,13 @@
 <!-- SPDX-License-Identifier: MIT -->
-<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+## 1.1.0
+
+### Minor Changes
+
+- b90da7c: <!-- SPDX-License-Identifier: MIT -->
+    <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+  Envelopes carry `context.app.debug` when the SDK detects a debug build, and release-health records move to schema version 5 with a required `app.debug`. Everframe never creates a release from a debug build.
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
 # @everframe/roku
 

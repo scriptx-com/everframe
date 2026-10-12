@@ -51,7 +51,7 @@ class IdentityConfigGateTest {
     private suspend fun decode(json: String): ReplayConfig {
         val p = ReplayConfigProvider(
             configUrl = url,
-            apiKey = "tx_test_key",
+            sdkKey = "tx_test_key",
             fetcher = { response(json) },
         )
         p.refresh()
@@ -101,7 +101,7 @@ class IdentityConfigGateTest {
         var seen: Request? = null
         val p = ReplayConfigProvider(
             configUrl = url,
-            apiKey = "tx_test_key",
+            sdkKey = "tx_test_key",
             fetcher = { req ->
                 seen = req
                 response("""{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0}""")

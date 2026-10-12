@@ -10,7 +10,7 @@ import { __getReplayTrace, __isReplayTraceEnabled, __resetReplayTrace } from '@e
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../../src/adapter.js';
 import { DEBUG_GLOBAL_KEY, type ReplayDebugSeam } from '../../../src/debug/seam.js';
 
-const BASE = { apiKey: 'txx_test_key', appName: 'test', appVersion: '1.0.0' } as const;
+const BASE = { sdkKey: 'txx_test_key', appName: 'test', appVersion: '1.0.0' } as const;
 
 const seam = (): ReplayDebugSeam | undefined =>
   (globalThis as Record<string, unknown>)[DEBUG_GLOBAL_KEY] as ReplayDebugSeam | undefined;

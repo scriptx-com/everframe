@@ -26,7 +26,7 @@ def run(binary, evidence):
               'ctx-admitted':'11111111-1111-4111-8111-111111111111',
               'ctx-cleared':None,'ctx-admitted-empty':None,
               'ctx-capacity':'11111111-1111-4111-8111-111111111111',
-              'ctx-capacity-last':'00000000-0000-0000-0000-0000000000fe'}
+              'ctx-capacity-last':'00000000-0000-0000-0000-0000000003ff'}
     rows=[]
     for mode,identifier in expected.items():
         directory=evidence/mode;directory.mkdir(mode=0o700)

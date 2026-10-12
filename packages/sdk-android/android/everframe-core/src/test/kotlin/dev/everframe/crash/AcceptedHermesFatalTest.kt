@@ -48,9 +48,49 @@ class AcceptedHermesFatalTest {
     @Test fun `unknown or incomplete JS stacks never suppress`() {
         val guard = AcceptedHermesFatal()
         for (frames in listOf(emptyList(), listOf("native"), listOf(frame, "native"),
-                listOf(frame.replace("index.android.bundle", "other.bundle")))) {
+                listOf(frame.replace("index.android.bundle", "other.bundle")), listOf("at apply (native)"))) {
             remember(guard, frames)
             assertFalse(guard.consume(wrapper(), 7, 2))
         }
+    }
+
+    // Smoke round 2026-10: an uncaught render error. RN's title carries the
+    // component stack, exactly as the JS layer now reports the message.
+    private val componentStack = "\n    at ExplodingRow (address at index.android.bundle:1:1243264)\n    at RCTView (<anonymous>)"
+    private val renderFrames = listOf("at ExplodingRow (address at index.android.bundle:1:1243264)",
+        "at renderWithHooks (address at index.android.bundle:1:504783)")
+    private val renderStack = ", stack:\nExplodingRow@1:1243264\nrenderWithHooks@1:504783\n"
+
+    @Test fun `render error title with its component stack matches RN's wrapper`() {
+        val guard = AcceptedHermesFatal()
+        val message = "smoke js-render: ExplodingRow\n\nThis error is located at:$componentStack"
+        guard.remember(guard.beginAttempt(), "Error", message, renderFrames, "index.android.bundle", 7, 2)
+        assertTrue(guard.consume(wrapper("Error: $message$renderStack"), 7, 2))
+    }
+
+    @Test fun `a message cut at the bridge cap matches RN's longer title by prefix only`() {
+        val guard = AcceptedHermesFatal()
+        val full = "deep tree\n\nThis error is located at:" + componentStack.repeat(80)
+        val cut = full.take(4096)
+        guard.remember(guard.beginAttempt(), "Error", cut, renderFrames, "index.android.bundle", 7, 2)
+        assertFalse(guard.consume(wrapper("Error: other${full.drop(5)}$renderStack"), 7, 2))
+        assertFalse(guard.consume(wrapper("Error: $full, stack:\nExplodingRow@1:1\n"), 7, 2))
+        assertTrue(guard.consume(wrapper("Error: $full$renderStack"), 7, 2))
+        // An uncut message must match the whole title, not just its start.
+        remember(guard)
+        assertFalse(guard.consume(wrapper("Error: test fatal and more, stack:\nthrowUnhandled@1:819834\n"), 7, 2))
+    }
+
+    @Test fun `native, internal and skipped frames are dropped as React Native drops them`() {
+        val guard = AcceptedHermesFatal()
+        remember(guard, listOf(frame, "at apply (native)", "at anonymous (address at InternalBytecode.js:1:4711)",
+            "... skipping 3 frames"))
+        assertTrue(guard.consume(wrapper(), 7, 2))
+    }
+
+    @Test fun `a message that already starts with the type is not prefixed twice`() {
+        val guard = AcceptedHermesFatal()
+        guard.remember(guard.beginAttempt(), "Error", "Error: test fatal", listOf(frame), "index.android.bundle", 7, 2)
+        assertTrue(guard.consume(wrapper(), 7, 2))
     }
 }

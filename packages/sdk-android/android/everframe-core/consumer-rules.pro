@@ -58,6 +58,10 @@
 -keep class dev.everframe.config.Environment { *; }
 -keep class dev.everframe.config.TXUser { *; }
 
+# Preserve the release-health opt-in surface through the host's R8 pass too.
+-keep class dev.everframe.config.ReleaseHealthConfig { *; }
+-keep enum dev.everframe.config.ReleaseHealthBundleStatus { *; }
+
 # Branding (spec 2026-08-26): mirrors the identical addition in
 # ../proguard-rules.pro (see that file for the full rationale). This copy
 # drives the CONSUMER app's own R8 pass — a host app that reads
@@ -346,8 +350,16 @@
 -dontwarn com.google.errorprone.annotations.CheckReturnValue
 -dontwarn com.google.errorprone.annotations.Immutable
 
+# ---------------------------------------------------------------------------
+# Native video privacy. The Gradle plugin's everframe-keep.pro carries every
+# rule of this section too (VideoPrivacyKeepRulesTest checks it).
+# ---------------------------------------------------------------------------
 # Cross-module native video privacy facade types.
 -keep public interface dev.everframe.capture.video.VideoPrivacyAdapter { *; }
 -keep public enum dev.everframe.capture.video.VideoPrivacyAdapter$Classification { *; }
 # Production fallback identifies absent RN privacy facilities by native View ancestry.
 -keepnames class com.facebook.react.** extends android.view.View
+# Native video refuses Flutter host windows by View ancestry name. Flutter minifies release
+# builds by default, and neither its rules nor its embedding keep this name.
+-keepnames class io.flutter.embedding.android.FlutterView
+-keepnames class io.flutter.view.FlutterView

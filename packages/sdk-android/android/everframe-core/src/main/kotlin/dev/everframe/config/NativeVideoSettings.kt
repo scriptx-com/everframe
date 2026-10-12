@@ -46,6 +46,9 @@ object NativeVideoSettingsSerializer : KSerializer<NativeVideoSettings> {
     }
 }
 
+/** Spec 2026-10-11 (C2): the allowed `nativeVideo.framesPerSecond` values, everywhere in this SDK. */
+internal val NATIVE_VIDEO_FRAME_RATES = setOf(1, 2, 5, 10)
+
 fun effectiveNativeVideo(
     config: ReplayConfig,
     refreshSucceeded: Boolean,
@@ -53,5 +56,5 @@ fun effectiveNativeVideo(
     sdkInt: Int = android.os.Build.VERSION.SDK_INT,
 ): NativeVideoSettings? {
     if (sdkInt < 29 || !refreshSucceeded || locallyDisabled || !config.replayEnabled) return null
-    return config.nativeVideo?.takeIf { it.framesPerSecond == 5 || it.framesPerSecond == 10 }
+    return config.nativeVideo?.takeIf { it.framesPerSecond in NATIVE_VIDEO_FRAME_RATES }
 }

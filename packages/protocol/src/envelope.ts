@@ -4,6 +4,13 @@ import { z } from 'zod';
 import { FocusedNode } from './focus.js';
 import { AttachmentRef } from './attachments.js';
 import { Breadcrumb } from './breadcrumb.js';
+import { DiagnosticEvidence } from './diagnostic.js';
+import { AppleDiagnosticEvidence } from './apple-diagnostic.js';
+import { RecoveredStallEvidence } from './recovered-stall.js';
+import {
+  InferredTerminationEvidence, INFERRED_TERMINATION_EXCEPTION_TYPES, INFERRED_TERMINATION_FINGERPRINTS,
+  INFERRED_TERMINATION_MECHANISM,
+} from './inferred-termination.js';
 import { CrashPayload } from './crash.js';
 import { NetworkBodyEntrySchema } from './network-body.js';
 import { VitalsEntry, MAX_ENVELOPE_VITALS_ENTRIES } from './vitals.js';
@@ -23,7 +30,7 @@ export const ReportEnvelope = z
     // optional — absent means 'manual' (all pre-crash-reporting envelopes).
     // 'crash' = process-terminating unhandled exception; 'error' = non-fatal
     // uncaught (web onerror/unhandledrejection, RN non-fatal).
-    source: z.enum(['manual', 'crash', 'error']).optional(),
+    source: z.enum(['manual', 'crash', 'error', 'diagnostic']).optional(),
     // Session vitals (spec 2026-09-01): the always-on collector's session,
     // stamped when vitals were running at submit time. Additive optional —
     // absent on every pre-vitals envelope and whenever vitals are disabled.
@@ -45,6 +52,7 @@ export const ReportEnvelope = z
           'everframe-ios',
           'everframe-android',
           'everframe-roku',
+          'everframe-vega',
         ]),
         version: z.string(),
         platform: SDKPlatform,
@@ -155,6 +163,12 @@ export const ReportEnvelope = z
         // Unattended-report exception details (spec 2026-07-18). Present iff
         // source is 'crash' or 'error'.
         crash: CrashPayload.optional(),
+        diagnostic: DiagnosticEvidence.optional(),
+        appleDiagnostic: AppleDiagnosticEvidence.optional(),
+        recoveredStall: RecoveredStallEvidence.optional(),
+        // Next-launch inference of an iOS/tvOS foreground SIGKILL (jetsam, watchdog or
+        // unexplained). Rides on its own stackless fatal crash; see the rule below.
+        inferredTermination: InferredTerminationEvidence.optional(),
       })
       .passthrough(),
     context: z
@@ -164,6 +178,9 @@ export const ReportEnvelope = z
             name: z.string(),
             version: z.string(),
             build: z.string().optional(),
+            /** True when the SDK detected a debug or development build (or `debugBuild` was set).
+             * The server never creates a release from a debug build. Absent means a release build. */
+            debug: z.boolean().optional(),
           })
           .passthrough(),
         device: z
@@ -190,6 +207,72 @@ export const ReportEnvelope = z
     attachments: z.array(AttachmentRef),
   })
   .passthrough()
+  .superRefine((envelope, ctx) => {
+    const evidence = envelope.payload.diagnostic;
+    const issue = (path: PropertyKey[], message: string) => ctx.addIssue({ code: 'custom', path, message });
+    const apple = envelope.payload.appleDiagnostic;
+    if (apple) {
+      if (evidence || envelope.payload.recoveredStall || envelope.payload.crash || envelope.source !== 'diagnostic') issue(['source'], 'Apple evidence requires diagnostic source and no other diagnostic or crash block');
+      if (envelope.sdk.platform !== 'ios') issue(['sdk', 'platform'], 'MetricKit evidence requires iOS');
+      if (envelope.sessionId || envelope.reporter.user || envelope.attachments.length > 0) issue(['payload', 'appleDiagnostic'], 'Apple evidence must be anonymous and attachment-free');
+      if (apple.evidenceId.toLowerCase() !== envelope.reportId.toLowerCase()) issue(['reportId'], 'Report and evidence identities must match');
+      if (Date.parse(apple.collectedAt) !== Date.parse(envelope.submittedAt)) issue(['submittedAt'], 'Submission must use the frozen collection time');
+      return;
+    }
+    const recovered = envelope.payload.recoveredStall;
+    if (recovered) {
+      if (envelope.source !== 'diagnostic') issue(['source'], 'Recovered probe requires diagnostic source');
+      if (envelope.sdk.platform !== 'android' && envelope.sdk.platform !== 'androidtv') issue(['sdk', 'platform'], 'Recovered probe requires Android');
+      if (recovered.evidenceId.toLowerCase() !== envelope.reportId.toLowerCase()) issue(['reportId'], 'Report and evidence identities must match');
+      if (Date.parse(envelope.submittedAt) !== Date.parse(recovered.recoveredAt)) issue(['submittedAt'], 'Submission must use the frozen recovery time');
+      if (envelope.sessionId || envelope.reporter.user || envelope.attachments.length > 0) issue(['payload', 'recoveredStall'], 'Recovered probes must be anonymous and attachment-free');
+      if (Object.keys(envelope.payload).some(key => key !== 'recoveredStall')) issue(['payload'], 'Recovered probes cannot include other captured content');
+      if (Object.values(envelope.captures).some(value => value === true) || envelope.context.route !== undefined) issue(['captures'], 'Recovered probes cannot claim private captures');
+      return;
+    }
+    // The Apple and recovered-stall branches above already reject a crash block or any other payload key.
+    const inferred = envelope.payload.inferredTermination;
+    const inferredCrash = envelope.payload.crash;
+    if (inferredCrash?.mechanism === INFERRED_TERMINATION_MECHANISM && !inferred) {
+      issue(['payload', 'inferredTermination'], 'Inferred termination crash requires its evidence');
+    }
+    if (inferred) {
+      if (evidence) issue(['payload', 'diagnostic'], 'Inferred termination cannot carry OS evidence');
+      if (envelope.source !== 'crash' || !inferredCrash) issue(['source'], 'Inferred termination requires a crash payload');
+      if (envelope.sdk.platform !== 'ios' && envelope.sdk.platform !== 'tvos') issue(['sdk', 'platform'], 'Inferred termination requires iOS or tvOS');
+      if (inferredCrash && (inferredCrash.mechanism !== INFERRED_TERMINATION_MECHANISM || inferredCrash.fatal !== true
+          || inferredCrash.handled || inferredCrash.frames.length > 0 || inferredCrash.native || inferredCrash.androidNative
+          || inferredCrash.exceptionType !== INFERRED_TERMINATION_EXCEPTION_TYPES[inferred.cause]
+          || inferredCrash.fingerprint !== INFERRED_TERMINATION_FINGERPRINTS[inferred.cause]
+          || Date.parse(inferredCrash.occurredAt) !== Date.parse(inferred.lastSeenAt))) {
+        issue(['payload', 'crash'], 'Inferred termination requires its own stackless fatal crash');
+      }
+      if (inferred.evidenceId.toLowerCase() !== envelope.reportId.toLowerCase()) issue(['reportId'], 'Report and evidence identities must match');
+      if (Date.parse(envelope.submittedAt) !== Date.parse(inferred.collectedAt)) issue(['submittedAt'], 'Submission must use the frozen collection time');
+      if (envelope.sessionId || envelope.reporter.user || envelope.attachments.length > 0) {
+        issue(['payload', 'inferredTermination'], 'Inferred termination must be anonymous and attachment-free');
+      }
+      return;
+    }
+    if (!evidence) {
+      if (envelope.source === 'diagnostic') issue(['payload', 'diagnostic'], 'Diagnostic source requires evidence');
+      return;
+    }
+    if (evidence.evidenceId.toLowerCase() !== envelope.reportId.toLowerCase()) issue(['reportId'], 'Report and evidence identities must match');
+    if (envelope.sdk.platform !== 'android' && envelope.sdk.platform !== 'androidtv') issue(['sdk', 'platform'], 'Android OS evidence requires an Android platform');
+    if (envelope.sessionId || envelope.reporter.user || envelope.attachments.length > 0) issue(['payload', 'diagnostic'], 'Recovered process evidence must be anonymous and attachment-free');
+    if (Date.parse(envelope.submittedAt) !== Date.parse(evidence.collectedAt)) issue(['submittedAt'], 'Submission must use the frozen evidence collection time');
+    if (envelope.source === 'crash') {
+      // A native crash and a low-memory kill while the user could see or hear the app are fatal events.
+      const crash = envelope.payload.crash;
+      const fatalCause = evidence.cause === 'native_crash' || evidence.cause === 'system_low_memory';
+      if (!fatalCause || !crash || !crash.fatal || crash.handled || crash.mechanism !== 'android-exit-info') {
+        issue(['payload', 'crash'], 'Crash overlap requires fatal OS native-crash or low-memory evidence');
+      }
+    } else if (envelope.source !== 'diagnostic' || envelope.payload.crash || evidence.cause === 'native_crash') {
+      issue(['source'], 'Non-native exit evidence requires diagnostic source without a crash payload');
+    }
+  })
   .meta({
     // Draft 2020-12 keyword names: `$id` + `$schema`.
     $id: 'ReportEnvelope',

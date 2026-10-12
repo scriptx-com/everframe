@@ -42,6 +42,27 @@ import UIKit
     deinit { task?.cancel() }
 }
 
+/// Which replay coverage a session samples against (crash-only sessions spec 2026-10-12).
+enum ReplayCoverage: Hashable, Sendable {
+    /// A session that can file a report: `samplingRate`.
+    case report
+    /// A crash-only session before any companion bond: `crashOnlySamplingRate`, 0 when absent.
+    case crashOnly
+    /// A crash-only session after a companion bond: the higher of the two rates. It also
+    /// inherits an admission the crash-only coverage already made, so an upgrade never stops
+    /// a recording.
+    case upgraded
+
+    /// The rate this coverage samples against.
+    func samplingRate(report: Double, crashOnly: Double?) -> Double {
+        switch self {
+        case .report: return report
+        case .crashOnly: return crashOnly ?? 0
+        case .upgraded: return max(report, crashOnly ?? 0)
+        }
+    }
+}
+
 /// Policy and reporter ownership around the capture/recording workers. Freeze
 /// is synchronous; finalization never blocks mounting or dismissing reporter UI.
 @MainActor final class NativeVideoSession {
@@ -52,21 +73,42 @@ import UIKit
     private let now: @MainActor () -> UInt64
     private let epochMs: @MainActor () -> Double
     private let random: @MainActor () -> Double
+    /// Error exports have their own deadline; report finalization stays at 5 s.
+    static let errorSnapshotDeadlineNanos: UInt64 = 3_000_000_000
+    private let snapshotDeadline: @Sendable () async throws -> Void
+    /// Told when recording starts or stops, so a synchronous error capture can
+    /// decide on a replay without MainActor.
+    private let onRecordingChange: @MainActor (Bool) -> Void
     private var settings: NativeVideoSettings?
     private var durationSec = 30
-    private var sampledIn: Bool?
+    /// The session's one random draw, taken the first time settings apply. Every
+    /// coverage compares this same value. An upgraded session samples at the higher
+    /// of the two rates and inherits the crash-only admission, so an upgrade never
+    /// stops a recording.
+    private var draw: Double?
+    /// One decision per coverage, made the first time that coverage applies
+    /// settings and kept for the session: a later rate change never flips it.
+    private var sampledIn: [ReplayCoverage: Bool] = [:]
+    private var coverage = ReplayCoverage.report
     private var suspended = false
     private var reporterOpen = false
     private var generation = 0
+    /// Only ending replay consent revokes an error's independently owned copy.
+    private var consentGeneration = 0
     private var recorder: (any NativeVideoRecording)?
     private var captureTask: Task<Void, Never>?
     private var finalization: NativeVideoFinalization?
     private var anchorNanos: UInt64 = 0
     private var anchorEpochMs: Double = 0
-    private(set) var state: ReplayState = .idle
+    private(set) var state: ReplayState = .idle {
+        didSet {
+            let recording = state == .buffering
+            if recording != (oldValue == .buffering) { onRecordingChange(recording) }
+        }
+    }
     private(set) var omissionReason: String?
 
-    convenience init() {
+    convenience init(onRecordingChange: @escaping @MainActor (Bool) -> Void = { _ in }) {
         let capture = NativeVideoCapture()
         self.init(scheduler: NativeVideoTimer(), capture: { time in
             guard !Everframe.shared.report.isPresenting else { return nil }
@@ -75,7 +117,7 @@ import UIKit
         }, clearCapture: { capture.clear() }, makeRecorder: { fps, duration in
             let directory = try NativeVideoStorage.shared.makeDirectory()
             return try NativeVideoRecorder(directory: directory, framesPerSecond: fps, durationNanos: duration)
-        })
+        }, onRecordingChange: onRecordingChange)
     }
 
     init(scheduler: any NativeVideoScheduling,
@@ -84,19 +126,36 @@ import UIKit
          makeRecorder: @escaping @MainActor (Int, UInt64) throws -> any NativeVideoRecording,
          now: @escaping @MainActor () -> UInt64 = { DispatchTime.now().uptimeNanoseconds },
          epochMs: @escaping @MainActor () -> Double = { Date().timeIntervalSince1970 * 1000 },
-         random: @escaping @MainActor () -> Double = { Double.random(in: 0..<1) }) {
+         random: @escaping @MainActor () -> Double = { Double.random(in: 0..<1) },
+         snapshotDeadline: @escaping @Sendable () async throws -> Void = { try await Task.sleep(nanoseconds: NativeVideoSession.errorSnapshotDeadlineNanos) },
+         onRecordingChange: @escaping @MainActor (Bool) -> Void = { _ in }) {
         self.scheduler = scheduler; self.capture = capture; self.clearCapture = clearCapture
         self.makeRecorder = makeRecorder; self.now = now; self.epochMs = epochMs; self.random = random
+        self.snapshotDeadline = snapshotDeadline
+        self.onRecordingChange = onRecordingChange
     }
 
-    func apply(settings: NativeVideoSettings?, durationSec: Int = 30, samplingRate: Double = 1) {
+    /// `samplingRate` is the rate for `coverage`; it only matters the first time
+    /// that coverage applies settings.
+    func apply(settings: NativeVideoSettings?, durationSec: Int = 30, samplingRate: Double = 1,
+               coverage: ReplayCoverage = .report) {
+        if settings == nil { consentGeneration += 1 }
         let duration = min(NativeVideoLimits.maxDurationSec, max(1, durationSec))
-        if settings != nil, sampledIn == nil {
-            sampledIn = samplingRate.isFinite && random() < max(0, min(1, samplingRate))
+        self.coverage = coverage
+        if settings != nil, sampledIn[coverage] == nil {
+            let draw = self.draw ?? random()
+            self.draw = draw
+            sampledIn[coverage] = (coverage == .upgraded && sampledIn[.crashOnly] == true)
+                || (samplingRate.isFinite && draw < max(0, min(1, samplingRate)))
         }
         if self.settings != settings || self.durationSec != duration {
             invalidate()
             self.settings = settings; self.durationSec = duration
+        } else if sampledIn[coverage] != true, recorder != nil {
+            // The new coverage does not admit this draw. An upgrade never lands
+            // here (it inherits the crash-only admission); kept so no coverage
+            // can record past its own decision.
+            invalidate()
         }
         startIfEligible()
     }
@@ -141,6 +200,22 @@ import UIKit
         })
     }
 
+    /// One error's own copy of the current window. Capture keeps running and
+    /// the reporter's freeze, finalization and claims are untouched; nothing
+    /// here changes `generation`, `recorder` or `reporterOpen`. The claim is
+    /// revoked only when replay consent ends. nil while nothing records.
+    func snapshotClaim(endNanos: UInt64? = nil) async -> NativeVideoClaim? {
+        guard settings != nil, state == .buffering, !reporterOpen, !suspended, let recorder else { return nil }
+        let anchor = anchorNanos, epoch = anchorEpochMs, end = endNanos ?? now(), consent = consentGeneration
+        guard end >= anchor else { return nil }
+        let job = NativeVideoFinalization(operation: {
+            try await recorder.snapshot(anchorNanos: anchor, anchorEpochMs: epoch, endNanos: end)
+        }, cancelOperation: {}, deadline: snapshotDeadline)
+        let artifact = await job.take()
+        return NativeVideoClaim(artifact: artifact, omissionReason: artifact == nil ? job.omissionReason : nil,
+            validate: { [weak self] in self?.consentGeneration == consent })
+    }
+
     func reporterDidClose() {
         guard reporterOpen else { return }
         reporterOpen = false
@@ -157,10 +232,10 @@ import UIKit
         if suspended { invalidate() } else { startIfEligible() }
     }
 
-    func stop() { settings = nil; invalidate() }
+    func stop() { settings = nil; consentGeneration += 1; invalidate() }
 
     private func startIfEligible() {
-        guard let settings, sampledIn == true, !suspended, !reporterOpen, recorder == nil else { return }
+        guard let settings, sampledIn[coverage] == true, !suspended, !reporterOpen, recorder == nil else { return }
         do {
             anchorNanos = now(); anchorEpochMs = epochMs()
             recorder = try makeRecorder(settings.framesPerSecond, UInt64(durationSec) * 1_000_000_000)

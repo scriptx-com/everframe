@@ -78,7 +78,7 @@ const nativeMock = (
 let currentRt: ReturnType<typeof createRuntime> | undefined;
 
 function mountProvider(): ReturnType<typeof createRuntime> {
-  const rt = createRuntime({ apiKey: 'txx_test_key' });
+  const rt = createRuntime({ sdkKey: 'txx_test_key' });
   rt.mount();
   currentRt = rt;
   return rt;

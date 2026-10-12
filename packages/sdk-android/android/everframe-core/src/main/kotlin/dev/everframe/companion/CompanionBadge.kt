@@ -32,8 +32,8 @@
 // `WindowManager.LayoutParams(TYPE_APPLICATION_PANEL, ...)` — a SUB-WINDOW
 // bound to the host Activity's own window token via `params.token`, NOT the
 // decor view, and NOT `TYPE_APPLICATION_OVERLAY` (which needs
-// `SYSTEM_ALERT_WINDOW` — `.github/workflows/android.yml`'s zero-permission
-// AAR gate fails the build on any manifest permission). `FLAG_NOT_FOCUSABLE
+// `SYSTEM_ALERT_WINDOW`, a permission the SDK must never declare: core's
+// manifest declares INTERNET and nothing else). `FLAG_NOT_FOCUSABLE
 // or FLAG_NOT_TOUCHABLE` keeps it inert: never key, never interactive, never
 // dismissible by the user.
 //

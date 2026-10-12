@@ -3,7 +3,7 @@
 import { access, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import xcode from 'xcode';
-import { assertGroovy, checkedAppId, patchAppBuildGradle, patchXcodeProject } from './native-setup/index.js';
+import { assertGroovy, checkedAppId, patchAppBuildGradle, patchRootBuildGradle, patchXcodeProject } from './native-setup/index.js';
 
 const METRO_HINT = [
   "const { withEverframe } = require('@everframe/metro');",
@@ -33,6 +33,15 @@ export async function setupReactNative(options: {
     const before = await readFile(gradlePath, 'utf8');
     writes.push({ relative: gradleRelative, before, after: patchAppBuildGradle(before, options.appId) });
   } else if (await exists(`${gradlePath}.kts`)) {
+    assertGroovy('kotlin');
+  }
+
+  const rootRelative = 'android/build.gradle';
+  const rootPath = join(options.projectRoot, rootRelative);
+  if (await exists(rootPath)) {
+    const rootBefore = await readFile(rootPath, 'utf8');
+    writes.push({ relative: rootRelative, before: rootBefore, after: patchRootBuildGradle(rootBefore) });
+  } else if (await exists(`${rootPath}.kts`)) {
     assertGroovy('kotlin');
   }
 

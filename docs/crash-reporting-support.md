@@ -1,0 +1,73 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+# Crash-reporting support and qualification
+
+This is the source-tree qualification boundary as of October 10, 2026. It is not
+an SDK release announcement. An implementation, a compiled target, an installed
+emulator test and a physical-device test are different kinds of evidence. A
+platform listed below has only the evidence stated in its row.
+
+## Capture and diagnostics
+
+| Path | Implemented and exercised | Boundary |
+| --- | --- | --- |
+| Web / React errors and cause chains | Browser capture, durable delivery and exact uploaded-map processing; nested causes remain separate from the outer issue. An error no boundary inside `EverframeProvider` catches is one fatal report with React's component stack: React 18.3.1 and 19.2.5 roots, production and development builds, in Playwright Chromium (`packages/sdk-react/tests/render-error-browser.mjs`) | Framework/runtime combinations require their own qualification; this is not a blanket browser support guarantee |
+| React Native causes and React error boundary | Optimized apps for one pinned RN/Expo/Hermes host, installed on an Android API 35 arm64 emulator and an iOS 26.5 arm64 simulator, including encrypted retry/relaunch | Native transport in these rows uses Debug/local SDKs; other RN versions, physical-device and production-transport qualification remain open |
+| RN automatic promise rejection | `react-native-tvos@0.85.3-0`, Hermes `250829098.0.10`, bytecode 98; Android API 35 arm64 emulator and iOS 26.5 arm64 simulator | Other versions, JSC, browser execution, tvOS and incompatible Promise hooks are unsupported by this observer; the broad RN peer range is not its support range |
+| Android JVM exceptions | Handled/uncaught Throwable capture, bounded causes, exact R8 mapping | Suppressed-exception graphs are not linear causes; C/C++ signals require a separate collector |
+| Android historical native exits | On by default with `capture.crash` in the default process: tombstone frames on API 31+, exit metadata only on API 30. Installed: SIGABRT/SIGSEGV on an API 35 arm64 emulator; SIGSEGV on API 35, API 31 Android TV and API 30 arm64 emulators from the default start alone | Requires OS evidence and exact previous-process ownership; missing tombstones stay missing/raw |
+| Android historical ANR/exit categories | On by default with `capture.crash` in the default process: bounded ANR trace projection, API 30+. Only native crash, ANR and user-facing low-memory exits are reported (a low-memory kill while the app was foreground, foreground service or visible becomes one fatal "Low memory kill" crash, one issue per app; not perceptible, which expedited jobs and backup agents also report; a kill that ends a process whose JVM crash was already reported, such as a Java OOM, is not a second issue); background reclaims, user stops, JVM crash exits and other reasons are not sent. Installed: OS-terminated ANRs recovered with main-thread frames on API 35, API 31 Android TV and API 30 arm64 emulators | API 30 native exits carry metadata only; native tombstones need API 31. Capture begins once the asynchronous arm after `start()` completes; a crash or ANR before that is not reported. Installed low-memory kill: a real lmkd kill of a foreground app on the API 35 arm64 emulator; on the API 31 Android TV emulator the kernel OOM killer ends the app first and the OS records `SIGNALED`, which is not reported. Low-memory kills are not detected below API 30 or where `isLowMemoryKillReportSupported()` is false. The SDK owns the process-state summary; exits another writer overwrote are not reported and are logged as `process-state-summary-conflict`. A writer that always runs before the SDK is overwritten silently |
+| Android recovered main-thread delay | Opt-in foreground eligibility and bounded 5–60 second recovered observations, supported on API 26+. Installed: one API 35 arm64 emulator | Not an OS-confirmed ANR or fatal crash. The API 26 floor is unit-tested only; API 24/25 unsupported. Broad device false-positive and battery qualification remain open |
+| Android default crash capture | Fresh core-only Release app calling only `Everframe.start`: JVM crash, native SIGSEGV and OS-declared ANR delivered over HTTPS (plus a Java `OutOfMemoryError` and a real foreground low-memory kill on API 35), installed on an API 35 arm64 phone emulator and an API 31 arm64 Android TV emulator (native frames from tombstones, symbolicated to the authored line), and on an API 30 arm64 phone emulator (native exit metadata only) | 32-bit ARM, physical devices and the API 26–30 signal collector in this default path are unqualified; JVM frames were not retraced in this run |
+| Android signal collector Release lifecycle | Optional `dev.everframe:native-crash` module, armed by `start()` when present; it arms only on API 26–30 in the default app process (API 31+ uses the OS exit recovery above). Release fault → relaunch → retry → exact ELF mapping, installed on API 26 and API 30 arm64 emulators | API 24/25 unsupported; one-frame snapshot is not full unwinding. Other ABIs are compile-only; arbitrary-thread alternate stacks are unqualified. Another app-bundled crash collector makes activation fail closed; a collector installed before WebView's crash handler is not detected or refused |
+| Apple native crash capture | Normal SDK startup, supported Swift/Objective-C/memory/`abort()` faults and relaunch recovery in an installed iOS Release simulator | Capture begins after durable context setup. Verified identity and continuously refreshed logs/breadcrumbs/replay are excluded. Physical lock/protection, stack overflow and broader OS/compiler checks remain open |
+| tvOS native crash capture | Normal SDK startup in an installed Release app on arm64 tvOS 26.5 and 27.0 simulators. Swift trap (SIGTRAP), Objective-C exception, invalid memory (SIGBUS) and `abort()` are each captured, recovered on relaunch, delivered through a 503 and retry with receiver dedup and no reimport, and mapped to the authored file and line from the uploaded dSYM | Simulator smoke proof only: physical Apple TV, device file protection and other OS/compiler versions remain open. The recorder has no tvOS Mach detector or alternate signal stack, so faults are caught only by signal and exception handlers, and stack overflow is unsupported |
+| Apple foreground termination inference | iOS and tvOS apps with `capture.crash`: a foreground `SIGKILL` (memory limit, watchdog or unexplained) that left no crash report is reported on the next launch as one anonymous, stackless fatal labelled inferred, with the last sampled memory footprint. Installed Release host on iOS 26.5 and 27.2 and tvOS 26.5 and 27.0 arm64 simulators (simulator, host `SIGKILL`): about 1 GiB grown and a real memory warning posted by the host, then a host `SIGKILL`, gave one `Low memory kill` on relaunch and nothing on a second relaunch; an idle foreground kill gave one `Abnormal foreground termination`; a backgrounded kill, `exit(0)`, a launch without the simulator opt-in, `capture.crash` off and a real native crash gave no inferred event | Inferred by the SDK, not OS evidence. The simulator never enforces jetsam, so the system's own kill and its thresholds are unqualified; physical iPhone and Apple TV qualification remains open. Background kills, kills before capture is armed, `_exit()`, app extensions and Mac runtimes are not reported. tvOS stack overflows leave no crash report and appear as unexplained terminations |
+| Apple MetricKit | Opt-in iOS collector, synthetic receipt/retry/erasure checks and target compilation | Physical OS-produced hang/watchdog/memory-exit receipt delivery is unqualified. tvOS/macOS collectors are unavailable. Aggregate periods cannot be assigned to exact sessions |
+
+The Apple collector admits only reporting intervals wholly inside the current
+process's uninterrupted opt-in window and matching native version/build. Delayed
+cross-launch intervals are rejected. Useful nonzero aggregate exit coverage is
+therefore unproven; enabling the collector does not promise all OS diagnostics.
+Apple also distinguishes daily metric reports from immediate diagnostic reports
+on iOS 15+: see [MetricKit](https://developer.apple.com/documentation/metrickit).
+OS delivery behavior does not establish that a report passes SDK ownership checks.
+
+## Build and artifact identity
+
+| Path | Evidence | Boundary |
+| --- | --- | --- |
+| Native versus loaded JavaScript build | Separate immutable identities retained through capture and retries | Native app version alone never identifies a loaded OTA bundle |
+| Expo Updates Android | Optimized emulator embedded A → update B → cached B after service 503 → rollback A; queued B delivered under A with frozen identity | Cold-start captures; in-place runtime reload, whole-device offline, iOS and provider-hosted/signed production OTA are unqualified. Other OTA providers are unsupported integrations |
+| Apple dSYM automation | Explicit selected binaries, UUID/CPU checks and a private immutable upload/completeness gate. The Xcode phase (`everframe setup xcode`, the XcodeGen script and the Expo/React Native phase) found and uploaded the app dSYM in Release builds for tvOS and iOS simulators, an Expo iOS simulator build with its Hermes source map and the dSYMs of pod frameworks CocoaPods embeds after the phase (found through the app's run-path links), and a generic tvOS device archive; Debug builds skipped. A Swift crash in an installed Release app on a tvOS 27.0 simulator mapped to its source line from the automatically uploaded dSYM. Script sandboxing and a vendor framework with an armv7 slice produced warnings and the app dSYM still uploaded. The `Everframe` pod's xcframeworks carry a dSYM in every slice: in an Expo/React Native iOS simulator Release build, the phase uploaded the EverframeKit, EverframeProtocol and EverframeReporterUI dSYMs (UUIDs matching the embedded frameworks) with the app's, which covers the statically linked React Native bridge, to a loopback upload endpoint | Simulator builds and one unsigned device archive; no physical device. Prebuilt pod frameworks without dSYMs (React, ReactNativeDependencies, hermesvm) stay raw. dSYMs above the protocol's `DSYM_MAX_BYTES` are rejected. Accepted size alone does not guarantee processing within runtime budgets |
+| Android R8 and ELF automation | Exact build-ID/ABI selection, immutable upload/completeness and optimized artifacts. The `dev.everframe` Gradle plugin uploaded the R8 mapping under the content-derived ID it packages in the APK, and the unstripped native libraries, after `assemble` and `bundle` of phone and TV flavors. On an Android TV API 34 arm64 emulator, a minified `tvRelease` app's JVM crash retraced and its native SIGSEGV mapped to the source line with no manual upload. The Compose sample's 67.4 MiB mapping uploaded through the plugin and a handled exception from it on an API 35 arm64 emulator retraced | One emulator ABI and OS; four compiled ABIs are not four installed ABI results. R8 mappings above 512 MiB are rejected. Prebuilt libraries without symbols and unsupported/missing/wrong artifacts stay raw |
+
+## Release health
+
+[Release health](release-health.md) counts crash-free foreground sessions for
+each app version on Android, iOS and React Native, and
+[release health alerts](release-health-alerts.md) send a webhook when a version
+drops below a target. Sessions that end without a known outcome are left out of
+the rate and shown as a share. The rates cover release builds of apps that
+haven't turned release health off, and only sessions the service still keeps;
+they are not population crash-free rates, statistical regressions or proof that
+a release recovered.
+
+## Session replay
+
+Handled errors and the errors an app survives can carry a replay of the seconds
+before them. See [session replay](session-replay.md).
+
+## Promotion criteria
+
+A production support claim needs the exact installed SDK/build/OS/ABI/runtime
+combination to pass capture, offline/relaunch/retry, correct artifact mapping,
+privacy/erasure and collector-coexistence checks. Physical-device overhead needs
+baseline measurements and agreed startup/CPU/memory/disk/battery budgets.
+Production runtime, load and rollout/rollback checks are additional gates.
+Unsupported combinations remain excluded; unqualified combinations remain
+unverified until their own evidence exists.
+
+See the platform-specific configuration and limits in the
+[Android](../packages/sdk-android/README.md), [Apple](../packages/sdk-ios/README.md)
+and [React Native](../packages/sdk-react-native/README.md) guides.

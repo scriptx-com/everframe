@@ -33,7 +33,7 @@ final class VitalsConfigNegotiationTests: XCTestCase {
         XCTAssertNil(c.vitalsEnabled); XCTAssertNil(c.vitalsSampleRate)
     }
     func testTheFeaturesHeaderDeclaresVitals() {
-        XCTAssertEqual(ReplayConfigProvider.sdkFeaturesHeaderValue, "networkbodies, identity, companionbadge, branding, nativevideo, vitals, resources, shaketoreport")
+        XCTAssertEqual(ReplayConfigProvider.sdkFeaturesHeaderValue, "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly")
     }
     /// Codex round-1, #7 — a subscriber that has read the current value and a publisher that
     /// writes a newer one must reach the serial queue in THAT order. Submitting after the
@@ -72,7 +72,7 @@ final class VitalsConfigNegotiationTests: XCTestCase {
     }
 
     func testValidatorRejectsASampleRateOutsideZeroOne() {
-        var cfg = EverframeConfig(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU")
+        var cfg = EverframeConfig(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU")
         cfg.vitals.sampleRate = 1.5
         XCTAssertThrowsError(try ConfigValidator.validate(cfg)) { XCTAssertEqual($0 as? EverframeConfigError, .invalidVitalsSampleRate) }
         cfg.vitals.sampleRate = .nan

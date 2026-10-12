@@ -36,7 +36,7 @@ class RnErrorDetailsBridgeTest {
         Everframe.kill()
         CrashReporter.__resetForTesting()
         storage = BridgeCrashStorage()
-        val options = JavaOnlyMap().apply { putString("apiKey", "synthetic-rn-details") }
+        val options = JavaOnlyMap().apply { putString("sdkKey", "synthetic-rn-details") }
         module.configure(options)
         val ready = Everframe::class.java.getDeclaredField("_replaySession").apply { isAccessible = true }
         val deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5)

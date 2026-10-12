@@ -10,21 +10,21 @@ import { __extractBridgeConfigForTesting as extract } from '../src/runtime.js';
 
 describe('installIdentifier config flattening', () => {
   it('flattens disabled:true to the flat bridge flag', () => {
-    expect(extract({ apiKey: 'k', installIdentifier: { disabled: true } })
+    expect(extract({ sdkKey: 'k', installIdentifier: { disabled: true } })
       .installIdentifierDisabled).toBe(true);
   });
 
   it('flattens disabled:false to false', () => {
-    expect(extract({ apiKey: 'k', installIdentifier: { disabled: false } })
+    expect(extract({ sdkKey: 'k', installIdentifier: { disabled: false } })
       .installIdentifierDisabled).toBe(false);
   });
 
   it('omits the flag entirely when installIdentifier is absent', () => {
-    expect('installIdentifierDisabled' in extract({ apiKey: 'k' })).toBe(false);
+    expect('installIdentifierDisabled' in extract({ sdkKey: 'k' })).toBe(false);
   });
 
   it('omits the flag when installIdentifier is present but disabled is not set', () => {
-    expect('installIdentifierDisabled' in extract({ apiKey: 'k', installIdentifier: {} }))
+    expect('installIdentifierDisabled' in extract({ sdkKey: 'k', installIdentifier: {} }))
       .toBe(false);
   });
 });

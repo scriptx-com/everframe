@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+import Foundation
+import EverframeProtocol
+
+enum ReleaseHealthProcessIdentity { static let id = UUID() }
+struct ReleaseHealthEntry: Codable, Equatable, Sendable {
+    let recordID: UUID
+    let createdAt: Date
+    let sdkKey: String
+    let endpoint: String
+    let body: Data
+}
+enum ReleaseHealthDate {
+    // Foundation's ISO decoder can land one floating-point step below an exact
+    // millisecond. Nearest-millisecond normalization preserves its wire value.
+    static func canonical(_ date: Date) -> Date { Date(timeIntervalSince1970: (date.timeIntervalSince1970 * 1000).rounded() / 1000) }
+    static func text(_ date: Date) -> String {
+        let format = ISO8601DateFormatter(); format.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return format.string(from: canonical(date))
+    }
+    static func encoder() -> JSONEncoder {
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        encoder.dateEncodingStrategy = .custom { value, encoder in
+            var container = encoder.singleValueContainer(); try container.encode(text(value))
+        }
+        return encoder
+    }
+    // `.iso8601` accepts fractional seconds only from Swift 6.2 Foundation (iOS 26);
+    // iOS 15-18 reject every millisecond timestamp this encoder writes.
+    static func decoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer(), value = try container.decode(String.self)
+            let format = ISO8601DateFormatter(); format.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            guard let date = format.date(from: value) else {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Expected an ISO 8601 timestamp with fractional seconds.")
+            }
+            return canonical(date)
+        }
+        return decoder
+    }
+}
+enum ReleaseHealthEndReason: String { case background; case sdkStop = "sdk_stop" }
+struct ReleaseHealthSegment {
+    let pointer: EverframeNativeExposure
+    let configuration: ReleaseHealthConfiguration
+    let app: AppRelease
+    let sdkVersion: String
+    let sdkKey: String
+    let endpoint: String
+    let startedUptime: TimeInterval
+    init(configuration: ReleaseHealthConfiguration, app: AppRelease, sdkVersion: String, sdkKey: String, endpoint: String,
+         processLaunchID: UUID, now: Date, uptime: TimeInterval) {
+        self.configuration = configuration; self.app = app; self.sdkVersion = sdkVersion; self.sdkKey = sdkKey; self.endpoint = endpoint
+        startedUptime = uptime
+        pointer = EverframeNativeExposure(app: EverframeNativeExposureApp(build: app.build, debug: app.debug, version: app.version),
+            exposureID: UUID().uuidString.lowercased(), loadedBuildID: configuration.loadedBuildId,
+            loadedBundleStatus: EverframeLoadedBundleStatus(rawValue: configuration.loadedBundleStatus.rawValue)!,
+            processLaunchID: processLaunchID.uuidString.lowercased(), startedAt: ReleaseHealthDate.canonical(now))
+    }
+    func entry(end: Bool, now: Date, uptime: TimeInterval, endReason: ReleaseHealthEndReason = .sdkStop) throws -> ReleaseHealthEntry {
+        let id = UUID(), captured = end ? max(ReleaseHealthDate.canonical(now), pointer.startedAt) : pointer.startedAt
+        // The record's app is the pointer's app, with "build": null written explicitly.
+        let release: [String: Any] = ["version": app.version, "build": app.build as Any? ?? NSNull(), "debug": app.debug]
+        let exposure: [String: Any] = ["exposureId": pointer.exposureID, "processLaunchId": pointer.processLaunchID,
+            "startedAt": ReleaseHealthDate.text(pointer.startedAt), "platform": "ios", "sdkVersion": sdkVersion,
+            "app": release, "loadedBuildId": configuration.loadedBuildId as Any? ?? NSNull(),
+            "loadedBundleStatus": configuration.loadedBundleStatus.rawValue, "sessionPolicy": "foreground-v1",
+            "subject": configuration.userId.map { ["kind": "provided", "id": $0] } ?? ["kind": "anonymous"],
+            "coverage": ["policy": "ios-sdk-segment-v1", "sampleRate": 1, "priorQueueLosses": NSNull(), "queueLossAccounting": "unavailable"]]
+        var record: [String: Any] = ["schemaVersion": 5, "recordId": id.uuidString.lowercased(), "exposure": exposure,
+            "capturedAt": ReleaseHealthDate.text(captured), "phase": end ? "end" : "start", "sequence": end ? 1 : 0,
+            "elapsedMs": end ? Int(min(max(0, (uptime - startedUptime) * 1000), 31 * 86400 * 1000)) : 0]
+        if end { record["endReason"] = endReason.rawValue; record["outcome"] = "completed" }
+        return ReleaseHealthEntry(recordID: id, createdAt: captured, sdkKey: sdkKey, endpoint: endpoint,
+            body: try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]))
+    }
+}

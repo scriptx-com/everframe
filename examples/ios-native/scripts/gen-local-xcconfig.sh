@@ -5,7 +5,7 @@
 # Materialize examples/ios-native/Config/Local.xcconfig from the repo-root .env.
 # Idempotent. Reads EVERFRAME_KEY_IOS (this probe's own dashboard app key) and
 # hard-fails if it's missing or malformed, rather than baking an empty key that
-# would throw .missingAppId at SampleApp launch.
+# would throw .missingSdkKey at SampleApp launch.
 #
 # The ingest URL is no longer projected here — the SDK bakes it at compile
 # time via #if DEBUG / Release. To override locally for the SDK build itself,
@@ -27,7 +27,7 @@ set -euo pipefail
 #
 # The older, permissive version of this script had the identical bug and hid
 # it: it warned, continued, and emitted an EMPTY INGEST_SDK_KEY, so the sample
-# app built fine and then threw `.missingAppId` at launch. "Build succeeds,
+# app built fine and then threw `.missingSdkKey` at launch. "Build succeeds,
 # app dies on start" was the bug; the hard-fail exposed it rather than causing
 # it.
 #

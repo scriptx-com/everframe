@@ -27,7 +27,7 @@ const jsonResponse = (body: unknown, status = 200): Response =>
   });
 
 function providerWith(fetchImpl: typeof fetch) {
-  return createConfigProvider({ fetchImpl, configUrl: 'https://x.test/api/config', apiKey: 'k' });
+  return createConfigProvider({ fetchImpl, configUrl: 'https://x.test/api/config', sdkKey: 'k' });
 }
 
 const last = (): Record<string, unknown> | undefined =>

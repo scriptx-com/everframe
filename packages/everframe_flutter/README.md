@@ -15,11 +15,13 @@ flutter pub add everframe_flutter
 
 The plugin requires Flutter 3.47+ and Dart 3.13+, with Android API 24+ or
 iOS 15+ on the respective host platform.
-Its Android bridge resolves the native Everframe 0.10.x modules; the iOS bridge
-requires native Everframe 1.0.0 or newer. Android hosts must use
-`FlutterFragmentActivity` for the Compose reporter and declare the `INTERNET`
-permission for release builds. The native SDK owns the ingest endpoint;
-published binaries use the production endpoint.
+Both native bridges use native Everframe 1.2: the Android bridge resolves the
+`dev.everframe` 1.2.x modules, and the iOS bridge requires `Everframe` 1.2.x, the
+first release with `EverframeConfig(sdkKey:)` and `EverframeConfig(releaseHealth:)`.
+Android hosts must use `FlutterFragmentActivity` for the Compose reporter and
+declare the `INTERNET` permission for release builds. The native SDK owns the
+ingest endpoint; published binaries use the production endpoint. Release health
+isn't supported by this plugin yet, so both bridges turn it off.
 
 ## Send a report
 
@@ -75,6 +77,12 @@ wrapper. The plugin does not automatically intercept Dart errors or HTTP
 requests, and native platform views outside the Flutter capture boundary are
 not included. The same integration key works on Android and iOS; reports still
 identify their host platform.
+
+The bridge starts the native SDK with crash capture on. On Android that covers JVM
+exceptions, native crashes and ANRs (Android 11+), and the native SDK then owns
+`ActivityManager.setProcessStateSummary` in the app's main process; do not call it
+from your app. Pass `crash: false` to `start` to turn crash capture off on Android
+and iOS; that also turns off `captureException`. See the [Android SDK guide](../sdk-android/README.md#crash-capture-on-by-default).
 
 The Android and iOS simulator samples submitted masked screenshots and replay
 to a local dashboard. Physical-device behavior, production delivery, and

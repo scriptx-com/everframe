@@ -531,6 +531,12 @@ data class ReplayConfig(
     val vitalsEnabled: Boolean? = null,
     val vitalsSampleRate: Double? = null,
     val nativeVideo: NativeVideoSettings? = null,
+    /**
+     * Replay coverage for crash-only sessions (spec 2026-10-12), negotiated via the `crashonly` feature token.
+     * Null when the server did not send it (an older server) or sent a value outside 0..1; a crash-only
+     * session then records nothing.
+     */
+    val crashOnlySamplingRate: Double? = null,
 ) {
     companion object {
         /**
@@ -568,6 +574,7 @@ private data class ReplayConfigWire(
     @Serializable(with = LenientBooleanSerializer::class) val vitalsEnabled: Boolean? = null,
     @Serializable(with = LenientDoubleSerializer::class) val vitalsSampleRate: Double? = null,
     val nativeVideo: NativeVideoSettings? = null,
+    @Serializable(with = LenientDoubleSerializer::class) val crashOnlySamplingRate: Double? = null,
 )
 
 /**
@@ -587,7 +594,7 @@ fun interface ConfigFetcher {
  */
 class ReplayConfigProvider(
     private val configUrl: String,
-    private val apiKey: String,
+    private val sdkKey: String,
     private val fetcher: ConfigFetcher,
     private val ttlMs: Long = 300_000L,
     private val now: () -> Long = { android.os.SystemClock.elapsedRealtime() },
@@ -724,7 +731,7 @@ class ReplayConfigProvider(
             val req = Request.Builder()
                 .url(requestUrl())
                 .get()
-                .header("Authorization", "Bearer $apiKey")
+                .header("Authorization", "Bearer $sdkKey")
                 .header("Accept", "application/json")
                 .header("X-Everframe-SDK-Features", SDK_FEATURES_HEADER_VALUE)
                 .build()
@@ -739,7 +746,7 @@ class ReplayConfigProvider(
                 // After decode, an out-of-range samplingRate is REJECTED (fail
                 // closed, NO clamp) — a hostile rate must never reach the gate.
                 if (wire.samplingRate !in 0.0..1.0) return@use false
-                if (wire.nativeVideo?.framesPerSecond?.let { it != 5 && it != 10 } == true) {
+                if (wire.nativeVideo?.framesPerSecond?.let { it !in NATIVE_VIDEO_FRAME_RATES } == true) {
                     return@use false
                 }
                 val decoded = ReplayConfig(
@@ -763,6 +770,9 @@ class ReplayConfigProvider(
                     vitalsEnabled = wire.vitalsEnabled,
                     vitalsSampleRate = wire.vitalsSampleRate,
                     nativeVideo = wire.nativeVideo,
+                    // Unlike samplingRate, a bad crash-only rate degrades this field alone: it only ever
+                    // lowers coverage, and null already means "record no crash-only session".
+                    crashOnlySamplingRate = wire.crashOnlySamplingRate?.takeIf { it in 0.0..1.0 },
                 )
                 __beforeCommitHookForTesting()
                 // F43: commit succeeds ONLY if [state] still shows `mySeq`
@@ -823,11 +833,14 @@ class ReplayConfigProvider(
          * config block ONLY for capabilities the caller declares
          * (the server configuration contract) — so adding a block here is a
          * prerequisite for receiving it, not a formality. Mirrors iOS's
-         * `ReplayConfigProvider.sdkFeaturesHeaderValue`.
+         * `ReplayConfigProvider.sdkFeaturesHeaderValue`. `nativevideolowfps`
+         * (spec 2026-10-11, C1) lets the server send 1 or 2 fps; callers
+         * without it get 5. `crashonly` (spec 2026-10-12) asks for `crashOnlySamplingRate`, which this
+         * strict decoder would otherwise reject as an unknown key.
          */
         val SDK_FEATURES_HEADER_VALUE: String
-            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport" +
-                if (android.os.Build.VERSION.SDK_INT >= 29) ", nativevideo" else ""
+            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly" +
+                if (android.os.Build.VERSION.SDK_INT >= 29) ", nativevideo, nativevideolowfps" else ""
 
         /**
          * Build the provider from the base ingest endpoint by appending
@@ -836,7 +849,7 @@ class ReplayConfigProvider(
          */
         fun make(
             baseUrl: String = IngestEndpoint.url,
-            apiKey: String,
+            sdkKey: String,
             fetcher: ConfigFetcher,
             installIdProvider: () -> String? = { null },
         ): ReplayConfigProvider {
@@ -844,7 +857,7 @@ class ReplayConfigProvider(
             val configUrl = if (trimmed.endsWith("/api/config")) trimmed else "$trimmed/api/config"
             return ReplayConfigProvider(
                 configUrl = configUrl,
-                apiKey = apiKey,
+                sdkKey = sdkKey,
                 fetcher = fetcher,
                 installIdProvider = installIdProvider,
             )

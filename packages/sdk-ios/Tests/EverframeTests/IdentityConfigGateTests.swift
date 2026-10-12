@@ -38,7 +38,7 @@ final class IdentityConfigGateTests: XCTestCase {
     private func decode(_ json: String) async -> ReplayConfig {
         let provider = ReplayConfigProvider(
             configUrl: URL(string: "https://everframe.dev/api/config")!,
-            apiKey: "evr_test_key",
+            sdkKey: "evr_test_key",
             fetcher: SingleResponseFetcher(json)
         )
         await provider.refresh()

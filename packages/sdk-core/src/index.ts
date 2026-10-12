@@ -11,6 +11,7 @@ export {
 } from './debug/replay-trace.js';
 export type { ReplayTraceEntry } from './debug/replay-trace.js';
 export { createClient, __internalClientState, toEverframeError, resolveClientExtra } from './client.js';
+export { resolveSdkKey, __resetSdkKeyWarning } from './sdk-key.js';
 export type { EverframeClient, ExtraResolver, ExtraState } from './client.js';
 export { trimLogs, MAX_LOG_CHARS, TRIMMED_LOGS_MESSAGE } from './trim-logs.js';
 export {
@@ -129,6 +130,7 @@ export {
   DEFAULT_CONFIG_TTL_MS,
   SDK_FEATURES_HEADER,
   createReplayLifecycle,
+  replaySamplingRate,
   BreadcrumbsConfig,
   BREADCRUMBS_CONFIG_DEFAULT,
   getBreadcrumbsConfig,
@@ -154,6 +156,7 @@ export type {
   ReplayState,
   ReplayLifecycle,
   ReplayLifecycleDeps,
+  ReplaySessionKind,
   NetworkBodiesConfig,
 } from './types/replay/index.js';
 export type * from './types/platform.js';

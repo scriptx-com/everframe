@@ -85,13 +85,13 @@ final class InstallIdentifierDailyTests: XCTestCase {
     }
 
     func test_the_config_flag_defaults_to_enabled() {
-        XCTAssertTrue(EverframeConfig(appId: "txx_live_" + String(repeating: "x", count: 32))
+        XCTAssertTrue(EverframeConfig(sdkKey: "txx_live_" + String(repeating: "x", count: 32))
             .installIdentifierEnabled)
     }
 
     func test_the_config_flag_can_be_turned_off() {
         let cfg = EverframeConfig(
-            appId: "txx_live_" + String(repeating: "x", count: 32),
+            sdkKey: "txx_live_" + String(repeating: "x", count: 32),
             installIdentifierEnabled: false
         )
         XCTAssertFalse(cfg.installIdentifierEnabled)

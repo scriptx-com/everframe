@@ -61,7 +61,7 @@ if (process.argv.includes('--package')) {
   const app = join(OUT, 'webos-app');
   await mkdir(app, { recursive: true });
   await copyFile(join(ROOT, 'webos-app', 'appinfo.json'), join(app, 'appinfo.json'));
-  const target = `http://${HOST}:${PORT}/harness.html?apiKey=${encodeURIComponent(KEY)}&mode=${MODE}&runs=${RUNS}`;
+  const target = `http://${HOST}:${PORT}/harness.html?sdkKey=${encodeURIComponent(KEY)}&mode=${MODE}&runs=${RUNS}`;
   await writeFile(join(app, 'index.html'), `<!-- ${SPDX} -->\n<!doctype html><meta charset="utf-8"><script>location.replace(${JSON.stringify(target)});</script>`);
   const icon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
   await writeFile(join(app, 'icon.png'), icon);

@@ -6,11 +6,11 @@ import { getErrorCaptureStatus, __setCurrentContext } from '../src/contextSeam.j
 import NativeEverframe from '../src/NativeEverframe.js';
 import { captureReactError } from '../src/integrations/react.js';
 const owners: Runtime[] = [];
-function mount() { const r = createRuntime({ apiKey: 'txx_test_key' }); owners.push(r); r.mount(); return r; }
+function mount() { const r = createRuntime({ sdkKey: 'txx_test_key' }); owners.push(r); r.mount(); return r; }
 afterEach(() => { owners.splice(0).forEach(r => r.unmount()); __setCurrentContext(null); vi.restoreAllMocks(); });
 it('neutral snapshots and old contexts remain compatible', () => {
   expect(getErrorCaptureStatus()).toMatchObject({ status: 'not-mounted', reason: 'no-mount', scope: 'mounted-js-admission', counters: { handled: { attempted: 0 } } });
-  const r = createRuntime({ apiKey: 'txx_test_key' }); const { getErrorCaptureStatus: omitted, ...old } = r; void omitted;
+  const r = createRuntime({ sdkKey: 'txx_test_key' }); const { getErrorCaptureStatus: omitted, ...old } = r; void omitted;
   __setCurrentContext(old); expect(getErrorCaptureStatus().status).toBe('not-mounted');
   __setCurrentContext({ ...old, getErrorCaptureStatus() { throw new Error('host'); }, captureException() { throw new Error('host'); } });
   expect(() => captureReactError(new Error())).not.toThrow(); expect(() => getErrorCaptureStatus()).not.toThrow();

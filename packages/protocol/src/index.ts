@@ -37,7 +37,9 @@ export * as vtree from './vtree/index.js';
 export * from './network-body.js';
 export * from './crash.js';
 export * from './crash-causes.js';
+export { JWT_CANDIDATE_PATTERN, JWT_REPLACEMENT, MAX_JWT_FULL_DECODES, MAX_JWT_GLUE, redactJwt } from './redaction.js';
 export * from './crash-details.js';
+export { SENSITIVE_KEY_PARTS, isSensitiveKey } from './sensitive-keys.js';
 export * from './native-crash.js';
 export * from './build-artifacts.js';
 export {
@@ -62,3 +64,28 @@ export {
 } from './render.js';
 // Zod-free, so the SDK's eager bundle can import it without pulling in schemas.
 export { RENDER_BLANK_CHECK, isNearUniform } from './blank-check.js';
+export {
+  ReleaseHealthRecordSchema, ReleaseHealthExposureSchema, NativeExposurePointerSchema, ReleaseHealthAppSchema,
+  AndroidReleaseHealthExposureSchema, IOSReleaseHealthExposureSchema, ReleaseHealthSubjectSchema,
+  RELEASE_HEALTH_MAX_AGE_MS, RELEASE_HEALTH_CLOCK_SKEW_MS, RELEASE_HEALTH_BODY_LIMIT,
+  RELEASE_HEALTH_SCHEMA_VERSION, RELEASE_HEALTH_APP_TEXT_MAX,
+} from './release-health.js';
+export type {
+  ReleaseHealthRecord, ReleaseHealthExposure, AndroidReleaseHealthExposure, IOSReleaseHealthExposure,
+  NativeExposurePointer, ReleaseHealthApp, ReleaseHealthSubject,
+} from './release-health.js';
+
+export { ElfBuildId, AndroidNativeFrame, AndroidNativeCrashMetadata } from './android-native-crash.js';
+
+export { DiagnosticEvidence, DiagnosticCause, DiagnosticFrame, androidExitCause } from './diagnostic.js';
+
+export { AppleDiagnosticEvidence, AppleDiagnosticFrame, AppleHang, AppleExitCount } from './apple-diagnostic.js';
+export { RecoveredStallEvidence } from './recovered-stall.js';
+export {
+  InferredTerminationEvidence, InferredTerminationCause, INFERRED_TERMINATION_MECHANISM, INFERRED_TERMINATION_STALL_MS,
+  INFERRED_TERMINATION_EXCEPTION_TYPES, INFERRED_TERMINATION_FINGERPRINTS,
+} from './inferred-termination.js';
+export {
+  RELEASE_HEALTH_ALERT_SCHEMA_VERSION, ReleaseHealthAlertTargetSchema, ReleaseHealthThresholdEventSchema,
+} from './release-health-alert.js';
+export type { ReleaseHealthAlertTarget, ReleaseHealthThresholdEvent } from './release-health-alert.js';

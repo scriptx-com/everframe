@@ -122,7 +122,7 @@ final class ReportDiagnosticsPipelineTests: XCTestCase {
         let queue = JSONLOutbox(fileURL: url, keyProvider: { gate.read() })
         let session = session(); defer { session.invalidateAndCancel() }
         DeliveryURLProtocol.response = { gate.arm(); return .success(202) }
-        await drain(ReportSubmitter(config: EverframeConfig(appId: "fixture"), outbox: queue, session: session).observing(owner))
+        await drain(ReportSubmitter(config: EverframeConfig(sdkKey: "fixture"), outbox: queue, session: session).observing(owner))
         XCTAssertTrue(gate.replaced)
         XCTAssertEqual(gate.acceptedBeforeReplacement, 1)
         XCTAssertTrue(try original.hydrate().isEmpty)
@@ -135,7 +135,7 @@ final class ReportDiagnosticsPipelineTests: XCTestCase {
             let owner = ledger.beginGeneration(epoch: status, enabled: true)
             DeliveryURLProtocol.response = { .success(status) }
             let queue = box("http-\(status)")
-            let sender = ReportSubmitter(config: EverframeConfig(appId: "fixture"), outbox: queue, session: session).observing(owner)
+            let sender = ReportSubmitter(config: EverframeConfig(sdkKey: "fixture"), outbox: queue, session: session).observing(owner)
             do { _ = try await sender.submit(envelopeBytes: Data("{}".utf8), idempotencyKey: "one", attachments: [], endpoint: "https://delivery.invalid") }
             catch { XCTAssertTrue([400, 403].contains(status)) }
             let expected = status == 202 ? "server-accepted" : [408, 429, 503].contains(status) ? "retryable-http" : "terminal-http"
@@ -145,11 +145,12 @@ final class ReportDiagnosticsPipelineTests: XCTestCase {
         owner = ledger.beginGeneration(epoch: 1, enabled: true)
         let queue = box("drain")
         try queue.enqueue(entry())
-        let sender = ReportSubmitter(config: EverframeConfig(appId: "fixture"), outbox: queue, session: session).observing(owner)
+        let sender = ReportSubmitter(config: EverframeConfig(sdkKey: "fixture"), outbox: queue, session: session).observing(owner)
         DeliveryURLProtocol.response = { .success(503) }
         await drain(sender)
         XCTAssertEqual(try queue.hydrate().count, 1)
-        XCTAssertEqual(ledger.snapshot().queue.operations["enqueue-committed"], 1)
+        XCTAssertEqual(ledger.snapshot().queue.operations["enqueue-committed"], 0,
+            "A failed drain retains its existing entry without another queue write")
         DeliveryURLProtocol.response = { .success(400) }
         await drain(sender)
         XCTAssertEqual(try queue.hydrate().count, 0)
@@ -165,7 +166,7 @@ final class ReportDiagnosticsPipelineTests: XCTestCase {
             try! Data("EVRBOX01corrupted".utf8).write(to: queue.resolvedFileURL)
             return .success(202)
         }
-        await drain(ReportSubmitter(config: EverframeConfig(appId: "fixture"), outbox: queue, session: session).observing(owner))
+        await drain(ReportSubmitter(config: EverframeConfig(sdkKey: "fixture"), outbox: queue, session: session).observing(owner))
         XCTAssertEqual(ledger.snapshot().transport["outbox-drain"]?.outcomes["server-accepted"], 1)
         XCTAssertEqual(ledger.snapshot().queue.operations["removed-after-acceptance"], 0)
         XCTAssertEqual(ledger.snapshot().queue.operations["removal-failed"], 1)
@@ -174,7 +175,7 @@ final class ReportDiagnosticsPipelineTests: XCTestCase {
 
     func testNetworkCancellationAuthorizationAndLateGeneration() async throws {
         let session = session(); defer { session.invalidateAndCancel() }
-        let sender = ReportSubmitter(config: EverframeConfig(appId: "fixture"), outbox: box(), session: session).observing(owner)
+        let sender = ReportSubmitter(config: EverframeConfig(sdkKey: "fixture"), outbox: box(), session: session).observing(owner)
         DeliveryURLProtocol.response = { .failure(URLError(.notConnectedToInternet)) }
         _ = try await sender.submit(envelopeBytes: Data(), idempotencyKey: "network", attachments: [], endpoint: "https://delivery.invalid")
         XCTAssertEqual(ledger.snapshot().transport["live-submit"]?.lastOutcome, "network-failure")

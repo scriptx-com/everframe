@@ -109,7 +109,7 @@ function submitMsg(correlationId: string): ReportSubmit {
 // Minimal PNG-magic bytes so sniffImageMime → image/png.
 const BAKED = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]).buffer;
 
-const cfg = { apiKey: 'txx_live_companion_user_test' };
+const cfg = { sdkKey: 'txx_live_companion_user_test' };
 const wrapper = ({ children }: { children: ReactNode }) => (
   <EverframeProvider config={cfg}>{children}</EverframeProvider>
 );

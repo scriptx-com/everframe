@@ -50,6 +50,19 @@ struct EnvelopeBuilderTests {
         #expect(envelope.reporter.title == "test")
     }
 
+    /// `app.debug` in `extra` is the config's answer and wins; without it the detected one is used.
+    @Test func appDebugComesFromExtraElseTheDetectedBuild() throws {
+        func debug(_ extra: [String: String]) throws -> Bool? {
+            let (bytes, _) = try makeBuilder().buildEncoded(reportId: UUID(), sdkName: "everframe-ios",
+                sdkVersion: "1.0.0", logs: [], networkRows: [], extra: extra)
+            let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+            return try decoder.decode(EverframeReportEnvelope.self, from: bytes).context.app.debug
+        }
+        #expect(try debug(["app.debug": "true"]) == true)
+        #expect(try debug(["app.debug": "false"]) == false)
+        #expect(try debug([:]) == DebugBuildDetector.current)
+    }
+
     @Test func sha256IsDeterministicAcrossEncodings() throws {
         let builder = makeBuilder()
         let id = UUID()

@@ -20,6 +20,10 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    // Uploads the release R8 mapping and native libraries after each release
+    // build when EVERFRAME_API_TOKEN and EVERFRAME_APP_ID are set; otherwise it
+    // warns and the build continues.
+    id("dev.everframe")
 }
 
 // Read host-specific properties from local.properties (gitignored). Gradle

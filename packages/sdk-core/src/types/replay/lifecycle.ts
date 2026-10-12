@@ -7,7 +7,8 @@
 // State machine (locked, RESEARCH §"Lifecycle state machine"):
 //   IDLE → BUFFERING → FROZEN → (SUBMITTED | DISCARDED) → BUFFERING
 //   - IDLE→BUFFERING (tryStart):  effective-enabled (serverEnabled && !locallyDisabled)
-//                                 AND sampling gate passes (random() < samplingRate).
+//                                 AND sampling gate passes (one held draw < the rate
+//                                 for the session's kind, see `replaySamplingRate`).
 //   - BUFFERING→FROZEN (freeze):  freeze() at top of reporter-open (before modal mount).
 //   - FROZEN→SUBMITTED (complete):takeFrozen() → resume start() → BUFFERING.
 //   - FROZEN→DISCARDED (cancel):  discardAndResume() (zeroize) → resume start() → BUFFERING.
@@ -21,13 +22,49 @@ import type { ReplayConfig } from './config-provider.js';
 
 export type ReplayState = 'IDLE' | 'BUFFERING' | 'FROZEN' | 'SUBMITTED' | 'DISCARDED';
 
+/**
+ * Which replay coverage a session samples against (crash-only sessions spec
+ * 2026-10-12). `'report'` is the default: a session that can file a report.
+ * `'crashOnly'` is a session whose host turned the reporter off
+ * (`reporter.disabled`) and that no companion bond has upgraded yet.
+ * `'upgraded'` is such a session after a companion bond.
+ */
+export type ReplaySessionKind = 'report' | 'crashOnly' | 'upgraded';
+
+/**
+ * The sampling rate for a session kind. A crash-only session uses
+ * `crashOnlySamplingRate`, and an absent field (an older server, or one that
+ * was not sent the `crashonly` feature token) means 0: such a session never
+ * records. An upgraded session uses the higher of the two rates, so an
+ * upgrade never stops a recording the crash-only rate admitted.
+ */
+export function replaySamplingRate(config: ReplayConfig, kind: ReplaySessionKind): number {
+  const crashOnlyRate = config.crashOnlySamplingRate ?? 0;
+  switch (kind) {
+    case 'crashOnly':
+      return crashOnlyRate;
+    case 'upgraded':
+      return Math.max(config.samplingRate, crashOnlyRate);
+    default:
+      return config.samplingRate;
+  }
+}
+
 export interface ReplayLifecycleDeps {
   /** Only the optional replay seam is needed. The recorder lives in the platform package. */
   adapter: Pick<PlatformAdapter, 'replay'>;
   /** Source of the current server config (replayEnabled + samplingRate + durationSec). */
   getConfig: () => ReplayConfig;
-  /** Client veto (EverframeConfig.sessionReplay.disabled). Can turn OFF, never ON. */
-  locallyDisabled: boolean;
+  /**
+   * Client veto (EverframeConfig.sessionReplay.disabled). Can turn OFF, never
+   * ON. A function is read on every start attempt.
+   */
+  locallyDisabled: boolean | (() => boolean);
+  /**
+   * The session's current kind, read on every start attempt. Defaults to
+   * `'report'`, which samples against `samplingRate` exactly as before.
+   */
+  sessionKind?: () => ReplaySessionKind;
   /** Injectable RNG for the sampling gate (CONFIG-04). Defaults to Math.random. */
   random?: () => number;
   /** Injectable monotonic clock (ms). Defaults to performance.now (or Date.now). */
@@ -65,10 +102,13 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
   const { adapter, getConfig, locallyDisabled } = deps;
   const random = deps.random ?? Math.random;
   const now = deps.now ?? defaultNow;
+  const sessionKind = deps.sessionKind ?? ((): ReplaySessionKind => 'report');
 
   let state: ReplayState = 'IDLE';
   /** The session's single sampling draw (CONFIG-04), compared against the live rate. */
   let samplingDraw: number | null = null;
+  /** Kinds whose rate has admitted this session. Kept for the whole session. */
+  const admittedKinds = new Set<ReplaySessionKind>();
   // REPLAY-06: one monotonic session epoch minted at creation, reused for the
   // envelope stamp and replay event ts so they align against one origin.
   const sessionEpoch = now();
@@ -77,7 +117,8 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
 
   /** Effective enablement: server says ON AND the client has not vetoed (never force-ON). */
   function effectiveEnabled(): boolean {
-    return getConfig().replayEnabled === true && locallyDisabled !== true;
+    const vetoed = typeof locallyDisabled === 'function' ? locallyDisabled() : locallyDisabled;
+    return getConfig().replayEnabled === true && vetoed !== true;
   }
 
   /** Begin (or resume) the rolling buffer at the current configured duration. */
@@ -115,15 +156,30 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
       // inclusion exactly P(draw < rate) however often it is evaluated, while
       // a genuine server rate change still applies in both directions.
       // samplingRate 0 ⇒ never (0 < 0 false); 1 ⇒ always (draw < 1 always true).
+      //
+      // Crash-only sessions (spec 2026-10-12): the rate depends on the
+      // session's kind, and every kind compares the SAME draw. Once a kind's
+      // rate has admitted the session, that kind stays admitted for the rest
+      // of the session, so a later rate cut cannot keep a session that was
+      // already recording from resuming (after a forced discard, say). A kind
+      // that has not admitted the session is still compared against its live
+      // rate, as before.
       if (samplingDraw === null) {
         samplingDraw = random();
       }
-      if (!(samplingDraw < getConfig().samplingRate)) {
-        __traceReplay('lifecycle.tryStart', { from, started: false, reason: 'sampled_out' });
-        return false;
+      const kind = sessionKind();
+      // An upgrade never stops a recording: an upgraded session inherits the
+      // crash-only admission, even after a later cut to both rates.
+      if (kind === 'upgraded' && admittedKinds.has('crashOnly')) admittedKinds.add('upgraded');
+      if (!admittedKinds.has(kind)) {
+        if (!(samplingDraw < replaySamplingRate(getConfig(), kind))) {
+          __traceReplay('lifecycle.tryStart', { from, started: false, reason: 'sampled_out', kind });
+          return false;
+        }
+        admittedKinds.add(kind);
       }
       beginBuffering();
-      __traceReplay('lifecycle.tryStart', { from, started: true });
+      __traceReplay('lifecycle.tryStart', { from, started: true, kind });
       return true;
     },
 

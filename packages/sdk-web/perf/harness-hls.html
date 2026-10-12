@@ -9,7 +9,7 @@
 <script src="/vendor/hls.js"></script>
 <script type="module">
   import { init } from '/dist/browser/index.js';
-  const h = init({ apiKey: 'pk_perf', appVersion: '0.0.0-perf' });
+  const h = init({ sdkKey: 'pk_perf', appVersion: '0.0.0-perf' });
   window.__everframe = h;
   const v = document.getElementById('v');
   const hls = new Hls();

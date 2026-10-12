@@ -37,7 +37,7 @@ class VitalsTransportTest {
     private fun transport() = VitalsTransport(
         client = OkHttpClient.Builder().connectTimeout(2, TimeUnit.SECONDS).readTimeout(2, TimeUnit.SECONDS).build(),
         endpoint = server.url("/api/ingest/vitals").toString(),
-        apiKey = "key-1",
+        sdkKey = "key-1",
         isKilled = { killed },
         scheduleRetry = { delay, r -> retries.add(delay to r) },
         cancelRetry = { r -> cancelled.add(r) },
@@ -198,7 +198,7 @@ class VitalsTransportTest {
         val t = VitalsTransport(
             client = OkHttpClient.Builder().connectTimeout(2, TimeUnit.SECONDS).readTimeout(2, TimeUnit.SECONDS).build(),
             endpoint = server.url("/api/ingest/vitals").toString(),
-            apiKey = "key-1",
+            sdkKey = "key-1",
             isKilled = { !gateOpen || currentEpoch != boundEpoch },
             scheduleRetry = { delay, r -> retries.add(delay to r) },
             cancelRetry = { r -> cancelled.add(r) },

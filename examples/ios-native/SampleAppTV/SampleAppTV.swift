@@ -23,13 +23,13 @@ struct SampleAppTV: App {
 
         do {
             let config = EverframeConfig(
-                appId: sdkKey,
+                sdkKey: sdkKey,
                 environment: .development,
                 release: "1.0.0"
             )
             try Everframe.shared.start(config: config)
             Everframe.shared.setUser(EFUser(id: "demo-tv-user", displayName: "Apple TV Demo"))
-        } catch EverframeConfigError.missingAppId {
+        } catch EverframeConfigError.missingSdkKey {
             print("Everframe: INGEST_SDK_KEY missing or malformed (must be `evf_live_…` 41 chars; legacy `txx_live_…` also works). Check repo-root .env and re-run `pnpm gen-ios-config`.")
         } catch {
             print("Everframe init failed: \(error)")

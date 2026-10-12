@@ -17,7 +17,7 @@ vi.mock('../src/hermes-rejection-adapter.js', () => ({
 }));
 const runtimes: Runtime[] = [];
 function runtime(crashReporting?: Parameters<typeof createRuntime>[0]['crashReporting']) {
-  const r = createRuntime({ apiKey: 'fixture', ...(crashReporting ? {crashReporting} : {}) });
+  const r = createRuntime({ sdkKey: 'fixture', ...(crashReporting ? {crashReporting} : {}) });
   runtimes.push(r); return r;
 }
 beforeEach(() => {

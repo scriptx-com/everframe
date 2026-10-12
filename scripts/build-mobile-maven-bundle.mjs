@@ -5,19 +5,23 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { constants, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { verifyMobileBundleArtifacts } from './mobile-bundle-artifacts.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const android = path.join(root, 'packages/sdk-android/android');
 const kmp = path.join(root, 'packages/everframe_kmp');
-const usage = 'Usage: node scripts/build-mobile-maven-bundle.mjs [--prepare] [--output <new-zip-path>]';
+const usage = 'Usage: node scripts/build-mobile-maven-bundle.mjs [--prepare] [--output <new-zip-path>] [--native-workspace <verified-build-directory>]';
 let prepareOnly = false;
 let outputPath;
+let nativeWorkspace;
 for (let i = 2; i < process.argv.length; i += 1) {
   const arg = process.argv[i];
   if (arg === '--prepare' && !prepareOnly) {
     prepareOnly = true;
   } else if (arg === '--output' && !outputPath && process.argv[i + 1] && !process.argv[i + 1].startsWith('--')) {
     outputPath = path.resolve(process.argv[++i]);
+  } else if (arg === '--native-workspace' && !nativeWorkspace && process.argv[i + 1] && !process.argv[i + 1].startsWith('--')) {
+    nativeWorkspace = path.resolve(process.argv[++i]);
   } else {
     throw new Error(usage);
   }
@@ -36,7 +40,9 @@ function run(program, args, options = {}) {
   execFileSync(program, args, { stdio: 'inherit', ...options });
 }
 
-run(path.join(android, 'gradlew'), ['centralPortalBundle'], { cwd: android });
+const androidArgs = ['centralPortalBundle'];
+if (nativeWorkspace) androidArgs.push(`-PeverframeNativeBuildDir=${nativeWorkspace}`, '-PeverframeNativeAbis=all');
+run(path.join(android, 'gradlew'), androidArgs, { cwd: android });
 const androidRepository = path.join(android, 'build/central-bundle/repository');
 run(path.join(kmp, 'gradlew'), ['centralPortalBundle'], {
   cwd: kmp,
@@ -60,12 +66,7 @@ for (const sourceRepository of [androidRepository, kmpRepository]) {
   }
 }
 
-const artifacts = [
-  'protocol', 'core', 'reporter-ui', 'media3', 'gradle-plugin',
-  'dev.everframe.gradle.plugin',
-  'kmp', 'kmp-android', 'kmp-iosarm64', 'kmp-iossimulatorarm64', 'kmp-jvm', 'kmp-js',
-];
-assert.deepEqual(readdirSync(group).sort(), artifacts.slice().sort(), 'Mobile bundle has unexpected Maven artifacts');
+const artifacts = verifyMobileBundleArtifacts(readdirSync(group), Boolean(nativeWorkspace));
 
 for (const artifact of artifacts) {
   const prefix = path.join(group, artifact, version, `${artifact}-${version}`);
@@ -91,7 +92,7 @@ for (const nativeArtifact of ['core', 'reporter-ui']) {
 }
 
 run(path.join(root, 'scripts/verify-android-publication.sh'), [version], {
-  env: { ...process.env, MAVEN_LOCAL_REPOSITORY: repository },
+  env: { ...process.env, MAVEN_LOCAL_REPOSITORY: repository, EVERFRAME_VERIFY_NATIVE_CRASH: nativeWorkspace ? '1' : '0' },
 });
 if (!prepareOnly) {
   run(path.join(root, 'scripts/verify-central-bundle.sh'), [repository, version], {

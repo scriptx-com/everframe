@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import Foundation
 import CryptoKit
+import Darwin
 
 /// One persisted entry in the outbox: a serialized envelope plus the
 /// metadata needed to retransmit it without re-running capture.
@@ -40,6 +41,12 @@ public struct OutboxEntry: Codable, Sendable, Equatable {
     /// header, rather than being silently discarded.
     public let identitySubject: String?
 
+    /// Set only on a handled error whose capture is still waiting for its
+    /// replay snapshot. Until then the capture may swap the entry for its
+    /// final form, so a drain that reads it skips it. Absent (and not encoded)
+    /// on every other entry, including lines written before this field.
+    public let heldUntil: Date?
+
     public struct AttachmentRef: Codable, Sendable, Equatable {
         public let name: String
         public let filename: String
@@ -64,7 +71,8 @@ public struct OutboxEntry: Codable, Sendable, Equatable {
         attachmentRefs: [AttachmentRef],
         sdkKey: String,
         endpoint: String,
-        identitySubject: String? = nil
+        identitySubject: String? = nil,
+        heldUntil: Date? = nil
     ) {
         self.reportId = reportId
         self.createdAt = createdAt
@@ -74,6 +82,27 @@ public struct OutboxEntry: Codable, Sendable, Equatable {
         self.sdkKey = sdkKey
         self.endpoint = endpoint
         self.identitySubject = identitySubject
+        self.heldUntil = heldUntil
+    }
+}
+
+extension OutboxEntry {
+    /// True while the capture that queued this error may still replace it.
+    /// `asOf` must be read before the entry was. A hold more than a minute
+    /// ahead (the clock moved back) is not trusted.
+    func isHeldForReplay(asOf: Date) -> Bool {
+        guard let heldUntil else { return false }
+        let remaining = heldUntil.timeIntervalSince(asOf)
+        return remaining > 0 && remaining <= 60
+    }
+
+    /// The same report with final envelope bytes and attachments; the hold
+    /// is cleared. Never sent while held, so a new idempotency key is safe.
+    func releasingHold(envelopeBytes: Data, attachmentRefs: [AttachmentRef]) -> OutboxEntry {
+        OutboxEntry(reportId: reportId, createdAt: createdAt, envelopeBytes: envelopeBytes,
+            idempotencyKey: SHA256.hash(data: envelopeBytes).map { String(format: "%02x", $0) }.joined(),
+            attachmentRefs: attachmentRefs, sdkKey: sdkKey, endpoint: endpoint,
+            identitySubject: identitySubject)
     }
 }
 
@@ -196,9 +225,13 @@ public final class JSONLOutbox: @unchecked Sendable {
         // - `Bundle.main.bundleIdentifier == "com.apple.dt.xctest.tool"`: set by
         //   the `swift test` CLI, which spawns the test bundle under Apple's xctest
         //   tool. This tool does not set `XCTestConfigurationFilePath` in the child.
-        // Removing either branch loses detection in one of these environments.
+        // - Loaded XCTestCase: Swift Testing's helper loads the same test bundle
+        //   but supplies neither XCTest host identifier above. Its default queue
+        //   must never read/drain a developer application's persistent reports.
+        // Removing any branch loses detection in one of these environments.
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
-           Bundle.main.bundleIdentifier == "com.apple.dt.xctest.tool" {
+           Bundle.main.bundleIdentifier == "com.apple.dt.xctest.tool" ||
+           NSClassFromString("XCTestCase") != nil {
             return testOutboxDirectory.appendingPathComponent("outbox.jsonl")
         }
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -233,6 +266,93 @@ public final class JSONLOutbox: @unchecked Sendable {
         }
     }
 
+    /// Swaps a held error for its final form, only while its hold is live.
+    /// A drain that read the entry during the hold skipped it, and once the
+    /// hold lapses no swap can follow, so a stale copy never uploads after a
+    /// swap. The final entry moves to the back, as the newest.
+    internal func replaceHeld(_ entry: OutboxEntry, now: Date) throws -> Bool {
+        try queue.sync {
+            var entries = try readAll()
+            guard let index = entries.firstIndex(where: { $0.reportId == entry.reportId }),
+                  // Re-read under the storage queue: `now` may precede a wait
+                  // behind another disk operation. Never reopen an expired hold.
+                  entries[index].isHeldForReplay(asOf: max(now, Date())) else { return false }
+            entries.remove(at: index)
+            entries.append(entry)
+            try writeAll(try applyCapacity(entries))
+            return true
+        }
+    }
+
+    enum RecoveryInsertion: Equatable { case inserted, alreadyPresent }
+    enum RecoveryFailure: Error, Equatable { case unreadable, conflict, unsafePath, capacity, io }
+
+    /// Recovery keeps its source until this strict, durable insertion succeeds.
+    /// It never overwrites a conflicting identity or evicts another queued report.
+    func enqueueRecovered(_ entry: OutboxEntry) throws -> RecoveryInsertion {
+        try queue.sync {
+            do {
+                try validateRecoveryPath()
+                var entries = try readAll(strict: true)
+                if let existing = entries.first(where: { $0.reportId == entry.reportId }) {
+                    guard try canonicalRecoveryEntry(existing) == canonicalRecoveryEntry(entry) else {
+                        throw RecoveryFailure.conflict
+                    }
+                    try synchronizeRecoveryQueue()
+                    return .alreadyPresent
+                }
+                guard entries.count < maxEntries else { throw RecoveryFailure.capacity }
+                entries.append(entry)
+                let size = try entries.reduce(Self.encryptionOverhead) { try $0 + encoder.encode($1).count + 1 }
+                guard size <= maxTotalBytes else { throw RecoveryFailure.capacity }
+                try writeAll(entries, recovery: true)
+                try synchronizeRecoveryQueue()
+                return .inserted
+            } catch let failure as RecoveryFailure { throw failure }
+            catch is CryptoKitError { throw RecoveryFailure.unreadable }
+            catch is OutboxStorageError { throw RecoveryFailure.unreadable }
+            catch { throw RecoveryFailure.io }
+        }
+    }
+
+    private func canonicalRecoveryEntry(_ entry: OutboxEntry) throws -> Data {
+        let canonical = JSONEncoder()
+        canonical.dateEncodingStrategy = .iso8601
+        canonical.outputFormatting = [.sortedKeys]
+        return try canonical.encode(entry)
+    }
+
+    private func validateRecoveryPath() throws {
+        let normalized = fileURL.standardizedFileURL
+        guard normalized.isFileURL, normalized.path == normalized.resolvingSymlinksInPath().path else {
+            throw RecoveryFailure.unsafePath
+        }
+        var parent = stat()
+        guard lstat(normalized.deletingLastPathComponent().path, &parent) == 0,
+              parent.st_mode & S_IFMT == S_IFDIR, parent.st_uid == geteuid(),
+              parent.st_mode & 0o022 == 0 else { throw RecoveryFailure.unsafePath }
+        var file = stat()
+        if lstat(normalized.path, &file) != 0 {
+            guard errno == ENOENT else { throw RecoveryFailure.io }
+            return
+        }
+        guard file.st_mode & S_IFMT == S_IFREG, file.st_uid == geteuid(), file.st_nlink == 1,
+              file.st_mode & 0o022 == 0 else { throw RecoveryFailure.unsafePath }
+        guard file.st_size >= 0, file.st_size <= maxTotalBytes else { throw RecoveryFailure.capacity }
+    }
+
+    private func synchronizeRecoveryQueue() throws {
+        try validateRecoveryPath()
+        let descriptor = open(fileURL.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        guard descriptor >= 0 else { throw RecoveryFailure.io }
+        defer { close(descriptor) }
+        guard fsync(descriptor) == 0 else { throw RecoveryFailure.io }
+        let parent = open(fileURL.deletingLastPathComponent().path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+        guard parent >= 0 else { throw RecoveryFailure.io }
+        defer { close(parent) }
+        guard fsync(parent) == 0 else { throw RecoveryFailure.io }
+    }
+
     /// Read every entry currently on disk; returns empty if the file is missing.
     public func hydrate() throws -> [OutboxEntry] { try hydrate(diagnostics: nil) }
 
@@ -264,7 +384,7 @@ public final class JSONLOutbox: @unchecked Sendable {
 
     // MARK: - Private I/O
 
-    private func readAll(diagnostics: ReportDiagnostics.Handle? = nil) throws -> [OutboxEntry] {
+    private func readAll(diagnostics: ReportDiagnostics.Handle? = nil, strict: Bool = false) throws -> [OutboxEntry] {
         do {
             guard FileManager.default.fileExists(atPath: fileURL.path) else {
                 diagnostics?.queueObserved(count: 0, quality: .complete, migration: "clear")
@@ -273,6 +393,7 @@ public final class JSONLOutbox: @unchecked Sendable {
             let stored = try Data(contentsOf: fileURL)
             // Preserve legacy handling, but do not claim an empty readable queue.
             guard stored.starts(with: Self.magic) else {
+                if strict { throw RecoveryFailure.unreadable }
                 diagnostics?.queueObserved(count: nil, quality: .unknown, migration: "blocked")
                 return []
             }
@@ -282,8 +403,12 @@ public final class JSONLOutbox: @unchecked Sendable {
             var partial = false
             for line in data.split(separator: 0x0a, omittingEmptySubsequences: true) {
                 do { out.append(try decoder.decode(OutboxEntry.self, from: Data(line))) }
-                catch { partial = true } // Existing skip-malformed policy.
+                catch {
+                    if strict { throw RecoveryFailure.unreadable }
+                    partial = true // Existing public skip-malformed policy.
+                }
             }
+            if strict, Set(out.map(\.reportId)).count != out.count { throw RecoveryFailure.conflict }
             diagnostics?.queueObserved(count: out.count, quality: partial ? .partial : .complete, migration: "clear")
             return out
         } catch {
@@ -304,7 +429,7 @@ public final class JSONLOutbox: @unchecked Sendable {
         return .unknown
     }
 
-    private func writeAll(_ entries: [OutboxEntry]) throws {
+    private func writeAll(_ entries: [OutboxEntry], recovery: Bool = false) throws {
         if entries.isEmpty {
             if FileManager.default.fileExists(atPath: fileURL.path) { try FileManager.default.removeItem(at: fileURL) }
             return
@@ -331,6 +456,7 @@ public final class JSONLOutbox: @unchecked Sendable {
         #else
         try protected.write(to: tempURL, options: .atomic)
         #endif
+        if recovery { try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: tempURL.path) }
         if FileManager.default.fileExists(atPath: fileURL.path) {
             // Adopt the new ciphertext's protection instead of retaining a
             // legacy queue's complete protection when replacing it while unlocked.

@@ -34,7 +34,7 @@ describe('draftToEnvelope breadcrumbs', () => {
     const { envelope } = draftToEnvelope(
       draft,
       { ...baseBundle(), breadcrumbs: chain },
-      { apiKey: 'k' },
+      { sdkKey: 'k' },
       '1.0.0',
     );
     expect(envelope.payload.breadcrumbs).toHaveLength(2);
@@ -50,14 +50,14 @@ describe('draftToEnvelope breadcrumbs', () => {
     const { envelope } = draftToEnvelope(
       draft,
       { ...baseBundle(), breadcrumbs: noisy, breadcrumbTrim: { byteBudget: 400 } },
-      { apiKey: 'k' },
+      { sdkKey: 'k' },
       '1.0.0',
     );
     expect(envelope.payload.breadcrumbs!.length).toBeLessThan(20);
   });
 
   it('bundle without breadcrumbs is unchanged (captures.breadcrumbs false)', () => {
-    const { envelope } = draftToEnvelope(draft, baseBundle(), { apiKey: 'k' }, '1.0.0');
+    const { envelope } = draftToEnvelope(draft, baseBundle(), { sdkKey: 'k' }, '1.0.0');
     expect(envelope.payload.breadcrumbs).toBeUndefined();
     expect(envelope.captures['breadcrumbs']).toBe(false);
   });

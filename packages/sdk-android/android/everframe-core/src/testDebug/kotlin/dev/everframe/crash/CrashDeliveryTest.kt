@@ -297,8 +297,8 @@ class CrashDeliveryTest {
                     )
                     .build()
             }
-            val provider = ReplayConfigProvider(configUrl = "https://x/api/config", apiKey = config.sdkKey, fetcher = fetcher)
-            val session = ReplaySession(apiKey = config.sdkKey, locallyDisabled = false, provider = provider)
+            val provider = ReplayConfigProvider(configUrl = "https://x/api/config", sdkKey = config.sdkKey, fetcher = fetcher)
+            val session = ReplaySession(sdkKey = config.sdkKey, locallyDisabled = false, provider = provider)
             runBlocking { session.refreshConfigNow() }
             Everframe._replaySession = session
 

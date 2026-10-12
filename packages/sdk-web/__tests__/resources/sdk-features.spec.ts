@@ -37,7 +37,7 @@ describe('web adapter — resources capability negotiation', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     await adapter.__initReplay();
 
@@ -70,7 +70,7 @@ describe('web adapter — resources capability negotiation', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' }) as unknown as {
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' }) as unknown as {
       __initReplay(): Promise<void>;
       __testRefreshConfigNow(): Promise<void>;
       __testCleanup(): void;

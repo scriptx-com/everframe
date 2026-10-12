@@ -141,7 +141,7 @@ const payload = (): ReporterCompletePayload => ({
  * returned promise, which would silently await the very thing under test.
  */
 async function openReporter(): Promise<{ opened: Promise<unknown> }> {
-  handle = init({ apiKey: 'txx_live_kill_submit' }) as InternalHandle;
+  handle = init({ sdkKey: 'txx_live_kill_submit' }) as InternalHandle;
   const opened = handle.open();
   await vi.waitFor(() => expect(islands).toHaveLength(1));
   return { opened };

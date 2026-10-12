@@ -7,6 +7,21 @@ import XCTest
 /// no `Everframe.shared`, no stderr intercept, no UIKit — the criteria for
 /// joining the `swift.yml` companion filter.
 final class OutboxKeyBindingTests: XCTestCase {
+    func test_retryable_drain_preserves_entry_for_interrupted_native_recovery() async throws {
+        RecordingURLProtocol.reset(); defer { RecordingURLProtocol.reset() }
+        RecordingURLProtocol.responseStatus = 503
+        let box = makeOutbox()
+        let original = OutboxEntry(reportId: UUID(), createdAt: Date(timeIntervalSince1970: 1700000001),
+            envelopeBytes: Data("{\"original\":true}".utf8), idempotencyKey: "stable-native-id", attachmentRefs: [],
+            sdkKey: "key-A", endpoint: "https://a.example.com", identitySubject: "subject-A")
+        try box.enqueue(original)
+        let session = stubbedSession(); defer { session.invalidateAndCancel() }
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "key-B"), outbox: box, session: session)
+        await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
+            epochAtInitiation: 0, currentEpoch: { 0 })
+        XCTAssertEqual(try box.hydrate().first, original,
+            "A failed drain must preserve the entire staged entry, including its original creation time")
+    }
     func test_drain_keeps_report_on_disk_until_server_accepts_it() async throws {
         RecordingURLProtocol.reset()
         defer { RecordingURLProtocol.reset() }
@@ -14,7 +29,7 @@ final class OutboxKeyBindingTests: XCTestCase {
         try box.enqueue(entry(key: "key-A", endpoint: "https://a.example.com", idem: "idem-A"))
         RecordingURLProtocol.onRequest = { XCTAssertEqual(box.count, 1, "An in-flight retry must still be durable") }
         let session = stubbedSession(); defer { session.invalidateAndCancel() }
-        let submitter = ReportSubmitter(config: EverframeConfig(appId: "key-A"), outbox: box, session: session)
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: session)
         await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
             epochAtInitiation: 0, currentEpoch: { 0 })
         XCTAssertEqual(box.count, 0)
@@ -25,7 +40,7 @@ final class OutboxKeyBindingTests: XCTestCase {
         let box = JSONLOutbox(fileURL: tempDir.appendingPathComponent("failed-outbox"),
             keyProvider: { throw CocoaError(.fileWriteNoPermission) })
         let session = stubbedSession(); defer { session.invalidateAndCancel() }
-        let submitter = ReportSubmitter(config: EverframeConfig(appId: "key-A"), outbox: box, session: session)
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: session)
         do {
             _ = try await submitter.submit(envelopeBytes: Data("{}".utf8), idempotencyKey: "idem",
                 attachments: [], endpoint: "https://a.example.com")
@@ -41,7 +56,7 @@ final class OutboxKeyBindingTests: XCTestCase {
         RecordingURLProtocol.responseStatus = 503
         let box = makeOutbox()
         let session = stubbedSession(); defer { session.invalidateAndCancel() }
-        let submitter = ReportSubmitter(config: EverframeConfig(appId: "key-A"), outbox: box, session: session)
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: session)
         let replay = Data(#"{"version":"everframe-vtree-v1","frames":[]}"#.utf8)
         let attachment = ReportSubmitter.Attachment(
             name: "replay", filename: "replay.json", contentType: "application/octet-stream",
@@ -182,7 +197,7 @@ final class OutboxKeyBindingTests: XCTestCase {
         try box.enqueue(entry(key: "key-B", endpoint: "https://b.example.com", idem: "idem-B"))
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "key-B"),
+            config: EverframeConfig(sdkKey: "key-B"),
             outbox: box,
             session: stubbedSession())
         await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off }, epochAtInitiation: 0, currentEpoch: { 0 })
@@ -208,7 +223,7 @@ final class OutboxKeyBindingTests: XCTestCase {
         try box.enqueue(entry(key: "key-A", endpoint: "https://a.example.com", idem: "idem-A"))
 
         let submitter = ReportSubmitter(
-            config: EverframeConfig(appId: "key-B"),
+            config: EverframeConfig(sdkKey: "key-B"),
             outbox: box,
             session: stubbedSession())
         await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off }, epochAtInitiation: 0, currentEpoch: { 0 })

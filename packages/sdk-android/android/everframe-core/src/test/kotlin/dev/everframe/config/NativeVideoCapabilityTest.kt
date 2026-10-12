@@ -29,13 +29,15 @@ class NativeVideoCapabilityTest {
             OkHttpClient().newCall(it).execute()
         })
         Everframe.captureGate = true
-        val session = ReplaySession(apiKey = "key", provider = provider)
+        val session = ReplaySession(sdkKey = "key", provider = provider)
         try {
             session.refreshConfigNow()
             val request = server.takeRequest(3, java.util.concurrent.TimeUnit.SECONDS)!!
             val features = request.getHeader("X-Everframe-SDK-Features")!!.split(',').map { it.trim() }
             assertFalse(features.contains("vtree"))
             assertEquals(supported, features.contains("nativevideo"))
+            assertEquals("1 and 2 fps are declared exactly where native video is", supported, features.contains("nativevideolowfps"))
+
             assertFalse(request.requestUrl!!.queryParameterNames.contains("vtree"))
             val capture = session.freezeOwnedCapture()
             try { assertEquals(supported, capture.replayAllowed()) } finally { capture.cancel() }

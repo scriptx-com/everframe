@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+import("../build/crashpad_buildconfig.gni")
+declare_args() { everframe_crypto_root = "" }
+assert(everframe_crypto_root != "")
+crashpad_loadable_module("everframe_native_client") {
+  output_name = "libeverframe_native_client"
+  sources = [ "client.cc", "handoff.cc" ]
+  deps = [ "../client", "../util", "../third_party/mini_chromium:base" ]
+  libs = [ "log", "dl" ]
+  ldflags = [ "-Wl,--build-id=sha1", "-static-libstdc++", "-Wl,--exclude-libs,ALL" ]
+}
+crashpad_loadable_module("everframe_native_handler") {
+  output_name = "libeverframe_native_handler"
+  sources = [ "handler.cc", "handoff.cc", "authority.cc", "minimal_record.cc" ]
+  include_dirs = [ everframe_crypto_root + "/include" ]
+  deps = [ "../handler:handler", "../snapshot", "../util", "../third_party/mini_chromium:base" ]
+  libs = [ everframe_crypto_root + "/libcrypto.a", "log", "dl" ]
+  ldflags = [ "-Wl,--build-id=sha1", "-Wl,--exclude-libs,ALL", "-static-libstdc++" ]
+}
+crashpad_executable("everframe_native_trampoline") {
+  output_name = "libeverframe_native_trampoline.so"
+  sources = [ "../handler/linux/handler_trampoline.cc" ]
+  deps = [ "../util" ]
+  libs = [ "log", "dl" ]
+  ldflags = [ "-Wl,--build-id=sha1", "-static-libstdc++" ]
+}
+group("artifacts") { deps = [ ":everframe_native_client", ":everframe_native_handler", ":everframe_native_trampoline" ] }

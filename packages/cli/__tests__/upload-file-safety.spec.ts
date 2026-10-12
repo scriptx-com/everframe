@@ -4,10 +4,11 @@ import { execFileSync } from "node:child_process";
 import { constants, closeSync, openSync } from "node:fs";
 import {
   mkdtemp,
-  mkdir,
   open,
   readFile,
+  rename,
   rm,
+  stat,
   truncate,
   unlink,
   writeFile,
@@ -15,6 +16,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
+import { collectDsymBuild } from "../src/dsym.js";
 import { collectR8Build } from "../src/r8.js";
 import { uploadCollectedBuild } from "../src/upload.js";
 
@@ -37,12 +39,27 @@ afterEach(async () => {
   );
 });
 
-async function fixture() {
+// R8 mappings use the buffered reader; raw dSYMs use the snapshot reader.
+const limits = { r8: 32 * 1024 * 1024, dsym: 512 * 1024 * 1024 };
+type Kind = keyof typeof limits;
+const cases = (["r8", "dsym"] as const).flatMap((kind) =>
+  [false, true].map((ready) => [kind, ready] as const),
+);
+
+async function fixture(kind: Kind, size?: number) {
   const root = await mkdtemp(join(tmpdir(), "everframe-upload-safety-"));
   roots.push(root);
-  const mappingPath = join(root, "mapping.txt");
-  await writeFile(mappingPath, "com.example.Real -> a:\n    void run() -> a\n");
-  const local = await collectR8Build({ mappingId: "ci-123", mappingPath });
+  const mappingPath = join(root, kind === "r8" ? "mapping.txt" : "App");
+  await writeFile(
+    mappingPath,
+    size === undefined
+      ? "com.example.Real -> a:\n    void run() -> a\n"
+      : Buffer.alloc(size, 0x20),
+  );
+  const local =
+    kind === "r8"
+      ? await collectR8Build({ mappingId: "ci-123", mappingPath })
+      : await collectDsymBuild({ dwarfPath: mappingPath });
   const methods: string[] = [];
   return {
     mappingPath,
@@ -79,10 +96,10 @@ async function fixture() {
   };
 }
 
-it.each([false, true])(
-  "rejects a replacement FIFO promptly without PUT (ready=%s)",
-  async (ready) => {
-    const f = await fixture();
+it.each(cases)(
+  "rejects a replacement FIFO promptly without PUT (%s, ready=%s)",
+  async (kind, ready) => {
+    const f = await fixture(kind);
     let timedOut = false;
     let watchdog: ReturnType<typeof setTimeout> | undefined;
     try {
@@ -110,24 +127,31 @@ it.each([false, true])(
   },
 );
 
-it("rejects a replacement directory without PUT", async () => {
-  const f = await fixture();
-  await expect(
-    f.upload(async () => {
-      await unlink(f.mappingPath);
-      await mkdir(f.mappingPath);
-    }),
-  ).rejects.toThrow("source_map_changed");
-  expect(f.methods).toEqual(["POST"]);
-});
-
-it.each([false, true])(
-  "rejects an oversized replacement before buffering (ready=%s)",
-  async (ready) => {
-    const f = await fixture();
+it.each(cases)(
+  "rejects a replacement directory of the declared size without PUT (%s, ready=%s)",
+  async (kind, ready) => {
+    // Matching sizes leave the descriptor type check as the only defence.
+    const directory = await mkdtemp(join(tmpdir(), "everframe-upload-dir-"));
+    roots.push(directory);
+    await writeFile(join(directory, "entry"), "");
+    const f = await fixture(kind, (await stat(directory)).size);
     await expect(
       f.upload(async () => {
-        await truncate(f.mappingPath, 32 * 1024 * 1024 + 1);
+        await unlink(f.mappingPath);
+        await rename(directory, f.mappingPath);
+      }, ready),
+    ).rejects.toThrow("source_map_changed");
+    expect(f.methods).toEqual(["POST"]);
+  },
+);
+
+it.each(cases)(
+  "rejects an oversized replacement before buffering (%s, ready=%s)",
+  async (kind, ready) => {
+    const f = await fixture(kind);
+    await expect(
+      f.upload(async () => {
+        await truncate(f.mappingPath, limits[kind] + 1);
         // An unbounded whole-file read would allocate before checking its length.
         vi.mocked(readFile).mockRejectedValue(
           new Error("unbounded_mapping_read"),
@@ -138,10 +162,28 @@ it.each([false, true])(
   },
 );
 
-it.each([false, true])(
-  "bounds a mapping that grows after descriptor stat (ready=%s)",
-  async (ready) => {
-    const f = await fixture();
+it.each(cases)(
+  "rejects a same-size rewrite without PUT (%s, ready=%s)",
+  async (kind, ready) => {
+    const f = await fixture(kind);
+    await expect(
+      f.upload(
+        () =>
+          writeFile(
+            f.mappingPath,
+            Buffer.alloc(f.local.manifest.artifacts[0]!.mapBytes, 0x2a),
+          ),
+        ready,
+      ),
+    ).rejects.toThrow("source_map_changed");
+    expect(f.methods).toEqual(["POST"]);
+  },
+);
+
+it.each(cases)(
+  "bounds a mapping that grows after descriptor stat (%s, ready=%s)",
+  async (kind, ready) => {
+    const f = await fixture(kind);
     let readBytes = 0;
     let grew = false;
     await expect(
@@ -156,7 +198,7 @@ it.each([false, true])(
             const metadata = await originalStat();
             if (!grew) {
               grew = true;
-              await truncate(f.mappingPath, 32 * 1024 * 1024 + 1);
+              await truncate(f.mappingPath, limits[kind] + 1);
             }
             return metadata;
           });

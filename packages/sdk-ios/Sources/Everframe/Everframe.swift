@@ -40,7 +40,307 @@ public final class Everframe: @unchecked Sendable {
     /// Single source of truth: edit the podspec, run the sync script — no
     /// other source files need to change at release time.
     public static let SDK_VERSION = EverframeSDKVersion
-    private init() {}
+    internal init(nativeCrashRuntime: NativeCrashRuntime? = NativeCrashRecorderAdapter.makeRuntime(),
+                  appleDiagnosticRuntime: AppleDiagnosticRuntime? = AppleDiagnosticPlatform.makeRuntime(),
+                  releaseHealthRuntime: ReleaseHealthRuntime? = ReleaseHealthRuntime.makeRuntime(),
+                  appleDiagnosticSession: @escaping @Sendable () -> URLSession = { ReportSubmitter.makeIsolatedSession() },
+                  nativeDeviceSnapshot: @escaping @Sendable () async -> DeviceMetadata = { await DeviceMetadata.snapshot() },
+                  isDebugBuild: @escaping @Sendable (_ configured: Bool?) -> Bool = { DebugBuild.current(configured: $0) },
+                  releaseHealthNotice: @escaping @Sendable (String) -> Void = { InternalLogger.notice($0) }) {
+        self.nativeCrashRuntime = nativeCrashRuntime
+        self.appleDiagnosticRuntime = appleDiagnosticRuntime
+        self.releaseHealthRuntime = releaseHealthRuntime
+        self.appleDiagnosticSession = appleDiagnosticSession
+        self.nativeDeviceSnapshot = nativeDeviceSnapshot
+        self.isDebugBuild = isDebugBuild
+        self.releaseHealthNotice = releaseHealthNotice
+        #if os(iOS)
+        if releaseHealthRuntime != nil {
+            releaseHealthLifecycleReady = Task { @MainActor [weak self] in
+                guard let self else { return }
+                let observer = ReleaseHealthLifecycleObserver.observeApplication { [weak self] foreground in
+                    _ = self?.releaseHealthForegroundChanged(foreground)
+                }
+                self.stateLock.withLock { self.releaseHealthLifecycleObserver = observer }
+            }
+        }
+        #endif
+    }
+    private let appleDiagnosticRuntime: AppleDiagnosticRuntime?
+    private let releaseHealthRuntime: ReleaseHealthRuntime?
+    private var releaseHealthLifecycleObserver: ReleaseHealthLifecycleObserver?
+    /// Delivers the first application state. Assigned once, by init on iOS.
+    internal var releaseHealthLifecycleReady: Task<Void, Never>?
+    /// Release health skips debug builds. Takes `EverframeConfig.debugBuild`, which wins when set.
+    /// Injected so tests get one answer on the macOS host and in the simulator, where the
+    /// production check reads debug.
+    private let isDebugBuild: @Sendable (_ configured: Bool?) -> Bool
+    /// Writes SDK status lines, such as the debug-build skip, to the console.
+    private let releaseHealthNotice: @Sendable (String) -> Void
+    /// The deferred `config.releaseHealth` work of the latest `start(config:)`; nil when it had none.
+    private var _releaseHealthStartTask: Task<Bool, Never>?
+    /// Tests await this after `start`. Production never needs to.
+    internal var releaseHealthStartTask: Task<Bool, Never>? { stateLock.withLock { _releaseHealthStartTask } }
+    private let appleDiagnosticSession: @Sendable () -> URLSession
+    private let nativeCrashRuntime: NativeCrashRuntime?
+    private let nativeDeviceSnapshot: @Sendable () async -> DeviceMetadata
+    private var nativeCrashTicket: UInt64 = 0
+    private var nativeCrashPublishedEpoch: Int?
+
+    /// A persisted JavaScript fatal ends the process next: React Native's release
+    /// fatal handler throws RCTFatalException. Close native capture until the
+    /// next start so that abort is not reported as a second, different crash.
+    internal func closeNativeCrashCaptureAfterAcceptedFatal() {
+        stateLock.withLock {
+            nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+            nativeCrashPublishedEpoch = nil
+        }
+    }
+
+    /// Capture ownership atomically, then do main-actor/device and disk work
+    /// outside stateLock. The runtime ticket fences every asynchronous boundary.
+    @discardableResult internal func refreshNativeCrashContext() async -> Bool {
+        guard let runtime = nativeCrashRuntime else { return false }
+        while !Task.isCancelled {
+            let captured: (UInt64, EverframeConfig, EFUser?, EverframeNativeExposure?)? = stateLock.withLock {
+                guard nativeCrashPublishedEpoch == _startEpoch, Self.captureGate,
+                      let config = _config, config.capture.crash else { return nil }
+                return (nativeCrashTicket, config, _user, releaseHealthRuntime?.readyPointer)
+            }
+            guard let (ticket, config, user, exposure) = captured else { return false }
+            let exposureBytes: Data?
+            do { exposureBytes = try exposure.map { try ReleaseHealthDate.encoder().encode($0) } }
+            catch { return false }
+            let device = await nativeDeviceSnapshot()
+            let armed = await runtime.refresh(ticket: ticket) {
+                try NativeCrashStartupContext.make(config: config, user: user, device: device,
+                    endpoint: IngestEndpoint.url.absoluteString,
+                    releaseHealthExposure: try exposureBytes.map { try ReleaseHealthDate.decoder().decode(EverframeNativeExposure.self, from: $0) })
+            }
+            // A user/config change may obsolete this snapshot before recovery
+            // starts. The launch tail must await a current attempt rather than
+            // drain an empty queue while another refresh is still suspended.
+            if stateLock.withLock({ nativeCrashTicket == ticket }) { return armed }
+        }
+        return false
+    }
+
+    /// Invalidates native capture only when the current owner's context must be rebuilt:
+    /// nothing is armed, or the armed context carries a pointer other than the ready one.
+    /// The caller holds stateLock and refreshes when this returns true.
+    private func invalidateStaleNativeCrashContext() -> Bool {
+        guard let runtime = nativeCrashRuntime, nativeCrashPublishedEpoch == _startEpoch, Self.captureGate,
+              _config?.capture.crash == true,
+              !runtime.isArmed(exposureID: releaseHealthRuntime?.readyPointer?.exposureID) else { return false }
+        nativeCrashTicket = runtime.invalidate()
+        return true
+    }
+
+    /// Background retires the immutable native context together with a ready session
+    /// pointer before the UIKit callback returns and, on main, rearms its pointer-free
+    /// twin at once. A transition that retires no pointer, as without an opt-in, leaves
+    /// capture armed; foreground keeps the unlinked context until a durable start.
+    @discardableResult internal func releaseHealthForegroundChanged(_ foreground: Bool) -> Task<Void, Never> {
+        let captured: (UInt64, Bool, Int, UInt64)? = stateLock.withLock {
+            guard let runtime = releaseHealthRuntime, let change = runtime.setForeground(foreground) else { return nil }
+            if change.retiredPointer { nativeCrashTicket = nativeCrashRuntime?.retireExposure() ?? 0 }
+            return (change.ticket, change.retiredPointer, _startEpoch, _configGeneration)
+        }
+        return Task { [weak self] in
+            guard let self, let (ticket, retired, epoch, configGeneration) = captured, let runtime = self.releaseHealthRuntime else { return }
+            // Nothing to replace: no new durable start and no retired pointer.
+            if foreground { guard await runtime.enable(ticket: ticket, sdkVersion: Self.SDK_VERSION) else { return } }
+            else if !retired { return }
+            let current = self.stateLock.withLock { () -> Bool in
+                guard self.nativeCrashPublishedEpoch == epoch, self._startEpoch == epoch,
+                      self._configGeneration == configGeneration, Self.captureGate else { return false }
+                if foreground { self.nativeCrashTicket = self.nativeCrashRuntime?.invalidate() ?? 0 }
+                return true
+            }
+            if current { _ = await self.refreshNativeCrashContext() }
+        }
+    }
+
+    /// Change release health after `start`: add a `userId` at login, clear it at logout, or pass nil
+    /// to turn it off. The setting lasts until the next `start`, which applies
+    /// `EverframeConfig.releaseHealth` again. True means this foreground session's start is durable.
+    /// A launch-time call first waits for the SDK's first application-state observation. Background
+    /// returns false and waits for foreground before recording; its configuration stays in force. A
+    /// new configuration, such as another user ID after login or logout, ends the current foreground
+    /// session and, while foreground, opens a new one.
+    /// Nil immediately revokes future health admission and attempts local erasure;
+    /// false means cleanup must be retried. Already-admitted independent crash
+    /// evidence is governed by crash retention; this is not server-side erasure.
+    /// A debug build is off unless the configuration sets `includeDebugBuilds`: it erases as nil
+    /// does and returns false. Unsupported platforms return false. Replay/vitals/crash capture are independent.
+    @discardableResult public func setReleaseHealth(_ configuration: ReleaseHealthConfiguration?) async -> Bool {
+        guard let perform = prepareReleaseHealth(configuration, expectedConfig: nil) else { return false }
+        return await perform()
+    }
+
+    /// Configure a bridge owner and reserve its health intent before deferring durable work.
+    /// Health comes only from `health`; `config.releaseHealth` is not read here, so a changed user ID
+    /// leaves the installed configuration equal and the SDK running. Identical SDK and health
+    /// configuration retains the current foreground session and leaves native crash capture armed.
+    /// Always run the returned operation: it completes erasure and, after a withdrawn session
+    /// pointer, rearms native crash capture.
+    public func configureAndPrepareReleaseHealth(config: EverframeConfig, health: ReleaseHealthConfiguration?, forceRestart: Bool = false) throws -> (@Sendable () async -> Bool)? {
+        let unchanged: (epoch: Int, configGeneration: UInt64)? = stateLock.withLock {
+            guard !forceRestart, Self.captureGate, nativeCrashPublishedEpoch == _startEpoch, _config == config else { return nil }
+            return (_startEpoch, _configGeneration)
+        }
+        if let unchanged {
+            Self.__beforeReleaseHealthReservationForTesting?()
+            return prepareReleaseHealth(health, expectedConfig: config, expectedOwner: unchanged)
+        }
+        return try startAndPrepareReleaseHealth(config: config, health: health)
+    }
+
+    /// Lets tests start the SDK between the debug-build skip decision and the reservation.
+    nonisolated(unsafe) internal static var __afterReleaseHealthDebugDecisionForTesting: (() -> Void)?
+
+    /// Lets tests replace SDK ownership after an unchanged decision and before reservation.
+    nonisolated(unsafe) internal static var __beforeReleaseHealthReservationForTesting: (() -> Void)?
+
+    /// Starts `config` and reserves `health`. Never reads `config.releaseHealth`: the public
+    /// `start(config:)` passes it as `health`, and the React Native bridge passes its own.
+    internal func startAndPrepareReleaseHealth(config: EverframeConfig, health: ReleaseHealthConfiguration?) throws -> (@Sendable () async -> Bool)? {
+        var published: (epoch: Int, configGeneration: UInt64)?
+        try start(config: config, publication: { published = ($0, $1) })
+        guard let published else { return nil }
+        return prepareReleaseHealth(health, expectedConfig: config, expectedOwner: published)
+    }
+
+    /// Reserves bridge configuration synchronously. Deferred work cannot borrow a later SDK owner.
+    /// The returned operation performs durable work outside the SDK lock; unchanged configuration
+    /// retains its existing foreground session. Nil withdraws attribution before returning.
+    internal func prepareReleaseHealth(_ configuration: ReleaseHealthConfiguration?, expectedConfig: EverframeConfig) -> (@Sendable () async -> Bool)? {
+        prepareReleaseHealth(configuration, expectedConfig: Optional(expectedConfig))
+    }
+
+    private var releaseHealthCommand: UInt64 = 0
+    /// The start epoch whose debug-build skip has been logged. Guarded by stateLock.
+    private var releaseHealthDebugNoticeEpoch: Int?
+    private func prepareReleaseHealth(_ requested: ReleaseHealthConfiguration?, expectedConfig: EverframeConfig?,
+                                      expectedOwner: (epoch: Int, configGeneration: UInt64)? = nil) -> (@Sendable () async -> Bool)? {
+        guard let runtime = releaseHealthRuntime else { return nil }
+        // A debug build is off unless the configuration includes debug builds. The skip takes nil's
+        // path: revoke now and erase in the returned operation, so an earlier includeDebugBuilds run
+        // leaves nothing behind. The detector runs outside stateLock; its first call may read a file.
+        // The public path has no caller-supplied owner, so it takes the configuration and its owner
+        // in ONE critical section: the skip decision below and the reservation then describe the same
+        // start, and a start() between them makes the reservation reject this stale call.
+        var expectedOwner = expectedOwner
+        var decidedConfig = expectedConfig
+        if expectedConfig == nil, expectedOwner == nil {
+            let snapshot = stateLock.withLock { (config: _config, owner: (epoch: _startEpoch, configGeneration: _configGeneration)) }
+            decidedConfig = snapshot.config; expectedOwner = snapshot.owner
+        }
+        let debugBuild = decidedConfig?.debugBuild
+        let skipped = requested.map { !$0.includeDebugBuilds && isDebugBuild(debugBuild) } ?? false
+        let configuration = skipped ? nil : requested
+        var notice = false
+        Self.__afterReleaseHealthDebugDecisionForTesting?()
+        let reserved: (command: UInt64, epoch: Int, configGeneration: UInt64, ticket: UInt64)? = stateLock.withLock {
+            if let expectedOwner, (_startEpoch != expectedOwner.epoch || _configGeneration != expectedOwner.configGeneration) { return nil }
+            if let expectedConfig, _config != expectedConfig { return nil }
+            if configuration != nil {
+                guard Self.captureGate, nativeCrashPublishedEpoch == _startEpoch, _config != nil else { return nil }
+            }
+            // One line per start: later skips under the same epoch stay quiet.
+            if skipped, releaseHealthDebugNoticeEpoch != _startEpoch {
+                releaseHealthDebugNoticeEpoch = _startEpoch; notice = true
+            }
+            releaseHealthCommand &+= 1
+            let change: (UInt64, Bool)
+            if let configuration, let config = _config {
+                change = runtime.requestEnable(configuration: configuration, sdkKey: config.sdkKey,
+                    endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString,
+                    debugBuild: config.debugBuild)
+            } else { change = runtime.revoke() }
+            // Only a withdrawn pointer can be carried by an armed or pending native context. An
+            // unchanged owner, or one that was never ready, leaves native capture untouched.
+            if change.1 { nativeCrashTicket = nativeCrashRuntime?.retireExposure() ?? 0 }
+            return (releaseHealthCommand, _startEpoch, _configGeneration, change.0)
+        }
+        if notice { releaseHealthNotice("[everframe] Release health is off in debug builds.") }
+        guard let reserved else { return nil }
+        let isCurrent: @Sendable () -> Bool = { [self] in stateLock.withLock {
+            releaseHealthCommand == reserved.command && _startEpoch == reserved.epoch && _configGeneration == reserved.configGeneration
+        } }
+        let operation: @Sendable () async -> Bool = { [self] in
+            guard let configuration else {
+                // Explicit erasure remains an obligation even when another request overtakes its tail.
+                let erased = await runtime.finishRevocation(reserved.ticket)
+                let refresh: Bool? = stateLock.withLock {
+                    guard releaseHealthCommand == reserved.command, _startEpoch == reserved.epoch,
+                          _configGeneration == reserved.configGeneration else { return nil }
+                    return invalidateStaleNativeCrashContext()
+                }
+                guard let refresh else { return false }
+                if refresh { _ = await refreshNativeCrashContext() }
+                return erased
+            }
+            guard isCurrent() else { return false }
+            await releaseHealthLifecycleReady?.value
+            // Initial lifecycle observation may change the runtime ticket. Reuse its desired owner
+            // only while this synchronous reservation still owns the installed SDK configuration.
+            let ticket: UInt64? = stateLock.withLock {
+                guard releaseHealthCommand == reserved.command, _startEpoch == reserved.epoch,
+                      _configGeneration == reserved.configGeneration, Self.captureGate,
+                      nativeCrashPublishedEpoch == _startEpoch, let config = _config else { return nil }
+                return runtime.requestEnable(configuration: configuration, sdkKey: config.sdkKey,
+                    endpoint: IngestEndpoint.url.appendingPathComponent("api/ingest/release-health").absoluteString,
+                    debugBuild: config.debugBuild).ticket
+            }
+            guard let ticket else { return false }
+            let enabled = await runtime.enable(ticket: ticket, sdkVersion: Self.SDK_VERSION)
+            // Like foreground entry, the armed context stays until another pointer must replace it.
+            let current: (owned: Bool, refresh: Bool) = stateLock.withLock {
+                guard releaseHealthCommand == reserved.command, _startEpoch == reserved.epoch,
+                      _configGeneration == reserved.configGeneration, Self.captureGate else { return (false, false) }
+                return (true, invalidateStaleNativeCrashContext())
+            }
+            if current.refresh { _ = await refreshNativeCrashContext() }
+            return enabled && current.owned
+        }
+        guard skipped else { return operation }
+        // A skipped debug build reports false once its erasure has run.
+        return { _ = await operation(); return false }
+    }
+
+    /// Opt in after start. Returns true only after the requested durable
+    /// transition completes. MetricKit periods crossing this opt-in window are
+    /// dropped; accepted anonymous receipts can retry after a later same-app opt-in.
+    /// Unsupported platforms return false. Disable closes admission immediately;
+    /// a false result means persistent cleanup must be retried.
+    @discardableResult public func setAppleDiagnosticsEnabled(_ enabled: Bool) async -> Bool {
+        guard let runtime = appleDiagnosticRuntime else { return false }
+        if !enabled {
+            let request = stateLock.withLock { runtime.revoke() }
+            return await runtime.finishRevocation(request)
+        }
+        let captured: (UInt64, Int, EverframeConfig)? = stateLock.withLock {
+            guard Self.captureGate, nativeCrashPublishedEpoch == _startEpoch,
+                  let config = _config, config.capture.crash else { return nil }
+            return (runtime.requestEnable(), _startEpoch, config)
+        }
+        guard let (ticket, epoch, config) = captured else { return false }
+        let device = await nativeDeviceSnapshot()
+        guard let version = device.appVersion, let build = device.appBuild else { return false }
+        do {
+            let frozen = try NativeCrashStartupContext.make(config: config, user: nil, device: device,
+                endpoint: IngestEndpoint.url.absoluteString)
+            let context = AppleDiagnosticContext(frozen: frozen, applicationVersion: version, applicationBuild: build)
+            return await runtime.enable(context: context, ticket: ticket) { [weak self, weak runtime] in
+                guard let self, let runtime else { return }
+                let submitter = ReportSubmitter(config: config, outbox: runtime.deliveryOutbox, session: self.appleDiagnosticSession())
+                    .restrictingOutboxToAppleDiagnostics()
+                await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
+                    epochAtInitiation: epoch, currentEpoch: { [weak self] in self?.currentStartEpoch ?? -1 })
+            }
+        } catch { return false }
+    }
 
     // MARK: - State (NSLock-protected)
 
@@ -186,6 +486,14 @@ public final class Everframe: @unchecked Sendable {
     /// (`Companion/RelayWSClient.swift`'s `.invalidate()` call) — reusing it
     /// would discard crashes on an unrelated event.
     private var _killGeneration: UInt64 = 0
+    /// Crash-only sessions (spec 2026-10-12): set when a companion bond (a phone scanning the QR
+    /// code, or a dashboard member attaching) upgrades a crash-only session, so its replay and
+    /// network bodies follow the normal server rules. Sticky until the next `start()` or
+    /// `kill()`, which clear it in their epoch sections; a detach does not clear it. A
+    /// crash-only `start()` that publishes while `companion` is still bonded seeds it, since no
+    /// new `pair.bonded` comes for a bond that already exists. Shake and `report.open()` read
+    /// `reporterEnabled` alone, so they stay off after an upgrade.
+    private var _companionUpgraded = false
     /// The in-flight start() heavy-init Task, retained so `kill()` can
     /// cancel it directly — belt-and-suspenders alongside the epoch guard
     /// above (cancellation alone isn't sufficient because `drainOutbox()`
@@ -331,7 +639,19 @@ public final class Everframe: @unchecked Sendable {
     /// `kill()` landing between two separate reads could pair one instant's
     /// user with a different instant's identity subject.
     public func captureSessionSnapshot() -> EFCapturedSession {
-        stateLock.lock(); defer { stateLock.unlock() }
+        stateLock.withLock { captureSessionSnapshotLocked() }
+    }
+
+    /// Own the foreground pointer in the same memory-only section as config and revocation.
+    internal func captureSessionWithNativeExposure(exposure: (() -> EverframeNativeExposure?)? = nil) -> (session: EFCapturedSession, exposure: EverframeNativeExposure?) {
+        stateLock.withLock {
+            let captured = captureSessionSnapshotLocked()
+            let pointer = Self.captureGate ? (exposure.map { $0() } ?? releaseHealthRuntime?.readyPointer) : nil
+            return (captured, pointer)
+        }
+    }
+
+    private func captureSessionSnapshotLocked() -> EFCapturedSession {
         let identityEnabled = __replayConfigOverrideForTesting.map(isIdentityEnabled) ?? _identityEnabledFlag.get()
         let identitySubject = identityEnabled ? _identityHolder.cachedSubject(now: Date()) : nil
         return EFCapturedSession(
@@ -490,6 +810,39 @@ public final class Everframe: @unchecked Sendable {
         #endif
     }
 
+    /// Crash-only sessions (spec 2026-10-12): the installed config and whether a companion bond
+    /// upgraded this session, read in one `stateLock` section so a config apply decides replay
+    /// coverage and the body gate from the same answer.
+    internal var crashOnlyCoverageState: (config: EverframeConfig?, upgraded: Bool) {
+        stateLock.withLock { (_config, _companionUpgraded) }
+    }
+
+    /// Crash-only sessions (spec 2026-10-12): `RelayWSClient` calls this on every `pair.bonded`,
+    /// off the main thread. A bond upgrades the CURRENT crash-only session only, once `start()`
+    /// has published its config (`nativeCrashPublishedEpoch == _startEpoch`, the guard the
+    /// release-health and native-crash paths use); before `start()`, after `kill()` or between
+    /// `start()`'s two sections it upgrades nothing. Not `CompanionAuthEpoch`: that one also
+    /// moves when a companion session ends. The replay session then re-applies its config at
+    /// once, so replay and network bodies start at the bond; a session installed later reads
+    /// the flag on its first apply.
+    internal func __companionMemberAttached() {
+        let epoch: Int? = stateLock.withLock {
+            guard Self.captureGate, nativeCrashPublishedEpoch == _startEpoch,
+                  _config?.reporterEnabled == false, !_companionUpgraded else { return nil }
+            _companionUpgraded = true
+            return _startEpoch
+        }
+        #if canImport(UIKit)
+        guard let epoch else { return }
+        Task { @MainActor in
+            guard Everframe.shared.currentStartEpoch == epoch else { return }
+            await Everframe.shared._replaySession?.applyCompanionUpgrade()
+        }
+        #else
+        _ = epoch
+        #endif
+    }
+
     // MARK: - Config test seam (round-5 review Finding F22 regression)
 
     /// Test-only seam: set `_config` directly, WITHOUT running `start()`'s
@@ -581,12 +934,18 @@ public final class Everframe: @unchecked Sendable {
         __startTailDelayHookForTesting = nil
     }
 
+    /// Test-only seam — when set, start()'s heavy-init tail awaits this closure
+    /// with its SDK instance immediately before the launch `drainOutbox()` call,
+    /// so a test can observe what native recovery queued before delivery
+    /// begins. `nil` in production.
+    nonisolated(unsafe) internal static var __beforeLaunchDrainHookForTesting: (@Sendable (Everframe) async -> Void)?
+
     // MARK: - Session-supersession test seam (round-4 review Finding F16)
 
     #if canImport(UIKit)
     /// Test-only seam — when set, start()'s heavy-init tail constructs its
     /// `ReplaySession` via this factory instead of the production
-    /// `ReplaySession(baseURL:apiKey:locallyDisabled:)` initializer. Real
+    /// `ReplaySession(baseURL:sdkKey:locallyDisabled:)` initializer. Real
     /// network is unreachable/uncontrolled from here, so this lets specs
     /// inject a session built from a fake `ReplayConfigProvider` (mirroring
     /// `ReplaySessionTeardownRaceTests`' `GatedFetcher`/`MutableClock`
@@ -634,7 +993,18 @@ public final class Everframe: @unchecked Sendable {
 
     /// Synchronous; returns in <5ms (RESEARCH Pitfall 5). Throws on bad config
     /// (HTTPS-only endpoint, missing/malformed sdkKey).
+    ///
+    /// Applies `config.releaseHealth`, which is on by default. The reservation is made before this
+    /// returns, and the durable work runs afterwards on a task, as the React Native bridge runs it,
+    /// so a `setReleaseHealth` call right after `start` supersedes it. Nil turns release health
+    /// off and erases undelivered local records.
     public func start(config: EverframeConfig) throws {
+        let applyHealth = try startAndPrepareReleaseHealth(config: config, health: config.releaseHealth)
+        let task = applyHealth.map { operation in Task { await operation() } }
+        stateLock.withLock { _releaseHealthStartTask = task }
+    }
+
+    private func start(config: EverframeConfig, publication: ((Int, UInt64) -> Void)?) throws {
         try ConfigValidator.validate(config)
 
         // Round-5 review Finding F23 — `start(A) -> start(B)` is NOT a safe
@@ -784,8 +1154,13 @@ public final class Everframe: @unchecked Sendable {
         // OWN lock, never `stateLock`, so calling it from inside this
         // critical section cannot deadlock or invert lock ordering.
         stateLock.lock()
+        appleDiagnosticRuntime?.boundary()
+        releaseHealthRuntime?.boundary()
+        nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+        nativeCrashPublishedEpoch = nil
         let epoch = bumpStartEpoch()
         _user = nil
+        _companionUpgraded = false
         _identityHolder.set(nil)
         // Independent review, round 4 (Serious 3) — a fresh session has not
         // fetched its own config yet, so "identity was enabled" from the
@@ -825,8 +1200,10 @@ public final class Everframe: @unchecked Sendable {
         let vitalsStillNewest: () -> Bool = { Everframe.shared.currentStartEpoch == epoch }
         VitalsRuntime.shared.shutdown(dropPending: false, ifCurrent: vitalsStillNewest)
         VitalsServerConfigBox.shared.publish(nil, ifCurrent: vitalsStillNewest)
+        // A crash-only session (`reporterEnabled: false`) has no on-device reporter, so shake
+        // stays off for the whole session, including after a companion upgrade.
         ShakeToReportTrigger.shared.beginSession(
-            localEnabled: config.shakeToReportEnabled,
+            localEnabled: config.shakeToReportEnabled && config.reporterEnabled,
             ifCurrent: vitalsStillNewest
         )
 
@@ -850,6 +1227,14 @@ public final class Everframe: @unchecked Sendable {
         // while running customer teardown above publishes NOTHING and launches no tail.
         guard _startEpoch == epoch else { stateLock.unlock(); return }
         _config = config
+        nativeCrashPublishedEpoch = epoch
+        // Crash-only sessions (spec 2026-10-12): a crash-only session that starts while the
+        // companion is still bonded (a re-start, or a React Native reconfigure with the phone
+        // attached) starts upgraded. Read here, in the publication section, rather than in the
+        // epoch section: `__companionMemberAttached()` ignores a bond until this line publishes
+        // the epoch, so a bond landing between the two sections is caught by this read, and one
+        // landing after it by that call. `__isBonded` takes only its own lock.
+        _companionUpgraded = !config.reporterEnabled && companion.__isBonded
         // Follow-ups item 9, fourth round — bumped HERE, with the assignment
         // it describes, never in the epoch section above. That is the whole
         // point of it being a separate counter.
@@ -889,6 +1274,7 @@ public final class Everframe: @unchecked Sendable {
         // gone. Only the user clear moved earlier.
         ReportDiagnostics.shared.beginGeneration(epoch: epoch, enabled: config.capture.crash)
         Self.captureGate = true
+        publication?(epoch, _configGeneration)
         stateLock.unlock()
 
         #if canImport(UIKit)
@@ -946,6 +1332,9 @@ public final class Everframe: @unchecked Sendable {
         // pattern tripped a compiler region-checker corner case and forced
         // log/outbox work onto the main thread unnecessarily.
         let startTask = Task { [config, epoch] in
+            // Recover prior native records and arm a durable current context
+            // before any potentially slow launch upload. No fatal Swift work.
+            await self.refreshNativeCrashContext()
             // 04-04: log capture (gated on config.capture.logs).
             // LogCapture.install() is idempotent — safe across multiple start()
             // calls if a host re-configures.
@@ -958,6 +1347,10 @@ public final class Everframe: @unchecked Sendable {
             // own URLSession that excludes our own URLProtocol-based capture
             // interceptor (so submission requests don't recurse).
             let submitter = ReportSubmitter(config: config).observing(ReportDiagnostics.shared.handle(epoch: epoch))
+            // Recovery-before-drain test seam — see its doc comment. `nil` in production.
+            if let hook = Self.__beforeLaunchDrainHookForTesting {
+                await hook(self)
+            }
             // Native identity Task 8b — the real singleton holder + the live
             // `ReplayConfig`, not the inert defaults `drainOutbox` used to
             // fall back to.
@@ -1072,7 +1465,7 @@ public final class Everframe: @unchecked Sendable {
                 localConfig: config.vitals,
                 dims: vitalsDims,
                 transport: {
-                    VitalsTransport(session: vitalsSession, endpoint: vitalsEndpoint, apiKey: config.appId,
+                    VitalsTransport(session: vitalsSession, endpoint: vitalsEndpoint, sdkKey: config.sdkKey,
                                     isKilled: { !Everframe.captureGate || Everframe.startEpochLockFree() != epoch })
                 },
                 scheduler: DispatchVitalsScheduler(),
@@ -1164,7 +1557,7 @@ public final class Everframe: @unchecked Sendable {
                 } else {
                     session = ReplaySession(
                         baseURL: IngestEndpoint.url,
-                        apiKey: config.appId,
+                        sdkKey: config.sdkKey,
                         locallyDisabled: false,
                         // Round-6 review Finding F27: pass the EXACT epoch
                         // this install was just gated on above (`stillCurrent`),
@@ -1222,9 +1615,12 @@ public final class Everframe: @unchecked Sendable {
     /// Note this makes `gate closed ⟹ _user == nil` an invariant: `start()`
     /// and `kill()` both clear it, and nothing else can write while closed.
     public func setUser(_ user: EFUser?) {
-        stateLock.lock(); defer { stateLock.unlock() }
-        guard Self.captureGate else { return }
+        stateLock.lock()
+        guard Self.captureGate else { stateLock.unlock(); return }
+        nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
         _user = user
+        stateLock.unlock()
+        Task { await self.refreshNativeCrashContext() }
     }
 
     /// Install or clear the verified-identity token source (recognition spec
@@ -1787,6 +2183,16 @@ public final class Everframe: @unchecked Sendable {
         NetworkBodyRingBuffer.shared.freeze()
     }
 
+    /// Starts a handled error's replay snapshot in the session it was captured
+    /// in. MainActor only for session bookkeeping; encoding and export run on
+    /// the recorder's own actors.
+    @MainActor
+    internal func __replayErrorSnapshot(capture: ErrorReplayCapture) async -> ErrorReplaySnapshot {
+        let session = _replaySession
+        guard let session else { return .omitted("replay_unavailable") }
+        return await session.errorSnapshot(capture: capture)
+    }
+
     /// Consume only this session's frozen video; reporter stays paused until close.
     @MainActor
     internal func __replayCompleteVideo() async -> NativeVideoClaim? {
@@ -1862,6 +2268,10 @@ public final class Everframe: @unchecked Sendable {
         // reordering was needed. `start()` was the one that had
         // `reset()`/`clear()` running before the epoch bump.
         stateLock.lock()
+        let appleErasure = appleDiagnosticRuntime?.revoke()
+        let healthErasure = releaseHealthRuntime?.revoke().request
+        nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+        nativeCrashPublishedEpoch = nil
         let killEpoch = bumpStartEpoch()
         ReportDiagnostics.shared.retireGeneration(epoch: killEpoch)
         // Monotonic and never lowered — this is what makes a revocation
@@ -1888,6 +2298,7 @@ public final class Everframe: @unchecked Sendable {
         // (Everframe.kt), and with web (sdk-core `client.ts` kill(), which
         // now clears `state.user` next to `state.identityToken.set(null)`).
         _user = nil
+        _companionUpgraded = false
         // Native identity Task 4 — clear the verified-identity token in the
         // SAME critical section as `_user = nil` immediately above, same
         // GDPR/kill-switch posture as the ring-buffer zeroization below
@@ -1915,6 +2326,12 @@ public final class Everframe: @unchecked Sendable {
         // reading must not survive.
         _identityEnabledFlag.set(false)
         stateLock.unlock()
+        if let request = appleErasure, let runtime = appleDiagnosticRuntime {
+            Task { _ = await runtime.finishRevocation(request) }
+        }
+        if let request = healthErasure, let runtime = releaseHealthRuntime {
+            Task { _ = await runtime.finishRevocation(request) }
+        }
         taskToCancel?.cancel()
 
         // Fix round 3 residual hygiene — unlike every other piece of session
@@ -2123,7 +2540,14 @@ public final class ReportAPI: ObservableObject, @unchecked Sendable {
     /// Wired in plan 04-06 to EFReporterPresenter.openAndAwait() via the
     /// runtime-injected resolver below — this keeps Everframe.swift independent
     /// of the EverframeReporterUI module (which depends on Everframe).
+    ///
+    /// Throws `EverframeReporterError.reporterDisabled` in a crash-only session
+    /// (`EverframeConfig.reporterEnabled == false`), before any capture, including after a
+    /// companion upgrade: that session's reports come through companion.
     public func open() async throws -> ReportResult {
+        if Everframe.shared.currentConfig?.reporterEnabled == false {
+            throw EverframeReporterError.reporterDisabled
+        }
         if let resolver = ReportAPI.__resolver {
             return try await resolver()
         }

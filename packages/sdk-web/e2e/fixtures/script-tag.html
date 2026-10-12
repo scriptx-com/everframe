@@ -40,7 +40,7 @@
        the IIFE, and why the documented snippet is a single module block. -->
   <script type="module">
     import { init } from '/dist/browser/index.js';
-    window.__everframe = init({ apiKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+    window.__everframe = init({ sdkKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
     document.getElementById('report').addEventListener('click', () => {
       // Swallowed for the same reason as plain.html's — see that fixture.
       window.__everframe.open().catch(() => {});

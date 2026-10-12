@@ -1,0 +1,44 @@
+{
+  "protocolVersion": "1.0",
+  "reportId": "5d0c9b1e-7a43-4f2e-9c61-0e8a2b4d6f13",
+  "submittedAt": "2026-10-10T10:00:00.010Z",
+  "source": "crash",
+  "sdk": { "name": "everframe-vega", "version": "0.1.0", "platform": "vega", "formFactor": "tv" },
+  "reporter": { "title": "Error: player state was null", "description": "" },
+  "captures": { "screenshot": false, "uiTree": false, "focus": false, "logs": false, "network": false, "breadcrumbs": true },
+  "captureControl": { "included": ["breadcrumbs"], "excluded": ["screenshot", "uiTree", "focus", "logs", "network"], "degradedReason": "crash-capture" },
+  "payload": {
+    "crash": {
+      "jsBundle": {
+        "engine": "hermes",
+        "platform": "vega",
+        "buildId": "9f2c4be1d07a5e3368c1b0f4a2d97e5c1b8a6f3d2e0c9b7a5f4e3d2c1b0a9f8e",
+        "bundleName": "9f2c4be1d07a5e3368c1b0f4a2d97e5c1b8a6f3d2e0c9b7a5f4e3d2c1b0a9f8e.bundle"
+      },
+      "exceptionType": "Error",
+      "message": "player state was null",
+      "frames": [
+        { "raw": "at onPress (9f2c4be1d07a5e3368c1b0f4a2d97e5c1b8a6f3d2e0c9b7a5f4e3d2c1b0a9f8e.bundle:41237:24)" },
+        { "raw": "at anonymous (9f2c4be1d07a5e3368c1b0f4a2d97e5c1b8a6f3d2e0c9b7a5f4e3d2c1b0a9f8e.bundle:41250:9)" },
+        { "raw": "at callTimer (node_modules/@amzn/react-native-kepler/Libraries/Core/Timers/JSTimers.js:248:14)" }
+      ],
+      "mechanism": "errorutils",
+      "handled": false,
+      "fatal": true,
+      "occurredAt": "2026-10-10T10:00:00.000Z",
+      "fingerprint": "3c9e0a7b5d1f2468"
+    },
+    "breadcrumbs": [
+      { "t": 1791626399000, "seq": 0, "kind": "navigation", "message": "opened player" }
+    ]
+  },
+  "context": {
+    "app": { "name": "Demo Vega App", "version": "1.4.0", "build": "120" },
+    "device": {
+      "os": "Vega OS", "osVersion": "1.1",
+      "screenSize": { "width": 1920, "height": 1080 }, "pixelRatio": 1,
+      "locale": "en-US", "timezone": "UTC"
+    }
+  },
+  "attachments": []
+}

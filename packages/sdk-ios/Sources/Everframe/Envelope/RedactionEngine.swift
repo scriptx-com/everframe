@@ -31,6 +31,10 @@ public struct RedactionEngine: Sendable {
                     let digitsOnly = matched.filter(\.isNumber)
                     return luhnValid(digitsOnly) ? replacement : matched
                 }
+            } else if pattern.id == "jwt" {
+                // The JSON names a scanner for this rule: it decodes each candidate's header and
+                // redacts only JOSE headers. Its regex is a candidate shape for other engines.
+                out = JwtScan.replace(in: out, with: replacement)
             } else {
                 let nsRange = NSRange(out.startIndex..., in: out)
                 out = regex.stringByReplacingMatches(in: out, options: [], range: nsRange, withTemplate: replacement)

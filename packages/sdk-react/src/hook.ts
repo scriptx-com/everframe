@@ -17,6 +17,8 @@ export interface UseEverframeReturn {
    *   - 'submitted' — envelope shipped successfully (reportId populated).
    *   - 'queued'    — envelope persisted to the outbox for retry (reportId populated).
    *   - 'cancelled' — user dismissed without submitting.
+   * Rejects with `EverframeReporterDisabledError` when the config sets
+   * `reporter: { disabled: true }` (a crash-only session).
    */
   open: () => Promise<ReporterResult>;
   setUser: EverframeClient['setUser'];

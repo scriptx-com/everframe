@@ -11,12 +11,12 @@ import { __extractBridgeConfigForTesting as extract } from '../src/runtime.js';
 describe('companionDeviceId config passthrough', () => {
   it('passes an explicit id through unchanged', () => {
     expect(
-      extract({ apiKey: 'k', companionDeviceId: 'mdm-serial-1234' })
+      extract({ sdkKey: 'k', companionDeviceId: 'mdm-serial-1234' })
         .companionDeviceId,
     ).toBe('mdm-serial-1234');
   });
 
   it('omits the field entirely when absent — native falls through to its own resolution chain', () => {
-    expect('companionDeviceId' in extract({ apiKey: 'k' })).toBe(false);
+    expect('companionDeviceId' in extract({ sdkKey: 'k' })).toBe(false);
   });
 });

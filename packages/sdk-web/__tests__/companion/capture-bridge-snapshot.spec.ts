@@ -35,7 +35,7 @@ function ws() {
 function host(capture: () => Promise<ShotCapture>, opts: { active?: boolean; killed?: { v: boolean } } = {}): CompanionHost {
   const killed = opts.killed ?? { v: false };
   return {
-    config: { apiKey: 'k' } as CompanionHost['config'],
+    config: { sdkKey: 'k' } as CompanionHost['config'],
     sdkVersion: '0.0.0-test',
     getUser: () => null,
     isKilled: () => killed.v,

@@ -70,6 +70,10 @@
 -keep class dev.everframe.config.Environment { *; }
 -keep class dev.everframe.config.TXUser { *; }
 
+# Release-health opt-in types are constructed by consumers of the minified AAR.
+-keep class dev.everframe.config.ReleaseHealthConfig { *; }
+-keep enum dev.everframe.config.ReleaseHealthBundleStatus { *; }
+
 # Branding (spec 2026-08-26): cross-module types read by everframe-reporter-ui
 # at runtime — EverframeConfig.theme's ReporterThemeOptions payload; the
 # BrandingServerConfigSignal / BrandingInlineTheme StateFlow-holding singletons
@@ -369,3 +373,6 @@
 -keep public enum dev.everframe.capture.video.VideoPrivacyAdapter$Classification { *; }
 # Production fallback identifies absent RN privacy facilities by native View ancestry.
 -keepnames class com.facebook.react.** extends android.view.View
+# Native video refuses Flutter host windows by View ancestry name (see consumer-rules.pro).
+-keepnames class io.flutter.embedding.android.FlutterView
+-keepnames class io.flutter.view.FlutterView

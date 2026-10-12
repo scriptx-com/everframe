@@ -82,9 +82,9 @@ class ReporterDialogLifecycleTest {
         var owned: FrozenReportCapture? = null
         val presenter = TXReporterPresenter(
             captureScreenshot = { _, _ -> screenshot() },
-            showDialog = { activity, screenshot, capture, extra ->
+            showDialog = { activity, screenshot, capture, extra, onDismissed ->
                 owned = capture
-                ReporterDialog.show(activity, screenshot, capture, extra)
+                ReporterDialog.show(activity, screenshot, capture, extra, onDismissed = onDismissed)
             },
         )
         val first = async(Dispatchers.Main) { presenter.openReporter(host.get()) }

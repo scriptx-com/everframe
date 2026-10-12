@@ -60,7 +60,7 @@ describe('createVitalsTransport', () => {
     const beaconFn = vi.fn();
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
-      apiKey: API_KEY,
+      sdkKey: API_KEY,
       isKilled: () => true,
       fetchFn,
       beaconFn,
@@ -77,7 +77,7 @@ describe('createVitalsTransport', () => {
     const fetchFn = vi.fn().mockResolvedValue(fetchResponse(200));
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
-      apiKey: API_KEY,
+      sdkKey: API_KEY,
       isKilled: () => false,
       fetchFn,
     });
@@ -102,7 +102,7 @@ describe('createVitalsTransport', () => {
     const fetchFn = vi.fn().mockResolvedValue(fetchResponse(500));
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
-      apiKey: API_KEY,
+      sdkKey: API_KEY,
       isKilled: () => false,
       fetchFn,
     });
@@ -126,7 +126,7 @@ describe('createVitalsTransport', () => {
       const fetchFn = vi.fn().mockResolvedValue(fetchResponse(429, { 'Retry-After': '10' }));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -152,7 +152,7 @@ describe('createVitalsTransport', () => {
       const fetchFn = vi.fn().mockResolvedValue(fetchResponse(429));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -171,7 +171,7 @@ describe('createVitalsTransport', () => {
       const fetchFn = vi.fn().mockResolvedValue(fetchResponse(429, { 'Retry-After': 'not-a-number' }));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -192,7 +192,7 @@ describe('createVitalsTransport', () => {
       const fetchFn = vi.fn().mockResolvedValue(fetchResponse(429, { 'Retry-After': '3600' }));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -215,7 +215,7 @@ describe('createVitalsTransport', () => {
       let killed = false;
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => killed,
         fetchFn,
       });
@@ -233,7 +233,7 @@ describe('createVitalsTransport', () => {
     const fetchFn = vi.fn().mockResolvedValue(fetchResponse(400));
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
-      apiKey: API_KEY,
+      sdkKey: API_KEY,
       isKilled: () => false,
       fetchFn,
     });
@@ -249,7 +249,7 @@ describe('createVitalsTransport', () => {
     const fetchFn = vi.fn().mockRejectedValue(new Error('network down'));
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
-      apiKey: API_KEY,
+      sdkKey: API_KEY,
       isKilled: () => false,
       fetchFn,
     });
@@ -269,7 +269,7 @@ describe('createVitalsTransport', () => {
     let killed = false;
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
-      apiKey: API_KEY,
+      sdkKey: API_KEY,
       isKilled: () => killed,
       fetchFn,
     });
@@ -301,7 +301,7 @@ describe('createVitalsTransport', () => {
       const fetchFn = vi.fn().mockRejectedValue(new Error('offline'));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -327,7 +327,7 @@ describe('createVitalsTransport', () => {
       const fetchFn = vi.fn().mockRejectedValue(new Error('offline'));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -374,7 +374,7 @@ describe('createVitalsTransport', () => {
       const fetchFn = vi.fn().mockReturnValue(new Promise<Response>(() => {}));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -421,7 +421,7 @@ describe('createVitalsTransport', () => {
       });
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -450,7 +450,7 @@ describe('createVitalsTransport', () => {
       });
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -502,7 +502,7 @@ describe('createVitalsTransport', () => {
         const fetchFn = vi.fn().mockResolvedValue(throwingHeaders429);
         const send = createVitalsTransport({
           endpoint: ENDPOINT,
-          apiKey: API_KEY,
+          sdkKey: API_KEY,
           isKilled: () => false,
           fetchFn,
         });
@@ -535,7 +535,7 @@ describe('createVitalsTransport', () => {
         const fetchFn = vi.fn().mockRejectedValue(new Error('network down'));
         const send = createVitalsTransport({
           endpoint: ENDPOINT,
-          apiKey: API_KEY,
+          sdkKey: API_KEY,
           isKilled: () => false,
           fetchFn,
         });
@@ -591,7 +591,7 @@ describe('createVitalsTransport', () => {
         );
         const send = createVitalsTransport({
           endpoint: ENDPOINT,
-          apiKey: API_KEY,
+          sdkKey: API_KEY,
           isKilled: () => false,
           fetchFn,
         });
@@ -630,7 +630,7 @@ describe('createVitalsTransport', () => {
       });
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -655,7 +655,7 @@ describe('createVitalsTransport', () => {
       const fetchFn = vi.fn().mockRejectedValue(new Error('network down'));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -700,7 +700,7 @@ describe('createVitalsTransport', () => {
     const fetchFn = vi.fn();
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
-      apiKey: API_KEY,
+      sdkKey: API_KEY,
       isKilled: () => false,
       fetchFn,
       beaconFn,
@@ -724,7 +724,7 @@ describe('createVitalsTransport', () => {
     const fetchFn = vi.fn().mockResolvedValue(fetchResponse(200));
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
-      apiKey: API_KEY,
+      sdkKey: API_KEY,
       isKilled: () => false,
       fetchFn,
       beaconFn,
@@ -740,7 +740,7 @@ describe('createVitalsTransport', () => {
     const fetchFn = vi.fn().mockResolvedValue(fetchResponse(200));
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
-      apiKey: API_KEY,
+      sdkKey: API_KEY,
       isKilled: () => false,
       fetchFn,
     });
@@ -758,7 +758,7 @@ describe('createVitalsTransport', () => {
 
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
-      apiKey: API_KEY,
+      sdkKey: API_KEY,
       isKilled: () => false,
     });
 
@@ -782,7 +782,7 @@ describe('createVitalsTransport', () => {
     } as unknown as VitalsChunk;
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
-      apiKey: API_KEY,
+      sdkKey: API_KEY,
       isKilled: () => false,
       fetchFn,
       beaconFn,
@@ -806,7 +806,7 @@ describe('createVitalsTransport', () => {
     } as unknown as VitalsChunk;
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
-      apiKey: API_KEY,
+      sdkKey: API_KEY,
       isKilled: () => false,
       fetchFn,
       beaconFn,
@@ -820,8 +820,9 @@ describe('createVitalsTransport', () => {
   // VERIFIED credential, so it never rides in the payload the way the
   // self-declared `user` block does: it goes in the `x-tx-identity-token`
   // header on the fetch path, and — because `sendBeacon` cannot set headers,
-  // which is exactly why `apiKey` already rides in the body there — in an
-  // `identityToken` body field beside `apiKey` on the beacon path.
+  // which is exactly why the SDK key already rides in the body there as
+  // `apiKey` — in an `identityToken` body field beside `apiKey` on the
+  // beacon path.
   // ROUND-4 FINDING 5 — the token now arrives WITH the payload, in
   // `opts.identityToken`, instead of being pulled from a provider dep of this
   // module's own. The collector reads identity once per summary and hands both
@@ -845,7 +846,7 @@ describe('createVitalsTransport', () => {
       const fetchFn = vi.fn().mockResolvedValue(fetchResponse(200));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -867,7 +868,7 @@ describe('createVitalsTransport', () => {
       const fetchFn = vi.fn().mockResolvedValue(fetchResponse(200));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -886,7 +887,7 @@ describe('createVitalsTransport', () => {
       const beaconFn = vi.fn().mockReturnValue(true);
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn: vi.fn(),
         beaconFn,
@@ -906,7 +907,7 @@ describe('createVitalsTransport', () => {
       const beaconFn = vi.fn().mockReturnValue(true);
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn: vi.fn(),
         beaconFn,
@@ -925,7 +926,7 @@ describe('createVitalsTransport', () => {
       const beaconFn = vi.fn().mockReturnValue(true);
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
         beaconFn,
@@ -961,7 +962,7 @@ describe('createVitalsTransport', () => {
         .mockResolvedValueOnce(fetchResponse(200));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -1001,7 +1002,7 @@ describe('createVitalsTransport', () => {
         .mockResolvedValue(fetchResponse(200));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -1035,7 +1036,7 @@ describe('createVitalsTransport', () => {
       const fetchFn = vi.fn().mockResolvedValue(fetchResponse(200));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
-        apiKey: API_KEY,
+        sdkKey: API_KEY,
         isKilled: () => false,
         fetchFn,
       });
@@ -1068,7 +1069,7 @@ describe('createVitalsTransport', () => {
         const beaconFn = vi.fn().mockReturnValue(true);
         const send = createVitalsTransport({
           endpoint: ENDPOINT,
-          apiKey: API_KEY,
+          sdkKey: API_KEY,
           isKilled: () => false,
           fetchFn: vi.fn(),
           beaconFn,
@@ -1089,7 +1090,7 @@ describe('createVitalsTransport', () => {
         const fetchFn = vi.fn().mockResolvedValue(fetchResponse(200));
         const send = createVitalsTransport({
           endpoint: ENDPOINT,
-          apiKey: API_KEY,
+          sdkKey: API_KEY,
           isKilled: () => false,
           fetchFn,
         });
@@ -1133,7 +1134,7 @@ describe('createVitalsTransport', () => {
         const fetchFn = validatingFetch();
         const send = createVitalsTransport({
           endpoint: ENDPOINT,
-          apiKey: API_KEY,
+          sdkKey: API_KEY,
           isKilled: () => false,
           fetchFn: fetchFn as unknown as typeof fetch,
         });
@@ -1152,7 +1153,7 @@ describe('createVitalsTransport', () => {
         const beaconFn = vi.fn().mockReturnValue(true);
         const send = createVitalsTransport({
           endpoint: ENDPOINT,
-          apiKey: API_KEY,
+          sdkKey: API_KEY,
           isKilled: () => false,
           fetchFn: vi.fn(),
           beaconFn,
@@ -1176,7 +1177,7 @@ describe('createVitalsTransport', () => {
         const atCap = jws('a'.repeat(IDENTITY_TOKEN_MAX_CHARS - JWS_OVERHEAD));
         const send = createVitalsTransport({
           endpoint: ENDPOINT,
-          apiKey: API_KEY,
+          sdkKey: API_KEY,
           isKilled: () => false,
           fetchFn,
         });
@@ -1206,7 +1207,7 @@ describe('createVitalsTransport', () => {
       ): void {
         const send = createVitalsTransport({
           endpoint: ENDPOINT,
-          apiKey: API_KEY,
+          sdkKey: API_KEY,
           isKilled: () => false,
           fetchFn: fetchFn as unknown as typeof fetch,
         });
@@ -1237,7 +1238,7 @@ describe('createVitalsTransport', () => {
         const beaconFn = vi.fn().mockReturnValue(true);
         const send = createVitalsTransport({
           endpoint: ENDPOINT,
-          apiKey: API_KEY,
+          sdkKey: API_KEY,
           isKilled: () => false,
           fetchFn: vi.fn(),
           beaconFn,

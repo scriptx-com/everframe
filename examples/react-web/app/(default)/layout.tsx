@@ -33,7 +33,7 @@ function Shell({ children }: { children: ReactNode }) {
   return (
     <EverframeProvider
       config={{
-        apiKey: EVERFRAME_KEY,
+        sdkKey: EVERFRAME_KEY,
         // The build id is what lets the API match uploaded source maps to a report.
         appBuild: process.env.NEXT_PUBLIC_EVERFRAME_APP_BUILD,
         debug: true,

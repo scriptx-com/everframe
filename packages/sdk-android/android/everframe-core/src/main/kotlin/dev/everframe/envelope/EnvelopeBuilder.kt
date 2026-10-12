@@ -177,7 +177,12 @@ class EnvelopeBuilder(
         sdkVersion: String,
         sdkName: String = "everframe-android",
         platform: String = "android",
-        formFactor: String = "phone",
+        /**
+         * `sdk.formFactor`. Required: pass [dev.everframe.capture.DeviceMetadata.formFactor]
+         * of the snapshot this envelope describes. A default once labelled every
+         * JVM and React Native crash from an Android TV as a phone.
+         */
+        formFactor: String,
         title: String = "",
         description: String = "",
         user: TXUserExtras? = null,
@@ -216,6 +221,7 @@ class EnvelopeBuilder(
         appName: String = "unknown",
         appVersion: String = "0.0.0",
         appBuild: String? = null,
+        appDebug: Boolean = false,
         deviceModel: String? = null,
         deviceOs: String = "Android",
         deviceOsVersion: String = "0.0",
@@ -433,7 +439,7 @@ class EnvelopeBuilder(
                 uiTree = false,
             ),
             context = ProtocolContext(
-                app = App(build = appBuild, name = appName, version = appVersion),
+                app = App(build = appBuild, debug = appDebug, name = appName, version = appVersion),
                 device = Device(
                     locale = deviceLocale,
                     model = deviceModel,

@@ -106,6 +106,9 @@ internal object ReporterDialog {
      * gesture: if title or description is non-empty, a Material 3 AlertDialog
      * confirms discard before resolving `Cancelled("user_cancelled")`;
      * otherwise the back press dismisses silently.
+     *
+     * [onDismissed] runs on the main thread when the dialog leaves the screen:
+     * at Send, before the upload this call still waits for, or at cancel.
      */
     suspend fun show(
         activity: Activity,
@@ -115,6 +118,7 @@ internal object ReporterDialog {
         allowAdditionalScreenshots: Boolean = true,
         hostReplayVTree: ByteArray? = null,
         sdkName: String = "everframe-android",
+        onDismissed: () -> Unit = {},
     ): ReportResult {
         val deferred = CompletableDeferred<ReportResult>()
         var lifecycle: ReporterDialogLifecycle? = null
@@ -215,6 +219,7 @@ internal object ReporterDialog {
                 lifecycle = ReporterDialogLifecycle(activity, reportCapture, deferred) {
                     content.removeView(composeView)
                     composeView.disposeComposition()
+                    onDismissed()
                 }
                 content.addView(composeView)
                 __onMountedForTesting?.invoke(onSubmit)
@@ -466,7 +471,7 @@ internal object ReporterDialog {
             }
 
             // 2. Device metadata snapshot.
-            val device = DeviceMetadata.collect(activity)
+            val device = DeviceMetadata.collect(activity, cfg.debugBuild)
 
             // Select only the reporter-open owner's video; transport revalidates its live generation.
             val authorization = if (hostReplayVTree != null)
@@ -540,6 +545,7 @@ internal object ReporterDialog {
                 appName = (device["bundleIdentifier"] as? String) ?: "unknown",
                 appVersion = (device["appVersion"] as? String) ?: "0.0.0",
                 appBuild = (device["appBuild"] as? Number)?.toString(),
+                appDebug = device["appDebug"] == "true",
                 deviceOs = (device["os"] as? String) ?: "Android",
                 deviceOsVersion = (device["osVersion"] as? String) ?: "0.0",
                 deviceModel = device["model"] as? String,

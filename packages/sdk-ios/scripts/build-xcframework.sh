@@ -305,9 +305,16 @@ patch_swiftinterface_into_framework() {
     done < <(find "${di}" -name "${product_name}.swiftinterface" -path "*Objects-normal/*" 2>/dev/null)
 }
 
-# Bundle archived .frameworks into one xcframework per product. No dSYMs are
-# attached — releasing them would let any consumer line-number-map our
-# crashes back to source. The `--debug-symbols` flag is intentionally omitted.
+# Bundle archived .frameworks into one xcframework per product, each slice
+# with its dSYM (`-debug-symbols`). The SDK's sources are public, so its debug
+# information discloses nothing new, and without it the SDK's own frames in an
+# app's crashes stay raw addresses. CocoaPods' "[CP] Copy XCFrameworks" copies
+# the whole slice, dSYM included, into the build's XCFrameworkIntermediates,
+# where the app's symbol upload phase (`everframe setup xcode`, the React
+# Native/Expo integration) finds it by UUID. Ship each dSYM only here: a second
+# copy elsewhere in the build products (CocoaPods' `<Product>.dSYMs` folder
+# convention) is the same UUID in a different file, which the upload refuses
+# as ambiguous.
 create_xcframework() {
     local product_name="$1"
     local out_path="${DIST_DIR}/${product_name}.xcframework"
@@ -315,12 +322,26 @@ create_xcframework() {
     echo "==> create-xcframework ${product_name}"
     rm -rf "${out_path}"
 
-    xcodebuild -create-xcframework \
-        -framework "${ARCHIVE_DIR}/${product_name}-iphoneos.xcarchive/Products/Library/Frameworks/${product_name}.framework" \
-        -framework "${ARCHIVE_DIR}/${product_name}-iphonesimulator.xcarchive/Products/Library/Frameworks/${product_name}.framework" \
-        -framework "${ARCHIVE_DIR}/${product_name}-appletvos.xcarchive/Products/Library/Frameworks/${product_name}.framework" \
-        -framework "${ARCHIVE_DIR}/${product_name}-appletvsimulator.xcarchive/Products/Library/Frameworks/${product_name}.framework" \
-        -output "${out_path}"
+    local args=() sdk archive_path dsym
+    for sdk in iphoneos iphonesimulator appletvos appletvsimulator; do
+        archive_path="${ARCHIVE_DIR}/${product_name}-${sdk}.xcarchive"
+        dsym="${archive_path}/dSYMs/${product_name}.framework.dSYM"
+        if [[ ! -d "${dsym}" ]]; then
+            echo "error: ${dsym} is missing; project.yml must keep DEBUG_INFORMATION_FORMAT = dwarf-with-dsym" 1>&2
+            exit 1
+        fi
+        # -debug-symbols needs an absolute path.
+        args+=(-framework "${archive_path}/Products/Library/Frameworks/${product_name}.framework" -debug-symbols "${dsym}")
+    done
+    xcodebuild -create-xcframework "${args[@]}" -output "${out_path}"
+
+    local slice
+    for slice in "${out_path}"/*/; do
+        if [[ ! -d "${slice}dSYMs/${product_name}.framework.dSYM" ]]; then
+            echo "error: ${product_name}.xcframework slice $(basename "${slice}") has no dSYM" 1>&2
+            exit 1
+        fi
+    done
 
     # App Store validation rejects embedded frameworks whose Info.plist lacks
     # CFBundleShortVersionString (ITMS error 90057). Fail the build here rather
@@ -448,8 +469,8 @@ for scheme in EverframeProtocol EverframeKit EverframeReporterUI; do
     package_xcframework "${scheme}"
 done
 
-# Combined CocoaPods zip — both xcframeworks in one archive so the single
-# `spec.source` line can satisfy both Core and ReporterUI subspecs (CocoaPods
+# Combined CocoaPods zip — every xcframework in one archive so the single
+# `spec.source` line can satisfy every subspec (CocoaPods
 # disallows per-subspec :source). Named off the podspec version, exactly like
 # every other asset (see the SDK_VERSION block near the top).
 #

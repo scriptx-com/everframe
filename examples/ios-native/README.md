@@ -128,8 +128,8 @@ dashboard's Events panel. Setup is once per clone:
 ## What changed in Phase 04.2
 - Walker descends past `_UIHostingView`; emitted `componentType` strings
   are sanitized via family detection (no private API leaks).
-- `EverframeConfig.appId` is hard-validated at `start()` —
-  `evf_live_…` prefix + 41 chars required (legacy `txx_live_…` also works). Misconfiguration fails
+- `EverframeConfig.sdkKey` is hard-validated at `start()` —
+  `evf_live_…` prefix + 41 chars required (legacy `evf_live_…` also works). Misconfiguration fails
   loudly at launch with an actionable console message.
 - Repo-wide dev secrets now live in a single root `.env`. Per-package
   `.env` / `.env.local` files are gone. iOS reads via xcconfig → Info.plist

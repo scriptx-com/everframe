@@ -42,7 +42,7 @@ final class ConfigInstallIdTests: XCTestCase {
     func test_the_request_url_carries_the_install_id_query_parameter() async {
         let fetcher = RecordingFetcher()
         let provider = ReplayConfigProvider.make(
-            baseURL: base, apiKey: "k", fetcher: fetcher,
+            baseURL: base, sdkKey: "k", fetcher: fetcher,
             installIdProvider: { "iYgxBgJiRf1n_ekekB7M9g03ulCzNx2O4jfL8PWLegA" }
         )
         _ = await provider.refresh()
@@ -55,7 +55,7 @@ final class ConfigInstallIdTests: XCTestCase {
     func test_a_nil_supplier_result_leaves_the_url_untouched() async {
         let fetcher = RecordingFetcher()
         let provider = ReplayConfigProvider.make(
-            baseURL: base, apiKey: "k", fetcher: fetcher, installIdProvider: { nil }
+            baseURL: base, sdkKey: "k", fetcher: fetcher, installIdProvider: { nil }
         )
         _ = await provider.refresh()
         XCTAssertEqual(fetcher.urls.first!.absoluteString, "https://ingest.example.test/api/config")
@@ -64,7 +64,7 @@ final class ConfigInstallIdTests: XCTestCase {
     func test_an_empty_supplier_result_leaves_the_url_untouched() async {
         let fetcher = RecordingFetcher()
         let provider = ReplayConfigProvider.make(
-            baseURL: base, apiKey: "k", fetcher: fetcher, installIdProvider: { "" }
+            baseURL: base, sdkKey: "k", fetcher: fetcher, installIdProvider: { "" }
         )
         _ = await provider.refresh()
         XCTAssertEqual(fetcher.urls.first!.absoluteString, "https://ingest.example.test/api/config")
@@ -72,7 +72,7 @@ final class ConfigInstallIdTests: XCTestCase {
 
     func test_the_default_supplier_sends_nothing_so_existing_call_sites_are_unchanged() async {
         let fetcher = RecordingFetcher()
-        let provider = ReplayConfigProvider.make(baseURL: base, apiKey: "k", fetcher: fetcher)
+        let provider = ReplayConfigProvider.make(baseURL: base, sdkKey: "k", fetcher: fetcher)
         _ = await provider.refresh()
         XCTAssertFalse(fetcher.urls.first!.absoluteString.contains("installId"))
     }
@@ -86,7 +86,7 @@ final class ConfigInstallIdTests: XCTestCase {
         let counter = Counter()
         let provider = ReplayConfigProvider(
             configUrl: ReplayConfigProvider.configURL(from: base),
-            apiKey: "k", fetcher: fetcher,
+            sdkKey: "k", fetcher: fetcher,
             installIdProvider: { counter.next() }
         )
         _ = await provider.refresh()
@@ -102,7 +102,7 @@ final class ConfigInstallIdTests: XCTestCase {
         // `refresh()` must still reach the network and report success.
         let fetcher = RecordingFetcher()
         let provider = ReplayConfigProvider.make(
-            baseURL: base, apiKey: "k", fetcher: fetcher,
+            baseURL: base, sdkKey: "k", fetcher: fetcher,
             installIdProvider: { "a b&c=d#e" }
         )
         let ok = await provider.refresh()
@@ -270,7 +270,7 @@ extension ConfigInstallIdTests {
         let session = await ReplaySession(
             provider: ReplayConfigProvider.make(
                 baseURL: URL(string: "https://ingest.example.test")!,
-                apiKey: "k",
+                sdkKey: "k",
                 fetcher: fetcher,
                 installIdProvider: { "iYgxBgJiRf1n_ekekB7M9g03ulCzNx2O4jfL8PWLegA" }
             ),
@@ -286,7 +286,7 @@ extension ConfigInstallIdTests {
     // `init(provider:locallyDisabled:startEpoch:)`, which already accepted a
     // pre-built provider before this task touched anything). It never calls
     // either of this task's actual production changes: the public
-    // convenience init `ReplaySession.init(baseURL:apiKey:locallyDisabled:
+    // convenience init `ReplaySession.init(baseURL:sdkKey:locallyDisabled:
     // startEpoch:installIdProvider:)` (ReplaySession.swift:163-172) or its
     // one call site in `Everframe.swift` — so a convenience init that
     // silently dropped `installIdProvider` when forwarding to
@@ -308,7 +308,7 @@ extension ConfigInstallIdTests {
 
         let session = await ReplaySession(
             baseURL: server.url,
-            apiKey: "k",
+            sdkKey: "k",
             locallyDisabled: false,
             startEpoch: 0,
             installIdProvider: { "iYgxBgJiRf1n_ekekB7M9g03ulCzNx2O4jfL8PWLegA" }

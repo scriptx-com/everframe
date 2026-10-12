@@ -51,7 +51,7 @@ func __sentinelUncaughtExceptionHandler2(_ exception: NSException) {
 @MainActor
 @Suite(.serialized)
 struct BreadcrumbAdaptersTests {
-    private let testAppId = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+    private let testSdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
 
     /// Serialized via `BreadcrumbSharedStateTestLock` against
     /// `BreadcrumbRingBufferTests`'s own reset helper, which runs in a
@@ -70,7 +70,7 @@ struct BreadcrumbAdaptersTests {
     /// suite's own `start()` calls never (re)install `StderrIntercept`;
     /// does not, by itself, fully close the cross-suite race.
     private func noLogCaptureConfig() -> EverframeConfig {
-        EverframeConfig(appId: testAppId, capture: CaptureConfig(logs: false))
+        EverframeConfig(sdkKey: testSdkKey, capture: CaptureConfig(logs: false))
     }
 
     /// Freeze + take, returning only crumbs matching `message` — the robust

@@ -6,16 +6,11 @@ import * as networkBodyModule from '../../src/capture/network-body.js';
 import { createNetworkBodyBuffer } from '@everframe/sdk-core';
 import type { NetworkBodyEntry } from '@everframe/protocol';
 
-// A large body used by the F29 bounded-prefix tests below. Deliberately NOT
-// one giant unbroken run of word characters: the redaction engine's
-// JWT_INLINE regex (`[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}`)
-// greedily matches an unbroken run and then backtracks character-by-character
-// looking for a literal '.' — on a multi-megabyte homogeneous run (e.g.
-// `'a'.repeat(5_000_000)`) with no '.' anywhere, that backtracking is
-// quadratic and effectively never finishes. Interspersing a space every
-// character keeps every match attempt bounded to a single char, avoiding
-// that (pre-existing, unrelated) pathological case while still exercising a
-// realistic multi-megabyte body.
+// A large body used by the F29 bounded-prefix tests below: a realistic
+// multi-megabyte body of short words. These tests are about the prefix bound,
+// not about redaction cost; the engine's JWT rule (redactJwt in
+// @everframe/protocol) is linear even on one unbroken token run, and its own
+// specs cover that.
 function bigBody(byteLen: number): string {
   return 'x '.repeat(Math.ceil(byteLen / 2));
 }

@@ -9,7 +9,7 @@ import EverframeProtocol
 final class VitalsSessionBoundaryTests: XCTestCase {
     private let appA = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
     private let appB = "txx_live_AnotherAppBBBBBBBBBBBBBBBBBBBBBB"
-    private func config(_ id: String) -> EverframeConfig { EverframeConfig(appId: id, capture: CaptureConfig(logs: false)) }
+    private func config(_ id: String) -> EverframeConfig { EverframeConfig(sdkKey: id, capture: CaptureConfig(logs: false)) }
 
     override func setUp() { super.setUp(); Everframe.shared.kill(); VitalsRuntime.shared.resetForTesting(); VitalsServerConfigBox.shared.resetForTesting() }
     override func tearDown() { Everframe.shared.kill(); VitalsRuntime.shared.resetForTesting(); VitalsServerConfigBox.shared.resetForTesting(); super.tearDown() }
@@ -110,7 +110,7 @@ final class VitalsSessionBoundaryTests: XCTestCase {
         let endpoint = URL(string: "https://ingest.example.test/api/ingest/vitals")!
         // The exact predicate Everframe.start() binds into the vitals transport.
         func transport(boundTo epoch: Int) -> VitalsTransport {
-            VitalsTransport(session: session, endpoint: endpoint, apiKey: appA,
+            VitalsTransport(session: session, endpoint: endpoint, sdkKey: appA,
                             isKilled: { !Everframe.captureGate || Everframe.startEpochLockFree() != epoch })
         }
 

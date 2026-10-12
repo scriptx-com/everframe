@@ -8,16 +8,33 @@ import { collectStagedBuild } from "./build-collect.js";
 import { adviceFor, verifyStagedBuild } from "./build-verify.js";
 import { collectHermesBuild } from "./hermes.js";
 import { collectBuild } from "./manifest.js";
+import { dsymUploadBuildCommand } from "./apple-command.js";
+import { DEFAULT_API_URL, uploadBudget } from "./defaults.js";
+import { elfUploadBuildCommand } from "./elf-command.js";
+import { uploadAndroidElfBuild } from "./elf-upload.js";
+import { collectElfBuild } from "./elf.js";
+import { collectDsymBuild } from "./dsym.js";
 import { collectR8Build } from "./r8.js";
 import { resolveExpoAppId, uploadExpoExport } from "./expo-export.js";
 import { setupReactNative } from "./setup-react-native.js";
+import { setupXcode } from "./setup-xcode.js";
+import { symbolsPhaseScript } from "./native-setup/index.js";
+import { CLI_VERSION } from "./version.js";
 import { uploadStagedHermes } from "./staged-upload.js";
 import { uploadBuild, uploadCollectedBuild } from "./upload.js";
+import { collectVegaBuilds, VEGA_DEFAULT_DIR } from "./vega.js";
 
 export type { LocalBuild } from "./manifest.js";
 export { collectBuild } from "./manifest.js";
 export type { CollectHermesBuildOptions } from "./hermes.js";
 export { collectHermesBuild } from "./hermes.js";
+export { uploadAndroidElfBuild } from "./elf-upload.js";
+export { collectAndroidElfBuild, inspectElfFile } from "./elf-build.js";
+export type { ElfBuildImage, CollectedAndroidElfBuild } from "./elf-build.js";
+export type { CollectElfBuildOptions } from "./elf.js";
+export { collectElfBuild } from "./elf.js";
+export type { CollectDsymBuildOptions } from "./dsym.js";
+export { collectDsymBuild } from "./dsym.js";
 export type { CollectR8BuildOptions } from "./r8.js";
 export { collectR8Build } from "./r8.js";
 export type {
@@ -28,20 +45,32 @@ export type {
 export { uploadBuild, uploadCollectedBuild } from "./upload.js";
 export { resolveExpoAppId, uploadExpoExport } from "./expo-export.js";
 export { uploadStagedHermes } from "./staged-upload.js";
+export type { CollectedVegaBuilds, VegaBuild } from "./vega.js";
+export { collectVegaBuilds } from "./vega.js";
 
 const HELP = `Usage:
+  everframe --version
   everframe sourcemaps upload --app-id <uuid> --build <id> --dir <path> [--url-prefix <url>] [--delete-after-upload]
-  everframe sourcemaps upload-hermes --app-id <uuid> --build <id> --platform <android|ios> --bundle-name <name> --bundle <path> --source-map <path>
+  everframe sourcemaps upload-hermes --app-id <uuid> --build <id> --platform <android|ios|vega> --bundle-name <name> --bundle <path> --source-map <path>
   everframe sourcemaps upload-hermes --manifest <dir> --platform <android|ios> --app-id <uuid>
+  everframe sourcemaps upload-vega [--app-id <uuid>] [--dir build/lib/rn-bundles/Release]
   everframe upload-expo-export [--dist dist] [--staging .everframe] [--app-id <uuid>]
   everframe setup react-native --app-id <uuid> [--project <dir>]
+  everframe setup xcode --project <App.xcodeproj> [--target <name>]... [--app-id <uuid>] [--print-script]
+  everframe dsym upload-build (--xcode | --archive <x.xcarchive> | --app <App.app> --dsym-dir <dir>... | --binary <file>... --dsym-dir <dir>...) [--app-id <uuid>] [--strict]
+  everframe dsym upload --app-id <uuid> --dwarf <raw-file>
+  everframe elf upload-build (--binaries-dir <dir> [--abi <abi>]... | --binary <file>...) --symbols-dir <dir> [--project-native-dir <dir>]... [--app-id <uuid>] [--summary] [--strict]
+  everframe elf upload --app-id <uuid> --library <unstripped-elf>
   everframe r8 upload --app-id <uuid> --mapping-id <id> --mapping <path>
   everframe build collect --staging <dir> --platform <android|ios> --bundle <path> --source-map <path> [--dsym <dir>] [--elf <dir>]
   everframe build verify --staging <dir> --platform <android|ios> [--release] [--allow-missing]
 
 Environment:
   EVERFRAME_API_TOKEN  API token with artifacts:write scope (required)
-  EVERFRAME_API_URL    API base URL (default: https://api.everframe.dev/api/v1)
+  EVERFRAME_API_URL    API base URL (default: ${DEFAULT_API_URL})
+  EVERFRAME_APP_ID     Default application UUID for upload commands
+  EVERFRAME_SYMBOLS_STRICT  Set to 1 to fail builds when symbols cannot be uploaded (default: warn)
+  EVERFRAME_UPLOAD_TIMEOUT_SECONDS  Overall upload time limit (default 600 for build integrations)
 `;
 
 export async function main(
@@ -52,18 +81,32 @@ export async function main(
     console.log(HELP);
     return 0;
   }
+  if (argv.length === 1 && (argv[0] === "--version" || argv[0] === "-v")) {
+    console.log(CLI_VERSION);
+    return 0;
+  }
   const isSourceMapCommand =
     argv[0] === "sourcemaps" &&
-    (argv[1] === "upload" || argv[1] === "upload-hermes");
+    (argv[1] === "upload" || argv[1] === "upload-hermes" || argv[1] === "upload-vega");
+  const isDsymBuildCommand = argv[0] === "dsym" && argv[1] === "upload-build";
+  const isElfBuildCommand = argv[0] === "elf" && argv[1] === "upload-build";
+  const isElfCommand = argv[0] === "elf" && argv[1] === "upload";
+  const isDsymCommand = argv[0] === "dsym" && argv[1] === "upload";
   const isR8Command = argv[0] === "r8" && argv[1] === "upload";
   const isBuildCommand =
     argv[0] === "build" && (argv[1] === "collect" || argv[1] === "verify");
   const isExpoExportCommand = argv[0] === "upload-expo-export";
   const isSetupCommand = argv[0] === "setup" && argv[1] === "react-native";
+  const isSetupXcodeCommand = argv[0] === "setup" && argv[1] === "xcode";
   if (
     !isSetupCommand &&
+    !isSetupXcodeCommand &&
     !isSourceMapCommand &&
     !isR8Command &&
+    !isDsymCommand &&
+    !isElfCommand &&
+    !isElfBuildCommand &&
+    !isDsymBuildCommand &&
     !isBuildCommand &&
     !isExpoExportCommand
   ) {
@@ -71,6 +114,31 @@ export async function main(
     return 1;
   }
   try {
+    if (isSetupXcodeCommand) {
+      const { values } = parseArgs({
+        args: argv.slice(2), allowPositionals: false, strict: true,
+        options: {
+          project: { type: "string" }, target: { type: "string", multiple: true },
+          "app-id": { type: "string" }, "print-script": { type: "boolean", default: false },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (values.help) { console.log(HELP); return 0; }
+      const appId = values["app-id"];
+      if (values["print-script"]) {
+        console.log(`#!/usr/bin/env bash\n${symbolsPhaseScript({ ...(appId && { appId }), cliVersion: CLI_VERSION })}`);
+        return 0;
+      }
+      if (!values.project) throw new Error("missing_required_option: --project");
+      const result = await setupXcode({ project: values.project, ...(appId && { appId }), ...(values.target && { targets: values.target }), cliVersion: CLI_VERSION });
+      console.log(result.changed ? `Updated ${values.project}/project.pbxproj` : "Already set up; no changes.");
+      console.log(`"Upload Everframe Symbols" runs last in: ${result.targets.join(", ")}`);
+      console.log("ENABLE_USER_SCRIPT_SANDBOXING = NO on those targets: the phase reads embedded frameworks and dSYM folders.");
+      if (result.xcodegen)
+        console.warn("warning: project.yml found. XcodeGen regenerates this project; add a postBuildScripts entry with the script from `everframe setup xcode --print-script` instead.");
+      return 0;
+    }
+
     if (isSetupCommand) {
       const parsed = parseArgs({
         args: argv.slice(2),
@@ -126,7 +194,7 @@ export async function main(
         distDir: parsed.values.dist,
         stagingDir: parsed.values.staging,
         appId,
-        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         token,
       });
       for (const { platform, buildUuid } of results)
@@ -199,6 +267,80 @@ export async function main(
       return result.ok ? 0 : 1;
     }
 
+    if (isDsymBuildCommand) {
+      if (argv.slice(2).some((arg) => arg === "--help" || arg === "-h")) { console.log(HELP); return 0; }
+      return await dsymUploadBuildCommand(argv.slice(2), env);
+    }
+
+    if (isDsymCommand) {
+      const parsed = parseArgs({
+        args: argv.slice(2),
+        allowPositionals: false,
+        strict: true,
+        options: {
+          "app-id": { type: "string" },
+          dwarf: { type: "string" },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (parsed.values.help) {
+        console.log(HELP);
+        return 0;
+      }
+      const appId = parsed.values["app-id"],
+        dwarfPath = parsed.values.dwarf,
+        token = env.EVERFRAME_API_TOKEN;
+      if (!appId || !dwarfPath || !token)
+        throw new Error("missing_required_option");
+      const local = await collectDsymBuild({ dwarfPath });
+      const result = await uploadCollectedBuild(local, {
+        appId,
+        root: dirname(resolve(dwarfPath)),
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
+        token,
+        deleteAfterUpload: false,
+      });
+      console.log(`dSYM ${result.buildUuid} is ready.`);
+      return 0;
+    }
+
+    if (isElfBuildCommand) {
+      if (argv.slice(2).some((arg) => arg === "--help" || arg === "-h")) { console.log(HELP); return 0; }
+      return await elfUploadBuildCommand(argv.slice(2), env);
+    }
+
+    if (isElfCommand) {
+      const parsed = parseArgs({
+        args: argv.slice(2),
+        allowPositionals: false,
+        strict: true,
+        options: {
+          "app-id": { type: "string" },
+          library: { type: "string" },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (parsed.values.help) {
+        console.log(HELP);
+        return 0;
+      }
+      const appId = parsed.values["app-id"],
+        libraryPath = parsed.values.library,
+        token = env.EVERFRAME_API_TOKEN;
+      if (!appId || !libraryPath || !token)
+        throw new Error("missing_required_option");
+      const local = await collectElfBuild({ libraryPath });
+      const result = await uploadCollectedBuild(local, {
+        appId,
+        root: dirname(resolve(libraryPath)),
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
+        token,
+        deleteAfterUpload: false,
+      });
+      console.log(`ELF ${result.buildUuid} is ready.`);
+      return 0;
+    }
+
     if (isR8Command) {
       const parsed = parseArgs({
         args: argv.slice(2),
@@ -225,11 +367,47 @@ export async function main(
       const result = await uploadCollectedBuild(local, {
         appId,
         root: dirname(resolve(mappingPath)),
-        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         token,
         deleteAfterUpload: false,
-      });
+      }, uploadBudget(env, false));
       console.log(`R8 mapping ${result.buildUuid} is ready.`);
+      return 0;
+    }
+
+    if (argv[1] === "upload-vega") {
+      const parsed = parseArgs({
+        args: argv.slice(2),
+        allowPositionals: false,
+        strict: true,
+        options: {
+          "app-id": { type: "string" },
+          dir: { type: "string", default: VEGA_DEFAULT_DIR },
+          help: { type: "boolean", short: "h" },
+        },
+      });
+      if (parsed.values.help) {
+        console.log(HELP);
+        return 0;
+      }
+      const appId = parsed.values["app-id"] ?? env.EVERFRAME_APP_ID;
+      const token = env.EVERFRAME_API_TOKEN;
+      if (!appId || !token) throw new Error("missing_required_option");
+      const dir = parsed.values.dir;
+      const { builds, stale } = await collectVegaBuilds(dir);
+      for (const bundleId of stale)
+        console.log(`Skipped ${bundleId}.bundle.map: no JavaScript bundle in ${dir} hashes to it (a map from an earlier build).`);
+      if (builds.length === 0) throw new Error("vega_bundle_not_found");
+      for (const { bundleId, local } of builds) {
+        const result = await uploadCollectedBuild(local, {
+          appId,
+          root: resolve(dir),
+          apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
+          token,
+          deleteAfterUpload: false,
+        });
+        console.log(`Source-map build ${result.buildUuid} is ready (Vega bundle ${bundleId}).`);
+      }
       return 0;
     }
 
@@ -282,9 +460,11 @@ export async function main(
             stagingDir: manifestDir,
             platform,
             appId,
-            apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+            apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
             token,
           },
+          // The RN/Expo build phase sets EVERFRAME_UPLOAD_TIMEOUT_SECONDS.
+          uploadBudget(env, false),
         );
         console.log(`Source-map build ${result.buildUuid} is ready.`);
         return 0;
@@ -293,7 +473,7 @@ export async function main(
       if (
         !appId ||
         !buildId ||
-        (platform !== "android" && platform !== "ios") ||
+        (platform !== "android" && platform !== "ios" && platform !== "vega") ||
         !bundleName ||
         !bundlePath ||
         !sourceMapPath ||
@@ -310,7 +490,7 @@ export async function main(
       const result = await uploadCollectedBuild(local, {
         appId,
         root: dirname(resolve(sourceMapPath)),
-        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         token,
         deleteAfterUpload: false,
       });
@@ -351,7 +531,7 @@ export async function main(
         buildId,
         root,
         urlPrefix,
-        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         token,
         deleteAfterUpload: parsed.values["delete-after-upload"],
       },
@@ -361,9 +541,12 @@ export async function main(
     console.log(`Source-map build ${result.buildUuid} is ready.`);
     return 0;
   } catch (error) {
-    console.error(
-      error instanceof Error ? error.message.slice(0, 256) : "upload_failed",
-    );
+    const message = adviceFor(error instanceof Error ? error.message : "upload_failed");
+    const token = env.EVERFRAME_API_TOKEN;
+    // upload-build failures list bounded paths and image identities; an R8
+    // size failure names the mapping's path.
+    const bound = isDsymBuildCommand || isElfBuildCommand ? 8192 : argv[0] === "r8" ? 1024 : 256;
+    console.error((token ? message.split(token).join("[redacted]") : message).slice(0, bound));
     return 1;
   }
 }

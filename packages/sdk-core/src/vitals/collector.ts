@@ -163,18 +163,18 @@ export interface VitalsCollectorDeps {
    */
   onRotate?: () => void;
   /**
-   * Codex round-3 item 8 — the UTF-8 byte length of the apiKey the platform
+   * Codex round-3 item 8 — the UTF-8 byte length of the sdkKey the platform
    * transport will embed in ITS OWN wrapper around a chunk, when it knows
    * one (sdk-web's beacon path sends `{"apiKey":"<key>","payload":<chunk>}`
    * on pagehide — see transport.ts). This platform-neutral module still
    * doesn't need to know the wrapper's exact shape, only how many bytes the
    * key itself costs, so `requestWrapperReserveBytes` below can size the
    * reserve correctly instead of guessing. Omitted (every platform/test that
-   * doesn't pass it) falls back to `DEFAULT_API_KEY_RESERVE_BYTES`, a bound
+   * doesn't pass it) falls back to `DEFAULT_SDK_KEY_RESERVE_BYTES`, a bound
    * generous enough to cover the documented 41-char SDK key format with
    * plenty of room to spare.
    */
-  apiKeyByteLength?: number;
+  sdkKeyByteLength?: number;
   /**
    * Task 11 (spec 2026-09-10 — playback session identity). "Who is signed in
    * RIGHT NOW", read once per summary. Until this is wired, every playback
@@ -321,7 +321,7 @@ const FETCH_WRAPPER_RESERVE_BYTES = 32;
 
 // Codex round-3 item 8 — round-2's fixed 32-byte reserve covered the FETCH
 // wrapper (`{"payload":<chunk>}`, 12 bytes) but not the BEACON wrapper,
-// which additionally embeds the apiKey: `{"apiKey":"<key>","payload":<chunk>}`
+// which additionally embeds the SDK key: `{"apiKey":"<key>","payload":<chunk>}`
 // (sdk-web's transport.ts — sendBeacon can't set headers, so the key rides
 // in the body). That fixed punctuation/keys cost is 24 bytes
 // (`{"apiKey":"` + `","payload":` + the closing `}`) — 11 + 12 + 1 — on top
@@ -332,13 +332,13 @@ const FETCH_WRAPPER_RESERVE_BYTES = 32;
 // beacon send was refused, falling back to the less reliable unload-fetch
 // path.
 const BEACON_WRAPPER_FIXED_BYTES = 24;
-// Fallback when the caller doesn't know (or doesn't pass) the real apiKey
-// length — every platform/test constructed without `apiKeyByteLength`. Well
+// Fallback when the caller doesn't know (or doesn't pass) the real sdkKey
+// length — every platform/test constructed without `sdkKeyByteLength`. Well
 // above the documented 41-char key format, so a caller that DOES supply the
 // real length gets an exact reserve, and one that doesn't still gets a
 // bound that provably covers today's key format with room for a
 // considerably longer one.
-const DEFAULT_API_KEY_RESERVE_BYTES = 128;
+const DEFAULT_SDK_KEY_RESERVE_BYTES = 128;
 
 /**
  * What `safeWrap` is allowed to LOG when a host identity callback throws
@@ -389,18 +389,18 @@ export function createVitalsCollector(deps: VitalsCollectorDeps): VitalsCollecto
     maxSessionMs = DEFAULT_MAX_SESSION_MS,
     setIntervalFn = setInterval,
     clearIntervalFn = clearInterval,
-    apiKeyByteLength = DEFAULT_API_KEY_RESERVE_BYTES,
+    sdkKeyByteLength = DEFAULT_SDK_KEY_RESERVE_BYTES,
   } = deps;
 
   // Codex round-3 item 8 — the effective reserve is whichever wrapper costs
   // MORE: the plain fetch wrapper's fixed 32 bytes, or the beacon wrapper's
-  // fixed 24 bytes PLUS the actual (or fallback) apiKey length. A single
+  // fixed 24 bytes PLUS the actual (or fallback) sdkKey length. A single
   // chunk can be sent via EITHER path (a beacon send that's refused falls
   // back to fetch — see transport.ts), so the cap must protect whichever one
   // a given send ends up taking, not just whichever happens to be smaller.
   const requestWrapperReserveBytes = Math.max(
     FETCH_WRAPPER_RESERVE_BYTES,
-    BEACON_WRAPPER_FIXED_BYTES + apiKeyByteLength,
+    BEACON_WRAPPER_FIXED_BYTES + sdkKeyByteLength,
   );
 
   // Codex round-3 finding F3 — wrapped once, up front, exactly like `tick`

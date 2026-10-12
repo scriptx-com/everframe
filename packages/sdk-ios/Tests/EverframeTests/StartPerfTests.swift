@@ -12,7 +12,7 @@ import Foundation
 struct StartPerfTests {
     @Test func startReturnsUnder5ms() throws {
         let config = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             environment: .development,
             release: "1.0.0"
         )
@@ -30,7 +30,7 @@ struct StartPerfTests {
 
     @Test func heavyInitRunsDetached() async throws {
         let config = EverframeConfig(
-            appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
             environment: .development
         )
         Everframe.__resetHeavyInitFlagForTesting()

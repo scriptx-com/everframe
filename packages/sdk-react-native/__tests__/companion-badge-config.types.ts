@@ -23,13 +23,13 @@ import type { RuntimeConfig } from '../src/runtime.js';
 
 // The flat, wire-shaped keys must be REJECTED on the host-facing type.
 const flatEnabledRejected: RuntimeConfig = {
-  apiKey: 'txx_live_test1234567890',
+  sdkKey: 'txx_live_test1234567890',
   // @ts-expect-error — companionBadgeEnabled is not a RuntimeConfig key; host code must use the nested `companionBadge: { enabled }` instead.
   companionBadgeEnabled: false,
 };
 
 const flatPositionRejected: RuntimeConfig = {
-  apiKey: 'txx_live_test1234567890',
+  sdkKey: 'txx_live_test1234567890',
   // @ts-expect-error — companionBadgePosition is not a RuntimeConfig key; host code must use the nested `companionBadge: { position }` instead.
   companionBadgePosition: 'top-left',
 };
@@ -37,6 +37,6 @@ const flatPositionRejected: RuntimeConfig = {
 // The nested shape must still compile cleanly — proves the Omit above
 // didn't remove the real, intended surface along with the flat one.
 const nestedShapeAccepted: RuntimeConfig = {
-  apiKey: 'txx_live_test1234567890',
+  sdkKey: 'txx_live_test1234567890',
   companionBadge: { enabled: false, position: 'top-left' },
 };

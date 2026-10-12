@@ -25,7 +25,8 @@ describe('RN install-identifier inheritance', () => {
       path.join(__dirname, '..', 'ios', 'Sources', 'EverframeBridge.swift'),
       'utf8',
     );
-    expect(src).toContain('Everframe.shared.start(config:');
+    // The native helper performs the same start and reserves its exact health owner.
+    expect(src).toContain('Everframe.shared.configureAndPrepareReleaseHealth(');
     expect(src).not.toContain('ReplayConfigProvider(');
     // A regressed bridge could build its own provider through the factory
     // (`ReplayConfigProvider.make(`, ReplayConfigProvider.swift:549) instead

@@ -7,11 +7,16 @@ Native iOS Swift Package for Everframe — in-app bug reporting with annotated
 screenshots, session replay, log/network ring buffers, and a built-in
 SwiftUI reporter UI. Covers iPhone, iPad, and Apple TV (tvOS).
 
+Replays also attach to errors; see [session replay](../../docs/session-replay.md).
+
 The public repository provides source and tagged binary releases. The root
 SwiftPM manifest resolves the release artifacts; the source manifest used by
 contributors lives beside this README.
 
 ---
+
+See the [crash-reporting support matrix](../../docs/crash-reporting-support.md)
+for exact tested paths, unsupported combinations and remaining qualification.
 
 ## Install via Swift Package Manager
 
@@ -24,11 +29,14 @@ Apple TV).
 
 ```swift
 // Package.swift consumer example
-.package(url: "https://github.com/scriptx-com/everframe.git", from: "0.8.1"),
+.package(url: "https://github.com/scriptx-com/everframe.git", from: "1.2.0"),
 // Then in your target dependencies:
 .product(name: "Everframe", package: "everframe"),
 .product(name: "EverframeReporterUI", package: "everframe"),
 ```
+
+`EverframeConfig(sdkKey:)` arrives in 1.2.0; 1.1.0 and earlier spell it
+`EverframeConfig(appId:)`, which 1.2.0 still accepts as deprecated.
 
 The deployment floor is iOS 16 / iPadOS 16 / tvOS 16 / macOS 14.
 
@@ -36,23 +44,35 @@ The deployment floor is iOS 16 / iPadOS 16 / tvOS 16 / macOS 14.
 
 ## Initialize at startup
 
+The same code runs in an iOS and a tvOS target. The module is `EverframeKit`
+(the package product is `Everframe`), and `sdkKey` takes the app's SDK key
+(`evf_live_…`). The App ID (a UUID) is only for symbol uploads; the SDK does
+not take it.
+
 ```swift
-import Everframe
+import SwiftUI
+import EverframeKit
 import EverframeReporterUI
 
 @main
 struct MyApp: App {
     init() {
-        try? Everframe.shared.start(
-            config: EverframeConfig(
-                appId: "evf_live_00000000000000000000000000000000",
-                environment: .production
-            )
-        )
-        // Wires the reporter resolver + isPresenting setter.
-        // The SDK owns mobile shake-to-report; buttons and key listeners stay
-        // host-owned. See "Triggers are host-app concern" below.
+        // Wires the reporter resolver + isPresenting setter. A no-op on tvOS,
+        // which has no on-device reporter. The SDK owns mobile
+        // shake-to-report; buttons and key listeners stay host-owned. See
+        // "Triggers are host-app concern" below.
         EFReporterPresenter.installResolver()
+        do {
+            try Everframe.shared.start(
+                config: EverframeConfig(
+                    sdkKey: "evf_live_00000000000000000000000000000000",
+                    environment: .production
+                )
+            )
+        } catch {
+            // A blank or malformed key throws EverframeConfigError.missingSdkKey.
+            print("Everframe did not start: \(error)")
+        }
     }
 
     var body: some Scene {
@@ -61,7 +81,164 @@ struct MyApp: App {
 }
 ```
 
+With a UIKit app delegate, make the same two calls in
+`application(_:didFinishLaunchingWithOptions:)`.
+
 ---
+
+## Automatic native crashes
+
+The source SDK connects native crash capture to `Everframe.shared.start` when
+`capture.crash` is enabled (the default). It records supported Swift traps,
+uncaught Objective-C exceptions and memory/signal faults in native code, then
+imports them into the encrypted delivery queue on the next enabled launch.
+The recorder is bundled with the SDK; hosts do not install it separately.
+
+Capture starts asynchronously after an encrypted context is durable. There is a
+capture gap during startup and user/configuration changes, including turning release
+health on or off and reconfiguring it. With release health enabled, each foreground
+session start adds a brief gap once the start is durable, while the context carrying
+its pointer is admitted on the main thread. Entering background withdraws that
+pointer before the UIKit callback returns and normally rearms a durable context
+without it in the same callback; otherwise capture resumes after an asynchronous
+refresh. App lifecycle changes do not pause capture otherwise. A crash already
+admitted keeps its original context; later reports use the new context. Recovery
+preserves the original project routing, app/device details, self-declared user,
+and redaction policy, even after another user or project starts. Native reports
+currently omit verified identity and continuously refreshed breadcrumbs, logs,
+replay and resource samples. Symbolicated source locations require the separate
+native symbol-processing pipeline; raw addresses remain available.
+
+In React Native, a stored fatal JavaScript crash closes native capture until the
+next `start`. React Native's fatal handler then aborts with `RCTFatalException`;
+that abort is not reported as a second crash. If the JavaScript report could not
+be stored, native capture stays on and records the abort instead.
+
+Set `CaptureConfig(crash: false)` to disable automatic capture, or call `kill()`
+to stop the running SDK. A disabled launch retains pending raw records without
+promoting them. Reports already in the delivery queue follow the existing retry
+policy; disabling capture does not retroactively delete queued reports.
+
+Each enabled launch imports pending records before retiring old runs. A run
+expires 14 days after its process started, or earlier under storage
+pressure. The runtime keeps at most 16 runs, with bounded raw/context storage.
+A process keeps at most 256 context snapshots; identical snapshots reuse their
+identifier, and snapshots that neither the recorder nor a stored raw report still
+references are retired, so foreground sessions do not exhaust them. Unavailable
+encryption keys, unsafe storage, exhausted capacity or recorder failures leave
+capture disabled. Repeated `start` calls reuse the process recorder rather than
+installing competing handlers.
+
+The installed Release qualification host is in
+[`Tests/NativeCrashStartupProof`](Tests/NativeCrashStartupProof). It exercises
+normal startup, real faults and relaunch delivery on an owned iOS simulator.
+Physical-device lock-state and performance qualification remain separate checks.
+
+### Foreground out-of-memory terminations (inferred)
+
+iOS and tvOS end an app that exceeds its memory limit (jetsam) or stops responding
+(watchdog) with `SIGKILL`, which no crash handler can observe. With `capture.crash`
+on, the SDK records a small per-run state (app state, memory warnings and pressure,
+the last memory footprint and headroom, a main-thread responsiveness ping) and, on
+the next launch, reports a previous process that the OS ended in the foreground as
+one fatal crash labelled as inferred:
+
+- `Low memory kill`: a memory warning or critical memory pressure within 60 s of the
+  last sample, or at most 20 % memory headroom left.
+- `Unresponsive termination`: no memory evidence, and the main thread had not
+  responded for at least 5 s.
+- `Abnormal foreground termination`: neither.
+
+The event has mechanism `apple-termination-inference`, no stack, the last sampled
+footprint in its message, and one issue per cause, never merged with Android's
+OS-confirmed low-memory issue. It is inferred only when every rule holds: no crash
+report for that run, no `exit()` or `willTerminate`, no debugger ever attached,
+capture armed at the time, the same app version, build and executable, the same OS
+version, no reboot, the app active (or inactive with a stalled main thread) and the
+run seen within the last 14 days. Only the newest previous run is evaluated, and
+each is imported once.
+
+Like Android's OS exit records, the event is anonymous: no user, session, identity,
+attachments, breadcrumbs or logs. With release health on, the session it ended
+counts as an unknown outcome, never as a crash. It follows
+`capture.crash`; there is no separate switch. App extensions, Mac Catalyst and iOS
+apps running on a Mac are excluded, and the simulator is excluded unless
+`EVERFRAME_SIMULATOR_TERMINATION_INFERENCE=1` is set for the qualification host
+(the simulator reports the host Mac's boot time). Kills in background, kills before
+capture is armed and `_exit()` are not reported. Sampling runs every 5 s while the
+app is not in background and costs a few memory stores; the state file holds no
+user data and the boot time it compares never leaves the device. Physical-device
+qualification of jetsam and watchdog thresholds is pending.
+
+---
+
+## Release health (iOS)
+
+Release health counts crash-free foreground sessions for each version of your
+app. It is on by default, and debug builds (the simulator, or a
+development-signed app) aren't counted. `Everframe.shared.start` applies
+`EverframeConfig.releaseHealth`; turn it off there:
+
+```swift
+try Everframe.shared.start(config: EverframeConfig(sdkKey: sdkKey, releaseHealth: nil))
+```
+
+The SDK reads the version from `CFBundleShortVersionString` (or
+`CFBundleVersion` when it is missing) and the build from `CFBundleVersion`, and
+crash reports carry the same version. Pass
+`releaseHealth: try ReleaseHealthConfiguration(userId: accountId)` to count
+crash-free users, and call `setReleaseHealth` when the account changes; that
+setting lasts until the next `start`.
+`ReleaseHealthConfiguration(includeDebugBuilds: true)` counts debug builds too.
+Set `EverframeConfig.debugBuild` to force the answer, for example `false` for a
+development-signed build that should count as a release; it also marks reports'
+`context.app.debug`.
+`releaseHealth: nil`, `setReleaseHealth(nil)` or `kill()` turns release health
+off and erases its queued records. tvOS doesn't collect release health. In a
+React Native app, use the Provider's `releaseHealth` option instead. See
+[release health](../../docs/release-health.md).
+
+## Apple hang and exit diagnostics
+
+On iOS 15+, explicitly opt in **after** `start`:
+
+```swift
+let enabled = await Everframe.shared.setAppleDiagnosticsEnabled(true)
+// On consent withdrawal, await durable removal before treating it as complete.
+let erased = await Everframe.shared.setAppleDiagnosticsEnabled(false)
+```
+
+Enabling requires a started SDK with `capture.crash` enabled. Unsupported platforms
+or unmet preconditions return `false`; a storage failure also returns `false` because
+the requested persistent transition did not finish. Disabling
+immediately closes network admission; a failed erase remains pending and prevents
+a later enable from restoring the old records. Retry disabling when storage is
+available. `kill()` also closes admission and schedules erasure. A new `start`
+closes the current callback window and requires another explicit enable.
+
+The collector accepts MetricKit hang batches and aggregate app-exit counts. It
+excludes MetricKit crash diagnostics, CPU/disk exceptions and signposts. Reporting
+periods are never individual incident times, and aggregate counts are never crash
+or fatality counts. Process, session and web exposure attribution are unavailable.
+The collector is unavailable on tvOS and macOS.
+
+Callback admission is deliberately sparse: the complete OS reporting interval
+must fit within the current process's uninterrupted opt-in window, and the OS
+application version/build must match the frozen native version/build. Delayed
+payloads spanning restarts, updates, reconfiguration or consent changes are dropped.
+This is not a comprehensive hang monitor or a crash-free denominator.
+
+Once accepted, anonymous records use an encrypted receipt journal and outbox.
+Explicit opt-in after restart permits retry only for the same SDK key and endpoint,
+with the original bytes and idempotency key. At most 32 receipts / 4 MiB are retained
+for seven days; no new receipt evicts an earlier one. Revocation removes Apple
+receipts without taking ownership of another collector's entries. A request already
+admitted to the network can complete; disabling does not claim to erase remote data.
+
+Only bounded stack UUIDs, safe binary names, addresses and offsets are collected;
+raw MetricKit JSON is not persisted. Custom redaction uses the capture-time policy.
+Current qualification covers synthetic projections, durable delivery and SDK
+compilation. Physical-device MetricKit callback delivery remains unqualified.
 
 ## Triggers are host-app concern
 
@@ -69,7 +246,7 @@ struct MyApp: App {
 
 Shake-to-report is enabled locally by default on iPhone and iPad and controlled
 authoritatively by the dashboard. Disable it locally with
-`EverframeConfig(appId: "…", shakeToReportEnabled: false)`. Local `true` never
+`EverframeConfig(sdkKey: "…", shakeToReportEnabled: false)`. Local `true` never
 overrides a dashboard disable. The SDK observes UIKit's `.motionShake` event
 without Core Motion, permissions, privacy-manifest additions, or replacement
 of `UIWindow.motionEnded`. tvOS and Mac Catalyst are excluded.
@@ -344,6 +521,28 @@ let result: ReportResult = try await Everframe.shared.report.open()
 `ReportResult` is one of `.submitted`, `.queued`, `.cancelled(reason)`. The
 SDK never throws from inside `start()` — only from `open()` when the host
 explicitly awaits the result.
+
+### Crash-only sessions
+
+Turn the on-device reporter off to report crashes without recording every
+session, for example in production builds:
+
+```swift
+try Everframe.shared.start(config: EverframeConfig(sdkKey: "…", reporterEnabled: false))
+```
+
+Shake stays off and `report.open()` throws
+`EverframeReporterError.reporterDisabled`. Network bodies are not captured.
+Session replay records only in the share of sessions set by the dashboard's
+crash-only coverage, none by default, so errors from the other sessions carry
+no replay. Crash and error capture, breadcrumbs, vitals, release health and
+companion work as usual.
+
+A companion bond, a phone scanning the QR code or a dashboard member
+attaching, upgrades the session until the next `start` or `kill`: replay and
+network bodies then follow the normal dashboard settings, so a report filed
+through companion has a replay from the bond on. A detach does not undo the
+upgrade. Shake and `open()` stay off.
 
 ---
 

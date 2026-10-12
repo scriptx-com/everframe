@@ -155,7 +155,36 @@ object Companion {
         if (value != CompanionState.ReportInProgress) {
             synchronized(reportLock) { reportInProgressCorrelationId = null }
         }
+        when (value) {
+            CompanionState.Paired, CompanionState.ReportInProgress -> bondHeld = true
+            CompanionState.Unpaired -> bondHeld = false
+            CompanionState.PhoneDisconnected -> Unit
+        }
         _state.value = value
+    }
+
+    // ---------------- Bond (crash-only sessions, spec 2026-10-12) ----------------
+
+    /**
+     * True from a bond until the pair returns to `Unpaired`. Written before the state it describes.
+     * `PhoneDisconnected` alone does not say whether a phone was bonded: [RelayWSClient]'s `onStop`
+     * enters it on every backgrounding, bonded or not, while the relay's `phone.disconnected` frame
+     * enters it only from a bond.
+     */
+    @Volatile
+    private var bondHeld: Boolean = false
+
+    /**
+     * Whether a phone or dashboard member is bonded right now: `Paired`, `ReportInProgress`, or
+     * `PhoneDisconnected` after a bond (the phone is away inside the relay's grace window).
+     * `Everframe.start()` reads it so a crash-only session that starts with companion still bonded
+     * starts upgraded.
+     */
+    @JvmStatic
+    internal fun __isBonded(): Boolean = when (_state.value) {
+        CompanionState.Paired, CompanionState.ReportInProgress -> true
+        CompanionState.PhoneDisconnected -> bondHeld
+        CompanionState.Unpaired -> false
     }
 
     // ---------------- Report ownership (PR-fix 7) ----------------
@@ -193,6 +222,7 @@ object Companion {
     @JvmStatic
     internal fun __beginReport(correlationId: String) {
         synchronized(reportLock) { reportInProgressCorrelationId = correlationId }
+        bondHeld = true
         _state.value = CompanionState.ReportInProgress
     }
 

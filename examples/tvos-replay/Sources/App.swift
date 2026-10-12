@@ -29,8 +29,8 @@ import EverframeKit
               let raw = env["EVERFRAME_DEV_INGEST_URL"], let url = URL(string: raw),
               url.host == "127.0.0.1" || url.host == "localhost" else { return }
         do {
-            try Everframe.shared.start(config: EverframeConfig(appId: key, environment: .development,
-                release: "tvos-video-e2e", capture: CaptureConfig(logs: false, network: false, crash: false),
+            try Everframe.shared.start(config: EverframeConfig(sdkKey: key, environment: .development,
+                release: "tvos-video-e2e", capture: CaptureConfig(logs: false, network: false, crash: env["REPLAY_TV_ERROR_AFTER"] != nil),
                 companionBadgeEnabled: false))
             let client = RelayWSClient(endpoint: url, companion: Everframe.shared.companion,
                 sdkKey: key, deviceLabel: "tvOS Replay Validation")
@@ -42,6 +42,7 @@ import EverframeKit
                 try? Data(url.utf8).write(to: ProbeFiles.url("pair-url.txt"), options: .atomic)
             }.store(in: &subscriptions)
             client.connect()
+            ErrorProbe.scheduleIfRequested(env: env)
         } catch { NSLog("ReplayTV Everframe SDK startup failed: %@", String(describing: error)) }
     }
 }

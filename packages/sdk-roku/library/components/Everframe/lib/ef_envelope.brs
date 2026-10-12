@@ -13,7 +13,7 @@ function EfE_Context(sdkVersion as string) as object
     end if
     size = di.GetDisplaySize()
     locale = CreateObject("roRegex", "_", "").ReplaceAll(di.GetCurrentLocale(), "-")
-    app = { name: ai.GetTitle(), version: ai.GetVersion() }
+    app = { name: ai.GetTitle(), version: ai.GetVersion(), debug: EfU_DebugBuild() }
     build = ai.GetValue("build_version")
     if build <> invalid and build <> "" then app.build = build
     return {
@@ -48,15 +48,16 @@ function EfE_Build(rec as object, ctx as object, nowMs as dynamic) as object
     reporter = { title: EfU_Truncate(crash.exceptionType + ": " + crash.message, 200), description: "" }
     if rec.user <> invalid then reporter.user = rec.user
 
-    ' A record carries the version (and build) of the session it happened in,
-    ' which after an app update differs from the running one.
-    app = { name: ctx.app.name, version: ctx.app.version }
+    ' A record carries the version (build and debug flag) of the session it
+    ' happened in, which after an app update differs from the running one.
+    app = { name: ctx.app.name, version: ctx.app.version, debug: ctx.app.debug }
     if ctx.app.build <> invalid then app.build = ctx.app.build
     if rec.appVersion <> invalid then
         app.version = rec.appVersion
         app.Delete("build")
         if rec.appBuild <> invalid then app.build = rec.appBuild
     end if
+    if rec.appDebug <> invalid then app.debug = rec.appDebug
 
     context = {
         app: app,

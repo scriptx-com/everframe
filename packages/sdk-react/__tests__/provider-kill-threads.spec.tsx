@@ -29,7 +29,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-const config = { apiKey: 'txx_live_test' };
+const config = { sdkKey: 'txx_live_test' };
 
 /** Surfaces the sdk-core client to the test without reaching into module internals. */
 function ClientProbe({ onClient }: { onClient: (client: EverframeClient) => void }) {

@@ -110,7 +110,7 @@ RCT_EXPORT_MODULE(Everframe)
 
 // Signature MUST match the codegen-emitted protocol in EverframeSpec.h:
 //   - (void)configure:(JS::NativeEverframe::ConfigOpts &)opts;
-// Field accessors (.apiKey(), .sdkVersion(), .captureScreenshot(),
+// Field accessors (.sdkKey(), .sdkVersion(), .captureScreenshot(),
 // .networkBodiesDisabled()) are inline methods on the JS::NativeEverframe::
 // ConfigOpts struct, generated from the TS spec in src/NativeEverframe.ts.
 // The ingest URL is no longer JS-supplied — the native SDK bakes it at
@@ -121,15 +121,17 @@ RCT_EXPORT_MODULE(Everframe)
 // silently dropped on iOS today. Task 9 (spec 2026-08-12) only wires
 // `networkBodiesDisabled` through; see task-9-report.md.
 - (void)configure:(JS::NativeEverframe::ConfigOpts &)opts {
-  NSString *appId = opts.apiKey() ?: @"";
+  NSString *sdkKey = opts.sdkKey() ?: @"";
   BOOL networkBodiesDisabled = opts.networkBodiesDisabled().value_or(false);
   // `installIdentifierDisabled` (MAI meter spec 2026-08-27) — `std::optional
   // <bool>`, same shape as `networkBodiesDisabled()` above. Absent means the
   // host said nothing, which is "send it": the SDK default is ON.
   BOOL installIdentifierDisabled = opts.installIdentifierDisabled().value_or(false);
+  // `crashReportingDisabled` — same `std::optional<bool>` shape. Absent keeps capture on.
+  BOOL crashReportingDisabled = opts.crashReportingDisabled().value_or(false);
   // `attachPinUi` (spec 2026-08-19) is a plain optional STRING field —
   // `opts.attachPinUi()` returns a nullable NSString*, same shape as
-  // `opts.apiKey()` above, NOT the `std::optional<bool>` shape
+  // `opts.sdkKey()` above, NOT the `std::optional<bool>` shape
   // `networkBodiesDisabled()` uses. `EverframeBridge.configure` coerces a
   // nil/unrecognised value to `.builtin`.
   NSString *attachPinUi = opts.attachPinUi();
@@ -149,6 +151,9 @@ RCT_EXPORT_MODULE(Everframe)
   // above; `EverframeBridge` coerces nil/unrecognised to `.bottomRight`.
   BOOL companionBadgeEnabled = opts.companionBadgeEnabled().value_or(true);
   BOOL shakeToReportEnabled = opts.shakeToReportEnabled().value_or(true);
+  // Crash-only session switch (spec 2026-10-12) — `std::optional<bool>`, same shape as
+  // `networkBodiesDisabled()`. Absent means a normal report session.
+  BOOL reporterDisabled = opts.reporterDisabled().value_or(false);
   NSString *companionBadgePosition = opts.companionBadgePosition();
   // Inline reporter theme (reporter branding spec 2026-08-25, RN slice) —
   // 8 flat optional STRING fields on ConfigOpts (RN codegen cannot express
@@ -179,11 +184,17 @@ RCT_EXPORT_MODULE(Everframe)
   NSNumber *vitalsEnabled = opts.vitalsEnabled().has_value() ? @(opts.vitalsEnabled().value()) : nil;
   NSNumber *vitalsSampleRate = opts.vitalsSampleRate().has_value() ? @(opts.vitalsSampleRate().value()) : nil;
   NSNumber *vitalsCaptureSourceQuery = opts.vitalsCaptureSourceQuery().has_value() ? @(opts.vitalsCaptureSourceQuery().value()) : nil;
+  // `debugBuild` stays nil when absent so the native SDK decides for itself; the JS facade always sends it.
+  NSNumber *debugBuild = opts.debugBuild().has_value() ? @(opts.debugBuild().value()) : nil;
+  // Release health is on by default: a missing `releaseHealthEnabled` is on and only an explicit NO is
+  // off. The JS facade always sends the flag, so a missing value can only come from another caller.
+  // `releaseHealthIncludeDebugBuilds` is false when missing, matching the native SDK default.
   NSError *err = nil;
-  [EverframeBridge configureWithAppId:appId
+  [EverframeBridge configureWithSdkKey:sdkKey
                             endpoint:@""
                networkBodiesDisabled:networkBodiesDisabled
            installIdentifierDisabled:installIdentifierDisabled
+              crashReportingDisabled:crashReportingDisabled
                          attachPinUi:attachPinUi
                    companionDeviceId:companionDeviceId
                companionBadgeEnabled:companionBadgeEnabled
@@ -193,6 +204,12 @@ RCT_EXPORT_MODULE(Everframe)
                        vitalsEnabled:vitalsEnabled
                     vitalsSampleRate:vitalsSampleRate
             vitalsCaptureSourceQuery:vitalsCaptureSourceQuery
+                          debugBuild:debugBuild
+                releaseHealthEnabled:opts.releaseHealthEnabled().value_or(true)
+          releaseHealthLoadedBuildId:opts.releaseHealthLoadedBuildId()
+                 releaseHealthUserId:opts.releaseHealthUserId()
+     releaseHealthIncludeDebugBuilds:opts.releaseHealthIncludeDebugBuilds().value_or(false)
+                    reporterDisabled:reporterDisabled
                                error:&err];
   if (err != nil) {
     // Configure is void-typed at the spec; we can't reject a promise here.
@@ -229,7 +246,9 @@ RCT_EXPORT_MODULE(Everframe)
               reject:(RCTPromiseRejectBlock)reject {
   [EverframeBridge openReporterWithCompletion:^(NSDictionary *result, NSError *err) {
     if (err) {
-      reject(@"open_reporter_failed", err.localizedDescription, err);
+      // `EVERFRAME_REPORTER_DISABLED` for a crash-only session (the JS facade maps it to
+      // `EverframeReporterDisabledError`); `open_reporter_failed` for every other failure.
+      reject([EverframeBridge openReporterRejectCodeFor:err], err.localizedDescription, err);
     } else {
       resolve(result ?: @{});
     }

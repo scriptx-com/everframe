@@ -76,6 +76,11 @@ internal class VideoOwnedFile(
     val path: File, val reservation: VideoDiskBudget.Reservation,
     private val budget: VideoDiskBudget, private val deleteFile: (File)->Boolean,
 ) {
+    fun independentCopy(): VideoOwnedFile {
+        val copy = VideoOwnedFile(File(path.parentFile, "${UUID.randomUUID()}.mp4"),
+            budget.reserve(physicalBytes) ?: error("Snapshot disk budget"), budget) { it.delete() }
+        try { path.copyTo(copy.path); return copy } catch (t: Throwable) { copy.delete(); throw t }
+    }
     val physicalBytes: Long get() = path.length()
     @Synchronized fun delete(): Boolean {
         val deleted = try { !path.exists() || deleteFile(path) } catch(_:Throwable) { false }
@@ -92,7 +97,13 @@ internal class VideoSegment internal constructor(
     val owner: VideoOwner, val path: File, val byteLength: Long,
     val firstPtsUs: Long, val lastPtsUs: Long, val format: VideoCodecFormat,
     val privacyGeneration: Long, val timeAnchor: VideoTimeAnchor, internal val ownedFile: VideoOwnedFile,
+    val endExclusivePtsUs: Long? = null,
 ) : AutoCloseable {
+    fun independentCopy(cutoffPtsUs: Long? = null): VideoSegment {
+        val copy = ownedFile.independentCopy()
+        return VideoSegment(owner, copy.path, byteLength, firstPtsUs, lastPtsUs, format,
+            privacyGeneration, timeAnchor, copy, cutoffPtsUs)
+    }
     /** Failed deletion transfers retry ownership to the process budget, never just a leaked charge. */
     override fun close() { ownedFile.delete() }
 }

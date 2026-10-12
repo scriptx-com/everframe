@@ -41,7 +41,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
       // never-resolving fetch: get() must still return OFF synchronously
       fetchImpl: (() => new Promise<Response>(() => {})) as unknown as typeof fetch,
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     expect(cp.get()).toEqual(OFF);
     expect(cp.get().replayEnabled).toBe(false);
@@ -53,7 +53,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         throw new Error('ECONNREFUSED');
       }) as unknown as typeof fetch,
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh();
     expect(cp.get().replayEnabled).toBe(false);
@@ -63,7 +63,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
     const cp = createConfigProvider({
       fetchImpl: fetchReturning(() => new Response('', { status: 503 })),
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh();
     expect(cp.get().replayEnabled).toBe(false);
@@ -73,7 +73,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
     const cp = createConfigProvider({
       fetchImpl: fetchReturning(() => new Response('', { status: 401 })),
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh();
     expect(cp.get().replayEnabled).toBe(false);
@@ -83,7 +83,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
     const cp = createConfigProvider({
       fetchImpl: fetchReturning(() => new Response('not json', { status: 200 })),
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh();
     expect(cp.get().replayEnabled).toBe(false);
@@ -94,7 +94,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
       // no durationSec / samplingRate
       fetchImpl: fetchReturning(() => Response.json({ replayEnabled: true })),
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh();
     expect(cp.get().replayEnabled).toBe(false);
@@ -106,7 +106,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         Response.json({ replayEnabled: 'yes', replayDurationSec: 15, samplingRate: 0.5 }),
       ),
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh();
     expect(cp.get().replayEnabled).toBe(false);
@@ -120,7 +120,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         Response.json({ replayEnabled: true, replayDurationSec: 30, samplingRate: 2.0 }),
       ),
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh();
     expect(cp.get().replayEnabled).toBe(false);
@@ -133,7 +133,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         Response.json({ replayEnabled: true, replayDurationSec: 30, samplingRate: -0.5 }),
       ),
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh();
     expect(cp.get().replayEnabled).toBe(false);
@@ -147,7 +147,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         throw err;
       }) as unknown as typeof fetch,
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh();
     expect(cp.get().replayEnabled).toBe(false);
@@ -159,7 +159,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         Response.json({ replayEnabled: true, replayDurationSec: 15, samplingRate: 0.5 }),
       ),
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh();
     expect(cp.get()).toEqual({ replayEnabled: true, replayDurationSec: 15, samplingRate: 0.5 });
@@ -178,7 +178,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
           Response.json({ replayEnabled: true, replayDurationSec: 15, samplingRate: 0.5 }),
         ),
         configUrl: 'https://x/api/config',
-        apiKey: 'k',
+        sdkKey: 'k',
       });
       await expect(cp.refresh()).resolves.toBe(true);
       expect(cp.get().replayEnabled).toBe(true);
@@ -203,7 +203,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
       const cp = createConfigProvider({
         fetchImpl: (() => new Promise<Response>(() => {})) as unknown as typeof fetch, // hangs
         configUrl: 'https://x/api/config',
-        apiKey: 'k',
+        sdkKey: 'k',
       });
       const pending = cp.refresh();
       await vi.advanceTimersByTimeAsync(6 * 60_000);
@@ -234,7 +234,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
       const cp = createConfigProvider({
         fetchImpl: (async () => hungBody) as unknown as typeof fetch,
         configUrl: 'https://x/api/config',
-        apiKey: 'k',
+        sdkKey: 'k',
       });
       const pending = cp.refresh();
       await vi.advanceTimersByTimeAsync(11 * 60_000);
@@ -253,7 +253,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         Response.json({ replayEnabled: true, replayDurationSec: 60, samplingRate: 0.25 }),
       ),
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh();
     expect(cp.get().samplingRate).toBe(0.25);
@@ -265,7 +265,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         throw new Error('boom');
       }) as unknown as typeof fetch,
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     // F18: refresh() now resolves a success boolean (false on any failure
     // path) instead of void — still never throws/rejects to the caller.
@@ -280,7 +280,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
       seen.auth = headers.get('Authorization');
       return Response.json({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1.0 });
     }) as unknown as typeof fetch;
-    const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', apiKey: 'sdk_abc' });
+    const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', sdkKey: 'sdk_abc' });
     await cp.refresh();
     expect(seen.url).toBe('https://x/api/config');
     expect(seen.auth).toBe('Bearer sdk_abc');
@@ -301,7 +301,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
     const cp = createConfigProvider({
       fetchImpl,
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
       sdkFeatures: ['networkbodies'],
     });
     await cp.refresh();
@@ -321,7 +321,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
     const cp = createConfigProvider({
       fetchImpl,
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
       sdkFeatures: ['replies', 'networkbodies'],
     });
     await cp.refresh();
@@ -338,7 +338,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
       }
       throw new Error('transient');
     }) as unknown as typeof fetch;
-    const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', apiKey: 'k' });
+    const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', sdkKey: 'k' });
     await cp.refresh();
     expect(cp.get().replayEnabled).toBe(true);
     await cp.refresh(); // transient failure
@@ -355,7 +355,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
     const cp = createConfigProvider({
       fetchImpl,
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
       ttlMs: 300_000,
       now: () => nowMs,
     });
@@ -380,7 +380,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
           Response.json({ replayEnabled: true, replayDurationSec: 30, samplingRate: 1.0 }),
         ),
         configUrl: 'https://x/api/config',
-        apiKey: 'k',
+        sdkKey: 'k',
       });
       await expect(cp.refresh()).resolves.toBe(true);
     });
@@ -389,7 +389,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
       const cp = createConfigProvider({
         fetchImpl: fetchReturning(() => new Response('', { status: 503 })),
         configUrl: 'https://x/api/config',
-        apiKey: 'k',
+        sdkKey: 'k',
       });
       await expect(cp.refresh()).resolves.toBe(false);
     });
@@ -398,7 +398,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
       const cp = createConfigProvider({
         fetchImpl: fetchReturning(() => new Response('not json', { status: 200 })),
         configUrl: 'https://x/api/config',
-        apiKey: 'k',
+        sdkKey: 'k',
       });
       await expect(cp.refresh()).resolves.toBe(false);
     });
@@ -407,7 +407,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
       const cp = createConfigProvider({
         fetchImpl: fetchReturning(() => Response.json({ replayEnabled: true })),
         configUrl: 'https://x/api/config',
-        apiKey: 'k',
+        sdkKey: 'k',
       });
       await expect(cp.refresh()).resolves.toBe(false);
     });
@@ -422,7 +422,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
       const cp = createConfigProvider({
         fetchImpl,
         configUrl: 'https://x/api/config',
-        apiKey: 'k',
+        sdkKey: 'k',
         ttlMs: 300_000,
         now: () => nowMs,
       });
@@ -443,7 +443,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
       const cp = createConfigProvider({
         fetchImpl,
         configUrl: 'https://x/api/config',
-        apiKey: 'k',
+        sdkKey: 'k',
         ttlMs: 300_000,
         now: () => nowMs,
       });
@@ -463,7 +463,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         }
         throw new Error('transient');
       }) as unknown as typeof fetch;
-      const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', apiKey: 'k' });
+      const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', sdkKey: 'k' });
       await cp.refresh();
       await expect(cp.refresh({ force: true })).resolves.toBe(false);
       // Last-good cache semantics unaffected by the boolean return.
@@ -500,7 +500,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         }) as unknown as typeof fetch;
       })();
 
-      const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', apiKey: 'k' });
+      const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', sdkKey: 'k' });
 
       // Start request A (ON) first.
       const refreshA = cp.refresh({ force: true });
@@ -540,7 +540,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         return calls === 1 ? gateA.promise : gateB.promise;
       }) as unknown as typeof fetch;
 
-      const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', apiKey: 'k' });
+      const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', sdkKey: 'k' });
 
       const refreshA = cp.refresh({ force: true }); // ON, started first
       const refreshB = cp.refresh({ force: true }); // OFF, started second
@@ -571,7 +571,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         return calls === 1 ? gateA.promise : gateB.promise;
       }) as unknown as typeof fetch;
 
-      const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', apiKey: 'k' });
+      const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', sdkKey: 'k' });
 
       const refreshA = cp.refresh({ force: true });
       const refreshB = cp.refresh({ force: true });
@@ -608,7 +608,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
     const cp = createConfigProvider({
       fetchImpl,
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
       ttlMs: 300_000,
       now: () => nowMs,
     });
@@ -643,7 +643,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
     const cp = createConfigProvider({
       fetchImpl,
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
 
     // Request 1 starts first (older gate: replies OFF).
@@ -681,7 +681,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         Response.json({ replayEnabled: true, replayDurationSec: 45, samplingRate: 0.75 }),
       ),
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh({ force: true });
     expect(cp.get()).toEqual({ replayEnabled: true, replayDurationSec: 45, samplingRate: 0.75 });
@@ -701,7 +701,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
     const cp = createConfigProvider({
       fetchImpl,
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
 
     // Seed a last-good ON value first.
@@ -743,7 +743,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
         Response.json({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1.0 }),
       ),
       configUrl: 'https://x/api/config',
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await cp.refresh();
     expect(spy).toHaveBeenCalled();
@@ -843,7 +843,7 @@ describe('sdkFeatures negotiation', () => {
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
       configUrl: 'https://x.test/api/config',
-      apiKey: 'txx_live_k',
+      sdkKey: 'txx_live_k',
       sdkFeatures: ['reporthotkey'],
     });
 
@@ -859,7 +859,7 @@ describe('sdkFeatures negotiation', () => {
     }), { status: 200 }));
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
-      configUrl: 'https://x.test/api/config', apiKey: 'txx_live_k',
+      configUrl: 'https://x.test/api/config', sdkKey: 'txx_live_k',
       sdkFeatures: ['replies'],
     });
     await provider.refresh();
@@ -875,7 +875,7 @@ describe('sdkFeatures negotiation', () => {
     }), { status: 200 }));
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
-      configUrl: 'https://x.test/api/config', apiKey: 'txx_live_k',
+      configUrl: 'https://x.test/api/config', sdkKey: 'txx_live_k',
     });
     await provider.refresh();
     const callArgs = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit]);
@@ -897,7 +897,7 @@ describe('sdkFeatures negotiation', () => {
     }), { status: 200 }));
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
-      configUrl: 'https://x.test/api/config', apiKey: 'txx_live_k',
+      configUrl: 'https://x.test/api/config', sdkKey: 'txx_live_k',
       sdkFeatures: ['identity'],
     });
     await provider.refresh();
@@ -913,7 +913,7 @@ describe('sdkFeatures negotiation', () => {
     }), { status: 200 }));
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
-      configUrl: 'https://x.test/api/config', apiKey: 'txx_live_k',
+      configUrl: 'https://x.test/api/config', sdkKey: 'txx_live_k',
       sdkFeatures: ['identity'],
     });
     await provider.refresh();

@@ -23,7 +23,7 @@ import Foundation
 @MainActor
 @Suite(.serialized)
 struct KillTeardownTests {
-    private let testAppId = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+    private let testSdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
 
     // Round-6 review Finding F31: every test in this file drives
     // `Everframe.shared`/`NetworkBodyCaptureGate.shared` for real — each is
@@ -43,21 +43,21 @@ struct KillTeardownTests {
                 samplingRate: 1.0, locallyDisabled: false, random: { 0.0 })
             #expect(NetworkBodyCaptureGate.shared.isActive)
 
-            try Everframe.shared.start(config: .init(appId: testAppId))
+            try Everframe.shared.start(config: .init(sdkKey: testSdkKey))
             Everframe.shared.kill()
 
             #expect(!NetworkBodyCaptureGate.shared.isActive)
             // reset() (not just deactivation) — boot-time defaults restored too.
             #expect(NetworkBodyCaptureGate.shared.bodyByteCap == NetworkBodyCaptureGate.defaultBodyByteCap)
 
-            try Everframe.shared.start(config: .init(appId: testAppId))
+            try Everframe.shared.start(config: .init(sdkKey: testSdkKey))
         }
     }
 
     @Test func killTearsDownReplaySessionSoItsPeriodicLoopStops() async throws {
         try await withGlobalCaptureStateLock {
             let config = EverframeConfig(
-                appId: testAppId,
+                sdkKey: testSdkKey,
                 capture: CaptureConfig(logs: false)
             )
             try Everframe.shared.start(config: config)
@@ -90,7 +90,7 @@ struct KillTeardownTests {
             BrandingServerConfigBox.shared.value = nil
             defer { BrandingServerConfigBox.shared.value = nil }
 
-            let config = EverframeConfig(appId: testAppId, capture: CaptureConfig(logs: false))
+            let config = EverframeConfig(sdkKey: testSdkKey, capture: CaptureConfig(logs: false))
             try Everframe.shared.start(config: config)
 
             // Simulate a server override having been delivered before kill() fires.

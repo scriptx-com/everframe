@@ -33,7 +33,7 @@ describe('host visual screenshot', () => {
 
   it('the adapter never falls back to DOM capture when a host frame is missing', async () => {
     const adapter = createWebPlatformAdapter({
-      apiKey: 'pk_probe',
+      sdkKey: 'pk_probe',
       appVersion: '0.0.0',
       disabled: true,
       visualCapture: { captureScreenshot: async () => null },
@@ -46,18 +46,18 @@ describe('host visual screenshot', () => {
   });
 
   it('refuses Flutter attribution without a renderer provider', () => {
-    expect(() => init({ apiKey: 'pk_probe', appVersion: '0.0.0', sdkName: 'everframe-flutter' }))
+    expect(() => init({ sdkKey: 'pk_probe', appVersion: '0.0.0', sdkName: 'everframe-flutter' }))
       .toThrow('requires a renderer capture provider and SDK version');
   });
 
   it('refuses KMP attribution without a renderer provider', () => {
-    expect(() => init({ apiKey: 'pk_probe', appVersion: '0.0.0', sdkName: 'everframe-kmp' }))
+    expect(() => init({ sdkKey: 'pk_probe', appVersion: '0.0.0', sdkName: 'everframe-kmp' }))
       .toThrow('requires a renderer capture provider and SDK version');
   });
 
   it('accepts KMP attribution with a renderer provider and version', () => {
     const sdk = init({
-      apiKey: 'pk_probe',
+      sdkKey: 'pk_probe',
       appVersion: '0.0.0',
       disabled: true,
       sdkName: 'everframe-kmp',

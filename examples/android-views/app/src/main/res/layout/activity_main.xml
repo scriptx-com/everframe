@@ -31,6 +31,14 @@
         android:layout_marginTop="8dp"
         android:text="Open reporter via report.openAsync(...)" />
 
+    <Button
+        android:id="@+id/reportError"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textAllCaps="false"
+        android:text="Report handled error" />
+
     <TextView
         android:id="@+id/openResult"
         android:layout_width="match_parent"

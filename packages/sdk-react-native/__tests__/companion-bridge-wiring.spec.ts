@@ -366,7 +366,7 @@ describe('Part A — the SDK key reaches the relay client on both platforms', ()
     expect(
       iosBridgeSrc,
       `${IOS_BRIDGE}: the key must come from Everframe.shared.currentConfig — never a second place a key can be configured`,
-    ).toMatch(/Everframe\.shared\.currentConfig\?\.appId/);
+    ).toMatch(/Everframe\.shared\.currentConfig\?\.sdkKey/);
   });
 
   it('android passes configuredSdkKey() and companionDeviceLabel() to RelayWSClient', () => {

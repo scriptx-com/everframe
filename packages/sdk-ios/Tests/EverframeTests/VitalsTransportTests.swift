@@ -130,7 +130,7 @@ final class VitalsTransportTests: XCTestCase {
         session = URLSession(configuration: cfg)
     }
     private func transport(retryDelayMs: Int64 = 20, maxRetryAfterMs: Int64 = 60_000) -> VitalsTransport {
-        VitalsTransport(session: session, endpoint: endpoint, apiKey: "txx_live_k", isKilled: { [self] in killed },
+        VitalsTransport(session: session, endpoint: endpoint, sdkKey: "txx_live_k", isKilled: { [self] in killed },
                         queue: VitalsQueue.shared, retryDelayMs: retryDelayMs, maxRetryAfterMs: maxRetryAfterMs)
     }
     private func waitForRequests(_ n: Int, timeout: TimeInterval = 3) {
@@ -276,7 +276,7 @@ final class VitalsTransportTests: XCTestCase {
         let box = CloseOnFirstKillCheck()
         weak var reclaimed: VitalsTransport?
         autoreleasepool {
-            let t = VitalsTransport(session: session, endpoint: endpoint, apiKey: "txx_live_k",
+            let t = VitalsTransport(session: session, endpoint: endpoint, sdkKey: "txx_live_k",
                                     isKilled: { box.closeAndAnswerNotKilled() }, queue: VitalsQueue.shared,
                                     retryDelayMs: 20, maxRetryAfterMs: 60_000)
             box.transport = t

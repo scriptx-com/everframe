@@ -46,7 +46,7 @@ class PublicNetworkEvidenceBoundaryTest {
                 Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("ok")
                     .body("""{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1,"networkBodies":{"captureBodies":true}}""".toResponseBody()).build()
             })
-            ReplaySession(apiKey = cfg.sdkKey, provider = provider, originatingStartEpoch = epoch, captureConsent = consent)
+            ReplaySession(sdkKey = cfg.sdkKey, provider = provider, originatingStartEpoch = epoch, captureConsent = consent)
         }
         val config = EverframeConfig(appId = "A", sdkKey = "txx_live_fixture1234567890", capture = CaptureConfig(logs = false, network = true, networkBodies = true))
         fun start(project: String) {

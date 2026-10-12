@@ -13,30 +13,65 @@ enum NativeVideoLimits {
 protocol NativeVideoRecording: Sendable {
     func append(_ frame: NativeVideoFrame) async throws -> Bool
     func finish(anchorNanos: UInt64, anchorEpochMs: Double, endNanos: UInt64?) async throws -> NativeVideoArtifact?
+    /// A copy of the retained window; recording continues.
+    func snapshot(anchorNanos: UInt64, anchorEpochMs: Double, endNanos: UInt64) async throws -> NativeVideoArtifact?
     func cancel() async
 }
 
 /// One recording epoch: bounded complete segments plus one active encoder.
 /// Capture/session scheduling remains outside this actor. Concurrent appends are
-/// dropped while a frame/rollover is in flight; they never build a raw-frame queue.
+/// dropped while a frame or normal rollover is in flight; snapshot closes
+/// have a separate bounded slot. Appends never build a raw-frame queue.
 actor NativeVideoRecorder: NativeVideoRecording {
+    private struct StagedSnapshot {
+        let segments: [NativeVideoSegment]
+        let dimensions: NativeVideoDimensions
+        let directory: URL
+    }
+
+    typealias SnapshotExport = @Sendable (URL, [NativeVideoSegment], NativeVideoDimensions, UInt64, Double, UInt64) async throws -> NativeVideoArtifact?
+    typealias FinishWriter = @Sendable (NativeVideoSegmentWriter, UInt64) async throws -> NativeVideoSegment?
+    private let finishSnapshotWriter: FinishWriter
+    private let makeExporter: @Sendable (URL) -> NativeVideoExporter
+    private let snapshotExport: SnapshotExport
     private let directory: URL
     private let framesPerSecond: Int
+    private let durationNanos: UInt64
     private var ring: NativeVideoRing
     private var writer: NativeVideoSegmentWriter?
+    private var closingWriter: NativeVideoSegmentWriter?
+    private var closingTask: Task<Void, Never>?
+    private var closingGeneration = 0
+    private var snapshotWaiting = false
+    private var stagedAfterClose: StagedSnapshot?
+    private var closingWaiters: [UUID: CheckedContinuation<Bool, Never>] = [:]
     private var exporter: NativeVideoExporter?
     private var dimensions: NativeVideoDimensions?
     private var segmentStart: UInt64?
+    /// Newest encoded frame; a frame at or before it is dropped, never encoded.
+    private var lastAppendedNanos: UInt64?
     private var busy = false
-    private var idleWaiter: CheckedContinuation<Void, Never>?
-    private enum State { case active, freezing, closed }
-    private var state = State.active
+    private var idleWaiters: [CheckedContinuation<Void, Never>] = []
+    enum State { case active, freezing, closed }
+    private(set) var state = State.active
 
     init(directory: URL, framesPerSecond: Int, durationNanos: UInt64 = 30_000_000_000,
-         byteLimit: Int = 8 * 1024 * 1024) throws {
-        guard framesPerSecond == 5 || framesPerSecond == 10 else { throw NativeVideoWriterError.invalidFrame }
+         byteLimit: Int = 8 * 1024 * 1024,
+         finishSnapshotWriter: @escaping FinishWriter = { writer, end in try await writer.finish(endNanos: end) },
+         makeExporter: @escaping @Sendable (URL) -> NativeVideoExporter = { NativeVideoExporter(directory: $0) },
+         snapshotExport: SnapshotExport? = nil) throws {
+        guard NativeVideoSettings.allowedFramesPerSecond.contains(framesPerSecond) else {
+            throw NativeVideoWriterError.invalidFrame
+        }
+        self.makeExporter = makeExporter
+        self.snapshotExport = snapshotExport ?? { directory, segments, dimensions, anchor, epoch, cutoff in
+            try await makeExporter(directory).export(segments: segments, dimensions: dimensions,
+                anchorNanos: anchor, anchorEpochMs: epoch, endNanos: cutoff, durationNanos: durationNanos)
+        }
+        self.finishSnapshotWriter = finishSnapshotWriter
         self.directory = directory
         self.framesPerSecond = framesPerSecond
+        self.durationNanos = min(NativeVideoLimits.maxDurationNanos, durationNanos)
         ring = NativeVideoRing(directory: directory, durationNanos: min(NativeVideoLimits.maxDurationNanos, durationNanos),
             byteLimit: min(8 * 1024 * 1024, byteLimit))
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
@@ -45,14 +80,12 @@ actor NativeVideoRecorder: NativeVideoRecording {
 
     func append(_ frame: NativeVideoFrame) async throws -> Bool {
         guard state == .active, !busy else { return false }
+        if let last = lastAppendedNanos, frame.timestampNanos <= last { return false }
         busy = true
-        defer {
-            busy = false
-            idleWaiter?.resume(); idleWaiter = nil
-            if state == .closed { NativeVideoStorage.removeIfEmpty(directory) }
-        }
+        defer { releaseBusy() }
         do {
             if let dimensions, dimensions.width != frame.width || dimensions.height != frame.height {
+                await invalidateClosingWriter()
                 await writer?.cancel()
                 writer = nil; segmentStart = nil
                 try ring.clear()
@@ -73,12 +106,17 @@ actor NativeVideoRecorder: NativeVideoRecording {
                 }
             }
             guard state == .active, !Task.isCancelled else { return false }
+            // Keep capture timestamps across snapshot boundaries. The exporter
+            // holds the preceding sample until this real frame begins.
             let current = writer ?? NativeVideoSegmentWriter(directory: directory,
                 dimensions: .init(width: frame.width, height: frame.height), framesPerSecond: framesPerSecond)
             writer = current
             let accepted = try await current.append(frame)
             guard state != .closed else { await current.cancel(); return false }
-            if accepted && segmentStart == nil { segmentStart = frame.timestampNanos }
+            if accepted {
+                if segmentStart == nil { segmentStart = frame.timestampNanos }
+                lastAppendedNanos = frame.timestampNanos
+            }
             return accepted
         } catch {
             await cancel()
@@ -89,11 +127,16 @@ actor NativeVideoRecorder: NativeVideoRecording {
     func finish(anchorNanos: UInt64, anchorEpochMs: Double, endNanos: UInt64? = nil) async throws -> NativeVideoArtifact? {
         guard state == .active else { return nil }
         state = .freezing
-        if busy { await withCheckedContinuation { idleWaiter = $0 } }
+        if busy { await withCheckedContinuation { idleWaiters.append($0) } }
+        guard state == .freezing, !Task.isCancelled else { await cancel(); return nil }
+        // An invalidated old-dimensions snapshot can finish unsuccessfully while
+        // the current writer still contains a valid report. Only this report
+        // task cancellation or recorder stop should abandon that new history.
+        if closingTask != nil { _ = await waitForClosingWriter() }
         guard state == .freezing, !Task.isCancelled else { await cancel(); return nil }
         do {
             if let current = writer {
-                let closed = try await current.finish(endNanos: endNanos)
+                let closed = try await current.finish(endNanos: lastAppendedNanos.map { $0 + 1_000_000_000 / UInt64(framesPerSecond) })
                 writer = nil; segmentStart = nil
                 if let closed {
                     guard state == .freezing, !Task.isCancelled else {
@@ -109,10 +152,10 @@ actor NativeVideoRecorder: NativeVideoRecording {
                 await cancel()
                 return nil
             }
-            let export = NativeVideoExporter(directory: directory)
+            let export = makeExporter(directory)
             exporter = export
             let artifact = try await export.export(segments: ring.drain(), dimensions: dimensions,
-                anchorNanos: anchorNanos, anchorEpochMs: anchorEpochMs)
+                anchorNanos: anchorNanos, anchorEpochMs: anchorEpochMs, endNanos: endNanos, durationNanos: durationNanos)
             exporter = nil
             guard state == .freezing, !Task.isCancelled else {
                 artifact?.removeOwnedFile()
@@ -127,13 +170,130 @@ actor NativeVideoRecorder: NativeVideoRecording {
         }
     }
 
+    /// A copy of the retained window that leaves this recording running.
+    /// Closes the open segment early so it is complete, copies the retained
+    /// segments into an independently owned sibling directory and exports the
+    /// copies. A later snapshot or `finish` still sees the whole window.
+    func snapshot(anchorNanos: UInt64, anchorEpochMs: Double, endNanos: UInt64) async throws -> NativeVideoArtifact? {
+        guard let staged = try await stageSnapshotForCapture() else { return nil }
+        return try await snapshotExport(staged.directory, staged.segments, staged.dimensions, anchorNanos, anchorEpochMs, endNanos)
+    }
+
+    private func stageSnapshotForCapture() async throws -> StagedSnapshot? {
+        while busy && state == .active { await withCheckedContinuation { idleWaiters.append($0) } }
+        guard state == .active, !Task.isCancelled else { return nil }
+        // A single owned closing slot bounds encoders/tasks even if the
+        // optional snapshot times out. Subsequent snapshots decline until it closes.
+        guard closingTask == nil, !snapshotWaiting else { return nil }
+        snapshotWaiting = true
+        defer {
+            snapshotWaiting = false
+            if let abandoned = stagedAfterClose { try? FileManager.default.removeItem(at: abandoned.directory) }
+            stagedAfterClose = nil
+        }
+        if let current = writer, let last = lastAppendedNanos {
+            writer = nil; segmentStart = nil
+            closingWriter = current
+            let generation = closingGeneration
+            let finish = finishSnapshotWriter
+            let end = last + 1_000_000_000 / UInt64(framesPerSecond)
+            closingTask = Task {
+                let closed = try? await finish(current, end)
+                self.completedClosingWriter(closed, generation: generation)
+            }
+            guard await waitForClosingWriter() else { return nil }
+        }
+        while busy && state != .closed { await withCheckedContinuation { idleWaiters.append($0) } }
+        guard state != .closed, !Task.isCancelled else { return nil }
+        busy = true
+        let staged: StagedSnapshot?
+        do { staged = try stagedAfterClose ?? stageSnapshot(); stagedAfterClose = nil }
+        catch { releaseBusy(); throw error }
+        releaseBusy()
+        return staged
+    }
+
     func cancel() async {
         state = .closed
+        await invalidateClosingWriter()
         await writer?.cancel()
         writer = nil; segmentStart = nil
         await exporter?.cancel()
         try? ring.clear()
         NativeVideoStorage.removeIfEmpty(directory)
     }
+
+    private func waitForClosingWriter() async -> Bool {
+        let id = UUID()
+        return await withTaskCancellationHandler {
+            if Task.isCancelled { return false }
+            if closingTask == nil { return state != .closed }
+            return await withCheckedContinuation { closingWaiters[id] = $0 }
+        } onCancel: { Task { await self.cancelClosingWaiter(id) } }
+    }
+
+    private func cancelClosingWaiter(_ id: UUID) { closingWaiters.removeValue(forKey: id)?.resume(returning: false) }
+
+    private func invalidateClosingWriter() async {
+        closingGeneration += 1
+        closingTask?.cancel()
+        await closingWriter?.cancel()
+        // Keep the task's slot until it exits: no replacement hung closures.
+        let waiters = Array(closingWaiters.values); closingWaiters.removeAll()
+        for waiter in waiters { waiter.resume(returning: false) }
+    }
+
+    private func completedClosingWriter(_ closed: NativeVideoSegment?, generation: Int) {
+        closingWriter = nil; closingTask = nil
+        if let closed {
+            if state != .closed && generation == closingGeneration {
+                do { try ring.insert(closed) }
+                catch { try? FileManager.default.removeItem(at: closed.url) }
+            } else { try? FileManager.default.removeItem(at: closed.url) }
+        }
+        // Stage the accepted snapshot before waking a waiting freeze, which
+        // may immediately transfer/drain the original ring.
+        if snapshotWaiting && state != .closed && generation == closingGeneration {
+            stagedAfterClose = try? stageSnapshot()
+        }
+        let waiters = Array(closingWaiters.values); closingWaiters.removeAll()
+        for waiter in waiters { waiter.resume(returning: state != .closed && generation == closingGeneration) }
+        if state == .closed { NativeVideoStorage.removeIfEmpty(directory) }
+    }
+
+    private func stageSnapshot() throws -> StagedSnapshot? {
+        // A freeze waiting on this close owns the originals; this already-started
+        // snapshot must retain its independent copy before releasing the lease.
+        guard state != .closed, !Task.isCancelled, let dimensions, !ring.segments.isEmpty else { return nil }
+        let target = directory.deletingLastPathComponent()
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: false,
+            attributes: [.protectionKey: FileProtectionType.complete])
+        var copies: [NativeVideoSegment] = []
+        do {
+            for segment in ring.segments {
+                // An independently owned copy: the ring may evict its original meanwhile.
+                let copy = target.appendingPathComponent(segment.url.lastPathComponent)
+                try FileManager.default.copyItem(at: segment.url, to: copy)
+                try FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete],
+                    ofItemAtPath: copy.path)
+                copies.append(.init(url: copy, startNanos: segment.startNanos,
+                    endNanos: segment.endNanos, byteCount: segment.byteCount, lastFrameNanos: segment.lastFrameNanos))
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: target)
+            throw error
+        }
+        return .init(segments: copies, dimensions: dimensions, directory: target)
+    }
+
+    private func releaseBusy() {
+        busy = false
+        let waiters = idleWaiters
+        idleWaiters.removeAll()
+        for waiter in waiters { waiter.resume() }
+        if state == .closed { NativeVideoStorage.removeIfEmpty(directory) }
+    }
 }
+
 #endif

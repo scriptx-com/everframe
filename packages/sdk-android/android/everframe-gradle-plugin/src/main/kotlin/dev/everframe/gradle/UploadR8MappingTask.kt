@@ -1,59 +1,47 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-
 package dev.everframe.gradle
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
-import org.gradle.process.ExecOperations
 import org.gradle.work.DisableCachingByDefault
-import java.util.UUID
-import javax.inject.Inject
 
+/** Uploads the variant's final `mapping.txt` under the ID packaged in its APK/AAB. */
 @DisableCachingByDefault(because = "Uploads must contact the service on every invocation")
 public abstract class UploadR8MappingTask : DefaultTask() {
-    @get:InputFile
-    @get:PathSensitive(PathSensitivity.NONE)
-    public abstract val mappingFile: RegularFileProperty
-
-    @get:Input public abstract val mappingId: Property<String>
-    @get:Input public abstract val appId: Property<String>
-    @get:Input public abstract val cliExecutable: Property<String>
-    @get:Input public abstract val cliArgs: ListProperty<String>
-
-    @get:Inject protected abstract val execOperations: ExecOperations
+    @get:InputFile @get:PathSensitive(PathSensitivity.NONE) public abstract val mappingFile: RegularFileProperty
+    @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) public abstract val identityDirectory: DirectoryProperty
+    @get:Input @get:Optional public abstract val appId: Property<String>
+    @get:Input public abstract val cliCommand: ListProperty<String>
+    /** Where the CLI runs: the owning project's directory, against which a relative command resolves. */
+    @get:Internal public abstract val workingDirectory: DirectoryProperty
 
     init {
         outputs.upToDateWhen { false }
+        workingDirectory.convention(project.layout.projectDirectory)
     }
 
-    @TaskAction
-    internal fun upload() {
-        require(!System.getenv("EVERFRAME_API_TOKEN").isNullOrEmpty()) {
-            "EVERFRAME_API_TOKEN is required to upload an R8 mapping"
-        }
-        val applicationId = appId.orNull ?: error("everframeR8.appId is required to upload an R8 mapping")
-        require(runCatching { UUID.fromString(applicationId) }.isSuccess) {
-            "everframeR8.appId must be a UUID"
-        }
+    @TaskAction internal fun upload() {
+        if (!requireUploadCredentials(System.getenv("EVERFRAME_API_TOKEN"), logger, "R8 mapping")) return
+        val applicationId = requireAppId(appId.orNull, logger) ?: return
         val mapping = mappingFile.asFile.get()
-        require(mapping.isFile && mapping.length() > 0) { "R8 mapping must be a non-empty regular file: $mapping" }
-
-        execOperations.exec { spec ->
-            spec.executable(cliExecutable.get())
-            spec.args(cliArgs.get() + listOf(
-                "r8", "upload",
-                "--app-id", applicationId,
-                "--mapping-id", mappingId.get(),
-                "--mapping", mapping.absolutePath,
-            ))
-        }.assertNormalExitValue()
+        val mappingId = readR8MappingId(identityDirectory.get().asFile.resolve(BUILD_IDENTITY_ASSET))
+        runCli(
+            cliCommand.get() + listOf("r8", "upload", "--app-id", applicationId, "--mapping-id", mappingId, "--mapping", mapping.absolutePath),
+            workingDirectory.get().asFile,
+            logger,
+            "R8 mapping",
+        )
     }
 }

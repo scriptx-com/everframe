@@ -37,6 +37,7 @@ export {
   addBreadcrumb,
   recordScreen,
   EverframeNotMountedError,
+  EverframeReporterDisabledError,
 } from './contextSeam.js';
 export type { EverframeContextValue } from './contextSeam.js';
 export type { PromiseRejectionStatus, PromiseRejectionCounters, RejectionReason } from './promise-rejection-types.js';

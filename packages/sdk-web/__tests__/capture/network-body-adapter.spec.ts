@@ -71,7 +71,7 @@ describe('createSessionSampler (memoized, lazily-drawn per-session sampler)', ()
 describe('network body buffer lives in client state (privacy seam)', () => {
   // `disabled: true` keeps the adapter from patching global fetch/XHR — this
   // test only exercises the sdk-core client-state buffer + kill zeroization.
-  const freshClient = () => createClient(createWebPlatformAdapter({ apiKey: 'k', disabled: true }));
+  const freshClient = () => createClient(createWebPlatformAdapter({ sdkKey: 'k', disabled: true }));
 
   it('a fresh client exposes a dedicated, empty networkBodies buffer', () => {
     const client = freshClient();

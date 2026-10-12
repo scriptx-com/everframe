@@ -7,7 +7,7 @@ package dev.everframe.capture.video
 internal class VideoPrivacyTypeCache(
     private val superclassOf: (Class<*>) -> Class<*>? = { it.superclass },
 ) {
-    class Types(val reactNative: Boolean, val composeHost: Boolean)
+    class Types(val reactNative: Boolean, val composeHost: Boolean, val flutterHost: Boolean)
 
     // First 64 distinct classes per gate: bounded class-loader retention and no eviction churn
     // during repeated tree scans. Overflow still gets the full classification each time.
@@ -18,14 +18,17 @@ internal class VideoPrivacyTypeCache(
             cached[viewType]?.let { return it }
             var reactNative = false
             var composeHost = false
+            var flutterHost = false
             var type: Class<*>? = viewType
             while (type != null) {
                 val name = type.name
                 if (name.startsWith("com.facebook.react.")) reactNative = true
                 if (name == "androidx.compose.ui.platform.AndroidComposeView") composeHost = true
+                // Current embedding (a FrameLayout) and the legacy one (a SurfaceView).
+                if (name == "io.flutter.embedding.android.FlutterView" || name == "io.flutter.view.FlutterView") flutterHost = true
                 type = superclassOf(type)
             }
-            Types(reactNative, composeHost).also {
+            Types(reactNative, composeHost, flutterHost).also {
                 if (cached.size < 64) cached[viewType] = it
             }
         } catch (_: Throwable) {

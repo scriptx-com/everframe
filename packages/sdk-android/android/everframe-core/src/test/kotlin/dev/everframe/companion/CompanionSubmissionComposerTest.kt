@@ -621,8 +621,8 @@ class CompanionSubmissionComposerTest {
                     )
                     .build()
             }
-            val provider = ReplayConfigProvider(configUrl = "https://x/api/config", apiKey = "k", fetcher = fetcher)
-            val session = ReplaySession(apiKey = "k", locallyDisabled = false, provider = provider)
+            val provider = ReplayConfigProvider(configUrl = "https://x/api/config", sdkKey = "k", fetcher = fetcher)
+            val session = ReplaySession(sdkKey = "k", locallyDisabled = false, provider = provider)
             runBlocking { session.refreshConfigNow() }
             Everframe._replaySession = session
             assertTrue(
@@ -725,11 +725,11 @@ class CompanionSubmissionComposerTest {
                     )
                     .build()
             }
-            fun installIdentityEnabledSession(apiKey: String) {
+            fun installIdentityEnabledSession(sdkKey: String) {
                 val provider = ReplayConfigProvider(
-                    configUrl = "https://x/api/config", apiKey = apiKey, fetcher = identityEnabledFetcher(),
+                    configUrl = "https://x/api/config", sdkKey = sdkKey, fetcher = identityEnabledFetcher(),
                 )
-                val session = ReplaySession(apiKey = apiKey, locallyDisabled = false, provider = provider)
+                val session = ReplaySession(sdkKey = sdkKey, locallyDisabled = false, provider = provider)
                 runBlocking { session.refreshConfigNow() }
                 Everframe._replaySession = session
             }

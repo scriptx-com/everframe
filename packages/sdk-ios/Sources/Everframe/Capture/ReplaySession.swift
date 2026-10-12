@@ -16,6 +16,25 @@ private final class ConfigBox {
     var value: ReplayConfig = .off
 }
 
+/// Power and heat as replay reads them, behind a seam so tests never depend
+/// on the machine running them. tvOS has no Low Power Mode; it reads false.
+struct ReplayDeviceConditions: Equatable {
+    var thermal: ProcessInfo.ThermalState
+    var lowPowerMode: Bool
+
+    static func live() -> ReplayDeviceConditions {
+        #if os(tvOS)
+        let lowPowerMode = false
+        #else
+        let lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+        #endif
+        return .init(thermal: ProcessInfo.processInfo.thermalState, lowPowerMode: lowPowerMode)
+    }
+
+    /// Like a memory warning, these pause capture and drop the buffer.
+    var pausesReplay: Bool { lowPowerMode || thermal == .serious || thermal == .critical }
+}
+
 /// Live session-replay coordinator. One per Everframe SDK session (owned by `Everframe`).
 @MainActor
 public final class ReplaySession: NSObject {
@@ -26,6 +45,7 @@ public final class ReplaySession: NSObject {
     private let configBox: ConfigBox
     private var backgrounded = false
     private var memoryPressure = false
+    private let deviceConditions: @MainActor () -> ReplayDeviceConditions
 
     /// Report EverframeResource Window (spec 2026-09-05) — CPU/memory sampler feeding
     /// `ResourceRingBuffer.shared`. Owned for the session's whole lifetime
@@ -55,6 +75,10 @@ public final class ReplaySession: NSObject {
     /// path (live, drain, crash), so the identity gate and the session-replay
     /// gate always agree on which fetch is "current."
     internal var currentConfig: ReplayConfig { configBox.value }
+
+    /// The config the last apply used when its fetch was confirmed; nil after a
+    /// failed one. A companion upgrade re-applies it (`applyCompanionUpgrade()`).
+    private var lastConfirmedConfig: ReplayConfig?
 
     /// The running periodic re-read loop (nil until `enableIfConfigured()` has
     /// been called once). Cancelled in `deinit` so it never outlives the
@@ -145,13 +169,13 @@ public final class ReplaySession: NSObject {
     ///   site (`Everframe.swift`'s `start()`) always passes the EXACT epoch
     ///   value it just verified via its `stillCurrent` guard anyway.
     public convenience init(
-        baseURL: URL, apiKey: String, locallyDisabled: Bool,
+        baseURL: URL, sdkKey: String, locallyDisabled: Bool,
         startEpoch: Int,
         installIdProvider: @escaping @Sendable () -> String? = { nil }
     ) {
         self.init(
             provider: ReplayConfigProvider.make(
-                baseURL: baseURL, apiKey: apiKey, installIdProvider: installIdProvider
+                baseURL: baseURL, sdkKey: sdkKey, installIdProvider: installIdProvider
             ),
             locallyDisabled: locallyDisabled,
             startEpoch: startEpoch
@@ -164,11 +188,30 @@ public final class ReplaySession: NSObject {
     /// the `internal` `currentStartEpoch`), but an overload whose *body*
     /// reads it is fine — so external callers written against the original
     /// three-parameter form keep compiling, adopting the current global epoch.
-    public convenience init(baseURL: URL, apiKey: String, locallyDisabled: Bool) {
+    public convenience init(baseURL: URL, sdkKey: String, locallyDisabled: Bool) {
         self.init(
-            baseURL: baseURL, apiKey: apiKey, locallyDisabled: locallyDisabled,
+            baseURL: baseURL, sdkKey: sdkKey, locallyDisabled: locallyDisabled,
             startEpoch: Everframe.shared.currentStartEpoch
         )
+    }
+
+    /// The SDK 1.1 spelling of `init(baseURL:sdkKey:locallyDisabled:startEpoch:installIdProvider:)`.
+    @available(*, deprecated, renamed: "init(baseURL:sdkKey:locallyDisabled:startEpoch:installIdProvider:)")
+    public convenience init(
+        baseURL: URL, apiKey: String, locallyDisabled: Bool,
+        startEpoch: Int,
+        installIdProvider: @escaping @Sendable () -> String? = { nil }
+    ) {
+        self.init(
+            baseURL: baseURL, sdkKey: apiKey, locallyDisabled: locallyDisabled,
+            startEpoch: startEpoch, installIdProvider: installIdProvider
+        )
+    }
+
+    /// The SDK 1.1 spelling of `init(baseURL:sdkKey:locallyDisabled:)`.
+    @available(*, deprecated, renamed: "init(baseURL:sdkKey:locallyDisabled:)")
+    public convenience init(baseURL: URL, apiKey: String, locallyDisabled: Bool) {
+        self.init(baseURL: baseURL, sdkKey: apiKey, locallyDisabled: locallyDisabled)
     }
 
     /// Test seam: construct with a pre-built `ReplayConfigProvider` (e.g. wired
@@ -183,13 +226,17 @@ public final class ReplaySession: NSObject {
     /// initializer's doc comment above.
     init(
         provider: ReplayConfigProvider, locallyDisabled: Bool,
-        startEpoch: Int = Everframe.shared.currentStartEpoch
+        startEpoch: Int = Everframe.shared.currentStartEpoch,
+        deviceConditions: @escaping @MainActor () -> ReplayDeviceConditions = ReplayDeviceConditions.live
     ) {
         self.provider = provider
-        self.video = NativeVideoSession()
+        self.video = NativeVideoSession(onRecordingChange: { recording in
+            ErrorReplayGate.shared.publish(recording: recording, epoch: startEpoch)
+        })
         self.locallyDisabled = locallyDisabled
         self.configBox = ConfigBox()
         self.startEpochAtCreation = startEpoch
+        self.deviceConditions = deviceConditions
         super.init()
         // A host can restart the Everframe SDK while a report is still being composed.
         // tvOS has no modal presenter: the companion owns that same freeze.
@@ -201,10 +248,9 @@ public final class ReplaySession: NSObject {
                      UIApplication.didReceiveMemoryWarningNotification] {
             NotificationCenter.default.addObserver(self, selector: #selector(runtimeChanged(_:)), name: name, object: nil)
         }
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(thermalStateChanged),
-            name: ProcessInfo.thermalStateDidChangeNotification, object: nil
-        )
+        for name in [ProcessInfo.thermalStateDidChangeNotification, Notification.Name.NSProcessInfoPowerStateDidChange] {
+            NotificationCenter.default.addObserver(self, selector: #selector(deviceConditionsChanged), name: name, object: nil)
+        }
     }
 
     deinit {
@@ -261,9 +307,9 @@ public final class ReplaySession: NSObject {
         NotificationCenter.default.removeObserver(self)
     }
 
-    // Foundation posts thermal changes on a global dispatch queue. The
-    // selector must not enter MainActor until it has marshalled delivery.
-    @objc nonisolated private func thermalStateChanged() {
+    // Foundation posts thermal and Low Power Mode changes on arbitrary queues.
+    // The selector must not enter MainActor until it has marshalled delivery.
+    @objc nonisolated private func deviceConditionsChanged() {
         DispatchQueue.main.async { [weak self] in
             guard let self, !self.isTornDown,
                   self.startEpochAtCreation == Everframe.shared.currentStartEpoch else { return }
@@ -283,8 +329,7 @@ public final class ReplaySession: NSObject {
     }
 
     private func updateSuspension() {
-        let thermal = ProcessInfo.processInfo.thermalState
-        video.setSuspended(backgrounded || memoryPressure || thermal == .serious || thermal == .critical)
+        video.setSuspended(backgrounded || memoryPressure || deviceConditions().pausesReplay)
     }
 
     /// Kick off a background config refresh, then — if the lifecycle starts
@@ -340,7 +385,11 @@ public final class ReplaySession: NSObject {
     /// Runs on `MainActor` (this class is `@MainActor`), so — unlike the
     /// ad-hoc `Task { }` closure this was factored out of — no explicit
     /// `MainActor.run` hop is needed for the `configBox` / lifecycle writes.
-    func refreshConfigNow() async {
+    ///
+    /// `reusingConfirmedConfig` (crash-only sessions spec 2026-10-12) applies the
+    /// last confirmed config again instead of fetching, and fetches when there is
+    /// none. Only `applyCompanionUpgrade()` passes it.
+    func refreshConfigNow(reusingConfirmedConfig: Bool = false) async {
         // Round-3 review Finding F13 — capture the generation this call was
         // armed under BEFORE the first `await` below (synchronously, so no
         // teardown can land between "read epoch" and "start awaiting"); see
@@ -356,8 +405,15 @@ public final class ReplaySession: NSObject {
         // took effect every SECOND wake (~600s), not every wake (~300s).
         // `force: true` still records `lastFetchedAt`, so this stays in step
         // with any other (non-forced) caller of the same provider.
-        let succeeded = await provider.refresh(force: true)
-        let latest = await provider.current
+        let succeeded: Bool
+        let latest: ReplayConfig
+        if reusingConfirmedConfig, let confirmed = lastConfirmedConfig {
+            succeeded = true
+            latest = confirmed
+        } else {
+            succeeded = await provider.refresh(force: true)
+            latest = await provider.current
+        }
 
         // Round-3 review Finding F13: both `await`s above can outlive this
         // session's teardown — `await`ing re-derives a strong `self` from a
@@ -475,10 +531,17 @@ public final class ReplaySession: NSObject {
         // check above by itself (see `applyConfig`'s doc comment for the
         // full rationale, and `startEpochAtCreation`'s for why a session-
         // local check alone isn't enough).
+        // Crash-only sessions (spec 2026-10-12): the client config and the
+        // companion upgrade, read together. Until a bond upgrades it, a
+        // crash-only session captures no bodies and samples replay at the
+        // crash-only rate below; bodies keep the ordinary `samplingRate` draw.
+        let coverage = Everframe.shared.crashOnlyCoverageState
+        let replayCoverage: ReplayCoverage = coverage.config?.reporterEnabled != false ? .report
+            : coverage.upgraded ? .upgraded : .crashOnly
         NetworkBodyCaptureGate.shared.applyConfig(
             succeeded ? latest.networkBodies : nil,
             samplingRate: latest.samplingRate,
-            locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: Everframe.shared.currentConfig)
+            locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: coverage.config, upgraded: coverage.upgraded)
                 || NetworkBodyCaptureGate.breadcrumbsExcludeNetwork(latest.breadcrumbs)
         ) { [startEpochAtCreation] in
             Everframe.shared.currentStartEpoch == startEpochAtCreation
@@ -486,6 +549,7 @@ public final class ReplaySession: NSObject {
         NetworkBodyRingBuffer.shared.setTotalBudget(
             latest.networkBodies?.bodyTotalBudget ?? 262_144)
         configBox.value = latest
+        lastConfirmedConfig = succeeded ? latest : nil
         // Companion badge dashboard override (plan 2026-08-25) — snapshot the
         // block for CompanionBadge's sync show-time read; see
         // CompanionBadgeServerConfigBox's own doc for why a box and not
@@ -521,10 +585,14 @@ public final class ReplaySession: NSObject {
         ShakeToReportTrigger.shared.publish(remoteEnabled: latest.shakeToReport?.enabled) {
             Everframe.shared.currentStartEpoch == startEpochAtCreation
         }
+        // A server that sends no crash-only rate leaves crash-only sessions
+        // unrecorded, so their errors carry no replay (ErrorReplayGate).
         video.apply(
             settings: locallyDisabled ? nil : effectiveNativeVideo(config: latest, fetchConfirmed: succeeded),
             durationSec: latest.replayDurationSec,
-            samplingRate: latest.samplingRate
+            samplingRate: replayCoverage.samplingRate(report: latest.samplingRate,
+                                                      crashOnly: latest.crashOnlySamplingRate),
+            coverage: replayCoverage
         )
         // Independent review, round 4 (Serious 3) — mirrors the `configBox.value`
         // write above (now ahead of `applyImageConfig` — see Task 4 fix round 1's
@@ -581,10 +649,34 @@ public final class ReplaySession: NSObject {
         }
     }
 
+    /// Crash-only sessions (spec 2026-10-12): a companion bond upgraded this
+    /// session (`Everframe.__companionMemberAttached()`). Apply now rather than at
+    /// the next ~300 s refresh, so replay and network bodies start at the bond.
+    /// Native video needs a confirmed fetch, so this reuses the last confirmed
+    /// config and fetches only when there is none.
+    func applyCompanionUpgrade() async {
+        guard !isTornDown, Everframe.shared.currentStartEpoch == startEpochAtCreation else { return }
+        await refreshConfigNow(reusingConfirmedConfig: true)
+    }
+
     /// Freeze before mounting reporter UI. Finalization runs asynchronously.
     public func freezeForReporter() {
         guard !isTornDown, Everframe.shared.currentStartEpoch == startEpochAtCreation else { return }
         video.freeze()
+    }
+
+    /// A handled error's own copy of the window, for the session it was
+    /// captured in. Waits at most the snapshot deadline (3 s).
+    internal func errorSnapshot(capture: ErrorReplayCapture) async -> ErrorReplaySnapshot {
+        guard !isTornDown, capture.startEpoch == startEpochAtCreation, ErrorReplayGate.shared.owns(capture),
+              Everframe.shared.currentStartEpoch == startEpochAtCreation,
+              let claim = await video.snapshotClaim(endNanos: capture.cutoffNanos) else { return .omitted("replay_unavailable") }
+        guard !isTornDown, Everframe.shared.currentStartEpoch == startEpochAtCreation, claim.isValid else {
+            claim.artifact?.removeOwnedFile()
+            return .omitted("replay_revoked")
+        }
+        guard let artifact = claim.artifact else { return .omitted(claim.omissionReason ?? "empty_recording") }
+        return .movie(artifact)
     }
 
     internal func completeVideoForSubmit() async -> NativeVideoClaim? {

@@ -79,7 +79,7 @@ describe('captureException', () => {
     ingestStatuses.push(503, 200);
     const reachedFirstIngest = new Promise<void>((resolve) => { firstIngestReached = resolve; });
     firstIngestResponseGate = new Promise<void>((resolve) => { releaseFirstIngestResponse = resolve; });
-    handle = init({ apiKey: 'pk_test', appName: 'shop', appVersion: '2.1', appBuild: 'web-abc123' });
+    handle = init({ sdkKey: 'pk_test', appName: 'shop', appVersion: '2.1', appBuild: 'web-abc123' });
     handle.setUser({ id: 'user-1' });
     handle.addBreadcrumb({ message: 'Opened checkout' });
     const metadata = { retry: 2, accessToken: 'synthetic' };
@@ -157,7 +157,7 @@ describe('captureException', () => {
   });
 
   it('keeps classification fixed when untyped callers supply handled or fatal fields', async () => {
-    handle = init({ apiKey: 'pk_test' });
+    handle = init({ sdkKey: 'pk_test' });
     const options = {
       severity: 'info',
       handled: false,
@@ -175,7 +175,7 @@ describe('captureException', () => {
   });
 
   it('keeps the core error when optional metadata cannot be inspected', async () => {
-    handle = init({ apiKey: 'pk_test' });
+    handle = init({ sdkKey: 'pk_test' });
     const revoked = Proxy.revocable({}, {});
     revoked.revoke();
 
@@ -192,7 +192,7 @@ describe('captureException', () => {
   it('rechecks context and metadata limits after custom redaction expands text', async () => {
     const replacement = 'r'.repeat(1500);
     handle = init({
-      apiKey: 'pk_test',
+      sdkKey: 'pk_test',
       redaction: { customRules: [{ type: 'pattern', match: /PIN/g, replacement }] },
     });
 
@@ -206,7 +206,7 @@ describe('captureException', () => {
   });
 
   it('drops a cause email address cut by the redaction scan limit', async () => {
-    handle = init({ apiKey: 'pk_test', redaction: { maskInputs: ['email'] } });
+    handle = init({ sdkKey: 'pk_test', redaction: { maskInputs: ['email'] } });
     // Redacted tokens shrink the text, so the cut address would fit the message cap.
     const before = `eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(250)}.${'S'.repeat(13)} `.repeat(28).padEnd(8_177, 'p');
 
@@ -220,7 +220,7 @@ describe('captureException', () => {
 
   it.each(['kill', 'destroy'] as const)(
     'persists nothing when capture-option proxy work triggers %s', async action => {
-      handle = init({ apiKey: 'pk_test' });
+      handle = init({ sdkKey: 'pk_test' });
       const options = new Proxy({}, {
         getPrototypeOf() {
           if (action === 'kill') handle!.kill();
@@ -238,13 +238,13 @@ describe('captureException', () => {
   );
 
   it('keeps fingerprints stable across independent capture lifetimes with different details', async () => {
-    handle = init({ apiKey: 'pk_first' });
+    handle = init({ sdkKey: 'pk_first' });
     handle.captureException(failure(), { severity: 'warning', context: 'checkout' });
     await vi.waitFor(() => expect(sent).toHaveLength(1));
     const firstFingerprint = sent[0]!.payload.crash!.fingerprint;
     handle.destroy();
 
-    handle = init({ apiKey: 'pk_second' });
+    handle = init({ sdkKey: 'pk_second' });
     handle.captureException(failure(), { severity: 'info', context: 'payment' });
     await vi.waitFor(() => expect(sent).toHaveLength(2));
 
@@ -253,13 +253,13 @@ describe('captureException', () => {
   });
 
   it('keeps the raw outer fingerprint stable across independent cause-only changes', async () => {
-    handle = init({ apiKey: 'pk_first' });
+    handle = init({ sdkKey: 'pk_first' });
     handle.captureException(failureWithCause(new TypeError('first cause')));
     await vi.waitFor(() => expect(sent).toHaveLength(1));
     const firstFingerprint = sent[0]!.payload.crash!.fingerprint;
     handle.destroy();
 
-    handle = init({ apiKey: 'pk_second' });
+    handle = init({ sdkKey: 'pk_second' });
     handle.captureException(failureWithCause(new RangeError('second cause')));
     await vi.waitFor(() => expect(sent).toHaveLength(2));
 
@@ -275,7 +275,7 @@ describe('captureException', () => {
   });
 
   it('drops a descriptor-reentrant stale capture without consuming successor allowance', async () => {
-    handle = init({ apiKey: 'pk_old' });
+    handle = init({ sdkKey: 'pk_old' });
     const old = handle;
     const inner = new TypeError('stale cause');
     let causeDescriptorCalls = 0;
@@ -285,7 +285,7 @@ describe('captureException', () => {
           causeDescriptorCalls += 1;
           old.kill();
           old.destroy();
-          handle = init({ apiKey: 'pk_new' });
+          handle = init({ sdkKey: 'pk_new' });
         }
         return Reflect.getOwnPropertyDescriptor(target, property);
       },
@@ -315,12 +315,12 @@ describe('captureException', () => {
         redactorCalls += 1;
         old.kill();
         old.destroy();
-        handle = init({ apiKey: 'pk_new' });
+        handle = init({ sdkKey: 'pk_new' });
         return value;
       },
     } as unknown as RegExp;
     handle = init({
-      apiKey: 'pk_old',
+      sdkKey: 'pk_old',
       redaction: { customRules: [{ type: 'pattern', match, replacement: '[REDACTED]' }] },
     });
     old = handle;
@@ -345,7 +345,7 @@ describe('captureException', () => {
       prepareStackTrace?: (error: Error, frames: unknown[]) => unknown;
     };
     const previousFormatter = Object.getOwnPropertyDescriptor(errorConstructor, 'prepareStackTrace');
-    handle = init({ apiKey: 'pk_old' });
+    handle = init({ sdkKey: 'pk_old' });
     const old = handle;
     let formatterCalls = 0;
     Object.defineProperty(errorConstructor, 'prepareStackTrace', {
@@ -354,7 +354,7 @@ describe('captureException', () => {
         formatterCalls += 1;
         old.kill();
         old.destroy();
-        handle = init({ apiKey: 'pk_new' });
+        handle = init({ sdkKey: 'pk_new' });
         return 'TypeError: stale native cause\n    at stale (stale.js:1:1)';
       },
       writable: true,
@@ -391,7 +391,7 @@ describe('captureException', () => {
 
   it.each(['explicit-first', 'automatic-first'] as const)(
     'reports the same error object once across capture paths (%s)', async order => {
-      handle = init({ apiKey: 'pk_test' });
+      handle = init({ sdkKey: 'pk_test' });
       const error = failure();
       const automatic = () => window.onerror?.(error.message, 'app.js', 1, 250, error);
       if (order === 'explicit-first') handle.captureException(error);
@@ -410,7 +410,7 @@ describe('captureException', () => {
   );
 
   it('keeps automatic errors reportable after handled errors exhaust their allowance', async () => {
-    handle = init({ apiKey: 'pk_test' });
+    handle = init({ sdkKey: 'pk_test' });
     for (let i = 0; i < 11; i++) {
       // Fingerprint normalization strips digits, so use distinct letter names.
       handle.captureException(failure(String.fromCharCode(97 + i)));
@@ -425,7 +425,7 @@ describe('captureException', () => {
   it.each(['disabled', 'crash-disabled', 'killed', 'destroyed'] as const)(
     'does not capture after %s', async mode => {
       handle = init({
-        apiKey: 'pk_test',
+        sdkKey: 'pk_test',
         ...(mode === 'disabled' ? { disabled: true } : {}),
         ...(mode === 'crash-disabled' ? { crashReporting: { disabled: true } } : {}),
       });
@@ -435,7 +435,7 @@ describe('captureException', () => {
       expect(await createLocalStorageOutbox()!.list()).toEqual([]);
       expect(sent).toHaveLength(0);
       handle.destroy();
-      handle = init({ apiKey: 'pk_test' });
+      handle = init({ sdkKey: 'pk_test' });
       handle.captureException(failure('liveAfterDisabled'));
       await vi.waitFor(() => expect(sent).toHaveLength(1));
       expect(sent[0]!.payload.crash!.frames[0]!.raw).toContain('liveAfterDisabled');
@@ -443,7 +443,7 @@ describe('captureException', () => {
   );
 
   it('persists and sends nothing when an explicit error stack getter kills the client', async () => {
-    handle = init({ apiKey: 'pk_test' });
+    handle = init({ sdkKey: 'pk_test' });
     const error = new Error('host-controlled stack');
     Object.defineProperty(error, 'stack', {
       configurable: true,
@@ -461,7 +461,7 @@ describe('captureException', () => {
   });
 
   it('accepts a non-Error thrown value without throwing', async () => {
-    handle = init({ apiKey: 'pk_test' });
+    handle = init({ sdkKey: 'pk_test' });
     handle.captureException('checkout unavailable');
     await vi.waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]!.payload.crash).toMatchObject({
@@ -470,10 +470,10 @@ describe('captureException', () => {
   });
 
   it('keeps a destroyed handle inert after another SDK instance starts', async () => {
-    handle = init({ apiKey: 'pk_old' });
+    handle = init({ sdkKey: 'pk_old' });
     const old = handle;
     old.destroy();
-    handle = init({ apiKey: 'pk_new' });
+    handle = init({ sdkKey: 'pk_new' });
     old.captureException(failure('stale'));
     handle.captureException(failure('live'));
     await vi.waitFor(() => expect(sent).toHaveLength(1));
@@ -481,7 +481,7 @@ describe('captureException', () => {
   });
 
   it('survives hostile thrown values and can still report the next error', async () => {
-    handle = init({ apiKey: 'pk_test' });
+    handle = init({ sdkKey: 'pk_test' });
     const hostile = {
       toJSON() { throw new Error('serialization unavailable'); },
       toString() { throw new Error('string conversion unavailable'); },

@@ -15,7 +15,7 @@ struct CompanionAssembledCountsTests {
         // LogRingBuffer.shared honors Everframe.shared.captureGate (DEFE-03);
         // arm it explicitly rather than relying on suite ordering, same
         // pattern as LogRingBufferTests.killGateBlocksAppend.
-        try Everframe.shared.start(config: .init(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
+        try Everframe.shared.start(config: .init(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
         LogRingBuffer.shared.clear()
         NetworkRingBuffer.shared.clear()
         defer { LogRingBuffer.shared.clear(); NetworkRingBuffer.shared.clear() }

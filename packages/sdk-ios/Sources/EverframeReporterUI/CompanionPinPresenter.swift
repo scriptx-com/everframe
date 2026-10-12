@@ -5,7 +5,7 @@
 // level above the reporter's (.alert + 2) hosting a passive label — no
 // buttons: reading the code to the dashboard IS the consent. Installed by
 // `EFReporterPresenter.installResolver()` on iOS and callable directly on
-// tvOS hosts (where `installResolver` does not exist).
+// tvOS hosts (where `installResolver()` is a no-op).
 //
 // Gated `#if canImport(UIKit)` ONLY — no `!os(tvOS)`. Apple TV is a PRIMARY
 // consumer of companion (see `RelayWSClient`'s header), so this file must

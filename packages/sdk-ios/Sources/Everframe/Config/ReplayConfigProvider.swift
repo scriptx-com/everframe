@@ -295,6 +295,10 @@ public struct ReplayConfig: Sendable, Equatable {
     /// server opinion" — see `toVitalsServerConfig()`'s defaulting.
     public let vitalsEnabled: Bool?
     public let vitalsSampleRate: Double?
+    /// Replay coverage for crash-only sessions (`EverframeConfig.reporterEnabled == false`, spec
+    /// 2026-10-12), in 0...1. `nil` (an older server, or a value that failed validation) means 0:
+    /// a crash-only session records nothing.
+    public let crashOnlySamplingRate: Double?
 
     public init(
         replayEnabled: Bool,
@@ -309,7 +313,8 @@ public struct ReplayConfig: Sendable, Equatable {
         shakeToReport: ShakeToReportConfigWire? = nil,
         nativeVideo: NativeVideoSettings? = NativeVideoSettings(),
         vitalsEnabled: Bool? = nil,
-        vitalsSampleRate: Double? = nil
+        vitalsSampleRate: Double? = nil,
+        crashOnlySamplingRate: Double? = nil
     ) {
         self.replayEnabled = replayEnabled
         self.replayDurationSec = replayDurationSec
@@ -324,6 +329,7 @@ public struct ReplayConfig: Sendable, Equatable {
         self.nativeVideo = nativeVideo
         self.vitalsEnabled = vitalsEnabled
         self.vitalsSampleRate = vitalsSampleRate
+        self.crashOnlySamplingRate = crashOnlySamplingRate
     }
 
     /// The canonical OFF default (REPLAY_CONFIG_OFF). Returned until the first fully
@@ -355,6 +361,7 @@ private struct ReplayConfigWire: Decodable {
     let shakeToReport: ShakeToReportConfigWire?
     let vitalsEnabled: Bool?
     let vitalsSampleRate: Double?
+    let crashOnlySamplingRate: Double?
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -397,12 +404,17 @@ private struct ReplayConfigWire: Decodable {
         // alone. Clamping to [0,1] happens in toVitalsServerConfig().
         vitalsEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .vitalsEnabled)) ?? nil
         vitalsSampleRate = (try? c.decodeIfPresent(Double.self, forKey: .vitalsSampleRate)) ?? nil
+        // Crash-only sessions (spec 2026-10-12) — lenient, unlike `samplingRate`: a missing,
+        // wrong-typed or out-of-range value degrades to nil, which the session reads as 0.
+        // Nil is already the fail-closed answer here, so it never has to sink the config.
+        let crashOnly = (try? c.decodeIfPresent(Double.self, forKey: .crashOnlySamplingRate)) ?? nil
+        crashOnlySamplingRate = crashOnly.flatMap { (0...1).contains($0) ? $0 : nil }
     }
 
     enum CodingKeys: String, CodingKey {
         case replayEnabled, replayDurationSec, samplingRate, breadcrumbs, networkBodies, identity
         case companionBadge, branding, nativeVideo, vitalsEnabled, vitalsSampleRate
-        case resources, shakeToReport
+        case resources, shakeToReport, crashOnlySamplingRate
     }
 
     var config: ReplayConfig {
@@ -419,7 +431,8 @@ private struct ReplayConfigWire: Decodable {
             shakeToReport: shakeToReport,
             nativeVideo: nativeVideo,
             vitalsEnabled: vitalsEnabled,
-            vitalsSampleRate: vitalsSampleRate
+            vitalsSampleRate: vitalsSampleRate,
+            crashOnlySamplingRate: crashOnlySamplingRate
         )
     }
 }
@@ -448,7 +461,7 @@ public actor ReplayConfigProvider {
     /// Returning nil means "send the config URL unchanged"; it is never an
     /// error, and this closure must never throw or block.
     private let installIdProvider: @Sendable () -> String?
-    private let apiKey: String
+    private let sdkKey: String
     private let fetcher: URLSessionFetching
     private let ttlSec: TimeInterval
     private let now: @Sendable () -> TimeInterval
@@ -486,14 +499,14 @@ public actor ReplayConfigProvider {
 
     public init(
         configUrl: URL,
-        apiKey: String,
+        sdkKey: String,
         fetcher: URLSessionFetching = URLSession.shared,
         ttlSec: TimeInterval = defaultConfigTtlSec,
         now: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
         installIdProvider: @escaping @Sendable () -> String? = { nil }
     ) {
         self.configUrl = configUrl
-        self.apiKey = apiKey
+        self.sdkKey = sdkKey
         self.fetcher = fetcher
         self.ttlSec = ttlSec
         self.now = now
@@ -504,13 +517,13 @@ public actor ReplayConfigProvider {
     /// `/api/config` (mirrors MultipartUploader's base-URL path-append).
     public static func make(
         baseURL: URL = IngestEndpoint.url,
-        apiKey: String,
+        sdkKey: String,
         fetcher: URLSessionFetching = URLSession.shared,
         installIdProvider: @escaping @Sendable () -> String? = { nil }
     ) -> ReplayConfigProvider {
         ReplayConfigProvider(
             configUrl: configURL(from: baseURL),
-            apiKey: apiKey,
+            sdkKey: sdkKey,
             fetcher: fetcher,
             installIdProvider: installIdProvider
         )
@@ -593,7 +606,7 @@ public actor ReplayConfigProvider {
         do {
             var req = URLRequest(url: requestURL())
             req.httpMethod = "GET"
-            req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            req.setValue("Bearer \(sdkKey)", forHTTPHeaderField: "Authorization")
             req.setValue("application/json", forHTTPHeaderField: "Accept")
             // Declares client support for the networkBodies + identity config
             // blocks so the server can gate each feature on capability rather
@@ -635,7 +648,7 @@ extension ReplayConfigProvider {
     /// (the server configuration contract) — so adding a block here is a
     /// prerequisite for receiving it, not a formality.
     public static let sdkFeaturesHeaderValue =
-        "networkbodies, identity, companionbadge, branding, nativevideo, vitals, resources, shaketoreport"
+        "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly"
 
     /// Test seam: decode a raw `/api/config` body exactly as `refresh()` does.
     static func __decodeForTesting(_ data: Data) throws -> ReplayConfig {

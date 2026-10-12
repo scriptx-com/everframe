@@ -14,7 +14,9 @@
 //      `CaptureConfig.networkBodies == false` (host opt-out veto). Either
 //      one disables bodies; the server ON block always wins the OTHER
 //      direction — a host cannot force capture ON when the server says OFF
-//      (client veto only, never client override).
+//      (client veto only, never client override). A crash-only session
+//      (`reporterEnabled == false`) is a third precondition until a companion
+//      bond upgrades it (crash-only sessions spec 2026-10-12).
 //   3. Sampling: `samplingRate` is drawn against `random()` AT MOST ONCE per
 //      process — the first `applyConfig` call where the server block says
 //      ON performs the draw and its result is sticky for the process
@@ -90,9 +92,15 @@ public final class NetworkBodyCaptureGate: @unchecked Sendable {
     ///
     /// `config == nil` (pre-`start()`, or a torn-down session) fails closed:
     /// there is no confirmed client opt-in yet, so bodies stay off.
-    public static func locallyDisabled(for config: EverframeConfig?) -> Bool {
+    ///
+    /// Crash-only sessions (spec 2026-10-12): `reporterEnabled == false` also
+    /// disables bodies until a companion bond `upgraded` the session; from then
+    /// on the two preconditions above decide as for any report session. The
+    /// default (`false`) fails closed for a crash-only config.
+    public static func locallyDisabled(for config: EverframeConfig?, upgraded: Bool = false) -> Bool {
         guard let config else { return true }
         return config.capture.network != true || config.capture.networkBodies == false
+            || (!config.reporterEnabled && !upgraded)
     }
 
     /// Round-6 review Finding F28: a body is meaningless without its

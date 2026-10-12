@@ -20,7 +20,8 @@
 // observable surface flips around the present/dismiss cycle.
 import Foundation
 // tvOS modal reporter removed — TV apps route reporting through the
-// phone-companion (QR → phone browser) flow instead.
+// phone-companion (QR → phone browser) flow instead. tvOS gets only a no-op
+// `installResolver()` (end of this file).
 #if canImport(UIKit) && !os(tvOS)
 import UIKit
 import EverframeKit
@@ -51,10 +52,11 @@ public enum EFReporterPresenter {
             }
         }
         // Built-in attach-PIN surface (spec 2026-08-19). This gate is
-        // iOS-only (`#if canImport(UIKit) && !os(tvOS)`); tvOS hosts have no
-        // `installResolver()` to piggyback on (TV apps route reporting
-        // through phone-companion, not this modal reporter) and call
-        // `CompanionPinPresenter.install()` directly per its own doc comment.
+        // iOS-only (`#if canImport(UIKit) && !os(tvOS)`); the tvOS
+        // `installResolver()` at the end of this file is a no-op (TV apps
+        // route reporting through phone-companion, not this modal reporter),
+        // so tvOS hosts call `CompanionPinPresenter.install()` directly per
+        // its own doc comment.
         CompanionPinPresenter.install()
     }
 
@@ -63,6 +65,10 @@ public enum EFReporterPresenter {
     public static func openWithMaskedPng(
         _ pngData: Data, replayVTree: Data? = nil, sdkName: String = "everframe-ios"
     ) async throws -> ReportResult {
+        // Same answer as `openAndAwait` below, whatever the bytes are.
+        if Everframe.shared.currentConfig?.reporterEnabled == false {
+            throw EverframeReporterError.reporterDisabled
+        }
         guard pngData.count >= 8, pngData.count <= 10_000_000,
               pngData.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]),
               let image = UIImage(data: pngData),
@@ -85,9 +91,15 @@ public enum EFReporterPresenter {
     /// Opens the reporter and resolves when the user submits or cancels.
     /// Idempotency: if a reporter is already open, the second call resolves
     /// immediately with .cancelled (we never stack reporter windows).
+    /// Throws `EverframeReporterError.reporterDisabled` in a crash-only session
+    /// (`EverframeConfig.reporterEnabled == false`), as `report.open()` does:
+    /// the SwiftUI modifiers call this directly.
     public static func openAndAwait(captureOverride: ScreenshotCapture.Result? = nil,
                                     hostReplayVTree: Data? = nil,
                                     sdkName: String = "everframe-ios") async throws -> ReportResult {
+        if Everframe.shared.currentConfig?.reporterEnabled == false {
+            throw EverframeReporterError.reporterDisabled
+        }
         guard ["everframe-ios", "everframe-flutter", "everframe-kmp"].contains(sdkName) else {
             return .cancelled
         }
@@ -234,5 +246,19 @@ public enum EFReporterPresenter {
     public static func __resolveForTesting(_ result: ReportResult) {
         resolveResult(.success(result))
     }
+}
+#endif
+
+#if os(tvOS)
+/// tvOS has no on-device reporter: TV apps file reports through the phone
+/// companion, and `report.open()` keeps throwing there. This type exists on
+/// tvOS so the documented launch code, which calls `installResolver()` beside
+/// `Everframe.shared.start`, compiles unchanged in an iOS and a tvOS target.
+@MainActor
+public enum EFReporterPresenter {
+    /// Does nothing on tvOS. It installs no resolver, so `report.open()` still
+    /// throws, and no attach-PIN window: a tvOS host that wants the built-in
+    /// PIN window calls `CompanionPinPresenter.install()` itself.
+    public static func installResolver() {}
 }
 #endif

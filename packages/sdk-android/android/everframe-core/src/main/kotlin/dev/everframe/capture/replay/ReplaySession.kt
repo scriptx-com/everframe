@@ -18,6 +18,7 @@ import dev.everframe.capture.video.*
 import dev.everframe.config.*
 import dev.everframe.vitals.toVitalsServerConfig
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -33,11 +34,11 @@ import okhttp3.OkHttpClient
 /** One originating session. Config/identity/ancillary consumers remain independent of optional video. */
 class ReplaySession(
     baseUrl: String = IngestEndpoint.url,
-    apiKey: String,
+    sdkKey: String,
     private val locallyDisabled: Boolean = false,
     private val activitySupplier: () -> Activity? = { Everframe.__activitySupplier?.invoke() },
     installIdProvider: () -> String? = { null },
-    private val provider: ReplayConfigProvider = ReplayConfigProvider.make(baseUrl = baseUrl, apiKey = apiKey,
+    private val provider: ReplayConfigProvider = ReplayConfigProvider.make(baseUrl = baseUrl, sdkKey = sdkKey,
         fetcher = defaultFetcher, installIdProvider = installIdProvider),
     private val context: Context? = null,
     private val originatingStartEpoch: Int = Everframe.currentStartEpochVolatile(),
@@ -54,6 +55,14 @@ class ReplaySession(
     private var refreshLoopJob: Job? = null
     private val sessionId = UUID.randomUUID().toString()
     private val samplingDraw = Math.random()
+    /**
+     * Coverage kinds whose rate has admitted this session (crash-only sessions, spec 2026-10-12). An
+     * admission is kept for the session, so a later rate cut never stops a recording; a refusal is
+     * compared against the live rate again on each refresh. Guarded by the report authorization lock.
+     */
+    private val admittedKinds = mutableSetOf<ReplayCoverage>()
+    /** The config of the last refresh that succeeded; null after a failed one. Guarded by [refreshMutex]. */
+    private var lastConfirmedConfig: ReplayConfig? = null
     private var generation = 0L
     private var authorized = false
     private var settings: NativeVideoSettings? = null
@@ -66,12 +75,21 @@ class ReplaySession(
     /** Internal construction boundary for controlled encoder comparisons and deterministic native tests. */
     internal var recorderFactory: (Context, VideoOwner, () -> Activity?) -> NativeVideoRecorder = NativeVideoRecorder::create
     internal var videoStartupAdmission: VideoStartupAdmission? = null
+    /** Test seam for Battery Saver, heat and low RAM (spec 2026-10-11). Null uses the process instance. */
+    internal var videoDeviceConditions: VideoDeviceConditions? = null
     private var startupPending: Any? = null
     private var activeOwner: VideoOwner? = null
     private var privacyEpoch = VideoPrivacyRevocation.current
     private var privacySubscription: AutoCloseable? = null
     private var foreground = true
     private var state = NativeVideoRecorder.State.DISABLED
+    // Error replays (spec 2026-10-11). Guarded by the report authorization lock, like the fields above.
+    private var errorReplaysSent = 0
+    private var errorReplaysPending = 0
+    /** Internal construction boundary: builds the attachment inside the recorder's snapshot gap. */
+    internal var errorReplayScope = ErrorReplayWork.scope
+    internal var errorReplayAttachment: suspend (OwnedVideoClip) -> VideoAttachmentPair? = { NativeVideoAttachment().build(it) }
+
 
     /**
      * Report Resource Window (spec 2026-09-05) — CPU/memory sampler feeding
@@ -147,11 +165,20 @@ class ReplaySession(
         }
     }
 
-    internal suspend fun refreshConfigNow(): Unit = refreshMutex.withLock {
+    /**
+     * A companion bond upgraded this crash-only session (spec 2026-10-12). Re-applies the last confirmed
+     * config under the new coverage without a fetch, so an unreachable server at the bond cannot revoke a
+     * recording; fetches only when no refresh has succeeded yet.
+     */
+    internal suspend fun applyCompanionUpgrade() = refreshConfigNow(reusingConfirmedConfig = true)
+
+    internal suspend fun refreshConfigNow(reusingConfirmedConfig: Boolean = false): Unit = refreshMutex.withLock {
         val capturedEpoch = epoch.get()
-        val succeeded = provider.refresh(force = true)
-        val latest = provider.current
+        val confirmed = lastConfirmedConfig?.takeIf { reusingConfirmedConfig }
+        val succeeded = confirmed != null || provider.refresh(force = true)
+        val latest = confirmed ?: provider.current
         if (!currentGenerationValid(capturedEpoch)) return
+        lastConfirmedConfig = if (succeeded) latest else null
         val wasIdentityEnabled = isIdentityEnabled(configBox)
         configBox = latest
         // Signals retain their existing independent effects; never publish from a superseded generation.
@@ -182,21 +209,37 @@ class ReplaySession(
         } else {
             resourceSampler.stop()
         }
+        // Crash-only sessions (spec 2026-10-12): read once, so bodies and video agree for this refresh. A
+        // companion bond flips it and then re-applies the confirmed config (applyCompanionUpgrade).
+        val coverage = Everframe.replayCoverage()
+        val crashOnly = coverage == ReplayCoverage.CrashOnly
         NetworkBodyCaptureState.applyConfig(if (succeeded) latest.networkBodies else null,
             samplingRate = latest.samplingRate,
-            locallyDisabled = NetworkBodyCaptureState.locallyDisabled(Everframe.currentConfig) ||
+            locallyDisabled = crashOnly || NetworkBodyCaptureState.locallyDisabled(Everframe.currentConfig) ||
                 NetworkBodyCaptureState.breadcrumbsExcludeNetwork(latest.breadcrumbs),
             guard = { currentGenerationValid(capturedEpoch) })
         sharedNetworkBodyBuffer.setTotalBudget(latest.networkBodies?.bodyTotalBudget ?: 262144) { currentGenerationValid(capturedEpoch) }
         Everframe.withReportAuthorizationLock {
             if (!currentGenerationValid(capturedEpoch)) return@withReportAuthorizationLock
+            // One draw for every kind, and an admission is kept for the session: a refresh that lowers a
+            // rate, or an upgrade that sees lower rates, never stops a recording.
             val effective = effectiveNativeVideo(latest, succeeded, locallyDisabled)
-                ?.takeIf { samplingDraw < latest.samplingRate }
+                ?.takeIf { admitsLocked(coverage, latest) }
             val decision = VideoPolicy(effective, latest.replayDurationSec)
             if (authorized && videoPolicy != decision) revokeReplayLocked()
             videoPolicy = decision
             reconcileVideoLocked()
         }
+    }
+
+    /** Sampled only against a confirmed config: the fail-closed OFF default carries a rate of 1. */
+    private fun admitsLocked(kind: ReplayCoverage, config: ReplayConfig): Boolean {
+        // An upgrade never stops a recording: it inherits the crash-only admission, even after both rates drop.
+        if (kind == ReplayCoverage.Upgraded && ReplayCoverage.CrashOnly in admittedKinds) admittedKinds += kind
+        if (kind in admittedKinds) return true
+        if (samplingDraw >= kind.samplingRate(config.samplingRate, config.crashOnlySamplingRate)) return false
+        admittedKinds += kind
+        return true
     }
 
     private fun observePrivacyLocked() {
@@ -237,13 +280,19 @@ class ReplaySession(
         val capturedEpoch = epoch.get()
         // The existing worker owns discovery and deletion; construction still has no file IO.
         (videoStartupAdmission ?: VideoStartupAdmission.process).request(appContext) { allowed ->
+            // Spec 2026-10-11: the first read registers the power callbacks. An admitted request
+            // completes on the capture worker, so this never runs under the authorization lock.
+            val lowRam = allowed && runCatching {
+                (videoDeviceConditions ?: AndroidVideoDeviceConditions.of(appContext)).lowRamDevice
+            }.getOrDefault(true)
             Everframe.withReportAuthorizationLock {
                 if (startupPending !== pending) return@withReportAuthorizationLock
                 startupPending = null
                 if (!currentGenerationValid(capturedEpoch) || generation != capturedGeneration ||
                     !authorized || activeOwner != null || recorder != null || !Everframe.captureGate ||
                     !VideoPrivacyRevocation.permits(privacyEpoch)) return@withReportAuthorizationLock
-                if (!allowed) { revokeReplayLocked(); return@withReportAuthorizationLock }
+                // A low-RAM device never records, exactly like a refused startup admission.
+                if (!allowed || lowRam) { revokeReplayLocked(); return@withReportAuthorizationLock }
                 recordingOwner = newOwner()
                 try {
                     recorder = recorderFactory(appContext, recordingOwner, activitySupplier)
@@ -254,6 +303,7 @@ class ReplaySession(
             }
         }
     }
+
 
     fun pause() = Everframe.withReportAuthorizationLock {
         foreground = false; recorder?.pause()
@@ -316,6 +366,53 @@ class ReplaySession(
             binding.third.cancel(binding.first); binding.third.release(binding.first)
             FrozenReportCapture.empty(originatingStartEpoch, sessionId)
         }
+    }
+
+    /**
+     * Error replays (spec 2026-10-11): reserves one of this session's two error replays and starts a
+     * non-destructive snapshot on [ErrorReplayWork.scope]. Returns null when the error ships without a
+     * replay:
+     * - no recorder, or it is paused;
+     * - an open bug report owns the buffer;
+     * - consent or privacy is revoked;
+     * - both replays are used.
+     * The caller's thread only reads fields under the lock.
+     */
+    internal fun beginErrorReplay(expectedStartEpoch: Int = originatingStartEpoch): ErrorReplaySnapshot? {
+        val claim = Everframe.withReportAuthorizationLock {
+            val bound = recorder
+            if (bound == null || isTornDown.get() || expectedStartEpoch != originatingStartEpoch ||
+                Everframe.currentStartEpochVolatile() != originatingStartEpoch ||
+                !authorized || activeOwner != null || state != NativeVideoRecorder.State.BUFFERING ||
+                bound.state != NativeVideoRecorder.State.BUFFERING || !Everframe.captureGate ||
+                !VideoPrivacyRevocation.permits(privacyEpoch) ||
+                errorReplaysSent + errorReplaysPending >= ErrorReplayWork.MAX_PER_SESSION
+            ) return@withReportAuthorizationLock null
+            errorReplaysPending++
+            Triple(bound, generation, bound.bufferGeneration) to bound.captureCutoffNanos()
+        } ?: return null
+        val startedNanos = System.nanoTime()
+        val (binding, cutoffNanos) = claim
+        val (bound, capturedGeneration, capturedBufferGeneration) = binding
+        val build = errorReplayAttachment
+        val result = errorReplayScope.async {
+            try { bound.snapshot(bound.owner, cutoffNanos, capturedBufferGeneration, build) } catch (_: Throwable) { null }
+        }
+        return ErrorReplaySnapshot(result, startedNanos,
+            allowed = {
+                Everframe.withReportAuthorizationLock {
+                    !isTornDown.get() && authorized && generation == capturedGeneration &&
+                        Everframe.currentStartEpochVolatile() == expectedStartEpoch &&
+                        bound.bufferGeneration == capturedBufferGeneration &&
+                        VideoPrivacyRevocation.permits(privacyEpoch)
+                }
+            },
+            settled = { attached ->
+                Everframe.withReportAuthorizationLock {
+                    errorReplaysPending--
+                    if (attached) errorReplaysSent++
+                }
+            })
     }
 
     private companion object {

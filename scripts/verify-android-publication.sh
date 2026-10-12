@@ -51,6 +51,12 @@ verify_artifact reporter-ui aar
 verify_artifact media3 aar
 verify_artifact gradle-plugin jar
 
+if [[ "${EVERFRAME_VERIFY_NATIVE_CRASH:-0}" == "1" ]]; then
+    verify_artifact native-crash aar
+    python3 "$(dirname "$0")/verify-native-crash-aar.py" \
+        "${GROUP_DIRECTORY}/native-crash/${VERSION}/native-crash-${VERSION}.aar"
+fi
+
 for mapped_artifact in core reporter-ui media3; do
     mapping="${GROUP_DIRECTORY}/${mapped_artifact}/${VERSION}/${mapped_artifact}-${VERSION}-mapping.txt"
     [[ -f "${mapping}" ]] || fail "missing ${mapping}"

@@ -22,7 +22,7 @@ struct BreadcrumbRingBufferTests {
     // exercises; RedactionEngine's replacement is "[REDACTED:jwt]" (lowercased
     // pattern id, not the sdk-core TS fixture's "[REDACTED:JWT]").
     private let jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-    private let testAppId = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+    private let testSdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
 
     /// Task 7 note: `Everframe.start(config:)` schedules `LogCapture.install()`
     /// on a detached `Task` whenever `config.capture.logs` is true (the
@@ -36,8 +36,8 @@ struct BreadcrumbRingBufferTests {
     /// for the tests in this file, matching how `LogRingBufferTests`
     /// isolates its own capacity/eviction assertions onto non-shared
     /// instances instead of the process-wide singleton.
-    private static func noLogCaptureConfig(appId: String) -> EverframeConfig {
-        EverframeConfig(appId: appId, capture: CaptureConfig(logs: false))
+    private static func noLogCaptureConfig(sdkKey: String) -> EverframeConfig {
+        EverframeConfig(sdkKey: sdkKey, capture: CaptureConfig(logs: false))
     }
 
     private func jsonAnyDict(_ object: [String: Any]) -> [String: EverframeJSONAny] {
@@ -209,11 +209,11 @@ struct BreadcrumbRingBufferTests {
 
     @Test func killGateBlocksSharedBufferAdd() throws {
         resetBreadcrumbState()
-        try Everframe.shared.start(config: Self.noLogCaptureConfig(appId: testAppId))
+        try Everframe.shared.start(config: Self.noLogCaptureConfig(sdkKey: testSdkKey))
         Everframe.shared.kill()
         BreadcrumbRingBuffer.shared.add(kind: .tap, message: "blocked")
         #expect(BreadcrumbRingBuffer.shared.size == 0)
-        try Everframe.shared.start(config: Self.noLogCaptureConfig(appId: testAppId))
+        try Everframe.shared.start(config: Self.noLogCaptureConfig(sdkKey: testSdkKey))
         resetBreadcrumbState()
     }
 
@@ -273,7 +273,7 @@ struct BreadcrumbRingBufferTests {
 
     @Test func addBreadcrumbCoercesUnknownKindToCustom() throws {
         resetBreadcrumbState()
-        try Everframe.shared.start(config: Self.noLogCaptureConfig(appId: testAppId))
+        try Everframe.shared.start(config: Self.noLogCaptureConfig(sdkKey: testSdkKey))
         let marker = "hi-\(UUID().uuidString)"
         Everframe.shared.addBreadcrumb(message: marker, kind: "totally-unknown-kind")
         #expect(matchingCrumb(message: marker)?.kind == .custom)
@@ -282,7 +282,7 @@ struct BreadcrumbRingBufferTests {
 
     @Test func addBreadcrumbDropsInvalidLevelRatherThanDefaulting() throws {
         resetBreadcrumbState()
-        try Everframe.shared.start(config: Self.noLogCaptureConfig(appId: testAppId))
+        try Everframe.shared.start(config: Self.noLogCaptureConfig(sdkKey: testSdkKey))
         let marker = "hi-\(UUID().uuidString)"
         Everframe.shared.addBreadcrumb(message: marker, level: "not-a-real-level")
         let crumb = matchingCrumb(message: marker)
@@ -293,7 +293,7 @@ struct BreadcrumbRingBufferTests {
 
     @Test func addBreadcrumbAcceptsKnownKindAndLevel() throws {
         resetBreadcrumbState()
-        try Everframe.shared.start(config: Self.noLogCaptureConfig(appId: testAppId))
+        try Everframe.shared.start(config: Self.noLogCaptureConfig(sdkKey: testSdkKey))
         let marker = "hi-\(UUID().uuidString)"
         Everframe.shared.addBreadcrumb(message: marker, kind: "navigation", level: "warn")
         let crumb = matchingCrumb(message: marker)
@@ -304,7 +304,7 @@ struct BreadcrumbRingBufferTests {
 
     @Test func addBreadcrumbCoercesDataDroppingNonEncodableEntries() throws {
         resetBreadcrumbState()
-        try Everframe.shared.start(config: Self.noLogCaptureConfig(appId: testAppId))
+        try Everframe.shared.start(config: Self.noLogCaptureConfig(sdkKey: testSdkKey))
         let marker = "with-data-\(UUID().uuidString)"
         Everframe.shared.addBreadcrumb(
             message: marker,
@@ -321,7 +321,7 @@ struct BreadcrumbRingBufferTests {
         Everframe.shared.kill()
         Everframe.shared.addBreadcrumb(message: "should not land")
         #expect(BreadcrumbRingBuffer.shared.size == 0)
-        try Everframe.shared.start(config: Self.noLogCaptureConfig(appId: testAppId))
+        try Everframe.shared.start(config: Self.noLogCaptureConfig(sdkKey: testSdkKey))
         resetBreadcrumbState()
     }
 }

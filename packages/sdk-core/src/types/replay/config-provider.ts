@@ -301,6 +301,13 @@ export const ReplayConfigResponse = z.object({
   // the `screenshotrender` feature token, because this schema is .strict() and
   // an unknown key would fail every older SDK's whole config parse.
   screenshotRender: z.boolean().optional().catch(undefined),
+  // Crash-only sessions (spec 2026-10-12): the replay coverage for a session
+  // whose host turned the reporter off. Sent only to SDKs that declare the
+  // `crashonly` feature token, for the same .strict() reason as above. Absent
+  // means 0 (see `replaySamplingRate` in lifecycle.ts). A malformed value
+  // degrades to absent, like `vitalsSampleRate`, rather than failing the
+  // whole parse.
+  crashOnlySamplingRate: z.number().min(0).max(1).optional().catch(undefined),
 }).strict();
 
 export type ReplayConfig = z.infer<typeof ReplayConfigResponse>;
@@ -327,8 +334,8 @@ export interface ConfigProviderDeps {
   fetchImpl: typeof fetch;
   /** Fully-qualified `GET /api/config` URL. */
   configUrl: string;
-  /** Per-app SDK key — sent as `Authorization: Bearer <apiKey>` like the ingest path. */
-  apiKey: string;
+  /** Per-app SDK key — sent as `Authorization: Bearer <sdkKey>` like the ingest path. */
+  sdkKey: string;
   /** Cache TTL in ms. Defaults to 5 minutes. */
   ttlMs?: number;
   /** Injectable clock (ms). Defaults to `Date.now`. */
@@ -438,7 +445,7 @@ function withInstallId(configUrl: string, provider?: () => string | null): strin
  * ON→OFF mid-session — only a validated response can change state).
  */
 export function createConfigProvider(deps: ConfigProviderDeps): ConfigProvider {
-  const { fetchImpl, configUrl, apiKey } = deps;
+  const { fetchImpl, configUrl, sdkKey } = deps;
   const ttlMs = deps.ttlMs ?? DEFAULT_CONFIG_TTL_MS;
   const now = deps.now ?? Date.now;
 
@@ -498,7 +505,7 @@ export function createConfigProvider(deps: ConfigProviderDeps): ConfigProvider {
       latestStartedSeq = mySeq;
       try {
         const headers: Record<string, string> = {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${sdkKey}`,
           Accept: 'application/json',
         };
         if (deps.sdkFeatures && deps.sdkFeatures.length > 0) {

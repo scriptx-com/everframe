@@ -287,6 +287,8 @@ enum BreadcrumbAdapters {
         #if canImport(UIKit)
         LifecycleBreadcrumbObserver.shared.install()
         #endif
-        ErrorBreadcrumbAdapter.install()
+        // Native fatal recording must never chain a Swift callback that locks
+        // or allocates after other threads are suspended. Healthy handled-error
+        // adapters still add breadcrumbs at their ordinary capture boundaries.
     }
 }

@@ -45,7 +45,7 @@
 //   * EverframeReporterUI   — optional reporter modal (opt-in via product).
 import PackageDescription
 
-let binaryVersion = "1.0.0"
+let binaryVersion = "1.2.0"
 let baseURL = "https://github.com/scriptx-com/everframe/releases/download/v\(binaryVersion)/"
 
 let package = Package(
@@ -67,17 +67,17 @@ let package = Package(
         .binaryTarget(
             name: "EverframeKit",
             url: baseURL + "EverframeKit.xcframework.zip",
-            checksum: "95106f4862695a6fcccacd19d90375ff5b3c9768bc4326a1d7a24c52d25c0bef"
+            checksum: "488b4d0443fd4bd5ca157da423fe451f8359f2cbea4e4e6b1865e2e905bbac67"
         ),
         .binaryTarget(
             name: "EverframeProtocol",
             url: baseURL + "EverframeProtocol.xcframework.zip",
-            checksum: "79927a23892c86e3b30762c0e0ea3287a54e69a8bd8a6f53a1469ebb3b7cd26a"
+            checksum: "c13c34bf2c0d4fd9a7f6bdf49a8bde39ae609431694bd2be05ba2cac963ed71e"
         ),
         .binaryTarget(
             name: "EverframeReporterUI",
             url: baseURL + "EverframeReporterUI.xcframework.zip",
-            checksum: "7f6f06e6c639377eff0d32ebb8d112ab4b2bbbbdab903601d4773db65a73fc65"
+            checksum: "e9d11301fe1e83c2e7bd0772d72627deddffc54bbc1a28f2f9008d178f34edd7"
         ),
     ]
 )

@@ -1,5 +1,22 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 0.0.14
+
+### Patch Changes
+
+- Updated dependencies [3cfc899]
+- Updated dependencies [5ec828c]
+- Updated dependencies [5ec828c]
+- Updated dependencies [a6880a2]
+  - @everframe/react@1.2.0
+  - @everframe/identity@1.0.1
+
+## 0.0.13
+
+### Patch Changes
+
+- @everframe/react@1.1.0
+
 ## 0.0.12
 
 ### Patch Changes

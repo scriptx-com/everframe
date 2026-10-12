@@ -47,7 +47,7 @@ function errorAtWithCause(name: string, cause: unknown): Error {
 
 function wrapper({ children }: { children: ReactNode }) {
   return (
-    <EverframeProvider config={{ apiKey: 'pk_test', appVersion: '2.1', appBuild: 'react-abc123' }}>
+    <EverframeProvider config={{ sdkKey: 'pk_test', appVersion: '2.1', appBuild: 'react-abc123' }}>
       {children}
     </EverframeProvider>
   );

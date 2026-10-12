@@ -13,23 +13,26 @@ import kotlin.coroutines.resume
 data class VideoAttachmentPair internal constructor(val envelope:Attachment,val part:ReportSubmitter.Attachment)
 
 class NativeVideoAttachment internal constructor(private val scheduler:VideoCaptureScheduler,
-    private val admission:VideoEncoderWorkerAdmission=VideoEncoderWorkerAdmission.process,
+    private val admission:VideoEncoderWorkerAdmission=VideoEncoderWorkerAdmission.export,
     private val openInput:(java.io.File)->java.io.InputStream={it.inputStream()}) {
-    constructor():this(AndroidVideoCaptureScheduler)
+    constructor():this(AndroidVideoExportScheduler)
     /** The clip is consumed on the shared worker, including cancellation and invalid bytes. */
     suspend fun build(clip:OwnedVideoClip):VideoAttachmentPair?=suspendCancellableCoroutine { continuation ->
+        val admitted = admission.acquire()
+        if (admitted == null) { clip.close(); continuation.resume(null); return@suspendCancellableCoroutine }
         val completion=VideoOperationCompletion()
+        val enteredWorker=java.util.concurrent.atomic.AtomicBoolean()
         val deadline=scheduler.nowNanos()+3_000_000_000L
-        var ticket:VideoEncoderWorkerAdmission.Ticket?=null
+        val ticket:VideoEncoderWorkerAdmission.Ticket?=admitted
         val timer=scheduler.later(3_000) {
-            completion.timeout {ticket?.quarantine();continuation.resume(null)}
+            completion.timeout {if(enteredWorker.get()) ticket?.quarantine();continuation.resume(null)}
         }
-        continuation.invokeOnCancellation {completion.timeout {ticket?.quarantine()}}
+        continuation.invokeOnCancellation {completion.timeout {if(enteredWorker.get()) ticket?.quarantine()}}
         scheduler.worker {
             fun checkAllowed() {check(!completion.isCancelled && scheduler.nowNanos()<deadline && continuation.isActive)}
             val pair=try {
                 checkAllowed()
-                synchronized(completion) {checkAllowed();ticket=admission.acquire();check(ticket!=null)}
+                synchronized(completion) {checkAllowed();enteredWorker.set(true)}
                 run {
                     val metadata=clip.metadata
                     require(metadata.byteLength in 1..VideoExporter.MAX_BYTES && clip.file.length()==metadata.byteLength)

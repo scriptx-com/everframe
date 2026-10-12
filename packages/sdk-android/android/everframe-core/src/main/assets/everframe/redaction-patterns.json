@@ -1,12 +1,13 @@
 {
   "version": 1,
-  "description": "Cross-language redaction regex patterns. Loaded by codegen for iOS/Android SDKs; mirrors the canonical set in packages/sdk-core/src/redaction/engine.ts. Update both in lockstep.",
+  "description": "Cross-language redaction regex patterns. Loaded by codegen for iOS/Android SDKs; mirrors the canonical set in packages/sdk-core/src/redaction/engine.ts (the JWT rule is packages/protocol/src/redaction.ts). Update them in lockstep.",
   "patterns": [
     {
       "id": "jwt",
-      "regex": "[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}",
+      "scanner": "jwt",
+      "regex": "[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]*(?:\\.[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]*)?",
       "replacement": "[REDACTED:JWT]",
-      "description": "JWT (RFC 7519) three-segment base64url; matches the inline shape used by sdk-core engine.ts JWT_INLINE"
+      "description": "JWT (RFC 7519) and JWE, by structure. The scanner named in 'scanner' is authoritative (redactJwt in packages/protocol/src/redaction.ts, JwtScan on Android and iOS): it redacts header.payload.signature, or a five-segment JWE, only when the header decodes to a JOSE header, meaning optional JSON whitespace, '{', and an \"alg\" member (RFC 7515/7516). This regex is the candidate shape only, for an engine that cannot run the scanner; on its own it also matches dotted names."
     },
     {
       "id": "bearer",

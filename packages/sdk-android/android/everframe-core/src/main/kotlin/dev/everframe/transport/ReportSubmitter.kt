@@ -351,6 +351,9 @@ class ReportSubmitter(
         if (drainSession.isRevoked || !drainSession.captureConsent) return
         outbox.drainOwned(diagnostics) { pending ->
             val entry = pending.entry
+            // Spec 2026-10-11: an error waiting up to 3 s for its replay stays queued for the next pass;
+            // its upgrade requests that pass when it finishes.
+            if (dev.everframe.crash.ErrorReplayHolds.isHeld(entry.reportId)) return@drainOwned false
             try {
                 val authority = OutboxDrainAuthorization(outbox.store, pending.token,
                     ReportAuthorizationFactory.forPending(drainSession, endpointAtInitiation,

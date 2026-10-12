@@ -16,7 +16,7 @@ import Foundation
 /// every stored property by construction and keeps covering new ones. `RedactionConfig`
 /// supplies the one hand-written `==` (see its own note).
 public struct EverframeConfig: Sendable, Equatable {
-    public let appId: String
+    public let sdkKey: String
     public let environment: Environment
     public let release: String?
     public var capture: CaptureConfig
@@ -76,6 +76,30 @@ public struct EverframeConfig: Sendable, Equatable {
     /// Session Vitals local controls (iOS spec 2026-09-05 §1). See
     /// `VitalsConfig`'s own doc for the opt-out-only posture.
     public var vitals: VitalsConfig
+    /// Release health: crash-free sessions for each app version (spec 2026-10-11). On by default
+    /// and anonymous. `nil` turns it off and erases undelivered local records at `start`.
+    /// `start(config:)` applies it; `setReleaseHealth(_:)` changes it until the next `start`.
+    /// Debug builds record nothing unless `includeDebugBuilds` is set. tvOS does not collect it.
+    /// The React Native bridge passes its health separately and leaves this nil.
+    public var releaseHealth: ReleaseHealthConfiguration?
+    /// Whether this app is a debug build, which Everframe never creates a release from. `nil` (the
+    /// default) detects it: a simulator build, or one signed for development (its embedded
+    /// provisioning profile sets `get-task-allow`), is a debug build; TestFlight and App Store
+    /// builds are not. `#if DEBUG` is not used, because it would describe how this SDK was
+    /// compiled, not your app. Set it to force the answer, for example `false` for a development-signed
+    /// build that should count as a release. Also decides whether release health skips the build.
+    /// Mirrors Android's `EverframeConfig.debugBuild`.
+    public var debugBuild: Bool?
+    /// The on-device reporter (crash-only sessions spec 2026-10-12). `false` makes every session a
+    /// crash-only session: shake and `report.open()` are off (`open()` throws
+    /// `EverframeReporterError.reporterDisabled`), network bodies are not captured, and session
+    /// replay records only in the dashboard's crash-only share of sessions (none by default).
+    /// A companion bond (a phone scanning the QR code, or a dashboard member attaching) upgrades
+    /// the session until the next `start` or `kill`: replay and network bodies then follow the
+    /// normal server rules, while shake and `open()` stay off. Crash and error capture are
+    /// unchanged. CLIENT VETO only, a flat `Bool` like `shakeToReportEnabled`. Mirrors Android's
+    /// `EverframeConfig.reporterEnabled`.
+    public var reporterEnabled: Bool
 
     public enum Environment: Sendable, Equatable {
         case development
@@ -83,6 +107,44 @@ public struct EverframeConfig: Sendable, Equatable {
         case production
     }
 
+    public init(
+        sdkKey: String,
+        environment: Environment = .production,
+        release: String? = nil,
+        capture: CaptureConfig = .defaults,
+        redaction: RedactionConfig = .defaults,
+        companionDeviceId: String? = nil,
+        companionBadgeEnabled: Bool = true,
+        shakeToReportEnabled: Bool = true,
+        companionBadgePosition: String? = nil,
+        theme: ReporterThemeOptions? = nil,
+        installIdentifierEnabled: Bool = true,
+        vitals: VitalsConfig = VitalsConfig(),
+        releaseHealth: ReleaseHealthConfiguration? = ReleaseHealthConfiguration(),
+        debugBuild: Bool? = nil,
+        reporterEnabled: Bool = true
+    ) {
+        self.sdkKey = sdkKey
+        self.environment = environment
+        self.release = release
+        self.capture = capture
+        self.redaction = redaction
+        self.companionDeviceId = companionDeviceId
+        self.companionBadgeEnabled = companionBadgeEnabled
+        self.shakeToReportEnabled = shakeToReportEnabled
+        self.companionBadgePosition = companionBadgePosition
+        self.theme = theme
+        self.installIdentifierEnabled = installIdentifierEnabled
+        self.vitals = vitals
+        self.releaseHealth = releaseHealth
+        self.debugBuild = debugBuild
+        self.reporterEnabled = reporterEnabled
+    }
+
+    /// The SDK 1.1 spelling of `init(sdkKey:…)`. Its `appId` took the SDK key
+    /// (`evf_live_…`), never the App ID, so it forwards unchanged. Deprecated
+    /// rather than removed so 1.1 call sites keep compiling.
+    @available(*, deprecated, renamed: "init(sdkKey:environment:release:capture:redaction:companionDeviceId:companionBadgeEnabled:shakeToReportEnabled:companionBadgePosition:theme:installIdentifierEnabled:vitals:releaseHealth:debugBuild:reporterEnabled:)")
     public init(
         appId: String,
         environment: Environment = .production,
@@ -95,21 +157,24 @@ public struct EverframeConfig: Sendable, Equatable {
         companionBadgePosition: String? = nil,
         theme: ReporterThemeOptions? = nil,
         installIdentifierEnabled: Bool = true,
-        vitals: VitalsConfig = VitalsConfig()
+        vitals: VitalsConfig = VitalsConfig(),
+        releaseHealth: ReleaseHealthConfiguration? = ReleaseHealthConfiguration(),
+        debugBuild: Bool? = nil,
+        reporterEnabled: Bool = true
     ) {
-        self.appId = appId
-        self.environment = environment
-        self.release = release
-        self.capture = capture
-        self.redaction = redaction
-        self.companionDeviceId = companionDeviceId
-        self.companionBadgeEnabled = companionBadgeEnabled
-        self.shakeToReportEnabled = shakeToReportEnabled
-        self.companionBadgePosition = companionBadgePosition
-        self.theme = theme
-        self.installIdentifierEnabled = installIdentifierEnabled
-        self.vitals = vitals
+        self.init(
+            sdkKey: appId, environment: environment, release: release, capture: capture,
+            redaction: redaction, companionDeviceId: companionDeviceId,
+            companionBadgeEnabled: companionBadgeEnabled, shakeToReportEnabled: shakeToReportEnabled,
+            companionBadgePosition: companionBadgePosition, theme: theme,
+            installIdentifierEnabled: installIdentifierEnabled, vitals: vitals, releaseHealth: releaseHealth,
+            debugBuild: debugBuild, reporterEnabled: reporterEnabled
+        )
     }
+
+    /// The SDK 1.1 name of `sdkKey`. It always held the SDK key.
+    @available(*, deprecated, renamed: "sdkKey")
+    public var appId: String { sdkKey }
 }
 
 public struct CaptureConfig: Sendable, Equatable {
@@ -201,7 +266,7 @@ public struct VitalsConfig: Sendable, Equatable {
 
 // MARK: - EFUser
 
-public struct EFUser {
+public struct EFUser: Sendable {
     public let id: String?
     public let email: String?
     public let displayName: String?
@@ -224,8 +289,22 @@ public enum ReportResult {
 // MARK: - Errors
 
 public enum EverframeConfigError: Error, Equatable {
-    case missingAppId
+    case missingSdkKey
     case invalidVitalsSampleRate
+}
+
+/// Thrown by `report.open()` when the host's own configuration turned the reporter off. It is
+/// not `.cancelled`: the host asked for something its configuration disabled.
+public enum EverframeReporterError: LocalizedError, Equatable, Sendable {
+    /// `EverframeConfig.reporterEnabled` is `false`, so this is a crash-only session. A companion
+    /// upgrade does not change it: reports from that session come through companion.
+    case reporterDisabled
+
+    public var errorDescription: String? {
+        switch self {
+        case .reporterDisabled: return "The reporter is turned off for this session (reporterEnabled: false)."
+        }
+    }
 }
 
 public enum EverframeTransportError: Error {

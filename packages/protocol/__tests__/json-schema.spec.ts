@@ -221,3 +221,74 @@ describe('Apple native crash schema parity', () => {
     expect(validate(envelope)).toBe(accepted);
   });
 });
+
+describe('native exposure pointer JSON schema', () => {
+  const ajv = new AjvCtor({ strict: false, allErrors: true });
+  addFormatsFn(ajv);
+  const validate = ajv.compile(jsonSchema);
+  const pointer = () => ({ exposureId: '33333333-3333-4333-8333-333333333333',
+    processLaunchId: '22222222-2222-4222-8222-222222222222', startedAt: '2026-10-07T09:00:00.000Z',
+    app: { version: '2.4.0', build: null as string | null, debug: false }, loadedBuildId: null, loadedBundleStatus: 'not_applicable' });
+  const diagnostic = (nativeExposure: unknown) => {
+    const value = structuredClone(minimal) as any;
+    value.source = 'diagnostic'; value.sdk.platform = 'android';
+    value.payload = { diagnostic: {
+      version: 1, evidenceId: value.reportId, processLaunchId: '22222222-2222-4222-8222-222222222222',
+      kind: 'process_exit', provenance: 'android_application_exit_info', scope: 'os_process',
+      outcome: 'terminated', cause: 'anr', occurredAt: '2026-10-07T10:00:00.000Z', collectedAt: '2026-10-07T10:01:00.000Z',
+      attribution: { process: 'exact_os_token', release: 'frozen', session: 'unavailable', webExposure: 'unavailable' },
+      android: { apiLevel: 35, reason: 6, pid: 100 },
+      trace: { status: 'unavailable', format: 'none', truncated: false, frames: [] },
+      nativeExposure,
+    } };
+    return value;
+  };
+  it('requires the app identity on the pointer, with build always present', () => {
+    const { NativeExposure, NativeExposureApp } = jsonSchema.$defs;
+    expect(NativeExposure.required)
+      .toEqual(['exposureId', 'processLaunchId', 'startedAt', 'app', 'loadedBuildId', 'loadedBundleStatus']);
+    expect(NativeExposure.properties.app).toEqual({ $ref: '#/$defs/NativeExposureApp' });
+    expect(NativeExposure.properties).not.toHaveProperty('nativeBuildId');
+    expect(NativeExposureApp.title).toBe('NativeExposureApp');
+    expect(NativeExposureApp.required).toEqual(['version', 'build', 'debug']);
+    expect(NativeExposureApp.additionalProperties).toBe(false);
+    expect(NativeExposureApp.properties.version).toMatchObject({ type: 'string', minLength: 1, maxLength: 64 });
+    expect(NativeExposureApp.properties.debug).toEqual({ type: 'boolean' });
+    expect(NativeExposureApp.properties.build.anyOf).toContainEqual({ type: 'null' });
+    expect(NativeExposureApp.properties.build.anyOf)
+      .toContainEqual(expect.objectContaining({ type: 'string', minLength: 1, maxLength: 64 }));
+  });
+  it('validates a diagnostic carrying the version 5 pointer', () => {
+    expect(validate(diagnostic(pointer()))).toBe(true);
+    expect(validate(diagnostic({ ...pointer(), app: { version: '2.4.0', build: '412', debug: false } }))).toBe(true);
+  });
+  it.each([
+    ['the retired nativeBuildId', { nativeBuildId: 'native-artifact-a' }],
+    ['an app without build', { app: { version: '2.4.0', debug: false } }],
+    ['an app without debug', { app: { version: '2.4.0', build: null } }],
+    ['a non-boolean app debug', { app: { version: '2.4.0', build: null, debug: 'no' } }],
+    ['an empty version', { app: { version: '', build: null, debug: false } }],
+    ['an extra app key', { app: { version: '2.4.0', build: null, debug: false, name: 'Shop' } }],
+  ] as const)('rejects a pointer with %s', (_name, patch) => {
+    expect(validate(diagnostic({ ...pointer(), ...patch }))).toBe(false);
+  });
+
+  it('accepts the exit evidence R8 mapping ID exactly as Zod does', () => {
+    const value = structuredClone(minimal) as any;
+    value.source = 'diagnostic'; value.sdk.platform = 'android';
+    value.payload = { diagnostic: {
+      version: 1, evidenceId: value.reportId, processLaunchId: '22222222-2222-4222-8222-222222222222',
+      kind: 'process_exit', provenance: 'android_application_exit_info', scope: 'os_process',
+      outcome: 'terminated', cause: 'anr', occurredAt: '2026-10-07T10:00:00.000Z', collectedAt: '2026-10-07T10:01:00.000Z',
+      attribution: { process: 'exact_os_token', release: 'frozen', session: 'unavailable', webExposure: 'unavailable' },
+      android: { apiLevel: 35, reason: 6, pid: 100, mappingId: 'r8-map-id-0123abcd' },
+      trace: { status: 'unavailable', format: 'none', truncated: false, frames: [] },
+    } };
+    for (const mappingId of ['r8-map-id-0123abcd', 'a', 'x'.repeat(128), '', '-x', 'a b', 'x'.repeat(129), 'a\n']) {
+      value.payload.diagnostic.android.mappingId = mappingId;
+      const expected = ReportEnvelope.safeParse({ ...value, submittedAt: value.payload.diagnostic.collectedAt }).success;
+      expect(validate(value)).toBe(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$(?![\s\S])/.test(mappingId));
+      expect(expected).toBe(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$(?![\s\S])/.test(mappingId));
+    }
+  });
+});

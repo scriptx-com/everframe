@@ -95,7 +95,7 @@ report submission from the TV.
 Two build-time inputs, both read from the repo-root `.env` (a real env var
 overrides):
 
-- `EVERFRAME_KEY_WEB` — the Web app's SDK key (`txx_live_…` from the
+- `EVERFRAME_KEY_WEB` — the Web app's SDK key (`evf_live_…` from the
   dashboard). With it the device announces itself and **appears on the
   project's companion page**; without it the relay still pairs but the
   device is invisible to the dashboard (the sidebar warns about this).

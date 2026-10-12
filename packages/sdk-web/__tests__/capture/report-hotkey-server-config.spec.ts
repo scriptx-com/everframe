@@ -27,10 +27,10 @@ describe('dashboard report hotkey', () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       configResponse('Alt+R'));
     vi.stubGlobal('fetch', fetchMock);
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
     const bindings: string[] = [];
 
     const unsubscribe = adapter.__subscribeReportHotkey((binding) => bindings.push(binding));
@@ -47,10 +47,10 @@ describe('dashboard report hotkey', () => {
   it('publishes a changed dashboard binding after a live config refresh', async () => {
     let binding = 'Mod+Shift+B';
     vi.stubGlobal('fetch', vi.fn(async () => configResponse(binding)));
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
     const bindings: string[] = [];
     adapter.__subscribeReportHotkey((value) => bindings.push(value));
 

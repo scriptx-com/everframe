@@ -11,7 +11,7 @@ import {
 
 const status: PromiseRejectionStatus = getPromiseRejectionStatus();
 const config: EverframeProviderProps['config'] = {
-  apiKey: 'publishable', crashReporting: { promiseRejections: { enabled: true } },
+  sdkKey: 'publishable', crashReporting: { promiseRejections: { enabled: true } },
 };
 void status; void config;
 

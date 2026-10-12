@@ -5,7 +5,7 @@
 //
 // This file proves STRUCTURALLY that:
 //   • #2 (no new surface): the bridge exposes NO replay-config entry point
-//     (no `configureReplay`/`setReplayConfig`); `configure(appId:endpoint:)`
+//     (no `configureReplay`/`setReplayConfig`); `configure(sdkKey:endpoint:)`
 //     ignores `endpoint` and never reads a JS replay config — replay arming is
 //     keyed entirely on the forwarded SDK key inside `Everframe.shared.start()`.
 //   • #1 (armed-at-start path): `openReporter` is GATED on `start()`
@@ -22,11 +22,11 @@
 #if canImport(UIKit) && canImport(XCTest)
 import XCTest
 import UIKit
-@testable import Everframe_ReactNative
+@testable import EverframeRN
 // Task 14's addBreadcrumb test drives `Everframe.shared` + `BreadcrumbRingBuffer
 // .shared` directly (both public API) to prove the bridge reaches the native
 // singleton — explicit import since this module isn't re-exported by
-// `Everframe_ReactNative`.
+// `EverframeRN`.
 import EverframeKit
 
 final class RnReplayBridgeTests: XCTestCase {
@@ -115,6 +115,29 @@ final class RnReplayBridgeTests: XCTestCase {
         wait(for: [exp], timeout: 5.0)
     }
 
+    // MARK: - Crash-only sessions (spec 2026-10-12)
+
+    /// A crash-only session rejects `openReporter` with the code the JS facade
+    /// maps to `EverframeReporterDisabledError`; other failures keep the generic code.
+    func testOpenReporterInACrashOnlySessionRejectsWithTheReporterDisabledCode() throws {
+        try Everframe.shared.start(config: EverframeConfig(
+            sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU", capture: CaptureConfig(logs: false),
+            releaseHealth: nil, reporterEnabled: false))
+        defer { Everframe.shared.kill() }
+
+        let exp = expectation(description: "openReporter completion")
+        EverframeBridge.openReporter { dict, err in
+            XCTAssertNil(dict)
+            let nsErr = err as NSError?
+            XCTAssertEqual(nsErr?.code, 1101)
+            XCTAssertEqual(nsErr.map { EverframeBridge.openReporterRejectCode(for: $0) }, "EVERFRAME_REPORTER_DISABLED")
+            exp.fulfill()
+        }
+        wait(for: [exp], timeout: 5.0)
+        XCTAssertEqual(EverframeBridge.openReporterRejectCode(for: NSError(domain: "EverframeBridge", code: 1100)),
+                       "open_reporter_failed")
+    }
+
     // MARK: - Test E: addBreadcrumb forwards to the native singleton (Task 14)
 
     /// The bridge does NO coercion — it forwards straight to
@@ -125,7 +148,7 @@ final class RnReplayBridgeTests: XCTestCase {
     /// there isn't any) in the bridge itself.
     func testAddBreadcrumbForwardsToNativeSingletonWithKindCoercion() throws {
         if !Everframe.shared.captureGate {
-            try Everframe.shared.start(config: EverframeConfig(appId: "txx_live_rnbridgetest"))
+            try Everframe.shared.start(config: EverframeConfig(sdkKey: "txx_live_rnbridgetest"))
         }
         let marker = "rn-bridge-\(UUID().uuidString)"
         EverframeBridge.addBreadcrumb(
@@ -142,6 +165,24 @@ final class RnReplayBridgeTests: XCTestCase {
             crumb?.kind.rawValue, "custom",
             "unknown kind must coerce to custom — proving Everframe.shared (Task 5), not the bridge, owns coercion"
         )
+    }
+
+    // MARK: - Test F — only an error the app survives may ask for a replay (spec 2026-10-11)
+
+    /// `reportCrash` carries fatal and non-fatal JavaScript errors on one method. The bridge reads the `fatal`
+    /// flag first, so a fatal error, which is a crash, can never ask the SDK for a replay.
+    func testOnlyAnErrorTheAppSurvivesMayAskForAReplay() {
+        XCTAssertTrue(EverframeBridge.appSurvivesError(#"{"exceptionType":"TypeError","fatal":false}"#))
+        XCTAssertTrue(EverframeBridge.appSurvivesError(#"{"exceptionType":"TypeError"}"#),
+                      "CrashReporter classifies facts without a fatal flag as errors, so the bridge agrees")
+        XCTAssertFalse(EverframeBridge.appSurvivesError(#"{"exceptionType":"TypeError","fatal":true}"#))
+        XCTAssertFalse(EverframeBridge.appSurvivesError(#"{"fatal":"false"}"#), "only a JSON boolean counts")
+        XCTAssertFalse(EverframeBridge.appSurvivesError(#"{"fatal":null}"#))
+        XCTAssertFalse(EverframeBridge.appSurvivesError(#"{"fatal":0}"#), "numeric zero is not a JSON boolean")
+        XCTAssertFalse(EverframeBridge.appSurvivesError(#"{"fatal":1}"#), "numeric one is not a JSON boolean")
+        XCTAssertFalse(EverframeBridge.appSurvivesError("not-json{"))
+        XCTAssertFalse(EverframeBridge.appSurvivesError("[]"))
+        XCTAssertFalse(EverframeBridge.appSurvivesError(""))
     }
 }
 #endif

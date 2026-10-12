@@ -18,7 +18,11 @@
 package dev.everframe.crash
 
 import dev.everframe.diagnostics.*
+import dev.everframe.health.NativeExposurePointer
+import dev.everframe.health.ReleaseHealthRuntime
+import kotlinx.serialization.json.*
 import android.content.Context
+import dev.everframe.capture.video.ErrorReplaySnapshot
 import androidx.annotation.VisibleForTesting
 import dev.everframe.capture.DeviceMetadata
 import dev.everframe.capture.sharedBreadcrumbBuffer
@@ -27,6 +31,7 @@ import dev.everframe.config.IngestEndpoint
 import dev.everframe.envelope.EnvelopeBuilder
 import dev.everframe.outbox.CrashSidecar
 import dev.everframe.outbox.OutboxEntry
+import dev.everframe.outbox.OutboxAuthorization
 import dev.everframe.protocol.generated.Crash
 import dev.everframe.protocol.generated.CrashDetails
 import dev.everframe.protocol.generated.JSBundle
@@ -40,12 +45,28 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 object CrashReporter {
 
+    @VisibleForTesting @Volatile internal var __exposureForTesting: ((Int) -> NativeExposurePointer?)? = null
     private val handling = AtomicBoolean(false)
     // Host getters can block indefinitely; native handled extraction must not own
     // the automatic collector latch until its entire Throwable graph is extracted.
     private val handlingNativeHandled = AtomicBoolean(false)
     private val acceptedHermesFatal = AcceptedHermesFatal()
     private var handledAdmission = HandledThrowableAdmission { dev.everframe.Everframe.currentStartEpochVolatile() }
+    /**
+     * Error replays (spec 2026-10-11). Flutter reports replay the host VTree, never native video, so a
+     * handled error from `everframe-flutter` never snapshots on any path, as on iOS.
+     */
+    private const val FLUTTER_SDK = "everframe-flutter"
+    private val ERROR_REPLAY_HANDLED_SDKS = setOf("everframe-android", "everframe-kmp")
+    private const val CRASH_DEGRADED_REASON = "crash-capture"
+    /** Flags an error whose replay was attempted but not attached; the token iOS bug reports use. */
+    internal const val REPLAY_OMITTED_REASON = "replay_omitted"
+
+    /** The live session's error-replay claim. Tests substitute a fake snapshot. */
+    @VisibleForTesting @Volatile
+    internal var errorReplaySource: (Int) -> ErrorReplaySnapshot? = { startEpoch ->
+        dev.everframe.Everframe._replaySession?.beginErrorReplay(startEpoch)
+    }
 
     @Volatile private var appContext: Context? = null
 
@@ -115,7 +136,8 @@ object CrashReporter {
         // the FIRST statement, before the stack-frame mapping below: that maps
         // up to 256 StackTraceElements into Frame objects, and everything after
         // it is prep for a crash that has already happened.
-        val captured = dev.everframe.Everframe.captureSessionSnapshot()
+        val (captured, exposure) = dev.everframe.Everframe.captureSessionWithNativeExposure(
+            __exposureForTesting ?: ReleaseHealthRuntime::readyPointer)
         val diagnostic = CaptureObservation(ReportDiagnostics.shared.handle(captured.user.startEpoch), CapturePath.JVM_UNCAUGHT)
         try {
             val suppressed = acceptedHermesFatal.consume(throwable, captured.user.startEpoch, captured.killGeneration)
@@ -147,6 +169,7 @@ object CrashReporter {
                     occurredAt = Instant.now().toString(),
                     captured = captured,
                     jvmThrowable = throwable,
+                    nativeExposure = exposure,
                     details = normalizeCrashDetails(null),
                     handlingReserved = true,
                     diagnostic = diagnostic,
@@ -179,8 +202,11 @@ object CrashReporter {
             if (handling.get() || !handlingNativeHandled.compareAndSet(false, true)) return diagnostic.reject(CaptureOutcome.REENTRANT)
             var reservation: HandledThrowableAdmission.Reservation? = null
             var accepted = false
+            var errorReplay: ErrorReplaySnapshot? = null
             try {
                 reservation = handledAdmission.reserve(throwable, captured.user.startEpoch) ?: return diagnostic.reject(CaptureOutcome.ADMISSION_SUPPRESSED)
+                // Spec 2026-10-11: the snapshot starts at capture time, before host getters run, off this thread.
+                if (sdkName in ERROR_REPLAY_HANDLED_SDKS) errorReplay = runCatching { errorReplaySource(captured.user.startEpoch) }.getOrNull()
                 val type = redactAndCap(throwable.javaClass.name, 256)
                 val message = runCatching { throwable.message }.getOrNull() ?: type
                 val frames = runCatching { throwable.stackTrace }.getOrNull()
@@ -203,11 +229,13 @@ object CrashReporter {
                     requireCurrentStart = true,
                     waitForStorage = true,
                     diagnostic = diagnostic,
+                    errorReplay = errorReplay,
                 )
                 return accepted
             } catch (_: Throwable) {
                 return false
             } finally {
+                errorReplay?.discard() // a no-op once capture() handed it to the stored error
                 reservation?.let { handledAdmission.settle(it, accepted) }
                 handlingNativeHandled.set(false)
             }
@@ -254,27 +282,60 @@ object CrashReporter {
     fun captureFactsAcceptedWithCauses(
         exceptionType: String, message: String, framesRaw: List<String>, mechanism: String,
         fatal: Boolean, occurredAt: String, jsBundle: JSBundle?, details: Any?, causeChain: Any?,
+    ): Boolean = captureFactsAcceptedInternal(exceptionType, message, framesRaw, mechanism, fatal, occurredAt,
+        jsBundle, details, causeChain, replay = false)
+
+    /**
+     * React Native bridge (spec 2026-10-11): automatic JS capture whose nonfatal errors carry the
+     * native replay snapshot. Same acknowledgement as [captureFactsAcceptedWithCauses]: true means the
+     * error is durably stored; a replay, when there is one, is swapped in within 3 seconds.
+     * SDK bridge wiring, not customer API.
+     */
+    fun captureFactsAcceptedWithReplay(
+        exceptionType: String, message: String, framesRaw: List<String>, mechanism: String,
+        fatal: Boolean, occurredAt: String, jsBundle: JSBundle?, details: Any?, causeChain: Any?,
+    ): Boolean = captureFactsAcceptedInternal(exceptionType, message, framesRaw, mechanism, fatal, occurredAt,
+        jsBundle, details, causeChain, replay = true)
+
+    private fun captureFactsAcceptedInternal(
+        exceptionType: String, message: String, framesRaw: List<String>, mechanism: String,
+        fatal: Boolean, occurredAt: String, jsBundle: JSBundle?, details: Any?, causeChain: Any?, replay: Boolean,
     ): Boolean {
+        val (captured, exposure) = dev.everframe.Everframe.captureSessionWithNativeExposure(
+            __exposureForTesting ?: ReleaseHealthRuntime::readyPointer)
         val attempt = if (fatal) acceptedHermesFatal.beginAttempt() else null
-        val captured = dev.everframe.Everframe.captureSessionSnapshot()
+        val bundle = jsBundle?.takeIf { validJsBundle(it) }
+        val linkedExposure = exposure?.takeIf {
+            fatal && mechanism == "errorutils" && bundle?.engine == dev.everframe.protocol.generated.Engine.Hermes &&
+                bundle.platform == dev.everframe.protocol.generated.JSBundlePlatform.Android &&
+                it.loadedBundleStatus == dev.everframe.config.ReleaseHealthBundleStatus.KNOWN &&
+                it.loadedBuildId == bundle.buildID
+        }
         val diagnostic = CaptureObservation(ReportDiagnostics.shared.handle(captured.user.startEpoch), CapturePath.BRIDGE_AUTOMATIC)
-        val accepted = runCatching {
-            capture(
-                exceptionType = exceptionType.take(256),
-                message = message,
-                frames = framesRaw.take(256).map { Frame(raw = it.take(1024)) },
-                mechanism = mechanism,
-                handled = false,
-                fatal = fatal,
-                threadName = null,
-                occurredAt = occurredAt,
-                captured = captured,
-                jsBundle = jsBundle?.takeIf { validJsBundle(it) },
-                rnDetails = details,
-                rnCauseChain = causeChain,
-                diagnostic = diagnostic,
-            )
-        }.getOrDefault(false)
+        // A fatal JavaScript error ends the app: it is a crash and never takes a snapshot.
+        val errorReplay = if (replay && !fatal && captured.captureConsent && captured.config?.capture?.crash == true)
+            runCatching { errorReplaySource(captured.user.startEpoch) }.getOrNull() else null
+        val accepted = try {
+            runCatching {
+                capture(
+                    exceptionType = exceptionType.take(256),
+                    message = message,
+                    frames = framesRaw.take(256).map { Frame(raw = it.take(1024)) },
+                    mechanism = mechanism,
+                    handled = false,
+                    fatal = fatal,
+                    threadName = null,
+                    occurredAt = occurredAt,
+                    captured = captured,
+                    jsBundle = bundle,
+                    nativeExposure = linkedExposure,
+                    rnDetails = details,
+                    rnCauseChain = causeChain,
+                    diagnostic = diagnostic,
+                    errorReplay = errorReplay,
+                )
+            }.getOrDefault(false)
+        } finally { errorReplay?.discard() }
         diagnostic.settle()
         if (accepted && fatal && mechanism == "errorutils" && jsBundle != null && validJsBundle(jsBundle) &&
             jsBundle.platform == dev.everframe.protocol.generated.JSBundlePlatform.Android) {
@@ -328,6 +389,19 @@ object CrashReporter {
     fun captureHandledFactsWithCauses(
         exceptionType: String, message: String, framesRaw: List<String>, occurredAt: String,
         jsBundle: JSBundle?, details: Any?, causeChain: Any?, sdkName: String,
+    ): Boolean = captureHandledFactsInternal(exceptionType, message, framesRaw, occurredAt, jsBundle, details, causeChain,
+        sdkName, replay = false)
+
+    /** React Native bridge (spec 2026-10-11): explicit JS capture with the native replay. SDK bridge wiring, not customer API. */
+    fun captureHandledFactsWithReplay(
+        exceptionType: String, message: String, framesRaw: List<String>, occurredAt: String,
+        jsBundle: JSBundle?, details: Any?, causeChain: Any?, sdkName: String,
+    ): Boolean = captureHandledFactsInternal(exceptionType, message, framesRaw, occurredAt, jsBundle, details, causeChain,
+        sdkName, replay = true)
+
+    private fun captureHandledFactsInternal(
+        exceptionType: String, message: String, framesRaw: List<String>, occurredAt: String,
+        jsBundle: JSBundle?, details: Any?, causeChain: Any?, sdkName: String, replay: Boolean,
     ): Boolean {
         if (sdkName !in setOf("everframe-android", "everframe-react-native", "everframe-flutter", "everframe-kmp")) {
             ReportDiagnostics.shared.handle(dev.everframe.Everframe.currentStartEpochVolatile())
@@ -336,6 +410,8 @@ object CrashReporter {
         }
         val captured = dev.everframe.Everframe.captureSessionSnapshot()
         val diagnostic = CaptureObservation(ReportDiagnostics.shared.handle(captured.user.startEpoch), CapturePath.BRIDGE_HANDLED)
+        val errorReplay = if (replay && sdkName != FLUTTER_SDK && captured.captureConsent && captured.config?.capture?.crash == true)
+            runCatching { errorReplaySource(captured.user.startEpoch) }.getOrNull() else null
         return try { runCatching {
             capture(
                 exceptionType = exceptionType.take(256),
@@ -354,8 +430,9 @@ object CrashReporter {
                 requireCurrentStart = true,
                 waitForStorage = true,
                 diagnostic = diagnostic,
+                errorReplay = errorReplay,
             )
-        }.getOrDefault(false) } finally { diagnostic.settle() }
+        }.getOrDefault(false) } finally { errorReplay?.discard(); diagnostic.settle() }
     }
 
     private fun ownsCauseCapture(captured: dev.everframe.TXCapturedSession): Boolean =
@@ -409,6 +486,8 @@ object CrashReporter {
         waitForStorage: Boolean = false,
         sdkName: String = "everframe-android",
         handlingReserved: Boolean = false,
+        nativeExposure: NativeExposurePointer? = null,
+        errorReplay: ErrorReplaySnapshot? = null,
     ): Boolean {
         val context = appContext ?: return diagnostic.reject(CaptureOutcome.DISABLED)
         // From the crash-entry snapshot, not a field: same critical section as
@@ -427,6 +506,9 @@ object CrashReporter {
             // Inside the try so the `finally` below still clears the latch if a
             // test hook throws.
             __afterUserSnapshotHookForTesting?.invoke()
+            // Spec 2026-10-11: only a nonfatal error without OS exposure evidence takes the replay path.
+            val replayPending = errorReplay != null && nativeExposure == null
+
             // Redaction can EXPAND text (e.g. SSN `123-45-6789` -> `[REDACTED:SSN]`),
             // so re-cap AFTER redact() — caps applied only pre-redaction (at
             // capture-site truncation above) are not sufficient; an expanding
@@ -456,17 +538,21 @@ object CrashReporter {
                     ownsCauseCapture(captured)
                 },
             )
-            val device = DeviceMetadata.collect(context)
+            val device = DeviceMetadata.collect(context, cfg.debugBuild)
             val reportId = UUID.randomUUID()
             val encoded = EnvelopeBuilder(EnvelopeBuilder.DefaultRedactor).buildEncoded(
                 reportId = reportId,
                 sdkVersion = dev.everframe.Everframe.SDK_VERSION,
                 sdkName = sdkName,
+                // JVM uncaught, handled and React Native bridge captures all
+                // land here; same snapshot as the device context below.
+                formFactor = DeviceMetadata.formFactor(device),
                 title = redactAndCap("$exceptionType: $redactedMessage", 50),
                 description = "",
                 appName = (device["bundleIdentifier"] as? String) ?: "unknown",
                 appVersion = (device["appVersion"] as? String) ?: "0.0.0",
                 appBuild = (device["appBuild"] as? Number)?.toString(),
+                appDebug = device["appDebug"] == "true",
                 deviceOs = (device["os"] as? String) ?: "Android",
                 deviceOsVersion = (device["osVersion"] as? String) ?: "0.0",
                 deviceModel = device["model"] as? String,
@@ -475,7 +561,8 @@ object CrashReporter {
                 deviceTimezone = (device["timezone"] as? String)
                     ?: java.util.TimeZone.getDefault().id,
                 excluded = listOf("screenshot", "uiTree", "focus", "logs", "network"),
-                degradedReason = "crash-capture",
+                // Stored first as omitted; the upgrade removes the flag only when the replay is attached.
+                degradedReason = if (replayPending) "$CRASH_DEGRADED_REASON;$REPLAY_OMITTED_REASON" else CRASH_DEGRADED_REASON,
                 breadcrumbs = sharedBreadcrumbBuffer.snapshotForCrash(),
                 // Report Resource Window (spec 2026-09-05) — the crash-path
                 // build site that feeds CrashSidecar.appendSync. `snapshot()`
@@ -515,11 +602,21 @@ object CrashReporter {
             // explicit here because a raw `TXCapturedUser` field (unlike
             // `.user`) has no built-in gate of its own to fall back on.
             val capturedEpochStillCurrent = captured.user.startEpoch == dev.everframe.Everframe.currentStartEpoch()
+            val bytes = if (nativeExposure == null) encoded.bytes else {
+                val root = Json.parseToJsonElement(encoded.bytes.toString(Charsets.UTF_8)).jsonObject
+                val payload = root.getValue("payload").jsonObject
+                val facts = payload.getValue("crash").jsonObject
+                JsonObject(root + ("payload" to JsonObject(payload + ("crash" to
+                    JsonObject(facts + ("nativeExposure" to nativeExposure.toJson()))))))
+                    .toString().toByteArray(Charsets.UTF_8).also { require(it.size <= EnvelopeBuilder.SIZE_CAP_BYTES) }
+            }
+            val key = if (nativeExposure == null) encoded.idempotencyKey else
+                MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
             val entry = OutboxEntry(
                     reportId = reportId.toString(),
                     createdAt = System.currentTimeMillis(),
-                    envelopeBytes = encoded.bytes,
-                    idempotencyKey = encoded.idempotencyKey,
+                    envelopeBytes = bytes,
+                    idempotencyKey = key,
                     attachmentRefs = emptyList(),
                     sdkKey = cfg.sdkKey,
                     endpoint = IngestEndpoint.url,
@@ -551,8 +648,30 @@ object CrashReporter {
                     (!requireCurrentStart || captured.user.startEpoch == dev.everframe.Everframe.currentStartEpochVolatile())
             }
             val sidecar = sidecarFactory(context)
-            return diagnostic.accepted(if (waitForStorage) sidecar.appendHandledSyncAccepted(entry, authorization, diagnostic.owner)
-            else sidecar.appendSyncAccepted(entry, authorization, diagnostic.owner))
+            if (replayPending) {
+                // Spec 2026-10-11: durable now (the same admission as below), held from drains while the
+                // snapshot exports, then swapped for the same report with its replay, or left flagged.
+                ErrorReplayHolds.hold(entry.reportId)
+                val token = if (waitForStorage) sidecar.appendHandledSyncToken(entry, authorization, diagnostic.owner)
+                    else sidecar.appendSyncToken(entry, authorization, diagnostic.owner)
+                if (token == null || !errorReplay!!.handOff()) ErrorReplayHolds.release(entry.reportId)
+                else {
+                    // Optional video must belong to the error's captured start. Automatic error
+                    // admission itself remains valid across starts, as before.
+                    val replayAuthorization = object : OutboxAuthorization {
+                        override fun isAllowed() = authorization.isAllowed() &&
+                            captured.user.startEpoch == dev.everframe.Everframe.currentStartEpochVolatile()
+                    }
+                    ErrorReplayUpgrade.schedule(errorReplay, sidecar, token, entry, encoded.envelope, replayAuthorization)
+                }
+                return diagnostic.accepted(token != null)
+            }
+            val accepted = if (waitForStorage) sidecar.appendHandledSyncAccepted(entry, authorization, diagnostic.owner)
+                else sidecar.appendSyncAccepted(entry, authorization, diagnostic.owner)
+            // This process ends after the handler. If the OS kills it for low memory first (a Java OOM
+            // under pressure), its exit record says LOW_MEMORY: tell OS exit recovery it is reported.
+            if (accepted && fatal && mechanism == "uncaught-exception-handler") AndroidNativeCrashRuntime.noteJvmFatal()
+            return diagnostic.accepted(accepted)
         } catch (_: Throwable) {
             return false
         } finally {
@@ -597,7 +716,9 @@ object CrashReporter {
         handledAdmission = HandledThrowableAdmission { dev.everframe.Everframe.currentStartEpochVolatile() }
         appContext = null
         __afterUserSnapshotHookForTesting = null
+        __exposureForTesting = null
         sidecarFactory = { CrashSidecar(it) }
+        errorReplaySource = { startEpoch -> dev.everframe.Everframe._replaySession?.beginErrorReplay(startEpoch) }
     }
 
     @VisibleForTesting

@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 class EverframeKmpTest {
     private class FakeDriver : EverframeNativeDriver {
         val calls = mutableListOf<String>()
-        override fun start(appId: String, sdkKey: String, environment: String): Boolean { calls += "start:$appId:$sdkKey:$environment"; return true }
+        override fun start(appId: String, sdkKey: String, environment: String, debugBuild: Boolean?): Boolean { calls += "start:$appId:$sdkKey:$environment:debug=$debugBuild"; return true }
         override fun setUser(id: String?, email: String?, displayName: String?) { calls += "user:$id:$email" }
         override fun recordScreen(name: String) { calls += "screen:$name" }
         override fun addBreadcrumb(message: String, kind: String?, level: String?) { calls += "breadcrumb:$kind:$level:$message" }
@@ -35,18 +35,26 @@ class EverframeKmpTest {
         client.openReporter { outcome = it }
         client.kill()
         assertEquals("cancelled", outcome?.status)
-        assertEquals(listOf("start:app:key:development", "user:user:user@example.test", "screen:Home", "breadcrumb:null:null:tap", "open", "kill"), driver.calls)
+        assertEquals(listOf("start:app:key:development:debug=null", "user:user:user@example.test", "screen:Home", "breadcrumb:null:null:tap", "open", "kill"), driver.calls)
     }
 
     @Test fun routesProductionAndRejectsUnknownConfiguration() {
         val driver = FakeDriver()
         val client = EverframeKmp(driver)
         assertTrue(client.start(EverframeKmpConfig("app", "key")))
-        assertEquals("start:app:key:production", driver.calls.single())
+        assertEquals("start:app:key:production:debug=null", driver.calls.single())
         assertTrue(client.start(EverframeKmpConfig("app", "key", "staging")))
-        assertEquals("start:app:key:staging", driver.calls.last())
+        assertEquals("start:app:key:staging:debug=null", driver.calls.last())
         assertFalse(client.start(EverframeKmpConfig("app", "key", "unknown")))
         assertEquals(2, driver.calls.size)
+    }
+
+    @Test fun forwardsTheDebugBuildOverrideToTheNativeDriver() {
+        val driver = FakeDriver()
+        val client = EverframeKmp(driver)
+        assertTrue(client.start(EverframeKmpConfig("app", "key", debugBuild = true)))
+        assertTrue(client.start(EverframeKmpConfig("app", "key", debugBuild = false)))
+        assertEquals(listOf("start:app:key:production:debug=true", "start:app:key:production:debug=false"), driver.calls)
     }
 
     @Test fun rejectsInvalidConfigurationAndPostKillReporter() {

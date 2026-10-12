@@ -85,7 +85,7 @@ export interface ReporterApi {
 export interface ReporterApiDeps {
   fetchImpl: typeof fetch;
   baseUrl: string;   // no trailing slash required; normalized below
-  apiKey: string;
+  sdkKey: string;
   timeoutMs?: number; // default 10s; bounds every request
   /**
    * Reporter identity recognition (spec 2026-08-06). When supplied, every
@@ -134,7 +134,7 @@ export function createReporterApi(deps: ReporterApiDeps): ReporterApi {
     init: { method?: string; body?: string; extraHeaders?: Record<string, string> } = {},
   ): Promise<Response> {
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${deps.apiKey}`,
+      Authorization: `Bearer ${deps.sdkKey}`,
       [DEVICE_TOKEN_HEADER]: deviceToken,
       Accept: 'application/json',
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),

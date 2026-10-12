@@ -42,7 +42,7 @@ class ReporterActivityOwnershipTest {
                 replacement = Everframe.__replayFreeze()
                 ScreenshotCapture.CaptureResult(bitmap, 2, 2, byteArrayOf(1))
             },
-            showDialog = { _, _, _, _ -> mounted = true; ReportResult.Cancelled("unexpected_mount") },
+            showDialog = { _, _, _, _, _ -> mounted = true; ReportResult.Cancelled("unexpected_mount") },
         )
         val result = presenter.openReporter(activity) { ActivityRegistry.isCurrent(activity) }
         assertEquals(ReportResult.Cancelled("no_active_activity"), result)

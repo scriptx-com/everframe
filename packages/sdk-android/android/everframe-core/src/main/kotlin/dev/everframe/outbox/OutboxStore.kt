@@ -24,6 +24,7 @@ internal class OutboxStore(
     private val maxEntries: Int = JSONLOutbox.DEFAULT_MAX_ENTRIES,
     private val maxTotalBytes: Long = JSONLOutbox.DEFAULT_MAX_TOTAL_BYTES,
     legacyFiles: List<File> = emptyList(),
+    private val maintenanceReserveBytes: Long = MAINTENANCE_RESERVE,
 ) {
     private val root = root.canonicalFile
     private val legacyFiles = legacyFiles.map { it.canonicalFile }.distinct()
@@ -34,7 +35,7 @@ internal class OutboxStore(
     private val cipher = OutboxCipher(keys)
     val drainMutex: Mutex get() = coordinator.drain
 
-    init { require(maxEntries >= 0); require(maxTotalBytes >= 0) }
+    init { require(maxEntries >= 0); require(maxTotalBytes >= 0); require(maintenanceReserveBytes >= 0) }
 
     fun enqueueSync(entry: OutboxEntry, authorization: OutboxAuthorization,
                     diagnostics: ReportDiagnostics.Handle? = null): OutboxToken =
@@ -82,8 +83,8 @@ internal class OutboxStore(
             }
         }
         val used = physicalUsage()
-        if (committedFiles().size >= maxEntries || size > maxTotalBytes - MAINTENANCE_RESERVE ||
-            used > maxTotalBytes - MAINTENANCE_RESERVE - size) throw OutboxWriteException(OutboxFailure.CAPACITY)
+        if (committedFiles().size >= maxEntries || size > maxTotalBytes - maintenanceReserveBytes ||
+            used > maxTotalBytes - maintenanceReserveBytes - size) throw OutboxWriteException(OutboxFailure.CAPACITY)
         val token = candidate ?: OutboxToken(current, UUID.randomUUID().toString())
         val tmp = File(active, "${token.fileId}.tmp")
         val target = file(token)
@@ -220,7 +221,7 @@ internal class OutboxStore(
         val receiptBytes = cipher.encryptedSize(metadata)
         val candidateBytes = if (existing != null || alreadyDelivered) 0L else cipher.encryptedSize(record.entry)
         if ((!alreadyDelivered && existing == null && committedFiles().size >= maxEntries) ||
-            physicalUsage() > maxTotalBytes - MAINTENANCE_RESERVE - receiptBytes - candidateBytes) {
+            physicalUsage() > maxTotalBytes - maintenanceReserveBytes - receiptBytes - candidateBytes) {
             throw OutboxWriteException(OutboxFailure.CAPACITY)
         }
         checkAllowed(MIGRATION_ALLOWED)
@@ -309,10 +310,44 @@ internal class OutboxStore(
         }
     }
 
+    /**
+     * Error replays (spec 2026-10-11): commit [replacement] for the same report, then retire [token].
+     * The original stays queued unless the replacement commits. A process death between the two
+     * leaves both; ingest deduplicates them by (app, reportId). False when [token] is no longer queued.
+     */
+    fun replaceSync(token: OutboxToken, replacement: OutboxEntry, authorization: OutboxAuthorization,
+                    diagnostics: ReportDiagnostics.Handle? = null): Boolean =
+        observingFailure(diagnostics, QueueOperation.ENQUEUE_FAILED) {
+            if (coordinator.lock.isHeldByCurrentThread) throw OutboxWriteException(OutboxFailure.IO)
+            locked {
+                if (!presentLocked(token)) return@locked false
+                if (decode(token, file(token)).reportId != replacement.reportId) throw OutboxWriteException(OutboxFailure.INVALID_ENTRY)
+                val size = try { cipher.encryptedSize(replacement) }
+                    catch (invalid: IllegalArgumentException) { throw OutboxWriteException(OutboxFailure.INVALID_ENTRY, invalid) }
+                checkAllowed(authorization)
+                val used = physicalUsage()
+                if (size > maxTotalBytes - maintenanceReserveBytes || used > maxTotalBytes - maintenanceReserveBytes - size)
+                    throw OutboxWriteException(OutboxFailure.CAPACITY)
+                val next = OutboxToken(token.generation, UUID.randomUUID().toString())
+                val tmp = File(active, "${next.fileId}.tmp")
+                tmp.outputStream().use { cipher.write(replacement, next, it) }
+                ops.syncFile(tmp)
+                checkAllowed(authorization)
+                ops.renameAtomic(tmp, file(next))
+                ops.syncDirectory(active)
+                finishAdmission(next, authorization)
+                removeLocked(token)
+                diagnostics?.queueOperation(QueueOperation.ENQUEUE_COMMITTED)
+                true
+            }
+        }
+
     /** Atomic only: safe alongside Everframe's monotonic kill boundary under stateLock. */
     fun invalidateSync() { coordinator.epoch.incrementAndGet() }
     fun hasCurrentLease(): Boolean = lease == coordinator.epoch.get() && !isRevocationPending()
     fun isRevocationPending(): Boolean = coordinator.epoch.get() != coordinator.completedEpoch.get()
+    /** No root was ever created and no revocation is pending, so erasure has nothing to remove. */
+    fun isAbsent(): Boolean = !isRevocationPending() && !root.exists()
 
     /** A permanent nonsensitive kill history for O5's legacy migration suppression. */
     fun hasRevocationHistory(): Boolean = locked { File(root, "kill.history").exists() || File(root, "kill.pending").exists() }

@@ -37,7 +37,7 @@ actor NativeVideoSegmentWriter {
         guard dimensions.width > 0, dimensions.height > 0,
               dimensions.width <= 854, dimensions.height <= 854,
               dimensions.width.isMultiple(of: 2), dimensions.height.isMultiple(of: 2),
-              framesPerSecond == 5 || framesPerSecond == 10,
+              NativeVideoSettings.allowedFramesPerSecond.contains(framesPerSecond),
               frame.width == dimensions.width, frame.height == dimensions.height,
               frame.bytesPerRow >= dimensions.width * 4,
               frame.bytesPerRow <= Int.max / frame.height,
@@ -111,7 +111,7 @@ actor NativeVideoSegmentWriter {
             guard bytes > 0 else { throw NativeVideoWriterError.finishFailed }
             state = .transferred
             self.writer = nil; self.input = nil; self.adaptor = nil
-            return .init(url: url, startNanos: firstNanos, endNanos: endNanos, byteCount: bytes)
+            return .init(url: url, startNanos: firstNanos, endNanos: endNanos, byteCount: bytes, lastFrameNanos: lastNanos)
         } catch { cancel(); throw error }
     }
 
@@ -123,21 +123,32 @@ actor NativeVideoSegmentWriter {
         try? FileManager.default.removeItem(at: url)
     }
 
-    private func prepare() throws {
-        let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
-        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
+    /// Encoder settings for one segment. Each segment is its own movie, so it
+    /// starts on a key frame; the interval adds one every 2 s after that.
+    static func outputSettings(dimensions: NativeVideoDimensions, framesPerSecond: Int) -> [String: Any] {
+        [
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: dimensions.width, AVVideoHeightKey: dimensions.height,
             AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: 1_200_000,
+                AVVideoAverageBitRateKey: NativeVideoSettings.averageBitRate(framesPerSecond: framesPerSecond),
                 AVVideoExpectedSourceFrameRateKey: framesPerSecond,
                 AVVideoMaxKeyFrameIntervalKey: framesPerSecond * 2,
                 AVVideoAllowFrameReorderingKey: false,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264BaselineAutoLevel,
-            ],
-        ])
+            ] as [String: Any],
+        ]
+    }
+
+    private func prepare() throws {
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+        // Nanosecond sample durations overflow native passthrough edits when
+        // an idle frame is held for seconds. Microseconds preserve capture
+        // precision while representing the entire bounded replay window.
+        writer.movieTimeScale = 1_000_000
+        let input = AVAssetWriterInput(mediaType: .video,
+            outputSettings: Self.outputSettings(dimensions: dimensions, framesPerSecond: framesPerSecond))
         input.expectsMediaDataInRealTime = true
-        input.mediaTimeScale = 1_000_000_000
+        input.mediaTimeScale = 1_000_000
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
             kCVPixelBufferWidthKey as String: dimensions.width,

@@ -70,10 +70,10 @@ describe('F18: periodic config re-read (web kill-switch parity)', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
     adapter.__setNetworkBodiesBuffer(() => __internalClientState.get(client)?.networkBodies);
     const buf = () => __internalClientState.get(client)!.networkBodies;
 
@@ -103,10 +103,10 @@ describe('F18: periodic config re-read (web kill-switch parity)', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
     adapter.__setNetworkBodiesBuffer(() => __internalClientState.get(client)?.networkBodies);
     const buf = () => __internalClientState.get(client)!.networkBodies;
 
@@ -166,10 +166,10 @@ describe('F18: periodic config re-read (web kill-switch parity)', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
     adapter.__setNetworkBodiesBuffer(() => __internalClientState.get(client)?.networkBodies);
     const buf = () => __internalClientState.get(client)!.networkBodies;
 
@@ -207,10 +207,10 @@ describe('F18: periodic config re-read (web kill-switch parity)', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
 
     await adapter.__initReplay();
     const configCallsAfterInit = fetchMock.mock.calls.filter((c) => urlOf(c[0]).includes('/api/config')).length;
@@ -235,7 +235,7 @@ describe('F18: periodic config re-read (web kill-switch parity)', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     // Deliberately NOT pushed to `adapters` — we call __testCleanup() ourselves below.
     await adapter.__initReplay();
     const before = fetchMock.mock.calls.filter((c) => urlOf(c[0]).includes('/api/config')).length;
@@ -271,10 +271,10 @@ describe('F18: periodic config re-read (web kill-switch parity)', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
     adapter.__setNetworkBodiesBuffer(() => __internalClientState.get(client)?.networkBodies);
     const buf = () => __internalClientState.get(client)!.networkBodies;
 

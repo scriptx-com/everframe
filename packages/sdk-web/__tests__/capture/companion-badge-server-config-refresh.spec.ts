@@ -63,10 +63,10 @@ describe('Fix C: refreshGate() applies the live config immediately', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
 
     await adapter.__initReplay();
     // Mirrors provider.tsx's real sequencing (initReplayPromiseRef's .then()):
@@ -98,9 +98,9 @@ describe('Fix B: killed-adapter guard + box clear on kill', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
 
     await adapter.__initReplay();
     adapter.__applyBreadcrumbsConfig(); // mirrors provider.tsx's post-init one-shot apply — populates the box
@@ -119,9 +119,9 @@ describe('Fix B: killed-adapter guard + box clear on kill', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
 
     await adapter.__initReplay();
     adapter.__applyBreadcrumbsConfig(); // mirrors provider.tsx's post-init one-shot apply — populates the box

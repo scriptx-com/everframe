@@ -26,6 +26,7 @@
 //   • The presenter resolver is installed exactly once per process (idempotent
 //     installer + a local flag for defense-in-depth).
 import Foundation
+import CoreFoundation
 import Combine
 import os.log
 import UIKit
@@ -44,11 +45,15 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
 
     // MARK: - configure
 
+    // Serialize the bridge's start/idempotence decision with synchronous health reservation.
+    private static let configureLock = NSRecursiveLock()
+
     @objc public static func configure(
-        appId: NSString,
+        sdkKey: NSString,
         endpoint: NSString,
         networkBodiesDisabled: Bool,
         installIdentifierDisabled: Bool,
+        crashReportingDisabled: Bool,
         attachPinUi: NSString?,
         companionDeviceId: NSString?,
         companionBadgeEnabled: Bool,
@@ -57,21 +62,32 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         theme: NSDictionary?,
         vitalsEnabled: NSNumber?,
         vitalsSampleRate: NSNumber?,
-        vitalsCaptureSourceQuery: NSNumber?
+        vitalsCaptureSourceQuery: NSNumber?,
+        debugBuild: NSNumber?,
+        releaseHealthEnabled: Bool,
+        releaseHealthLoadedBuildId: NSString?,
+        releaseHealthUserId: NSString?,
+        releaseHealthIncludeDebugBuilds: Bool,
+        reporterDisabled: Bool = false
     ) throws {
+        configureLock.lock()
+        defer { configureLock.unlock() }
         // `endpoint` arg is retained for ObjC ABI compatibility with the
         // codegen .mm — value is ignored. The SDK bakes the ingest URL at
         // compile time (sdk-ios IngestEndpoint).
         _ = endpoint
-        os_log("[everframe] configure appId=%{public}@", log: log, type: .info, appId as String)
+        os_log("[everframe] configure sdkKey=%{public}@", log: log, type: .info, sdkKey as String)
         // Polarity flips exactly once, here: JS sends the veto
         // (`networkBodiesDisabled`), native stores the permission.
-        var cfg = EverframeConfig(appId: appId as String)
+        var cfg = EverframeConfig(sdkKey: sdkKey as String)
         cfg.capture.networkBodies = !networkBodiesDisabled
         // Polarity flips exactly once, here: JS sends the veto
         // (`installIdentifierDisabled`), native stores the permission —
         // identical to `networkBodies` above.
         cfg.installIdentifierEnabled = !installIdentifierDisabled
+        // Polarity flips exactly once, here: JS sends the veto
+        // (`crashReportingDisabled`), native stores the permission.
+        cfg.capture.crash = !crashReportingDisabled
         // Explicit companion device-identity override (naming spec
         // 2026-08-24) — read straight off the flat ConfigOpts field, same
         // shape as attachPinUi below. nil/absent falls through to the
@@ -87,6 +103,9 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         // badge) exist, mirroring `companionAttachPinUi` below.
         cfg.companionBadgeEnabled = companionBadgeEnabled
         cfg.shakeToReportEnabled = shakeToReportEnabled
+        // Polarity flips exactly once, here: JS sends the crash-only switch
+        // (`reporterDisabled`), native stores the permission.
+        cfg.reporterEnabled = !reporterDisabled
         cfg.companionBadgePosition = companionBadgePosition as String?
         // Inline reporter theme (reporter branding spec 2026-08-25, RN
         // slice). The .mm collapses the 8 flat ConfigOpts `theme*` wire
@@ -106,57 +125,40 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         if let vitalsEnabled { cfg.vitals.enabled = vitalsEnabled.boolValue }
         if let vitalsSampleRate { cfg.vitals.sampleRate = vitalsSampleRate.doubleValue }
         if let vitalsCaptureSourceQuery { cfg.vitals.captureSourceQuery = vitalsCaptureSourceQuery.boolValue }
+        // Absent stays nil, so the native SDK detects a debug build itself; present wins.
+        cfg.debugBuild = debugBuild?.boolValue
         // The attach-PIN UI mode for startCompanion() to read (spec 2026-08-19). configure()
         // precedes startCompanion() in every host's lifecycle, so this is the natural place to
         // parse the flat ConfigOpts string into the native enum; startCompanion is where it is
         // actually consumed (RelayWSClient's announce arg + the suppression seam), since a mode
-        // can't affect anything before a relay client exists. Parsed into a LOCAL: the gate
-        // below compares it against the stashed value, and only the start path adopts it.
+        // can't affect anything before a relay client exists. A changed value forces native
+        // reconfiguration even when the SDK configuration itself compares equal.
         let newAttachPinUi = Self.parseAttachPinUi(attachPinUi as String?)
-        // Codex round-6, H1 — IDEMPOTENT configure, twin of `EverframeModule.configure`'s gate on
-        // Android, and decided against the INSTALLED config rather than a cache of the last
-        // options this bridge started with.
-        //
-        // `Everframe.shared.start(...)` SUPERSEDES the running SDK: the outgoing controller's
-        // shutdown detaches every integration it had announced, so a Provider that merely
-        // REMOUNTS with the same config used to kill every live player registration for
-        // nothing. An identical configuration installs identical state, so the cheapest correct
-        // answer is not to start at all.
-        //
-        // Round-5 kept a cached snapshot of the options it last started with, and a cache can
-        // disagree with the singleton it claims to describe: two overlapping configures (A then
-        // B) can interleave so the cache says A while the SDK runs B, and a native host calling
-        // `Everframe.shared.start(configB)` between two bridge configures of A reproduces it with
-        // no concurrency at all — the second A matches the stale cached A, skips, and leaves B
-        // installed under a JS host that believes it configured A. `currentConfig` cannot drift:
-        // it IS the installed state.
-        //
-        // `captureGate` is the second term: a killed SDK must be restarted even by an identical
-        // config, or the host is left with a dead SDK and no way to revive it.
-        //
-        // Codex round-7, I3 — the comparison is the WHOLE config (`EverframeConfig` is now
-        // `Equatable`, matching Android's `data class`), not a rendering of the fields this
-        // bridge happens to set. Round-6 hand-built a string snapshot here, which meant any
-        // config field the snapshot's author had not listed — a new one, or one a native host
-        // set directly — read as "unchanged" and silently suppressed a start that was needed.
-        // `attachPinUi` is the one term that is NOT part of the config (it lands in module
-        // state), so it is compared separately.
-        //
-        // Everything else this method does still runs on the skip path — the presenter-resolver
-        // install and the crash-metadata prime — because both are idempotent and neither
-        // depends on a fresh start. The attach-PIN stash is the exception, and only nominally:
-        // on the skip path it would write the value it already holds.
-        let unchanged = Everframe.shared.captureGate
-            && Everframe.shared.currentConfig == cfg
-            && companionAttachPinUi == newAttachPinUi
-        if unchanged {
-            os_log("[everframe] configure: SDK already running this exact config — skipping start()",
-                   log: log, type: .debug)
+        let health: ReleaseHealthConfiguration?
+        if releaseHealthEnabled, let loaded = releaseHealthLoadedBuildId {
+            // The SDK reads the app version itself; the bridge carries the loaded bundle, the user ID and
+            // whether debug builds count. A nil value (disabled, no loaded bundle, or an invalid identity) is off.
+            health = try? ReleaseHealthConfiguration(userId: releaseHealthUserId as String?,
+                loadedBuildId: loaded as String, loadedBundleStatus: .known,
+                includeDebugBuilds: releaseHealthIncludeDebugBuilds)
         } else {
-            try Everframe.shared.start(config: cfg)
-            // Adopted only on the start path — the skip path has already established that the
-            // stashed value equals this one.
-            companionAttachPinUi = newAttachPinUi
+            health = nil
+        }
+        // The bridge owns release health through `health` alone: it needs the loaded Hermes bundle, and a new
+        // user ID must reconfigure health without restarting the SDK. The native default
+        // (`EverframeConfig.releaseHealth`, on) must not arm anonymous sessions at start or take part in
+        // the unchanged-configuration comparison.
+        cfg.releaseHealth = nil
+        // Native code atomically checks installed config and reserves its exact owner.
+        // An identical configure preserves the session; a changed attach-PIN mode still
+        // requires the same full restart as the other native configuration changes.
+        let applyHealth = try Everframe.shared.configureAndPrepareReleaseHealth(
+            config: cfg, health: health, forceRestart: companionAttachPinUi != newAttachPinUi)
+        companionAttachPinUi = newAttachPinUi
+        // Reservation is tied to this configure's exact native start generation. Later
+        // configure/disable or a native restart invalidates the asynchronous operation.
+        if let applyHealth {
+            Task { _ = await applyHealth() }
         }
         installPresenterResolverIfNeeded()
         // Spec 2026-09-17 setExtra-resolver — installed unconditionally,
@@ -219,9 +221,9 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// Wires `EFReporterPresenter` as the resolver for `Everframe.shared.report
     /// .open()`. Called from configure(); the first call installs, subsequent
     /// calls no-op. tvOS has no on-device modal — reporting goes through the
-    /// phone-companion flow (QR → phone browser) — so the presenter type
-    /// itself is `#if !os(tvOS)`-gated in EverframeReporterUI. Mirror that
-    /// gate here so the bridge compiles for the tvOS slice.
+    /// phone-companion flow (QR → phone browser) — so EverframeReporterUI's
+    /// tvOS `installResolver()` is a no-op. The gate here skips that call and
+    /// logs where tvOS reporting goes instead.
     private static func installPresenterResolverIfNeeded() {
         #if !os(tvOS)
         resolverInstallLock.lock()
@@ -296,7 +298,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// ObjC-visible read of whichever generation is live RIGHT NOW — i.e.
     /// whatever the most recent `installExtraResolveHook()` call minted.
     /// `EverframeModule.mm`'s `-configure:` calls this immediately after
-    /// `configureWithAppId:...:error:` (which, on success or on the
+    /// `configureWithSdkKey:...:error:` (which, on success or on the
     /// already-running-unchanged skip path, calls `installExtraResolveHook()`
     /// internally) and stashes the result on its own instance ivar for
     /// `-invalidate` to hand back later. 0 means no `configure()` call has
@@ -562,10 +564,27 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
                     dict = ["status": "cancelled"]
                 }
                 completion(dict, nil)
+            } catch EverframeReporterError.reporterDisabled {
+                completion(nil, NSError(
+                    domain: "EverframeBridge", code: reporterDisabledErrorCode,
+                    userInfo: [NSLocalizedDescriptionKey: EverframeReporterError.reporterDisabled.localizedDescription]
+                ))
             } catch {
                 completion(nil, error as NSError)
             }
         }
+    }
+
+    /// `openReporter`'s error for a crash-only session (`reporterDisabled: true`).
+    static let reporterDisabledErrorCode = 1101
+
+    /// The promise rejection code for an `openReporter` failure. A crash-only session gets
+    /// `EVERFRAME_REPORTER_DISABLED`, which the JS facade maps to
+    /// `EverframeReporterDisabledError`; anything else keeps `open_reporter_failed`.
+    @objc(openReporterRejectCodeFor:)
+    public static func openReporterRejectCode(for error: NSError) -> String {
+        error.domain == "EverframeBridge" && error.code == reporterDisabledErrorCode
+            ? "EVERFRAME_REPORTER_DISABLED" : "open_reporter_failed"
     }
 
     // MARK: - registerSensitiveRect
@@ -604,12 +623,31 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// `everframe-react-native` (distinct from `CrashReporter.captureFacts`'s
     /// `"everframe-ios"` default) so envelopes are attributable to the RN SDK.
     @objc public static func reportCrash(_ crashJson: NSString) -> Bool {
-        CrashReporter.captureFacts(json: crashJson as String, sdkName: "everframe-react-native")
+        let facts = crashJson as String
+        // Replays on errors (spec 2026-10-11): only an error the app survives asks for a replay of the seconds
+        // before it. A fatal JavaScript error ends the app, so it is a crash and never carries one.
+        guard appSurvivesError(facts) else {
+            return CrashReporter.captureFacts(json: facts, sdkName: "everframe-react-native", attachReplay: false)
+        }
+        return CrashReporter.captureFacts(json: facts, sdkName: "everframe-react-native", attachReplay: true)
     }
 
-    /// Explicit handled capture acknowledges the core's completed encrypted enqueue.
+    /// Explicit handled capture acknowledges the core's completed encrypted enqueue. It is always an error the
+    /// app survives, so it asks for a replay; the core decides whether the session qualifies.
     @objc public static func captureHandledException(_ crashJson: NSString) -> Bool {
-        CrashReporter.captureHandledFacts(json: crashJson as String, sdkName: "everframe-react-native")
+        CrashReporter.captureHandledFacts(json: crashJson as String, sdkName: "everframe-react-native", attachReplay: true)
+    }
+
+    /// True when the facts describe an error the app survives: `fatal` is absent or the JSON boolean `false`,
+    /// which is how `CrashReporter` classifies facts that are not marked fatal. Anything unreadable counts as
+    /// fatal here, so it can only lose a replay, never ask for one on a crash.
+    static func appSurvivesError(_ facts: String) -> Bool {
+        guard let data = facts.data(using: .utf8),
+              let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return false }
+        guard let flag = object["fatal"] else { return true }
+        guard let boolean = flag as? NSNumber,
+              CFGetTypeID(boolean) == CFBooleanGetTypeID() else { return false }
+        return !boolean.boolValue
     }
 
     // MARK: - setExtra
@@ -853,10 +891,10 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// presence", never "no socket": RelayWSClient skips the announce hop
     /// entirely on a nil key and reporting is unaffected.
     private static func configuredSdkKey() -> String? {
-        guard let appId = Everframe.shared.currentConfig?.appId,
-              !appId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard let sdkKey = Everframe.shared.currentConfig?.sdkKey,
+              !sdkKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { return nil }
-        return appId
+        return sdkKey
     }
 
     /// Non-personal device label for the dashboard's device list — "Apple TV",

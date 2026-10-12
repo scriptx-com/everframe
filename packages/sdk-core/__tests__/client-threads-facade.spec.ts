@@ -25,7 +25,7 @@ describe('tx.threads facade', () => {
     const threads = fakeThreads();
     const adapter = { ...createFakePlatformAdapter(), threads };
     const client = createClient(adapter);
-    client.init({ apiKey: 'txx_live_k' });
+    client.init({ sdkKey: 'txx_live_k' });
     expect(client.threads.unreadCount()).toBe(5);
     await client.threads.reply('t1', 'hi');
     expect(threads.reply).toHaveBeenCalledWith('t1', 'hi');
@@ -46,7 +46,7 @@ describe('tx.threads facade', () => {
     const threads = fakeThreads();
     const adapter = { ...createFakePlatformAdapter(), threads };
     const client = createClient(adapter);
-    client.init({ apiKey: 'txx_live_k' });
+    client.init({ sdkKey: 'txx_live_k' });
     threads.startPolling();
     expect(threads.shutdown).not.toHaveBeenCalled();
     client.kill();
@@ -78,7 +78,7 @@ describe('tx.threads facade', () => {
     const threads = createThreadClient({ api, credentials, isEnabled: () => true });
     const adapter = { ...createFakePlatformAdapter(), threads };
     const client = createClient(adapter);
-    client.init({ apiKey: 'txx_live_k' });
+    client.init({ sdkKey: 'txx_live_k' });
 
     client.kill();
     // Bypasses the tx.threads.* facade entirely — this is the direct adapter
@@ -116,7 +116,7 @@ describe('tx.threads facade', () => {
     const threads = createThreadClient({ api, credentials, isEnabled: () => true });
     const adapter = { ...createFakePlatformAdapter(), threads };
     const client = createClient(adapter);
-    client.init({ apiKey: 'txx_live_k' });
+    client.init({ sdkKey: 'txx_live_k' });
     await threads.refresh();
     expect(client.threads.list().map((t) => t.id)).toEqual(['t1']);
 
@@ -152,7 +152,7 @@ describe('tx.threads facade', () => {
     const threads = createThreadClient({ api, credentials, isEnabled: () => true });
     const adapter = { ...createFakePlatformAdapter(), threads };
     const client = createClient(adapter);
-    client.init({ apiKey: 'txx_live_k' });
+    client.init({ sdkKey: 'txx_live_k' });
     await threads.refresh();
     expect(client.threads.list().map((t) => t.id)).toEqual(['t1']);
 
@@ -174,13 +174,13 @@ describe('tx.threads facade', () => {
     // delete happened at all (facade inert). `true` must be reserved for a
     // genuine local removal.
     expect(await client.threads.delete('t1')).toBe(false); // pre-init
-    client.init({ apiKey: 'txx_live_k' });
+    client.init({ sdkKey: 'txx_live_k' });
     client.kill();
     expect(client.threads.unreadCount()).toBe(0);        // killed
     expect(await client.threads.delete('t1')).toBe(false); // killed
 
     const bare = createClient(createFakePlatformAdapter());
-    bare.init({ apiKey: 'txx_live_k' });
+    bare.init({ sdkKey: 'txx_live_k' });
     expect(bare.threads.list()).toEqual([]);             // no platform thread client
     expect(typeof bare.threads.subscribe(() => {})).toBe('function');
     expect(await bare.threads.delete('t1')).toBe(false); // no adapter thread client

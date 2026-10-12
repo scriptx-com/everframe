@@ -359,6 +359,9 @@ public enum ReporterSubmission {
         var extra: [String: String] = [
             "title": inputs.title,
             "description": inputs.description,
+            // Not device metadata, so it rides along whatever `includeMetadata` says. The report's
+            // own config decides, so `debugBuild` wins over detection.
+            "app.debug": String(DebugBuild.current(configured: cfg.debugBuild)),
         ]
         if inputs.includeMetadata {
             extra["device.model"] = device.model
@@ -741,7 +744,9 @@ public enum ReporterSubmission {
 
     /// One assembled session-replay attachment: the envelope `EverframeAttachment` ref +
     /// the multipart `Part` carrying binary MP4 bytes.
-    struct ReplayPart {
+    // Immutable transfer value: the generated envelope has only value fields
+    // (strings, numbers and enums), but does not declare Sendable itself.
+    struct ReplayPart: @unchecked Sendable {
         let envelope: EverframeAttachment
         let multipart: ReportSubmitter.Attachment
     }

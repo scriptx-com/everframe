@@ -125,6 +125,123 @@ class CrashReporterTest {
         Json.parseToJsonElement(String(entry.envelopeBytes)).jsonObject
     }
 
+    @Test fun `automatic JVM fatal freezes its entry foreground pointer and background has none`() {
+        val launch = java.util.UUID.randomUUID().toString()
+        var pointer: dev.everframe.health.NativeExposurePointer? = dev.everframe.health.NativeExposurePointer(
+            java.util.UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", dev.everframe.capture.AppRelease("2.4.0", null, debug = false), null,
+            dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        val first = pointer!!
+        CrashReporter.__exposureForTesting = { pointer }
+        CrashReporter.__afterUserSnapshotHookForTesting = { pointer = null }
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("foreground"))
+        assertEquals(first.toJson(), persistedEnvelope("foreground")["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"])
+        CrashReporter.__afterUserSnapshotHookForTesting = null
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("background"))
+        assertFalse(persistedEnvelope("background")["payload"]!!.jsonObject["crash"]!!.jsonObject.containsKey("nativeExposure"))
+        pointer = dev.everframe.health.NativeExposurePointer(java.util.UUID.randomUUID().toString(), launch,
+            "2026-10-09T10:00:01.000Z", dev.everframe.capture.AppRelease("2.4.0", null, debug = false), null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("reentry"))
+        assertEquals(pointer!!.toJson(), persistedEnvelope("reentry")["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"])
+    }
+
+    private fun rnPointer(build: String? = "test-android", status: dev.everframe.config.ReleaseHealthBundleStatus = dev.everframe.config.ReleaseHealthBundleStatus.KNOWN) =
+        dev.everframe.health.NativeExposurePointer(java.util.UUID.randomUUID().toString(), java.util.UUID.randomUUID().toString(),
+            "2026-10-09T10:00:00.000Z", dev.everframe.capture.AppRelease("2.4.0", "412", debug = false), build, status)
+
+    private fun rnBundle(build: String = "test-android", platform: dev.everframe.protocol.generated.JSBundlePlatform = dev.everframe.protocol.generated.JSBundlePlatform.Android) =
+        dev.everframe.protocol.generated.JSBundle(buildID = build, bundleName = "index.android.bundle",
+            engine = dev.everframe.protocol.generated.Engine.Hermes, platform = platform)
+
+    @Test fun `automatic RN fatal freezes native ownership and digest before hooks or frame access`() {
+        var pointer: dev.everframe.health.NativeExposurePointer? = rnPointer()
+        val entryPointer = pointer!!
+        CrashReporter.__exposureForTesting = { pointer }
+        val frames = object : AbstractList<String>() {
+            override val size = 1
+            override fun get(index: Int): String { pointer = rnPointer("later-bundle"); return "at f (index.android.bundle:1:0)" }
+        }
+        CrashReporter.__afterUserSnapshotHookForTesting = {
+            pointer = null
+            Everframe.__setConfigForTesting(config.copy(sdkKey = "later-key"))
+        }
+        assertTrue(CrashReporter.captureFactsAcceptedWithCauses("Error", "fatal fixture", frames, "errorutils", true,
+            "2026-10-09T10:00:01.000Z", rnBundle(), mapOf("nativeExposure" to rnPointer().toJson()), null))
+        val outbox = encryptedOutbox()
+        val entry = runBlocking { outbox.hydrate() }.single()
+        val envelope = Json.parseToJsonElement(entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        assertEquals(entryPointer.toJson(), envelope["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"])
+        assertEquals("everframe-android", envelope["sdk"]!!.jsonObject["name"]!!.jsonPrimitive.content)
+        assertEquals(config.sdkKey, entry.sdkKey)
+        assertEquals(java.security.MessageDigest.getInstance("SHA-256").digest(entry.envelopeBytes).joinToString("") { "%02x".format(it) }, entry.idempotencyKey)
+        runBlocking { outbox.drain { false } }
+        val retry = runBlocking { encryptedOutbox().hydrate() }.single()
+        assertTrue(entry.envelopeBytes.contentEquals(retry.envelopeBytes)); assertEquals(entry.idempotencyKey, retry.idempotencyKey)
+    }
+
+    @Test fun `RN attribution requires fatal errorutils exact known Android bundle and an entry pointer`() {
+        data class Case(val pointer: dev.everframe.health.NativeExposurePointer?, val bundle: dev.everframe.protocol.generated.JSBundle?, val fatal: Boolean = true, val mechanism: String = "errorutils")
+        val cases = listOf(Case(null, rnBundle()), Case(rnPointer("other"), rnBundle()),
+            Case(rnPointer(null, dev.everframe.config.ReleaseHealthBundleStatus.UNKNOWN), rnBundle()),
+            Case(rnPointer(null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE), rnBundle()),
+            Case(rnPointer(), null), Case(rnPointer(), rnBundle(platform = dev.everframe.protocol.generated.JSBundlePlatform.Ios)),
+            Case(rnPointer(), rnBundle(" ")), Case(rnPointer(), rnBundle(), fatal = false),
+            Case(rnPointer(), rnBundle(), mechanism = "captureException"))
+        for (case in cases) {
+            CrashReporter.__exposureForTesting = { case.pointer }
+            assertTrue(CrashReporter.captureFactsAccepted("Error", "unlinked", emptyList(), case.mechanism, case.fatal,
+                "2026-10-09T10:00:01.000Z", case.bundle))
+            assertFalse(persistedEnvelope("negative")["payload"]!!.jsonObject["crash"]!!.jsonObject.containsKey("nativeExposure"))
+        }
+        CrashReporter.__exposureForTesting = { rnPointer() }
+        assertTrue(handled(bundle = rnBundle()))
+        assertFalse(persistedEnvelope("handled")["payload"]!!.jsonObject["crash"]!!.jsonObject.containsKey("nativeExposure"))
+    }
+
+    @Test fun `revoked RN fatal entry never persists an attributed report`() {
+        CrashReporter.__exposureForTesting = { rnPointer() }
+        CrashReporter.__afterUserSnapshotHookForTesting = { Everframe.kill() }
+        assertFalse(hermesFatal())
+        assertTrue(runBlocking { encryptedOutbox().hydrate() }.isEmpty())
+    }
+
+    @Test fun `RN fatal persists its durable native producer pointer`() {
+        val queue = dev.everframe.outbox.OutboxStore(tmp.newFolder(), keys, JvmOutboxFileOps(), 8, 1024L * 1024, maintenanceReserveBytes = 1024)
+        val authorized = object : dev.everframe.outbox.OutboxAuthorization { override fun isAllowed() = true }
+        val producer = dev.everframe.health.ReleaseHealthProducer(queue,
+            dev.everframe.config.ReleaseHealthConfig(loadedBuildId = "test-android",
+                loadedBundleStatus = dev.everframe.config.ReleaseHealthBundleStatus.KNOWN),
+            dev.everframe.capture.AppRelease("2.4.0", null, debug = false),
+            Everframe.SDK_VERSION, config.sdkKey, "http://127.0.0.1:9/api/ingest/release-health", authorized, authorized)
+        assertTrue(producer.start())
+        val pointer = requireNotNull(producer.readyPointer())
+        CrashReporter.__exposureForTesting = { producer.readyPointer() }
+        assertTrue(hermesFatal())
+        val entry = runBlocking { encryptedOutbox().hydrate() }.single()
+        val envelope = Json.parseToJsonElement(entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        assertEquals(pointer.toJson(), envelope["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"])
+        assertEquals(kotlinx.serialization.json.JsonNull,
+            envelope["payload"]!!.jsonObject["crash"]!!.jsonObject["nativeExposure"]!!.jsonObject["app"]!!.jsonObject["build"])
+        assertTrue(producer.end("background"))
+        val records = queue.snapshotTokens().map { Json.parseToJsonElement(queue.readIfPresent(it)!!.entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject }
+        assertEquals(2, records.size)
+
+    }
+
+    // Review Focus 2: the crash envelope's version is the one its sessions report, so the
+    // error group's first-seen version matches the release.
+    @Test @Config(sdk = [33])
+    fun `crash envelope version follows the release rule when versionName is missing`() {
+        org.robolectric.Shadows.shadowOf(context.packageManager).getInternalMutablePackageInfo(context.packageName).apply {
+            versionName = null; longVersionCode = 42
+        }
+        assertEquals(dev.everframe.capture.AppReleaseRule.of(null, 42, debug = false).version,
+            dev.everframe.capture.DeviceMetadata.collect(context)["appVersion"])
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("no version name"))
+        val app = persistedEnvelope("versionless")["context"]!!.jsonObject["app"]!!.jsonObject
+        assertEquals("42", app["version"]!!.jsonPrimitive.content)
+        assertEquals("42", app["build"]!!.jsonPrimitive.content)
+    }
+
     @Test fun `diagnostics distinguish invalid bridge input disabled capture and reentrancy`() {
         dev.everframe.diagnostics.ReportDiagnostics.shared.beginGeneration(Everframe.currentStartEpoch(), true)
         assertFalse(CrashReporter.captureHandledFactsWithCauses("E", "", emptyList(), "2026-10-06T00:00:00Z", null, null, null, "invalid-sdk"))
@@ -355,6 +472,48 @@ class CrashReporterTest {
         CrashReporter.captureThrowable(Thread.currentThread(), rnWrapper())
         val outbox = encryptedOutbox()
         assertEquals(2, runBlocking { outbox.count() })
+    }
+
+    @Test
+    fun `persisted React render fatal prevents RN's wrapper that carries the component stack`() {
+        val message = "smoke js-render: ExplodingRow\n\nThis error is located at:\n" +
+            "    at ExplodingRow (address at index.android.bundle:1:1243264)\n    at RCTView (<anonymous>)"
+        assertTrue(CrashReporter.captureFactsAccepted("Error", message,
+            listOf("at ExplodingRow (address at index.android.bundle:1:1243264)", "at apply (native)"),
+            "errorutils", true, "2026-10-11T00:00:00Z", rnBundle()))
+        CrashReporter.captureThrowable(Thread.currentThread(),
+            rnWrapper("Error: $message, stack:\nExplodingRow@1:1243264\n"))
+        val outbox = encryptedOutbox()
+        assertEquals(1, runBlocking { outbox.count() })
+        val crash = Json.parseToJsonElement(String(runBlocking { outbox.hydrate() }.single().envelopeBytes))
+            .jsonObject["payload"]!!.jsonObject["crash"]!!.jsonObject
+        assertEquals("errorutils", crash["mechanism"]!!.jsonPrimitive.content)
+    }
+
+    private fun formFactor(name: String) =
+        persistedEnvelope(name)["sdk"]!!.jsonObject["formFactor"]!!.jsonPrimitive.content
+
+    // Smoke round 2026-10: Android TV JVM and React Native reports said "phone";
+    // only the exit-info and ANR paths passed the detected form factor.
+    @Test
+    @Config(qualifiers = "television")
+    fun `JVM, React Native and handled reports on a television say tv`() {
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("jvm on tv"))
+        assertEquals("tv", formFactor("jvm"))
+        assertTrue(hermesFatal())
+        assertEquals("tv", formFactor("react-native"))
+        assertTrue(handled())
+        assertEquals("tv", formFactor("handled"))
+    }
+
+    @Test
+    fun `a leanback device is a tv even without the television UI mode`() {
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("phone"))
+        assertEquals("phone", formFactor("phone"))
+        org.robolectric.Shadows.shadowOf(context.packageManager)
+            .setSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK, true)
+        CrashReporter.captureThrowable(Thread.currentThread(), IllegalStateException("leanback"))
+        assertEquals("tv", formFactor("leanback"))
     }
 
     @Test

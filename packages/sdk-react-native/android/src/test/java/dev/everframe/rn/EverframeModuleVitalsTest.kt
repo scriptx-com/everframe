@@ -92,7 +92,7 @@ class EverframeModuleVitalsTest {
     @Test
     fun `configure maps the three flat vitals fields onto VitalsConfig`() {
         val opts = JavaOnlyMap.of(
-            "apiKey", "tx_test_key",
+            "sdkKey", "tx_test_key",
             "vitalsEnabled", false,
             "vitalsSampleRate", 0.25,
             "vitalsCaptureSourceQuery", true,
@@ -113,7 +113,7 @@ class EverframeModuleVitalsTest {
      */
     @Test
     fun `configure without vitals fields keeps SDK defaults`() {
-        module.configure(JavaOnlyMap.of("apiKey", "tx_test_key"))
+        module.configure(JavaOnlyMap.of("sdkKey", "tx_test_key"))
         val v = Everframe.currentConfig!!.vitals
         assertEquals(null, v.enabled)
         assertEquals(null, v.sampleRate)
@@ -191,16 +191,16 @@ class EverframeModuleVitalsTest {
      */
     @Test
     fun `configure twice with identical options starts the SDK once, a changed option restarts it`() {
-        module.configure(JavaOnlyMap.of("apiKey", "tx_test_key", "vitalsSampleRate", 0.25))
+        module.configure(JavaOnlyMap.of("sdkKey", "tx_test_key", "vitalsSampleRate", 0.25))
         val first = Everframe.currentConfig
         assertNotNull(first)
         assertTrue(Everframe.captureGate)
 
-        module.configure(JavaOnlyMap.of("apiKey", "tx_test_key", "vitalsSampleRate", 0.25))
+        module.configure(JavaOnlyMap.of("sdkKey", "tx_test_key", "vitalsSampleRate", 0.25))
         assertSame(first, Everframe.currentConfig)          // no second start
 
         // A different `vitalsSampleRate` is a different configuration — that one must restart.
-        module.configure(JavaOnlyMap.of("apiKey", "tx_test_key", "vitalsSampleRate", 0.5))
+        module.configure(JavaOnlyMap.of("sdkKey", "tx_test_key", "vitalsSampleRate", 0.5))
         val third = Everframe.currentConfig
         assertNotSame(first, third)
         assertEquals(0.5, third!!.vitals.sampleRate!!, 0.0)
@@ -213,14 +213,14 @@ class EverframeModuleVitalsTest {
      */
     @Test
     fun `configure after kill starts again even though the options did not change`() {
-        module.configure(JavaOnlyMap.of("apiKey", "tx_test_key"))
+        module.configure(JavaOnlyMap.of("sdkKey", "tx_test_key"))
         val first = Everframe.currentConfig
         assertNotNull(first)
 
         Everframe.kill()
         assertFalse(Everframe.captureGate)
 
-        module.configure(JavaOnlyMap.of("apiKey", "tx_test_key"))
+        module.configure(JavaOnlyMap.of("sdkKey", "tx_test_key"))
         assertNotSame(first, Everframe.currentConfig)
         assertTrue(Everframe.captureGate)
     }
@@ -241,7 +241,7 @@ class EverframeModuleVitalsTest {
      */
     @Test
     fun `a start under the bridge is noticed - an unchanged configure restarts the SDK`() {
-        module.configure(JavaOnlyMap.of("apiKey", "tx_test_key"))
+        module.configure(JavaOnlyMap.of("sdkKey", "tx_test_key"))
         val first = Everframe.currentConfig
         assertNotNull(first)
 
@@ -250,7 +250,7 @@ class EverframeModuleVitalsTest {
         Everframe.start(RuntimeEnvironment.getApplication(), other)
         assertSame(other, Everframe.currentConfig)
 
-        module.configure(JavaOnlyMap.of("apiKey", "tx_test_key"))
+        module.configure(JavaOnlyMap.of("sdkKey", "tx_test_key"))
         assertNotSame(other, Everframe.currentConfig)
         assertEquals("tx_test_key", Everframe.currentConfig!!.appId)
     }
@@ -262,16 +262,16 @@ class EverframeModuleVitalsTest {
      */
     @Test
     fun `a changed attachPinUi restarts even though the EverframeConfig is identical`() {
-        module.configure(JavaOnlyMap.of("apiKey", "tx_test_key", "attachPinUi", "custom"))
+        module.configure(JavaOnlyMap.of("sdkKey", "tx_test_key", "attachPinUi", "custom"))
         val first = Everframe.currentConfig
         assertNotNull(first)
 
         // Same call again: identical config AND identical stashed mode — no start.
-        module.configure(JavaOnlyMap.of("apiKey", "tx_test_key", "attachPinUi", "custom"))
+        module.configure(JavaOnlyMap.of("sdkKey", "tx_test_key", "attachPinUi", "custom"))
         assertSame(first, Everframe.currentConfig)
 
         // Dropping the field means BUILTIN, which is a different installed behaviour.
-        module.configure(JavaOnlyMap.of("apiKey", "tx_test_key"))
+        module.configure(JavaOnlyMap.of("sdkKey", "tx_test_key"))
         assertNotSame(first, Everframe.currentConfig)
     }
 

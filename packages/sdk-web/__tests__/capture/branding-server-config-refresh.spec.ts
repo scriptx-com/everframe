@@ -46,10 +46,10 @@ describe('branding server-config box', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
 
     await adapter.__initReplay();
     // Mirrors provider.tsx's real sequencing: the post-init one-shot
@@ -87,9 +87,9 @@ describe('branding server-config box', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
     await adapter.__initReplay();
     adapter.__applyBreadcrumbsConfig();
     expect(__getBrandingServerConfig()).toBeDefined();

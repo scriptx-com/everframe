@@ -130,6 +130,33 @@ class RelayWSClientTest {
         assertEquals("https://relay.example.test/r/tok_xyz", Companion.pairUrl.value)
     }
 
+    /**
+     * Crash-only sessions (spec 2026-10-12): a QR bond and a dashboard member attach both upgrade the
+     * session; a finished companion report returning the state to `Paired` does not.
+     */
+    @Test
+    fun onMessage_pairBonded_upgradesACrashOnlySession() {
+        val frames = listOf(
+            """{"type":"pair.bonded","pair_id":"p","device_token":"d","device_token_expires_at":"2026-06-01T00:00:00.000Z"}""",
+            """{"type":"pair.bonded","pair_id":"p","device_token":"d","device_token_expires_at":"2026-06-01T00:00:00.000Z",""" +
+                """"attribution_token":"attr","companion_user":{"display_name":"Ana"}}""",
+        )
+        try {
+            for (frame in frames) {
+                dev.everframe.Everframe.kill()
+                dev.everframe.Everframe.captureGate = true
+                dev.everframe.Everframe.__setConfigForTesting(
+                    dev.everframe.config.EverframeConfig(appId = "a", sdkKey = "k", reporterEnabled = false))
+                Companion.__setState(CompanionState.Paired)
+                assertTrue("a Paired state change alone is not a bond", dev.everframe.Everframe.crashOnlyCoverage())
+
+                client.listener.onMessage(fakeWs, frame)
+                assertEquals(CompanionState.Paired, Companion.state.value)
+                assertEquals(false, dev.everframe.Everframe.crashOnlyCoverage())
+            }
+        } finally { dev.everframe.Everframe.kill() }
+    }
+
     @Test
     fun onMessage_pairExpired_clearsTokensReturnsToUnpairedAndRetainsPairUrl() {
         // First bond, then expire.

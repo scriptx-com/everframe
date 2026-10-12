@@ -169,7 +169,7 @@ describe('a companion-only session started after a teardown', () => {
   it('DISCRIMINATOR: the session that outlived the teardown is still refused', async () => {
     // Round 4's finding, unregressed: `destroy()` under a LIVE companion
     // session must not leave that session falling back to standalone capture.
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     companion.start(START_OPTS);
     bond();
 
@@ -181,7 +181,7 @@ describe('a companion-only session started after a teardown', () => {
   });
 
   it('works again after stop() → start(), without a reload', async () => {
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     companion.start(START_OPTS);
     bond();
 
@@ -204,14 +204,14 @@ describe('a companion-only session started after a teardown', () => {
     // The fix must not be a one-way door: a session started after teardown A
     // is legitimate, but if it then acquires and loses a host of its own, the
     // round-4 refusal has to apply to it too.
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     handle.destroy();
     handle = null;
 
     companion.start(START_OPTS); // clean session — teardown A predates it
     bond();
 
-    handle = init({ apiKey: 'txx_live_test' }); // a host publishes
+    handle = init({ sdkKey: 'txx_live_test' }); // a host publishes
     handle.destroy(); // …and is torn down under the running session
     handle = null;
 

@@ -16,7 +16,91 @@ private actor VideoConfigFetcher: URLSessionFetching {
     }
 }
 
+@MainActor private final class DeviceConditionsBox {
+    var value = ReplayDeviceConditions(thermal: .nominal, lowPowerMode: false)
+}
+
 @MainActor @Suite(.serialized) struct NativeVideoCoordinatorTests {
+    @Test func errorReplayGateFollowsRecordingAndTheReporterFreeze() async {
+        await withGlobalCaptureStateLock {
+            ErrorReplayGate.shared.__resetForTesting()
+            defer { ErrorReplayGate.shared.__resetForTesting() }
+            let epoch = Everframe.shared.currentStartEpoch
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: VideoConfigFetcher())
+            let session = ReplaySession(provider: provider, locallyDisabled: false)
+            defer { session.teardown() }
+            #expect(!ErrorReplayGate.shared.reserve(epoch: epoch))
+            await session.refreshConfigNow()
+            #expect(ErrorReplayGate.shared.reserve(epoch: epoch))
+            ErrorReplayGate.shared.release(epoch: epoch)
+            let captured = ErrorReplayGate.shared.capture(epoch: epoch)!
+            session.freezeForReporter()
+            #expect(!ErrorReplayGate.shared.reserve(epoch: epoch))
+            guard case .omitted(let frozenReason) = await session.errorSnapshot(capture: captured) else {
+                Issue.record("a frozen buffer served an error snapshot"); return
+            }
+            #expect(frozenReason == "replay_unavailable")
+            session.cancelForReporter()
+            #expect(ErrorReplayGate.shared.reserve(epoch: epoch))
+            session.teardown()
+            #expect(!ErrorReplayGate.shared.reserve(epoch: epoch))
+        }
+    }
+
+    @Test func errorSnapshotKeepsTheSessionBufferingAndRefusesAnotherSessionsEpoch() async {
+        await withGlobalCaptureStateLock {
+            let epoch = Everframe.shared.currentStartEpoch
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: VideoConfigFetcher())
+            let session = ReplaySession(provider: provider, locallyDisabled: false)
+            defer { session.teardown() }
+            await session.refreshConfigNow()
+            guard case .omitted(let foreign) = await session.errorSnapshot(capture: .init(startEpoch: epoch + 1, cutoffNanos: DispatchTime.now().uptimeNanoseconds, recordingGeneration: 0)) else {
+                Issue.record("another session's error took this recording"); return
+            }
+            #expect(foreign == "replay_unavailable")
+            switch await session.errorSnapshot(capture: ErrorReplayGate.shared.capture(epoch: epoch)!) {
+            case .movie(let artifact): artifact.removeOwnedFile()
+            case .omitted(let reason): #expect(reason == "empty_recording")
+            }
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+        }
+    }
+    @Test func lowPowerModeAndSeriousHeatPauseCaptureUntilConditionsClear() async {
+        await withGlobalCaptureStateLock {
+            let conditions = DeviceConditionsBox()
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: VideoConfigFetcher())
+            let session = ReplaySession(provider: provider, locallyDisabled: false, deviceConditions: { conditions.value })
+            defer { session.teardown() }
+            await session.refreshConfigNow()
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+            conditions.value.lowPowerMode = true
+            await postFromBackgroundQueue(.NSProcessInfoPowerStateDidChange)
+            #expect(session.__lifecycleStateForTesting() == .idle)
+            await session.refreshConfigNow()
+            #expect(session.__lifecycleStateForTesting() == .idle)
+            conditions.value.lowPowerMode = false
+            await postFromBackgroundQueue(.NSProcessInfoPowerStateDidChange)
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+            conditions.value.thermal = .serious
+            await postFromBackgroundQueue(ProcessInfo.thermalStateDidChangeNotification)
+            #expect(session.__lifecycleStateForTesting() == .idle)
+            conditions.value.thermal = .fair
+            await postFromBackgroundQueue(ProcessInfo.thermalStateDidChangeNotification)
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+        }
+    }
+
+    /// Foundation posts both notifications off the main queue; the session's
+    /// MainActor hop is queued before this continuation resumes.
+    private func postFromBackgroundQueue(_ name: Notification.Name) async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                NotificationCenter.default.post(name: name, object: ProcessInfo.processInfo)
+                DispatchQueue.main.async { continuation.resume() }
+            }
+        }
+    }
+
     private final class AssemblyState { var assembled = false }
 
     private func waitForAssembly(_ state: AssemblyState) async -> Bool {
@@ -47,7 +131,7 @@ private actor VideoConfigFetcher: URLSessionFetching {
             client.handleControl(#"{"type":"pair.bonded","pair_id":"video-pair"}"#)
             client.handleControl(#"{"type":"report.request","correlation_id":"video-restart"}"#)
             #expect(await waitForAssembly(assembly))
-            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, apiKey: "test", fetcher: VideoConfigFetcher())
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: VideoConfigFetcher())
             let session = ReplaySession(provider: provider, locallyDisabled: false)
             defer { session.teardown() }
             await session.refreshConfigNow()
@@ -83,7 +167,7 @@ private actor VideoConfigFetcher: URLSessionFetching {
             // Disconnect invalidates authorization synchronously, including a
             // request whose asynchronous bridge callback has not run yet.
             client.disconnect()
-            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, apiKey: "test", fetcher: VideoConfigFetcher())
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: VideoConfigFetcher())
             let session = ReplaySession(provider: provider, locallyDisabled: false)
             defer { session.teardown() }
             await session.refreshConfigNow()
@@ -96,7 +180,7 @@ private actor VideoConfigFetcher: URLSessionFetching {
     @Test func thermalNotificationFromBackgroundQueuePreservesCapture() async {
         await GlobalCaptureStateTestGate.shared.acquire()
         do {
-            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, apiKey: "test", fetcher: VideoConfigFetcher())
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: VideoConfigFetcher())
             let session = ReplaySession(provider: provider, locallyDisabled: false)
             defer { session.teardown() }
             await session.refreshConfigNow()
@@ -116,7 +200,7 @@ private actor VideoConfigFetcher: URLSessionFetching {
     @Test func queuedThermalNotificationDoesNotReviveTornDownSession() async {
         await GlobalCaptureStateTestGate.shared.acquire()
         do {
-            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, apiKey: "test", fetcher: VideoConfigFetcher())
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: VideoConfigFetcher())
             let session = ReplaySession(provider: provider, locallyDisabled: false)
             await session.refreshConfigNow()
             #expect(session.__lifecycleStateForTesting() == .buffering)
@@ -142,7 +226,7 @@ private actor VideoConfigFetcher: URLSessionFetching {
         await withGlobalCaptureStateLock {
             ReportAPI.__performSetPresenting(true)
             defer { ReportAPI.__performSetPresenting(false) }
-            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, apiKey: "test", fetcher: VideoConfigFetcher())
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: VideoConfigFetcher())
             let session = ReplaySession(provider: provider, locallyDisabled: false)
             defer { session.teardown() }
             await session.refreshConfigNow()
@@ -156,7 +240,7 @@ private actor VideoConfigFetcher: URLSessionFetching {
     @Test func failedRefreshStopsLiveCaptureInsteadOfKeepingLastGoodReplay() async {
         await withGlobalCaptureStateLock {
             let fetcher = VideoConfigFetcher()
-            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, apiKey: "test", fetcher: fetcher)
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: fetcher)
             let session = ReplaySession(provider: provider, locallyDisabled: false)
             defer { session.teardown() }
             await session.refreshConfigNow()
@@ -169,7 +253,7 @@ private actor VideoConfigFetcher: URLSessionFetching {
 
     @Test func backgroundAndMemoryWarningStopCaptureUntilForeground() async {
         await withGlobalCaptureStateLock {
-            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, apiKey: "test", fetcher: VideoConfigFetcher())
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/config")!, sdkKey: "test", fetcher: VideoConfigFetcher())
             let session = ReplaySession(provider: provider, locallyDisabled: false)
             defer { session.teardown() }
             await session.refreshConfigNow()

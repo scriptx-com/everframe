@@ -1,7 +1,16 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import { createContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Component,
+  createContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ErrorInfo,
+  type ReactNode,
+} from 'react';
 import {
   createClient,
   __internalClientState,
@@ -20,12 +29,15 @@ import {
   __setCompanionHost,
   __setCompanionDefaults,
   __setInlineReporterTheme,
+  __watchCompanionBond,
   setupVitals,
   INGEST_URL,
   createScreenRecorder,
   sha256Hex,
+  resolveSdkKey,
   type WebPlatformAdapter,
   type WebEverframeConfig,
+  type ResolvedWebEverframeConfig,
   type ReporterResult,
 } from '@everframe/web';
 import { useIdentityProp, type IdentityProp } from './identity-prop.js';
@@ -49,7 +61,14 @@ import { __setCurrentContext } from './contextSeam.js';
 export interface InternalContext {
   client: EverframeClient;
   adapter: WebPlatformAdapter;
-  config: WebEverframeConfig;
+  config: ResolvedWebEverframeConfig;
+  /**
+   * True once this Provider's own cleanup stopped the client, unless a kill()
+   * from anywhere else reached it first. Only such a context is rebuilt after a
+   * StrictMode remount; an explicit kill() stays terminal.
+   */
+  readonly stoppedNormally: boolean;
+  stopClient: () => void;
   /** Freeze-then-open helper — freezes the replay buffer before mounting the modal. */
   openModal: () => void;
 }
@@ -93,6 +112,10 @@ function sha256OfBytes(bytes: Uint8Array): Promise<string> {
 // in its for-of type inference. A const has identical React semantics here and
 // gives Babel an unambiguous lexical binding.
 export const EverframeProvider = ({ config, identity, children }: EverframeProviderProps) => {
+  // Repairable client contexts share the same real-mount configuration. A
+  // child's effect may mutate the caller's object before StrictMode repairs it.
+  // A 1.1 config still names the key `apiKey`; from here on it is `sdkKey`.
+  const [mountConfig] = useState<ResolvedWebEverframeConfig>(() => ({ ...resolveSdkKey(config) }));
   const [modalOpen, setModalOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [toast, setToast] = useState<ToastState>({
@@ -129,6 +152,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   });
 
   const createCtx = (): InternalContext => {
+    const config = mountConfig;
     // The adapter's own crash path stamps `envelope.sdk.name` + `.version`.
     // It lives in @everframe/web now — a package with a different name on the
     // wire and an independently versioned PKG_VERSION — so tell it which SDK
@@ -141,6 +165,25 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     });
     const client = createClient(adapter);
     client.init(config);
+    // `stopped`: this Provider's unmount cleanup killed the client. `hostKilled`:
+    // a kill() reached it from anywhere else, such as a child's mount effect.
+    let stopped = false;
+    let hostKilled = false;
+    let normalCleanupCall = false;
+    const originalOnKill = adapter.onKill?.bind(adapter);
+    adapter.onKill = (reason) => {
+      // The unmount releases the adapter; only the host's kill() withdraws
+      // consent. A crash accepted before the unmount (an error no boundary
+      // caught unmounts this provider in the same commit) is still delivered.
+      try { originalOnKill?.(normalCleanupCall ? 'release' : reason); }
+      finally { if (!normalCleanupCall) hostKilled = true; }
+    };
+    const stopClient = () => {
+      stopped = true;
+      normalCleanupCall = true;
+      try { client.kill(); }
+      finally { normalCleanupCall = false; }
+    };
     // Bind the crumb sink to the client's buffer (one chain for auto + manual
     // crumbs; addBreadcrumb and the web adapters share redaction + lifecycle).
     adapter.__setBreadcrumbBuffer(() => __internalClientState.get(client)?.breadcrumbs);
@@ -169,6 +212,10 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     // freezes at the same instant for the same reason (reporter taps must not
     // pollute the shipped chain).
     const openModal = (): void => {
+      // Crash-only session (spec 2026-10-12): no on-device reporter at all.
+      // The adapter already refuses open() and hands out no hotkey; this
+      // covers the inbox and any other direct caller.
+      if (config.reporter?.disabled === true) return;
       try {
         adapter.__replayLifecycle?.freeze();
       } catch {
@@ -190,7 +237,10 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     // __openReporter's pending-promise lifecycle now; it calls this on every
     // open request).
     adapter.__registerShowModal(openModal);
-    return { client, adapter, config, openModal };
+    return {
+      client, adapter, config, stopClient, openModal,
+      get stoppedNormally() { return stopped && !hostKilled; },
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   };
   // Single-init by design — config swap requires Provider remount.
@@ -201,13 +251,20 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   // irreversibly, which the unmount contract requires — so the remount found a
   // dead client: the thread client was shut down (startPolling() a no-op, so
   // replies never reached the reporter), network-body capture was killed, and
-  // so on. A mount that finds its client already killed can only be that
-  // remount; rebuild a fresh context instead of running on the dead one. A
-  // real unmount never remounts, so it still ends killed.
+  // so on. Repair only a normally stopped context. A child mount effect can
+  // explicitly kill the client before our effect runs; that consent decision
+  // must remain terminal instead of being mistaken for StrictMode cleanup.
   useEffect(() => {
-    if (__internalClientState.get(ctxValue.client)?.killed) setCtxValue(createCtx());
+    if (__internalClientState.get(ctxValue.client)?.killed && ctxValue.stoppedNormally) {
+      setCtxValue(createCtx());
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- createCtx is recreated each render; only the killed client matters
   }, [ctxValue]);
+  // The other killed state: the host's own kill(), possibly from a child mount
+  // effect that ran before these effects. The mount effects below must not
+  // revive capture, fetch config or drain the outbox for it.
+  const explicitlyKilled = (): boolean =>
+    __internalClientState.get(ctxValue.client)?.killed === true && !ctxValue.stoppedNormally;
 
   // One screen recorder per provider instance: it holds the `previous`-screen
   // state that derives each `from → to` transition in a closure, so a fresh
@@ -248,7 +305,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   }, [ctxValue]);
 
   // Publish the companion host seam so the phone-companion `report.submit`
-  // path can reach config (apiKey) + adapter (capture + outbox) from its
+  // path can reach config (sdkKey) + adapter (capture + outbox) from its
   // non-React call site. Cleared on unmount. Without this the companion
   // submit degrades to `report.failed` instead of submitting to ingest.
   useEffect(() => {
@@ -269,6 +326,15 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     return () => __setCompanionHost(null);
   }, [ctxValue]);
 
+  // Crash-only sessions (spec 2026-10-12): a companion bond upgrades replay
+  // and network-body coverage for the rest of the session. Keyed on ctxValue
+  // and seeded from the current companion state, because StrictMode rebuilds
+  // the adapter after the bond may already have happened.
+  useEffect(() => {
+    if (ctxValue.config.reporter?.disabled !== true) return;
+    return __watchCompanionBond(ctxValue.adapter);
+  }, [ctxValue]);
+
   // Default companion.start() options from the provider's own config, so
   // `companion.start()` can be called with no arguments — matching the RN
   // SDK's zero-argument call — instead of making the host repeat a key the
@@ -276,11 +342,11 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   // companion host seam above.
   useEffect(() => {
     __setCompanionDefaults({
-      ...(ctxValue.config.apiKey ? { sdkKey: ctxValue.config.apiKey } : {}),
+      ...(ctxValue.config.sdkKey ? { sdkKey: ctxValue.config.sdkKey } : {}),
       ...(ctxValue.config.appName ? { deviceLabel: ctxValue.config.appName } : {}),
     });
     return () => __setCompanionDefaults(null);
-  }, [ctxValue.config.apiKey, ctxValue.config.appName]);
+  }, [ctxValue.config.sdkKey, ctxValue.config.appName]);
 
   // Mirror the host's inline theme option into the branding box (spec
   // 2026-08-25) so Modal's useReporterThemeVars sees it without prop
@@ -316,6 +382,12 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   // run only for the committed ctxValue, so this re-points the slot (and the
   // buffer getter, idempotently) at the pair that will actually submit.
   useEffect(() => {
+    // A discarded StrictMode twin may hold the slots with live sinks; take
+    // them back without reviving what the explicit kill closed.
+    if (explicitlyKilled()) {
+      ctxValue.adapter.__rebindCrumbHooks({ revive: false });
+      return;
+    }
     ctxValue.adapter.__setBreadcrumbBuffer(
       () => __internalClientState.get(ctxValue.client)?.breadcrumbs,
     );
@@ -347,7 +419,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   useEffect(() => {
     const vitals = setupVitals({
       config: ctxValue.config,
-      apiKey: ctxValue.config.apiKey,
+      sdkKey: ctxValue.config.sdkKey,
       apiUrl: INGEST_URL,
       isKilled: () => __internalClientState.get(ctxValue.client)?.killed === true,
       sdkVersion: PKG_VERSION,
@@ -418,6 +490,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   // call would not be deduped either).
   const initReplayPromiseRef = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
+    if (explicitlyKilled()) return;
     initReplayPromiseRef.current = ctxValue.adapter.__initReplay().then(() => {
       ctxValue.adapter.__applyBreadcrumbsConfig();
     });
@@ -496,7 +569,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   useEffect(() => {
     const adapter = ctxValue.adapter;
     const ob = adapter.outbox;
-    if (!ob) return;
+    if (!ob || explicitlyKilled()) return;
     const trigger = (): void => {
       // PR review Finding 2 (P1, 2026-08-06 identity spec), second half — a
       // drain that fires before the config fetch resolves sees
@@ -562,7 +635,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     return () => {
       // DEFE-03 cleanup on unmount
       try {
-        ctxValue.client.kill();
+        ctxValue.stopClient();
       } catch {
         /* swallow — DEFE-02 */
       }
@@ -795,7 +868,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
 
   return (
     <EverframeContext.Provider value={ctxValue}>
-      {children}
+      <UncaughtErrorRelay adapter={ctxValue.adapter}>{children}</UncaughtErrorRelay>
       <ReporterDialog
         open={modalOpen}
         adapter={ctxValue.adapter}
@@ -818,10 +891,16 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
         open={inboxOpen}
         onClose={() => setInboxOpen(false)}
         threads={ctxValue.client.threads}
-        onNewReport={() => {
-          setInboxOpen(false);
-          ctxValue.openModal();
-        }}
+        // Left out in a crash-only session, which hides the inbox's
+        // "New report" and follow-up buttons.
+        onNewReport={
+          ctxValue.config.reporter?.disabled === true
+            ? undefined
+            : () => {
+                setInboxOpen(false);
+                ctxValue.openModal();
+              }
+        }
       />
       <Toast
         open={toast.open}
@@ -832,3 +911,56 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     </EverframeContext.Provider>
   );
 };
+
+interface UncaughtErrorRelayProps {
+  adapter: WebPlatformAdapter;
+  children: ReactNode;
+}
+
+interface UncaughtErrorRelayState {
+  caught: boolean;
+  error: unknown;
+  rethrow: boolean;
+}
+
+/**
+ * Reports an error that no error boundary inside the provider caught, then
+ * hands it on unchanged.
+ *
+ * Without a boundary of the host's, React (createRoot, 18 and 19) unmounts the
+ * whole root, this provider included, and reports the error to the page in
+ * the same commit, without the component stack. This boundary sees it first, with the
+ * component stack, while the provider is still mounted, and sends it as a
+ * fatal crash. It then throws the same error again from its next render, so
+ * React carries on exactly as it would have: an outer boundary of the host's
+ * still catches it, and otherwise React unmounts the root and reports the
+ * error to `window.onerror`, where the SDK recognises the object and does not
+ * report it twice. Boundaries inside the provider are untouched: the errors
+ * they catch never reach this one.
+ */
+class UncaughtErrorRelay extends Component<UncaughtErrorRelayProps, UncaughtErrorRelayState> {
+  static displayName = 'EverframeUncaughtErrorRelay';
+
+  override state: UncaughtErrorRelayState = { caught: false, error: undefined, rethrow: false };
+
+  static getDerivedStateFromError(error: unknown): Partial<UncaughtErrorRelayState> {
+    return { caught: true, error };
+  }
+
+  override componentDidCatch(error: unknown, info: ErrorInfo): void {
+    try {
+      this.props.adapter.__captureUncaughtReactError(error, info.componentStack ?? undefined);
+    } catch {
+      /* swallow — DEFE-02; reporting must never change what React does next */
+    }
+    // Rethrow from the next render, not this one: a boundary that throws
+    // while rendering its error state never gets componentDidCatch, and so
+    // never sees the component stack.
+    this.setState({ rethrow: true });
+  }
+
+  override render(): ReactNode {
+    if (this.state.rethrow) throw this.state.error;
+    return this.state.caught ? null : this.props.children;
+  }
+}

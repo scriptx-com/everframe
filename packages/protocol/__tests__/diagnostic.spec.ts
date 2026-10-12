@@ -1,0 +1,162 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+import { videoReplayRef } from './helpers/replay-attachment.js';
+import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { ReportEnvelope } from '../src/index.js';
+
+const legacy = () => JSON.parse(readFileSync(new URL('./fixtures/crash-report.json', import.meta.url), 'utf8'));
+const diagnostic = () => ({
+  version: 1, evidenceId: '11111111-1111-4111-8111-111111111111',
+  processLaunchId: '22222222-2222-4222-8222-222222222222',
+  kind: 'process_exit', provenance: 'android_application_exit_info', scope: 'os_process',
+  outcome: 'terminated', cause: 'anr',
+  occurredAt: '2026-10-07T10:00:00.000Z', collectedAt: '2026-10-07T10:01:00.000Z',
+  attribution: { process: 'exact_os_token', release: 'frozen', session: 'unavailable', webExposure: 'unavailable' },
+  android: { apiLevel: 30, reason: 6, pid: 100 },
+  trace: { status: 'unavailable', format: 'none', truncated: false, frames: [] },
+});
+const envelope = () => {
+  const value = legacy();
+  value.source = 'diagnostic'; value.reportId = diagnostic().evidenceId;
+  value.sdk.name = 'everframe-android'; value.sdk.platform = 'android';
+  value.submittedAt = diagnostic().collectedAt;
+  value.payload = { diagnostic: diagnostic() }; value.attachments = [];
+  delete value.sessionId; delete value.reporter.user;
+  return value;
+};
+
+describe('process-exit evidence', () => {
+  it('accepts anonymous OS ANR evidence without inventing a crash', () => {
+    expect(ReportEnvelope.parse(envelope()).payload.diagnostic).toEqual(diagnostic());
+  });
+  it('preserves existing crash envelopes', () => {
+    expect(ReportEnvelope.parse(legacy())).toEqual(legacy());
+  });
+  it.each([
+    { reason: 3, cause: 'system_low_memory' }, { reason: 4, cause: 'java_crash' },
+    { reason: 10, cause: 'user_requested' }, { reason: 11, cause: 'user_requested' },
+    { reason: 1, cause: 'system_other' }, { reason: 2, cause: 'unknown' },
+    { reason: 0, cause: 'unknown' }, { reason: 999, cause: 'unknown' },
+  ])('retains qualified reason $reason as $cause', ({ reason, cause }) => {
+    const value = envelope(); value.payload.diagnostic.android.reason = reason;
+    value.payload.diagnostic.cause = cause;
+    expect(ReportEnvelope.safeParse(value).success).toBe(true);
+    value.payload.diagnostic.cause = 'anr';
+    expect(ReportEnvelope.safeParse(value).success).toBe(false);
+  });
+  it('keeps native overlap on one fatal native crash envelope', () => {
+    const value = envelope(); value.source = 'crash'; value.payload.crash = legacy().payload.crash;
+    Object.assign(value.payload.crash, { fatal: true, handled: false, mechanism: 'android-exit-info' });
+    value.payload.diagnostic.cause = 'native_crash'; value.payload.diagnostic.android.reason = 5;
+    expect(ReportEnvelope.safeParse(value).success).toBe(true);
+    value.payload.crash.fatal = false;
+    expect(ReportEnvelope.safeParse(value).success).toBe(false);
+  });
+  const lowMemory = () => {
+    const value = envelope(); value.source = 'crash'; value.payload.crash = legacy().payload.crash;
+    Object.assign(value.payload.crash, { exceptionType: 'Low memory kill', message: 'Killed for low memory', frames: [],
+      fatal: true, handled: false, mechanism: 'android-exit-info' });
+    Object.assign(value.payload.diagnostic, { cause: 'system_low_memory' });
+    Object.assign(value.payload.diagnostic.android, { reason: 3, importance: 100, pssKb: 512000, rssKb: 640000, description: 'low memory' });
+    return value;
+  };
+  it('carries a visible low-memory kill as one fatal crash with its memory evidence', () => {
+    const parsed = ReportEnvelope.parse(lowMemory());
+    expect(parsed.payload.diagnostic?.android).toEqual({ apiLevel: 30, reason: 3, pid: 100, importance: 100, pssKb: 512000, rssKb: 640000, description: 'low memory' });
+    const unhandled = lowMemory(); unhandled.payload.crash.handled = true;
+    expect(ReportEnvelope.safeParse(unhandled).success).toBe(false);
+    const other = lowMemory(); other.payload.diagnostic.cause = 'user_requested'; other.payload.diagnostic.android.reason = 10;
+    expect(ReportEnvelope.safeParse(other).success).toBe(false);
+  });
+  it.each([
+    (v: any) => { v.payload.diagnostic.android.importance = -1; },
+    (v: any) => { v.payload.diagnostic.android.pssKb = -1; },
+    (v: any) => { v.payload.diagnostic.android.description = 'x'.repeat(129); },
+    (v: any) => { v.payload.diagnostic.android.description = 'line\nbreak'; },
+  ])('bounds the low-memory evidence %#', (mutate) => {
+    const value = lowMemory(); mutate(value);
+    expect(ReportEnvelope.safeParse(value).success).toBe(false);
+  });
+  it('keeps OS exit evidence attachment-free: no session replay on an ANR or a visible low-memory kill', () => {
+    for (const value of [envelope(), lowMemory()]) {
+      value.attachments = [videoReplayRef()];
+      const parsed = ReportEnvelope.safeParse(value);
+      expect(parsed.success).toBe(false);
+      expect(parsed.error?.issues.map((issue) => issue.message))
+        .toContain('Recovered process evidence must be anonymous and attachment-free');
+    }
+  });
+  it('carries the exited build R8 mapping ID on ANR and low-memory evidence, in the JVM crash format', () => {
+    const jvmMappingId = 'r8-map-id-a218cbe3a744e025b5841d1924f117233eac06243f3e328f4f83d2eecea499c5';
+    const anr = envelope(); anr.payload.diagnostic.android.mappingId = jvmMappingId;
+    expect(ReportEnvelope.parse(anr).payload.diagnostic?.android.mappingId).toBe(jvmMappingId);
+    const killed = lowMemory(); killed.payload.diagnostic.android.mappingId = jvmMappingId;
+    expect(ReportEnvelope.parse(killed).payload.diagnostic?.android.mappingId).toBe(jvmMappingId);
+    for (const invalid of ['', '-leading', 'has space', 'x'.repeat(129), 'trailing\n', 42]) {
+      const value = envelope(); value.payload.diagnostic.android.mappingId = invalid;
+      expect(ReportEnvelope.safeParse(value).success).toBe(false);
+    }
+  });
+  it.each([
+    (v: any) => { delete v.payload.diagnostic; },
+    (v: any) => { v.source = 'manual'; },
+    (v: any) => { v.source = 'error'; },
+    (v: any) => { v.payload.crash = legacy().payload.crash; },
+    (v: any) => { v.payload.diagnostic.evidenceId = diagnostic().processLaunchId; },
+    (v: any) => { v.payload.diagnostic.outcome = 'recovered'; },
+    (v: any) => { v.payload.diagnostic.collectedAt = '2026-10-06T10:00:00Z'; },
+    (v: any) => { v.sessionId = diagnostic().processLaunchId; },
+    (v: any) => { v.reporter.user = { id: 'current-user' }; },
+    (v: any) => { v.sdk.platform = 'web'; },
+    (v: any) => { v.payload.diagnostic.trace.frames = [{ function: 'com.example.Main.run' }]; },
+    (v: any) => { v.payload.diagnostic.trace.status = 'available'; },
+    (v: any) => { v.payload.diagnostic.android.apiLevel = 29; },
+  ])('rejects contradictory or falsely attributed evidence %#', mutate => {
+    const value = envelope(); mutate(value); expect(ReportEnvelope.safeParse(value).success).toBe(false);
+  });
+  it('allows only a bounded structured ANR main-thread stack', () => {
+    const value = envelope();
+    value.payload.diagnostic.trace = { status: 'available', format: 'android_anr_text', truncated: true,
+      frames: [{ function: 'com.example.Main.run', file: 'Main.java', line: 42 }] };
+    expect(ReportEnvelope.safeParse(value).success).toBe(true);
+    value.payload.diagnostic.android.reason = 3; value.payload.diagnostic.cause = 'system_low_memory';
+    expect(ReportEnvelope.safeParse(value).success).toBe(false);
+    value.payload.diagnostic.android.reason = 6; value.payload.diagnostic.cause = 'anr';
+    value.payload.diagnostic.trace.frames = Array.from({ length: 65 }, () => ({ function: 'a.b' }));
+    expect(ReportEnvelope.safeParse(value).success).toBe(false);
+  });
+  it('accepts Kotlin-mangled main-thread frame names', () => {
+    const value = envelope();
+    value.payload.diagnostic.trace = { status: 'available', format: 'android_anr_text', truncated: false, frames: [
+      { function: 'com.example.ui.FeedKt.FeedRow-8Feqmps', file: 'Feed.kt', line: 40 },
+      { function: 'androidx.compose.ui.node.LayoutNode.remeasure-_Sx5XlM$ui_release' },
+      { function: 'com.example.ui.ComposableSingletons$FeedKt$lambda-1$1.invoke', file: 'Feed.kt', line: 30 },
+    ] };
+    expect(ReportEnvelope.safeParse(value).success).toBe(true);
+    value.payload.diagnostic.trace.frames = [{ function: 'com.example.Main.run(Main.java:7)' }];
+    expect(ReportEnvelope.safeParse(value).success).toBe(false);
+  });
+});
+
+const nativeExposurePointer = () => ({
+  exposureId: '33333333-3333-4333-8333-333333333333', processLaunchId: diagnostic().processLaunchId,
+  startedAt: '2026-10-07T09:00:00.000Z', app: { version: '2.4.0', build: null, debug: false },
+  loadedBuildId: null, loadedBundleStatus: 'not_applicable',
+});
+describe('frozen native exposure evidence', () => {
+  it('preserves one explicit segment pointer with an exact process identity', () => {
+    const value = envelope(); value.payload.diagnostic.nativeExposure = nativeExposurePointer();
+    expect(ReportEnvelope.parse(value).payload.diagnostic?.nativeExposure).toEqual(nativeExposurePointer());
+  });
+  it.each([
+    { processLaunchId: '44444444-4444-4444-8444-444444444444' },
+    { loadedBuildId: 'bundle-a' }, { nativeBuildId: 'native-artifact-a' }, { app: { version: '2.4.0' } },
+    { app: { version: '', build: null, debug: false } }, { currentSessionId: 'borrowed' },
+  ])('rejects a contradictory or invented frozen pointer %j', patch => {
+    const value = envelope(); value.payload.diagnostic.nativeExposure = { ...nativeExposurePointer(), ...patch };
+    expect(ReportEnvelope.safeParse(value).success).toBe(false);
+  });
+
+
+});

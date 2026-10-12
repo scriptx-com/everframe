@@ -35,7 +35,7 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response>
   });
 };
 
-const handle = init({ apiKey: params.get('apiKey') ?? '', appVersion: '0.0.0-device' }) as unknown as {
+const handle = init({ sdkKey: params.get('sdkKey') ?? '', appVersion: '0.0.0-device' }) as unknown as {
   open(): Promise<unknown>;
   __adapter: {
     __tvSnapshotPathActive(): boolean;

@@ -42,7 +42,7 @@ function host(
 ): CompanionHost {
   const killed = opts.killed ?? { v: false };
   return {
-    config: { apiKey: 'k' } as CompanionHost['config'],
+    config: { sdkKey: 'k' } as CompanionHost['config'],
     sdkVersion: '0', getUser: () => null,
     isKilled: () => killed.v,
     adapter: {

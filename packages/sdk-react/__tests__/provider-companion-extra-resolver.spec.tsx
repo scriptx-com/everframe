@@ -19,7 +19,7 @@ import { EverframeProvider } from '../src/provider.js';
 import { useEverframe } from '../src/hook.js';
 import { __getCompanionHost } from '@everframe/web';
 
-const cfg = { apiKey: 'txx_live_extra_resolver_test' };
+const cfg = { sdkKey: 'txx_live_extra_resolver_test' };
 const wrapper = ({ children }: { children: ReactNode }) => (
   <EverframeProvider config={cfg}>{children}</EverframeProvider>
 );

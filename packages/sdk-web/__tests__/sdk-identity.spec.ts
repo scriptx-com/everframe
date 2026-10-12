@@ -46,14 +46,14 @@ describe('envelope.sdk identity', () => {
   };
 
   it('stamps the host SDK the adapter was constructed with (vanilla)', async () => {
-    mk({ apiKey: 'pk_test' }, { sdkName: 'everframe-web', sdkVersion: '9.9.9' });
+    mk({ sdkKey: 'pk_test' }, { sdkName: 'everframe-web', sdkVersion: '9.9.9' });
     const envelope = await crashEnvelope(fetchMock);
     expect(envelope.sdk.name).toBe('everframe-web');
     expect(envelope.sdk.version).toBe('9.9.9');
   });
 
   it('stamps the React SDK when the React Provider constructs it', async () => {
-    mk({ apiKey: 'pk_test' }, { sdkName: 'everframe-react', sdkVersion: '1.2.3' });
+    mk({ sdkKey: 'pk_test' }, { sdkName: 'everframe-react', sdkVersion: '1.2.3' });
     const envelope = await crashEnvelope(fetchMock);
     expect(envelope.sdk.name).toBe('everframe-react');
     expect(envelope.sdk.version).toBe('1.2.3');
@@ -72,7 +72,7 @@ describe('envelope.sdk identity', () => {
   // version fallback regressed to something else, and it is the COMBINATION
   // that was impossible.
   it('defaults to the vanilla SDK and this package version when unspecified', async () => {
-    mk({ apiKey: 'pk_test' });
+    mk({ sdkKey: 'pk_test' });
     const envelope = await crashEnvelope(fetchMock);
     expect(envelope.sdk.name).toBe('everframe-web');
     expect(envelope.sdk.version).toBe(PKG_VERSION);

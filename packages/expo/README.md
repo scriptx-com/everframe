@@ -30,7 +30,7 @@ Export and upload from the same isolated build workspace:
 
 ```sh
 npx expo export --platform android --source-maps --output-dir dist
-npx everframe upload-expo-export --dist dist --staging .everframe --app-id "$EVERFRAME_APP_ID"
+npx @everframe/cli upload-expo-export --dist dist --staging .everframe --app-id "$EVERFRAME_APP_ID"
 ```
 
 Set `EVERFRAME_API_TOKEN` to a token scoped to `artifacts:write`. Keep that token
@@ -59,8 +59,14 @@ Do not share `.everframe` between concurrent builds or run another Metro
 configuration between collection and upload. Collection promotes its completed
 identity to the platform pointer; a subsequent configuration can replace it.
 
-For a native build, `@everframe/expo` supplies native build-phase setup; for an OTA
-export, use `upload-expo-export` after export and before promotion. Artifact upload
+For a native build, `@everframe/expo` supplies native build-phase setup: release
+builds upload their Hermes maps and iOS dSYMs (the app's, and those of pod
+frameworks that build or ship one, the Everframe SDK's included), and the plugin applies the
+`dev.everframe` Gradle plugin, which uploads Android R8 mappings and native
+libraries after `assembleRelease` and `bundleRelease`. A missing
+`EVERFRAME_API_TOKEN` or a failed upload warns and the build continues, unless
+`EVERFRAME_SYMBOLS_STRICT=1`. For an OTA export, use `upload-expo-export` after
+export and before promotion. Artifact upload
 and OTA publication are separate operations. Upload readiness confirms artifact
 processing, not that a device installed the update.
 

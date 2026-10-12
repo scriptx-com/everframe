@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html>
       <body>
-        <EverframeProvider config={{ apiKey: 'txx_live_xxxxxxxxxxxxxxxx' }}>
+        <EverframeProvider config={{ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx' }}>
           {children}
         </EverframeProvider>
       </body>
@@ -88,6 +88,33 @@ and automatic handlers. The first accepted capture determines classification.
 Explicit and automatic capture each allow one report per fingerprint and ten
 per SDK instance, independently. Transport retries retain the report ID.
 
+## Errors no boundary catches
+
+When a component throws while rendering, in an effect or in a lifecycle method
+and no error boundary inside `EverframeProvider` catches it, React unmounts the
+whole tree. The provider reports that error as a fatal crash (`source:
+'crash'`, `fatal: true`, mechanism `onerror`), with React's component stack
+after the message (`This error is located at:`). No error boundary is needed.
+The report is saved to the outbox before it is sent, so a failed send goes out
+on the next page load.
+
+The provider then hands the same error on unchanged: an error boundary of yours
+around the provider still catches it, and otherwise React reports it to the
+page, where the SDK recognises it and does not report it again. Errors that a
+boundary inside the provider catches are not reported automatically; call
+`captureException` from that boundary's `componentDidCatch`. A React 18
+development build reports a failed render or effect to `window.onerror` before
+any boundary sees it, so in development such an error can arrive as a non-fatal
+error, instead of or as well as the fatal report.
+
+`tests/render-error-browser.mjs` checks this in Chromium against real React
+roots, production and development builds:
+
+```sh
+node tests/render-error-browser.mjs /tmp/render-error-proof
+node tests/render-error-browser.mjs /tmp/render-error-proof-18 --react-root <dir with react@18 installed>
+```
+
 ## Triggers
 
 By default the SDK installs:
@@ -100,6 +127,14 @@ By default the SDK installs:
 
 A visible trigger (bubble, menu item, etc.) is the host app's responsibility — call `useEverframe().open()` from your own button to bring up the reporter.
 
+To report crashes and errors without letting users file reports, set
+`reporter: { disabled: true }` in the provider config. That session has no
+hotkey, the inbox has no "New report" button, and `open()` rejects with
+`EverframeReporterDisabledError`. Session replay uses the app's crash-only
+sampling rate (0 by default) and network bodies stay off, until a phone or
+dashboard member bonds through the companion. See
+[crash-only sessions](../../docs/session-replay.md#crash-only-sessions).
+
 ## Strict-CSP environments
 
 If your app sets a strict CSP (`script-src 'self' 'nonce-...'`), thread the nonce into the SDK so screenshot capture's dynamically-injected styles are accepted:
@@ -111,7 +146,7 @@ import { headers } from 'next/headers';
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get('x-nonce') ?? '';
   return (
-    <EverframeProvider config={{ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', cspNonce: nonce }}>
+    <EverframeProvider config={{ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx', cspNonce: nonce }}>
       {children}
     </EverframeProvider>
   );

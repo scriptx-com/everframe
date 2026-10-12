@@ -70,7 +70,7 @@ const fab = (): Element | null => shadow().querySelector('[data-testid=reporter-
 describe('ambient FAB thread gate', () => {
   it('stays hidden while this device has no threads', async () => {
     stubFetch({ enabled: true, threads: [] });
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     await new Promise((r) => setTimeout(r, 30));
     expect(fab()).toBeNull();
   });
@@ -78,7 +78,7 @@ describe('ambient FAB thread gate', () => {
   it('appears once a thread exists, carrying the unread count in its label', async () => {
     localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `evr_${'0'.repeat(36)}`);
     stubFetch({ enabled: true, threads: oneOpenThread });
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     await vi.waitFor(() => expect(fab()).not.toBeNull(), { timeout: 3000 });
     expect(fab()?.getAttribute('aria-label')).toBe('Your reports — 2 unread');
   });
@@ -87,7 +87,7 @@ describe('ambient FAB thread gate', () => {
     localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `evr_${'0'.repeat(36)}`);
     stubFetch({ enabled: true, threads: oneOpenThread });
     handle = init({
-      apiKey: 'txx_live_test',
+      sdkKey: 'txx_live_test',
       replies: { ui: 'headless' },
     });
     await new Promise((r) => setTimeout(r, 60));
@@ -97,7 +97,7 @@ describe('ambient FAB thread gate', () => {
   it('destroy() takes the FAB down with the host', async () => {
     localStorage.setItem(REPORTER_TOKEN_STORAGE_KEY, `evr_${'0'.repeat(36)}`);
     stubFetch({ enabled: true, threads: oneOpenThread });
-    handle = init({ apiKey: 'txx_live_test' });
+    handle = init({ sdkKey: 'txx_live_test' });
     await vi.waitFor(() => expect(fab()).not.toBeNull(), { timeout: 3000 });
     handle.destroy();
     handle = null;

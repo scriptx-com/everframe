@@ -101,6 +101,14 @@ class EverframeTest {
         ),
     )
 
+    /**
+     * These tests never reach the network. Every start's replay config fetch stays pending, as it
+     * would against an unreachable ingest host, until tearDown fails it after kill(). A real fetch
+     * to the debug ingest address blocks an IO thread for its whole connect timeout, which kill()
+     * cannot cancel, so it outlived the test and stalled a later suite's SDK-scope teardown.
+     */
+    private val offline = java.util.concurrent.CountDownLatch(1)
+
     @Before
     fun setUp() {
         // Session Vitals: the server signal and the process-wide runtime are
@@ -114,12 +122,23 @@ class EverframeTest {
         // Everframe.start() (mirrors BreadcrumbRingBufferTest's setUp — Robolectric
         // gives a fresh Application per test, so this can't be assumed done already).
         SharedData.init(context)
+        Everframe.__replaySessionFactoryForTesting = { app, config, epoch, consent, installId ->
+            dev.everframe.capture.replay.ReplaySession(sdkKey = config.sdkKey, context = app,
+                originatingStartEpoch = epoch, captureConsent = consent,
+                provider = dev.everframe.config.ReplayConfigProvider.make(sdkKey = config.sdkKey,
+                    fetcher = dev.everframe.config.ConfigFetcher {
+                        offline.await(30, java.util.concurrent.TimeUnit.SECONDS)
+                        throw java.io.IOException("unit tests are offline")
+                    }, installIdProvider = installId))
+        }
     }
 
     @After
     fun tearDown() {
         // Reset SDK state for test isolation.
         Everframe.kill()
+        offline.countDown()
+        Everframe.__replaySessionFactoryForTesting = null
         sharedBreadcrumbBuffer.applyConfig(null)
         sharedBreadcrumbBuffer.clear()
         sharedNetworkBodyBuffer.clear()
@@ -166,6 +185,35 @@ class EverframeTest {
             "start() must return promptly; took ${elapsed}ms (real-device <5ms claim verified separately)",
             elapsed < 250,
         )
+    }
+
+    @Test
+    fun `release health journal work stays off the caller thread unless enabled is false`() {
+        val caller = Thread.currentThread()
+        val resolvedOn = java.util.concurrent.ConcurrentLinkedQueue<Thread>()
+        val tracking = object : android.content.ContextWrapper(context) {
+            override fun getApplicationContext(): Context = this
+            override fun getNoBackupFilesDir(): java.io.File {
+                if (Thread.currentThread().stackTrace.any { it.className.startsWith("dev.everframe.health.") }) {
+                    resolvedOn.add(Thread.currentThread())
+                }
+                return super.getNoBackupFilesDir()
+            }
+        }
+        try {
+            dev.everframe.health.ReleaseHealthBuildGate.__debuggableForTesting = false
+            Everframe.start(tracking, validConfig())
+            assertFalse("an enabled start resolved the release health journal on the caller thread", caller in resolvedOn)
+            Everframe.start(tracking, validConfig().copy(releaseHealth = null))
+            assertFalse("a null start resolved the release health journal on the caller thread", caller in resolvedOn)
+            dev.everframe.health.ReleaseHealthBuildGate.__debuggableForTesting = true
+            Everframe.start(tracking, validConfig())
+            assertFalse("a skipped debug build resolved the release health journal on the caller thread", caller in resolvedOn)
+            Everframe.start(tracking, validConfig().copy(releaseHealth = dev.everframe.config.ReleaseHealthConfig(enabled = false)))
+            assertTrue("an enabled = false start returned before checking for an earlier journal", caller in resolvedOn)
+        } finally {
+            dev.everframe.health.ReleaseHealthBuildGate.__debuggableForTesting = null
+        }
     }
 
     @Test
@@ -621,7 +669,7 @@ class EverframeTest {
         assertNull(dev.everframe.vitals.VitalsRuntime.currentStamp())
         val envelope = kotlinx.serialization.json.Json.parseToJsonElement(
             String(
-                dev.everframe.envelope.EnvelopeBuilder().buildEncoded(sdkVersion = "0.8.0").bytes,
+                dev.everframe.envelope.EnvelopeBuilder().buildEncoded(formFactor = "phone", sdkVersion = "0.8.0").bytes,
                 Charsets.UTF_8,
             ),
         ).jsonObject
@@ -710,7 +758,7 @@ class EverframeTest {
         Everframe.start(context, validConfig())
         val session = dev.everframe.capture.replay.ReplaySession(
             baseUrl = "https://example.invalid",
-            apiKey = "txx_live_test1234567890",
+            sdkKey = "txx_live_test1234567890",
             locallyDisabled = true,
         )
         Everframe._replaySession = session
@@ -916,5 +964,84 @@ class EverframeTest {
                 "registry is per-controller, so nothing survives kill()->start())",
             dev.everframe.vitals.VitalsRuntime.current(),
         )
+    }
+    @Test
+    fun `recovered observer refuses opt-in while a new start has not published its destination`() {
+        Everframe.start(context, validConfig())
+        awaitHeavyInit()
+        val oldEpoch = Everframe.currentStartEpochVolatile()
+        dev.everframe.vitals.VitalsServerConfigSignal.flow.value =
+            dev.everframe.vitals.VitalsServerConfig(vitalsEnabled = true, vitalsSampleRate = 1.0)
+        var attempted = false
+        var admitted = false
+        var capturedKey: String? = null
+        var capturedEpoch = -1
+        val previous = vitalsControllerForTest()
+        dev.everframe.vitals.VitalsRuntime.install(previous)
+        val deadline = System.currentTimeMillis() + 5_000
+        while (!previous.isRunning && System.currentTimeMillis() < deadline) Thread.sleep(2)
+        assertTrue("precondition: old controller is collecting before reconfiguration", previous.isRunning)
+        previous.trackPlayer(object : dev.everframe.vitals.PlayerIntegration {
+            override val library = "fake"
+            override val version: String? = null
+            override fun attach(ctx: dev.everframe.vitals.PlayerIntegrationContext) = true
+            override fun snapshot(onResult: (dev.everframe.vitals.PlayerSnapshot?) -> Boolean) { onResult(null) }
+            override fun startupTimings(): dev.everframe.vitals.StartupTimings? = null
+            override fun describe(ctx: dev.everframe.vitals.PlayerIntegrationContext) {}
+            override fun detach() {
+                if (attempted) return
+                attempted = true
+                val captured = Everframe.captureSessionSnapshot()
+                capturedKey = captured.config?.sdkKey
+                capturedEpoch = captured.user.startEpoch
+                val token = dev.everframe.diagnostics.RecoveredStallRuntime.request(captured.user.startEpoch, true)
+                val field = dev.everframe.diagnostics.RecoveredStallRuntime::class.java.getDeclaredField("owner").apply { isAccessible = true }
+                val owner = field.get(dev.everframe.diagnostics.RecoveredStallRuntime) as dev.everframe.diagnostics.RecoveredStallOwner
+                admitted = owner.enable(token, captured.user.startEpoch, { true }) {
+                    object : dev.everframe.diagnostics.RecoveredStallSession {
+                        override val ready = true
+                        override fun start() = Unit
+                        override fun close() = Unit
+                    }
+                }
+            }
+        }, "main")
+        Everframe.start(context, validConfig().copy(sdkKey = "txx_live_nextdestination"))
+        assertTrue("must exercise customer teardown between epoch reservation and publication", attempted)
+        assertEquals(validConfig().sdkKey, capturedKey)
+        assertEquals(oldEpoch + 1, capturedEpoch)
+        assertFalse("old destination must not be armed under the newly reserved epoch", admitted)
+        assertEquals("txx_live_nextdestination", Everframe.currentConfig!!.sdkKey)
+    }
+
+    @Test
+    @Config(application = PublicationReentrantApplication::class)
+    fun `superseded start cannot launch health or heavy work using a later start snapshot`() {
+        val app = context as PublicationReentrantApplication
+        dev.everframe.companion.CompanionActivityTracker.resetForTesting()
+        val launched = mutableListOf<String?>()
+        Everframe.__beforeDrainLaunchForTesting = { launched.add(Everframe.currentConfig?.sdkKey) }
+        app.onRegister = {
+            app.onRegister = null
+            Everframe.start(context, validConfig().copy(sdkKey = "txx_live_reentrantdestination"))
+        }
+        try {
+            Everframe.start(context, validConfig())
+            assertEquals("txx_live_reentrantdestination", Everframe.currentConfig!!.sdkKey)
+            assertEquals("only the current start may launch its initialization", listOf("txx_live_reentrantdestination"), launched)
+        } finally {
+            app.onRegister = null
+            Everframe.__beforeDrainLaunchForTesting = null
+            dev.everframe.companion.CompanionActivityTracker.resetForTesting()
+        }
+    }
+
+}
+
+class PublicationReentrantApplication : android.app.Application() {
+    var onRegister: (() -> Unit)? = null
+    override fun registerActivityLifecycleCallbacks(callback: ActivityLifecycleCallbacks) {
+        super.registerActivityLifecycleCallbacks(callback)
+        if (callback === dev.everframe.companion.CompanionActivityTracker) onRegister?.invoke()
     }
 }

@@ -124,7 +124,7 @@ describe('finding 4 — the host element mounts before <body> exists', () => {
     stolenBody.remove();
     expect(document.body).toBeNull();
 
-    handle = init({ apiKey: 'txx_live_head_script' });
+    handle = init({ sdkKey: 'txx_live_head_script' });
 
     expect(typeof handle.open).toBe('function');
     expect(document.getElementById('everframe-host')).not.toBeNull();

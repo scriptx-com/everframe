@@ -9,7 +9,7 @@ const THREAD = { id: '11111111-1111-4111-8111-111111111111', status: 'open', rep
 function apiWith(fetchImpl: ReturnType<typeof vi.fn>) {
   return createReporterApi({
     fetchImpl: fetchImpl as unknown as typeof fetch,
-    baseUrl: 'https://x.test', apiKey: 'txx_live_k',
+    baseUrl: 'https://x.test', sdkKey: 'txx_live_k',
   });
 }
 

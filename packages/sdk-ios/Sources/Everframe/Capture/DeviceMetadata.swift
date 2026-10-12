@@ -84,15 +84,17 @@ public struct DeviceMetadata: Codable, Sendable {
         let screenHeight: Double = 0
         let pixelRatio: Double = 1
         #endif
-        let info = Bundle.main.infoDictionary ?? [:]
+        // One rule for release health and every report's app version (AppRelease). Only the
+        // version and build are read here; `app.debug` comes from the config at each call site.
+        let release = AppRelease.current(debugBuild: nil)
         return DeviceMetadata(
             model: model,
             osName: osName,
             osVersion: osVersion,
             locale: Locale.current.identifier,
             timezone: TimeZone.current.identifier,
-            appVersion: info["CFBundleShortVersionString"] as? String,
-            appBuild: info["CFBundleVersion"] as? String,
+            appVersion: release.version,
+            appBuild: release.build,
             bundleIdentifier: Bundle.main.bundleIdentifier,
             screenWidth: screenWidth,
             screenHeight: screenHeight,

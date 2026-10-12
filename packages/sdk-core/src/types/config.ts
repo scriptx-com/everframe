@@ -14,17 +14,49 @@ export interface RedactionConfig {
   customRules?: CustomRule[];
 }
 
-export interface EverframeConfig {
+/**
+ * The SDK key under its name, `sdkKey`, or under `apiKey`, its name before
+ * 1.2. `apiKey` is deprecated but still accepted, so a 1.1 config keeps
+ * working; `sdkKey` wins when both are set. Exactly one is required.
+ */
+export type SdkKeyField =
+  | {
+      /**
+       * Per-app SDK key (`evf_live_…`; publishable, not secret). Every
+       * Everframe SDK names this field `sdkKey`. It is not the App ID (a UUID)
+       * that symbol and source-map uploads take.
+       */
+      sdkKey: string;
+      /** @deprecated Renamed to `sdkKey`. Still accepted; `sdkKey` wins when both are set. */
+      apiKey?: string;
+    }
+  | {
+      sdkKey?: undefined;
+      /** @deprecated Renamed to `sdkKey`. Still accepted. */
+      apiKey: string;
+    };
+
+/** `C` as a host passes it: the SDK key as `sdkKey` or the deprecated `apiKey`. */
+export type WithSdkKeyField<C extends { sdkKey: string }> = Omit<C, 'sdkKey'> & SdkKeyField;
+
+/** The SDK config as a host passes it to `init`. See `SdkKeyField`. */
+export type EverframeConfig = WithSdkKeyField<ResolvedEverframeConfig>;
+
+/** The SDK config after `resolveSdkKey`: the key is always under `sdkKey`. */
+export interface ResolvedEverframeConfig {
   /**
-   * Per-app SDK key (publishable, not secret). Mirrors the React Native SDK's
-   * `apiKey` field so both SDKs share one config shape.
+   * Per-app SDK key (`evf_live_…`; publishable, not secret). Every Everframe
+   * SDK names this field `sdkKey`. It is not the App ID (a UUID) that symbol
+   * and source-map uploads take.
    */
-  apiKey: string;
+  sdkKey: string;
   /** Optional. */
   appName?: string;
   appVersion?: string;
   /** Exact deployed build identifier (for example a CI build ID or commit SHA). */
   appBuild?: string;
+  /** Marks this as a debug build, so Everframe never creates a release from it. Detected when unset. */
+  debugBuild?: boolean;
   /** Disable everything (DEFE-03). */
   disabled?: boolean;
   /** Surface SDK-internal errors to host app. */
@@ -59,6 +91,18 @@ export interface EverframeConfig {
    */
   crashReporting?: {
     /** When true, automatic errors and captureException() are not reported. */
+    disabled?: boolean;
+  };
+  /**
+   * Crash-only session switch. CLIENT VETO only. When `disabled` is true the
+   * session has no on-device way to open the reporter (no hotkey, no "New
+   * report" button, `open()` rejects with `EverframeReporterDisabledError`),
+   * captures no network bodies, and samples session replay with the server's
+   * `crashOnlySamplingRate` (default 0) instead of `samplingRate`. A companion
+   * bond upgrades the session: replay and bodies then follow the normal server
+   * rules for the rest of the session. Crash and error capture are unaffected.
+   */
+  reporter?: {
     disabled?: boolean;
   };
   /**

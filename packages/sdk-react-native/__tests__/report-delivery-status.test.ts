@@ -14,7 +14,7 @@ const fixtureText = readFileSync(new URL('./fixtures/report-delivery-status-v1.j
 const owners: Runtime[] = [];
 const original = Object.getOwnPropertyDescriptor(NativeEverframe, 'getReportDeliveryStatusJson');
 function bridge(get: () => unknown) { Object.defineProperty(NativeEverframe, 'getReportDeliveryStatusJson', { configurable: true, get }); }
-function mount() { const r = createRuntime({ apiKey: 'txx_test_key' }); owners.push(r); r.mount(); return r; }
+function mount() { const r = createRuntime({ sdkKey: 'txx_test_key' }); owners.push(r); r.mount(); return r; }
 afterEach(() => {
   owners.splice(0).forEach(r => r.unmount()); __setCurrentContext(null); vi.restoreAllMocks();
   if (original) Object.defineProperty(NativeEverframe, 'getReportDeliveryStatusJson', original);

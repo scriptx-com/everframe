@@ -20,6 +20,14 @@ test('published npm SDK versions are aligned for the coordinated release', () =>
   }
 });
 
+test('committed source versions match the release, so a build leaves the checkout clean', () => {
+  // `prebuild` rewrites these from package.json. A stale committed literal makes every build
+  // dirty the tree, which blocks the next production deploy's fast-forward of the SDK checkout.
+  for (const dir of ['sdk-web', 'sdk-react']) {
+    assert.ok(read(`packages/${dir}/src/internal/version.ts`).includes(`PKG_VERSION = '${releaseVersion}';`), dir);
+  }
+});
+
 test('mobile versions and consumer dependency ranges match the release', () => {
   assert.ok(read('packages/everframe_flutter/pubspec.yaml').includes(`version: ${releaseVersion}\n`));
   assert.ok(read('packages/everframe_flutter/lib/src/web_sdk_web.dart').includes(`sdkVersion: '${releaseVersion}'.toJS`));
@@ -41,4 +49,36 @@ test('mobile versions and consumer dependency ranges match the release', () => {
   assert.match(read('packages/everframe_kmp/build.gradle.kts'), /\.orElse\(mobileReleaseVersion\)/);
   assert.match(read('packages/everframe_kmp/settings.gradle.kts'), /^rootProject\.name = "kmp"$/m);
   assert.match(read('packages/sdk-android/android/everframe-gradle-plugin/build.gradle.kts'), /artifactId = "gradle-plugin"/);
+});
+
+// The iOS bridges call EverframeConfig(sdkKey:), which first ships in native
+// 1.2.0. A pin below that resolves a published SDK without the initializer, and
+// the bridge stops compiling at the customer's `pod install` or package resolve.
+test('iOS bridges that call EverframeConfig(sdkKey:) require native 1.2.0 or newer', () => {
+  const firstWithSdkKey = [1, 2, 0];
+  const atLeast = (version, floor) => {
+    for (let i = 0; i < floor.length; i += 1) {
+      if (version[i] !== floor[i]) return version[i] > floor[i];
+    }
+    return true;
+  };
+  const pins = [
+    ['packages/sdk-react-native/EverframeRN.podspec', /native_version_override\.empty\? \? '~> (\d+)\.(\d+)\.(\d+)'/],
+    ['packages/everframe_flutter/ios/everframe_flutter.podspec', /'Everframe\/Core', '~> (\d+)\.(\d+)\.(\d+)'/],
+    ['packages/everframe_flutter/ios/everframe_flutter.podspec', /'Everframe\/ReporterUI', '~> (\d+)\.(\d+)\.(\d+)'/],
+    ['packages/everframe_flutter/ios/everframe_flutter/Package.swift', /\.upToNextMinor\(from: "(\d+)\.(\d+)\.(\d+)"\)/],
+  ];
+  for (const [file, pattern] of pins) {
+    const match = read(file).match(pattern);
+    assert.ok(match, `${file}: native pin not found`);
+    const version = match.slice(1).map(Number);
+    assert.ok(atLeast(version, firstWithSdkKey), `${file} pins native ${version.join('.')}`);
+  }
+  for (const file of [
+    'packages/sdk-react-native/ios/Sources/EverframeBridge.swift',
+    'packages/everframe_flutter/ios/everframe_flutter/Sources/everframe_flutter/EverframeFlutterPlugin.swift',
+    'packages/everframe_kmp/ios/EverframeSwiftDriver.swift',
+  ]) {
+    assert.match(read(file), /EverframeConfig\(\s*sdkKey:/, file);
+  }
 });

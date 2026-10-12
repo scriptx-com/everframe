@@ -5,7 +5,7 @@ import XCTest
 
 final class ShakeToReportTests: XCTestCase {
     func testLocalOptionDefaultsEnabled() {
-        XCTAssertTrue(EverframeConfig(appId: "app").shakeToReportEnabled)
+        XCTAssertTrue(EverframeConfig(sdkKey: "app").shakeToReportEnabled)
     }
 
     func testLocalAndDashboardSwitchesMustBothBeEnabled() {
@@ -24,6 +24,19 @@ final class ShakeToReportTests: XCTestCase {
         gate.setRemoteEnabled(true)
         gate.setLocalEnabled(false)
         XCTAssertFalse(gate.tryBegin(presenting: false, applicationActive: true))
+    }
+
+    /// A crash-only session has no on-device reporter, so `start` never arms shake for it,
+    /// whatever `shakeToReportEnabled` says.
+    func testACrashOnlySessionNeverArmsShake() throws {
+        defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil) }
+        let sdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+        try Everframe.shared.start(config: EverframeConfig(
+            sdkKey: sdkKey, capture: CaptureConfig(logs: false), releaseHealth: nil, reporterEnabled: false))
+        XCTAssertFalse(ShakeToReportTrigger.shared.__localEnabledForTesting)
+        try Everframe.shared.start(config: EverframeConfig(
+            sdkKey: sdkKey, capture: CaptureConfig(logs: false), releaseHealth: nil))
+        XCTAssertTrue(ShakeToReportTrigger.shared.__localEnabledForTesting)
     }
 
     func testRemoteBlockIsLenientAndCapabilityIsDeclared() throws {

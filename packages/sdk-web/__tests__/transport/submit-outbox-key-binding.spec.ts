@@ -35,7 +35,7 @@ describe('drainOutbox key binding', () => {
 
     const result = await drainOutbox({
       outbox,
-      config: { apiKey: 'key-B' } as never,
+      config: { sdkKey: 'key-B' } as never,
       sdkVersion: 'test',
       fetch: fetchSpy as never,
     });
@@ -64,7 +64,7 @@ describe('drainOutbox key binding', () => {
 
     await drainOutbox({
       outbox,
-      config: { apiKey: 'key-B' } as never,
+      config: { sdkKey: 'key-B' } as never,
       sdkVersion: 'test',
       fetch: fetchSpy as never,
     });

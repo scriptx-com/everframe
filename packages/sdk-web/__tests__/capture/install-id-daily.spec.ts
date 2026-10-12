@@ -114,7 +114,7 @@ describe('web adapter: the identifier rides at most one refetch per day', () => 
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'txx_live_daily_adapter' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'txx_live_daily_adapter' });
     adapters.push(adapter);
     await adapter.__initReplay();
     await adapter.__testRefreshConfigNow();

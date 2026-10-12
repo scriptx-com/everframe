@@ -19,7 +19,11 @@ import dev.everframe.R
 import dev.everframe.sensitive.TXSensitiveView
 import java.lang.ref.WeakReference
 
-/** Main-only traversal. Only automatically excluded WebViews can supply a visibility proof. */
+/**
+ * Main-only traversal. Inputs, TextureViews and sensitive views are masked; visible WebViews,
+ * Compose and Flutter hosts, unclassified views and any masked view whose drawn position cannot
+ * be proven refuse the frame.
+ */
 internal class VideoPrivacyGate(
     private val activity: () -> Activity?,
     private val nowNanos: () -> Long = SystemClock::elapsedRealtimeNanos,
@@ -45,7 +49,16 @@ internal class VideoPrivacyGate(
             window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE == 0
         val queue = ArrayDeque<View>()
         if (allowed) queue.add(root)
-        var visited = if (allowed) VideoSensitiveViews.inspect(identity, start + 2_000_000L, 2048, nowNanos) { view, remaining ->
+        val masks = LinkedHashSet<android.graphics.Rect>()
+        // Nodes visited to cover the view's drawn subtree with masks (none when it is hidden), or
+        // null when its position on screen cannot be proven, which refuses the frame.
+        fun mask(view: View, remaining: Int): Int? =
+            VideoMaskBounds.cover(view, root, remaining, start + 2_000_000L, nowNanos, masks)
+        // Remembered views history covers in this pass; the walk below does not cover them again.
+        val coveredByHistory = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<View, Boolean>())
+        var visited = if (allowed) VideoSensitiveViews.inspect(identity, start + 2_000_000L, 2048, nowNanos, { view, remaining ->
+            mask(view, remaining)?.also { coveredByHistory.add(view) }
+        }) { view, remaining ->
             val marker = view.getTag(R.id.tx_sensitive)
             val classification = try { platformAdapter?.classify(view) } catch (_: Throwable) { VideoPrivacyAdapter.Classification.UNKNOWN }
             if ((marker != null && marker != false) || view is TXSensitiveView ||
@@ -60,18 +73,32 @@ internal class VideoPrivacyGate(
             val adapter = platformAdapter
             val classification = try { adapter?.classify(view) } catch (_: Throwable) { VideoPrivacyAdapter.Classification.UNKNOWN }
             val types = typeCache.classify(view.javaClass)
-            if (types == null || classification == VideoPrivacyAdapter.Classification.EXCLUDE ||
-                classification == VideoPrivacyAdapter.Classification.UNKNOWN || (adapter == null && types.reactNative)) {
-                if (classification == VideoPrivacyAdapter.Classification.EXCLUDE) VideoSensitiveViews.rememberObserved(view)
+            if (types == null || classification == VideoPrivacyAdapter.Classification.UNKNOWN ||
+                (adapter == null && types.reactNative)) {
                 allowed = false; break
             }
             val marker = view.getTag(R.id.tx_sensitive)
-            if ((marker != null && marker != false) || view is TXSensitiveView || view is EditText ||
+            if (classification == VideoPrivacyAdapter.Classification.EXCLUDE ||
+                (marker != null && marker != false) || view is TXSensitiveView || view is EditText ||
                 (view is TextView && (view.onCheckIsTextEditor() || view.transformationMethod is PasswordTransformationMethod)) ||
-                view is SurfaceView || view is TextureView) {
-                VideoSensitiveViews.rememberObserved(view)
-                allowed = false; break
+                view is TextureView) {
+                // Painted black, children included, instead of refusing the frame. History keeps
+                // it covered if it is later reparented into an overlay this walk cannot reach.
+                if (view in coveredByHistory) continue
+                VideoSensitiveViews.remember(view)
+                val covered = mask(view, 2048 - visited - queue.size)
+                if (covered == null) { allowed = false; break }
+                visited += covered
+                continue
             }
+            // Flutter draws its UI into the window (an image view under hybrid composition) where
+            // this walk cannot see Dart widgets: Flutter pixels are recorded only through the
+            // plugin's masked Dart replay.
+            if (types.flutterHost) { VideoSensitiveViews.remember(view); allowed = false; break }
+            // A SurfaceView renders into its own surface, which a window PixelCopy never contains:
+            // its area comes out empty without a mask, and overlays drawn above it (subtitles,
+            // player controls) stay visible. A TextureView draws into the window and is masked.
+            if (view is SurfaceView) continue
             if (view is WebView) {
                 val hiddenVisits = HiddenVideoWebView.inspect(view, start + 2_000_000L, 2048 - visited - queue.size, nowNanos)
                 if (hiddenVisits == null) {
@@ -86,7 +113,8 @@ internal class VideoPrivacyGate(
             if (types.composeHost) {
                 val inspection = composeInspector?.invoke(view, start + 2_000_000L, 2048 - visited - queue.size)
                 if (inspection?.first != VideoPrivacyAdapter.Classification.ORDINARY_VIEW) {
-                    VideoSensitiveViews.rememberObserved(view)
+                    // History masks it and the walk reaches it again on every frame: deduplicate.
+                    VideoSensitiveViews.remember(view)
                     allowed = false; break
                 }
                 visited += inspection.second
@@ -101,11 +129,23 @@ internal class VideoPrivacyGate(
             }
         }
         if (nowNanos() - start > 2_000_000L) allowed = false
+        // While the keyboard pans the window (adjustPan), the decor is drawn shifted in the buffer
+        // PixelCopy copies, so root-relative masks would land below the views they should cover.
+        if (allowed && masks.isNotEmpty() && windowShifted(root)) allowed = false
         val old = previous
+        val maskList = if (allowed) masks.toList() else emptyList()
+        // A moved or new mask is a new privacy state: a pending copy made under the old masks is dropped.
         if (rootRef.get() !== root || old == null || old.windowIdentity !== identity || old.width != root.width ||
-            old.height != root.height || old.allowed != allowed || !allowed) epoch++
+            old.height != root.height || old.allowed != allowed || !allowed || old.masks != maskList) epoch++
         rootRef = WeakReference(root)
-        return PrivacyObservation(identity, root.width, root.height, epoch, allowed).also { previous = it }
+        return PrivacyObservation(identity, root.width, root.height, epoch, allowed, maskList).also { previous = it }
+    }
+
+    // The decor's window location includes ViewRootImpl's pan offset (mCurScrollY).
+    private fun windowShifted(root: View): Boolean {
+        val decor = root.rootView
+        val origin = IntArray(2).also { decor.getLocationInWindow(it) }
+        return origin[0] != 0 || origin[1] != 0 || !decor.matrix.isIdentity
     }
 
     companion object {

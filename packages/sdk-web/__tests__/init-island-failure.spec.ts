@@ -49,7 +49,7 @@ import { REPORTER_TOKEN_STORAGE_KEY } from '../src/reporter/credential-store.js'
 
 let handles: Everframe[] = [];
 function mount(): InternalHandle {
-  const h = init({ apiKey: 'txx_live_island_failure' });
+  const h = init({ sdkKey: 'txx_live_island_failure' });
   handles.push(h);
   return h as InternalHandle;
 }

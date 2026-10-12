@@ -10,7 +10,7 @@ import type { CaptureBundle } from '../../src/transport/draft-to-envelope.js';
 import type { WebEverframeConfig } from '../../src/internal/types.js';
 
 const config: WebEverframeConfig = {
-  apiKey: 'txx_live_test',
+  sdkKey: 'txx_live_test',
   appName: 'test-app',
   appVersion: '1.0.0',
 };
@@ -120,7 +120,7 @@ describe('drainOutbox', () => {
       enqueuedAt: 1,
       attempts: 0,
       payload: new TextEncoder().encode(sentinel),
-      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.apiKey },
+      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
     const fetch = makeFetch(200);
     const result = await drainOutbox({
@@ -146,7 +146,7 @@ describe('drainOutbox', () => {
       enqueuedAt: 1,
       attempts: 0,
       payload: new TextEncoder().encode(sentinel),
-      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.apiKey },
+      metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
     const fetch = vi.fn(async () => new Response(
       JSON.stringify({ thread: { id: 't9' }, device: { token: 'evr_' + 'e'.repeat(43) } }),

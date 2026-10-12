@@ -37,7 +37,7 @@ object ReportAuthorizationFactory {
         hostReplay: Boolean = false,
     ): ReportAuthorization {
         // endpointAtInitiation documents the drain snapshot; only the stored route can authorize its media.
-        val provider = ReplayConfigProvider.make(baseUrl = entryEndpoint.trimEnd('/').removeSuffix("/api/ingest"), apiKey = entrySdkKey,
+        val provider = ReplayConfigProvider.make(baseUrl = entryEndpoint.trimEnd('/').removeSuffix("/api/ingest"), sdkKey = entrySdkKey,
             fetcher = ConfigFetcher { request -> pendingConfigClient.newCall(request).execute() })
         val succeeded = provider.refresh(force = true)
         val authorizedAt = SystemClock.elapsedRealtime()

@@ -126,3 +126,17 @@
 -keepclassmembers class dev.everframe.protocol.generated.**$Companion {
     public *** serializer(...);
 }
+
+# ---------------------------------------------------------------------------
+# Native video privacy — parity with the same section of
+# :everframe-core/consumer-rules.pro (VideoPrivacyKeepRulesTest checks it).
+# ---------------------------------------------------------------------------
+# Cross-module native video privacy facade types.
+-keep public interface dev.everframe.capture.video.VideoPrivacyAdapter { *; }
+-keep public enum dev.everframe.capture.video.VideoPrivacyAdapter$Classification { *; }
+# Production fallback identifies absent RN privacy facilities by native View ancestry.
+-keepnames class com.facebook.react.** extends android.view.View
+# Native video refuses Flutter host windows by View ancestry name. Flutter minifies release
+# builds by default, and neither its rules nor its embedding keep this name.
+-keepnames class io.flutter.embedding.android.FlutterView
+-keepnames class io.flutter.view.FlutterView

@@ -103,7 +103,7 @@ final class IdentityProviderWarmTests: XCTestCase {
     private func enabledConfig() async -> ReplayConfig {
         let provider = ReplayConfigProvider(
             configUrl: URL(string: "https://everframe.dev/api/config")!,
-            apiKey: "evr_test_key",
+            sdkKey: "evr_test_key",
             fetcher: SingleResponseFetcher(
                 #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"identity":{"enabled":true}}"#)
         )
@@ -529,7 +529,7 @@ final class IdentityProviderWarmTests: XCTestCase {
         // no config fetched yet). `start()`'s own synchronous section
         // resets `_identityEnabledFlag` to `false` before this call even
         // returns — real production code, not a test seam.
-        try Everframe.shared.start(config: EverframeConfig(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
 
         // Release the parked warm's read — now guaranteed to run AFTER B's
         // synchronous reset above, the worst-case ordering for the fix.

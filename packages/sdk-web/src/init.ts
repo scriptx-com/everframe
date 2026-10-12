@@ -19,6 +19,7 @@ import {
   __internalClientState,
   IDENTITY_PROVIDER_TIMEOUT_MS,
   resolveClientExtra,
+  resolveSdkKey,
   type EverframeClient,
   type ThreadClientState,
   type UserMetadata,
@@ -33,6 +34,7 @@ import {
   __setBuiltinPinSurfaceAvailable,
   __setBuiltinBadgeSurfaceAvailable,
 } from './companion/singleton.js';
+import { __watchCompanionBond } from './companion/bond-upgrade.js';
 import { drainOutbox, submitReportFromDraft } from './transport/submit.js';
 import { registerHotkey } from './triggers/hotkey.js';
 import { PKG_VERSION } from './internal/version.js';
@@ -57,7 +59,7 @@ import type { Island } from './mount/react-island.js';
 import type { ReporterCompletePayload } from './reporter-ui/ReporterDialog.js';
 import type { ToastTone } from './reporter-ui/primitives/Toast.js';
 import { assertBrowser } from './ssr.js';
-import type { WebEverframeConfig } from './internal/types.js';
+import type { ResolvedWebEverframeConfig, WebEverframeConfig } from './internal/types.js';
 import { EverframeNotMountedError } from './reporter-types.js';
 import type { ReporterResult } from './reporter-types.js';
 
@@ -71,7 +73,9 @@ export interface Everframe {
    * Open the reporter. Resolves with the outcome, exactly like the React
    * `open()`. Rejects with `EverframeNotMountedError` if the reporter UI is not
    * mounted, or if this handle has been destroyed — the same failure the React
-   * SDK's top-level `open()` raises with no Provider mounted.
+   * SDK's top-level `open()` raises with no Provider mounted. Rejects with
+   * `EverframeReporterDisabledError` when the config sets
+   * `reporter: { disabled: true }`.
    */
   open(): Promise<ReporterResult>;
   setUser: EverframeClient['setUser'];
@@ -125,7 +129,7 @@ export interface InternalHandle extends Everframe {
   __setShowModal(fn: () => void): void;
   readonly __adapter: WebPlatformAdapter;
   readonly __client: EverframeClient;
-  readonly __config: WebEverframeConfig;
+  readonly __config: ResolvedWebEverframeConfig;
   readonly __root: ShadowRoot | HTMLElement;
 }
 
@@ -164,8 +168,10 @@ async function sha256OfBytes(bytes: Uint8Array): Promise<string> {
  */
 let current: InternalHandle | null = null;
 
-export function init(config: WebEverframeConfig): Everframe {
+export function init(input: WebEverframeConfig): Everframe {
   assertBrowser();
+  // A 1.1 config still names the key `apiKey`; from here on it is `sdkKey`.
+  const config = resolveSdkKey(input);
   if (config.sdkName !== undefined &&
       (!['everframe-flutter', 'everframe-kmp'].includes(config.sdkName) ||
        typeof config.visualCapture?.captureScreenshot !== 'function' ||
@@ -238,6 +244,12 @@ export function init(config: WebEverframeConfig): Everframe {
    */
   const isKilled = (): boolean => __internalClientState.get(client)?.killed === true;
 
+  // Crash-only session (spec 2026-10-12): no on-device way to open the
+  // reporter for the whole session, also after a companion bond. The adapter
+  // already refuses `open()` and hands out no hotkey; `openModal()` and the
+  // inbox's "New report" buttons below check this too.
+  const reporterDisabled = config.reporter?.disabled === true;
+
   // Late-bind the sinks that live in sdk-core client state, which does not
   // exist yet when the adapter is constructed. GETTERS, not snapshots: the
   // host's user/token change over the session and a captured value would pin
@@ -264,7 +276,7 @@ export function init(config: WebEverframeConfig): Everframe {
   // instant everything else does.
   const vitals = setupVitals({
     config,
-    apiKey: config.apiKey,
+    sdkKey: config.sdkKey,
     apiUrl: INGEST_URL,
     isKilled,
     sdkVersion,
@@ -342,7 +354,7 @@ export function init(config: WebEverframeConfig): Everframe {
   __setBuiltinBadgeSurfaceAvailable(false);
 
   // The phone-companion submits from imperative, non-React call sites and
-  // reaches config (apiKey) + adapter (capture + outbox) through this seam.
+  // reaches config (sdkKey) + adapter (capture + outbox) through this seam.
   // Cleared in destroy(); without it a companion submit degrades to
   // `report.failed` instead of reaching ingest.
   __setCompanionHost({
@@ -394,6 +406,7 @@ export function init(config: WebEverframeConfig): Everframe {
     // the permanent one. `client.kill()` sets `state.killed` before it calls
     // `adapter.onKill()`, so this gate is live from the same instant.
     if (isKilled()) return;
+    if (reporterDisabled) return;
     // REPLAY-02 — freeze SYNCHRONOUSLY, before any UI mounts, so the reporter
     // is never recorded into its own replay or breadcrumb chain. Each freeze
     // is separately guarded (DEFE-02): capture must never block the reporter.
@@ -424,6 +437,12 @@ export function init(config: WebEverframeConfig): Everframe {
     unregisterHotkey();
     unregisterHotkey = registerHotkey(openModal, { binding });
   });
+
+  // A companion bond upgrades a crash-only session's replay and network-body
+  // coverage (spec 2026-10-12). Nothing to watch in a report session.
+  const unwatchCompanionBond = reporterDisabled
+    ? __watchCompanionBond(adapter)
+    : (): void => undefined;
 
   // Config must settle BEFORE thread polling arms and before the first outbox
   // drain: `startPolling()` fires a 0 ms tick, and a tick that lands before
@@ -768,7 +787,8 @@ export function init(config: WebEverframeConfig): Everframe {
         // freeze-before-any-UI-mounts happens, so the reporter is never
         // recorded into its own replay or breadcrumb chain. provider.tsx's
         // InboxDialog calls `ctxValue.openModal()` for exactly this reason.
-        onNewReport: () => openModal(),
+        // Absent in a crash-only session, which hides the buttons.
+        onNewReport: reporterDisabled ? undefined : () => openModal(),
       });
       return island;
     });
@@ -1013,6 +1033,7 @@ export function init(config: WebEverframeConfig): Everframe {
       vitals.destroy();
       unsubscribeReportHotkey();
       unregisterHotkey();
+      unwatchCompanionBond();
       if (threads) {
         document.removeEventListener('visibilitychange', onVisibility);
         threads.stopPolling();

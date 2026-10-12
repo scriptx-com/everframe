@@ -41,7 +41,7 @@ it('snapshots identity at runtime mount and picks a new build after remount', ()
   let installed: (error: unknown, fatal?: boolean) => void = () => {};
   vi.stubGlobal('ErrorUtils', { getGlobalHandler: () => () => {}, setGlobalHandler: (h: typeof installed) => { installed = h; } });
   const jsBundle = { buildId: 'first', bundleName: 'index.bundle' };
-  const rt = createRuntime({ apiKey: 'k', jsBundle });
+  const rt = createRuntime({ sdkKey: 'k', jsBundle });
   teardown = () => rt.unmount();
   rt.mount();
   jsBundle.buildId = 'second';

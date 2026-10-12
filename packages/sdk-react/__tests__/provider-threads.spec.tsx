@@ -11,7 +11,7 @@ import type { ThreadClient } from '@everframe/sdk-core';
 
 afterEach(() => cleanup());
 
-const config = { apiKey: 'txx_live_test' };
+const config = { sdkKey: 'txx_live_test' };
 const wrapper = ({ children }: { children: ReactNode }) => (
   <EverframeProvider config={config}>{children}</EverframeProvider>
 );

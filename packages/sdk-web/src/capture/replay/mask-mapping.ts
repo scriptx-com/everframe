@@ -3,16 +3,16 @@
 //
 // REPLAY-04 (transport floor) + perf budget — rrweb record-option mapping.
 //
-// rrweb config is the TRANSPORT FLOOR only (RESEARCH §"Pattern 3"): maskAllInputs,
-// mask text by default, block > mask for host-marked-sensitive. The existing
-// default-deny + Luhn/JWT scrubber (scrub.ts) gets the LAST word as a
-// post-serialization pass. This module owns:
-//   - the rr-block / rr-mask class names + a maskTextFn/maskInputFn floor,
+// Spec 2026-10-11, "Web masking" (matches mobile): rrweb masks every form input
+// value (maskAllInputs) and blocks host-marked-sensitive elements (rr-block
+// class + [data-everframe-sensitive] selector); ordinary text is NOT masked so
+// the replay is watchable. The post-serialization scrub (scrub.ts) gets the
+// LAST word: it removes pattern PII everywhere and re-enforces input masking.
+// This module owns:
+//   - the rr-block / rr-mask class names + the maskInputFn/maskTextFn placeholder,
 //   - the perf budget knobs (checkoutEveryNms = clamp(durationSec/2, 8, 30) * 1000,
 //     sampling { mousemove: 50, scroll: 50 }, input 'last', recordCanvas false,
-//     inlineStylesheet false, collectFonts false),
-//   - mapping the sensitive registry's elements onto rr-block so rrweb itself
-//     never serializes their subtree (defense in depth ahead of the scrub).
+//     inlineStylesheet true, collectFonts false).
 //
 // This module is rrweb-import-free (REPLAY-05): it returns a plain options object
 // the lazily-imported `record()` consumes.
@@ -21,11 +21,11 @@
 export const RR_BLOCK_CLASS = 'rr-block';
 export const RR_MASK_CLASS = 'rr-mask';
 
-// ⚠ TEMPORARY (2026-06-16): redaction kill-switch for end-to-end replay verification.
-// When true, rrweb captures text + input values RAW (no `***`) and the recorder
-// skips the post-serialization scrub — so the replay shows the actual page. Flip
-// back to `false` to restore the mask-all transport floor + scrub before shipping.
-export const REDACTION_DISABLED = true;
+// Redaction switch. It was a temporary kill switch (2026-06-16) for end-to-end
+// replay verification; masking is ON since spec 2026-10-11. `true` records text
+// and input values raw and skips the scrub. Never ship `true`:
+// mask-zero-leak.spec.ts pins `false`.
+export const REDACTION_DISABLED = false;
 
 /** Clamp a number into [min, max]. */
 export function clamp(value: number, min: number, max: number): number {
@@ -74,15 +74,16 @@ export interface BuildRecordOptionsDeps {
 export const MASK_PLACEHOLDER = '***';
 
 /**
- * Build the rrweb `record()` options enforcing the transport floor + perf budget.
- * Text is masked by default (maskTextSelector '*' + maskAllInputs), so the
- * full-snapshot/checkout masking gaps (#1385) are belt; scrub.ts is the braces.
+ * Build the rrweb `record()` options enforcing the masking floor + perf budget.
+ * Inputs are always masked to the placeholder (no length leak). Text is masked
+ * only inside a host `rr-mask` element: rrweb calls `maskTextFn` only for text
+ * that matches `maskTextClass`/`maskTextSelector`, and no selector is set, so
+ * ordinary page text stays readable. Pattern PII in that text is the scrub's job.
  */
 export function buildRecordOptions(deps: BuildRecordOptionsDeps): RrwebRecordOptions {
   const opts: RrwebRecordOptions = {
     emit: deps.emit,
     checkoutEveryNms: checkoutIntervalMs(deps.durationSec),
-    // TEMP kill-switch: capture inputs raw when redaction is disabled.
     maskAllInputs: !REDACTION_DISABLED,
     maskTextClass: RR_MASK_CLASS,
     blockClass: RR_BLOCK_CLASS,
@@ -94,8 +95,6 @@ export function buildRecordOptions(deps: BuildRecordOptionsDeps): RrwebRecordOpt
     sampling: { mousemove: 50, scroll: 50, input: 'last' },
   };
   if (!REDACTION_DISABLED) {
-    // Transport floor — mask all text + inputs; the scrub narrows later.
-    opts.maskTextSelector = '*';
     opts.maskInputFn = () => MASK_PLACEHOLDER;
     opts.maskTextFn = () => MASK_PLACEHOLDER;
   }

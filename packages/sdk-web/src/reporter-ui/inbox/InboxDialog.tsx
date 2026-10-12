@@ -12,8 +12,12 @@ export interface InboxDialogProps {
   onClose: () => void;
   /** The public `tx.threads.*` facade (spec 2026-07-31) — nothing else. */
   threads: EverframeClient['threads'];
-  /** Opens the normal capture flow (wired by the host Provider). */
-  onNewReport: () => void;
+  /**
+   * Opens the normal capture flow (wired by the host Provider). Leave it out
+   * in a crash-only session (`reporter.disabled`): the inbox then shows no
+   * way to start a report.
+   */
+  onNewReport?: (() => void) | undefined;
 }
 
 type InboxView = { view: 'list' } | { view: 'thread'; threadId: string };

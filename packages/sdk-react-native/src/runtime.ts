@@ -21,10 +21,10 @@ import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-captur
 // into the RN bundle. Dedupe to sdk-core post-v0.1.0.
 import NativeEverframe from "./NativeEverframe.js";
 import type { ConfigOpts, Rect } from "./NativeEverframe.js";
-import { budgetExtra, EXTRA_MAX_CHARS } from "@everframe/sdk-core";
-import type { ExtraResolver } from "@everframe/sdk-core";
+import { budgetExtra, EXTRA_MAX_CHARS, resolveSdkKey } from "@everframe/sdk-core";
+import type { ExtraResolver, WithSdkKeyField } from "@everframe/sdk-core";
 import { getEmitter } from "./events.js";
-import type { JsBundleConfig } from "./js-bundle.js";
+import { captureJsBundleMetadata, type JsBundleConfig } from "./js-bundle.js";
 import { createCaptureController, type CaptureController } from "./errors.js";
 import { createPromiseRejectionObserver, type RejectionObserver } from './promise-rejections.js';
 import { emptyPromiseRejectionStatus, type PromiseRejectionStatus } from './promise-rejection-types.js';
@@ -34,7 +34,11 @@ import {
   EverframeNotMountedError,
   type EverframeContextValue,
 } from "./contextSeam.js";
-import type { ReporterResult } from "./reporter/types.js";
+import {
+  EverframeReporterDisabledError,
+  REPORTER_DISABLED_CODE,
+  type ReporterResult,
+} from "./reporter/types.js";
 import { projectUserSpec } from "./user-projection.js";
 import type { EverframeIntegration } from "./integrations/types.js";
 
@@ -73,9 +77,13 @@ export interface RuntimeConfig
     ConfigOpts,
     | "sdkVersion"
     | "installIdentifierDisabled"
+    | "crashReportingDisabled"
     | "companionBadgeEnabled"
     | "companionBadgePosition"
     | "shakeToReportEnabled"
+    // Crash-only sessions (spec 2026-10-12) — same NN4 rationale: the nested
+    // `reporter` below is the ONLY public surface.
+    | "reporterDisabled"
     // The 8 flat theme wire fields (reporter branding spec 2026-08-25, RN
     // slice) — same NN4 rationale as the companionBadge pair above: the
     // nested `theme` below is the ONLY public surface; without these Omits a
@@ -93,19 +101,42 @@ export interface RuntimeConfig
     | "vitalsEnabled"
     | "vitalsSampleRate"
     | "vitalsCaptureSourceQuery"
+    | "releaseHealthEnabled"
+    | "releaseHealthLoadedBuildId"
+    | "releaseHealthUserId"
+    | "releaseHealthIncludeDebugBuilds"
   > {
   /**
    * Per-app SDK key (publishable, not secret). Required on the host-facing
-   * config — narrows the bridge `ConfigOpts.apiKey?` to required so a missing
+   * config — narrows the bridge `ConfigOpts.sdkKey?` to required so a missing
    * key is a compile-time error, matching the React SDK. The bridge type stays
    * optional (extractBridgeConfig builds `{}`); only this host surface requires it.
    */
-  apiKey: string;
+  sdkKey: string;
   appName?: string;
-  appVersion?: string;
-  appBuild?: string;
   /** Exact loaded Hermes bundle identity, independent of the native app build. */
   jsBundle?: JsBundleConfig;
+  /**
+   * Whether this is a debug build. Everframe never makes a release out of a debug build, and release
+   * health skips it. Defaults to React Native's `__DEV__`; set it only to override that.
+   */
+  debugBuild?: boolean;
+  /**
+   * Native foreground-session monitoring (release health). On by default:
+   * leave this out, or leave `enabled` out, and it is on; `enabled: false`
+   * turns it off and erases undelivered records on the device. The native SDK
+   * reads the app version and build; the loaded build comes from validated
+   * Hermes jsBundle metadata, and without that identity release health stays
+   * off. userId is an optional opaque identifier supplied for this purpose;
+   * null or omitted means anonymous, and setUser never supplies it implicitly.
+   * The native SDKs skip debug builds; `includeDebugBuilds: true` counts them,
+   * for checking an integration.
+   */
+  releaseHealth?: {
+    enabled?: boolean;
+    userId?: string | null;
+    includeDebugBuilds?: boolean;
+  };
   /**
    * Opt-in JS-side capture integrations (spec 2026-07-14 RN-iOS parity).
    * Import from '@everframe/react-native/integrations/*'; nothing
@@ -114,10 +145,12 @@ export interface RuntimeConfig
   integrations?: EverframeIntegration[];
   /**
    * Crash/error reporting (spec 2026-07-18). Installs a default-on global
-   * ErrorUtils handler on mount — deliberately NOT gated behind
+   * ErrorUtils handler on mount, plus a hook on React Native's
+   * ExceptionsManager for errors no React error boundary catches (React 19
+   * reports those through the root, not ErrorUtils) — deliberately NOT gated behind
    * `integrations` (deviation from the RN integrations doctrine, recorded in
    * the spec): crash capture is a safety net, not an opt-in enrichment. Set
-   * `disabled: true` to veto it entirely.
+   * `disabled: true` to veto it entirely, including native crash and ANR capture.
    */
   crashReporting?: {
     disabled?: boolean;
@@ -187,6 +220,21 @@ export interface RuntimeConfig
    */
   shakeToReport?: {
     enabled?: boolean;
+  };
+  /**
+   * Crash-only session switch (spec 2026-10-12). CLIENT VETO only.
+   * `disabled: true` turns off every on-device way to open the reporter
+   * (shake, `open()`, which then rejects with
+   * `EverframeReporterDisabledError`), keeps network bodies off and samples
+   * session replay with the server's crash-only rate (default 0) instead of
+   * the normal one. A companion bond upgrades the session: replay and bodies
+   * then follow the normal server rules for the rest of the session, and
+   * reports come through the companion. Crash and error capture are
+   * unaffected. Flattened onto `ConfigOpts.reporterDisabled` by
+   * `extractBridgeConfig`.
+   */
+  reporter?: {
+    disabled?: boolean;
   };
   /**
    * Inline reporter theme (reporter branding spec 2026-08-25, RN slice) —
@@ -369,7 +417,15 @@ function installExtraResolveHandler(): boolean {
   }
 }
 
-export function createRuntime(config: RuntimeConfig): Runtime {
+/**
+ * The provider config as a host passes it: the SDK key as `sdkKey`, or as the
+ * deprecated `apiKey` (its name before 1.2).
+ */
+export type EverframeProviderConfig = WithSdkKeyField<RuntimeConfig>;
+
+export function createRuntime(input: EverframeProviderConfig): Runtime {
+  // A 1.1 config still names the key `apiKey`; from here on it is `sdkKey`.
+  const config: RuntimeConfig = resolveSdkKey(input);
   const sensitiveRegistry = new Map<number, Rect>();
   type Mount = {
     teardowns: Array<{ name: string; teardown: () => void }>;
@@ -383,7 +439,16 @@ export function createRuntime(config: RuntimeConfig): Runtime {
     // Native promise returns NSDictionary / WritableMap with the discriminated
     // status field. The TurboModule spec types it `UnsafeObject`; the cast
     // here is the documented codegen-recursion-shape escape hatch.
-    return NativeEverframe.openReporter() as unknown as Promise<ReporterResult>;
+    return (NativeEverframe.openReporter() as unknown as Promise<ReporterResult>).catch(
+      (error: unknown) => {
+        // Crash-only session (spec 2026-10-12): both bridges reject with
+        // this code. Surface the same named error as the web SDK.
+        if ((error as { code?: unknown } | null)?.code === REPORTER_DISABLED_CODE) {
+          throw new EverframeReporterDisabledError();
+        }
+        throw error;
+      },
+    );
   }
 
   const runtime: Runtime = {
@@ -593,6 +658,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
           jsBundle: config.jsBundle,
           isActive: () =>
             mounted === owner && __getCurrentContext() === runtime,
+          isUnowned: () => __getCurrentContext() === null,
         });
         if (mounted !== owner) {
           owner.controller.dispose();
@@ -669,7 +735,7 @@ export function createRuntime(config: RuntimeConfig): Runtime {
 
 function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   const bridge: ConfigOpts = {};
-  if (config.apiKey !== undefined) bridge.apiKey = config.apiKey;
+  if (config.sdkKey !== undefined) bridge.sdkKey = config.sdkKey;
   // `sdkVersion` is NOT forwarded — the SDK version is owned by the SDK itself
   // (the native side stamps its own `Everframe.SDK_VERSION`), never the host.
   if (config.captureScreenshot !== undefined)
@@ -686,6 +752,11 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   // (`installIdentifierEnabled`).
   if (config.installIdentifier?.disabled !== undefined) {
     bridge.installIdentifierDisabled = config.installIdentifier.disabled;
+  }
+  // Crash reporting veto (crash default-on, 2026-10-10). The same switch also turns off native
+  // crash and ANR capture. Polarity flips exactly once, natively (`capture.crash`).
+  if (config.crashReporting?.disabled !== undefined) {
+    bridge.crashReportingDisabled = config.crashReporting.disabled;
   }
   // Attach-PIN UI mode (spec 2026-08-19). `RuntimeConfig` inherits
   // `attachPinUi?` structurally from `ConfigOpts` (it isn't `Omit`ted like
@@ -713,6 +784,11 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   }
   if (config.shakeToReport?.enabled !== undefined) {
     bridge.shakeToReportEnabled = config.shakeToReport.enabled;
+  }
+  // Crash-only sessions (spec 2026-10-12). Sent only when the reporter is
+  // off: absent means a normal report session on both bridges.
+  if (config.reporter?.disabled === true) {
+    bridge.reporterDisabled = true;
   }
   // Inline reporter theme (reporter branding spec 2026-08-25, RN slice).
   // Flatten the nested host-facing shape onto the 8 flat wire fields, same
@@ -760,7 +836,47 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   if (config.vitals?.captureSourceQuery !== undefined) {
     bridge.vitalsCaptureSourceQuery = config.vitals.captureSourceQuery;
   }
+  // Always sent, so the native SDK uses React Native's answer rather than its own guess. A Metro
+  // development bundle can run inside a release-signed native app, and `__DEV__` is the truth.
+  bridge.debugBuild = typeof config.debugBuild === "boolean" ? config.debugBuild : typeof __DEV__ !== "undefined" && __DEV__;
+  // Release health is on unless `enabled` is explicitly false. Every off path below sends
+  // `releaseHealthEnabled: false`, because both bridges read a missing field as on. An untyped `null`
+  // option is off too, matching `releaseHealth = null` on the native SDKs.
+  const health = config.releaseHealth;
+  const healthSetExplicitly = health !== undefined;
+  if (health === null || health?.enabled === false) {
+    bridge.releaseHealthEnabled = false;
+  } else {
+    const bundle = captureJsBundleMetadata(config.jsBundle);
+    const rejected: string[] = [];
+    if (!bundle || !validReleaseHealthText(bundle.buildId, 200)) rejected.push("jsBundle (no valid Hermes bundle identity)");
+    // A null user ID is anonymous, as on the native SDKs.
+    if (health?.userId != null && !validReleaseHealthText(health.userId, 128)) rejected.push("releaseHealth.userId");
+    if (bundle && rejected.length === 0) {
+      bridge.releaseHealthEnabled = true;
+      bridge.releaseHealthLoadedBuildId = bundle.buildId;
+      if (typeof health?.userId === "string") bridge.releaseHealthUserId = health.userId;
+      if (typeof health?.includeDebugBuilds === "boolean") bridge.releaseHealthIncludeDebugBuilds = health.includeDebugBuilds;
+    } else {
+      bridge.releaseHealthEnabled = false;
+      // A rejected explicit option also revokes monitoring and erases queued records in release builds,
+      // so it warns in every build. An option the app never set only warns in development: a release
+      // app without the Metro build identity just has release health off. Name the fields only;
+      // identifiers are never logged.
+      if (healthSetExplicitly || (typeof __DEV__ !== "undefined" && __DEV__)) {
+        console.warn(
+          `[everframe] releaseHealth rejected: invalid ${rejected.join(", ")}. Foreground-session ` +
+            "monitoring is off for this configuration; turning it off erases undelivered health records on this device.",
+        );
+      }
+    }
+  }
   return bridge;
+}
+
+function validReleaseHealthText(value: unknown, maxLength: number): value is string {
+  return typeof value === "string" && value.length <= maxLength && value.trim().length > 0 &&
+    !/[\u0000-\u001f\ud800-\udfff]/u.test(value);
 }
 
 /** Test seam — the flattening rule is the one place JS and native shapes meet. */

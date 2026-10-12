@@ -66,10 +66,10 @@ function wireClient(appFetchImpl: (input: RequestInfo | URL) => Promise<Response
       return appFetchImpl(input);
     }),
   );
-  const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+  const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
   adapters.push(adapter);
   const client = createClient(adapter);
-  client.init({ apiKey: 'k' });
+  client.init({ sdkKey: 'k' });
   adapter.__setNetworkBodiesBuffer(() => __internalClientState.get(client)?.networkBodies);
   return { adapter, client, buf: () => __internalClientState.get(client)!.networkBodies };
 }
@@ -211,10 +211,10 @@ describe('F37 (round-8 review): body capture survives a Provider remount', () =>
    * slots once; `__rebindCrumbHooks()` re-claims them from the mount effect
    * for the pair React actually commits). */
   function mountAdapter() {
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey: 'k' });
+    client.init({ sdkKey: 'k' });
     adapter.__setNetworkBodiesBuffer(() => __internalClientState.get(client)?.networkBodies);
     adapter.__rebindCrumbHooks();
     return { adapter, client, buf: () => __internalClientState.get(client)!.networkBodies };
@@ -395,11 +395,11 @@ describe('F37 (round-8 review): body capture survives a Provider remount', () =>
 // — if not, the entry is DROPPED, never redirected to whichever adapter is
 // current, and never force-delivered to the stale snapshot either.
 describe('F42 (round-9 review): a captured body must never leak to a different adapter', () => {
-  function mountAdapterWithKey(apiKey: string) {
-    const adapter = createWebPlatformAdapter({ apiKey });
+  function mountAdapterWithKey(sdkKey: string) {
+    const adapter = createWebPlatformAdapter({ sdkKey });
     adapters.push(adapter);
     const client = createClient(adapter);
-    client.init({ apiKey });
+    client.init({ sdkKey });
     adapter.__setNetworkBodiesBuffer(() => __internalClientState.get(client)?.networkBodies);
     adapter.__rebindCrumbHooks();
     return { adapter, client, buf: () => __internalClientState.get(client)!.networkBodies };

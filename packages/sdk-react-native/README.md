@@ -11,6 +11,9 @@ modal to RN host apps via a TurboModule + a thin React provider/hook API.
 
 ---
 
+See the [crash-reporting support matrix](../../docs/crash-reporting-support.md)
+for exact tested paths, unsupported combinations and remaining qualification.
+
 ## Installation
 
 ```bash
@@ -46,6 +49,8 @@ the web mask registry. Native iOS and Android use their native capture. A web
 bundler that honors the `browser` export condition can keep the regular package
 import; use the `/web` subpath if its resolver does not select that condition.
 
+Replays also attach to errors; see [session replay](../../docs/session-replay.md).
+
 ## Usage
 
 Wrap your app with `<EverframeProvider>` at the highest practical level
@@ -56,11 +61,11 @@ import { EverframeProvider, useEverframe } from '@everframe/react-native';
 
 export default function App() {
   return (
-    // `apiKey` is the only required field. The ingest endpoint is a
+    // `sdkKey` is the only required field. The ingest endpoint is a
     // compile-time constant in the SDK and is not configurable in v1.
     <EverframeProvider
       config={{
-        apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
+        sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
         // Recommended in RN/Expo development: shake also opens the dev menu.
         shakeToReport: { enabled: !__DEV__ },
       }}
@@ -96,6 +101,30 @@ provider context and attach any non-sensitive context needed for diagnosis.
 The source API requires matching rebuilt native components; published `0.7.0`
 artifacts are not evidence of support.
 
+## Release health
+
+Release health counts crash-free foreground sessions for each version of your
+app. It is on by default, and debug builds of the native app aren't counted.
+Turn it off in the `EverframeProvider` config:
+
+```tsx
+releaseHealth: { enabled: false },
+```
+
+Sessions come from the Android and iOS SDKs and count toward the native app
+version, which an over-the-air update doesn't change. Release health needs the
+Hermes bundle identity that `@everframe/metro` adds at build time (or the
+`jsBundle` option); without it, release health stays off and the SDK logs an
+`[everframe]` warning (in development builds only, unless you set
+`releaseHealth`). Add `userId: accountId` to count crash-free users, and
+`includeDebugBuilds: true` to count debug builds too. The configuration is read
+when the Provider mounts, so remount it with a changed `key` to change `enabled`
+or `userId`. A configure with `enabled: false` turns release health off and
+erases its queued records on the device.
+Release health skips a debug build, which is `__DEV__` unless you set
+`debugBuild` on the Provider. See
+[release health](../../docs/release-health.md).
+
 ## Promise rejection observation
 
 Automatic Hermes rejection observation is opt-in:
@@ -104,7 +133,7 @@ Automatic Hermes rejection observation is opt-in:
 import { EverframeProvider, getPromiseRejectionStatus } from '@everframe/react-native';
 
 <EverframeProvider config={{
-  apiKey: '…',
+  sdkKey: '…',
   crashReporting: { promiseRejections: { enabled: true } },
 }}>
   <App />
@@ -173,6 +202,27 @@ browser SDK's own error handling.
 
 ## Error capture and diagnostics
 
+### Native crashes and ANRs
+
+Crash reporting also turns on the native SDKs' automatic crash capture. On Android that covers JVM exceptions, native crashes (OS exit records on API 30+, with tombstone frames on API 31+) and ANRs on API 30+; see the [Android SDK guide](../sdk-android/README.md#crash-capture-on-by-default). On iOS it is the native crash recorder. `crashReporting: { disabled: true }` turns all of it off on both platforms.
+
+### Errors no boundary catches
+
+Since React Native 0.78, React reports an error that no error boundary catches
+(thrown while rendering, in an effect or in a lifecycle method) through the
+root's `onUncaughtError`. That calls React Native's `ExceptionsManager`, never
+the `ErrorUtils` handler. Crash reporting hooks
+`ExceptionsManager.handleException` too, so such an error is reported as a fatal
+JavaScript crash (`mechanism: "errorutils"`) with its Hermes stack, and React's
+component stack follows the message after `This error is located at:`, as in
+React Native's own report. React unmounts the whole tree, `EverframeProvider`
+included, before it reports the error; the hook stays until the end of that
+task, so the error is still captured. The native fatal React Native raises for
+the same error (`RCTFatalException` on iOS and tvOS, `JavascriptException` on
+Android) is not reported a second time. An error in the render that first
+mounts the provider comes before this capture is installed. Errors a boundary
+catches are not reported automatically; use the callback below.
+
 ### React error boundary callback
 
 An existing React class boundary can opt into handled capture. Render the
@@ -194,7 +244,7 @@ class Boundary extends React.Component<React.PropsWithChildren, { failed: boolea
 
 export default function App() {
   return (
-    <EverframeProvider config={{ apiKey: '…' }}>
+    <EverframeProvider config={{ sdkKey: '…' }}>
       <Boundary>
         <RootNavigator />
       </Boundary>
@@ -233,7 +283,7 @@ const { attempted, accepted, duplicateSuppressed } = status.counters.handled;
 
 Snapshots are detached, contain no captured content, reset on remount, and perform
 no native query or upload. Paths are `handled` (including the boundary callback),
-`errorUtils`, and `rejection` (submission only). Each active attempt has one outcome:
+`errorUtils` (including errors no boundary catches), and `rejection` (submission only). Each active attempt has one outcome:
 `accepted`, `duplicateSuppressed`, `allowanceSuppressed`, `bridgeUnavailable`,
 `nativeRefused`, `captureFailed`, `reentrantSuppressed`, `inactiveAborted`, or
 `legacyAttempted`. Counters saturate at 2,147,483,647. Existing limits are ten
@@ -303,7 +353,7 @@ guarantee or trigger a retry.
 ## Network body capture (client veto)
 
 ```tsx
-<EverframeProvider config={{ apiKey: '…', networkBodies: { disabled: true } }}>
+<EverframeProvider config={{ sdkKey: '…', networkBodies: { disabled: true } }}>
 ```
 
 `networkBodies.disabled: true` is a **client veto** — it can only turn body
@@ -330,6 +380,34 @@ capturing network traffic in the first place:
 
 Do not enable this option expecting RN's own network calls to show up in
 reports — that capability doesn't exist yet.
+
+## Crash-only sessions
+
+```tsx
+<EverframeProvider config={{ sdkKey: '…', reporter: { disabled: true } }}>
+```
+
+`reporter.disabled: true` turns the bug reporter off for the session and
+keeps crash and error reporting, for example in production builds. It is a
+**client veto**: the dashboard can't turn the reporter back on for this
+session.
+
+In a crash-only session:
+
+- Shake-to-report is off, and `open()` rejects with
+  `EverframeReporterDisabledError`.
+- Session replay uses the app's crash-only sampling rate, which is 0 by
+  default. An error carries a replay only while the session records.
+- Network bodies aren't captured.
+- Crash and error capture, breadcrumbs, vitals, release health and the
+  companion work as usual.
+
+A companion bond (a phone scanning the QR code, or a dashboard member
+attaching) upgrades the session. Replay and network bodies then follow the
+app's normal settings for the rest of the session, and recording starts at
+the bond. The reporter stays off: reports from an upgraded session come
+through the companion. See
+[crash-only sessions](../../docs/session-replay.md#crash-only-sessions).
 
 ## Navigation breadcrumbs
 
@@ -386,7 +464,7 @@ import { createNavigationContainerRef } from '@react-navigation/native';
 const navigationRef = createNavigationContainerRef();
 const txNav = reactNavigationIntegration({ navigationRef });
 
-<EverframeProvider config={{ apiKey, integrations: [consoleIntegration(), txNav] }}>
+<EverframeProvider config={{ sdkKey, integrations: [consoleIntegration(), txNav] }}>
   <NavigationContainer ref={navigationRef} onReady={txNav.onReady}>
     ...
 ```
@@ -415,7 +493,7 @@ inside a native view and never reaches JS.
 ### Config
 
 ```tsx
-<EverframeProvider config={{ apiKey, vitals: { enabled: true, sampleRate: 0.5, captureSourceQuery: false } }}>
+<EverframeProvider config={{ sdkKey, vitals: { enabled: true, sampleRate: 0.5, captureSourceQuery: false } }}>
 ```
 
 - `enabled` — absent follows the dashboard toggle; `false` opts out locally;
@@ -426,7 +504,9 @@ inside a native view and never reaches JS.
 
 **Reconfiguring.** A Provider remount with the *same* config does not restart
 the SDK: both native sides compare the incoming config against the *installed*
-one and skip the start entirely. A **changed** config does restart it — and a
+one and skip the start entirely. A **changed** config does restart it (on iOS,
+except a change confined to `releaseHealth` or the loaded bundle; see
+[Release health](#release-health)) — and a
 start supersedes the running SDK, detaching every player integration it had
 announced. **Limitation:** players tracked before that restart stay untracked
 until their screens remount; nothing re-registers them automatically. Two React
@@ -598,7 +678,7 @@ on Android), so React Native's focus engine never sees it — the native VC
 manages focus on its own UIWindow / Activity.
 
 ```tsx
-<EverframeProvider config={{ apiKey }}>
+<EverframeProvider config={{ sdkKey }}>
   <NavigationContainer>{/* focus engine root */}</NavigationContainer>
 </EverframeProvider>
 ```

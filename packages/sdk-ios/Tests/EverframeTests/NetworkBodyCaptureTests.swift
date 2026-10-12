@@ -14,7 +14,7 @@ import EverframeProtocol
 @MainActor
 @Suite(.serialized)
 struct NetworkBodyCaptureTests {
-    private let testAppId = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+    private let testSdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
 
     // MARK: - Helpers
 
@@ -241,7 +241,7 @@ struct NetworkBodyCaptureTests {
     }
 
     private func noLogCaptureConfig() -> EverframeConfig {
-        EverframeConfig(appId: testAppId, capture: CaptureConfig(logs: false))
+        EverframeConfig(sdkKey: testSdkKey, capture: CaptureConfig(logs: false))
     }
 
     private func matchingCrumb(message: String) -> EverframeBreadcrumb? {

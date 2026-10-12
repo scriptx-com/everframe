@@ -119,7 +119,7 @@ class ReporterBridgeTest {
         val module = EverframeModule(resumed())
         try {
             val worker = Thread {
-                module.configure(JavaOnlyMap.of("apiKey", "reporter-test-only"))
+                module.configure(JavaOnlyMap.of("sdkKey", "reporter-test-only"))
                 module.startCompanion()
             }
             worker.start(); worker.join(2000)
@@ -142,7 +142,7 @@ class ReporterBridgeTest {
     @Test fun moduleSanitizesImmediateAndSuspendedCancellationAtPromiseBoundary() {
         assertEquals("http://127.0.0.1:9", dev.everframe.BuildConfig.INGEST_URL)
         val module = EverframeModule(resumed())
-        module.configure(JavaOnlyMap().apply { putString("apiKey", "reporter-test-only") })
+        module.configure(JavaOnlyMap().apply { putString("sdkKey", "reporter-test-only") })
         for (suspended in listOf(false, true)) {
             val gate = CompletableDeferred<ReportResult>()
             val privateError = CancellationException("private-host-value").apply {

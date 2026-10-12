@@ -21,11 +21,10 @@
 //   spec); a host on the new architecture can flip the parent class with a
 //   1-line patch once codegen output is available in the consuming build.
 //
-// ZERO-PERMISSION:
-//   No `<uses-permission>` in AndroidManifest.xml. The bridge adds zero
-//   permissions on top of whatever `:everframe-core` declares (the core also
-//   has none — Phase 5 zero-permission AAR contract). Verified by the 06-03
-//   acceptance grep.
+// PERMISSIONS:
+//   No `<uses-permission>` in AndroidManifest.xml. The bridge adds no
+//   permissions on top of what `:everframe-core` declares (INTERNET only,
+//   merged into the host app's manifest).
 //
 // SCOPE (NOT in this build):
 //   • Namespace is `dev.everframe.rn`.
@@ -152,7 +151,9 @@ val nativeVersionOverride = (findProperty("everframeNativeVersion") as String?)
 val rnSdkPkg = groovy.json.JsonSlurper()
     .parse(file("../package.json")) as Map<*, *>
 val rnSdkVersion = rnSdkPkg["version"] as String
-val nativeMinorRange: String = nativeVersionOverride ?: "[1.0.0,1.1.0)"
+// Native 1.2.0 is the release that renamed the SDK key to `sdkKey`; the
+// bridge moves with it, ahead of package.json, which the 1.2.0 release bumps.
+val nativeMinorRange: String = nativeVersionOverride ?: "[1.2.0,1.3.0)"
 if (nativeVersionOverride != null) {
     logger.lifecycle(
         "[everframe-rn] native AAR pinned to $nativeVersionOverride via everframeNativeVersion " +

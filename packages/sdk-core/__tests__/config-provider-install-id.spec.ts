@@ -27,7 +27,7 @@ describe('config provider: install identifier', () => {
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
       configUrl: BASE,
-      apiKey: 'k',
+      sdkKey: 'k',
       installIdProvider: () => 'iYgxBgJiRf1n_ekekB7M9g03ulCzNx2O4jfL8PWLegA',
     });
     await provider.refresh();
@@ -41,7 +41,7 @@ describe('config provider: install identifier', () => {
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
       configUrl: BASE,
-      apiKey: 'k',
+      sdkKey: 'k',
       installIdProvider: () => null,
     });
     await provider.refresh();
@@ -53,7 +53,7 @@ describe('config provider: install identifier', () => {
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
       configUrl: BASE,
-      apiKey: 'k',
+      sdkKey: 'k',
     });
     await provider.refresh();
     expect(String((fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[0])).toBe(BASE);
@@ -65,7 +65,7 @@ describe('config provider: install identifier', () => {
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
       configUrl: BASE,
-      apiKey: 'k',
+      sdkKey: 'k',
       ttlMs: 0,
       installIdProvider: () => `id${++n}`,
     });
@@ -81,7 +81,7 @@ describe('config provider: install identifier', () => {
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
       configUrl: BASE,
-      apiKey: 'k',
+      sdkKey: 'k',
       installIdProvider: () => {
         throw new Error('boom');
       },

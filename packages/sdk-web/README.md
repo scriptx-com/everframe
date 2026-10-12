@@ -34,7 +34,7 @@ npm install @everframe/web
 import { init } from '@everframe/web';
 
 const everframe = init({
-  apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
+  sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
   appVersion: '1.0.0',
 });
 
@@ -57,10 +57,10 @@ nothing left to resolve. Don't point one at `dist/index.js`.
 
 ```html
 <script type="module">
-  import { init } from 'https://cdn.jsdelivr.net/npm/@everframe/web@0.7.0/dist/browser/index.js';
+  import { init } from 'https://cdn.jsdelivr.net/npm/@everframe/web@1.2.0/dist/browser/index.js';
 
   const everframe = init({
-    apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
+    sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
     appVersion: '1.0.0',
   });
   document.getElementById('report-bug').addEventListener('click', () => {
@@ -68,6 +68,9 @@ nothing left to resolve. Don't point one at `dist/index.js`.
   });
 </script>
 ```
+
+`sdkKey` arrives in 1.2.0; 1.1.0 and earlier read `apiKey`, which 1.2.0 still
+accepts as deprecated.
 
 **jsDelivr is the CDN.** It serves every npm package automatically, so
 `@everframe/web`'s ordinary `npm publish` *is* the CDN publish — there is no
@@ -116,7 +119,7 @@ import { onMounted } from 'vue';
 import { init } from '@everframe/web';
 
 onMounted(() => {
-  init({ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
+  init({ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
 });
 </script>
 ```
@@ -129,7 +132,7 @@ onMounted(() => {
   import { init } from '@everframe/web';
 
   onMount(() => {
-    init({ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
+    init({ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
   });
 </script>
 ```
@@ -143,7 +146,7 @@ import { init } from '@everframe/web';
 @Component({ selector: 'app-root', template: '...' })
 export class AppComponent implements OnInit {
   ngOnInit(): void {
-    init({ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
+    init({ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
   }
 }
 ```
@@ -162,7 +165,7 @@ a build-time warning, not a way to make it run there:
 ---
 <script>
   import { init } from '@everframe/web';
-  init({ apiKey: 'txx_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
+  init({ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx', appVersion: '1.0.0' });
 </script>
 ```
 
@@ -226,7 +229,7 @@ interface Everframe {
 
 | Method | What it does |
 | --- | --- |
-| `open()` | Opens the reporter dialog. Resolves with `{ status: 'submitted' \| 'queued' \| 'cancelled', … }`. Rejects if the handle was destroyed or the reporter isn't mounted. |
+| `open()` | Opens the reporter dialog. Resolves with `{ status: 'submitted' \| 'queued' \| 'cancelled', … }`. Rejects if the handle was destroyed or the reporter isn't mounted, and with `EverframeReporterDisabledError` when the config sets `reporter: { disabled: true }`. |
 | `setUser(user)` | Attaches a user identity to subsequent reports. `null` clears it. |
 | `setIdentityToken(source)` | Signed-JWT-based recognition; accepts a token string or a provider function the SDK re-asks as it nears expiry. |
 | `setExtra(value)` | Free-form string attached to the next report as host-supplied context. |
@@ -246,7 +249,7 @@ inherit a privacy call that silently does nothing, this handle omits it.
 
 ```ts
 const everframe = init({
-  apiKey: 'txx_live_xxxxxxxxxxxxxxxx',
+  sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
   appVersion: '2.4.0',
   appBuild: 'web-abc123',
 });
@@ -284,6 +287,14 @@ contract as every other Everframe SDK. What `init()` does install:
 A visible "report a bug" trigger is your own UI: call `everframe.open()` from
 your own button, menu item, or keyboard shortcut.
 
+To report crashes and errors without letting users file reports, set
+`reporter: { disabled: true }`. That session has no hotkey, the inbox has no
+"New report" button, and `open()` rejects with
+`EverframeReporterDisabledError`. Session replay uses the app's crash-only
+sampling rate (0 by default) and network bodies stay off, until a phone or
+dashboard member bonds through the companion. See
+[crash-only sessions](../../docs/session-replay.md#crash-only-sessions).
+
 ## Marking sensitive content
 
 Canvas hosts such as Kotlin/JS Compose should use `createCanvasVisualCapture`
@@ -299,7 +310,7 @@ const capture = createCanvasVisualCapture({
   sensitiveRects: () => [{ x: 20, y: 30, width: 140, height: 50 }],
 });
 init({
-  apiKey: 'your-kmp-integration-key',
+  sdkKey: 'your-kmp-integration-key',
   sdkName: 'everframe-kmp',
   sdkVersion: 'your-kmp-version',
   visualCapture: capture,
@@ -334,6 +345,8 @@ sensitiveRegistry.removeRef(el);
 Either way, pixels under that element's rect are blanked at capture time
 before the screenshot bytes leave the browser. `<input type="password">`
 elements are auto-masked with no action required.
+
+Replays also attach to errors; see [session replay](../../docs/session-replay.md).
 
 ### Smart-TV screenshots
 
@@ -400,7 +413,7 @@ yourself:
 import { companion, __getCompanionApi } from '@everframe/web';
 
 companion.start({
-  sdkKey: 'txx_live_xxxxxxxxxxxxxxxx',
+  sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
   attachPinUi: 'custom', // you're taking responsibility for rendering it
 });
 
@@ -446,7 +459,7 @@ If you want a badge on a vanilla host, render your own:
 ```ts
 import { companion, __getCompanionApi } from '@everframe/web';
 
-companion.start({ sdkKey: 'txx_live_xxxxxxxxxxxxxxxx' });
+companion.start({ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx' });
 
 const api = __getCompanionApi();
 api.onAttachedUserName((name) => {

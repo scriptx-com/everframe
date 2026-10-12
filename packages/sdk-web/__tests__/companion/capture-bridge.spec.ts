@@ -81,7 +81,7 @@ const fakeLifecycle = {
 
 function fakeHost(): CompanionHost {
   return {
-    config: { apiKey: 'k' } as CompanionHost['config'],
+    config: { sdkKey: 'k' } as CompanionHost['config'],
     sdkVersion: '0.0.0-test',
     // Task 15 (2026-08-12) — this file never exercises identity, so a fixed
     // "nobody signed in" getter matches its pre-existing behavior.

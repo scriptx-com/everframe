@@ -1,0 +1,10 @@
+--- a/build/config/BUILD.gn
++++ b/build/config/BUILD.gn
+@@ -477,6 +477,7 @@
+ 
+     if (target_cpu == "arm") {
+       tool_prefix = "arm-linux-androideabi"
++      not_needed([ "tool_prefix" ])
+     } else if (target_cpu == "arm64") {
+       tool_prefix = "aarch64-linux-android"
+     } else if (target_cpu == "x86") {

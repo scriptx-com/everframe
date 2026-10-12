@@ -82,7 +82,7 @@ struct NetworkBodyCaptureGateTests {
         // `capture.network` defaults to false; `capture.networkBodies`
         // defaults to true (no explicit client veto) — the exact scenario a
         // host gets by leaving `CaptureConfig` untouched.
-        let config = EverframeConfig(appId: "app", capture: .defaults)
+        let config = EverframeConfig(sdkKey: "app", capture: .defaults)
         gate.applyConfig(
             wire(captureBodies: true), samplingRate: 1.0,
             locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: config),
@@ -93,7 +93,7 @@ struct NetworkBodyCaptureGateTests {
     @Test func serverOnNetworkTrueButNetworkBodiesVetoStaysInactive() {
         let gate = NetworkBodyCaptureGate()
         let config = EverframeConfig(
-            appId: "app", capture: CaptureConfig(network: true, networkBodies: false))
+            sdkKey: "app", capture: CaptureConfig(network: true, networkBodies: false))
         gate.applyConfig(
             wire(captureBodies: true), samplingRate: 1.0,
             locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: config),
@@ -104,7 +104,7 @@ struct NetworkBodyCaptureGateTests {
     @Test func serverOnNetworkTrueAndNetworkBodiesTrueBecomesActive() {
         let gate = NetworkBodyCaptureGate()
         let config = EverframeConfig(
-            appId: "app", capture: CaptureConfig(network: true, networkBodies: true))
+            sdkKey: "app", capture: CaptureConfig(network: true, networkBodies: true))
         gate.applyConfig(
             wire(captureBodies: true), samplingRate: 1.0,
             locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: config),
@@ -119,6 +119,39 @@ struct NetworkBodyCaptureGateTests {
             locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: nil),
             random: { 0.0 })
         #expect(!gate.isActive, "a nil/absent client config (pre-start) must fail closed")
+    }
+
+    // Crash-only sessions (spec 2026-10-12): a crash-only session captures no
+    // bodies until a companion bond upgrades it; then the normal rules apply.
+    @Test func crashOnlySessionStaysInactiveUntilACompanionUpgrade() {
+        let crashOnly = EverframeConfig(
+            sdkKey: "app", capture: CaptureConfig(network: true, networkBodies: true), reporterEnabled: false)
+        #expect(NetworkBodyCaptureGate.locallyDisabled(for: crashOnly))
+        #expect(NetworkBodyCaptureGate.locallyDisabled(for: crashOnly, upgraded: false))
+        #expect(!NetworkBodyCaptureGate.locallyDisabled(for: crashOnly, upgraded: true))
+
+        let gate = NetworkBodyCaptureGate()
+        gate.applyConfig(
+            wire(captureBodies: true), samplingRate: 1.0,
+            locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: crashOnly, upgraded: false),
+            random: { 0.0 })
+        #expect(!gate.isActive, "a crash-only session must not capture bodies even with server ON")
+        gate.applyConfig(
+            wire(captureBodies: true), samplingRate: 1.0,
+            locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: crashOnly, upgraded: true),
+            random: { 0.0 })
+        #expect(gate.isActive, "an upgraded session follows the server rules")
+    }
+
+    @Test func anUpgradeNeverOverridesTheOtherClientVetoes() {
+        let noNetwork = EverframeConfig(sdkKey: "app", capture: .defaults, reporterEnabled: false)
+        #expect(NetworkBodyCaptureGate.locallyDisabled(for: noNetwork, upgraded: true))
+        let veto = EverframeConfig(
+            sdkKey: "app", capture: CaptureConfig(network: true, networkBodies: false), reporterEnabled: false)
+        #expect(NetworkBodyCaptureGate.locallyDisabled(for: veto, upgraded: true))
+        #expect(NetworkBodyCaptureGate.locallyDisabled(for: nil, upgraded: true))
+        let report = EverframeConfig(sdkKey: "app", capture: CaptureConfig(network: true, networkBodies: true))
+        #expect(!NetworkBodyCaptureGate.locallyDisabled(for: report, upgraded: false))
     }
 
     @Test func nilBlockIsFailClosed() {

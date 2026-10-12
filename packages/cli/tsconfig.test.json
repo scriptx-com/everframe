@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": { "noEmit": true, "rootDir": "." },
-  "include": ["src/**/*", "__tests__/**/*", "vitest.config.ts"]
+  "include": ["src/**/*", "__tests__/**/*", "vitest.config.ts", "build-constants.ts"]
 }

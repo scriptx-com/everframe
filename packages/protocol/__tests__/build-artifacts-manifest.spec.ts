@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   R8_ASSET_URL,
+  R8_MAX_BYTES,
   artifactKind,
   hermesAssetUrl,
   isValidBuildId,
@@ -195,6 +196,49 @@ describe('Hermes manifest identity', () => {
     'rejects a nonpersistable bundle name: %j',
     (bundleName) => expect(() => hermesAssetUrl('android', bundleName)).toThrow(),
   );
+
+  // Vega OS names each bundle by its SHA-256 and keeps JavaScript line and
+  // column debug info, so the plain Metro map uploads under the bundle id.
+  describe('Vega bundles', () => {
+    const bundleId = 'c'.repeat(64);
+    const vega = {
+      version: 2,
+      runtime: 'hermes',
+      platform: 'vega',
+      buildId: bundleId,
+      artifacts: [{
+        url: `hermes://vega/${bundleId}.bundle`,
+        generatedSha256: bundleId,
+        mapSha256: 'b'.repeat(64),
+        mapBytes: 12,
+      }],
+    } as const;
+
+    it('constructs and parses a vega artifact identity', () => {
+      expect(hermesAssetUrl('vega', `${bundleId}.bundle`)).toBe(`hermes://vega/${bundleId}.bundle`);
+      expect(parseManifest(vega)).toEqual(vega);
+      expect(artifactKind(parseManifest(vega))).toBe('source_map');
+    });
+
+    it.each([
+      `hermes://android/${bundleId}.bundle`,
+      `hermes://vega/a/${bundleId}.bundle`,
+    ])('rejects a vega manifest whose URI names another platform or path: %s', (url) => {
+      expect(() => parseManifest({ ...vega, artifacts: [{ ...vega.artifacts[0], url }] })).toThrow();
+    });
+
+    it('rejects a vega URI inside an android manifest', () => {
+      expect(() => parseManifest({
+        ...valid,
+        artifacts: [{ ...valid.artifacts[0], url: `hermes://vega/${bundleId}.bundle` }],
+      })).toThrow();
+    });
+
+    it('still rejects platforms Hermes does not ship on', () => {
+      expect(() => hermesAssetUrl('kepler' as never, 'index.bundle')).toThrow();
+      expect(() => parseManifest({ ...vega, platform: 'kepler' })).toThrow();
+    });
+  });
 });
 
 describe('R8 manifest identity', () => {
@@ -245,9 +289,17 @@ describe('R8 manifest identity', () => {
     { artifacts: [{ ...valid.artifacts[0], generatedSha256: 'b'.repeat(64) }] },
     { artifacts: [{ ...valid.artifacts[0], extra: true }] },
     { artifacts: [{ ...valid.artifacts[0], mapBytes: 0 }] },
-    { artifacts: [{ ...valid.artifacts[0], mapBytes: 32 * 1024 * 1024 + 1 }] },
+    { artifacts: [{ ...valid.artifacts[0], mapBytes: R8_MAX_BYTES + 1 }] },
   ])('rejects an invalid version-3 field set: %j', (change) => {
     expect(() => parseManifest({ ...valid, ...change })).toThrow();
+  });
+
+  it('accepts R8 mappings up to 512 MiB, far above the 32 MiB JavaScript map limit', () => {
+    expect(R8_MAX_BYTES).toBe(512 * 1024 * 1024);
+    for (const mapBytes of [32 * 1024 * 1024 + 1, 70_769_438, R8_MAX_BYTES]) {
+      const manifest = parseManifest({ ...valid, artifacts: [{ ...valid.artifacts[0], mapBytes }] });
+      expect(manifest.artifacts[0]!.mapBytes).toBe(mapBytes);
+    }
   });
 
   it('keeps generated hashes mandatory for legacy JavaScript manifests', () => {

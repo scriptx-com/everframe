@@ -31,7 +31,7 @@ import Foundation
 @MainActor
 @Suite(.serialized)
 struct StartEpochGuardTests {
-    private let testAppId = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+    private let testSdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
 
     // Round-6 review Finding F31: every test in this file drives
     // `Everframe.shared` (start/kill, the async start-tail hook) for real —
@@ -47,7 +47,7 @@ struct StartEpochGuardTests {
                 await gate.waitUntilOpen()
             }
 
-            let config = EverframeConfig(appId: testAppId, capture: CaptureConfig(logs: false))
+            let config = EverframeConfig(sdkKey: testSdkKey, capture: CaptureConfig(logs: false))
             try Everframe.shared.start(config: config)
 
             // start() must return synchronously (its documented contract) with
@@ -83,7 +83,7 @@ struct StartEpochGuardTests {
                 await gate.waitUntilOpen()
             }
 
-            let config = EverframeConfig(appId: testAppId, capture: CaptureConfig(logs: false))
+            let config = EverframeConfig(sdkKey: testSdkKey, capture: CaptureConfig(logs: false))
             try Everframe.shared.start(config: config)
             Everframe.shared.kill()
             await gate.open()

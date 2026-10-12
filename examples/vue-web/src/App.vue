@@ -12,7 +12,7 @@ provide(EVERFRAME_KEY, handle);
 
 onMounted(() => {
   handle.value = init({
-    apiKey: import.meta.env['VITE_EVERFRAME_KEY'] ?? 'txx_live_test',
+    sdkKey: import.meta.env['VITE_EVERFRAME_KEY'] ?? 'txx_live_test',
     appVersion: '0.0.1-vue',
   });
   // Spec hooks. Both are read by packages/sdk-web/e2e/vue/*.

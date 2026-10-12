@@ -225,7 +225,7 @@ object CompanionSubmissionComposer {
 
             // 2. Device metadata + form-factor classification (mirrors
             //    ReporterDialog.kt:259-261).
-            val device = DeviceMetadata.collect(inputs.activity)
+            val device = DeviceMetadata.collect(inputs.activity, cfg.debugBuild)
 
             // 3. Declare the screenshot attachment so parser.ts can pair the
             //    multipart 'screenshot' part with envelope.attachments[]
@@ -324,6 +324,7 @@ object CompanionSubmissionComposer {
                 appName = (device["bundleIdentifier"] as? String) ?: "unknown",
                 appVersion = (device["appVersion"] as? String) ?: "0.0.0",
                 appBuild = (device["appBuild"] as? Number)?.toString(),
+                appDebug = device["appDebug"] == "true",
                 deviceOs = (device["os"] as? String) ?: "Android",
                 deviceOsVersion = (device["osVersion"] as? String) ?: "0.0",
                 deviceModel = device["model"] as? String,

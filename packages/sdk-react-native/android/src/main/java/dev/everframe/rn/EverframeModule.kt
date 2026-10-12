@@ -76,6 +76,8 @@ import dev.everframe.companion.CompanionSubmissionComposer
 import dev.everframe.companion.PreviewCapture
 import dev.everframe.companion.RelayWSClient
 import dev.everframe.companion.parseCompanionBadgePosition
+import dev.everframe.config.ReleaseHealthConfig
+import dev.everframe.config.ReleaseHealthBundleStatus
 import dev.everframe.config.CaptureConfig
 import dev.everframe.config.Environment
 import dev.everframe.config.ReportResult
@@ -146,6 +148,8 @@ class EverframeModule(
         internal const val REJECT_CAPTURE_DISABLED: String = "capture_disabled"
         internal const val REJECT_NO_ACTIVITY: String = "no_activity"
         internal const val REJECT_OPEN_REPORTER_FAILED: String = "open_reporter_failed"
+        /** Crash-only sessions (spec 2026-10-12). The JS facade maps this exact code to `EverframeReporterDisabledError`. */
+        internal const val REJECT_REPORTER_DISABLED: String = "EVERFRAME_REPORTER_DISABLED"
 
         // Plan 06.2-11 — JS-side event names. Keep in lock-step with
         // `packages/sdk-react-native/src/companion.ts` and the iOS
@@ -215,12 +219,45 @@ class EverframeModule(
     @ReactMethod(isBlockingSynchronousMethod = true)
     override fun configureSync(opts: ReadableMap): Boolean = configureInternal(opts)
 
+    private fun parseReleaseHealth(opts: ReadableMap): ReleaseHealthConfig? {
+        // Invalid bridge input revokes earlier monitoring instead of retaining an old subject.
+        // The SDK reads the app version itself; the bridge carries the loaded bundle, the user ID and
+        // whether debug builds count. Release health is on by default: a missing or null flag is on, and
+        // only an explicit false is off. It still needs a valid loaded bundle, so no id means off.
+        return runCatching {
+            if (opts.takeIfHasBoolean("releaseHealthEnabled") == false) return null
+            val loaded = opts.takeIfHasString("releaseHealthLoadedBuildId") ?: return null
+            val user = opts.takeIfHasString("releaseHealthUserId")
+            if (!validHealthText(loaded, 200) || (user != null && !validHealthText(user, 128))) return null
+            val includeDebugBuilds = opts.takeIfHasBoolean("releaseHealthIncludeDebugBuilds") ?: false
+            ReleaseHealthConfig(enabled = true, userId = user, loadedBuildId = loaded,
+                loadedBundleStatus = ReleaseHealthBundleStatus.KNOWN, includeDebugBuilds = includeDebugBuilds)
+        }.getOrNull()
+    }
+
+    private fun validHealthText(value: String, maximum: Int): Boolean {
+        // Match the wire's UTF-16 limit and ECMAScript blank definition, preserving ID bytes.
+        fun blank(c: Char) = c in '\u0009'..'\u000d' || c == ' ' || c == '\u00a0' ||
+            c == '\u1680' || c in '\u2000'..'\u200a' || c == '\u2028' || c == '\u2029' ||
+            c == '\u202f' || c == '\u205f' || c == '\u3000' || c == '\ufeff'
+        if (value.length > maximum || value.all(::blank)) return false
+        var index = 0
+        while (index < value.length) {
+            val c = value[index++]
+            if (c.code < 32 || Character.isLowSurrogate(c)) return false
+            if (Character.isHighSurrogate(c)) {
+                if (index >= value.length || !Character.isLowSurrogate(value[index++])) return false
+            }
+        }
+        return true
+    }
+
     private fun configureInternal(opts: ReadableMap): Boolean {
         var completed = false
         txGuardSurface("configure") {
-            val sdkKey = opts.takeIfHasString("apiKey")
+            val sdkKey = opts.takeIfHasString("sdkKey")
                 ?: throw JSApplicationIllegalArgumentException(
-                    "configure: required field 'apiKey' missing",
+                    "configure: required field 'sdkKey' missing",
                 )
             val sdkVersion = opts.takeIfHasString("sdkVersion") ?: Everframe.SDK_VERSION
 
@@ -233,6 +270,13 @@ class EverframeModule(
             // Polarity flips exactly once, here: JS sends the veto
             // (`installIdentifierDisabled`), native stores the permission.
             val installIdentifierDisabled = opts.takeIfHasBoolean("installIdentifierDisabled") ?: false
+            // Polarity flips exactly once, here: JS sends the veto
+            // (`crashReportingDisabled`), native stores the permission.
+            val crashReportingDisabled = opts.takeIfHasBoolean("crashReportingDisabled") ?: false
+            // Polarity flips exactly once, here: JS sends the crash-only switch
+            // (`reporterDisabled`, flattened from `reporter: { disabled }`),
+            // native stores the permission.
+            val reporterDisabled = opts.takeIfHasBoolean("reporterDisabled") ?: false
             // Attach-PIN UI mode (spec 2026-08-19) — a flat optional STRING
             // field (codegen cannot express a string-literal union), parsed
             // here and stashed for `startCompanion()` to read (the flag is a
@@ -245,12 +289,20 @@ class EverframeModule(
             val attachPinUi = parseAttachPinUi(opts.takeIfHasString("attachPinUi"))
 
             val config = EverframeConfig(
+                // The JS config carries no App ID, and the native SDK requires a
+                // non-blank one. It only keys this app's low-memory-kill issue, so
+                // the SDK key stands in, as it always has; changing it would split
+                // existing React Native low-memory issues.
                 appId = sdkKey,
                 sdkKey = sdkKey,
                 environment = Environment.production,
                 release = sdkVersion,
-                capture = CaptureConfig(networkBodies = !networkBodiesDisabled),
+                capture = CaptureConfig(networkBodies = !networkBodiesDisabled, crash = !crashReportingDisabled),
                 installIdentifierEnabled = !installIdentifierDisabled,
+                releaseHealth = parseReleaseHealth(opts),
+                // The JS facade always sends React Native's `__DEV__` (or the host's override). A missing
+                // or null key stays null so the native SDK decides for itself, as for any other caller.
+                debugBuild = opts.takeIfHasBoolean("debugBuild"),
                 // Explicit companion device-identity override (naming spec
                 // 2026-08-24) — read straight off the flat ConfigOpts field,
                 // same shape as attachPinUi above. Absent/blank falls
@@ -268,6 +320,7 @@ class EverframeModule(
                 // `startCompanion()` time, mirroring `attachPinUi`.
                 companionBadgeEnabled = opts.takeIfHasBoolean("companionBadgeEnabled") ?: true,
                 shakeToReportEnabled = opts.takeIfHasBoolean("shakeToReportEnabled") ?: true,
+                reporterEnabled = !reporterDisabled,
                 companionBadgePosition = opts.takeIfHasString("companionBadgePosition"),
                 // Inline reporter theme (reporter branding spec 2026-08-25,
                 // RN slice) — 8 flat optional STRING fields on ConfigOpts
@@ -377,11 +430,20 @@ class EverframeModule(
      *   { status: "submitted", reportId: "<uuid>" }
      *   { status: "queued",    reportId: "<uuid>" }
      *   { status: "cancelled" }
+     *
+     * Rejects with [REJECT_REPORTER_DISABLED] in a crash-only session
+     * (`reporterDisabled`), including after a companion bond upgraded it.
      */
     @ReactMethod
     override fun openReporter(promise: Promise) {
         if (!Everframe.captureGate) {
             promise.reject(REJECT_CAPTURE_DISABLED, "Everframe not started (captureGate=false). Call configure() first.")
+            return
+        }
+        // Crash-only session: rejected here because ReporterBridge reduces every core failure to one
+        // generic message, which would hide `ReporterDisabledException` from JS.
+        if (Everframe.currentConfig?.reporterEnabled == false) {
+            promise.reject(REJECT_REPORTER_DISABLED, "The reporter is turned off for this session (reporter.disabled).")
             return
         }
         MainScope().launch {
@@ -641,11 +703,11 @@ class EverframeModule(
     @ReactMethod(isBlockingSynchronousMethod = true)
     override fun getReportDeliveryStatusJson(): String = Everframe.getReportDeliveryStatus().toJson()
 
-    /** Automatic ErrorUtils capture; true acknowledges completed sidecar storage. */
+    /** Automatic ErrorUtils and unhandled-rejection capture; true acknowledges completed sidecar storage. A non-fatal error may carry a replay. */
     @ReactMethod(isBlockingSynchronousMethod = true)
     override fun reportCrash(crashJson: String): Boolean = captureCrashJson(crashJson, handled = false)
 
-    /** Explicit capture always enforces handled=true, fatal=false, captureException. */
+    /** Explicit capture always enforces handled=true, fatal=false, captureException, and may carry a replay. */
     @ReactMethod(isBlockingSynchronousMethod = true)
     override fun captureHandledException(crashJson: String): Boolean = captureCrashJson(crashJson, handled = true)
 
@@ -672,12 +734,17 @@ class EverframeModule(
             val details = if (obj.has("details")) obj.get("details") else null
             val causeChain = if (obj.has("causeChain")) obj.get("causeChain") else null
             val fatal = !handled && obj.optBoolean("fatal", false)
-            val accepted = if (handled) {
-                dev.everframe.crash.CrashReporter.captureHandledFactsWithCauses(
+            // Only errors the app survives ask for a replay. Eligibility and export remain in the core;
+            // fatal errors keep the entry point that never carries a replay.
+            val accepted = when {
+                handled -> dev.everframe.crash.CrashReporter.captureHandledFactsWithReplay(
                     exceptionType, message, frames, occurredAt, jsBundle, details, causeChain, "everframe-android",
                 )
-            } else {
-                dev.everframe.crash.CrashReporter.captureFactsAcceptedWithCauses(
+                fatal -> dev.everframe.crash.CrashReporter.captureFactsAcceptedWithCauses(
+                    exceptionType, message, frames, obj.optString("mechanism", "errorutils"),
+                    fatal, occurredAt, jsBundle, details, causeChain,
+                )
+                else -> dev.everframe.crash.CrashReporter.captureFactsAcceptedWithReplay(
                     exceptionType, message, frames, obj.optString("mechanism", "errorutils"),
                     fatal, occurredAt, jsBundle, details, causeChain,
                 )

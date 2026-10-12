@@ -35,7 +35,7 @@ describe('web adapter — identity capability negotiation', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const adapter = createWebPlatformAdapter({ apiKey: 'k' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     await adapter.__initReplay();
 

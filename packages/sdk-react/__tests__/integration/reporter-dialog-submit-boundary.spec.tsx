@@ -205,7 +205,7 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
     try {
       const { findByTestId } = render(
         <EverframeProvider
-          config={{ apiKey: 'txx_live_dialog_boundary', appName: 'test', appVersion: '1.0.0' }}
+          config={{ sdkKey: 'txx_live_dialog_boundary', appName: 'test', appVersion: '1.0.0' }}
         >
           <div>app</div>
           <IdentityController initial={alice} onReady={(set) => { liveSetIdentityToken = set; }} />
@@ -305,7 +305,7 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
     try {
       const { findByTestId } = render(
         <EverframeProvider
-          config={{ apiKey: 'txx_live_dialog_user_boundary', appName: 'test', appVersion: '1.0.0' }}
+          config={{ sdkKey: 'txx_live_dialog_user_boundary', appName: 'test', appVersion: '1.0.0' }}
         >
           <div>app</div>
           <UserController initial={{ id: 'alice' }} onReady={(set) => { liveSetUser = set; }} />
@@ -387,7 +387,7 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
     try {
       const { findByTestId } = render(
         <EverframeProvider
-          config={{ apiKey: 'txx_live_dialog_user_clone', appName: 'test', appVersion: '1.0.0' }}
+          config={{ sdkKey: 'txx_live_dialog_user_clone', appName: 'test', appVersion: '1.0.0' }}
         >
           <div>app</div>
           <UserController initial={hostUser} onReady={() => undefined} />
@@ -465,7 +465,7 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
     try {
       const { findByTestId } = render(
         <EverframeProvider
-          config={{ apiKey: 'txx_live_dialog_user_projection', appName: 'test', appVersion: '1.0.0' }}
+          config={{ sdkKey: 'txx_live_dialog_user_projection', appName: 'test', appVersion: '1.0.0' }}
         >
           <div>app</div>
           <UserController initial={hostUser} onReady={() => undefined} />

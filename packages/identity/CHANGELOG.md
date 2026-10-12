@@ -1,5 +1,14 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.0.1
+
+### Patch Changes
+
+- 5ec828c: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  The README's provider example passes the SDK key as `sdkKey`, the field's new name in `@everframe/react`.
+
 ## 1.0.0
 
 - Stable identity companion SDK release.

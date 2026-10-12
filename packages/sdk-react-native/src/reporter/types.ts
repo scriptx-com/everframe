@@ -3,7 +3,7 @@
 //
 // Reporter result + error types. After the D-05/D-07 flip (2026-05-11) the
 // reporter UI lives entirely on the native side; this module retains only the
-// JS-facing result shape and the not-mounted error class.
+// JS-facing result shape and the two reporter error classes.
 
 /**
  * Resolved by `useEverframe().open()` / top-level `open()`.
@@ -28,5 +28,25 @@ export class EverframeNotMountedError extends Error {
   override readonly name = 'EverframeNotMountedError';
   constructor(message?: string) {
     super(message ?? 'EverframeProvider is not mounted; wrap your app root.');
+  }
+}
+
+/**
+ * Native error code both bridges reject `openReporter()` with when the host
+ * set `reporter: { disabled: true }` (crash-only sessions, spec 2026-10-12).
+ */
+export const REPORTER_DISABLED_CODE = 'EVERFRAME_REPORTER_DISABLED';
+
+/**
+ * Rejected by `open()` when the host turned the reporter off
+ * (`reporter: { disabled: true }`, a crash-only session). The session keeps
+ * this for its whole life, including after a companion bond upgrades it:
+ * reports then come through the companion, not through `open()`. Same name
+ * as the web SDK's error of the same purpose.
+ */
+export class EverframeReporterDisabledError extends Error {
+  override readonly name = 'EverframeReporterDisabledError';
+  constructor(message?: string) {
+    super(message ?? 'The Everframe reporter is disabled in this session (reporter.disabled).');
   }
 }

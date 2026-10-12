@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
-<!-- ZERO <uses-permission> entries. Host app's INTERNET (already declared by 99% of apps) is what we use. -->
+<!-- No <uses-permission> entries here: INTERNET comes from everframe-core's manifest. -->
 <!-- Plan 05-06: androidx.startup Initializer registers Everframe.report resolvers at module-load. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           xmlns:tools="http://schemas.android.com/tools">

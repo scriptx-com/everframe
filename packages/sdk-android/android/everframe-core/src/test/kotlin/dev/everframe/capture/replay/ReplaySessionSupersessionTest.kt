@@ -108,8 +108,8 @@ class ReplaySessionSupersessionTest {
     }
 
     private fun session(fetcher: ConfigFetcher): ReplaySession {
-        val provider = ReplayConfigProvider(configUrl = url, apiKey = "k", fetcher = fetcher)
-        return ReplaySession(apiKey = "k", locallyDisabled = false, provider = provider)
+        val provider = ReplayConfigProvider(configUrl = url, sdkKey = "k", fetcher = fetcher)
+        return ReplaySession(sdkKey = "k", locallyDisabled = false, provider = provider)
     }
 
     @Test

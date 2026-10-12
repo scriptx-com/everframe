@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Module-level companion host seam. The phone-companion submit path needs the
-// active SDK config (apiKey for ingest) + the platform adapter (capture
+// active SDK config (sdkKey for ingest) + the platform adapter (capture
 // primitives + outbox) at `report.submit` time — but the companion runs from
 // imperative, non-React call sites (`companion.start()`), so it can't read
 // React context. `EverframeProvider` writes this seam on mount / clears it on
@@ -18,11 +18,11 @@
 
 import type { UserMetadata } from '@everframe/sdk-core';
 import type { WebPlatformAdapter } from '../adapter.js';
-import type { WebEverframeConfig } from '../internal/types.js';
+import type { ResolvedWebEverframeConfig } from '../internal/types.js';
 import type { HostSdkName } from '../internal/sdk-identity.js';
 
 export interface CompanionHost {
-  config: WebEverframeConfig;
+  config: ResolvedWebEverframeConfig;
   adapter: WebPlatformAdapter;
   /**
    * Which SDK is hosting — passed to submitReportFromDraft as envelope

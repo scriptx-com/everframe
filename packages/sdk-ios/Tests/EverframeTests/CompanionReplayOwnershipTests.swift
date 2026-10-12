@@ -21,7 +21,7 @@ struct CompanionReplayOwnershipTests {
     func receivedReportSurvivesDisconnectWithoutConsumingNewCapture(timing: String, status: Int) async throws {
         try await withGlobalCaptureStateLock {
             try Everframe.shared.start(config: EverframeConfig(
-                appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU", capture: CaptureConfig(logs: false)))
+                sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU", capture: CaptureConfig(logs: false)))
             let image = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2)).image { context in
                 UIColor.black.setFill(); context.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
             }

@@ -457,16 +457,23 @@ public struct EnvelopeBuilder {
         // real `Bundle.main` / `UIDevice.current` / `UIScreen.main` plumbing.
         #if canImport(Foundation)
         let bundleName = Bundle.main.bundleIdentifier ?? "unknown"
-        let bundleVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0.0.0"
-        let bundleBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
+        // The same rule as release health, so errors join to the version their sessions report.
+        // Callers that hold the config pass `app.debug` in `extra`, so `debugBuild` wins; the
+        // detected answer is the fallback.
+        let release = AppRelease.current(debugBuild: nil)
+        let bundleVersion = release.version
+        let bundleBuild = release.build
+        let bundleDebug = release.debug
         #else
         let bundleName = "unknown"
         let bundleVersion = "0.0.0"
         let bundleBuild: String? = nil
+        let bundleDebug = false
         #endif
 
         let app = EverframeApp(
             build: extra["app.build"] ?? bundleBuild,
+            debug: extra["app.debug"].map { $0 == "true" } ?? bundleDebug,
             name: extra["app.name"] ?? bundleName,
             version: extra["app.version"] ?? bundleVersion
         )

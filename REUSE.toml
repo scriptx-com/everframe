@@ -3,7 +3,7 @@ SPDX-PackageName = "Everframe SDKs"
 SPDX-PackageDownloadLocation = "https://github.com/scriptx-com/everframe"
 
 [[annotations]]
-path = ["*.json", "**/*.json", "patches/*.patch"]
+path = ["*.json", "**/*.json", "patches/*.patch", "packages/sdk-android/native/mini-chromium-arm-gn.patch"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 ScriptX"
 SPDX-License-Identifier = "MIT"
@@ -50,3 +50,33 @@ SPDX-FileCopyrightText = "2012 Karl Stenerud"
 path = ["packages/sdk-ios/crash-recorder/Sources/EverframeCrashRecorder/Resources/PrivacyInfo.xcprivacy"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["2012 Karl Stenerud", "2026 ScriptX"]
+
+[[annotations]]
+path = ["packages/sdk-android/android/everframe-native-crash/src/main/assets/everframe-native-licenses/Crashpad.txt"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2014-2026 The Crashpad Authors"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = ["packages/sdk-android/android/everframe-native-crash/src/main/assets/everframe-native-licenses/OpenSSL.txt"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["1998-2026 The OpenSSL Project Authors", "1995-1998 Eric A. Young, Tim J. Hudson"]
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = ["packages/sdk-android/android/everframe-native-crash/src/main/assets/everframe-native-licenses/linux-syscall-support.txt"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2005-2011 Google LLC"
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = ["packages/sdk-android/android/everframe-native-crash/src/main/assets/everframe-native-licenses/mini-chromium.txt"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2006-2008 The Chromium Authors"
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = ["packages/sdk-android/android/everframe-native-crash/src/main/assets/everframe-native-licenses/zlib.txt"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "1995-2022 Jean-loup Gailly and Mark Adler"
+SPDX-License-Identifier = "Zlib"

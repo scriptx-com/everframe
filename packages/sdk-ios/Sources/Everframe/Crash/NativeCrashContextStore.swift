@@ -45,13 +45,17 @@ final class NativeCrashContextStore: @unchecked Sendable {
         }
     }
 
-    func createRun(now: Date = Date()) throws -> Run {
+    /// Admission can leave room for an initial context. This is a capacity check,
+    /// not a persistent reservation against other active runs' later writes.
+    func createRun(now: Date = Date(), reservingPayloadBytes: Int = 0) throws -> Run {
         try Self.lock.withLock {
+            guard reservingPayloadBytes >= 0, reservingPayloadBytes <= limits.maxPayloadBytes else { throw Failure.invalidLimits }
             let inventory = try scan()
             guard inventory.runs.count < limits.maxRuns, now.timeIntervalSince1970.isFinite else { throw Failure.capacity }
             let run = Run(id: UUID(), createdAt: now)
             let encoded = try JSONEncoder().encode(Header(schemaVersion: 1, run: run))
-            guard encoded.count <= 1024, inventory.bytes <= limits.maxTotalBytes - encoded.count else { throw Failure.capacity }
+            let reserved = reservingPayloadBytes == 0 ? 0 : reservingPayloadBytes + Self.overhead
+            guard encoded.count <= 1024, inventory.bytes <= limits.maxTotalBytes - encoded.count - reserved else { throw Failure.capacity }
             let staging = rootURL.appendingPathComponent(".creating-" + name(run.id), isDirectory: true)
             try Files.makeDirectory(staging)
             defer { try? FileManager.default.removeItem(at: staging) }
@@ -76,6 +80,21 @@ final class NativeCrashContextStore: @unchecked Sendable {
             guard let combined = sealed.combined else { throw Failure.invalidKey }
             try Files.writeImmutable(Self.magic + combined, to: path)
             return contextID
+        }
+    }
+
+    /// Caller proves these unreferenced contexts cannot be published or read by
+    /// an admitted fatal writer. Validate the whole inventory before any unlink.
+    func retireContexts(runID: UUID, keeping: Set<UUID>) throws -> Set<UUID> {
+        try Self.lock.withLock {
+            let inventory = try scan()
+            guard inventory.counts[runID] != nil else { throw Failure.missingRun }
+            let ids = try Files.entries(runURL(runID), maximum: limits.maxContextsPerRun + 8).compactMap(contextID)
+            for id in ids where !keeping.contains(id) {
+                try FileManager.default.removeItem(at: contextURL(runID, id))
+            }
+            try Files.syncDirectory(runURL(runID))
+            return Set(ids).intersection(keeping)
         }
     }
 

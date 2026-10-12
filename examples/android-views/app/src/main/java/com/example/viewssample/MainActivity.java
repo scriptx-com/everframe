@@ -50,6 +50,10 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
+        Button reportError = findViewById(R.id.reportError);
+        reportError.setOnClickListener(v -> Everframe.captureException(
+            new IllegalStateException("Views sample handled error")));
+
         Button openLogin = findViewById(R.id.openLogin);
         openLogin.setOnClickListener(v -> {
             startActivity(new android.content.Intent(this, LoginActivity.class));

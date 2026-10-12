@@ -51,7 +51,7 @@ afterEach(() => {
 
 describe('adapter.onKill() shuts the replay recorder down', () => {
   it('LIVE control: a constructed adapter owns a recorder that is not killed', () => {
-    const adapter = createWebPlatformAdapter({ apiKey: 'pk_test' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'pk_test' });
     adapters.push(adapter);
 
     expect(recorders).toHaveLength(1);
@@ -59,7 +59,7 @@ describe('adapter.onKill() shuts the replay recorder down', () => {
   });
 
   it('calls kill() on it — not stop(), which the lifecycle can undo', () => {
-    const adapter = createWebPlatformAdapter({ apiKey: 'pk_test' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'pk_test' });
     adapters.push(adapter);
 
     adapter.onKill?.();
@@ -68,7 +68,7 @@ describe('adapter.onKill() shuts the replay recorder down', () => {
   });
 
   it('is idempotent — a second kill() does not throw or double-tear-down', () => {
-    const adapter = createWebPlatformAdapter({ apiKey: 'pk_test' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'pk_test' });
     adapters.push(adapter);
 
     adapter.onKill?.();
@@ -78,7 +78,7 @@ describe('adapter.onKill() shuts the replay recorder down', () => {
   });
 
   it('survives a recorder whose kill() throws (DEFE-02)', () => {
-    const adapter = createWebPlatformAdapter({ apiKey: 'pk_test' });
+    const adapter = createWebPlatformAdapter({ sdkKey: 'pk_test' });
     adapters.push(adapter);
     recorders[0]!.kill.mockImplementation(() => {
       throw new Error('rrweb blew up on teardown');

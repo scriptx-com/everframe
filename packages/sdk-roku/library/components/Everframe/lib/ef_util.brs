@@ -151,10 +151,42 @@ function EfU_IsAbnormalExit(code as dynamic) as boolean
     return Instr(1, UCase(code), "CRASH") > 0
 end function
 
-' This session's app version/build as JSON { "v", "b"? }.
+' True for a Boolean, however boxed (type() reports "Boolean" on a device and
+' "roBoolean" for a value read out of an associative array in other runtimes).
+function EfU_IsBool(v as dynamic) as boolean
+    if v = invalid then return false
+    return GetInterface(v, "ifBoolean") <> invalid
+end function
+
+' Whether this is a debug build: the host's start({ debugBuild }), kept in
+' m["efDebugBuild"] by start() (and by the reporter task for its own scope),
+' else whether the channel is sideloaded. Only for the scope that ran start().
+function EfU_DebugBuildHere() as boolean
+    if EfU_IsBool(m["efDebugBuild"]) then return m["efDebugBuild"]
+    return CreateObject("roAppInfo").IsDev()
+end function
+
+' Same, for code that may run in another scope: the injected Tier 2 hook runs
+' in the host script's `m`, which never holds what start() stored. start()
+' also records the value in the session's "ver" registry record ("d"), so
+' read it from there before falling back to detection.
+function EfU_DebugBuild() as boolean
+    if EfU_IsBool(m["efDebugBuild"]) then return m["efDebugBuild"]
+    try
+        sec = EfU_Section()
+        if sec.Exists("ver") then
+            ver = ParseJson(sec.Read("ver"))
+            if type(ver) = "roAssociativeArray" and EfU_IsBool(ver["d"]) then return ver["d"]
+        end if
+    catch ignored
+    end try
+    return CreateObject("roAppInfo").IsDev()
+end function
+
+' This session's app version/build/debug flag as JSON { "v", "b"?, "d" }.
 function EfU_VersionJson() as string
     ai = CreateObject("roAppInfo")
-    out = { "v": ai.GetVersion() }
+    out = { "v": ai.GetVersion(), "d": EfU_DebugBuildHere() }
     build = ai.GetValue("build_version")
     if build <> invalid and build <> "" then out["b"] = build
     return FormatJson(out)

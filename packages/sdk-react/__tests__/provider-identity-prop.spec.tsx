@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 const APP_KEY = 'txx_live_identity_prop_test';
-const config = { apiKey: APP_KEY };
+const config = { sdkKey: APP_KEY };
 
 function mkJwt(sub: string): string {
   const b64 = (o: unknown) =>

@@ -33,7 +33,7 @@ import Foundation
 @MainActor
 @Suite(.serialized)
 struct ReplaySessionSupersessionTests {
-    private let testAppId = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+    private let testSdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
 
     private func body(_ json: String) -> Data { Data(json.utf8) }
 
@@ -58,7 +58,7 @@ struct ReplaySessionSupersessionTests {
         let clockA = MutableClock(0)
         let providerA = ReplayConfigProvider(
             configUrl: URL(string: "https://x/api/config")!,
-            apiKey: "a",
+            sdkKey: "a",
             fetcher: fetcherA,
             ttlSec: 300,
             now: { clockA.read }
@@ -73,7 +73,7 @@ struct ReplaySessionSupersessionTests {
         let clockB = MutableClock(0)
         let providerB = ReplayConfigProvider(
             configUrl: URL(string: "https://x/api/config")!,
-            apiKey: "b",
+            sdkKey: "b",
             fetcher: fetcherB,
             ttlSec: 300,
             now: { clockB.read }
@@ -95,7 +95,7 @@ struct ReplaySessionSupersessionTests {
         // could never legitimately reach `isActive == true` and both
         // `!isActive` assertions below would be vacuously true regardless of
         // whether the F16 supersession-teardown fix actually works.
-        let config = EverframeConfig(appId: testAppId, capture: CaptureConfig(logs: false, network: true))
+        let config = EverframeConfig(sdkKey: testSdkKey, capture: CaptureConfig(logs: false, network: true))
 
         // Start #1 installs session A; its initial refresh immediately parks
         // on gateA (mid-fetch), exactly like a slow/loaded network in
@@ -175,7 +175,7 @@ struct ReplaySessionSupersessionTests {
         let clock = MutableClock(0)
         let provider = ReplayConfigProvider(
             configUrl: URL(string: "https://x/api/config")!,
-            apiKey: "a",
+            sdkKey: "a",
             fetcher: fetcher,
             ttlSec: 300,
             now: { clock.read }
@@ -188,7 +188,7 @@ struct ReplaySessionSupersessionTests {
             return session
         }
 
-        let config = EverframeConfig(appId: testAppId, capture: CaptureConfig(logs: false))
+        let config = EverframeConfig(sdkKey: testSdkKey, capture: CaptureConfig(logs: false))
         try Everframe.shared.start(config: config)
 
         let becameBuffering = await AsyncTestHelpers.waitFor({ installedSession?.__lifecycleStateForTesting() == .buffering })

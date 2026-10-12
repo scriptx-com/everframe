@@ -32,7 +32,7 @@ struct NetworkCaptureProtocolTests {
     }
 
     @Test func recordsEntryWithoutBody() throws {
-        try? Everframe.shared.start(config: .init(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
+        try? Everframe.shared.start(config: .init(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"))
         NetworkRingBuffer.shared.clear()
         let entry = NetworkLogEntry(
             timestamp: Date(),

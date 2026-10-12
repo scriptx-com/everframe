@@ -12,8 +12,11 @@ export interface ThreadViewProps {
   threads: EverframeClient['threads'];
   threadId: string;
   onBack: () => void;
-  /** Opens the normal capture flow (wired by the host Provider). */
-  onNewReport: () => void;
+  /**
+   * Opens the normal capture flow (wired by the host Provider). Absent in a
+   * crash-only session: no "Send a follow-up report" button.
+   */
+  onNewReport?: (() => void) | undefined;
 }
 
 /**
@@ -290,9 +293,11 @@ export function ThreadView({ threads, threadId, onBack, onNewReport }: ThreadVie
           ) : null}
 
           <div className="everframe-inbox-thread-actions">
-            <Button variant="secondary" onClick={onNewReport}>
-              Send a follow-up report
-            </Button>
+            {onNewReport ? (
+              <Button variant="secondary" onClick={onNewReport}>
+                Send a follow-up report
+              </Button>
+            ) : null}
             <Button
               variant="secondary"
               onClick={() => {

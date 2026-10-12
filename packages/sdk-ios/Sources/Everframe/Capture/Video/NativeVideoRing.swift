@@ -7,6 +7,14 @@ struct NativeVideoSegment: Sendable {
     let startNanos: UInt64
     let endNanos: UInt64
     let byteCount: Int
+    /// Capture time of the final real sample, distinct from its encoded hold end.
+    var lastFrameNanos: UInt64? = nil
+
+    func canPrecede(_ next: NativeVideoSegment) -> Bool {
+        if next.startNanos >= endNanos { return true }
+        // Only a terminal sample's hold may overlap a newer real capture.
+        return lastFrameNanos.map { next.startNanos > $0 } ?? false
+    }
 }
 
 /// Single-owner retention of complete, independently decodable segments.
@@ -37,17 +45,29 @@ struct NativeVideoRing: Sendable {
               segment.byteCount > 0, segment.byteCount <= byteLimit,
               segment.endNanos > segment.startNanos,
               segment.endNanos - segment.startNanos <= durationNanos,
-              segments.last.map({ segment.startNanos >= $0.endNanos }) ?? true
+              segment.lastFrameNanos.map({ $0 >= segment.startNanos && $0 < segment.endNanos }) ?? true,
+              segments.last(where: { $0.startNanos < segment.startNanos }).map({ $0.canPrecede(segment) }) ?? true,
+              segments.first(where: { $0.startNanos >= segment.startNanos }).map({ segment.canPrecede($0) }) ?? true
         else {
             try FileManager.default.removeItem(at: segment.url)
             return false
         }
-        // Evict before insertion: retained bytes never transiently exceed budget.
-        while let first = segments.first,
-              segment.endNanos - first.startNanos > durationNanos || byteCount > byteLimit - segment.byteCount {
-            try removeFirst()
+        // A snapshot close may finish after newer captures have rolled over.
+        // Sort before pruning, keeping one held predecessor and the byte cap.
+        var retained = (segments + [segment]).sorted { $0.startNanos < $1.startNanos }
+        let newestEnd = retained.map(\.endNanos).max() ?? segment.endNanos
+        let windowStart = newestEnd > durationNanos ? newestEnd - durationNanos : 0
+        var bytes = byteCount + segment.byteCount
+        while let first = retained.first {
+            let nextStart = retained.count > 1 ? retained[1].startNanos : newestEnd
+            let holdsIntoWindow = first.lastFrameNanos != nil && nextStart > windowStart
+            let expired = newestEnd - first.startNanos > durationNanos && !holdsIntoWindow
+            guard expired || bytes > byteLimit else { break }
+            try FileManager.default.removeItem(at: first.url)
+            bytes -= first.byteCount
+            retained.removeFirst()
         }
-        segments.append(segment)
+        segments = retained
         return true
     }
 

@@ -25,7 +25,7 @@ class DeviceMetadataTest {
         val m = DeviceMetadata.collect(ctx)
         val expected = setOf(
             "os", "osVersion", "sdkInt", "model", "manufacturer", "brand",
-            "appVersion", "appBuild", "bundleIdentifier", "locale", "timezone",
+            "appVersion", "appBuild", "appDebug", "bundleIdentifier", "locale", "timezone",
             "screenWidthDp", "screenHeightDp", "smallestScreenWidthDp",
             "isTv", "isTablet",
         )

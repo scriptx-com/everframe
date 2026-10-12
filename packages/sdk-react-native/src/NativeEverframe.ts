@@ -65,7 +65,7 @@
 //   an absent field, which decodes as `undefined` and never reaches native
 //   at all — to `.builtin`/`BUILTIN`. This rides `configure()`, not a new
 //   bridge method: the flag is a startup-time preference, not a per-call
-//   argument, so it belongs beside `apiKey`/`networkBodiesDisabled` on
+//   argument, so it belongs beside `sdkKey`/`networkBodiesDisabled` on
 //   `ConfigOpts` — see `companion.ts`'s `everframe.companion.attachChallenge`
 //   event, the JS-facing half of this same D-decision.
 //   Session Vitals (spec 2026-09-06) is the next D-decision after that —
@@ -105,7 +105,7 @@ export type Rect = {
  * Rich variants (e.g., callbacks, function refs) MUST stay on the JS side.
  */
 export type ConfigOpts = {
-  apiKey?: string;
+  sdkKey?: string;
   sdkVersion?: string;
   /**
    * If true, the native side captures a UIWindow/SurfaceFlinger screenshot
@@ -131,6 +131,14 @@ export type ConfigOpts = {
    * once polarity is flipped.
    */
   installIdentifierDisabled?: boolean;
+  /**
+   * Client veto for automatic crash capture. `true` turns off the native SDKs' crash capture
+   * (JVM, native crashes and ANRs on Android; native crashes on iOS) as well as the JS handlers:
+   * both natives store `capture.crash = !crashReportingDisabled`. Flat because RN codegen rejects
+   * nested objects; `extractBridgeConfig` flattens the host-facing `crashReporting: { disabled }`.
+   * Absent means capture stays on.
+   */
+  crashReportingDisabled?: boolean;
   /**
    * Built-in attach-PIN surface mode (spec 2026-08-19): 'builtin' (default —
    * the native SDK presents the code itself), 'custom' (host renders it from
@@ -163,6 +171,13 @@ export type ConfigOpts = {
   companionBadgeEnabled?: boolean;
   /** Local veto for native mobile shake-to-report. Absent defaults to enabled. */
   shakeToReportEnabled?: boolean;
+  /**
+   * Crash-only session switch. `true` turns off every on-device way to open the reporter, keeps
+   * network bodies off and samples replay with the server's crash-only rate until a companion
+   * bond upgrades the session. Flattened by `extractBridgeConfig` from `reporter: { disabled }`.
+   * Absent means a normal report session.
+   */
+  reporterDisabled?: boolean;
   /**
    * Companion on-screen name-badge corner (naming spec 2026-08-24,
    * controller ruling / Task 6b). Flat optional STRING, not a literal
@@ -210,6 +225,21 @@ export type ConfigOpts = {
   vitalsEnabled?: boolean;
   vitalsSampleRate?: number;
   vitalsCaptureSourceQuery?: boolean;
+  /**
+   * Whether this is a debug build, which Everframe never makes a release out of. The JS facade always
+   * sends it (the config's `debugBuild`, else `__DEV__`). Absent means the native SDK decides for itself.
+   */
+  debugBuild?: boolean;
+  /**
+   * Native foreground monitoring (release health). The JS facade always sends this flag: `true` with a
+   * validated loaded bundle, or `false` to revoke monitoring. A bridge that finds it missing treats it as
+   * on, and only an explicit `false` as off. The native SDK reads the app version.
+   */
+  releaseHealthEnabled?: boolean;
+  releaseHealthLoadedBuildId?: string;
+  releaseHealthUserId?: string;
+  /** Count debug builds, which the native SDKs skip by default. Absent means false. */
+  releaseHealthIncludeDebugBuilds?: boolean;
 };
 
 /**
@@ -330,6 +360,12 @@ export interface Spec extends TurboModule {
    * fatal, occurredAt }. Native builds/redacts/persists the envelope with
    * state it already owns (crumb ring, device metadata, outbox).
    * Returns true when the report was persisted.
+   *
+   * A non-fatal ErrorUtils error or unhandled promise rejection may carry a
+   * session replay of the seconds before it. A fatal error never carries one.
+   * Native decides replay eligibility; JavaScript sends no extra fields.
+   * Send `fatal` as a JSON boolean: only an absent flag or boolean false can
+   * request a replay on iOS.
    */
   reportCrash(crashJson: string): boolean;
 
@@ -380,7 +416,10 @@ export interface Spec extends TurboModule {
    * `token` resolves to a live player, else session-scoped.
    */
   trackVitals(name: string, dataJson?: string, token?: string): void;
-  /** Explicit handled capture; native enforces handled=true, fatal=false. */
+  /**
+   * Explicit handled capture; native enforces handled=true, fatal=false. Like a
+   * non-fatal `reportCrash`, it may carry a session replay.
+   */
   captureHandledException(crashJson: string): boolean;
 
   // ---------------- Phone-companion (Plan 06.2-11) ----------------

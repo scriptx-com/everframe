@@ -22,7 +22,7 @@ struct NativeVideoExporterTests {
         }
         return try #require(await writer.finish())
     }
-    @Test func remuxPreservesGapsAndTransfersOneMovie() async throws {
+    @Test func remuxHoldsThePriorFrameAcrossGapsAndTransfersOneMovie() async throws {
         let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
         let a = try await segment(dir, start: 1_000_000_000)
         let b = try await segment(dir, start: 1_400_000_000)
@@ -50,9 +50,9 @@ struct NativeVideoExporterTests {
             #expect(CMSampleBufferGetImageBuffer(sample) != nil)
         }
         #expect(reader.status == .completed)
-        // Decoding an empty MP4 edit emits a black frame at its start (200 ms).
-        // The real frames after it must still be at 400/500, not accelerated.
-        #expect(times == [0, 100, 200, 400, 500])
+        // The preceding sample holds through the gap without a black frame.
+        // Later real frames remain at 400/500 ms, never moved backwards.
+        #expect(times == [0, 100, 400, 500])
         await exporter.cancel()
         #expect(FileManager.default.fileExists(atPath: artifact.url.path))
     }

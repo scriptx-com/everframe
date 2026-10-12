@@ -62,8 +62,8 @@ import {
   RENDER_PATH,
   SCREENSHOT_RENDER_SDK_FEATURE,
 } from '@everframe/protocol';
-import type { WebEverframeConfig } from './internal/types.js';
-import type { ReporterResult } from './reporter-types.js';
+import type { ResolvedWebEverframeConfig } from './internal/types.js';
+import { EverframeReporterDisabledError, type ReporterResult } from './reporter-types.js';
 import { sensitiveRegistry } from './sensitive/registry.js';
 import { createReplayRecorder, type ReplayRecorder } from './capture/replay/index.js';
 import {
@@ -107,6 +107,13 @@ import {
 import { captureFocusedNode as captureFocusedNodeImpl } from './capture/focus.js';
 import { getDeviceMetadata as getDeviceMetadataImpl } from './capture/metadata.js';
 import { createOutbox } from './outbox/index.js';
+import { beginErrorReplay, ERROR_REPLAY_DEADLINE_MS } from './capture/replay/error-replay.js';
+import {
+  forgetErrorReplay,
+  revokeErrorReplays,
+  markErrorReplayPending,
+  settleErrorReplay,
+} from './transport/error-replay-parts.js';
 import {
   discardEnqueuedReport,
   drainOutboxWhileOwned,
@@ -126,6 +133,7 @@ import { PKG_VERSION } from './internal/version.js';
 import { captureUserSnapshot } from './internal/user-snapshot.js';
 import { globalScope } from './internal/global-scope.js';
 import { resolveAppBuild } from './build-identity.js';
+import { resolveDebugBuild } from './debug-build.js';
 
 /**
  * The structural slice of sdk-core's `IdentityTokenHolder` that this adapter
@@ -173,6 +181,25 @@ export interface IdentityTokenHolderLike {
  */
 export interface WebPlatformAdapter extends PlatformAdapter {
   /**
+   * Teardown. sdk-core's `client.kill()` calls it with no argument: the host's
+   * consent switch, which also cancels any crash report still being persisted
+   * or sent. The React provider's unmount passes `'release'`: the adapter
+   * stops capturing exactly as for a kill, but a crash it already accepted is
+   * still persisted and delivered. React reports an error that no boundary
+   * caught in the same commit that unmounts the provider, so without this the
+   * unmount discarded the report of the crash that caused it.
+   */
+  onKill?(reason?: 'release'): void;
+  /**
+   * Provider-only seam — an error that no error boundary inside the React
+   * provider caught, so React unmounts everything the provider wraps.
+   * Reported as a fatal crash (`source: 'crash'`, `fatal: true`, mechanism
+   * `onerror`, unhandled) with React's component stack after the message.
+   * When the same error object then reaches `window.onerror`, it is not
+   * reported a second time. Never throws.
+   */
+  __captureUncaughtReactError(error: unknown, componentStack?: string): void;
+  /**
    * Imperative open() invoked by `useEverframe().open()` / top-level `open()`.
    * Returns a Promise that resolves with the user-facing outcome of the report:
    *   - 'submitted' once submit succeeds,
@@ -211,6 +238,17 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    * remote-config refresh changes the binding.
    */
   __subscribeReportHotkey(listener: (binding: string) => void): () => void;
+  /**
+   * Crash-only sessions (spec 2026-10-12): a companion bond was seen. In a
+   * session whose host set `reporter.disabled`, this upgrades the session for
+   * the rest of its life: replay samples against the higher of
+   * `samplingRate` and `crashOnlySamplingRate`, so an upgrade never stops a
+   * recording, and network bodies follow the server rules. A
+   * detach never downgrades it. Starts the replay window at once when the
+   * upgraded rate admits the session. The on-device reporter stays off.
+   * A no-op in a report session. Never throws.
+   */
+  __setCompanionAttached(): void;
   /**
    * DegradedReason of the most recent capture. DIAGNOSTIC ONLY (tests, perf
    * harness): it is shared and reset at the start of every capture, so an
@@ -420,8 +458,12 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    * uninstalls the page-global fetch/XHR/console patchers, so a FRESH
    * Provider mount after an old one's unmount must re-bind here (called from
    * the same mount effect) or capture stays silently dead forever.
+   *
+   * `{ revive: false }` re-points the slots without clearing this adapter's
+   * kill: a mount whose client the host explicitly killed must still take
+   * them back from a discarded StrictMode twin, which was never killed.
    */
-  __rebindCrumbHooks(): void;
+  __rebindCrumbHooks(options?: { revive?: boolean }): void;
   /** Apply server-driven maxCount to the live buffer (called after config refresh). Never throws. */
   __applyBreadcrumbsConfig(): void;
   /**
@@ -492,7 +534,7 @@ export function createSessionSampler(
 }
 
 export function createWebPlatformAdapter(
-  _config: WebEverframeConfig,
+  _config: ResolvedWebEverframeConfig,
   /**
    * Who is hosting this adapter — see internal/sdk-identity.ts. Passed in
    * rather than read from this package's own constants, because the two
@@ -570,9 +612,18 @@ export function createWebPlatformAdapter(
   // is NOT re-established by a remount — it is what stops one. See round-4
   // finding 2 at that function and at `ReplayRecorder.revive`.
   let reportingKilled = false;
-  // Changes whenever a host releases or reclaims this adapter. Async crash
-  // work must belong to the same ownership epoch from extraction through send.
+  // Changes whenever a host releases or reclaims this adapter. Async capture
+  // work (a crash's extraction, a TV shot) must belong to the same ownership
+  // epoch from start to finish. A crash report already accepted answers to
+  // `consentRevocations` instead, below.
   let reportingOwnership = 0;
+  // Changes only when consent is withdrawn: every `onKill()` except the React
+  // provider's unmount (`onKill('release')`). A crash already accepted belongs
+  // to the consent it was captured under, not to the mount: an uncaught React
+  // error unmounts the provider in the same commit that reports it, and that
+  // release must not discard the report.
+  let consentRevocations = 0;
+  const errorReplayOwner = {};
 
   // Adapter-OWNED window listeners (today: the 'online' outbox-drain
   // listener). Distinct from `uninstallers`, which is dominated by the
@@ -605,7 +656,7 @@ export function createWebPlatformAdapter(
   // later un-veto should resume the same thread identity).
   const reporterCredentials =
     _config.disabled !== true && _config.replies?.disabled !== true
-      ? createLocalStorageCredentialStore(_config.apiKey)
+      ? createLocalStorageCredentialStore(_config.sdkKey)
       : null;
 
   // Plan 03-02 — uninstallers for every capture patcher installed below (console,
@@ -912,6 +963,18 @@ export function createWebPlatformAdapter(
     applyLiveConfig();
   };
 
+  // Crash-only sessions (spec 2026-10-12). `reporter.disabled` turns off every
+  // on-device way to open the reporter for the whole session, keeps network
+  // bodies off, and samples replay against the server's crashOnlySamplingRate.
+  // A companion bond sets `upgradedByCompanion` (never reset): replay then
+  // samples against the higher of the two rates (an upgrade never stops a
+  // recording) and bodies follow the normal server rules, while the reporter
+  // stays off, because reports from an upgraded session come through the
+  // companion.
+  const crashOnly = _config.reporter?.disabled === true;
+  let upgradedByCompanion = false;
+  const crashOnlyCoverage = (): boolean => crashOnly && !upgradedByCompanion;
+
   /**
    * Re-attempt the replay start against the CURRENT config cache. A guarded
    * no-op once buffering, so every path that resolves config can call it
@@ -962,7 +1025,7 @@ export function createWebPlatformAdapter(
     const installIdProvider =
       _config.installIdentifier?.disabled === true
         ? undefined
-        : makeWebInstallIdSupplier(_config.apiKey);
+        : makeWebInstallIdSupplier(_config.sdkKey);
 
     configProvider = createConfigProvider({
       fetchImpl:
@@ -970,15 +1033,16 @@ export function createWebPlatformAdapter(
           throw new Error('no fetch');
         }),
       configUrl: baseConfigUrl,
-      apiKey: _config.apiKey,
+      sdkKey: _config.sdkKey,
       ...(installIdProvider ? { installIdProvider } : {}),
       // Capability negotiation (spec 2026-08-01 §4.3 networkBodies; two-way
       // replies; reporter identity recognition, spec 2026-08-06; dashboard
       // companion badge override, plan 2026-08-25; reporter branding, spec
       // 2026-08-25; session vitals, spec 2026-09-01; report resource window,
       // spec 2026-09-05; dashboard report hotkey; smart-TV server render, spec
-      // 2026-09-29): declare ALL NINE tokens so the server emits every
-      // feature-gated config block on this one shared /api/config fetch.
+      // 2026-09-29; crash-only replay coverage, spec 2026-10-12): declare ALL
+      // TEN tokens so the server emits every feature-gated config block on
+      // this one shared /api/config fetch.
       // Omitting 'identity' here means the server never sends the `identity`
       // block at all — `identity.enabled` stays undefined forever with
       // nothing in the logs to explain why; the same is true of
@@ -999,6 +1063,9 @@ export function createWebPlatformAdapter(
         // Without it the server never sends `screenshotRender`, and the
         // smart-TV snapshot path stays off (this config schema is .strict()).
         SCREENSHOT_RENDER_SDK_FEATURE,
+        // Without it the server never sends `crashOnlySamplingRate`, and a
+        // crash-only session samples replay at 0.
+        'crashonly',
       ],
     });
     const provider = configProvider;
@@ -1019,6 +1086,9 @@ export function createWebPlatformAdapter(
       adapter: { replay: recorder },
       getConfig: (): ReplayConfig => provider.get(),
       locallyDisabled: _config.sessionReplay?.disabled === true,
+      // `sessionReplay.disabled` above still wins in every kind.
+      sessionKind: () =>
+        !crashOnly ? 'report' : upgradedByCompanion ? 'upgraded' : 'crashOnly',
     });
     replayLifecycle = lifecycle;
     replayRecorder = _config.visualCapture ? undefined : recorder as ReplayRecorder;
@@ -1238,7 +1308,7 @@ export function createWebPlatformAdapter(
           throw new Error('no fetch');
         }),
       baseUrl: INGEST_URL,
-      apiKey: _config.apiKey,
+      sdkKey: _config.sdkKey,
       // Reporter identity recognition (spec 2026-08-06) — every /api/reporter/*
       // call (thread polling, replies, read receipts) presents the identity
       // token the same way ingest submits do. Already self-gated on
@@ -1357,7 +1427,9 @@ export function createWebPlatformAdapter(
     const crumbsExcludeNetwork = !crumbs.enabled || !crumbs.kinds.includes('network');
     return computeBodyCaptureEnabled(
       serverEnabled,
-      _config.networkBodies?.disabled === true,
+      // A crash-only session captures no bodies until a companion bond
+      // upgrades it (spec 2026-10-12).
+      _config.networkBodies?.disabled === true || crashOnlyCoverage(),
       sampledIn,
       crumbsExcludeNetwork,
     );
@@ -1446,6 +1518,7 @@ export function createWebPlatformAdapter(
           error: unknown,
           mechanism: 'onerror' | 'unhandledrejection' | 'captureException',
           captureOptions?: CaptureExceptionOptions,
+          uncaughtReact?: { componentStack?: string | undefined },
         ): void => {
           // Codex round-1 finding 2 (P1, kill switch) — a DEAD adapter must not
           // report crashes. The module-level forwarding slot below deliberately
@@ -1466,6 +1539,11 @@ export function createWebPlatformAdapter(
           const ownership = reportingOwnership;
           const stillOwned = (): boolean =>
             !reportingKilled && reportingOwnership === ownership;
+          // Once accepted, persistence and delivery answer to consent only: a
+          // provider release in between (see `consentRevocations`) is not a
+          // reason to drop the report of the crash that caused it.
+          const consent = consentRevocations;
+          const stillPermitted = (): boolean => consentRevocations === consent;
           const crashRedaction = _config.redaction ?? {};
           // Whenever crashSink is defined (this branch), `_config.disabled !== true`,
           // so `outbox` (created a few lines above under the same guard) is always
@@ -1511,9 +1589,13 @@ export function createWebPlatformAdapter(
               facts,
               ...(causeChain ? { causeChain } : {}),
               mechanism,
-              source: 'error', // web page survives uncaught errors
+              // A web page survives an uncaught error. An error no boundary
+              // inside the React provider caught does not leave the app
+              // standing: React unmounts everything the provider wraps.
+              source: uncaughtReact ? 'crash' : 'error',
               handled,
-              fatal: false,
+              fatal: uncaughtReact !== undefined,
+              ...(uncaughtReact?.componentStack ? { componentStack: uncaughtReact.componentStack } : {}),
               occurredAt: new Date().toISOString(),
               reportId: generateReportId(),
               submittedAt: new Date().toISOString(),
@@ -1529,6 +1611,7 @@ export function createWebPlatformAdapter(
                 name: _config.appName ?? 'unknown',
                 version: _config.appVersion ?? '0.0.0',
                 ...((build) => (build !== undefined ? { build } : {}))(resolveAppBuild(_config.appBuild)),
+                debug: resolveDebugBuild(_config.debugBuild, typeof location === 'undefined' ? null : location),
               },
               ...(typeof window !== 'undefined' ? { route: window.location.pathname } : {}),
               redaction: crashRedaction,
@@ -1579,7 +1662,7 @@ export function createWebPlatformAdapter(
               payload: new TextEncoder().encode(JSON.stringify(envelope)),
               metadata: {
                 url: `${INGEST_URL.replace(/\/$/, '')}/api/ingest`,
-                sdkKey: _config.apiKey,
+                sdkKey: _config.sdkKey,
               },
             };
             // PR review, round 3 (Serious, crash-sink half) — capture the
@@ -1606,12 +1689,32 @@ export function createWebPlatformAdapter(
             if (!stillOwned()) return;
             if (!(handled ? handledThrottle : crashThrottle).shouldReport(fingerprint)) return;
             if (errorObject) capturedErrors.add(errorObject);
+            // Replays on errors (spec 2026-10-11). Taken HERE, synchronously, and
+            // only for an error that will be reported: the snapshot copies the
+            // rolling window as the page was when it threw, and never stops or
+            // freezes the recorder. Null when the error does not qualify (see
+            // capture/replay/error-replay.ts). The queued envelope waits for the
+            // export (≤ ERROR_REPLAY_DEADLINE_MS) before it is first sent.
+            const liveRecorder = replayRecorder;
+            const replayOutcome = beginErrorReplay({
+              lifecycleState: () => replayLifecycle?.state ?? null,
+              snapshot: liveRecorder ? () => liveRecorder.snapshot() : undefined,
+            });
+            if (replayOutcome) {
+              Object.assign(item.metadata, markErrorReplayPending(item.reportId, { owner: errorReplayOwner, sdkKey: _config.sdkKey }));
+              item.metadata['errorReplayUntil'] = String(item.enqueuedAt + ERROR_REPLAY_DEADLINE_MS);
+            }
             // Persist first (durable if the tab dies), then ship immediately —
-            // "next launch" may never come for a closed tab.
+            // "next launch" may never come for a closed tab. The replay never
+            // enters the outbox (JSON only): it waits in memory, see
+            // transport/error-replay-parts.ts.
             void (async () => {
-              if (!stillOwned()) return;
+              if (!stillPermitted()) {
+                forgetErrorReplay(item.reportId);
+                return;
+              }
               await ob.enqueue(item);
-              if (!stillOwned()) {
+              if (!stillPermitted()) {
                 await discardEnqueuedReport(ob, item.reportId).catch(() => undefined);
                 return;
               }
@@ -1623,9 +1726,16 @@ export function createWebPlatformAdapter(
               // even when the crash genuinely belongs to the currently
               // signed-in user this whole call site exists to recognize.
               recordEnqueuedIdentitySubject(item.reportId, crashTimeSubject);
-              if (!stillOwned()) {
+              if (!stillPermitted()) {
                 await discardEnqueuedReport(ob, item.reportId).catch(() => undefined);
                 return;
+              }
+              if (replayOutcome) {
+                settleErrorReplay(item.reportId, await replayOutcome);
+                if (!stillPermitted()) {
+                  await discardEnqueuedReport(ob, item.reportId).catch(() => undefined);
+                  return;
+                }
               }
               const result = await drainOutboxWhileOwned(
                 {
@@ -1642,9 +1752,9 @@ export function createWebPlatformAdapter(
                   // hit the crash matters most.
                   identityToken: identityTokenReader,
                 },
-                stillOwned,
+                stillPermitted,
               );
-              if (!stillOwned()) {
+              if (!stillPermitted()) {
                 await discardEnqueuedReport(ob, item.reportId).catch(() => undefined);
                 return;
               }
@@ -1661,7 +1771,10 @@ export function createWebPlatformAdapter(
               if (stillOwned() && result.provisionedThreadIds.length > 0) {
                 threadClient?.wake();
               }
-            })().catch(() => undefined);
+            })().catch(() => {
+              // Failed admission must not leave a permanently pending table entry.
+              forgetErrorReplay(item.reportId);
+            });
           } catch {
             /* swallow — DEFE-02 */
           } finally {
@@ -1817,7 +1930,7 @@ export function createWebPlatformAdapter(
         },
         render: {
           url: `${INGEST_URL.replace(/\/$/, '')}${RENDER_PATH}`,
-          sdkKey: _config.apiKey,
+          sdkKey: _config.sdkKey,
           fetchImpl: fetch.bind(globalScope()),
           signal,
         },
@@ -1860,6 +1973,9 @@ export function createWebPlatformAdapter(
    * answers cannot keep the reporter shut.
    */
   const openModal = (): void => {
+    // Crash-only sessions have no on-device reporter (spec 2026-10-12). The
+    // entry points below refuse first; this keeps any future caller honest.
+    if (crashOnly) return;
     if (!tvSnapshotPathActive()) {
       try {
         showModal();
@@ -1900,6 +2016,13 @@ export function createWebPlatformAdapter(
   const adapter = {
     captureException: (error: unknown, options?: CaptureExceptionOptions): void =>
       crashSink?.(error, 'captureException', options),
+    __captureUncaughtReactError: (error: unknown, componentStack?: string): void => {
+      try {
+        crashSink?.(error, 'onerror', undefined, { componentStack });
+      } catch {
+        /* swallow — DEFE-02; the boundary relaying the error must keep going */
+      }
+    },
     // ── The capture primitives ────────────────────────────────────────────
     //
     // Codex round-3 findings 2 and 4. These four are THE choke point for
@@ -1972,6 +2095,11 @@ export function createWebPlatformAdapter(
     registerTrigger: (_handler: () => void) => () => undefined,
     showReporterUI: (_draft: ReportDraft) =>
       new Promise<ReportDraft | null>((resolve) => {
+        // Crash-only session: nothing to show. Null is the "discarded" answer.
+        if (crashOnly) {
+          resolve(null);
+          return;
+        }
         pendingResolve = resolve;
         // Trigger the modal directly — don't reuse __openReporter() here because
         // that path creates the public-facing Promise<ReporterResult> for
@@ -1995,6 +2123,13 @@ export function createWebPlatformAdapter(
     __peekIdentityToken: peekIdentityToken,
     __identityTokenPending: identityTokenPending,
     __openReporter: (): Promise<ReporterResult> => {
+      // Crash-only sessions (spec 2026-10-12): REJECTS, unlike the kill
+      // switch below. The host asked for something its own configuration
+      // turned off, which is a host bug to surface, not a user's cancel. Stays
+      // off after a companion upgrade: those reports come through the phone.
+      if (crashOnly) {
+        return Promise.reject(new EverframeReporterDisabledError());
+      }
       // Codex round-1 finding 1 (P1, kill switch) — a killed adapter must not
       // open the reporter. Every other capture path here is gated on `killed`
       // (bodyCapture.enabled, the periodic config refresh, the 'online' drain
@@ -2040,6 +2175,9 @@ export function createWebPlatformAdapter(
       showModal = cb;
     },
     __subscribeReportHotkey: (listener: (binding: string) => void): (() => void) => {
+      // Crash-only session: no hotkey at all. The listener is never called,
+      // so neither host binds a key.
+      if (crashOnly) return () => undefined;
       reportHotkeyListeners.add(listener);
       try {
         listener(reportHotkeyBinding);
@@ -2047,6 +2185,14 @@ export function createWebPlatformAdapter(
         /* swallow — DEFE-02 */
       }
       return () => reportHotkeyListeners.delete(listener);
+    },
+    __setCompanionAttached: (): void => {
+      if (!crashOnly || upgradedByCompanion) return;
+      upgradedByCompanion = true;
+      // Replay starts at the bond, so a report filed through the companion
+      // carries a replay from this moment on. A guarded no-op until config
+      // has resolved; the next resolution retries with the upgraded rate.
+      attemptReplayStart();
     },
     __registerOutboxDrainTrigger: (cb: () => void | Promise<void>): void => {
       drainCallback = cb;
@@ -2091,7 +2237,16 @@ export function createWebPlatformAdapter(
     __setUserGetter: (get: () => UserMetadata | null): void => {
       userGet = get;
     },
-    __rebindCrumbHooks: (): void => {
+    __rebindCrumbHooks: (options?: { revive?: boolean }): void => {
+      if (options?.revive === false) {
+        // Claim only. These sinks keep consulting this adapter's own kill
+        // gates, so a killed adapter's forwarders stay inert and nothing the
+        // kill closed is reopened.
+        __bindCrumbHooks(crumbSink, crumbGate);
+        __bindCrashSink(crashSink ?? null);
+        __bindBodyCaptureHooks(bodyCapture);
+        return;
+      }
       // Codex round-1 findings 1/2 — see `reportingKilled`'s declaration. A
       // caller reaching this seam is declaring that a LIVE host mount owns this
       // adapter, which is the one thing that distinguishes React StrictMode's
@@ -2173,7 +2328,7 @@ export function createWebPlatformAdapter(
       }
       ownWindowListenerUninstallers.length = 0;
     },
-    onKill: (): void => {
+    onKill: (reason?: 'release'): void => {
       // F17/F18 (round-4 review) — see PlatformAdapter.onKill's doc comment.
       // Order matters only in that this must be synchronous and idempotent-
       // safe: `killed` flips first so any code below (there is none today)
@@ -2186,6 +2341,12 @@ export function createWebPlatformAdapter(
       // declaration for why that is required rather than sloppy.
       reportingKilled = true;
       reportingOwnership += 1;
+      // A release (the React provider unmounting) is not a consent decision:
+      // crash reports already accepted still get persisted and delivered.
+      if (reason !== 'release') {
+        consentRevocations += 1;
+        revokeErrorReplays(errorReplayOwner);
+      }
       // A smart-TV pre-capture taken before kill() must never be handed out
       // after a revive (`__rebindCrumbHooks`) either.
       tvPreCapture = null;

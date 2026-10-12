@@ -6,7 +6,7 @@ import XCTest
 final class ReportDiagnosticsTests: XCTestCase {
     func testActualStartReconfigureAndKillPublishGeneration() throws {
         defer { Everframe.shared.kill() }
-        let config = EverframeConfig(appId: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU", capture: CaptureConfig(logs: false))
+        let config = EverframeConfig(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU", capture: CaptureConfig(logs: false))
         try Everframe.shared.start(config: config)
         let old = try XCTUnwrap(ReportDiagnostics.shared.handle(epoch: Everframe.shared.currentStartEpoch))
         old.capture(.nativeHandled, .persisted)

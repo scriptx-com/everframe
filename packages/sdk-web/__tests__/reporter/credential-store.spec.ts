@@ -174,7 +174,7 @@ describe('createLocalStorageCredentialStore', () => {
     it('createWebPlatformAdapter() constructs cleanly when localStorage is blocked', () => {
       const restore = blockLocalStorage();
       try {
-        expect(() => createWebPlatformAdapter({ apiKey: 'txx_live_blocked_test' })).not.toThrow();
+        expect(() => createWebPlatformAdapter({ sdkKey: 'txx_live_blocked_test' })).not.toThrow();
       } finally {
         restore();
       }

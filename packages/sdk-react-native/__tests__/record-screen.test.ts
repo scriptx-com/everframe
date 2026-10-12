@@ -30,7 +30,7 @@ describe('recordScreen', () => {
   });
 
   it('runtime forwards positionally to NativeEverframe.recordScreen', () => {
-    const runtime = createRuntime({ apiKey: 'txx_test_key' });
+    const runtime = createRuntime({ sdkKey: 'txx_test_key' });
     runtime.recordScreen('Detail', { stack: 'root' });
     expect(NativeEverframe.recordScreen).toHaveBeenCalledWith('Detail', { stack: 'root' });
     runtime.recordScreen('Detail2');

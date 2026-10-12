@@ -1,0 +1,280 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+package dev.everframe.health
+
+import dev.everframe.capture.AppRelease
+import dev.everframe.config.ReleaseHealthConfig
+import dev.everframe.config.ReleaseHealthBundleStatus
+import dev.everframe.outbox.*
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.*
+import org.junit.Assert.*
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import java.io.File
+import java.io.IOException
+import java.util.UUID
+
+class ReleaseHealthProducerTest {
+    @get:Rule val folder = TemporaryFolder()
+    private val keys = JceTestOutboxKeyProvider()
+    private val ops = JvmOutboxFileOps()
+    private val launch = UUID.fromString("22222222-2222-4222-8222-222222222222")
+    private var current = true
+    private var consent = true
+    private var now = 1_791_370_800_000L
+    private var elapsed = 1_000_000_000L
+    private val currentGate = object : OutboxAuthorization { override fun isAllowed() = current && consent }
+    private val consentGate = object : OutboxAuthorization { override fun isAllowed() = consent }
+    private val admission = HealthAdmission { allowed, request -> if (allowed()) request() else null }
+    private val app = AppRelease("2.4.0", "412", debug = false)
+    private fun store(maxEntries: Int = 256, maxBytes: Long = 1024 * 1024) =
+        OutboxStore(File(folder.root, "health"), keys, ops, maxEntries, maxBytes, maintenanceReserveBytes = 1024)
+    private fun producer(queue: OutboxStore = store(), config: ReleaseHealthConfig = ReleaseHealthConfig(),
+                         key: String = "route-key-A", endpoint: String = "https://a.example/api/ingest/release-health",
+                         release: AppRelease = app) =
+        ReleaseHealthProducer(queue, config, release, "test-sdk", key, endpoint, currentGate, consentGate,
+            launch, { now }, { elapsed })
+    private fun entries() = store().snapshotTokens().mapNotNull { store().readIfPresent(it)?.entry }
+    private fun record(entry: OutboxEntry) = Json.parseToJsonElement(entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+
+    @Test fun `provided subjects stay frozen through offline identity and bundle rotation`() {
+        val first = producer(config = ReleaseHealthConfig(loadedBuildId = "bundle-a", loadedBundleStatus = ReleaseHealthBundleStatus.KNOWN, userId = "opaque-a"))
+        assertTrue(first.start()); val a = first.readyPointer()!!; assertTrue(first.end())
+        val next = producer(config = ReleaseHealthConfig(loadedBuildId = "bundle-b", loadedBundleStatus = ReleaseHealthBundleStatus.KNOWN, userId = "opaque-b"))
+        assertTrue(next.start()); assertEquals(a.processLaunchId, next.readyPointer()!!.processLaunchId)
+        val records = entries().map(::record)
+        assertEquals(3, records.size)
+        for (body in records) {
+            assertEquals(5, body["schemaVersion"]!!.jsonPrimitive.int)
+            val exposure = body["exposure"]!!.jsonObject
+            assertEquals("foreground-v1", exposure["sessionPolicy"]!!.jsonPrimitive.content)
+            val expected = if (exposure["loadedBuildId"]!!.jsonPrimitive.content == "bundle-a") "opaque-a" else "opaque-b"
+            assertEquals(buildJsonObject { put("kind", "provided"); put("id", expected) }, exposure["subject"])
+        }
+    }
+    @Test fun `background end completes once and clamps a backwards wall clock`() {
+        val owner = producer(); assertTrue(owner.start())
+        val started = owner.readyPointer()!!.startedAt
+        now -= 1000; elapsed += 2_000_000_000
+        assertTrue(owner.end("background")); assertNull(owner.readyPointer())
+        assertTrue(owner.end("sdk_stop"))
+        val end = entries().map(::record).single { it["phase"]!!.jsonPrimitive.content == "end" }
+        assertEquals("completed", end["outcome"]!!.jsonPrimitive.content)
+        assertEquals("background", end["endReason"]!!.jsonPrimitive.content)
+        assertEquals(started, end["capturedAt"]!!.jsonPrimitive.content)
+        assertEquals(1, end["sequence"]!!.jsonPrimitive.int)
+        assertEquals(2000, end["elapsedMs"]!!.jsonPrimitive.int)
+    }
+    @Test fun `new process does not invent an end for persisted starts`() {
+        assertTrue(producer().start())
+        assertTrue(producer().start())
+        assertEquals(listOf("start", "start"), entries().map(::record).map { it["phase"]!!.jsonPrimitive.content })
+    }
+    @Test fun `failed durable background end never republishes and retries the original boundary`() {
+        var failWrite = false
+        val failing = object : OutboxFileOps by ops {
+            override fun renameAtomic(from: File, to: File) {
+                if (failWrite) throw IOException("interrupted end append")
+                ops.renameAtomic(from, to)
+            }
+        }
+        val queue = OutboxStore(File(folder.root, "health"), keys, failing, 256, 1024 * 1024, maintenanceReserveBytes = 16384)
+        val owner = producer(queue); assertTrue(owner.start())
+        now += 1000; elapsed += 1_000_000_000
+        val closedAt = NativeExposurePointer.timestamp(now)
+        failWrite = true
+        assertFalse(owner.end("background")); assertNull(owner.readyPointer())
+        now += 1000; elapsed += 1_000_000_000; failWrite = false
+        assertTrue(owner.end("sdk_stop"))
+        val end = entries().map(::record).single { it["phase"]!!.jsonPrimitive.content == "end" }
+        assertEquals(closedAt, end["capturedAt"]!!.jsonPrimitive.content)
+        assertEquals("background", end["endReason"]!!.jsonPrimitive.content)
+        assertEquals(1000, end["elapsedMs"]!!.jsonPrimitive.int)
+    }
+    @Test fun `invalid supplied subject never publishes readiness`() {
+        for (id in listOf("", " ", "x".repeat(129), "a\u0000", "\ud800", "\ufeff", " \ufeff\u00a0")) {
+            val owner = producer(config = ReleaseHealthConfig(userId = id))
+            assertFalse(owner.start()); assertNull(owner.readyPointer()); assertFalse(owner.startCommitted)
+        }
+        assertTrue(entries().isEmpty())
+        assertTrue(producer(config = ReleaseHealthConfig(userId = "x".repeat(128))).start())
+    }
+    @Test fun `readiness requires a committed anonymous start and encrypted route`() {
+        val owner = producer()
+        assertNull(owner.readyPointer())
+        assertTrue(owner.start())
+        val pointer = owner.readyPointer()!!
+        assertEquals(app, pointer.app)
+        val entry = entries().single()
+        val body = record(entry)
+        assertEquals("start", body["phase"]!!.jsonPrimitive.content)
+        assertEquals(5, body["schemaVersion"]!!.jsonPrimitive.int)
+        assertEquals(buildJsonObject { put("kind", "anonymous") }, body["exposure"]!!.jsonObject["subject"])
+        assertEquals(0, body["sequence"]!!.jsonPrimitive.int)
+        val exposure = body["exposure"]!!.jsonObject
+        assertEquals(pointer.exposureId, exposure["exposureId"]!!.jsonPrimitive.content)
+        assertEquals(launch.toString(), exposure["processLaunchId"]!!.jsonPrimitive.content)
+        assertEquals(buildJsonObject { put("version", "2.4.0"); put("build", "412"); put("debug", false) }, exposure["app"])
+        assertEquals(pointer.toJson()["app"], exposure["app"])
+        assertFalse(exposure.containsKey("native" + "Release")) // retired field, spelled in two parts for the repository check
+        assertEquals(listOf("exposureId", "processLaunchId", "startedAt", "platform", "sdkVersion", "app", "loadedBuildId",
+            "loadedBundleStatus", "subject", "sessionPolicy", "coverage"), exposure.keys.toList())
+        assertEquals(JsonNull, exposure["loadedBuildId"])
+        assertEquals(JsonNull, exposure["coverage"]!!.jsonObject["priorQueueLosses"])
+        assertEquals("unavailable", exposure["coverage"]!!.jsonObject["queueLossAccounting"]!!.jsonPrimitive.content)
+        assertFalse(exposure.containsKey("pageLaunchId"))
+        assertNull(entry.identitySubject)
+        assertTrue(entry.attachmentRefs.isEmpty())
+        val disk = folder.root.walkTopDown().filter { it.isFile }.joinToString { it.readBytes().toString(Charsets.ISO_8859_1) }
+        assertFalse(disk.contains("route-key-A"))
+        assertTrue(owner.start())
+        assertEquals(entry, entries().single())
+    }
+    @Test fun `start and end carry schema 5 the same app and a completed outcome within the size limit`() {
+        val owner = producer(config = ReleaseHealthConfig(loadedBuildId = "b".repeat(200),
+            loadedBundleStatus = ReleaseHealthBundleStatus.KNOWN, userId = "u".repeat(128)),
+            release = AppRelease("v".repeat(64), "9".repeat(19), debug = false))
+        assertTrue(owner.start()); now += 1000; elapsed += 1_000_000_000
+        assertTrue(owner.end("background"))
+        val stored = entries()
+        assertEquals(2, stored.size)
+        assertTrue(stored.all { it.envelopeBytes.size <= 8192 })
+        val records = stored.map(::record)
+        assertEquals(listOf(5, 5), records.map { it["schemaVersion"]!!.jsonPrimitive.int })
+        assertEquals(1, records.map { it["exposure"] }.toSet().size)
+        assertEquals(buildJsonObject { put("version", "v".repeat(64)); put("build", "9".repeat(19)); put("debug", false) },
+            records.first()["exposure"]!!.jsonObject["app"])
+        val end = records.single { it["phase"]!!.jsonPrimitive.content == "end" }
+        assertEquals("completed", end["outcome"]!!.jsonPrimitive.content)
+        assertEquals("background", end["endReason"]!!.jsonPrimitive.content)
+    }
+    @Test fun `a missing build is an explicit null in the record and the pointer`() {
+        val owner = producer(release = AppRelease("2.4.0", null, debug = false)); assertTrue(owner.start())
+        val text = entries().single().envelopeBytes.toString(Charsets.UTF_8)
+        assertTrue(text, text.contains("\"app\":{\"version\":\"2.4.0\",\"build\":null,\"debug\":false}"))
+        assertEquals(buildJsonObject { put("version", "2.4.0"); put("build", JsonNull); put("debug", false) }, owner.readyPointer()!!.toJson()["app"])
+    }
+    @Test fun `full queue publishes no ready token and does not replace older records`() {
+        val first = producer(store(maxEntries = 1)); assertTrue(first.start())
+        val original = entries().single()
+        val refused = producer(store(maxEntries = 1))
+        assertFalse(refused.start()); assertNull(refused.readyPointer())
+        assertEquals(original, entries().single())
+    }
+    @Test fun `interrupted small budget staging stays encrypted and later healthy writes recover`() {
+        val initial = producer(); assertTrue(initial.start())
+        val before = entries().single()
+        val failedOps = object : OutboxFileOps by ops {
+            override fun renameAtomic(from: File, to: File) { throw IOException("interrupted rename") }
+        }
+        val failedStore = OutboxStore(File(folder.root, "health"), keys, failedOps, 256, 1024 * 1024,
+            maintenanceReserveBytes = 16 * 1024)
+        val failed = producer(queue = failedStore, release = AppRelease("never-plaintext-version", "412", debug = false))
+        assertFalse(failed.start()); assertNull(failed.readyPointer())
+        val disk = folder.root.walkTopDown().filter { it.isFile }.joinToString { it.readBytes().toString(Charsets.ISO_8859_1) }
+        assertFalse(disk.contains("never-plaintext-version")); assertFalse(disk.contains("route-key-A"))
+        val healthy = producer(); assertTrue(healthy.start())
+        assertEquals(2, entries().size); assertTrue(entries().contains(before))
+        assertFalse(folder.root.walkTopDown().any { it.name.endsWith(".tmp") })
+    }
+    @Test fun `invalid app release and contradictory bundle do not admit an exposure`() {
+        for (config in listOf(ReleaseHealthConfig(loadedBuildId = "downloaded", loadedBundleStatus = ReleaseHealthBundleStatus.UNKNOWN),
+            ReleaseHealthConfig(loadedBuildId = null, loadedBundleStatus = ReleaseHealthBundleStatus.KNOWN))) {
+            val owner = producer(config = config)
+            assertFalse(owner.start()); assertNull(owner.readyPointer())
+        }
+        for (release in listOf(AppRelease("", "412", debug = false), AppRelease(" ", null, debug = false), AppRelease("a".repeat(65), "412", debug = false),
+            AppRelease("bad\u0000", null, debug = false), AppRelease("2.4.0", "", debug = false), AppRelease("2.4.0", "b".repeat(65), debug = false))) {
+            val owner = producer(release = release)
+            assertFalse(release.toString(), owner.start()); assertNull(owner.readyPointer())
+        }
+        assertTrue(entries().isEmpty())
+    }
+    @Test fun `same process restart creates separate immutable segments`() {
+        val first = producer(); assertTrue(first.start())
+        val a = first.readyPointer()!!
+        elapsed += 2_000_000_000L; now += 2_000
+        assertTrue(first.end())
+        val next = producer(config = ReleaseHealthConfig(userId = "user-B"), key = "route-key-B", endpoint = "https://b.example/api/ingest/release-health")
+        assertTrue(next.start())
+        val b = next.readyPointer()!!
+        assertEquals(a.processLaunchId, b.processLaunchId)
+        assertNotEquals(a.exposureId, b.exposureId)
+        assertEquals(app, a.app); assertEquals(app, b.app)
+        val records = entries().map(::record)
+        val end = records.single { it["phase"]!!.jsonPrimitive.content == "end" }
+        assertEquals(a.exposureId, end["exposure"]!!.jsonObject["exposureId"]!!.jsonPrimitive.content)
+        assertEquals(2000, end["elapsedMs"]!!.jsonPrimitive.int)
+        assertEquals("sdk_stop", end["endReason"]!!.jsonPrimitive.content)
+        assertTrue(first.end()); assertEquals(3, entries().size)
+    }
+    @Test fun `readiness cannot survive a stale SDK epoch or withdrawn consent`() {
+        val owner = producer(); assertTrue(owner.start())
+        current = false; assertNull(owner.readyPointer())
+        consent = false; assertFalse(owner.end())
+        assertEquals(1, entries().size)
+    }
+    @Test fun `retry preserves bytes and original route across new producer configuration`() = runBlocking {
+        val first = producer(); assertTrue(first.start())
+        val original = entries().single()
+        val later = producer(config = ReleaseHealthConfig(userId = "user-B"), key = "route-key-B")
+        val sent = mutableListOf<OutboxEntry>()
+        var status = 503
+        val transport = HealthTransport { entry -> { sent.add(entry); CompletableDeferred(status) } }
+        assertEquals(0, later.flush(transport, admission))
+        assertEquals(original, sent.single())
+        status = 201
+        assertEquals(1, later.flush(transport, admission))
+        assertEquals(sent[0], sent[1]); assertTrue(entries().isEmpty())
+    }
+    @Test fun `late consent withdrawal vetoes prepared HTTP admission`() = runBlocking {
+        val owner = producer(); assertTrue(owner.start())
+        var requests = 0
+        val transport = HealthTransport { _ ->
+            val prepared = { requests++; CompletableDeferred(201) }
+            consent = false
+            prepared
+        }
+        assertEquals(0, owner.flush(transport, admission))
+        assertEquals(0, requests)
+    }
+    @Test fun `seven day local expiry is pruned before a healthy append`() {
+        assertTrue(producer().start())
+        now += 7L * 24 * 60 * 60 * 1000 + 1
+        val fresh = producer(config = ReleaseHealthConfig(userId = "user-B")); assertTrue(fresh.start())
+        assertEquals(fresh.readyPointer()!!.exposureId, record(entries().single())["exposure"]!!.jsonObject["exposureId"]!!.jsonPrimitive.content)
+    }
+    @Test fun `shared journal enforces the record count across producer instances`() {
+        assertTrue(producer().start())
+        val seed = entries().single()
+        // Populate the encrypted boundary directly: repeatedly pruning every earlier entry
+        // would turn this capacity check into tens of thousands of unrelated directory syncs.
+        repeat(254) {
+            val id = UUID.randomUUID().toString()
+            val original = record(seed)
+            val body = buildJsonObject {
+                for ((key, value) in original) put(key, value)
+                put("recordId", id)
+                put("exposure", buildJsonObject {
+                    for ((key, value) in original["exposure"]!!.jsonObject) put(key, value)
+                    put("exposureId", UUID.randomUUID().toString())
+                })
+            }.toString().toByteArray(Charsets.UTF_8)
+            store().enqueueSync(seed.copy(reportId = id, idempotencyKey = id, envelopeBytes = body), currentGate)
+        }
+        assertTrue(producer().start())
+        val refused = producer(); assertFalse(refused.start()); assertNull(refused.readyPointer())
+        assertEquals(256, entries().size)
+    }
+    @Test fun `shared journal byte budget fails closed without evicting owner`() {
+        val first = producer(store(maxBytes = 16384)); assertTrue(first.start())
+        val original = entries().single()
+        var refused = false
+        repeat(30) { if (!producer(store(maxBytes = 16384)).start()) refused = true }
+        assertTrue(refused)
+        assertTrue(entries().contains(original))
+    }
+}

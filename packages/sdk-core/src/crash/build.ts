@@ -23,6 +23,11 @@ import { MAX_MESSAGE, MAX_RAW, type CrashFacts } from './extract.js';
 import type { CaptureExceptionOptions } from './options.js';
 
 const TITLE_MAX = 200;
+/**
+ * React's own separator for a component stack (React Native titles a component
+ * error the same way). The dashboard folds the `at …` lines that follow it.
+ */
+const COMPONENT_STACK_PREFIX = '\n\nThis error is located at:';
 /** Everything a crash report cannot safely capture in a dying/degraded state. */
 const CRASH_EXCLUDED = ['screenshot', 'uiTree', 'focus', 'logs', 'network'];
 
@@ -40,10 +45,17 @@ export interface BuildCrashEnvelopeInput {
   sdk: ReportEnvelope['sdk'];
   breadcrumbs: Breadcrumb[];
   device: DeviceMetadata;
-  app: { name: string; version: string; build?: string };
+  app: { name: string; version: string; build?: string; debug?: boolean };
   route?: string;
   redaction: RedactionConfig;
   captureOptions?: CaptureExceptionOptions;
+  /**
+   * React's component stack for an error no boundary caught. Redacted and
+   * appended to the crash message after `This error is located at:`; the
+   * report title keeps the bare message. Grouping is unchanged: the
+   * fingerprint reads the type and frames only.
+   */
+  componentStack?: string;
   /**
    * Active `setUser` value at crash time, or null. A crash from a known
    * person is exactly as useful to attribute as a filed report, so this
@@ -61,7 +73,10 @@ export function buildCrashEnvelope(
   // post-redaction so an expanding replacement can never grow the envelope
   // past what Zod's ReportEnvelope schema allows (message <= MAX_MESSAGE,
   // frames[].raw <= MAX_RAW) — otherwise the whole envelope is rejected.
-  const message = redactStringContent(input.facts.message, input.redaction).slice(0, MAX_MESSAGE);
+  const bareMessage = redactStringContent(input.facts.message, input.redaction).slice(0, MAX_MESSAGE);
+  const message = input.componentStack
+    ? withComponentStack(bareMessage, redactStringContent(input.componentStack, input.redaction))
+    : bareMessage;
   // NOTE (adaptation): under this repo's `exactOptionalPropertyTypes: true`,
   // spreading `f: CrashFrame` (whose optional props like `function`/`file`
   // are declared `X | undefined` once spread into a fresh literal) is not
@@ -101,7 +116,7 @@ export function buildCrashEnvelope(
     submittedAt: input.submittedAt,
     sdk: input.sdk,
     reporter: {
-      title: `${input.facts.exceptionType}: ${message}`.slice(0, TITLE_MAX),
+      title: `${input.facts.exceptionType}: ${bareMessage}`.slice(0, TITLE_MAX),
       description: '',
       ...(input.user ? { user: input.user } : {}),
     },
@@ -123,4 +138,9 @@ export function buildCrashEnvelope(
   envelope.payload.crash = crash;
   envelope.captureControl.degradedReason = 'crash-capture';
   return { envelope, fingerprint };
+}
+
+function withComponentStack(message: string, componentStack: string): string {
+  const stack = componentStack.startsWith('\n') ? componentStack : `\n${componentStack}`;
+  return `${message}${COMPONENT_STACK_PREFIX}${stack}`.slice(0, MAX_MESSAGE);
 }

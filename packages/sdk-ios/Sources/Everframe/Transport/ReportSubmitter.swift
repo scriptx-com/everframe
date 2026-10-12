@@ -19,6 +19,7 @@ public final class ReportSubmitter: Sendable {
     public let config: EverframeConfig
     public let outbox: JSONLOutbox
     private let diagnostics: ReportDiagnostics.Handle?
+    private let appleDiagnosticsOnly: Bool
     private let diagnosticOrigin: ReportTransportOrigin
     private let session: URLSession
     private let authorizeUpload: (@MainActor @Sendable () -> Bool)?
@@ -33,22 +34,31 @@ public final class ReportSubmitter: Sendable {
 
     private init(config: EverframeConfig, outbox: JSONLOutbox, session: URLSession,
                  authorizeUpload: (@MainActor @Sendable () -> Bool)?,
-                 diagnostics: ReportDiagnostics.Handle? = nil, diagnosticOrigin: ReportTransportOrigin = .liveSubmit) {
+                 diagnostics: ReportDiagnostics.Handle? = nil, diagnosticOrigin: ReportTransportOrigin = .liveSubmit,
+                 appleDiagnosticsOnly: Bool = false) {
         self.config = config
         self.outbox = outbox
         self.session = session
         self.authorizeUpload = authorizeUpload
         self.diagnostics = diagnostics
         self.diagnosticOrigin = diagnosticOrigin
+        self.appleDiagnosticsOnly = appleDiagnosticsOnly
     }
 
     internal func authorizing(_ check: @escaping @MainActor @Sendable () -> Bool) -> ReportSubmitter {
-        ReportSubmitter(config: config, outbox: outbox, session: session, authorizeUpload: check, diagnostics: diagnostics, diagnosticOrigin: diagnosticOrigin)
+        ReportSubmitter(config: config, outbox: outbox, session: session, authorizeUpload: check, diagnostics: diagnostics, diagnosticOrigin: diagnosticOrigin, appleDiagnosticsOnly: appleDiagnosticsOnly)
     }
 
     internal func observing(_ owner: ReportDiagnostics.Handle?, origin: ReportTransportOrigin = .liveSubmit) -> ReportSubmitter {
         ReportSubmitter(config: config, outbox: outbox, session: session, authorizeUpload: authorizeUpload,
-                        diagnostics: owner, diagnosticOrigin: origin)
+                        diagnostics: owner, diagnosticOrigin: origin, appleDiagnosticsOnly: appleDiagnosticsOnly)
+    }
+
+    /// The anonymous diagnostic timer must not take over retries for manual
+    /// reports, whose identity and live policy belong to their normal drain.
+    internal func restrictingOutboxToAppleDiagnostics() -> ReportSubmitter {
+        ReportSubmitter(config: config, outbox: outbox, session: session, authorizeUpload: authorizeUpload,
+                        diagnostics: diagnostics, diagnosticOrigin: diagnosticOrigin, appleDiagnosticsOnly: true)
     }
 
     private func observeUpload(_ send: () async throws -> (Int, [AnyHashable: Any])) async throws -> (Int, [AnyHashable: Any]) {
@@ -133,8 +143,19 @@ public final class ReportSubmitter: Sendable {
         identitySubject: String? = nil,
         identityToken: String? = nil
     ) async throws -> ReportResult {
+        try await performSubmit(envelopeBytes: envelopeBytes, idempotencyKey: idempotencyKey,
+            attachments: attachments, reportId: reportId, companionAttribution: companionAttribution,
+            sdkKey: sdkKey, endpoint: endpoint, identitySubject: identitySubject,
+            identityToken: identityToken, alreadyPersisted: false)
+    }
 
-        let effectiveKey = sdkKey ?? config.appId
+    private func performSubmit(
+        envelopeBytes: Data, idempotencyKey: String, attachments: [Attachment], reportId: UUID,
+        companionAttribution: String? = nil, sdkKey: String? = nil, endpoint: String? = nil,
+        identitySubject: String? = nil, identityToken: String? = nil, alreadyPersisted: Bool
+    ) async throws -> ReportResult {
+
+        let effectiveKey = sdkKey ?? config.sdkKey
         let effectiveEndpoint = endpoint ?? IngestEndpoint.url.absoluteString
         let effectiveURL = URL(string: effectiveEndpoint) ?? IngestEndpoint.url
 
@@ -160,15 +181,17 @@ public final class ReportSubmitter: Sendable {
             }
             switch RetryPolicy.classify(statusCode: status, headers: headers, error: nil) {
             case .retryable, .retryAfter:
-                try enqueueToOutbox(
-                    reportId: reportId,
-                    envelopeBytes: envelopeBytes,
-                    idempotencyKey: idempotencyKey,
-                    attachments: attachments,
-                    sdkKey: effectiveKey,
-                    endpoint: effectiveEndpoint,
-                    identitySubject: identitySubject
-                )
+                if !alreadyPersisted {
+                    try enqueueToOutbox(
+                        reportId: reportId,
+                        envelopeBytes: envelopeBytes,
+                        idempotencyKey: idempotencyKey,
+                        attachments: attachments,
+                        sdkKey: effectiveKey,
+                        endpoint: effectiveEndpoint,
+                        identitySubject: identitySubject
+                    )
+                }
                 return .queued(reportId: reportId)
             case .terminal:
                 NSLog("[Everframe] submit failed (server status=\(status))")
@@ -177,15 +200,17 @@ public final class ReportSubmitter: Sendable {
         } catch let urlError as URLError {
             switch RetryPolicy.classify(statusCode: nil, headers: [:], error: urlError) {
             case .retryable, .retryAfter:
-                try enqueueToOutbox(
-                    reportId: reportId,
-                    envelopeBytes: envelopeBytes,
-                    idempotencyKey: idempotencyKey,
-                    attachments: attachments,
-                    sdkKey: effectiveKey,
-                    endpoint: effectiveEndpoint,
-                    identitySubject: identitySubject
-                )
+                if !alreadyPersisted {
+                    try enqueueToOutbox(
+                        reportId: reportId,
+                        envelopeBytes: envelopeBytes,
+                        idempotencyKey: idempotencyKey,
+                        attachments: attachments,
+                        sdkKey: effectiveKey,
+                        endpoint: effectiveEndpoint,
+                        identitySubject: identitySubject
+                    )
+                }
                 return .queued(reportId: reportId)
             case .terminal:
                 NSLog("[Everframe] submit failed (network error code=\(urlError.code.rawValue))")
@@ -195,8 +220,7 @@ public final class ReportSubmitter: Sendable {
     }
 
     /// Best-effort drain of the persistent outbox: hydrate all entries, attempt
-    /// each one in order, remove successes (and queue-on-failure re-enqueues
-    /// transient failures). Safe to invoke from `start()`'s detached Task —
+    /// each one in order, remove successes and retain transient failures. Safe to invoke from `start()`'s detached Task —
     /// 04-06 owns that wiring.
     ///
     /// - Parameters identityHolder/currentReplayConfig: how this pass
@@ -263,7 +287,7 @@ public final class ReportSubmitter: Sendable {
     ///   submitter built under project A, whose drain is initiated but
     ///   doesn't actually run until after `start(projectB)` landed, used to
     ///   sample `epochAtDrainStart` = B's epoch (correct-looking, but the
-    ///   WRONG reference point), while `e.sdkKey == config.appId` still
+    ///   WRONG reference point), while `e.sdkKey == config.sdkKey` still
     ///   compared against A (this submitter's own frozen config) and
     ///   passed — so project B's live token (same `sub`, plausible) could
     ///   attach to a request authorized with project A's Everframe SDK key, to
@@ -286,12 +310,31 @@ public final class ReportSubmitter: Sendable {
     ///   closed for the live submit path (`ReporterSubmission.swift`).
     public func drainOutbox(
         identityHolder: IdentityTokenHolder,
-        currentReplayConfig: @Sendable () async -> ReplayConfig,
+        currentReplayConfig: @escaping @Sendable () async -> ReplayConfig,
         epochAtInitiation: Int,
         currentEpoch: @escaping @Sendable () -> Int
     ) async {
+        // Read the clock before the entries: an error held for its replay can
+        // be swapped only while its hold is live, so skipping it here is final.
+        let hydratedAt = Date()
         let entries = (try? outbox.hydrate(diagnostics: diagnostics)) ?? []
+        if let expiry = entries.filter({ entry in
+            entry.isHeldForReplay(asOf: hydratedAt)
+                && (!appleDiagnosticsOnly || AppleDiagnosticDelivery.isApple(entry))
+                && (!AppleDiagnosticDelivery.isApple(entry) || AppleDiagnosticDelivery.allows(entry))
+        }).compactMap(\.heldUntil).min() {
+            await ReplayHoldWakeups.shared.schedule(path: outbox.resolvedFileURL.path,
+                deadline: expiry, epoch: epochAtInitiation, appleDiagnosticsOnly: appleDiagnosticsOnly) { [self] in
+                guard currentEpoch() == epochAtInitiation, !Task.isCancelled else { return }
+                await drainOutbox(identityHolder: identityHolder, currentReplayConfig: currentReplayConfig,
+                    epochAtInitiation: epochAtInitiation, currentEpoch: currentEpoch)
+            }
+        }
         for e in entries {
+            if e.isHeldForReplay(asOf: hydratedAt) { continue }
+            let appleDiagnostic = AppleDiagnosticDelivery.isApple(e)
+            if appleDiagnosticsOnly && !appleDiagnostic { continue }
+            if appleDiagnostic && !AppleDiagnosticDelivery.allows(e) { continue }
             // Keep the durable copy until acceptance. A crash, cancellation or
             // failed re-enqueue during the request must not lose the report.
 
@@ -310,7 +353,7 @@ public final class ReportSubmitter: Sendable {
                 // Preserve the report, but never retry replay without a live
                 // enablement decision for the same project and endpoint.
                 let replayEnabledNow = (await currentReplayConfig()).replayEnabled
-                let replayAllowed = e.sdkKey == config.appId
+                let replayAllowed = e.sdkKey == config.sdkKey
                     && e.endpoint == IngestEndpoint.url.absoluteString
                     && currentEpoch() == epochAtInitiation
                     && replayEnabledNow
@@ -361,7 +404,7 @@ public final class ReportSubmitter: Sendable {
             // endpoint both still match the live ones — the same binding
             // `sdkKey`/`endpoint` already have, now extended to the header.
             let identityToken: String?
-            if e.sdkKey == config.appId
+            if e.sdkKey == config.sdkKey
                 && e.endpoint == IngestEndpoint.url.absoluteString
                 && currentEpoch() == epochAtInitiation {
                 // Round 11, P1(c) — read live, FRESH for THIS entry, not once
@@ -391,7 +434,7 @@ public final class ReportSubmitter: Sendable {
                 let sender = attachments.contains(where: { $0.name == "replay" })
                     ? authorizing { [self] in
                         (authorizeUpload?() ?? true)
-                            && e.sdkKey == Everframe.shared.currentConfig?.appId
+                            && e.sdkKey == Everframe.shared.currentConfig?.sdkKey
                             && e.endpoint == IngestEndpoint.url.absoluteString
                             && currentEpoch() == epochAtInitiation
                             && Everframe.shared.__hostReplayEnabledNow()
@@ -400,7 +443,12 @@ public final class ReportSubmitter: Sendable {
                 #else
                 let sender = self
                 #endif
-                let result = try await sender.observing(diagnostics, origin: .outboxDrain).submit(
+                // The entry remains durable throughout the attempt. Re-enqueuing
+                // on failure would change its age and could evict another entry.
+                let authorizedSender = appleDiagnostic ? sender.authorizing {
+                    (sender.authorizeUpload?() ?? true) && AppleDiagnosticDelivery.allows(e)
+                } : sender
+                let result = try await authorizedSender.observing(diagnostics, origin: .outboxDrain).performSubmit(
                     envelopeBytes: envelopeBytes,
                     idempotencyKey: e.idempotencyKey,
                     attachments: attachments,
@@ -408,9 +456,11 @@ public final class ReportSubmitter: Sendable {
                     sdkKey: e.sdkKey,
                     endpoint: e.endpoint,
                     identitySubject: e.identitySubject,
-                    identityToken: identityToken
+                    identityToken: identityToken,
+                    alreadyPersisted: true
                 )
                 if case .submitted = result {
+                    if appleDiagnostic { AppleDiagnosticDelivery.settle(e) }
                     try outbox.drain(where: { $0.reportId == e.reportId }, diagnostics: diagnostics, reason: .removedAfterAcceptance)
                 }
             } catch UploadAuthorizationError.revoked {
@@ -423,6 +473,7 @@ public final class ReportSubmitter: Sendable {
                 }
             } catch EverframeTransportError.serverError {
                 // submit throws serverError only for terminal HTTP statuses.
+                if appleDiagnostic { AppleDiagnosticDelivery.settle(e) }
                 try? outbox.drain(where: { $0.reportId == e.reportId }, diagnostics: diagnostics, reason: .removedAfterTerminal)
             } catch {
                 // Retain the original encrypted entry. Retrying a server-accepted
@@ -449,6 +500,10 @@ public final class ReportSubmitter: Sendable {
         guard var envelope = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any],
               let refs = envelope["attachments"] as? [[String: Any]] else { return nil }
         envelope["attachments"] = refs.filter { ($0["partName"] as? String) != "replay" }
+        if envelope["source"] as? String == "error",
+           let stripped = try? JSONSerialization.data(withJSONObject: envelope, options: [.sortedKeys]) {
+            return ErrorReplayEnvelope.flagging("replay_revoked", in: stripped)
+        }
         var control = envelope["captureControl"] as? [String: Any] ?? [:]
         control["degradedReason"] = "replay_revoked"
         envelope["captureControl"] = control
@@ -640,5 +695,54 @@ final class IdentityHeaderRedirectGuard: NSObject, URLSessionTaskDelegate {
         case "http": return 80
         default: return -1
         }
+    }
+}
+
+/// One generation-fenced expiry task per persisted outbox, shared by submitters.
+private actor ReplayHoldWakeups {
+    static let shared = ReplayHoldWakeups()
+    private struct Wakeup {
+        let id: UUID
+        let deadline: Date
+        let epoch: Int
+        let task: Task<Void, Never>
+        var run: @Sendable () async -> Void
+        var appleDiagnosticsOnly: Bool
+    }
+    private var pending: [String: Wakeup] = [:]
+    func schedule(path: String, deadline: Date, epoch: Int, appleDiagnosticsOnly: Bool, run: @escaping @Sendable () async -> Void) {
+        var callback = run
+        var diagnosticsOnly = appleDiagnosticsOnly
+        if var existing = pending[path] {
+            if existing.epoch > epoch { return }
+            if existing.epoch == epoch {
+                // A general drain must survive an earlier/equal diagnostic
+                // deadline so it can schedule the remaining handled errors.
+                if !existing.appleDiagnosticsOnly && appleDiagnosticsOnly {
+                    callback = existing.run
+                    diagnosticsOnly = false
+                }
+                if existing.deadline <= deadline {
+                    existing.run = callback
+                    existing.appleDiagnosticsOnly = diagnosticsOnly
+                    pending[path] = existing
+                    return
+                }
+            }
+        }
+        pending[path]?.task.cancel()
+        let id = UUID()
+        let delay = max(0, min(60, deadline.timeIntervalSinceNow))
+        let task = Task {
+            do { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
+            catch { return }
+            await fire(path: path, id: id)
+        }
+        pending[path] = Wakeup(id: id, deadline: deadline, epoch: epoch, task: task, run: callback, appleDiagnosticsOnly: diagnosticsOnly)
+    }
+    private func fire(path: String, id: UUID) async {
+        guard let wakeup = pending[path], wakeup.id == id else { return }
+        pending.removeValue(forKey: path)
+        await wakeup.run()
     }
 }

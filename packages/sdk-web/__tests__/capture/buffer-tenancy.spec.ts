@@ -53,7 +53,7 @@ afterEach(() => {
 
 describe('the raw capture buffers are per-tenant, not per-page', () => {
   it('LIVE control: a live adapter captures console lines and requests', async () => {
-    const a = mk({ apiKey: 'pk_a' });
+    const a = mk({ sdkKey: 'pk_a' });
 
     console.log('live-control-line');
     await fetch('https://example.test/live-control-url');
@@ -65,7 +65,7 @@ describe('the raw capture buffers are per-tenant, not per-page', () => {
   });
 
   it('admits nothing once the instance is killed', async () => {
-    const a = mk({ apiKey: 'pk_a' });
+    const a = mk({ sdkKey: 'pk_a' });
 
     console.log('before-kill-line');
     await fetch('https://example.test/before-kill-url');
@@ -88,7 +88,7 @@ describe('the raw capture buffers are per-tenant, not per-page', () => {
   });
 
   it("a new tenant's report can never contain the previous tenant's activity", async () => {
-    const a = mk({ apiKey: 'pk_a' });
+    const a = mk({ sdkKey: 'pk_a' });
     console.log('tenant-a-secret');
     await fetch('https://example.test/tenant-a-secret-url');
     // The whole of `destroy()` that matters here: `client.kill()` → onKill().
@@ -99,7 +99,7 @@ describe('the raw capture buffers are per-tenant, not per-page', () => {
     console.log('between-instances-secret');
     await fetch('https://example.test/between-instances-url');
 
-    const b = mk({ apiKey: 'pk_b' });
+    const b = mk({ sdkKey: 'pk_b' });
     console.log('tenant-b-line');
     await fetch('https://example.test/tenant-b-url');
 
@@ -124,7 +124,7 @@ describe('the raw capture buffers are per-tenant, not per-page', () => {
     // Next.js dev app would capture zero console lines for the rest of the
     // session — the same class of regression codex round-2 finding 3 found in
     // the 'online' drain listener.
-    const a = mk({ apiKey: 'pk_a' });
+    const a = mk({ sdkKey: 'pk_a' });
     a.onKill?.();
     a.__rebindCrumbHooks();
 
