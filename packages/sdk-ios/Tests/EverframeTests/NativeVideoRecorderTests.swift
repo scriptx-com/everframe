@@ -142,9 +142,9 @@ struct NativeVideoRecorderTests {
         defer { frozen.removeOwnedFile() }
         #expect(frozen.startEpochMs == 10_000)
         #expect(abs(frozen.durationMs - 3300) < 2)
-        // The first frame after the snapshot starts where it closed (2.5 s):
-        // no gap between segments, so no decoded black frame.
-        #expect(try await frameTimes(frozen.url) == [0, 400, 800, 1200, 1600, 2000, 2400, 2500, 3100])
+        // The prior sample holds across the boundary; new pixels keep their
+        // real capture time, with no decoded black frame in between.
+        #expect(try await frameTimes(frozen.url) == [0, 400, 800, 1200, 1600, 2000, 2400, 2700, 3100])
     }
     @Test func delayedSnapshotTrimsPostErrorFramesButReportRetainsThem() async throws {
         let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
@@ -200,7 +200,7 @@ struct NativeVideoRecorderTests {
         await exporting.wait()
         #expect(try await recorder.append(frame(2_700_000_000)))
         let report = try #require(await recorder.finish(anchorNanos: 0, anchorEpochMs: 10_000, endNanos: 3_000_000_000))
-        #expect(try await frameTimes(report.url) == [0, 400, 2000, 2400, 2500])
+        #expect(try await frameTimes(report.url) == [0, 400, 2000, 2400, 2700])
         report.removeOwnedFile()
         #expect(!FileManager.default.fileExists(atPath: dir.path))
         await releaseExport.release()

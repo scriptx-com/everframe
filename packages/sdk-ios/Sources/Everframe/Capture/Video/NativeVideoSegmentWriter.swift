@@ -111,7 +111,7 @@ actor NativeVideoSegmentWriter {
             guard bytes > 0 else { throw NativeVideoWriterError.finishFailed }
             state = .transferred
             self.writer = nil; self.input = nil; self.adaptor = nil
-            return .init(url: url, startNanos: firstNanos, endNanos: endNanos, byteCount: bytes)
+            return .init(url: url, startNanos: firstNanos, endNanos: endNanos, byteCount: bytes, lastFrameNanos: lastNanos)
         } catch { cancel(); throw error }
     }
 
@@ -141,10 +141,14 @@ actor NativeVideoSegmentWriter {
 
     private func prepare() throws {
         let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+        // Nanosecond sample durations overflow native passthrough edits when
+        // an idle frame is held for seconds. Microseconds preserve capture
+        // precision while representing the entire bounded replay window.
+        writer.movieTimeScale = 1_000_000
         let input = AVAssetWriterInput(mediaType: .video,
             outputSettings: Self.outputSettings(dimensions: dimensions, framesPerSecond: framesPerSecond))
         input.expectsMediaDataInRealTime = true
-        input.mediaTimeScale = 1_000_000_000
+        input.mediaTimeScale = 1_000_000
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
             kCVPixelBufferWidthKey as String: dimensions.width,

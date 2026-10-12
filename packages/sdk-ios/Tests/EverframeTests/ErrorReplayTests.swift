@@ -267,6 +267,200 @@ final class ErrorReplayTests: XCTestCase {
         XCTAssertEqual(try Self.colors(report.url), [false, false, true])
     }
 
+    func testSecondCaptureDuringIdleExtendsTheRealMovieToItsOwnCutoff() async throws {
+        try await repeatedCapture(postErrorFrameBeforeEntry: false)
+    }
+
+    func testSecondCaptureExcludesReplacementPixelsAppendedBeforeReplayEntry() async throws {
+        try await repeatedCapture(postErrorFrameBeforeEntry: true)
+    }
+
+    private func repeatedCapture(postErrorFrameBeforeEntry: Bool) async throws {
+        let dir = tempDir.appendingPathComponent("repeated-video")
+        let recorder = try NativeVideoRecorder(directory: dir, framesPerSecond: 2)
+        let anchor = DispatchTime.now().uptimeNanoseconds - 600_000_000
+        let first = try await recorder.append(Self.coloredFrame(anchor, blue: false)); XCTAssertTrue(first)
+        let second = try await recorder.append(Self.coloredFrame(anchor + 200_000_000, blue: false)); XCTAssertTrue(second)
+        ErrorReplayGate.shared.publish(recording: true, epoch: epoch)
+        CrashReporter.__errorReplayProviderForTesting = { capture in
+            do {
+                let snapshot = try await recorder.snapshot(anchorNanos: anchor, anchorEpochMs: 0, endNanos: capture.cutoffNanos)
+                let movie = try XCTUnwrap(snapshot)
+                defer { movie.removeOwnedFile() }
+                let actualDuration = AVURLAsset(url: movie.url).duration.seconds * 1000
+                let expectedDuration = Double(capture.cutoffNanos - anchor) / 1_000_000
+                XCTAssertEqual(actualDuration, expectedDuration, accuracy: 2)
+                XCTAssertEqual(movie.durationMs, actualDuration, accuracy: 0.001)
+                XCTAssertEqual(try Self.sampleEndMs(movie.url), expectedDuration, accuracy: 2)
+                XCTAssertEqual(try Self.colors(movie.url), [false, false])
+                print("Repeated capture media: expected=\(expectedDuration)ms actual=\(actualDuration)ms colors=\(try Self.colors(movie.url))")
+                let built = await ReporterSubmission.buildReplayAttachment(artifact: movie, byteBudget: ErrorReplayPolicy.maxReplayBytes)
+                let part = try XCTUnwrap(built)
+                let reference = try EnvelopeBuilder.makeJSONEncoder().encode(part.envelope)
+                return .attached(reference: reference, part: .init(name: part.multipart.name,
+                    filename: part.multipart.filename, contentType: part.multipart.contentType,
+                    dataBase64: part.multipart.data.base64EncodedString(), sha256Hex: part.multipart.sha256Hex),
+                    byteCount: part.multipart.data.count)
+            } catch { XCTFail("Repeated real replay failed: \(error)"); return .omitted("replay_unavailable") }
+        }
+        let box = outbox()
+        XCTAssertTrue(CrashReporter.captureHandledError(NSError(domain: "RepeatedReplay", code: 1), outbox: box))
+        let firstWork = scheduled.takeWork(); XCTAssertEqual(firstWork.count, 1)
+        for task in firstWork { await task() }
+        let firstEntry = try XCTUnwrap(try box.hydrate().first)
+        XCTAssertEqual(firstEntry.attachmentRefs.count, 1)
+        let firstBytes = firstEntry.attachmentRefs.first?.dataBase64
+        // The first snapshot has fully completed before the second SDK call.
+        XCTAssertTrue(CrashReporter.captureHandledError(NSError(domain: "RepeatedReplay", code: 2), outbox: box))
+        let later = DispatchTime.now().uptimeNanoseconds + 400_000_000
+        if postErrorFrameBeforeEntry {
+            let accepted = try await recorder.append(Self.coloredFrame(later, blue: true)); XCTAssertTrue(accepted)
+        }
+        let secondWork = scheduled.takeWork(); XCTAssertEqual(secondWork.count, 1)
+        for task in secondWork { await task() }
+        let entries = try box.hydrate()
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertTrue(entries.allSatisfy { $0.attachmentRefs.count == 1 && $0.heldUntil == nil })
+        XCTAssertEqual(entries.first?.attachmentRefs.first?.dataBase64, firstBytes)
+        if !postErrorFrameBeforeEntry {
+            let accepted = try await recorder.append(Self.coloredFrame(later, blue: true)); XCTAssertTrue(accepted)
+        }
+        let frozen = try await recorder.finish(anchorNanos: anchor, anchorEpochMs: 0, endNanos: later + 500_000_000)
+        let report = try XCTUnwrap(frozen)
+        XCTAssertEqual(try Self.colors(report.url), [false, false, true])
+        let reportTimes = try Self.frameTimes(report.url)
+        XCTAssertEqual(Array(reportTimes.prefix(2)), [0, 200])
+        XCTAssertEqual(Double(try XCTUnwrap(reportTimes.last)), Double(later - anchor) / 1_000_000, accuracy: 2)
+        report.removeOwnedFile()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: tempDir.path).filter {
+            (try? tempDir.appendingPathComponent($0).resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+        }, [])
+    }
+
+    func testReplacementBeforePreviousSampleEndKeepsItsRealCaptureTime() async throws {
+        let recorder = try NativeVideoRecorder(directory: tempDir.appendingPathComponent("overlap-video"), framesPerSecond: 2)
+        let first = try await recorder.append(Self.coloredFrame(0, blue: false)); XCTAssertTrue(first)
+        let second = try await recorder.append(Self.coloredFrame(200_000_000, blue: false)); XCTAssertTrue(second)
+        let initial = try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 0, endNanos: 100_000_000)
+        let initialMovie = try XCTUnwrap(initial)
+        defer { initialMovie.removeOwnedFile() }
+        XCTAssertEqual(try Self.colors(initialMovie.url), [false])
+        // The original's final sample extends to 700 ms. A valid new capture
+        // at 300 ms must supersede that hold without moving or losing pixels.
+        let replacement = try await recorder.append(Self.coloredFrame(300_000_000, blue: true)); XCTAssertTrue(replacement)
+        let secondSnapshot = try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 0, endNanos: 250_000_000)
+        let secondMovie = try XCTUnwrap(secondSnapshot)
+        defer { secondMovie.removeOwnedFile() }
+        XCTAssertEqual(AVURLAsset(url: secondMovie.url).duration.seconds * 1000, 250, accuracy: 2)
+        XCTAssertEqual(try Self.colors(secondMovie.url), [false, false])
+        let frozen = try await recorder.finish(anchorNanos: 0, anchorEpochMs: 0, endNanos: 800_000_000)
+        let report = try XCTUnwrap(frozen)
+        defer { report.removeOwnedFile() }
+        XCTAssertEqual(try Self.colors(report.url), [false, false, true])
+        XCTAssertEqual(try Self.frameTimes(report.url), [0, 200, 300])
+    }
+
+    func testSingleFrameIdleSnapshotsPreserveTheDecodedEndpoint() async throws {
+        let recorder = try NativeVideoRecorder(directory: tempDir.appendingPathComponent("single-frame-video"), framesPerSecond: 2)
+        let accepted = try await recorder.append(Self.coloredFrame(0, blue: false)); XCTAssertTrue(accepted)
+        for cutoff: UInt64 in [200_000_000, 400_000_000, 1_000_000_000, 2_500_000_000, 10_000_000_000] {
+            do {
+                let snapshot = try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 0, endNanos: cutoff)
+                let movie = try XCTUnwrap(snapshot)
+                defer { movie.removeOwnedFile() }
+                XCTAssertEqual(AVURLAsset(url: movie.url).duration.seconds * 1000, Double(cutoff) / 1_000_000, accuracy: 2)
+                XCTAssertEqual(try Self.sampleEndMs(movie.url), Double(cutoff) / 1_000_000, accuracy: 2)
+                XCTAssertEqual(try Self.colors(movie.url), [false])
+            } catch { XCTFail("Single-frame cutoff \(cutoff) failed: \(error)") }
+        }
+        await recorder.cancel()
+    }
+
+    func testWindowBeginningInsideAGOPDecodesTheHeldFrameWithoutBlackLeadIn() async throws {
+        let dir = tempDir.appendingPathComponent("gop-window")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let writer = NativeVideoSegmentWriter(directory: dir, dimensions: .init(width: 64, height: 64), framesPerSecond: 5)
+        for (time, blue): (UInt64, Bool) in [(0, false), (200_000_000, false), (400_000_000, true), (600_000_000, false)] {
+            let accepted = try await writer.append(Self.coloredFrame(time, blue: blue)); XCTAssertTrue(accepted)
+        }
+        let segment = try await writer.finish(endNanos: 1_000_000_000)
+        let finished = try XCTUnwrap(segment)
+        let result = try await NativeVideoExporter(directory: dir).export(segments: [finished],
+            dimensions: .init(width: 64, height: 64), anchorNanos: 0, anchorEpochMs: 0,
+            endNanos: 1_000_000_000, durationNanos: 500_000_000)
+        let movie = try XCTUnwrap(result)
+        defer { movie.removeOwnedFile() }
+        XCTAssertEqual(movie.startEpochMs, 500, accuracy: 2)
+        XCTAssertEqual(AVURLAsset(url: movie.url).duration.seconds * 1000, 500, accuracy: 2)
+        XCTAssertEqual(try Self.colors(movie.url), [true, false])
+        XCTAssertEqual(try Self.frameTimes(movie.url), [0, 100])
+    }
+
+    func testIdleSecondSnapshotKeepsTheConfiguredDurationBound() async throws {
+        let recorder = try NativeVideoRecorder(directory: tempDir.appendingPathComponent("bounded-video"),
+            framesPerSecond: 2, durationNanos: 1_000_000_000)
+        let accepted = try await recorder.append(Self.coloredFrame(0, blue: false)); XCTAssertTrue(accepted)
+        let initial = try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 10_000, endNanos: 200_000_000)
+        let first = try XCTUnwrap(initial)
+        defer { first.removeOwnedFile() }
+        let idle = try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 10_000, endNanos: 2_500_000_000)
+        let second = try XCTUnwrap(idle)
+        defer { second.removeOwnedFile() }
+        XCTAssertEqual(second.startEpochMs, 11_500, accuracy: 2)
+        XCTAssertEqual(AVURLAsset(url: second.url).duration.seconds * 1000, 1000, accuracy: 2)
+        XCTAssertEqual(try Self.colors(second.url), [false])
+        // Acquisition may remain unavailable for much longer than a frame
+        // interval. Export only the configured window, however old its pixels.
+        let longIdle = try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 10_000, endNanos: 7_200_000_000_000)
+        let last = try XCTUnwrap(longIdle)
+        defer { last.removeOwnedFile() }
+        XCTAssertEqual(last.startEpochMs, 7_209_000, accuracy: 2)
+        XCTAssertEqual(AVURLAsset(url: last.url).duration.seconds * 1000, 1000, accuracy: 2)
+        XCTAssertEqual(try Self.colors(last.url), [false])
+        await recorder.cancel()
+        let revoked = try await recorder.snapshot(anchorNanos: 0, anchorEpochMs: 10_000, endNanos: 7_201_000_000_000)
+        XCTAssertNil(revoked)
+        XCTAssertEqual(try Self.colors(first.url), [false])
+        XCTAssertEqual(try Self.colors(second.url), [false])
+    }
+
+    private static func sampleEndMs(_ url: URL) throws -> Double {
+        let asset = AVURLAsset(url: url)
+        let track = try XCTUnwrap(asset.tracks(withMediaType: .video).first)
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
+        reader.add(output); XCTAssertTrue(reader.startReading())
+        var end: Double = 0
+        while let sample = output.copyNextSampleBuffer() {
+            guard CMSampleBufferGetNumSamples(sample) > 0 else { continue }
+            let sampleEnd = CMSampleBufferGetPresentationTimeStamp(sample) + CMSampleBufferGetDuration(sample)
+            XCTAssertTrue(sampleEnd.seconds.isFinite)
+            end = max(end, sampleEnd.seconds * 1000)
+        }
+        XCTAssertEqual(reader.status, .completed)
+        return end
+    }
+
+    private static func frameTimes(_ url: URL) throws -> [Int] {
+        let asset = AVURLAsset(url: url)
+        let track = try XCTUnwrap(asset.tracks(withMediaType: .video).first)
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderTrackOutput(track: track,
+            outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
+        reader.add(output); XCTAssertTrue(reader.startReading())
+        var times: [Int] = []
+        while let sample = output.copyNextSampleBuffer() {
+            guard CMSampleBufferGetNumSamples(sample) > 0 else { continue }
+            let seconds = CMSampleBufferGetPresentationTimeStamp(sample).seconds
+            XCTAssertTrue(seconds.isFinite)
+            guard seconds.isFinite else { continue }
+            times.append(Int((seconds * 1000).rounded()))
+        }
+        XCTAssertEqual(reader.status, .completed)
+        return times
+    }
+
     private static func coloredFrame(_ time: UInt64, blue: Bool) -> NativeVideoFrame {
         var bytes = Data(repeating: 0, count: 64 * 64 * 4)
         for i in stride(from: 0, to: bytes.count, by: 4) { bytes[i + (blue ? 0 : 2)] = 255; bytes[i + 3] = 255 }
@@ -285,6 +479,8 @@ final class ErrorReplayTests: XCTestCase {
             guard let buffer = CMSampleBufferGetImageBuffer(sample) else { continue }
             CVPixelBufferLockBaseAddress(buffer, .readOnly)
             let bytes = try XCTUnwrap(CVPixelBufferGetBaseAddress(buffer)).assumingMemoryBound(to: UInt8.self)
+            XCTAssertGreaterThan(max(bytes[0], bytes[2]), 200, "Expected red or blue pixels, never black padding")
+            XCTAssertLessThan(bytes[1], 50)
             blue.append(bytes[0] > bytes[2])
             CVPixelBufferUnlockBaseAddress(buffer, .readOnly)
         }

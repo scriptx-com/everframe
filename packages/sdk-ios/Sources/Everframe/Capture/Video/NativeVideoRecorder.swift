@@ -36,6 +36,7 @@ actor NativeVideoRecorder: NativeVideoRecording {
     private let snapshotExport: SnapshotExport
     private let directory: URL
     private let framesPerSecond: Int
+    private let durationNanos: UInt64
     private var ring: NativeVideoRing
     private var writer: NativeVideoSegmentWriter?
     private var exporter: NativeVideoExporter?
@@ -43,9 +44,6 @@ actor NativeVideoRecorder: NativeVideoRecording {
     private var segmentStart: UInt64?
     /// Newest encoded frame; a frame at or before it is dropped, never encoded.
     private var lastAppendedNanos: UInt64?
-    /// Where a snapshot closed the open segment. The next segment's first frame
-    /// is placed here: an export decodes any gap between segments as a black frame.
-    private var resumeNanos: UInt64?
     private var busy = false
     private var idleWaiters: [CheckedContinuation<Void, Never>] = []
     enum State { case active, freezing, closed }
@@ -62,11 +60,12 @@ actor NativeVideoRecorder: NativeVideoRecording {
         self.makeExporter = makeExporter
         self.snapshotExport = snapshotExport ?? { directory, segments, dimensions, anchor, epoch, cutoff in
             try await makeExporter(directory).export(segments: segments, dimensions: dimensions,
-                anchorNanos: anchor, anchorEpochMs: epoch, endNanos: cutoff)
+                anchorNanos: anchor, anchorEpochMs: epoch, endNanos: cutoff, durationNanos: durationNanos)
         }
         self.finishSnapshotWriter = finishSnapshotWriter
         self.directory = directory
         self.framesPerSecond = framesPerSecond
+        self.durationNanos = min(NativeVideoLimits.maxDurationNanos, durationNanos)
         ring = NativeVideoRing(directory: directory, durationNanos: min(NativeVideoLimits.maxDurationNanos, durationNanos),
             byteLimit: min(8 * 1024 * 1024, byteLimit))
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
@@ -81,7 +80,7 @@ actor NativeVideoRecorder: NativeVideoRecording {
         do {
             if let dimensions, dimensions.width != frame.width || dimensions.height != frame.height {
                 await writer?.cancel()
-                writer = nil; segmentStart = nil; resumeNanos = nil
+                writer = nil; segmentStart = nil
                 try ring.clear()
             }
             guard state == .active, !Task.isCancelled else { return false }
@@ -100,18 +99,16 @@ actor NativeVideoRecorder: NativeVideoRecording {
                 }
             }
             guard state == .active, !Task.isCancelled else { return false }
-            // The first frame of a segment that follows a snapshot starts where
-            // the snapshot closed, so the segments stay contiguous.
-            let encoded = segmentStart == nil ? (resumeNanos.map { frame.retimed(to: $0) } ?? frame) : frame
+            // Keep capture timestamps across snapshot boundaries. The exporter
+            // holds the preceding sample until this real frame begins.
             let current = writer ?? NativeVideoSegmentWriter(directory: directory,
-                dimensions: .init(width: encoded.width, height: encoded.height), framesPerSecond: framesPerSecond)
+                dimensions: .init(width: frame.width, height: frame.height), framesPerSecond: framesPerSecond)
             writer = current
-            let accepted = try await current.append(encoded)
+            let accepted = try await current.append(frame)
             guard state != .closed else { await current.cancel(); return false }
             if accepted {
-                if segmentStart == nil { segmentStart = encoded.timestampNanos }
-                lastAppendedNanos = encoded.timestampNanos
-                resumeNanos = nil
+                if segmentStart == nil { segmentStart = frame.timestampNanos }
+                lastAppendedNanos = frame.timestampNanos
             }
             return accepted
         } catch {
@@ -146,7 +143,7 @@ actor NativeVideoRecorder: NativeVideoRecording {
             let export = makeExporter(directory)
             exporter = export
             let artifact = try await export.export(segments: ring.drain(), dimensions: dimensions,
-                anchorNanos: anchorNanos, anchorEpochMs: anchorEpochMs)
+                anchorNanos: anchorNanos, anchorEpochMs: anchorEpochMs, durationNanos: durationNanos)
             exporter = nil
             guard state == .freezing, !Task.isCancelled else {
                 artifact?.removeOwnedFile()
@@ -211,7 +208,6 @@ actor NativeVideoRecorder: NativeVideoRecording {
                     // Inserted even while a freeze waits: the report keeps it.
                     do { try ring.insert(closed) }
                     catch { try? FileManager.default.removeItem(at: closed.url); throw error }
-                    resumeNanos = end
                 }
             } else {
                 await current.cancel()
@@ -233,7 +229,7 @@ actor NativeVideoRecorder: NativeVideoRecording {
                 try FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete],
                     ofItemAtPath: copy.path)
                 copies.append(.init(url: copy, startNanos: segment.startNanos,
-                    endNanos: segment.endNanos, byteCount: segment.byteCount))
+                    endNanos: segment.endNanos, byteCount: segment.byteCount, lastFrameNanos: segment.lastFrameNanos))
             }
         } catch {
             try? FileManager.default.removeItem(at: target)
@@ -251,10 +247,4 @@ actor NativeVideoRecorder: NativeVideoRecording {
     }
 }
 
-private extension NativeVideoFrame {
-    func retimed(to timestampNanos: UInt64) -> NativeVideoFrame {
-        .init(width: width, height: height, bytesPerRow: bytesPerRow, bgraBytes: bgraBytes,
-              timestampNanos: timestampNanos)
-    }
-}
 #endif

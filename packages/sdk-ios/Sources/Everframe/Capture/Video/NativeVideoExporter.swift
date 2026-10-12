@@ -41,7 +41,8 @@ actor NativeVideoExporter {
     }
 
     func export(segments: [NativeVideoSegment], dimensions: NativeVideoDimensions,
-                anchorNanos: UInt64, anchorEpochMs: Double, endNanos: UInt64? = nil) async throws -> NativeVideoArtifact? {
+                anchorNanos: UInt64, anchorEpochMs: Double, endNanos: UInt64? = nil,
+                durationNanos: UInt64 = NativeVideoLimits.maxDurationNanos) async throws -> NativeVideoArtifact? {
         guard !closed else { throw NativeVideoExportError.closed }
         closed = true
         // Only accept files inside this recording's private directory. Refuse
@@ -59,22 +60,33 @@ actor NativeVideoExporter {
         guard first.startNanos >= anchorNanos, last.endNanos > first.startNanos,
               last.endNanos - first.startNanos <= NativeVideoLimits.maxDurationNanos,
               anchorEpochMs.isFinite, anchorEpochMs >= 0 else { throw NativeVideoExportError.invalidSegments }
-        let cutoff = min(endNanos ?? last.endNanos, last.endNanos)
+        let cutoff = endNanos ?? last.endNanos
         guard cutoff > first.startNanos else { return nil }
-        let epoch = anchorEpochMs + Double(first.startNanos - anchorNanos) / 1_000_000
+        guard cutoff - first.startNanos <= UInt64(Int64.max), durationNanos > 0 else {
+            throw NativeVideoExportError.invalidSegments
+        }
+        let window = min(durationNanos, NativeVideoLimits.maxDurationNanos)
+        let start = max(first.startNanos, cutoff > window ? cutoff - window : 0)
+        func time(_ nanos: UInt64) -> CMTime {
+            CMTimeConvertScale(CMTime(value: Int64(nanos), timescale: 1_000_000_000),
+                timescale: 1_000_000, method: .roundHalfAwayFromZero)
+        }
+        let epoch = anchorEpochMs + Double(start - anchorNanos) / 1_000_000
         guard epoch.isFinite else { throw NativeVideoExportError.invalidSegments }
         let composition = AVMutableComposition()
         guard let destination = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
         else { throw NativeVideoExportError.exportFailed }
-        var previousEnd = first.startNanos
+        var previous: NativeVideoSegment?
         var totalBytes = 0
-        for segment in segments {
-            guard segment.startNanos >= previousEnd, segment.endNanos > segment.startNanos,
-                  segment.endNanos <= last.endNanos, segment.byteCount > 0,
+        for (index, segment) in segments.enumerated() {
+            guard previous.map({ $0.canPrecede(segment) }) ?? true, segment.endNanos > segment.startNanos,
+                  segment.endNanos - segment.startNanos <= NativeVideoLimits.maxDurationNanos,
+                  segment.lastFrameNanos.map({ $0 >= segment.startNanos && $0 < segment.endNanos }) ?? true,
+                  segment.byteCount > 0,
                   segment.byteCount <= 8 * 1024 * 1024 - totalBytes
             else { throw NativeVideoExportError.invalidSegments }
             totalBytes += segment.byteCount
-            previousEnd = segment.endNanos
+            previous = segment
             let asset = AVURLAsset(url: segment.url)
             guard let track = asset.tracks(withMediaType: .video).first,
                   track.naturalSize == CGSize(width: dimensions.width, height: dimensions.height),
@@ -83,10 +95,27 @@ actor NativeVideoExporter {
             let duration = CMTime(value: Int64(segment.endNanos - segment.startNanos), timescale: 1_000_000_000)
             guard asset.duration.seconds.isFinite, abs(asset.duration.seconds - duration.seconds) < 0.002
             else { throw NativeVideoExportError.invalidSegments }
-            if segment.startNanos >= cutoff { continue }
-            let included = CMTime(value: Int64(min(segment.endNanos, cutoff) - segment.startNanos), timescale: 1_000_000_000)
-            let offset = CMTime(value: Int64(segment.startNanos - first.startNanos), timescale: 1_000_000_000)
-            try destination.insertTimeRange(CMTimeRange(start: .zero, duration: included), of: track, at: offset)
+            let nextStart = index + 1 < segments.count ? segments[index + 1].startNanos : cutoff
+            let end = min(nextStart, cutoff)
+            let outputStart = max(segment.startNanos, start)
+            if end <= outputStart { continue }
+            // Clip to the retained window before extending a hold. A long idle
+            // gap must not create an equally long sample outside that window.
+            let tailStart = segment.lastFrameNanos.map { time($0 - segment.startNanos) }
+            let sourceStart = CMTimeMinimum(time(outputStart - segment.startNanos), tailStart ?? track.timeRange.duration)
+            let wanted = time(end - outputStart)
+            let included = CMTimeMinimum(wanted, track.timeRange.duration - sourceStart)
+            let offset = time(outputStart - start)
+            guard included > .zero else { throw NativeVideoExportError.invalidSegments }
+            try destination.insertTimeRange(CMTimeRange(start: sourceStart, duration: included), of: track, at: offset)
+            if wanted > included, let tailStart {
+                // Only the final sample's hold changes. Its pixels were already
+                // captured; every newer frame keeps its real presentation time.
+                let tailOffset = CMTimeMaximum(.zero, tailStart - sourceStart)
+                guard tailOffset < included else { throw NativeVideoExportError.invalidSegments }
+                destination.scaleTimeRange(CMTimeRange(start: offset + tailOffset, duration: included - tailOffset),
+                    toDuration: wanted - tailOffset)
+            }
         }
         guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough)
         else { throw NativeVideoExportError.exportFailed }
@@ -100,6 +129,7 @@ actor NativeVideoExporter {
         try FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: directory.path)
         exporter.outputURL = output; exporter.outputFileType = .mp4
         exporter.shouldOptimizeForNetworkUse = true
+        exporter.timeRange = CMTimeRange(start: .zero, duration: time(cutoff - start))
         session = exporter
         await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in

@@ -64,6 +64,19 @@ struct NativeVideoRingTests {
         #expect(frozen.map(\.url) == [a.url]); #expect(ring.byteCount == 0)
         #expect(FileManager.default.fileExists(atPath: a.url.path))
     }
+    @Test func onlyTerminalHoldsMayOverlapTheNextRealCapture() throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        var ring = NativeVideoRing(directory: dir, durationNanos: 10, byteLimit: 100)
+        let a = try segment(dir, start: 0, end: 7)
+        let held = NativeVideoSegment(url: a.url, startNanos: 0, endNanos: 7, byteCount: a.byteCount, lastFrameNanos: 2)
+        let b = try segment(dir, start: 3, end: 8)
+        #expect(try ring.insert(held))
+        #expect(try ring.insert(b))
+        #expect(ring.segments.map(\.startNanos) == [0, 3])
+        let overlap = try segment(dir, start: 4, end: 9)
+        #expect(try ring.insert(overlap) == false) // no proof that b's real frames ended before 4
+    }
+
     @Test func invalidOrOverlappingMetadataCannotEnterRing() throws {
         let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
         var ring = NativeVideoRing(directory: dir, durationNanos: 10, byteLimit: 100)

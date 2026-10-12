@@ -7,6 +7,14 @@ struct NativeVideoSegment: Sendable {
     let startNanos: UInt64
     let endNanos: UInt64
     let byteCount: Int
+    /// Capture time of the final real sample, distinct from its encoded hold end.
+    var lastFrameNanos: UInt64? = nil
+
+    func canPrecede(_ next: NativeVideoSegment) -> Bool {
+        if next.startNanos >= endNanos { return true }
+        // Only a terminal sample's hold may overlap a newer real capture.
+        return lastFrameNanos.map { next.startNanos > $0 } ?? false
+    }
 }
 
 /// Single-owner retention of complete, independently decodable segments.
@@ -37,7 +45,8 @@ struct NativeVideoRing: Sendable {
               segment.byteCount > 0, segment.byteCount <= byteLimit,
               segment.endNanos > segment.startNanos,
               segment.endNanos - segment.startNanos <= durationNanos,
-              segments.last.map({ segment.startNanos >= $0.endNanos }) ?? true
+              segment.lastFrameNanos.map({ $0 >= segment.startNanos && $0 < segment.endNanos }) ?? true,
+              segments.last.map({ $0.canPrecede(segment) }) ?? true
         else {
             try FileManager.default.removeItem(at: segment.url)
             return false
