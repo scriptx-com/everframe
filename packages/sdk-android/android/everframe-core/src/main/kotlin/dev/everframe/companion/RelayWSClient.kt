@@ -933,6 +933,10 @@ class RelayWSClient(
                     // bridge), so it's the single source of truth for QR
                     // visibility.
                     dev.everframe.companion.Companion.__setState(CompanionState.Paired)
+                    // Crash-only sessions (spec 2026-10-12): any bond, QR or dashboard attach, upgrades
+                    // the session's replay coverage. Here rather than on `Paired`, which a finished
+                    // companion report also returns to.
+                    dev.everframe.Everframe.__onCompanionMemberAttached()
                     android.util.Log.i("Everframe.companion", "pair.bonded → state=Paired, pairUrl=kept")
                 }
                 is PairExpired -> {
