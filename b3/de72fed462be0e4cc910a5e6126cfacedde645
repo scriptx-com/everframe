@@ -1,0 +1,19 @@
+packages/sdk-ios/Tests/EverframeTests/NativeCrashStartupTests.swift
+  s_269319d6df67e5::t_e67b6ce614e82d 148-149,155-157,160-161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3de72fed462be0e4cc910a5e6126cfacedde645",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
