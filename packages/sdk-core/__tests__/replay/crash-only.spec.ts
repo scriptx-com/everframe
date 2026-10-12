@@ -151,6 +151,17 @@ describe('per-kind replay sampling', () => {
     expect(calls.filter((c) => c.startsWith('start'))).toHaveLength(2);
   });
 
+  it('an upgrade inherits the crash-only admission after both rates drop', () => {
+    let kind: ReplaySessionKind = 'crashOnly';
+    let config = cfg(0.01, 0.05);
+    const { lc } = wire(() => config, () => kind, () => 0.03);
+    expect(lc.tryStart()).toBe(true);
+    config = cfg(0.01, 0.01); // neither live rate admits the draw any more
+    kind = 'upgraded';
+    lc.forceDiscard();
+    expect(lc.tryStart()).toBe(true);
+  });
+
   it('an upgraded session records at the crash-only rate when samplingRate is lower', () => {
     const { lc } = wire(() => cfg(0.01, 0.05), () => 'upgraded', () => 0.03);
     expect(lc.tryStart()).toBe(true);

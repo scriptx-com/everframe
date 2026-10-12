@@ -168,6 +168,9 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
         samplingDraw = random();
       }
       const kind = sessionKind();
+      // An upgrade never stops a recording: an upgraded session inherits the
+      // crash-only admission, even after a later cut to both rates.
+      if (kind === 'upgraded' && admittedKinds.has('crashOnly')) admittedKinds.add('upgraded');
       if (!admittedKinds.has(kind)) {
         if (!(samplingDraw < replaySamplingRate(getConfig(), kind))) {
           __traceReplay('lifecycle.tryStart', { from, started: false, reason: 'sampled_out', kind });
