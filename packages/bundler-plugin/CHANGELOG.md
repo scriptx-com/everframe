@@ -1,5 +1,15 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [c7d8662]
+- Updated dependencies [423e77c]
+- Updated dependencies [bf2c753]
+- Updated dependencies [14609d8]
+  - @everframe/cli@0.2.0
+
 ## 0.1.0
 
 ### Minor Changes

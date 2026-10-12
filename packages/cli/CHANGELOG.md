@@ -1,5 +1,45 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 0.2.0
+
+### Minor Changes
+
+- 423e77c: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Builds can upload their native symbols automatically, and a symbol problem never breaks a build by default.
+
+  - `everframe dsym upload-build` finds the binaries and dSYMs itself: `--xcode` inside a Run Script phase, `--archive` for an `.xcarchive` (fastlane, Xcode Cloud, CI) and `--app` for any other layout. App and extension executables are required. Embedded frameworks are optional and warn when they have no dSYM. dSYM folders are searched recursively. iOS, tvOS and their simulators are supported.
+  - `everframe setup xcode` adds an "Upload Everframe Symbols" phase to every application target, and `--print-script` prints it for XcodeGen. The phase turns off user script sandboxing on those targets and declares a dSYM input only for `dwarf-with-dsym` builds.
+  - The React Native and Expo build phase also uploads iOS dSYMs, skips Debug builds, reads flavored Android variants such as `tvRelease`, and turns off user script sandboxing.
+  - `everframe elf upload-build --binaries-dir` finds every shipped `.so`, limited to `--abi` when given. Prebuilt libraries without debug information are listed, not warned about; `--summary` prints one `detail:` line per library for build integrations.
+  - In `--xcode` mode, `everframe dsym upload-build` also follows the app's run-path links to frameworks that are built but not embedded yet, such as CocoaPods frameworks under `use_frameworks!`, and uploads their dSYMs from the build products.
+  - R8 mappings may be up to 512 MiB (from 32 MiB). The CLI streams them and sends them gzip-compressed when the server lists `gzip` in `uploadEncodings`. A mapping over the limit fails with `r8_mapping_too_large`, naming the file, its size and the limit.
+  - The `dev.everframe` Gradle plugin uploads R8 mappings and native libraries after `assemble<Variant>` and `bundle<Variant>` of release builds through a new `everframe {}` block. The R8 mapping ID is the SHA-256 of `mapping.txt`, packaged with the app, so `Everframe.start` reports it without `r8MappingId`. `everframeR8 {}`, `EVERFRAME_R8_BUILD_ID` and the `EVERFRAME_R8_MAPPING_ID` BuildConfig field are removed. React Native and Expo projects apply the plugin. Native uploads consider only the ABIs the variant packages, and libraries without symbols produce one warning with a count; `--info` lists them.
+  - Build integrations warn and exit 0 when `EVERFRAME_API_TOKEN` is missing or an upload fails. They upload every file that matches before reporting misses, and stop after `EVERFRAME_UPLOAD_TIMEOUT_SECONDS` (600 by default). `--strict` or `EVERFRAME_SYMBOLS_STRICT=1` turns these into failures.
+  - Every request now has a timeout, and `upload_busy` responses are retried for as long as their `Retry-After` and the time budget allow.
+
+- 14609d8: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  `everframe sourcemaps upload-vega` uploads the source maps of an Amazon Vega OS release build (`build/lib/rn-bundles/Release` by default), each under the bundle id its crash frames carry. `upload-hermes` accepts `--platform vega` for custom pipelines.
+
+### Patch Changes
+
+- c7d8662: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Android symbol uploads: `bundle<Variant>` now uploads native symbols for every ABI the bundle packages (`ndk.abiFilters`), not only the APK split ABIs, and `assemble` with `bundle` in one build uploads the union. The Gradle plugin bounds npm's registry fetches for the `npx` fallback and stops the CLI process once it outlives `EVERFRAME_UPLOAD_TIMEOUT_SECONDS` plus up to a minute to fetch the CLI; a stalled registry then warns and the build continues (it fails with `EVERFRAME_SYMBOLS_STRICT=1`). Libraries the project's own CMake or ndk-build produced without debug information are no longer treated as quiet prebuilt libraries: the plugin passes its native build output folders to the CLI with the new `elf upload-build --project-native-dir`, and warns once with their names and the fix.
+
+- bf2c753: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Build integrations keep uploading past a single symbol problem instead of stopping at it.
+
+  - `everframe elf upload-build --binaries-dir` uploads every library even when the service rejects one, then prints `warning: everframe: upload failed for <path>: …` for each rejection, also with `--summary`. `--strict`, `EVERFRAME_SYMBOLS_STRICT=1` and `--binary` still fail at the first rejection.
+  - `everframe dsym upload-build` searches each `--dsym-dir` folder on its own in lenient mode: a missing or unreadable folder prints `warning: everframe: skipped <folder>: <code>` and the others are still searched. Strict mode still fails.
+  - `everframe dsym upload-build --xcode` no longer gives up on the whole upload, including the app's own dSYM, when a symlink loop or a folder it may not read sits in the build products. It skips that entry with a warning and keeps the frameworks it did find. It also warns when the build products search stops at its 16384-entry limit. Strict mode still fails on an unreadable folder.
+
 ## 0.1.0
 
 ### Minor Changes
