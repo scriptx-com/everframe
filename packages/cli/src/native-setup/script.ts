@@ -29,8 +29,11 @@ const BUNDLE: Record<'android' | 'ios', { bundle: string; map: string }> = {
  * node_modules, and Node would fail with a bare EPERM. Say so before starting
  * it. Expects EVERFRAME_STRICT to be set.
  */
+export const XCODE_SANDBOX_MESSAGE =
+  "xcode_script_sandboxed: Xcode sandboxes this Run Script phase, so it cannot read the app bundle, dSYM folders or node_modules. Set ENABLE_USER_SCRIPT_SANDBOXING = NO for this target (everframe setup xcode does this).";
+
 export function sandboxCheck(): string[] {
-  const message = "xcode_script_sandboxed: Xcode sandboxes this Run Script phase, so it cannot read the app bundle, dSYM folders or node_modules. Set ENABLE_USER_SCRIPT_SANDBOXING = NO for this target (everframe setup xcode does this).";
+  const message = XCODE_SANDBOX_MESSAGE;
   return [
     'if [ "${ENABLE_USER_SCRIPT_SANDBOXING:-}" = "YES" ]; then',
     `  if [ "$EVERFRAME_STRICT" = 1 ]; then echo "error: everframe: ${message}"; exit 1; fi`,
