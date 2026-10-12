@@ -32,3 +32,16 @@ export class EverframeNotMountedError extends Error {
     super(message ?? 'EverframeProvider is not mounted; wrap your app root.');
   }
 }
+
+/**
+ * Rejected by `open()` when the host turned the reporter off
+ * (`reporter: { disabled: true }`, a crash-only session). The session keeps
+ * this for its whole life, including after a companion bond upgrades it:
+ * reports then come through the companion, not through `open()`.
+ */
+export class EverframeReporterDisabledError extends Error {
+  override readonly name = 'EverframeReporterDisabledError';
+  constructor(message?: string) {
+    super(message ?? 'The Everframe reporter is disabled in this session (reporter.disabled).');
+  }
+}
