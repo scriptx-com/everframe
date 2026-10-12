@@ -27,17 +27,27 @@ export type ReplayState = 'IDLE' | 'BUFFERING' | 'FROZEN' | 'SUBMITTED' | 'DISCA
  * 2026-10-12). `'report'` is the default: a session that can file a report.
  * `'crashOnly'` is a session whose host turned the reporter off
  * (`reporter.disabled`) and that no companion bond has upgraded yet.
+ * `'upgraded'` is such a session after a companion bond.
  */
-export type ReplaySessionKind = 'report' | 'crashOnly';
+export type ReplaySessionKind = 'report' | 'crashOnly' | 'upgraded';
 
 /**
  * The sampling rate for a session kind. A crash-only session uses
  * `crashOnlySamplingRate`, and an absent field (an older server, or one that
  * was not sent the `crashonly` feature token) means 0: such a session never
- * records.
+ * records. An upgraded session uses the higher of the two rates, so an
+ * upgrade never stops a recording the crash-only rate admitted.
  */
 export function replaySamplingRate(config: ReplayConfig, kind: ReplaySessionKind): number {
-  return kind === 'crashOnly' ? (config.crashOnlySamplingRate ?? 0) : config.samplingRate;
+  const crashOnlyRate = config.crashOnlySamplingRate ?? 0;
+  switch (kind) {
+    case 'crashOnly':
+      return crashOnlyRate;
+    case 'upgraded':
+      return Math.max(config.samplingRate, crashOnlyRate);
+    default:
+      return config.samplingRate;
+  }
 }
 
 export interface ReplayLifecycleDeps {

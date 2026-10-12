@@ -107,6 +107,27 @@ describe('crash-only sessions: replay coverage', () => {
     expect(adapter.__replayLifecycle?.state).toBe('BUFFERING');
   });
 
+  it('an upgrade keeps a recording the crash-only rate admitted', async () => {
+    // Draw 0.03: under the crash-only 5%, over the report 1%.
+    vi.spyOn(Math, 'random').mockReturnValue(0.03);
+    const { adapter } = wire(replayOn({ samplingRate: 0.01, crashOnlySamplingRate: 0.05 }), true);
+    await adapter.__initReplay();
+    expect(adapter.__replayLifecycle?.state).toBe('BUFFERING');
+    adapter.__setCompanionAttached();
+    expect(adapter.__replayLifecycle?.state).toBe('BUFFERING');
+    // A restart after an identity change samples the upgraded kind.
+    adapter.__replayLifecycle!.forceDiscard();
+    expect(adapter.__replayLifecycle!.tryStart()).toBe(true);
+  });
+
+  it('an upgraded session records at the crash-only rate when samplingRate is lower', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.03);
+    const { adapter } = wire(replayOn({ samplingRate: 0.01, crashOnlySamplingRate: 0.05 }), true);
+    adapter.__setCompanionAttached();
+    await adapter.__initReplay();
+    expect(adapter.__replayLifecycle?.state).toBe('BUFFERING');
+  });
+
   it('a bond before config resolves takes effect once config arrives', async () => {
     const { adapter } = wire(replayOn({ crashOnlySamplingRate: 0 }), true);
     adapter.__setCompanionAttached();

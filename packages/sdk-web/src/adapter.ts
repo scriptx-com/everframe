@@ -240,8 +240,9 @@ export interface WebPlatformAdapter extends PlatformAdapter {
   /**
    * Crash-only sessions (spec 2026-10-12): a companion bond was seen. In a
    * session whose host set `reporter.disabled`, this upgrades the session for
-   * the rest of its life: replay samples against `samplingRate` instead of
-   * `crashOnlySamplingRate`, and network bodies follow the server rules. A
+   * the rest of its life: replay samples against the higher of
+   * `samplingRate` and `crashOnlySamplingRate`, so an upgrade never stops a
+   * recording, and network bodies follow the server rules. A
    * detach never downgrades it. Starts the replay window at once when the
    * upgraded rate admits the session. The on-device reporter stays off.
    * A no-op in a report session. Never throws.
@@ -963,9 +964,11 @@ export function createWebPlatformAdapter(
   // Crash-only sessions (spec 2026-10-12). `reporter.disabled` turns off every
   // on-device way to open the reporter for the whole session, keeps network
   // bodies off, and samples replay against the server's crashOnlySamplingRate.
-  // A companion bond sets `upgradedByCompanion` (never reset): replay and
-  // bodies then follow the normal server rules, while the reporter stays off,
-  // because reports from an upgraded session come through the companion.
+  // A companion bond sets `upgradedByCompanion` (never reset): replay then
+  // samples against the higher of the two rates (an upgrade never stops a
+  // recording) and bodies follow the normal server rules, while the reporter
+  // stays off, because reports from an upgraded session come through the
+  // companion.
   const crashOnly = _config.reporter?.disabled === true;
   let upgradedByCompanion = false;
   const crashOnlyCoverage = (): boolean => crashOnly && !upgradedByCompanion;
@@ -1082,7 +1085,8 @@ export function createWebPlatformAdapter(
       getConfig: (): ReplayConfig => provider.get(),
       locallyDisabled: _config.sessionReplay?.disabled === true,
       // `sessionReplay.disabled` above still wins in every kind.
-      sessionKind: () => (crashOnlyCoverage() ? 'crashOnly' : 'report'),
+      sessionKind: () =>
+        !crashOnly ? 'report' : upgradedByCompanion ? 'upgraded' : 'crashOnly',
     });
     replayLifecycle = lifecycle;
     replayRecorder = _config.visualCapture ? undefined : recorder as ReplayRecorder;
