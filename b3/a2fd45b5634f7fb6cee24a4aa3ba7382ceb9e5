@@ -1,0 +1,38 @@
+packages/sdk-ios/Tests/EverframeTests/CrashOnlyReplayTests.swift
+  s_dbd309ddf8ec5b::t_4849f6d341a718 1-177
+  s_dbd309ddf8ec5b::t_b87ec24f06fb48 178-180
+packages/sdk-ios/Sources/Everframe/Capture/NetworkBodyCaptureGate.swift
+  s_dbd309ddf8ec5b::t_403a8df2082eea 17-19,95-100,103
+packages/sdk-ios/Sources/Everframe/Capture/ReplaySession.swift
+  s_dbd309ddf8ec5b::t_879795b9671e23 79-82,388-392,408-416,534-539,543,551,587-588,592-593,650-659
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoSession.swift
+  s_dbd309ddf8ec5b::t_45823ee8d740b4 45-52,71-78,124-127,130-134,139-142,222
+packages/sdk-ios/Sources/Everframe/Companion/RelayWSClient.swift
+  s_dbd309ddf8ec5b::t_31320e18f7354f 1097-1100
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_dbd309ddf8ec5b::t_6f196073633bf1 489-494,811-843,1161,2292
+packages/sdk-ios/Tests/EverframeTests/CrashOnlySessionTests.swift
+  s_dbd309ddf8ec5b::t_f68fdac24ef029 18-23,27-33,44,61-111
+packages/sdk-ios/Tests/EverframeTests/NativeVideoSessionTests.swift
+  s_dbd309ddf8ec5b::t_5ccc616536a336 231-283
+packages/sdk-ios/Tests/EverframeTests/NetworkBodyCaptureGateTests.swift
+  s_dbd309ddf8ec5b::t_8e8ffd3acefbf0 124-156
+packages/sdk-ios/Tests/EverframeTests/ShakeToReportTests.swift
+  s_dbd309ddf8ec5b::t_a5bb96c8e1958c 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3a2fd45b5634f7fb6cee24a4aa3ba7382ceb9e5",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
