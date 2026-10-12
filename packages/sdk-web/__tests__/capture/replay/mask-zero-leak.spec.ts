@@ -291,7 +291,7 @@ describe('record options (spec 2026-10-11, "Web masking")', () => {
     });
     rec.start(30);
     await vi.waitFor(() => expect(seen).toBeDefined());
-    expect(seen!['blockSelector']).toBe(`[${SENSITIVE_ATTR}]`);
+    expect(seen!['blockSelector']).toBe(`[${SENSITIVE_ATTR}], [${SENSITIVE_ATTR}] *, .rr-block, .rr-block *`);
     expect(seen!['maskAllInputs']).toBe(true);
     expect(seen!['maskTextSelector']).toBeUndefined();
     rec.stop();
@@ -309,6 +309,22 @@ describe('real rrweb, end to end', () => {
     el.value = value;
     el.dispatchEvent(new Event('input', { bubbles: true }));
   };
+
+  it('blocks existing descendant characterData after dynamically marking its ancestor', async () => {
+    document.body.innerHTML = '<section id="panel"><span>Public before</span></section><p>Visible ordinary text</p>';
+    const rec = createReplayRecorder({ gzip: testGzip });
+    try {
+      rec.start(30);
+      await vi.waitFor(() => expect(rec.__diagnostics().recording).toBe(true));
+      sensitiveRegistry.addRef(document.querySelector('#panel')!);
+      document.querySelector('span')!.firstChild!.textContent = 'Private medical diagnosis';
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const capture = await rec.snapshot();
+      const json = gunzipSync(Buffer.from(capture!.bytes)).toString('utf8');
+      expect(json).not.toContain('Private medical diagnosis');
+      expect(json).toContain('Visible ordinary text');
+    } finally { rec.kill(); }
+  });
 
   it('ships no input value and no pattern match, and keeps ordinary text readable', async () => {
     const jwt = SEEDED_PII[1]!;

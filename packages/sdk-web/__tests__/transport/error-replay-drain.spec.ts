@@ -13,6 +13,7 @@ import {
   isErrorReplayPending,
   markErrorReplayPending,
   settleErrorReplay,
+  revokeErrorReplays,
 } from '../../src/transport/error-replay-parts.js';
 import { readBlobArrayBuffer } from '../../src/internal/blob.js';
 
@@ -125,6 +126,20 @@ describe('error replays in the outbox drain', () => {
     await drain(outbox, fetch);
     expect(sent.map((s) => s.replay !== null)).toEqual([true, true]);
     expect(outbox.deleted).toEqual(['r-1']);
+  });
+
+  it('revokes only the capturing owner and preserves another app replay', async () => {
+    const ownerA = {}, ownerB = {};
+    markErrorReplayPending('r-1', { owner: ownerA, sdkKey: 'key-A' });
+    markErrorReplayPending('r-2', { owner: ownerB, sdkKey: 'key-B' });
+    settleErrorReplay('r-1', { kind: 'attach', capture: REPLAY });
+    settleErrorReplay('r-2', { kind: 'attach', capture: REPLAY });
+    revokeErrorReplays(ownerA);
+    const itemB = errorItem('r-2'); itemB.metadata!['sdkKey'] = 'key-B';
+    const { sent, fetch } = server([]);
+    await drain(outboxOf([errorItem('r-1'), itemB]), fetch);
+    expect(sent.map(s => s.replay !== null)).toEqual([false, true]);
+    expect(sent[1]!.headers.Authorization).toBe('Bearer key-B');
   });
 
   it('resends once without the replay when the server refuses it, so the error is never lost', async () => {

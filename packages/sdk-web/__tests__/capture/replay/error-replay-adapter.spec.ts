@@ -52,6 +52,7 @@ const urlOf = (input: RequestInfo | URL): string =>
   typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
 let ingest: FormData[] = [];
+let ingestStatus = 200;
 const adapters: WebPlatformAdapter[] = [];
 
 function stubServer(): void {
@@ -67,7 +68,7 @@ function stubServer(): void {
       }
       if (url.includes('/api/ingest')) ingest.push(init?.body as FormData);
       return new Response(JSON.stringify({ status: 'received' }), {
-        status: 200,
+        status: ingestStatus,
         headers: { 'content-type': 'application/json' },
       });
     }),
@@ -117,6 +118,7 @@ async function recordingAdapter(): Promise<WebPlatformAdapter> {
 beforeEach(() => {
   localStorage.clear();
   ingest = [];
+  ingestStatus = 200;
   recorders.length = 0;
   gz.impl = testGzip;
   __resetErrorReplayBudgetForTesting();
@@ -163,6 +165,26 @@ describe('replays on web errors', () => {
     expect(counts).toEqual([1, 1, 0]);
     expect(ingest[2]!.get('session-replay')).toBeNull();
     expect((await envelopeOf(ingest[2]!)).captureControl.replayOmitted).toBeUndefined();
+  });
+
+  it('revokes settled retry bytes on kill while preserving the durable error', async () => {
+    const adapter = await recordingAdapter();
+    ingestStatus = 503;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    adapter.captureException?.(errorWithStack('offline-settled'));
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(ingest.length).toBeGreaterThan(0);
+    expect(ingest[0]!.get('session-replay')).not.toBeNull();
+    expect(await adapter.outbox!.list()).toHaveLength(1);
+    adapter.onKill?.();
+    expect(await adapter.outbox!.list()).toHaveLength(1);
+    const replacement = createWebPlatformAdapter({ sdkKey: 'pk_test', sessionReplay: { disabled: true } });
+    adapters.push(replacement);
+    ingestStatus = 200;
+    await drainOutbox({ outbox: replacement.outbox!, config: { sdkKey: 'pk_test', sessionReplay: { disabled: true } }, sdkVersion: 'test' });
+    expect(ingest.at(-1)!.get('session-replay')).toBeNull();
+    expect((await envelopeOf(ingest.at(-1)!)).attachments).toEqual([]);
+    expect(await replacement.outbox!.list()).toEqual([]);
   });
 
   it('takes no replay while a bug report has frozen the window', async () => {

@@ -8,6 +8,8 @@
 // full history.
 import { describe, it, expect, vi } from 'vitest';
 import { Replayer } from 'rrweb';
+import { readFileSync } from 'node:fs';
+import { URL as NodeURL } from 'node:url';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { createReplayRecorder, windowFromAnchor } from '../../../src/capture/replay/recorder.js';
 
@@ -104,6 +106,54 @@ describe('replay snapshot (non-destructive)', () => {
       else Reflect.deleteProperty(HTMLIFrameElement.prototype, 'sandbox'); }
   });
 
+  it('plays only the configured window after a long idle, with the held DOM at its start', async () => {
+    let now = 1_000_000;
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(now);
+    document.body.innerHTML = '<p id="held">Initial</p>';
+    window.eval(readFileSync(new NodeURL('../../../../../node_modules/rrweb/umd/rrweb.js', import.meta.url), 'utf8'));
+    const rec = createReplayRecorder({ importRrweb: async () => (window as any).rrweb, gzip: testGzip });
+    const sandbox = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'sandbox');
+    Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', { configurable: true,
+      get() { return (this.getAttribute('sandbox') ?? '').split(/\s+/).filter(Boolean); } });
+    let player: Replayer | undefined;
+    try {
+      rec.start(30);
+      await vi.waitFor(() => expect(rec.__diagnostics().recording).toBe(true));
+      now += 1_000;
+      vi.setSystemTime(now);
+      document.querySelector('#held')!.firstChild!.textContent = 'Held before cutoff';
+      await new Promise(resolve => setTimeout(resolve, 0));
+      now += 3_600_000;
+      vi.setSystemTime(now);
+      const pending = rec.snapshot();
+      now += 1_000;
+      vi.setSystemTime(now);
+      document.querySelector('#held')!.firstChild!.textContent = 'Later report only';
+      await new Promise(resolve => setTimeout(resolve, 0));
+      rec.freeze();
+      const capture = (await pending)!;
+      expect(capture.durationMs).toBe(30_000);
+      const events = decode(capture.bytes);
+      expect(events[0]!.timestamp).toBe(now - 31_000);
+      expect(JSON.stringify(events)).not.toContain('Later report only');
+      const report = decode((await rec.takeFrozen())!.bytes);
+      expect(JSON.stringify(report)).toContain('Later report only');
+      expect(report.some(e => e.timestamp === 1_001_000)).toBe(true);
+      player = new Replayer(events as ConstructorParameters<typeof Replayer>[0], { root: document.body });
+      await new Promise(resolve => setTimeout(resolve, 10));
+      player.pause(0);
+      expect(player.getMetaData().totalTime).toBe(30_000);
+      expect(player.iframe.contentDocument!.querySelector('#held')!.textContent).toBe('Held before cutoff');
+      player.pause(30_000);
+      expect(player.iframe.contentDocument!.querySelector('#held')!.textContent).toBe('Held before cutoff');
+    } finally {
+      player?.destroy(); rec.kill(); vi.useRealTimers(); vi.restoreAllMocks(); document.body.innerHTML = '';
+      if (sandbox) Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', sandbox);
+      else Reflect.deleteProperty(HTMLIFrameElement.prototype, 'sandbox');
+    }
+  });
+
   it('starts at the newest full snapshot that still covers the window', async () => {
     const h = harness({ now: 100_000 });
     await started(h);
@@ -115,10 +165,10 @@ describe('replay snapshot (non-destructive)', () => {
     h.emit(INCR, 95_000);
     // 30 s ending at 100 000 starts at 70 000: the snapshot at 50 000 covers it.
     expect(decode((await h.rec.snapshot())!.bytes).map((e) => e.timestamp))
-      .toEqual([50_000, 50_000, 60_000, 72_000, 72_000, 95_000, 100_000]);
+      .toEqual([70_000, 70_000, 70_000, 72_000, 72_000, 95_000, 100_000]);
     // 30 s ending at 110 000 starts at 80 000: the snapshot at 72 000 covers it.
     h.setNow(110_000);
-    expect(decode((await h.rec.snapshot())!.bytes).map((e) => e.timestamp)).toEqual([72_000, 72_000, 95_000, 110_000]);
+    expect(decode((await h.rec.snapshot())!.bytes).map((e) => e.timestamp)).toEqual([80_000, 80_000, 95_000, 110_000]);
     expect(h.rec.__size).toBe(6); // the buffer itself was not pruned
   });
 

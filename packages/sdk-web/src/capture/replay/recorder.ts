@@ -31,6 +31,7 @@ import {
   type RollingBuffer,
 } from './buffer.js';
 import { applyReplayMaskClasses, buildRecordOptions, REDACTION_DISABLED } from './mask-mapping.js';
+import { checkpointWindow } from './checkpoint.js';
 import { scrubReplayEvents } from './scrub.js';
 import { SENSITIVE_ATTR } from '../../sensitive/registry.js';
 
@@ -480,7 +481,8 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
       // rrweb evaluates this per node on every snapshot and mutation, so an
       // element marked sensitive AFTER recording started is blocked too (the
       // rr-block class above is applied once, at start).
-      blockSelector: `[${SENSITIVE_ATTR}]`,
+      // characterData checks only the immediate parent; match descendants too.
+      blockSelector: `[${SENSITIVE_ATTR}], [${SENSITIVE_ATTR}] *, .rr-block, .rr-block *`,
       errorHandler: () => true,
     });
     __traceReplay('recorder.start', { durationSec, frames: buffer.size() });
@@ -631,7 +633,11 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
       // Copy at the call: later emits, freezing or teardown cannot change it.
       const all = buffer.frames();
       const capturedEnd = freezeNow();
-      const events = windowFromAnchor(all.filter((event) => event.timestamp <= capturedEnd), capturedEnd - durationSec * 1000);
+      const windowStart = capturedEnd - durationSec * 1000;
+      // Replay the anchor and pre-window mutations in their original order at
+      // offset zero. They reconstruct the held DOM, without exporting idle time
+      // before the configured window or backdating any later event.
+      const events = windowFromAnchor(all.filter((event) => event.timestamp <= capturedEnd), windowStart);
       if (events.length === 0) {
         __traceReplay('recorder.snapshot', { result: 'no_anchor', frames: all.length });
         return Promise.resolve(null);
@@ -639,7 +645,7 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
       // rrweb Custom events are non-mutating but extend the real Replayer timeline.
       // Append only to this independent window; later reports keep the original events.
       events.push({ type: 5, timestamp: capturedEnd, data: { tag: 'everframe-error-end', payload: {} } });
-      return yieldToHost().then(() => encodeWindow(events, { op: 'snapshot', frames: all.length }));
+      return yieldToHost().then(() => encodeWindow(checkpointWindow(events, windowStart), { op: 'snapshot', frames: all.length }));
     },
 
     stop(): void {
