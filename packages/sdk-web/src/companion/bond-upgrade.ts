@@ -12,18 +12,24 @@
 import { __getCompanionApi } from './singleton.js';
 import type { CompanionState } from './state.js';
 
-/** The states the relay client sets only while a phone or member is bonded. */
+/**
+ * The states the relay client sets only after a phone or member bonded.
+ * `phone_disconnected` counts: the relay client enters it only from a bond
+ * (a dropped phone inside the grace window), so a session that starts while
+ * the phone is briefly away still starts upgraded.
+ */
 function isBonded(state: CompanionState): boolean {
-  return state === 'paired' || state === 'report_in_progress';
+  return state === 'paired' || state === 'report_in_progress' || state === 'phone_disconnected';
 }
 
 /**
  * Calls `adapter.__setCompanionAttached()` as soon as the companion is
  * bonded. Seeds from the current state first, because the bond can predate
- * the adapter: React StrictMode rebuilds it, and a vanilla host may call
- * `init()` after `companion.start()`. The upgrade is sticky inside the
- * adapter, so later calls and a detach change nothing. Returns the
- * unsubscribe function.
+ * the adapter: React StrictMode rebuilds it, a vanilla host may call
+ * `init()` after `companion.start()`, and a re-`init()` or provider remount
+ * with the phone still attached must start the new session upgraded. The
+ * upgrade is sticky inside the adapter, so later calls and a detach change
+ * nothing. Returns the unsubscribe function.
  */
 export function __watchCompanionBond(adapter: { __setCompanionAttached(): void }): () => void {
   const api = __getCompanionApi();

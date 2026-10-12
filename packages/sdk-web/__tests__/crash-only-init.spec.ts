@@ -187,6 +187,37 @@ describe('crash-only init(): companion upgrade', () => {
     expect(handle.__adapter.__replayLifecycle!.state).toBe('BUFFERING');
   });
 
+  it('starts upgraded when the phone is briefly away at init()', async () => {
+    // `phone_disconnected` is entered only from a bond: the phone dropped
+    // inside the relay's grace window.
+    stubFetch(replayOn);
+    __getCompanionApi().__setState('phone_disconnected');
+    const handle = mount(true) as InternalHandle;
+    await flush();
+    expect(handle.__adapter.__replayLifecycle!.state).toBe('BUFFERING');
+  });
+
+  it('a re-init() with the phone still attached starts the new session upgraded', async () => {
+    stubFetch(replayOn);
+    const first = mount(true) as InternalHandle;
+    await flush();
+    __getCompanionApi().__setState('paired');
+    expect(first.__adapter.__replayLifecycle!.state).toBe('BUFFERING');
+    first.destroy();
+    handles = handles.filter((h) => h !== first);
+
+    const second = mount(true) as InternalHandle;
+    await flush();
+    expect(second.__adapter.__replayLifecycle!.state).toBe('BUFFERING');
+  });
+
+  it('does not upgrade at init() while the companion is unpaired', async () => {
+    stubFetch(replayOn);
+    const handle = mount(true) as InternalHandle;
+    await flush();
+    expect(handle.__adapter.__replayLifecycle!.state).toBe('IDLE');
+  });
+
   it('a detach does not stop the recording', async () => {
     stubFetch(replayOn);
     const handle = mount(true) as InternalHandle;
