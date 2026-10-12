@@ -78,8 +78,8 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
                         sdkKey = sdkKey,
                         environment = environment,
                         capture = CaptureConfig(screenshot = false, crash = crash),
-                        // When this plugin moves to native 1.2.0 or later, pass `releaseHealth = null`: release health
-                        // is on by default from 1.2.0 and the plugin has no option for it yet.
+                        // Release health is on by default in native 1.2 and this plugin has no option for it yet.
+                        releaseHealth = null,
                     ), activity)
                     result.success(null)
                 }
