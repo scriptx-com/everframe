@@ -269,8 +269,6 @@ object Everframe {
      * on next report.open().
      */
     private var _pendingExtra: String? = null
-    /** Sticky React-fiber walk JSON. Consumed and cleared on next report.open(). */
-    private var _pendingReactTreeJson: String? = null
 
     /**
      * false = capture disabled (kill switch active OR pre-start). The capture
@@ -1887,41 +1885,7 @@ object Everframe {
     }
 
     /**
-     * Attach a JSON-encoded ReactTree (matching @everframe/protocol shape).
-     *
-     * NO LONGER SHIPPED. UI-tree capture and tap-to-identify are gone (spec
-     * 2026-08-29): `EnvelopeBuilder` hardcodes `reactTree = null`, the
-     * in-process reporter presenter drains this slot into `_`, and the
-     * companion submission composer has no tree field at all. Whatever is
-     * attached here is consumed once and discarded — it never reaches
-     * `payload.reactTree` or any other part of the report.
-     *
-     * Retained (with [detachReactTree] and [consumePendingAttachments])
-     * purely so the consume-once drain keeps its contract for the pairing
-     * flow, and so a pure-native host that still calls this keeps compiling.
-     * Auto-cleared on the next `report.open()`.
-     */
-    @Deprecated(
-        "The attached tree is no longer shipped in any report — it is drained " +
-            "and discarded. Remove the call.",
-    )
-    @JvmStatic
-    fun attachReactTree(treeJson: String) {
-        txGuardVoid("attachReactTree") {
-            stateLock.withLock { _pendingReactTreeJson = treeJson }
-        }
-    }
-
-    /** Detach without opening a report. */
-    @JvmStatic
-    fun detachReactTree() {
-        txGuardVoid("detachReactTree") {
-            stateLock.withLock { _pendingReactTreeJson = null }
-        }
-    }
-
-    /**
-     * Drain pending attachments — returns a snapshot and clears state in a
+     * Drain the pending host extra — returns a snapshot and clears it in a
      * single critical section so two concurrent reports can't both consume.
      * Public because it crosses the :everframe-core → :everframe-reporter-ui
      * Gradle module boundary (Kotlin `internal` is per-module). Mirrors
@@ -1930,7 +1894,7 @@ object Everframe {
      * stable public API — host apps should never call it directly.
      */
     @JvmStatic
-    suspend fun consumePendingAttachments(): Pair<String?, String?> {
+    suspend fun consumePendingAttachments(): String? {
         val hook = __pendingExtraResolveHook
             ?: return drainPendingAttachmentsLocked()
         // Serialise the whole ask-and-wait + drain sequence (finding F5's
@@ -1956,18 +1920,16 @@ object Everframe {
     }
 
     /**
-     * Snapshot pending `extra`/reactTree and clear state in a single
-     * critical section so two concurrent reports can't both consume the
-     * same value. Split out of [consumePendingAttachments] so the no-hook
-     * fast path and the serialized hook path share one implementation.
+     * Snapshot pending `extra` and clear it in a single critical section so
+     * two concurrent reports can't both consume the same value. Split out of
+     * [consumePendingAttachments] so the no-hook fast path and the serialized
+     * hook path share one implementation.
      */
-    private fun drainPendingAttachmentsLocked(): Pair<String?, String?> =
+    private fun drainPendingAttachmentsLocked(): String? =
         stateLock.withLock {
             val extra = _pendingExtra
-            val tree = _pendingReactTreeJson
             _pendingExtra = null
-            _pendingReactTreeJson = null
-            extra to tree
+            extra
         }
 
     /**

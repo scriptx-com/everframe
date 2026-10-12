@@ -177,13 +177,10 @@ class EverframeModule(
         // below for the full contract.
         internal const val COMPANION_ATTACH_CHALLENGE_EVENT: String =
             "everframe.companion.attachChallenge"
-        // Fired when a `report.request` arrives from the paired phone. This
-        // used to give JS a window to walk the React fiber tree and call
-        // `attachReactTree`; both the tree payload and that spec method are
-        // gone (spec 2026-08-29). The event and its
-        // `signalCompanionReportRequestReady` acknowledgement survive as the
-        // companion's JS-ready handshake — the bounded wait is part of the
-        // pairing flow, not of tap-to-identify.
+        // Fired when a `report.request` arrives from the paired phone. The
+        // event and its `signalCompanionReportRequestReady` acknowledgement
+        // are the companion's JS-ready handshake — the bounded wait is part
+        // of the pairing flow.
         internal const val COMPANION_REPORT_REQUESTED_EVENT: String = "everframe.companion.reportRequested"
 
         // Spec 2026-09-17 setExtra-resolver — NOT a companion event (no
@@ -516,7 +513,7 @@ class EverframeModule(
      * `Everframe.addBreadcrumb` (Task 9) — NO validation/coercion here. That
      * singleton already owns kind/level/data coercion AND gating (no-op
      * pre-start / while killed via its own `txGuardVoid` + `captureGate`
-     * check), exactly like `setExtra`/`attachReactTree` above never re-check
+     * check), exactly like `setExtra` above never re-checks
      * `captureGate` themselves. `data` crosses as a `ReadableMap?` — the
      * codegen-typed freeform-object boundary — converted with RN's own
      * `toHashMap()` (no re-shaping) before handing off.
@@ -1118,14 +1115,6 @@ class EverframeModule(
         val capture: ScreenshotCapture.CaptureResult,
         val reportCapture: dev.everframe.capture.video.FrozenReportCapture,
         val hostExtra: String?,
-        /**
-         * Drained-and-discarded host React tree (spec 2026-08-29). Nothing
-         * reads it any more, and RN can no longer attach one — the
-         * TurboModule spec method is gone. Kept only because the native core
-         * `Everframe.attachReactTree` remains callable by pure-native hosts,
-         * so the consume-once drain must still clear the slot.
-         */
-        val hostReactTreeJson: String?,
     )
 
     private val companionCaptureStash = ConcurrentHashMap<String, CompanionCapture>()
@@ -1182,7 +1171,7 @@ class EverframeModule(
                         //    same reason the screenshot capture above is —
                         //    this whole provider runs on the OkHttp WS
                         //    thread, never the UI thread.
-                        val (hostExtraRaw, hostReactTreeJson) =
+                        val hostExtraRaw =
                             runBlocking { Everframe.consumePendingAttachments() }
                         val hostExtra = hostExtraRaw?.takeIf { it.isNotEmpty() }
 
@@ -1194,7 +1183,6 @@ class EverframeModule(
                                 capture = capture,
                                 reportCapture = reportCapture,
                                 hostExtra = hostExtra,
-                                hostReactTreeJson = hostReactTreeJson?.takeIf { it.isNotEmpty() },
                             )
                         }
                         if (!published) {
@@ -1506,9 +1494,7 @@ class EverframeModule(
     /**
      * Called by the JS companion module from the `everframe.companion
      * .reportRequested` event handler once it is ready for capture to
-     * proceed. (It used to walk the React fiber tree and call
-     * `attachReactTree` first; both are gone — spec 2026-08-29.) Releases
-     * the `awaitJsReactTreeAttach` waiter for this correlation id so the
+     * proceed. Releases the `awaitJsReactTreeAttach` waiter for this correlation id so the
      * capture provider can proceed. Idempotent — late signals after the
      * timeout fired are harmless.
      */

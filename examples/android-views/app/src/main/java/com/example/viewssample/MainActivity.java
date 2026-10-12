@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import dev.everframe.Everframe;
 import dev.everframe.config.CaptureConfig;
 import dev.everframe.config.Environment;
+import dev.everframe.config.ReleaseHealthConfig;
 import dev.everframe.config.ReportResult;
 import dev.everframe.config.EverframeConfig;
 import dev.everframe.config.VitalsConfig;
@@ -44,7 +45,10 @@ public class MainActivity extends AppCompatActivity {
                 /* theme */ null,
                 /* installIdentifierEnabled */ true,
                 new VitalsConfig(),
-                /* r8MappingId */ null
+                /* r8MappingId */ null,
+                new ReleaseHealthConfig(),
+                /* debugBuild (detected when null) */ null,
+                /* reporterEnabled */ true
             )
         );
 
