@@ -35,6 +35,7 @@ import dev.everframe.capture.BreadcrumbTapNavAdapters
 import dev.everframe.capture.LogCapture
 import dev.everframe.capture.NavigationBreadcrumbAdapter
 import dev.everframe.capture.NetworkBodyCaptureState
+import dev.everframe.capture.replay.ReplayCoverage
 import dev.everframe.capture.replay.ReplaySession
 import dev.everframe.capture.video.FrozenReportCapture
 import dev.everframe.capture.video.OwnedVideoClip
@@ -2704,8 +2705,19 @@ object Everframe {
      * bonded since: replay samples at the server's `crashOnlySamplingRate` (none when absent) and network
      * bodies stay off. [ReplaySession] reads it on every config refresh, and an upgrade forces one.
      */
-    internal fun crashOnlyCoverage(): Boolean = stateLock.withLock {
-        _config?.reporterEnabled == false && !_crashOnlyUpgraded
+    internal fun crashOnlyCoverage(): Boolean = replayCoverage() == ReplayCoverage.CrashOnly
+
+    /**
+     * The current session's replay coverage kind: [ReplayCoverage.Report] unless the session was started
+     * with `reporterEnabled = false`, then [ReplayCoverage.CrashOnly] until a companion bond makes it
+     * [ReplayCoverage.Upgraded]. [ReplaySession] samples against [ReplayCoverage.samplingRate].
+     */
+    internal fun replayCoverage(): ReplayCoverage = stateLock.withLock {
+        when {
+            _config?.reporterEnabled != false -> ReplayCoverage.Report
+            _crashOnlyUpgraded -> ReplayCoverage.Upgraded
+            else -> ReplayCoverage.CrashOnly
+        }
     }
 
     /**

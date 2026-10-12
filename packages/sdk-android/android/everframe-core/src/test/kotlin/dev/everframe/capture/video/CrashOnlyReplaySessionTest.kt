@@ -12,6 +12,7 @@ package dev.everframe.capture.video
 import androidx.test.core.app.ApplicationProvider
 import dev.everframe.Everframe
 import dev.everframe.capture.NetworkBodyCaptureState
+import dev.everframe.capture.replay.ReplayCoverage
 import dev.everframe.capture.replay.ReplaySession
 import dev.everframe.companion.Companion
 import dev.everframe.companion.CompanionState
@@ -55,21 +56,28 @@ class CrashOnlyReplaySessionTest {
     }
     /** The `crashOnlySamplingRate` JSON value the fake server sends; null leaves the field out. */
     @Volatile private var crashOnlyRate: String? = null
+    /** The `samplingRate` JSON value the fake server sends. */
+    @Volatile private var reportRate = "1.0"
     private lateinit var session: ReplaySession
 
     private fun config(reporterEnabled: Boolean) = EverframeConfig(appId = "a", sdkKey = "k",
         capture = CaptureConfig(logs = false, network = true), reporterEnabled = reporterEnabled)
 
-    private fun body() = """{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1.0,""" +
+    private fun body() = """{"replayEnabled":true,"replayDurationSec":30,"samplingRate":$reportRate,""" +
         """"nativeVideo":{"framesPerSecond":2},"networkBodies":{"captureBodies":true}""" +
         (crashOnlyRate?.let { ""","crashOnlySamplingRate":$it""" } ?: "") + "}"
 
     @Before fun setUp() {
         dev.everframe.shared.SharedData.init(ApplicationProvider.getApplicationContext())
         NetworkBodyCaptureState.resetForTesting()
+        Companion.__setState(CompanionState.Unpaired)
         Everframe.captureGate = true
         Everframe.__setConfigForTesting(config(reporterEnabled = false))
-        session = ReplaySession(sdkKey = "k", context = ApplicationProvider.getApplicationContext(),
+        session = buildSession()
+    }
+
+    private fun buildSession(): ReplaySession {
+        val session = ReplaySession(sdkKey = "k", context = ApplicationProvider.getApplicationContext(),
             provider = ReplayConfigProvider.make("https://a.test", "k", ConfigFetcher { request ->
                 Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("test")
                     .body(body().toResponseBody("application/json".toMediaType())).build()
@@ -93,6 +101,7 @@ class CrashOnlyReplaySessionTest {
             }, { segments, allowed -> h.exporter.export(owner, segments, allowed) },
                 snapshotExporter = { segments, allowed -> h.exporter.export(owner, segments, allowed) })
         }
+        return session
     }
 
     @After fun tearDown() {
@@ -188,6 +197,30 @@ class CrashOnlyReplaySessionTest {
         refresh()
         assertEquals("one draw for both kinds: the upgrade never restarts or stops it", 1, recorders.get())
         assertEquals(NativeVideoRecorder.State.BUFFERING, lifecycle())
+    }
+
+    @Test fun anUpgradeKeepsRecordingWhenTheCrashOnlyRateIsAboveTheReportRate() {
+        // Every draw passes a crash-only rate of 1 and none passes a report rate of 0. Sampling an
+        // upgraded session at samplingRate alone would revoke this recording on the next refresh.
+        reportRate = "0.0"
+        crashOnlyRate = "1.0"
+        refresh()
+        assertEquals(1, recorders.get())
+        Everframe.__onCompanionMemberAttached()
+        refresh(); refresh()
+        assertEquals(ReplayCoverage.Upgraded, Everframe.replayCoverage())
+        assertEquals("the upgrade keeps the recording", 1, recorders.get())
+        assertEquals(NativeVideoRecorder.State.BUFFERING, lifecycle())
+        assertTrue(errorReplayAttaches())
+    }
+
+    @Test fun upgradedCoverageSamplesAtTheHigherOfBothRates() {
+        assertEquals(0.4, ReplayCoverage.Report.samplingRate(0.4, 0.9), 0.0)
+        assertEquals(0.9, ReplayCoverage.CrashOnly.samplingRate(0.4, 0.9), 0.0)
+        assertEquals(0.0, ReplayCoverage.CrashOnly.samplingRate(0.4, null), 0.0)
+        assertEquals(0.9, ReplayCoverage.Upgraded.samplingRate(0.4, 0.9), 0.0)
+        assertEquals(0.4, ReplayCoverage.Upgraded.samplingRate(0.4, 0.1), 0.0)
+        assertEquals(0.4, ReplayCoverage.Upgraded.samplingRate(0.4, null), 0.0)
     }
 
     @Test fun killEndsTheUpgrade() {
