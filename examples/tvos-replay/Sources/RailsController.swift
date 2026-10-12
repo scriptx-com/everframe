@@ -94,7 +94,10 @@ private final class PosterCell: UICollectionViewCell {
         super.init(frame: frame)
         image.frame = CGRect(x: 0, y: 0, width: 280, height: 155)
         image.contentMode = .scaleAspectFill; image.clipsToBounds = true; image.layer.cornerRadius = 12
-        image.adjustsImageWhenAncestorFocused = true; contentView.addSubview(image)
+        #if os(tvOS)
+        image.adjustsImageWhenAncestorFocused = true // tvOS-only; the iPhone target builds this file too
+        #endif
+        contentView.addSubview(image)
         label.frame = CGRect(x: 2, y: 160, width: 278, height: 28)
         label.font = .systemFont(ofSize: 20, weight: .medium); label.textColor = .white
         contentView.addSubview(label); isAccessibilityElement = true

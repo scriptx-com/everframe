@@ -8,6 +8,27 @@ import Testing
 @testable import EverframeKit
 
 struct NativeVideoWriterTests {
+    @Test(arguments: [(1, 240_000), (2, 480_000), (5, 1_200_000), (10, 1_200_000)])
+    func encoderSettingsScaleBitrateAndKeepTwoSecondKeyFrames(fps: Int, bitrate: Int) throws {
+        let settings = NativeVideoSegmentWriter.outputSettings(dimensions: .init(width: 64, height: 64), framesPerSecond: fps)
+        let compression = try #require(settings[AVVideoCompressionPropertiesKey] as? [String: Any])
+        #expect(compression[AVVideoAverageBitRateKey] as? Int == bitrate)
+        #expect(compression[AVVideoExpectedSourceFrameRateKey] as? Int == fps)
+        #expect(compression[AVVideoMaxKeyFrameIntervalKey] as? Int == fps * 2)
+    }
+    @Test(arguments: [1, 2])
+    func lowFrameRatesEncodeAtTheirCaptureTimes(fps: Int) async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let writer = NativeVideoSegmentWriter(directory: dir, dimensions: .init(width: 64, height: 64), framesPerSecond: fps)
+        let step = UInt64(1_000_000_000 / fps)
+        #expect(try await writer.append(frame(0)))
+        #expect(try await writer.append(frame(step, value: 255)))
+        let segment = try #require(await writer.finish())
+        #expect(segment.endNanos == 2 * step)
+        let duration = try await AVURLAsset(url: segment.url).load(.duration)
+        #expect(abs(duration.seconds - Double(2 * step) / 1e9) < 0.002)
+    }
+
     @Test func rolloverEndsAtNextFrameRatherThanNominalCadence() async throws {
         let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
         let writer = NativeVideoSegmentWriter(directory: dir, dimensions: .init(width: 64, height: 64), framesPerSecond: 5)

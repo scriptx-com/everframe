@@ -2132,6 +2132,16 @@ public final class Everframe: @unchecked Sendable {
         NetworkBodyRingBuffer.shared.freeze()
     }
 
+    /// Starts a handled error's replay snapshot in the session it was captured
+    /// in. MainActor only for session bookkeeping; encoding and export run on
+    /// the recorder's own actors.
+    @MainActor
+    internal func __replayErrorSnapshot(capture: ErrorReplayCapture) async -> ErrorReplaySnapshot {
+        let session = _replaySession
+        guard let session else { return .omitted("replay_unavailable") }
+        return await session.errorSnapshot(capture: capture)
+    }
+
     /// Consume only this session's frozen video; reporter stays paused until close.
     @MainActor
     internal func __replayCompleteVideo() async -> NativeVideoClaim? {

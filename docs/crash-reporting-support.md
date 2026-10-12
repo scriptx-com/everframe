@@ -53,6 +53,11 @@ haven't turned release health off, and only sessions the service still keeps;
 they are not population crash-free rates, statistical regressions or proof that
 a release recovered.
 
+## Session replay
+
+Handled errors and the errors an app survives can carry a replay of the seconds
+before them. See [session replay](session-replay.md).
+
 ## Promotion criteria
 
 A production support claim needs the exact installed SDK/build/OS/ABI/runtime

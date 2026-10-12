@@ -107,6 +107,13 @@ import {
 import { captureFocusedNode as captureFocusedNodeImpl } from './capture/focus.js';
 import { getDeviceMetadata as getDeviceMetadataImpl } from './capture/metadata.js';
 import { createOutbox } from './outbox/index.js';
+import { beginErrorReplay, ERROR_REPLAY_DEADLINE_MS } from './capture/replay/error-replay.js';
+import {
+  forgetErrorReplay,
+  revokeErrorReplays,
+  markErrorReplayPending,
+  settleErrorReplay,
+} from './transport/error-replay-parts.js';
 import {
   discardEnqueuedReport,
   drainOutboxWhileOwned,
@@ -605,6 +612,7 @@ export function createWebPlatformAdapter(
   // error unmounts the provider in the same commit that reports it, and that
   // release must not discard the report.
   let consentRevocations = 0;
+  const errorReplayOwner = {};
 
   // Adapter-OWNED window listeners (today: the 'online' outbox-drain
   // listener). Distinct from `uninstallers`, which is dominated by the
@@ -1649,10 +1657,30 @@ export function createWebPlatformAdapter(
             if (!stillOwned()) return;
             if (!(handled ? handledThrottle : crashThrottle).shouldReport(fingerprint)) return;
             if (errorObject) capturedErrors.add(errorObject);
+            // Replays on errors (spec 2026-10-11). Taken HERE, synchronously, and
+            // only for an error that will be reported: the snapshot copies the
+            // rolling window as the page was when it threw, and never stops or
+            // freezes the recorder. Null when the error does not qualify (see
+            // capture/replay/error-replay.ts). The queued envelope waits for the
+            // export (≤ ERROR_REPLAY_DEADLINE_MS) before it is first sent.
+            const liveRecorder = replayRecorder;
+            const replayOutcome = beginErrorReplay({
+              lifecycleState: () => replayLifecycle?.state ?? null,
+              snapshot: liveRecorder ? () => liveRecorder.snapshot() : undefined,
+            });
+            if (replayOutcome) {
+              Object.assign(item.metadata, markErrorReplayPending(item.reportId, { owner: errorReplayOwner, sdkKey: _config.sdkKey }));
+              item.metadata['errorReplayUntil'] = String(item.enqueuedAt + ERROR_REPLAY_DEADLINE_MS);
+            }
             // Persist first (durable if the tab dies), then ship immediately —
-            // "next launch" may never come for a closed tab.
+            // "next launch" may never come for a closed tab. The replay never
+            // enters the outbox (JSON only): it waits in memory, see
+            // transport/error-replay-parts.ts.
             void (async () => {
-              if (!stillPermitted()) return;
+              if (!stillPermitted()) {
+                forgetErrorReplay(item.reportId);
+                return;
+              }
               await ob.enqueue(item);
               if (!stillPermitted()) {
                 await discardEnqueuedReport(ob, item.reportId).catch(() => undefined);
@@ -1669,6 +1697,13 @@ export function createWebPlatformAdapter(
               if (!stillPermitted()) {
                 await discardEnqueuedReport(ob, item.reportId).catch(() => undefined);
                 return;
+              }
+              if (replayOutcome) {
+                settleErrorReplay(item.reportId, await replayOutcome);
+                if (!stillPermitted()) {
+                  await discardEnqueuedReport(ob, item.reportId).catch(() => undefined);
+                  return;
+                }
               }
               const result = await drainOutboxWhileOwned(
                 {
@@ -1704,7 +1739,10 @@ export function createWebPlatformAdapter(
               if (stillOwned() && result.provisionedThreadIds.length > 0) {
                 threadClient?.wake();
               }
-            })().catch(() => undefined);
+            })().catch(() => {
+              // Failed admission must not leave a permanently pending table entry.
+              forgetErrorReplay(item.reportId);
+            });
           } catch {
             /* swallow — DEFE-02 */
           } finally {
@@ -2247,7 +2285,10 @@ export function createWebPlatformAdapter(
       reportingOwnership += 1;
       // A release (the React provider unmounting) is not a consent decision:
       // crash reports already accepted still get persisted and delivered.
-      if (reason !== 'release') consentRevocations += 1;
+      if (reason !== 'release') {
+        consentRevocations += 1;
+        revokeErrorReplays(errorReplayOwner);
+      }
       // A smart-TV pre-capture taken before kill() must never be handed out
       // after a revive (`__rebindCrumbHooks`) either.
       tvPreCapture = null;

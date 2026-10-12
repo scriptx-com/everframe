@@ -22,11 +22,11 @@
 #if canImport(UIKit) && canImport(XCTest)
 import XCTest
 import UIKit
-@testable import Everframe_ReactNative
+@testable import EverframeRN
 // Task 14's addBreadcrumb test drives `Everframe.shared` + `BreadcrumbRingBuffer
 // .shared` directly (both public API) to prove the bridge reaches the native
 // singleton — explicit import since this module isn't re-exported by
-// `Everframe_ReactNative`.
+// `EverframeRN`.
 import EverframeKit
 
 final class RnReplayBridgeTests: XCTestCase {
@@ -142,6 +142,24 @@ final class RnReplayBridgeTests: XCTestCase {
             crumb?.kind.rawValue, "custom",
             "unknown kind must coerce to custom — proving Everframe.shared (Task 5), not the bridge, owns coercion"
         )
+    }
+
+    // MARK: - Test F — only an error the app survives may ask for a replay (spec 2026-10-11)
+
+    /// `reportCrash` carries fatal and non-fatal JavaScript errors on one method. The bridge reads the `fatal`
+    /// flag first, so a fatal error, which is a crash, can never ask the SDK for a replay.
+    func testOnlyAnErrorTheAppSurvivesMayAskForAReplay() {
+        XCTAssertTrue(EverframeBridge.appSurvivesError(#"{"exceptionType":"TypeError","fatal":false}"#))
+        XCTAssertTrue(EverframeBridge.appSurvivesError(#"{"exceptionType":"TypeError"}"#),
+                      "CrashReporter classifies facts without a fatal flag as errors, so the bridge agrees")
+        XCTAssertFalse(EverframeBridge.appSurvivesError(#"{"exceptionType":"TypeError","fatal":true}"#))
+        XCTAssertFalse(EverframeBridge.appSurvivesError(#"{"fatal":"false"}"#), "only a JSON boolean counts")
+        XCTAssertFalse(EverframeBridge.appSurvivesError(#"{"fatal":null}"#))
+        XCTAssertFalse(EverframeBridge.appSurvivesError(#"{"fatal":0}"#), "numeric zero is not a JSON boolean")
+        XCTAssertFalse(EverframeBridge.appSurvivesError(#"{"fatal":1}"#), "numeric one is not a JSON boolean")
+        XCTAssertFalse(EverframeBridge.appSurvivesError("not-json{"))
+        XCTAssertFalse(EverframeBridge.appSurvivesError("[]"))
+        XCTAssertFalse(EverframeBridge.appSurvivesError(""))
     }
 }
 #endif

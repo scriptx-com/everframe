@@ -687,11 +687,11 @@ class EverframeModule(
     @ReactMethod(isBlockingSynchronousMethod = true)
     override fun getReportDeliveryStatusJson(): String = Everframe.getReportDeliveryStatus().toJson()
 
-    /** Automatic ErrorUtils capture; true acknowledges completed sidecar storage. */
+    /** Automatic ErrorUtils and unhandled-rejection capture; true acknowledges completed sidecar storage. A non-fatal error may carry a replay. */
     @ReactMethod(isBlockingSynchronousMethod = true)
     override fun reportCrash(crashJson: String): Boolean = captureCrashJson(crashJson, handled = false)
 
-    /** Explicit capture always enforces handled=true, fatal=false, captureException. */
+    /** Explicit capture always enforces handled=true, fatal=false, captureException, and may carry a replay. */
     @ReactMethod(isBlockingSynchronousMethod = true)
     override fun captureHandledException(crashJson: String): Boolean = captureCrashJson(crashJson, handled = true)
 
@@ -718,12 +718,17 @@ class EverframeModule(
             val details = if (obj.has("details")) obj.get("details") else null
             val causeChain = if (obj.has("causeChain")) obj.get("causeChain") else null
             val fatal = !handled && obj.optBoolean("fatal", false)
-            val accepted = if (handled) {
-                dev.everframe.crash.CrashReporter.captureHandledFactsWithCauses(
+            // Only errors the app survives ask for a replay. Eligibility and export remain in the core;
+            // fatal errors keep the entry point that never carries a replay.
+            val accepted = when {
+                handled -> dev.everframe.crash.CrashReporter.captureHandledFactsWithReplay(
                     exceptionType, message, frames, occurredAt, jsBundle, details, causeChain, "everframe-android",
                 )
-            } else {
-                dev.everframe.crash.CrashReporter.captureFactsAcceptedWithCauses(
+                fatal -> dev.everframe.crash.CrashReporter.captureFactsAcceptedWithCauses(
+                    exceptionType, message, frames, obj.optString("mechanism", "errorutils"),
+                    fatal, occurredAt, jsBundle, details, causeChain,
+                )
+                else -> dev.everframe.crash.CrashReporter.captureFactsAcceptedWithReplay(
                     exceptionType, message, frames, obj.optString("mechanism", "errorutils"),
                     fatal, occurredAt, jsBundle, details, causeChain,
                 )

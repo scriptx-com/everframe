@@ -36,6 +36,12 @@ you control, pass these launch environment values:
 - `EVERFRAME_DEV_INGEST_URL`: a loopback development ingest origin.
 - `REPLAY_TV_AUTOSCROLL=1`: optional deterministic automatic navigation.
 - `REPLAY_TV_SWIFTUI=1`: optional SwiftUI header coverage.
+- `REPLAY_TV_ERROR_AFTER=<seconds>`: optional; reports one handled error that long after the SDK starts, to check that an error carries a replay.
+- `REPLAY_TV_RUN=<label>`: optional; names the run in the error message.
+
+The `ReplayPhone` scheme builds the same fixture for an iPhone
+(`xcodebuild build -project ReplayTV.xcodeproj -scheme ReplayPhone`).
+
 
 Do not put keys in the Xcode project, generated `.xctestrun` files, or source.
 Operational benchmarks and dashboard verification are intentionally outside

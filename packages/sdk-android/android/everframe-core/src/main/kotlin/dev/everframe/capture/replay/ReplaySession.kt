@@ -18,6 +18,7 @@ import dev.everframe.capture.video.*
 import dev.everframe.config.*
 import dev.everframe.vitals.toVitalsServerConfig
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -66,12 +67,21 @@ class ReplaySession(
     /** Internal construction boundary for controlled encoder comparisons and deterministic native tests. */
     internal var recorderFactory: (Context, VideoOwner, () -> Activity?) -> NativeVideoRecorder = NativeVideoRecorder::create
     internal var videoStartupAdmission: VideoStartupAdmission? = null
+    /** Test seam for Battery Saver, heat and low RAM (spec 2026-10-11). Null uses the process instance. */
+    internal var videoDeviceConditions: VideoDeviceConditions? = null
     private var startupPending: Any? = null
     private var activeOwner: VideoOwner? = null
     private var privacyEpoch = VideoPrivacyRevocation.current
     private var privacySubscription: AutoCloseable? = null
     private var foreground = true
     private var state = NativeVideoRecorder.State.DISABLED
+    // Error replays (spec 2026-10-11). Guarded by the report authorization lock, like the fields above.
+    private var errorReplaysSent = 0
+    private var errorReplaysPending = 0
+    /** Internal construction boundary: builds the attachment inside the recorder's snapshot gap. */
+    internal var errorReplayScope = ErrorReplayWork.scope
+    internal var errorReplayAttachment: suspend (OwnedVideoClip) -> VideoAttachmentPair? = { NativeVideoAttachment().build(it) }
+
 
     /**
      * Report Resource Window (spec 2026-09-05) — CPU/memory sampler feeding
@@ -237,13 +247,19 @@ class ReplaySession(
         val capturedEpoch = epoch.get()
         // The existing worker owns discovery and deletion; construction still has no file IO.
         (videoStartupAdmission ?: VideoStartupAdmission.process).request(appContext) { allowed ->
+            // Spec 2026-10-11: the first read registers the power callbacks. An admitted request
+            // completes on the capture worker, so this never runs under the authorization lock.
+            val lowRam = allowed && runCatching {
+                (videoDeviceConditions ?: AndroidVideoDeviceConditions.of(appContext)).lowRamDevice
+            }.getOrDefault(true)
             Everframe.withReportAuthorizationLock {
                 if (startupPending !== pending) return@withReportAuthorizationLock
                 startupPending = null
                 if (!currentGenerationValid(capturedEpoch) || generation != capturedGeneration ||
                     !authorized || activeOwner != null || recorder != null || !Everframe.captureGate ||
                     !VideoPrivacyRevocation.permits(privacyEpoch)) return@withReportAuthorizationLock
-                if (!allowed) { revokeReplayLocked(); return@withReportAuthorizationLock }
+                // A low-RAM device never records, exactly like a refused startup admission.
+                if (!allowed || lowRam) { revokeReplayLocked(); return@withReportAuthorizationLock }
                 recordingOwner = newOwner()
                 try {
                     recorder = recorderFactory(appContext, recordingOwner, activitySupplier)
@@ -254,6 +270,7 @@ class ReplaySession(
             }
         }
     }
+
 
     fun pause() = Everframe.withReportAuthorizationLock {
         foreground = false; recorder?.pause()
@@ -316,6 +333,53 @@ class ReplaySession(
             binding.third.cancel(binding.first); binding.third.release(binding.first)
             FrozenReportCapture.empty(originatingStartEpoch, sessionId)
         }
+    }
+
+    /**
+     * Error replays (spec 2026-10-11): reserves one of this session's two error replays and starts a
+     * non-destructive snapshot on [ErrorReplayWork.scope]. Returns null when the error ships without a
+     * replay:
+     * - no recorder, or it is paused;
+     * - an open bug report owns the buffer;
+     * - consent or privacy is revoked;
+     * - both replays are used.
+     * The caller's thread only reads fields under the lock.
+     */
+    internal fun beginErrorReplay(expectedStartEpoch: Int = originatingStartEpoch): ErrorReplaySnapshot? {
+        val claim = Everframe.withReportAuthorizationLock {
+            val bound = recorder
+            if (bound == null || isTornDown.get() || expectedStartEpoch != originatingStartEpoch ||
+                Everframe.currentStartEpochVolatile() != originatingStartEpoch ||
+                !authorized || activeOwner != null || state != NativeVideoRecorder.State.BUFFERING ||
+                bound.state != NativeVideoRecorder.State.BUFFERING || !Everframe.captureGate ||
+                !VideoPrivacyRevocation.permits(privacyEpoch) ||
+                errorReplaysSent + errorReplaysPending >= ErrorReplayWork.MAX_PER_SESSION
+            ) return@withReportAuthorizationLock null
+            errorReplaysPending++
+            Triple(bound, generation, bound.bufferGeneration) to bound.captureCutoffNanos()
+        } ?: return null
+        val startedNanos = System.nanoTime()
+        val (binding, cutoffNanos) = claim
+        val (bound, capturedGeneration, capturedBufferGeneration) = binding
+        val build = errorReplayAttachment
+        val result = errorReplayScope.async {
+            try { bound.snapshot(bound.owner, cutoffNanos, capturedBufferGeneration, build) } catch (_: Throwable) { null }
+        }
+        return ErrorReplaySnapshot(result, startedNanos,
+            allowed = {
+                Everframe.withReportAuthorizationLock {
+                    !isTornDown.get() && authorized && generation == capturedGeneration &&
+                        Everframe.currentStartEpochVolatile() == expectedStartEpoch &&
+                        bound.bufferGeneration == capturedBufferGeneration &&
+                        VideoPrivacyRevocation.permits(privacyEpoch)
+                }
+            },
+            settled = { attached ->
+                Everframe.withReportAuthorizationLock {
+                    errorReplaysPending--
+                    if (attached) errorReplaysSent++
+                }
+            })
     }
 
     private companion object {

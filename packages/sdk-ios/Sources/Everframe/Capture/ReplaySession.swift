@@ -16,6 +16,25 @@ private final class ConfigBox {
     var value: ReplayConfig = .off
 }
 
+/// Power and heat as replay reads them, behind a seam so tests never depend
+/// on the machine running them. tvOS has no Low Power Mode; it reads false.
+struct ReplayDeviceConditions: Equatable {
+    var thermal: ProcessInfo.ThermalState
+    var lowPowerMode: Bool
+
+    static func live() -> ReplayDeviceConditions {
+        #if os(tvOS)
+        let lowPowerMode = false
+        #else
+        let lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+        #endif
+        return .init(thermal: ProcessInfo.processInfo.thermalState, lowPowerMode: lowPowerMode)
+    }
+
+    /// Like a memory warning, these pause capture and drop the buffer.
+    var pausesReplay: Bool { lowPowerMode || thermal == .serious || thermal == .critical }
+}
+
 /// Live session-replay coordinator. One per Everframe SDK session (owned by `Everframe`).
 @MainActor
 public final class ReplaySession: NSObject {
@@ -26,6 +45,7 @@ public final class ReplaySession: NSObject {
     private let configBox: ConfigBox
     private var backgrounded = false
     private var memoryPressure = false
+    private let deviceConditions: @MainActor () -> ReplayDeviceConditions
 
     /// Report EverframeResource Window (spec 2026-09-05) — CPU/memory sampler feeding
     /// `ResourceRingBuffer.shared`. Owned for the session's whole lifetime
@@ -202,13 +222,17 @@ public final class ReplaySession: NSObject {
     /// initializer's doc comment above.
     init(
         provider: ReplayConfigProvider, locallyDisabled: Bool,
-        startEpoch: Int = Everframe.shared.currentStartEpoch
+        startEpoch: Int = Everframe.shared.currentStartEpoch,
+        deviceConditions: @escaping @MainActor () -> ReplayDeviceConditions = ReplayDeviceConditions.live
     ) {
         self.provider = provider
-        self.video = NativeVideoSession()
+        self.video = NativeVideoSession(onRecordingChange: { recording in
+            ErrorReplayGate.shared.publish(recording: recording, epoch: startEpoch)
+        })
         self.locallyDisabled = locallyDisabled
         self.configBox = ConfigBox()
         self.startEpochAtCreation = startEpoch
+        self.deviceConditions = deviceConditions
         super.init()
         // A host can restart the Everframe SDK while a report is still being composed.
         // tvOS has no modal presenter: the companion owns that same freeze.
@@ -220,10 +244,9 @@ public final class ReplaySession: NSObject {
                      UIApplication.didReceiveMemoryWarningNotification] {
             NotificationCenter.default.addObserver(self, selector: #selector(runtimeChanged(_:)), name: name, object: nil)
         }
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(thermalStateChanged),
-            name: ProcessInfo.thermalStateDidChangeNotification, object: nil
-        )
+        for name in [ProcessInfo.thermalStateDidChangeNotification, Notification.Name.NSProcessInfoPowerStateDidChange] {
+            NotificationCenter.default.addObserver(self, selector: #selector(deviceConditionsChanged), name: name, object: nil)
+        }
     }
 
     deinit {
@@ -280,9 +303,9 @@ public final class ReplaySession: NSObject {
         NotificationCenter.default.removeObserver(self)
     }
 
-    // Foundation posts thermal changes on a global dispatch queue. The
-    // selector must not enter MainActor until it has marshalled delivery.
-    @objc nonisolated private func thermalStateChanged() {
+    // Foundation posts thermal and Low Power Mode changes on arbitrary queues.
+    // The selector must not enter MainActor until it has marshalled delivery.
+    @objc nonisolated private func deviceConditionsChanged() {
         DispatchQueue.main.async { [weak self] in
             guard let self, !self.isTornDown,
                   self.startEpochAtCreation == Everframe.shared.currentStartEpoch else { return }
@@ -302,8 +325,7 @@ public final class ReplaySession: NSObject {
     }
 
     private func updateSuspension() {
-        let thermal = ProcessInfo.processInfo.thermalState
-        video.setSuspended(backgrounded || memoryPressure || thermal == .serious || thermal == .critical)
+        video.setSuspended(backgrounded || memoryPressure || deviceConditions().pausesReplay)
     }
 
     /// Kick off a background config refresh, then — if the lifecycle starts
@@ -604,6 +626,20 @@ public final class ReplaySession: NSObject {
     public func freezeForReporter() {
         guard !isTornDown, Everframe.shared.currentStartEpoch == startEpochAtCreation else { return }
         video.freeze()
+    }
+
+    /// A handled error's own copy of the window, for the session it was
+    /// captured in. Waits at most the snapshot deadline (3 s).
+    internal func errorSnapshot(capture: ErrorReplayCapture) async -> ErrorReplaySnapshot {
+        guard !isTornDown, capture.startEpoch == startEpochAtCreation, ErrorReplayGate.shared.owns(capture),
+              Everframe.shared.currentStartEpoch == startEpochAtCreation,
+              let claim = await video.snapshotClaim(endNanos: capture.cutoffNanos) else { return .omitted("replay_unavailable") }
+        guard !isTornDown, Everframe.shared.currentStartEpoch == startEpochAtCreation, claim.isValid else {
+            claim.artifact?.removeOwnedFile()
+            return .omitted("replay_revoked")
+        }
+        guard let artifact = claim.artifact else { return .omitted(claim.omissionReason ?? "empty_recording") }
+        return .movie(artifact)
     }
 
     internal func completeVideoForSubmit() async -> NativeVideoClaim? {

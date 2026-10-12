@@ -41,6 +41,23 @@ class CrashSidecar private constructor(private val file: File, private val outbo
         false
     }
 
+    /** Error replays (spec 2026-10-11): handled admission that also returns the stored entry's token. */
+    internal fun appendHandledSyncToken(entry: OutboxEntry, authorization: OutboxAuthorization,
+                                        diagnostics: ReportDiagnostics.Handle? = null): OutboxToken? = try {
+        outbox.store.enqueueSync(entry, authorization, diagnostics)
+    } catch (_: Exception) { null }
+
+    /** Error replays: the nonblocking automatic-bridge admission that also returns the token. */
+    internal fun appendSyncToken(entry: OutboxEntry, authorization: OutboxAuthorization,
+                                 diagnostics: ReportDiagnostics.Handle? = null): OutboxToken? = try {
+        outbox.tryEnqueueSync(entry, authorization, diagnostics)
+    } catch (_: Exception) { null }
+
+    /** Error replays: swap a still-queued error for the same report with its replay attached. */
+    internal fun replaceSync(token: OutboxToken, replacement: OutboxEntry, authorization: OutboxAuthorization): Boolean = try {
+        outbox.store.replaceSync(token, replacement, authorization)
+    } catch (_: Exception) { false }
+
     /** Import known legacy sources without renaming, rewriting, or discarding blocked input. */
     suspend fun hydrateInto(outbox: JSONLOutbox): Int = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         LegacyOutboxMigration.migrate(outbox)

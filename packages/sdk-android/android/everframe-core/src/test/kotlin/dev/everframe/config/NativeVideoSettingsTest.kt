@@ -29,7 +29,7 @@ class NativeVideoSettingsTest {
 
     @Test
     fun `effective settings reject unsupported programmatic frame rates`() {
-        for (framesPerSecond in listOf(0, 6, 60)) {
+        for (framesPerSecond in listOf(0, 3, 6, 60)) {
             val config = ReplayConfig(
                 true,
                 30,
@@ -38,6 +38,17 @@ class NativeVideoSettingsTest {
             )
 
             assertNull(effectiveNativeVideo(config, true, sdkInt = 29))
+        }
+    }
+    @Test
+    fun `effective settings accept 1 2 5 and 10 fps and nothing between`() {
+        for (framesPerSecond in listOf(1, 2, 5, 10)) {
+            val config = ReplayConfig(true, 30, 1.0, nativeVideo = NativeVideoSettings(framesPerSecond))
+            assertEquals(framesPerSecond, effectiveNativeVideo(config, true, sdkInt = 29)?.framesPerSecond)
+        }
+        for (framesPerSecond in listOf(0, 3, 4, 6)) {
+            val config = ReplayConfig(true, 30, 1.0, nativeVideo = NativeVideoSettings(framesPerSecond))
+            assertNull("fps=$framesPerSecond", effectiveNativeVideo(config, true, sdkInt = 29))
         }
     }
 }

@@ -243,4 +243,23 @@ class H264VideoEncoderTest {
   assertTrue((System.nanoTime()-start)/1_000_000<500);assertNull(admission.acquire())
   s.held=false;while(s.queued.isNotEmpty())s.worker(s.queued.removeFirst());assertTrue(other.closed);assertNull(admission.acquire())
  }
+ @Test fun bitrateIsUnchangedFromFiveFpsAndLinearBelow() {
+  assertEquals(300_000,h264BitrateFor(1));assertEquals(600_000,h264BitrateFor(2))
+  assertEquals(1_500_000,h264BitrateFor(5));assertEquals(1_500_000,h264BitrateFor(10))
+ }
+ @Test fun everySupportedRatePreparesAndOtherRatesAreRejected() {
+  for(fps in listOf(1,2,5,10)) {val e=encoder(Scheduler(),Backend());assertNotNull("fps=$fps",e.prepare(VideoSize(4,4),fps));e.close()}
+  for(fps in listOf(0,3,6)) {val e=encoder(Scheduler(),Backend());assertNull("fps=$fps",e.prepare(VideoSize(4,4),fps));e.close()}
+ }
+ @Test fun noProgressLimitSpansFiveFrameIntervalsAtLowRates() {
+  // An encoder that holds one frame for lookahead emits it a full interval later: 1 s at 1 fps.
+  for((fps,terminal) in listOf(1 to false,2 to false,5 to true)) {
+   val s=Scheduler();val b=Backend();val e=encoder(s,b)
+   assertNotNull(e.prepare(VideoSize(4,4),fps));b.queueOutput=false
+   s.nanos+=200_000_000;s.worker{assertTrue(e.offer(frame(s)))}
+   s.nanos+=1_500_000_000;s.turn()
+   assertEquals("fps=$fps",terminal,e.isTerminal)
+   e.close()
+  }
+ }
 }

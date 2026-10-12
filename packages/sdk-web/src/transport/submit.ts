@@ -23,6 +23,14 @@ import type { ResolvedWebEverframeConfig } from '../internal/types.js';
 import { INGEST_URL } from '../constants.js';
 import type { HostSdkName } from '../internal/sdk-identity.js';
 import { draftToEnvelope, type CaptureBundle } from './draft-to-envelope.js';
+import {
+  applyErrorReplay,
+  errorReplayHoldMs,
+  ownsErrorReplayBytes,
+  forgetErrorReplay,
+  isErrorReplayPending,
+  omitErrorReplay,
+} from './error-replay-parts.js';
 
 // PR review Finding 2 (P1, 2026-08-06 identity spec) — "never misattribute;
 // lose attribution instead."
@@ -536,13 +544,31 @@ export async function drainOutboxWhileOwned(
   return drainOutboxInternal(opts, isOwned);
 }
 
-/** Delete a cancelled capture and its in-memory identity association. */
+/** Delete a cancelled capture, its identity association and any error replay. */
 export async function discardEnqueuedReport(
   outbox: OutboxAdapter,
   reportId: string,
 ): Promise<void> {
+  forgetErrorReplay(reportId);
   await outbox.delete(reportId);
   enqueuedSubjects.delete(reportId);
+}
+
+// At most one expiry wakeup per outbox; a newer drain replaces its context.
+const replayWakeups = new WeakMap<OutboxAdapter, { at: number; timer: ReturnType<typeof setTimeout>; run: () => void }>();
+function wakeAfterReplayHold(opts: DrainOutboxOptions, delay: number, isOwned?: () => boolean): void {
+  const at = Date.now() + delay;
+  const existing = replayWakeups.get(opts.outbox);
+  const run = () => { void drainOutboxInternal(opts, isOwned).catch(() => undefined); };
+  if (existing && existing.at <= at) { existing.run = run; return; }
+  if (existing) clearTimeout(existing.timer);
+  const wakeup = { at, run, timer: undefined as unknown as ReturnType<typeof setTimeout> };
+  wakeup.timer = setTimeout(() => {
+    if (replayWakeups.get(opts.outbox) !== wakeup) return;
+    replayWakeups.delete(opts.outbox);
+    wakeup.run();
+  }, delay);
+  replayWakeups.set(opts.outbox, wakeup);
 }
 
 async function drainOutboxInternal(
@@ -598,12 +624,13 @@ async function drainOutboxInternal(
   const provisionedThreadIds: string[] = [];
   for (const item of items) {
     if (ownershipReleased()) return { submitted, failed, provisionedThreadIds };
+    // The capturing sink drains again once the export settles or its deadline expires.
+    const holdMs = errorReplayHoldMs(item);
+    if (holdMs > 0) { wakeAfterReplayHold(opts, holdMs, isOwned); continue; }
+    if (isErrorReplayPending(item.reportId)) continue;
     try {
       const json = new TextDecoder().decode(item.payload);
       const envelope = JSON.parse(json) as ReportEnvelope;
-      // Replay path: no fresh attachments — server already has the original payload's
-      // refs; we re-send the JSON envelope only. Plan 08 e2e covers attachment replay
-      // semantics if/when needed.
       const url =
         item.metadata?.['url'] ?? `${INGEST_URL.replace(/\/$/, '')}/api/ingest`;
       const itemSdkKey = item.metadata?.['sdkKey'];
@@ -617,6 +644,7 @@ async function drainOutboxInternal(
         // already evicts oldest-first under quota pressure.
         await opts.outbox.delete(item.reportId);
         enqueuedSubjects.delete(item.reportId);
+        forgetErrorReplay(item.reportId);
         continue;
       }
 
@@ -678,25 +706,47 @@ async function drainOutboxInternal(
           ? subjectGatedReader(opts.identityToken, recordedSub)
           : undefined;
 
-      const built = await buildMultipart({ envelope, attachments: [] });
+      // Replays on errors (spec 2026-10-11): an error carries its replay from
+      // the in-memory table, never from the outbox (error-replay-parts.ts).
+      if (isThisApp && opts.config.sessionReplay?.disabled === true) forgetErrorReplay(item.reportId);
+      const replayParts = applyErrorReplay(item.reportId, envelope);
+      const built = await buildMultipart({ envelope, attachments: replayParts });
       if (ownershipReleased()) return { submitted, failed, provisionedThreadIds };
-      const result = await submitReport(url, itemSdkKey, built.body, {
-        ...(attemptFetch ? { fetchImpl: attemptFetch } : {}),
+      const submitOptions = (encoding: 'gzip' | undefined) => ({
+        fetchImpl: async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+          // Recheck at every retry, including after asynchronous multipart packing.
+          if (replayParts[0] && !ownsErrorReplayBytes(item.reportId, replayParts[0].bytes)) {
+            return new Response(null, { status: 499 });
+          }
+          return (attemptFetch ?? globalThis.fetch)(input, init);
+        },
         ...(opts.retryScheduleMs !== undefined ? { retryScheduleMs: opts.retryScheduleMs } : {}),
-        ...(built.envelopeContentEncoding
-          ? { envelopeContentEncoding: built.envelopeContentEncoding }
-          : {}),
+        ...(encoding ? { envelopeContentEncoding: encoding } : {}),
         ...(itemDeviceToken ? { deviceToken: itemDeviceToken } : {}),
         ...(itemOptOut ? { repliesOptOut: true } : {}),
         ...(itemIdentityToken ? { identityToken: itemIdentityToken } : {}),
         jitter: false,
       });
+      let result = await submitReport(url, itemSdkKey, built.body, submitOptions(built.envelopeContentEncoding));
       if (ownershipReleased()) return { submitted, failed, provisionedThreadIds };
+      if (!result.ok && result.reason === 'payload' && replayParts.length > 0) {
+        // The server refused the error WITH its replay. Never lose an error
+        // over its replay: send it once more without one, flagged as omitted.
+        omitErrorReplay(item.reportId);
+        const bare = JSON.parse(json) as ReportEnvelope;
+        applyErrorReplay(item.reportId, bare);
+        replayParts.length = 0;
+        const rebuilt = await buildMultipart({ envelope: bare, attachments: [] });
+        if (ownershipReleased()) return { submitted, failed, provisionedThreadIds };
+        result = await submitReport(url, itemSdkKey, rebuilt.body, submitOptions(rebuilt.envelopeContentEncoding));
+        if (ownershipReleased()) return { submitted, failed, provisionedThreadIds };
+      }
       if (result.ok) {
         await opts.outbox.delete(item.reportId);
         // Finding 2 — this entry is resolved; drop its recorded subject (if
         // any) so the map doesn't grow for entries that are done.
         enqueuedSubjects.delete(item.reportId);
+        forgetErrorReplay(item.reportId);
         submitted += 1;
         if (isThisApp) {
           // Round-6 PR-review Finding 2 (HIGH) — surface a provisioned
@@ -729,6 +779,7 @@ async function drainOutboxInternal(
         // non-retryable — drop from queue
         await opts.outbox.delete(item.reportId);
         enqueuedSubjects.delete(item.reportId); // Finding 2 — same cleanup as the ok branch
+        forgetErrorReplay(item.reportId);
         failed += 1;
       }
       // else: leave for next drain

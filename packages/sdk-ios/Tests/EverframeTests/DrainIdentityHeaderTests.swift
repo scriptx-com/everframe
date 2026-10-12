@@ -114,7 +114,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
 
         let submitter = ReportSubmitter(
             config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
-        await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
+        await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await self.enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
         XCTAssertEqual(
@@ -133,7 +133,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
 
         let submitter = ReportSubmitter(
             config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
-        await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
+        await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await self.enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
         XCTAssertNil(
@@ -151,7 +151,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
 
         let submitter = ReportSubmitter(
             config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
-        await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
+        await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await self.enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
         XCTAssertNil(
@@ -187,7 +187,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
 
         let submitter = ReportSubmitter(
             config: EverframeConfig(sdkKey: "key-B"), outbox: box, session: stubbedSession())
-        await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
+        await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await self.enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
         XCTAssertNil(
@@ -211,7 +211,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
 
         let submitter = ReportSubmitter(
             config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
-        await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
+        await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await self.enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
         XCTAssertEqual(
@@ -250,7 +250,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
 
         let submitter = ReportSubmitter(
             config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
-        await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
+        await submitter.drainOutbox(identityHolder: holder, currentReplayConfig: { await self.enabledConfig() }, epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
         XCTAssertNil(
@@ -296,7 +296,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         let submitter = ReportSubmitter(
             config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(
-            identityHolder: holder, currentReplayConfig: { await enabledConfig() },
+            identityHolder: holder, currentReplayConfig: { await self.enabledConfig() },
             epochAtInitiation: 0, currentEpoch: { epoch })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
@@ -320,7 +320,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
         let submitter = ReportSubmitter(
             config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(
-            identityHolder: holder, currentReplayConfig: { await enabledConfig() },
+            identityHolder: holder, currentReplayConfig: { await self.enabledConfig() },
             epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
@@ -369,7 +369,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
             config: EverframeConfig(sdkKey: "key-A"), outbox: box, session: stubbedSession())
         await submitter.drainOutbox(
             identityHolder: holder,
-            currentReplayConfig: { enabled ? await enabledConfig() : ReplayConfig.off },
+            currentReplayConfig: { enabled ? await self.enabledConfig() : ReplayConfig.off },
             epochAtInitiation: 0, currentEpoch: { 0 })
 
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
@@ -411,7 +411,7 @@ final class DrainIdentityHeaderTests: XCTestCase {
                 // onward — standing in for a remote config refresh landing
                 // BETWEEN two entries in a long drain, not during either
                 // one's own resolution.
-                return callCount <= 2 ? await enabledConfig() : ReplayConfig.off
+                return callCount <= 2 ? await self.enabledConfig() : ReplayConfig.off
             },
             epochAtInitiation: 0, currentEpoch: { 0 })
 

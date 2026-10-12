@@ -7,6 +7,8 @@ Native Android SDK for Everframe — in-app bug reporting with annotated screens
 session replay, log/network ring buffers, and a built-in Compose reporter UI.
 Covers phone, tablet, and Android TV.
 
+Replays also attach to errors; see [session replay](../../../docs/session-replay.md).
+
 Maven Central serves version `1.1.0`, including the shorter Gradle plugin
 artifact name.
 

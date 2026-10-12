@@ -15,7 +15,7 @@
 #if canImport(XCTest)
 import XCTest
 import Combine
-@testable import Everframe_ReactNative
+@testable import EverframeRN
 import EverframeKit
 
 final class EverframeCompanionBridgeTests: XCTestCase {

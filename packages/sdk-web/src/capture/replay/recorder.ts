@@ -26,11 +26,15 @@ import type { ReplayCapture } from '@everframe/sdk-core';
 import {
   createRollingBuffer,
   FULL_SNAPSHOT,
+  META,
   type BufferEvent,
   type RollingBuffer,
 } from './buffer.js';
-import { buildRecordOptions, REDACTION_DISABLED } from './mask-mapping.js';
+import { applyReplayMaskClasses, buildRecordOptions, REDACTION_DISABLED } from './mask-mapping.js';
+import { checkpointWindow } from './checkpoint.js';
+import { filterReplayEvent, type ReplayNodeMirror } from './privacy-filter.js';
 import { scrubReplayEvents } from './scrub.js';
+import { SENSITIVE_ATTR } from '../../sensitive/registry.js';
 
 // NOTE — no per-checkout serialization budget. A previous revision measured
 // "serialization cost" as (checkout emit − previous emit) and self-disabled
@@ -51,6 +55,7 @@ export const MAX_OVERFLOW_RESETS = 20;
 interface RrwebModule {
   record: ((options: Record<string, unknown>) => (() => void) | undefined) & {
     takeFullSnapshot?: (isCheckout?: boolean) => void;
+    mirror?: ReplayNodeMirror;
   };
 }
 
@@ -79,6 +84,17 @@ export interface ReplayRecorderDeps {
   freezeNow?: () => number;
   /** Injectable gzip (testing). Defaults to the sdk-core gzipBytes path. */
   gzip?: (input: Uint8Array) => Promise<Uint8Array>;
+  /** Defaults to document visibility; recording never pauses outside a DOM. */
+  visibility?: PageVisibility;
+  /** Yield after snapshot's synchronous copy, before scrub + gzip. Defaults to a new task. */
+  yieldToHost?: () => Promise<void>;
+}
+
+/** What the hidden-tab pause needs from the page. */
+export interface PageVisibility {
+  hidden(): boolean;
+  /** Subscribe to visibility changes; returns the unsubscribe. */
+  subscribe(onChange: () => void): () => void;
 }
 
 /**
@@ -101,6 +117,8 @@ export interface ReplayRecorderDiagnostics {
   newestTs: number | null;
   overflowResets: number;
   capBreached: boolean;
+  /** Recording is stopped because the tab is hidden. */
+  pausedHidden: boolean;
 }
 
 /** The recorder also exposes a couple of test/diagnostic accessors beyond the seam. */
@@ -109,6 +127,12 @@ export interface ReplayRecorder {
   freeze(): void;
   discardAndResume(): void;
   takeFrozen(): Promise<ReplayCapture | null>;
+  /**
+   * Copy a playable rolling window synchronously, then yield before scrub +
+   * gzip. Never stops, freezes, clears or rotates the live buffer. Resolves
+   * null when disabled, hidden, frozen, or no full snapshot is buffered.
+   */
+  snapshot(): Promise<ReplayCapture | null>;
   stop(): void;
   /**
    * Codex round-3 finding 2 (P1) — TERMINAL shutdown for the consent /
@@ -180,6 +204,39 @@ function hasAnchor(frames: readonly BufferEvent[]): boolean {
   return frames.some((f) => f.type === FULL_SNAPSHOT);
 }
 
+/**
+ * Copy from the newest full snapshot at or before cutoffTs (or the oldest
+ * snapshot if none is that old), including its preceding viewport Meta event.
+ * Empty when no full snapshot is buffered. Does not change frames.
+ */
+export function windowFromAnchor(frames: readonly BufferEvent[], cutoffTs: number): BufferEvent[] {
+  let anchor = -1;
+  for (let i = 0; i < frames.length; i++) {
+    const frame = frames[i]!;
+    if (frame.type !== FULL_SNAPSHOT) continue;
+    if (anchor !== -1 && frame.timestamp > cutoffTs) break;
+    anchor = i;
+  }
+  if (anchor === -1) return [];
+  const start = anchor > 0 && frames[anchor - 1]!.type === META ? anchor - 1 : anchor;
+  return frames.slice(start);
+}
+
+function documentVisibility(): PageVisibility | undefined {
+  if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return undefined;
+  return {
+    hidden: () => document.visibilityState === 'hidden',
+    subscribe(onChange) {
+      document.addEventListener('visibilitychange', onChange);
+      return () => document.removeEventListener('visibilitychange', onChange);
+    },
+  };
+}
+
+function nextTask(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function defaultNow(): number {
   if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
     return performance.now();
@@ -195,6 +252,8 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
   const freezeNow = deps.freezeNow ?? Date.now;
   const gzip = deps.gzip ?? gzipBytes;
   const sessionEpoch = deps.sessionEpoch ?? 0;
+  const visibility = deps.visibility ?? documentVisibility();
+  const yieldToHost = deps.yieldToHost ?? nextTask;
 
   let buffer: RollingBuffer | null = null;
   let durationSec = 30;
@@ -234,10 +293,87 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
    * observers running with nothing able to stop them.
    */
   let startGeneration = 0;
+  let pausedHidden = false;
+  let visibilityUnsubscribe: (() => void) | null = null;
 
   /** Recording is off for good (self-disabled) or until revived (killed). */
   function inert(): boolean {
     return selfDisabled || killed;
+  }
+
+  function isHidden(): boolean {
+    try {
+      return visibility?.hidden() === true;
+    } catch {
+      return false;
+    }
+  }
+
+  function watchVisibility(): void {
+    if (visibilityUnsubscribe !== null || visibility === undefined) return;
+    try {
+      visibilityUnsubscribe = visibility.subscribe(onVisibilityChange);
+    } catch {
+      visibilityUnsubscribe = null;
+    }
+  }
+
+  function stopWatchingVisibility(): void {
+    try {
+      visibilityUnsubscribe?.();
+    } catch {
+      /* swallow — DEFE-02 */
+    }
+    visibilityUnsubscribe = null;
+    pausedHidden = false;
+  }
+
+  /** A pause invalidates the rolling window and any rrweb import in flight. */
+  function pauseForHiddenTab(): void {
+    pausedHidden = true;
+    startGeneration += 1;
+    try {
+      stopFn?.();
+    } catch {
+      /* swallow — DEFE-02 */
+    }
+    stopFn = null;
+    takeFullSnapshotFn = null;
+    restoreMasks?.();
+    restoreMasks = null;
+    buffer?.clear();
+    __traceReplay('recorder.pauseHidden', {});
+  }
+
+  function onVisibilityChange(): void {
+    // A bug report owns a frozen window until its lifecycle restarts recording.
+    if (inert() || frozen || buffer === null) return;
+    if (isHidden()) {
+      if (!pausedHidden) pauseForHiddenTab();
+      return;
+    }
+    if (!pausedHidden) return;
+    __traceReplay('recorder.resumeVisible', { durationSec });
+    startRecording(durationSec);
+  }
+
+  /** Shared scrub + gzip path for bug reports and non-destructive snapshots. */
+  async function encodeWindow(
+    events: BufferEvent[],
+    trace: { op: 'takeFrozen' | 'snapshot'; frames: number },
+  ): Promise<ReplayCapture> {
+    // REPLAY-04 — post-serialization scrub gets the LAST word.
+    const scrubbed = REDACTION_DISABLED ? events : scrubReplayEvents(events, deps.redaction);
+    const bytes = await gzip(new TextEncoder().encode(JSON.stringify(scrubbed)));
+    const durationMs = Math.max(0, events[events.length - 1]!.timestamp - events[0]!.timestamp);
+    __traceReplay(`recorder.${trace.op}`, {
+      result: 'ok',
+      frames: trace.frames,
+      kept: events.length,
+      bytes: bytes.byteLength,
+      durationMs,
+    });
+    return { format: 'rrweb', bytes, durationMs, contentType: 'application/octet-stream' };
   }
 
   function selfDisable(reason: string): void {
@@ -253,6 +389,7 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
     stopFn = null;
     takeFullSnapshotFn = null;
     buffer?.clear();
+    stopWatchingVisibility();
   }
 
   /**
@@ -291,7 +428,7 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
   }
 
   function handleEmit(event: unknown, isCheckout?: boolean): void {
-    if (inert() || frozen || !buffer) return;
+    if (inert() || frozen || pausedHidden || !buffer) return;
     const e = event as BufferEvent;
     buffer.push(e, isCheckout === true);
     if (buffer.capBreached()) {
@@ -316,35 +453,42 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
     frozen = false;
     freezeTs = null;
     if (!buffer) buffer = createRollingBuffer({ durationSec });
+    watchVisibility();
+    if (isHidden()) {
+      pausedHidden = true;
+      startGeneration += 1;
+      buffer.clear();
+      __traceReplay('recorder.pauseHidden', { atStart: true });
+      return;
+    }
+    pausedHidden = false;
     // Map host-sensitive elements onto rr-block so rrweb omits their subtree.
     const els = deps.sensitiveElements?.() ?? [];
-    // applyReplayMaskClasses is applied lazily where DOM exists; import here to
-    // avoid a hard DOM dependency in non-DOM test contexts.
     if (els.length > 0 && typeof document !== 'undefined') {
-      // Defer to a dynamic require-free path: add the class directly.
-      for (const el of els) {
-        try {
-          (el as Element).classList?.add('rr-block');
-        } catch {
-          /* ignore */
-        }
-      }
-      restoreMasks = () => {
-        for (const el of els) {
-          try {
-            (el as Element).classList?.remove('rr-block');
-          } catch {
-            /* ignore */
-          }
-        }
-      };
+      // Attribute-marked nodes and their descendants are already blocked
+      // dynamically. Leaving their classes alone lets removeRef release the
+      // entire subtree, including expanded display:contents children.
+      // For other refs, restore only classes this recorder actually added.
+      restoreMasks = applyReplayMaskClasses(els.filter((el) => el.closest(`[${SENSITIVE_ATTR}]`) === null));
     }
+    const myGeneration = ++startGeneration;
+    let mirror: ReplayNodeMirror | undefined;
     const options = buildRecordOptions({
       durationSec,
-      emit: handleEmit,
+      emit: (event, isCheckout) => {
+        // A stopped rrweb instance may emit late, after a new visible window
+        // has opened. Those events must never anchor or enter its fresh history.
+        if (myGeneration !== startGeneration) return;
+        const safe = !REDACTION_DISABLED && mirror ? filterReplayEvent(event as BufferEvent, mirror) : event;
+        if (safe) handleEmit(safe, isCheckout);
+      },
+      // rrweb evaluates this per node on every snapshot and mutation, so an
+      // element marked sensitive AFTER recording started is blocked too (the
+      // rr-block class above is applied once, at start).
+      // characterData checks only the immediate parent; match descendants too.
+      blockSelector: `[${SENSITIVE_ATTR}], [${SENSITIVE_ATTR}] *, .rr-block, .rr-block *`,
       errorHandler: () => true,
     });
-    const myGeneration = ++startGeneration;
     __traceReplay('recorder.start', { durationSec, frames: buffer.size() });
     // LAZY import — only evaluated here, never statically.
     void importRrweb()
@@ -366,6 +510,13 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
           return;
         }
         try {
+          mirror = typeof mod.record.mirror?.getNode === 'function' ? mod.record.mirror : undefined;
+          // Installed rrweb must provide ancestry lookup before any events
+          // enter the buffer. Explicit test importers can emit synthetic data.
+          if (!REDACTION_DISABLED && !mirror && !deps.importRrweb) {
+            selfDisable('privacy_mirror_unavailable');
+            return;
+          }
           const handle = mod.record(options as unknown as Record<string, unknown>);
           stopFn = typeof handle === 'function' ? handle : null;
           takeFullSnapshotFn =
@@ -473,29 +624,39 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
         });
         return null;
       }
-      // REPLAY-04 — post-serialization scrub gets the LAST word.
-      // ⚠ TEMP: skipped when REDACTION_DISABLED (end-to-end replay verification).
-      const scrubbed = REDACTION_DISABLED
-        ? trimmed
-        : scrubReplayEvents(trimmed, deps.redaction);
-      const rawJson = JSON.stringify(scrubbed);
-      const bytes = await gzip(new TextEncoder().encode(rawJson));
-      const first = trimmed[0]!.timestamp;
-      const last = trimmed[trimmed.length - 1]!.timestamp;
-      const durationMs = Math.max(0, last - first);
-      __traceReplay('recorder.takeFrozen', {
-        result: 'ok',
-        frames: all.length,
-        kept: trimmed.length,
-        bytes: bytes.byteLength,
-        durationMs,
-      });
-      return {
-        format: 'rrweb',
-        bytes,
-        durationMs,
-        contentType: 'application/octet-stream',
-      };
+      return encodeWindow(trimmed, { op: 'takeFrozen', frames: all.length });
+    },
+
+    snapshot(): Promise<ReplayCapture | null> {
+      const declined = inert()
+        ? 'disabled'
+        : frozen
+          ? 'frozen'
+          : pausedHidden
+            ? 'paused_hidden'
+            : buffer === null
+              ? 'no_buffer'
+              : null;
+      if (declined !== null || buffer === null) {
+        __traceReplay('recorder.snapshot', { result: declined ?? 'no_buffer' });
+        return Promise.resolve(null);
+      }
+      // Copy at the call: later emits, freezing or teardown cannot change it.
+      const all = buffer.frames();
+      const capturedEnd = freezeNow();
+      const windowStart = capturedEnd - durationSec * 1000;
+      // Replay the anchor and pre-window mutations in their original order at
+      // offset zero. They reconstruct the held DOM, without exporting idle time
+      // before the configured window or backdating any later event.
+      const events = windowFromAnchor(all.filter((event) => event.timestamp <= capturedEnd), windowStart);
+      if (events.length === 0) {
+        __traceReplay('recorder.snapshot', { result: 'no_anchor', frames: all.length });
+        return Promise.resolve(null);
+      }
+      // rrweb Custom events are non-mutating but extend the real Replayer timeline.
+      // Append only to this independent window; later reports keep the original events.
+      events.push({ type: 5, timestamp: capturedEnd, data: { tag: 'everframe-error-end', payload: {} } });
+      return yieldToHost().then(() => encodeWindow(checkpointWindow(events, windowStart), { op: 'snapshot', frames: all.length }));
     },
 
     stop(): void {
@@ -512,6 +673,7 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
       buffer = null;
       frozen = false;
       freezeTs = null;
+      stopWatchingVisibility();
     },
 
     kill(): void {
@@ -542,6 +704,7 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
       buffer = null;
       frozen = false;
       freezeTs = null;
+      stopWatchingVisibility();
       __traceReplay('recorder.kill', {});
     },
 
@@ -590,6 +753,7 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
         newestTs: frames.length > 0 ? frames[frames.length - 1]!.timestamp : null,
         overflowResets,
         capBreached: buffer?.capBreached() ?? false,
+        pausedHidden,
       };
     },
   };

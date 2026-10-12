@@ -131,6 +131,35 @@ class VideoCopyCompletionDispatchTest {
         } finally { h.close(); controller.pause().stop().destroy() }
     }
 
+    @Test @Config(sdk = [29]) fun latePixelCopyAfterRecorderPauseCannotEnterTheResumedEncoder() {
+        val h = Harness(); var offered = 0
+        val recorder = NativeVideoRecorder(VideoOwner("session", "report"), h.scheduler,
+            { block -> block(); true }, { VideoSize(100, 100) }, { h.capture }, { _, _, _ ->
+                object : RecordingVideoEncoder {
+                    override fun prepare(size: VideoSize, fps: Int) = size
+                    override fun offer(frame: SafeVideoFrame): Boolean { offered++; frame.close(); return true }
+                    override fun finish(deadline: Long) = emptyList<VideoSegment>()
+                    override val isTerminal = false
+                    override fun close() = Unit
+                }
+            }, { _, _ -> null })
+        try {
+            recorder.start(dev.everframe.config.NativeVideoSettings(2), 30)
+            shadowOf(Looper.getMainLooper()).idle(); h.workers()
+            shadowOf(Looper.getMainLooper()).idle(); h.commit()
+            val lateBitmap = h.bitmap
+            recorder.pause(); recorder.resume()
+            shadowOf(Looper.getMainLooper()).idle()
+            h.callback(true)
+            shadowOf(Looper.getMainLooper()).idle(); h.workers()
+            assertEquals("the pre-pause frame never enters either encoder", 0, offered)
+            assertTrue("the late pixel buffer is disposed", lateBitmap.isRecycled)
+            val lease = VideoCaptureLease().tryAcquire(VideoOwner("next", "capture"), VideoSize(100, 100))
+            assertNotNull("the late callback releases the capture slot", lease)
+            lease?.complete()
+        } finally { recorder.close(); h.close() }
+    }
+
     @Test @Config(sdk = [27]) fun oldApiCompletionFallsBackToQueuedSynchronousDispatchAndTimerCancellation() {
         val seen = mutableListOf<String>()
         barrier {
@@ -148,7 +177,7 @@ class VideoCopyCompletionDispatchTest {
 
     @Test @Config(sdk = [27]) fun oldApiRealRecorderStartupSuspendsWithoutCapture() {
         val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
-        val recorder = NativeVideoRecorder.create(context, VideoOwner("old", "api")) { null }
+        val recorder = NativeVideoRecorder.create(context, VideoOwner("old", "api"), activity = { null })
         try {
             recorder.start(dev.everframe.config.NativeVideoSettings(framesPerSecond = 5), 30)
             shadowOf(Looper.getMainLooper()).idle()

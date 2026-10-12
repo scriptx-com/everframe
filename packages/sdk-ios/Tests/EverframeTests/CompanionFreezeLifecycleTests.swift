@@ -22,18 +22,20 @@ struct CompanionFreezeLifecycleTests {
         EverframeConfig(sdkKey: testSdkKey, capture: CaptureConfig(logs: false))
     }
 
-    private func withCleanBuffer(_ body: () -> Void) {
-        try? Everframe.shared.start(config: noLogCaptureConfig())
-        BreadcrumbSharedStateTestLock.lock.lock()
-        defer { BreadcrumbSharedStateTestLock.lock.unlock() }
-        BreadcrumbRingBuffer.shared.applyConfig(nil)
-        BreadcrumbRingBuffer.shared.clear()
-        body()
-        BreadcrumbRingBuffer.shared.clear()
+    @MainActor private func withCleanBuffer(_ body: @MainActor () -> Void) async {
+        await withGlobalCaptureStateLock {
+            try? Everframe.shared.start(config: noLogCaptureConfig())
+            BreadcrumbSharedStateTestLock.lock.withLock {
+                BreadcrumbRingBuffer.shared.applyConfig(nil)
+                BreadcrumbRingBuffer.shared.clear()
+                body()
+                BreadcrumbRingBuffer.shared.clear()
+            }
+        }
     }
 
-    @Test @MainActor func beginFreezesCurrentChain() {
-        withCleanBuffer {
+    @Test @MainActor func beginFreezesCurrentChain() async {
+        await withCleanBuffer {
             BreadcrumbRingBuffer.shared.add(
                 kind: .custom, message: "before-report",
                 data: BreadcrumbRingBuffer.coerceHostData([:]))
@@ -43,8 +45,8 @@ struct CompanionFreezeLifecycleTests {
         }
     }
 
-    @Test @MainActor func beginReplacesStaleSnapshot() {
-        withCleanBuffer {
+    @Test @MainActor func beginReplacesStaleSnapshot() async {
+        await withCleanBuffer {
             BreadcrumbRingBuffer.shared.add(
                 kind: .custom, message: "old",
                 data: BreadcrumbRingBuffer.coerceHostData([:]))
@@ -59,8 +61,8 @@ struct CompanionFreezeLifecycleTests {
         }
     }
 
-    @Test @MainActor func abortDiscardsSnapshot() {
-        withCleanBuffer {
+    @Test @MainActor func abortDiscardsSnapshot() async {
+        await withCleanBuffer {
             BreadcrumbRingBuffer.shared.add(
                 kind: .custom, message: "x",
                 data: BreadcrumbRingBuffer.coerceHostData([:]))

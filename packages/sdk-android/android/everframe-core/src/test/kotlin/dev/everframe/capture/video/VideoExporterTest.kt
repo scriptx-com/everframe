@@ -11,6 +11,35 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class VideoExporterTest {
+ @Test fun busyOrQuarantinedExportLaneRefusesBeforeEnqueueAndKeepsCaptureAdmissionFree()=runBlocking {
+  val h=Harness(); val scheduler=NativeVideoAttachmentTest.QueuedScheduler(); val admission=VideoEncoderWorkerAdmission()
+  val exporter=VideoExporter(h.root,scheduler,h.budget,admission)
+  val first=h.segment()
+  val pending=async(start=kotlinx.coroutines.CoroutineStart.UNDISPATCHED){exporter.export(h.owner,listOf(first)){true}}
+  assertEquals(1,scheduler.tasks.size)
+  val refused=h.segment(4_000_000)
+  assertNull(exporter.export(h.owner,listOf(refused)){true})
+  assertEquals("busy export must not queue another task",1,scheduler.tasks.size)
+  assertFalse(refused.path.exists())
+  val capture=VideoEncoderWorkerAdmission.process.acquire(); assertNotNull(capture); capture!!.close()
+  scheduler.timer!!(); assertNull(pending.await()); scheduler.drain()
+  val ticket=admission.acquire()!!; ticket.quarantine(); ticket.close()
+  val quarantined=h.segment(6_000_000)
+  assertNull(exporter.export(h.owner,listOf(quarantined)){true})
+  assertTrue(scheduler.tasks.isEmpty()); assertFalse(quarantined.path.exists())
+  assertEquals(0,h.budget.usedBytes)
+ }
+
+ @Test fun borrowedExportLeavesInputsWithTheCaller()=runBlocking {
+  val h=Harness();val a=h.segment();val b=h.segment(4_000_000)
+  val clip=h.exporter.exportBorrowed(h.owner,listOf(a,b)){true}!!
+  assertTrue(a.path.exists());assertTrue(b.path.exists());assertEquals(listOf(listOf(2_000_000L,4_000_000L)),h.inputs)
+  clip.close()
+  h.fail=true;assertNull(h.exporter.exportBorrowed(h.owner,listOf(a,b)){true})
+  assertTrue("a failed borrowed export still leaves the inputs",a.path.exists() && b.path.exists())
+  a.close();b.close();assertEquals(0,h.budget.usedBytes)
+ }
+
  internal class Scheduler:VideoCaptureScheduler {
   var now=0L; var timeout:(()->Unit)?=null
   override fun main(block:()->Unit)=block()

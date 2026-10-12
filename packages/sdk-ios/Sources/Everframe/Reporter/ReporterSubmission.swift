@@ -744,7 +744,9 @@ public enum ReporterSubmission {
 
     /// One assembled session-replay attachment: the envelope `EverframeAttachment` ref +
     /// the multipart `Part` carrying binary MP4 bytes.
-    struct ReplayPart {
+    // Immutable transfer value: the generated envelope has only value fields
+    // (strings, numbers and enums), but does not declare Sendable itself.
+    struct ReplayPart: @unchecked Sendable {
         let envelope: EverframeAttachment
         let multipart: ReportSubmitter.Attachment
     }

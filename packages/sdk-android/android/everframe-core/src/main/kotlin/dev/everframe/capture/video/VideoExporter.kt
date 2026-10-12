@@ -84,34 +84,52 @@ internal interface VideoExportMedia {
 }
 
 internal class VideoExporter(
-    private val root:File, private val scheduler:VideoCaptureScheduler=AndroidVideoCaptureScheduler,
+    private val root:File, private val scheduler:VideoCaptureScheduler=AndroidVideoExportScheduler,
     private val budget:VideoDiskBudget=VideoDiskBudget.process,
-    private val admission:VideoEncoderWorkerAdmission=VideoEncoderWorkerAdmission.process,
+    private val admission:VideoEncoderWorkerAdmission=VideoEncoderWorkerAdmission.export,
     private val media:VideoExportMedia=AndroidVideoExportMedia(),
 ) {
     constructor(context:Context):this(File(context.noBackupFilesDir,"everframe-video"))
     /** Consumes all supplied references, including on rejection or cancellation. */
     suspend fun export(owner:VideoOwner,segments:List<VideoSegment>,replayAllowed:()->Boolean):OwnedVideoClip? =
+        exportSegments(owner,segments,replayAllowed,consume=true)
+
+    /**
+     * Error replays (spec 2026-10-11): reads [segments] and never closes them, so the recorder keeps
+     * them for a later error or bug report. Same deadline, admission, budget and size cap as [export].
+     */
+    suspend fun exportBorrowed(owner:VideoOwner,segments:List<VideoSegment>,replayAllowed:()->Boolean):OwnedVideoClip? =
+        exportSegments(owner,segments,replayAllowed,consume=false)
+
+    private suspend fun exportSegments(owner:VideoOwner,segments:List<VideoSegment>,replayAllowed:()->Boolean,consume:Boolean):OwnedVideoClip? =
         suspendCancellableCoroutine { continuation ->
+            val admitted = admission.acquire()
+            if (admitted == null) {
+                if (consume) segments.forEach { it.close() }
+                continuation.resume(null)
+                return@suspendCancellableCoroutine
+            }
             val lease = try { VideoDirectoryLeases.acquire() } catch (_: IllegalStateException) {
-                scheduler.worker { segments.forEach { it.close() } }
+                admitted.close()
+                if(consume) scheduler.worker { segments.forEach { it.close() } }
                 continuation.resume(null)
                 return@suspendCancellableCoroutine
             }
             val completion=VideoOperationCompletion()
+            val enteredWorker=AtomicBoolean()
             val deadline=scheduler.nowNanos()+3_000_000_000L
-            var ticket:VideoEncoderWorkerAdmission.Ticket?=null
+            val ticket:VideoEncoderWorkerAdmission.Ticket?=admitted
             val lock=completion
             val timer=scheduler.later(3_000) {
-                completion.timeout {ticket?.quarantine();continuation.resume(null)}
+                completion.timeout {if(enteredWorker.get()) ticket?.quarantine();continuation.resume(null)}
             }
-            continuation.invokeOnCancellation {completion.timeout {ticket?.quarantine()}}
+            continuation.invokeOnCancellation {completion.timeout {if(enteredWorker.get()) ticket?.quarantine()}}
             scheduler.worker {
                 var clip:OwnedVideoClip?=null
                 fun checkAllowed() {check(!completion.isCancelled && scheduler.nowNanos()<deadline && replayAllowed())}
                 try {
                     checkAllowed()
-                    synchronized(lock) {check(!completion.isCancelled);ticket=admission.acquire();check(ticket!=null)}
+                    synchronized(lock) {check(!completion.isCancelled);enteredWorker.set(true)}
                     require(VideoDirectoryLeases.validId(owner.sessionId) && VideoDirectoryLeases.validId(owner.captureId))
                     require(segments.isNotEmpty() && segments.size<=32 && segments.all{it.owner==owner})
                     val last=segments.last()
@@ -154,7 +172,7 @@ internal class VideoExporter(
                     if(t is VideoMuxerReleaseFailure) synchronized(lock){ticket?.quarantine()}
                     clip?.close();clip=null
                 } finally {
-                    segments.forEach{it.close()};synchronized(lock){ticket?.close()};timer()
+                    if(consume) segments.forEach{it.close()};synchronized(lock){ticket?.close()};timer()
                 }
                 val result=clip
                 if(!completion.finish {
@@ -197,6 +215,7 @@ internal class AndroidVideoExportMedia:VideoExportMedia {
                         val length=extractor.readSampleData(buffer,0)
                         require(length in 1..buffer.capacity())
                         val absolute=Math.addExact(segment.firstPtsUs,extractor.sampleTime)
+                        if (segment.endExclusivePtsUs?.let { absolute >= it } == true) break
                         if(origin==null) origin=absolute
                         val pts=absolute-origin!!;require(pts>last);last=pts
                         val info=MediaCodec.BufferInfo().apply {set(0,length,pts,if(extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC!=0) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0)}
@@ -206,6 +225,15 @@ internal class AndroidVideoExportMedia:VideoExportMedia {
                         }
                     } while(extractor.advance())
                 } finally {extractor.release()}
+            }
+            val cutoff = segments.last().endExclusivePtsUs
+            if (cutoff != null && origin != null && muxer != null) {
+                // MPEG4 muxer honors a zero-sized EOS sample as the final sample duration.
+                val end = cutoff - origin!!
+                require(end > last)
+                muxer!!.writeSampleData(0, ByteBuffer.allocate(0), MediaCodec.BufferInfo().apply {
+                    set(0, 0, end, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                })
             }
         } finally {
             val m=muxer

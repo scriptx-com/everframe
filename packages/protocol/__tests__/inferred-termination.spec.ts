@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { videoReplayRef } from './helpers/replay-attachment.js';
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { ReportEnvelope } from '../src/envelope.js';
@@ -93,6 +94,7 @@ describe('inferred Apple foreground termination', () => {
     }],
     ['a reporter user', ANONYMOUS, v => { v.reporter.user = { id: 'user-A' }; }],
     ['a session', ANONYMOUS, v => { v.sessionId = '3f0d3c0e-1d2b-4c55-9a5e-6f7a8b9c0d99'; }],
+    ['a session replay', ANONYMOUS, v => { v.attachments = [videoReplayRef()]; }],
     ['an attachment', ANONYMOUS, v => {
       v.attachments = [{ partName: 'screenshot', kind: 'screenshot', contentType: 'image/png', byteLength: 1, sha256: 'a'.repeat(64) }];
     }],

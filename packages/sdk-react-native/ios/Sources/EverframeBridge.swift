@@ -26,6 +26,7 @@
 //   • The presenter resolver is installed exactly once per process (idempotent
 //     installer + a local flag for defense-in-depth).
 import Foundation
+import CoreFoundation
 import Combine
 import os.log
 import UIKit
@@ -601,12 +602,31 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// `everframe-react-native` (distinct from `CrashReporter.captureFacts`'s
     /// `"everframe-ios"` default) so envelopes are attributable to the RN SDK.
     @objc public static func reportCrash(_ crashJson: NSString) -> Bool {
-        CrashReporter.captureFacts(json: crashJson as String, sdkName: "everframe-react-native")
+        let facts = crashJson as String
+        // Replays on errors (spec 2026-10-11): only an error the app survives asks for a replay of the seconds
+        // before it. A fatal JavaScript error ends the app, so it is a crash and never carries one.
+        guard appSurvivesError(facts) else {
+            return CrashReporter.captureFacts(json: facts, sdkName: "everframe-react-native", attachReplay: false)
+        }
+        return CrashReporter.captureFacts(json: facts, sdkName: "everframe-react-native", attachReplay: true)
     }
 
-    /// Explicit handled capture acknowledges the core's completed encrypted enqueue.
+    /// Explicit handled capture acknowledges the core's completed encrypted enqueue. It is always an error the
+    /// app survives, so it asks for a replay; the core decides whether the session qualifies.
     @objc public static func captureHandledException(_ crashJson: NSString) -> Bool {
-        CrashReporter.captureHandledFacts(json: crashJson as String, sdkName: "everframe-react-native")
+        CrashReporter.captureHandledFacts(json: crashJson as String, sdkName: "everframe-react-native", attachReplay: true)
+    }
+
+    /// True when the facts describe an error the app survives: `fatal` is absent or the JSON boolean `false`,
+    /// which is how `CrashReporter` classifies facts that are not marked fatal. Anything unreadable counts as
+    /// fatal here, so it can only lose a replay, never ask for one on a crash.
+    static func appSurvivesError(_ facts: String) -> Bool {
+        guard let data = facts.data(using: .utf8),
+              let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return false }
+        guard let flag = object["fatal"] else { return true }
+        guard let boolean = flag as? NSNumber,
+              CFGetTypeID(boolean) == CFBooleanGetTypeID() else { return false }
+        return !boolean.boolValue
     }
 
     // MARK: - setExtra

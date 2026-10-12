@@ -310,12 +310,28 @@ public final class ReportSubmitter: Sendable {
     ///   closed for the live submit path (`ReporterSubmission.swift`).
     public func drainOutbox(
         identityHolder: IdentityTokenHolder,
-        currentReplayConfig: @Sendable () async -> ReplayConfig,
+        currentReplayConfig: @escaping @Sendable () async -> ReplayConfig,
         epochAtInitiation: Int,
         currentEpoch: @escaping @Sendable () -> Int
     ) async {
+        // Read the clock before the entries: an error held for its replay can
+        // be swapped only while its hold is live, so skipping it here is final.
+        let hydratedAt = Date()
         let entries = (try? outbox.hydrate(diagnostics: diagnostics)) ?? []
+        if let expiry = entries.filter({ entry in
+            entry.isHeldForReplay(asOf: hydratedAt)
+                && (!appleDiagnosticsOnly || AppleDiagnosticDelivery.isApple(entry))
+                && (!AppleDiagnosticDelivery.isApple(entry) || AppleDiagnosticDelivery.allows(entry))
+        }).compactMap(\.heldUntil).min() {
+            await ReplayHoldWakeups.shared.schedule(path: outbox.resolvedFileURL.path,
+                deadline: expiry, epoch: epochAtInitiation, appleDiagnosticsOnly: appleDiagnosticsOnly) { [self] in
+                guard currentEpoch() == epochAtInitiation, !Task.isCancelled else { return }
+                await drainOutbox(identityHolder: identityHolder, currentReplayConfig: currentReplayConfig,
+                    epochAtInitiation: epochAtInitiation, currentEpoch: currentEpoch)
+            }
+        }
         for e in entries {
+            if e.isHeldForReplay(asOf: hydratedAt) { continue }
             let appleDiagnostic = AppleDiagnosticDelivery.isApple(e)
             if appleDiagnosticsOnly && !appleDiagnostic { continue }
             if appleDiagnostic && !AppleDiagnosticDelivery.allows(e) { continue }
@@ -484,6 +500,10 @@ public final class ReportSubmitter: Sendable {
         guard var envelope = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any],
               let refs = envelope["attachments"] as? [[String: Any]] else { return nil }
         envelope["attachments"] = refs.filter { ($0["partName"] as? String) != "replay" }
+        if envelope["source"] as? String == "error",
+           let stripped = try? JSONSerialization.data(withJSONObject: envelope, options: [.sortedKeys]) {
+            return ErrorReplayEnvelope.flagging("replay_revoked", in: stripped)
+        }
         var control = envelope["captureControl"] as? [String: Any] ?? [:]
         control["degradedReason"] = "replay_revoked"
         envelope["captureControl"] = control
@@ -675,5 +695,54 @@ final class IdentityHeaderRedirectGuard: NSObject, URLSessionTaskDelegate {
         case "http": return 80
         default: return -1
         }
+    }
+}
+
+/// One generation-fenced expiry task per persisted outbox, shared by submitters.
+private actor ReplayHoldWakeups {
+    static let shared = ReplayHoldWakeups()
+    private struct Wakeup {
+        let id: UUID
+        let deadline: Date
+        let epoch: Int
+        let task: Task<Void, Never>
+        var run: @Sendable () async -> Void
+        var appleDiagnosticsOnly: Bool
+    }
+    private var pending: [String: Wakeup] = [:]
+    func schedule(path: String, deadline: Date, epoch: Int, appleDiagnosticsOnly: Bool, run: @escaping @Sendable () async -> Void) {
+        var callback = run
+        var diagnosticsOnly = appleDiagnosticsOnly
+        if var existing = pending[path] {
+            if existing.epoch > epoch { return }
+            if existing.epoch == epoch {
+                // A general drain must survive an earlier/equal diagnostic
+                // deadline so it can schedule the remaining handled errors.
+                if !existing.appleDiagnosticsOnly && appleDiagnosticsOnly {
+                    callback = existing.run
+                    diagnosticsOnly = false
+                }
+                if existing.deadline <= deadline {
+                    existing.run = callback
+                    existing.appleDiagnosticsOnly = diagnosticsOnly
+                    pending[path] = existing
+                    return
+                }
+            }
+        }
+        pending[path]?.task.cancel()
+        let id = UUID()
+        let delay = max(0, min(60, deadline.timeIntervalSinceNow))
+        let task = Task {
+            do { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
+            catch { return }
+            await fire(path: path, id: id)
+        }
+        pending[path] = Wakeup(id: id, deadline: deadline, epoch: epoch, task: task, run: callback, appleDiagnosticsOnly: diagnosticsOnly)
+    }
+    private func fire(path: String, id: UUID) async {
+        guard let wakeup = pending[path], wakeup.id == id else { return }
+        pending.removeValue(forKey: path)
+        await wakeup.run()
     }
 }

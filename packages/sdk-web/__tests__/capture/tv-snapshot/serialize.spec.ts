@@ -6,7 +6,6 @@ import { parseDomSnapshot } from '@everframe/protocol';
 import { SNAPSHOT_BLOCK_SELECTOR, takeDomSnapshot, type SnapshotDeps } from '../../../src/capture/tv-snapshot/serialize.js';
 import { buildSnapshotContext, focusedSnapshotId, tvPlatformFamily } from '../../../src/capture/tv-snapshot/context.js';
 import type { PruneRect } from '../../../src/capture/tv-snapshot/prune.js';
-import { REDACTION_DISABLED } from '../../../src/capture/replay/mask-mapping.js';
 import type { SnElement, SnNode } from '../../../src/capture/tv-snapshot/sn-types.js';
 import { findLeaks } from './leak-assert.js';
 
@@ -76,8 +75,7 @@ afterEach(() => {
 });
 
 describe('takeDomSnapshot', () => {
-  it('masks with replay redaction disabled — snapshot masking is independent of REDACTION_DISABLED', () => {
-    expect(REDACTION_DISABLED).toBe(true); // precondition: the kill switch is still on
+  it('masks with its own always-on options, independent of the replay record options', () => {
     const taken = take();
     const json = JSON.stringify(taken.doc);
     expect(

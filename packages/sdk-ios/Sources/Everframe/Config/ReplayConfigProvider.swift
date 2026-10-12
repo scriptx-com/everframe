@@ -635,7 +635,7 @@ extension ReplayConfigProvider {
     /// (the server configuration contract) — so adding a block here is a
     /// prerequisite for receiving it, not a formality.
     public static let sdkFeaturesHeaderValue =
-        "networkbodies, identity, companionbadge, branding, nativevideo, vitals, resources, shaketoreport"
+        "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport"
 
     /// Test seam: decode a raw `/api/config` body exactly as `refresh()` does.
     static func __decodeForTesting(_ data: Data) throws -> ReplayConfig {

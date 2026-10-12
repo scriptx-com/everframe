@@ -739,7 +739,7 @@ class ReplayConfigProvider(
                 // After decode, an out-of-range samplingRate is REJECTED (fail
                 // closed, NO clamp) — a hostile rate must never reach the gate.
                 if (wire.samplingRate !in 0.0..1.0) return@use false
-                if (wire.nativeVideo?.framesPerSecond?.let { it != 5 && it != 10 } == true) {
+                if (wire.nativeVideo?.framesPerSecond?.let { it !in NATIVE_VIDEO_FRAME_RATES } == true) {
                     return@use false
                 }
                 val decoded = ReplayConfig(
@@ -823,11 +823,13 @@ class ReplayConfigProvider(
          * config block ONLY for capabilities the caller declares
          * (the server configuration contract) — so adding a block here is a
          * prerequisite for receiving it, not a formality. Mirrors iOS's
-         * `ReplayConfigProvider.sdkFeaturesHeaderValue`.
+         * `ReplayConfigProvider.sdkFeaturesHeaderValue`. `nativevideolowfps`
+         * (spec 2026-10-11, C1) lets the server send 1 or 2 fps; callers
+         * without it get 5.
          */
         val SDK_FEATURES_HEADER_VALUE: String
             get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport" +
-                if (android.os.Build.VERSION.SDK_INT >= 29) ", nativevideo" else ""
+                if (android.os.Build.VERSION.SDK_INT >= 29) ", nativevideo, nativevideolowfps" else ""
 
         /**
          * Build the provider from the base ingest endpoint by appending

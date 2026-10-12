@@ -202,13 +202,29 @@ function unionChildRects(el: Element): Rect | null {
 
 function createSensitiveRegistry(): SensitiveRegistry {
   const refs = new Set<Element>();
+  const ownedMarkers = new Set<Element>();
+  // Presence is the public contract; a distinct value lets cleanup preserve
+  // an attribute the host replaces while a ref is registered.
+  const registryMarker = 'registry';
+  const removeOwnedMarker = (el: Element): void => {
+    if (ownedMarkers.delete(el) && el.getAttribute(SENSITIVE_ATTR) === registryMarker) {
+      el.removeAttribute(SENSITIVE_ATTR);
+    }
+  };
 
   return {
     addRef(el: Element) {
       refs.add(el);
+      // rrweb checks this selector on every mutation, so refs registered after
+      // recording starts are blocked before their subsequent content is emitted.
+      if (!el.hasAttribute(SENSITIVE_ATTR)) {
+        el.setAttribute(SENSITIVE_ATTR, registryMarker);
+        ownedMarkers.add(el);
+      }
     },
     removeRef(el: Element) {
       refs.delete(el);
+      removeOwnedMarker(el);
     },
     snapshot(): Rect[] {
       const out: Rect[] = [];
@@ -285,6 +301,7 @@ function createSensitiveRegistry(): SensitiveRegistry {
       return el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'password';
     },
     __clearForTesting() {
+      for (const el of refs) removeOwnedMarker(el);
       refs.clear();
     },
   };
