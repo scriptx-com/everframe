@@ -1,0 +1,27 @@
+packages/sdk-core/__tests__/replay/crash-only.spec.ts
+  s_dbd309ddf8ec5b::t_43bd40c4f4f995 1-217
+packages/sdk-core/src/index.ts
+  s_dbd309ddf8ec5b::t_837ccf528d4d0e 133,159
+packages/sdk-core/src/types/replay/config-provider.ts
+  s_dbd309ddf8ec5b::t_bb7ce8c27d50f4 304-310
+packages/sdk-core/src/types/replay/index.ts
+  s_dbd309ddf8ec5b::t_addeab053f024f 38-44
+packages/sdk-core/src/types/replay/lifecycle.ts
+  s_dbd309ddf8ec5b::t_1c81126d621d0f 10-11,25-42,48-57,95,100-101,110-111,149-156,160-166,169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "96d25b3ed8ecad88522cf43512d5174a3e29a5d9",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
