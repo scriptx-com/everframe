@@ -127,6 +127,7 @@ data class Context (
 @Serializable
 data class App (
     val build: String? = null,
+    val debug: Boolean? = null,
     val name: String,
     val version: String
 )
@@ -826,6 +827,7 @@ data class NativeExposure (
 data class NativeExposureApp (
     @Required
     val build: String? = null,
+    val debug: Boolean,
     val version: String
 )
 

@@ -294,6 +294,9 @@ class EverframeModule(
                 capture = CaptureConfig(networkBodies = !networkBodiesDisabled, crash = !crashReportingDisabled),
                 installIdentifierEnabled = !installIdentifierDisabled,
                 releaseHealth = parseReleaseHealth(opts),
+                // The JS facade always sends React Native's `__DEV__` (or the host's override). A missing
+                // or null key stays null so the native SDK decides for itself, as for any other caller.
+                debugBuild = opts.takeIfHasBoolean("debugBuild"),
                 // Explicit companion device-identity override (naming spec
                 // 2026-08-24) — read straight off the flat ConfigOpts field,
                 // same shape as attachPinUi above. Absent/blank falls

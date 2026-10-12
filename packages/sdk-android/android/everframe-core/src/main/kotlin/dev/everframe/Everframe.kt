@@ -719,7 +719,7 @@ object Everframe {
         // request published with this start's epoch below is already final; the flag read and its
         // one Logcat line stay outside both locks. A failed check counts as a release build.
         val releaseHealthEnabled = txGuard("start.releaseHealthBuild") {
-            dev.everframe.health.ReleaseHealthBuildGate.enabled(context, config.releaseHealth)
+            dev.everframe.health.ReleaseHealthBuildGate.enabled(context, config.releaseHealth, config.debugBuild)
         } ?: (config.releaseHealth?.enabled == true)
 
         // State mutation guarded by stateLock; gate flip is the kill switch contract.

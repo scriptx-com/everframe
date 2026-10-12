@@ -49,6 +49,15 @@ describe('release-health native bridge contracts', () => {
     expect(objc).not.toContain('opts.releaseHealthEnabled().value_or(false)');
     expect(objc).toContain('opts.releaseHealthIncludeDebugBuilds().value_or(false)');
   });
+  it('carries debugBuild to both native configs, absent staying nil or null', () => {
+    expect(source('android/src/main/java/dev/everframe/rn/EverframeModule.kt')).toContain(
+      'debugBuild = opts.takeIfHasBoolean("debugBuild")');
+    expect(source('ios/Sources/EverframeBridge.swift')).toContain('cfg.debugBuild = debugBuild?.boolValue');
+    const objc = source('ios/Sources/EverframeModule.mm');
+    expect(objc).toContain('opts.debugBuild().has_value()');
+    expect(objc).toContain('debugBuild:debugBuild');
+    expect(source('src/NativeEverframe.ts')).toContain('debugBuild?: boolean;');
+  });
   it('declares the includeDebugBuilds bridge field in the codegen spec', () => {
     expect(source('src/NativeEverframe.ts')).toContain('releaseHealthIncludeDebugBuilds?: boolean;');
   });

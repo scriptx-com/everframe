@@ -14,15 +14,16 @@ final class ReleaseHealthSDKTests: XCTestCase {
     override func tearDownWithError() throws {
         Everframe.__bodyStateResetHookForTesting = nil
         Everframe.__beforeReleaseHealthReservationForTesting = nil
+        Everframe.__afterReleaseHealthDebugDecisionForTesting = nil
         try FileManager.default.removeItem(at: root)
     }
     private func runtime() -> ReleaseHealthRuntime {
-        let key = key; return ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { .testRelease }, transport: { _, _ in .retry })
+        let key = key; return ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { _ in .testRelease }, transport: { _, _ in .retry })
     }
     /// The detector is injected so the suite gives the same answer on the macOS host and in the simulator.
     private func makeSDK(_ runtime: ReleaseHealthRuntime, debug: Bool = false, notices: NoticeLog = NoticeLog()) -> Everframe {
         Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: runtime,
-            isDebugBuild: { debug }, releaseHealthNotice: { notices.append($0) })
+            isDebugBuild: { $0 ?? debug }, releaseHealthNotice: { notices.append($0) })
     }
     /// The SDK default: release health on and anonymous.
     private func defaultConfig(_ character: String = "a") -> EverframeConfig {
@@ -176,7 +177,7 @@ final class ReleaseHealthSDKTests: XCTestCase {
     func testLaunchOptInWaitsForTheFirstLifecycleSnapshot() async throws {
         // As on iOS: admission reads background until the observer that init installs
         // delivers the first application state on a later main-actor turn.
-        let key = key, runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { .testRelease }, initiallyForeground: false, transport: { _, _ in .retry })
+        let key = key, runtime = ReleaseHealthRuntime(root: root, keyProvider: { key }, appRelease: { _ in .testRelease }, initiallyForeground: false, transport: { _, _ in .retry })
         let sdk = makeSDK(runtime)
         try sdk.start(config: config())
         sdk.releaseHealthLifecycleReady = Task { @MainActor in
@@ -237,6 +238,52 @@ final class ReleaseHealthSDKTests: XCTestCase {
         try sdk.start(config: defaultConfig())
         let again = try await started(sdk); XCTAssertTrue(again)
         XCTAssertNotNil(runtime.readyPointer); XCTAssertEqual(try subjects(), [nil])
+        sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
+    }
+    /// `EverframeConfig.debugBuild` decides the skip, exactly as it decides `context.app.debug`.
+    func testDebugBuildOverridesTheDetectedAnswerInBothDirections() async throws {
+        let runtime = runtime(); let notices = NoticeLog()
+        // A detected debug build that the host calls a release build still records, without a line.
+        let sdk = makeSDK(runtime, debug: true, notices: notices)
+        var forcedRelease = defaultConfig(); forcedRelease.debugBuild = false
+        try sdk.start(config: forcedRelease)
+        let recorded = try await started(sdk); XCTAssertTrue(recorded)
+        XCTAssertNotNil(runtime.readyPointer); XCTAssertEqual(notices.lines, [])
+        sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
+        // A detected release build that the host calls a debug build is skipped, with one line.
+        let other = makeSDK(runtime, debug: false, notices: notices)
+        var forcedDebug = defaultConfig(); forcedDebug.debugBuild = true
+        try other.start(config: forcedDebug)
+        let skipped = try await started(other); XCTAssertFalse(skipped)
+        XCTAssertNil(runtime.readyPointer); XCTAssertEqual(notices.lines, ["[everframe] Release health is off in debug builds."])
+        // The configured value also reaches the session's record.
+        other.kill(); await runtime.barrier(); _ = await other.setReleaseHealth(nil)
+    }
+    /// The skip decision and the reservation must describe the same start. A start() that changes
+    /// debugBuild between them leaves the public call stale, so it is rejected rather than reserved
+    /// under the new configuration with the old decision.
+    func testSetReleaseHealthRejectedWhenStartChangesDebugBuildAfterTheSkipDecision() async throws {
+        let runtime = runtime(); let notices = NoticeLog()
+        let sdk = makeSDK(runtime, debug: false, notices: notices)
+        var release = config(); release.debugBuild = false
+        var debug = config(); debug.debugBuild = true
+        try sdk.start(config: release)
+        // The decision reads debugBuild: false (record), then start() switches to a debug build.
+        Everframe.__afterReleaseHealthDebugDecisionForTesting = {
+            Everframe.__afterReleaseHealthDebugDecisionForTesting = nil
+            try! sdk.start(config: debug)
+        }
+        let raced = try await sdk.setReleaseHealth(health())
+        XCTAssertFalse(raced, "a decision made for the previous configuration is stale")
+        XCTAssertNil(runtime.readyPointer, "release health must not be reserved for a debug build")
+        XCTAssertTrue(try rows().isEmpty)
+        // Not racing: the same call now decides and reserves against the current (debug) configuration.
+        let after = try await sdk.setReleaseHealth(health()); XCTAssertFalse(after)
+        XCTAssertNil(runtime.readyPointer); XCTAssertEqual(notices.lines, ["[everframe] Release health is off in debug builds."])
+        // And with release as the current configuration, nothing racing changes the answer.
+        try sdk.start(config: release)
+        let recorded = try await sdk.setReleaseHealth(health()); XCTAssertTrue(recorded)
+        XCTAssertNotNil(runtime.readyPointer)
         sdk.kill(); await runtime.barrier(); _ = await sdk.setReleaseHealth(nil)
     }
     func testDebugBuildIsSkippedErasesAndLogsOncePerStart() async throws {

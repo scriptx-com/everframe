@@ -95,7 +95,7 @@ internal class ReleaseHealthProducer(
     private fun entry(end: Boolean, capturedMs: Long, elapsedMs: Long, reason: String?): OutboxEntry {
         val id = UUID.randomUUID().toString()
         val bytes = buildJsonObject {
-            put("schemaVersion", 4); put("recordId", id); put("exposure", exposure)
+            put("schemaVersion", 5); put("recordId", id); put("exposure", exposure)
             put("capturedAt", NativeExposurePointer.timestamp(capturedMs)); put("phase", if (end) "end" else "start")
             put("sequence", if (end) 1 else 0); put("elapsedMs", elapsedMs)
             if (end) { require(reason == "background" || reason == "sdk_stop"); put("endReason", reason); put("outcome", "completed") }

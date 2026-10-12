@@ -63,6 +63,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         vitalsEnabled: NSNumber?,
         vitalsSampleRate: NSNumber?,
         vitalsCaptureSourceQuery: NSNumber?,
+        debugBuild: NSNumber?,
         releaseHealthEnabled: Bool,
         releaseHealthLoadedBuildId: NSString?,
         releaseHealthUserId: NSString?,
@@ -120,6 +121,8 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         if let vitalsEnabled { cfg.vitals.enabled = vitalsEnabled.boolValue }
         if let vitalsSampleRate { cfg.vitals.sampleRate = vitalsSampleRate.doubleValue }
         if let vitalsCaptureSourceQuery { cfg.vitals.captureSourceQuery = vitalsCaptureSourceQuery.boolValue }
+        // Absent stays nil, so the native SDK detects a debug build itself; present wins.
+        cfg.debugBuild = debugBuild?.boolValue
         // The attach-PIN UI mode for startCompanion() to read (spec 2026-08-19). configure()
         // precedes startCompanion() in every host's lifecycle, so this is the natural place to
         // parse the flat ConfigOpts string into the native enum; startCompanion is where it is

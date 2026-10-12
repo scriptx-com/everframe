@@ -403,7 +403,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
         phase = 'disabled';
         return;
       }
-      const resolved = resolveConfig(input);
+      const resolved = resolveConfig(input, env.dev);
       if (!resolved) {
         env.warn('[everframe] init() needs an sdkKey; Everframe is off');
         phase = 'disabled';

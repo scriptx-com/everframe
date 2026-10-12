@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
-import { runBrs, HOOK_DIR } from './brs-harness.js';
+import { runBrs, HOOK_DIR, LIB_DIR } from './brs-harness.js';
 
 const LIBS = ['ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_fingerprint.brs'];
 
@@ -36,6 +36,46 @@ describe('everframe_hook.brs (no SceneGraph node yet)', () => {
       print "EFTEST:" + FormatJson(EfQ_List(sec)[0].rec.memory)
     `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs')] });
     expect(lines[0]).toEqual({ percent: 64, limitMb: 286 });
+  });
+
+  it('stamps the debugBuild override start() configured, from the host scope that has no node m', async () => {
+    // start() keeps the override in the node's m["efDebugBuild"] and records
+    // it in the "ver" session record (EfU_RotateVersion). The hook runs in
+    // the host script's m, where only the registry is shared.
+    const { lines } = await runBrs(LIBS, `
+      sec = EfU_Section()
+      ' What start({ debugBuild: false }) does, in the node's scope.
+      m["efDebugBuild"] = false
+      sec.Write("ver", EfU_VersionJson())
+      sec.Flush()
+      ' The host scope: no efDebugBuild in m.
+      m.Delete("efDebugBuild")
+      try
+        x = invalid
+        x.go()
+      catch e
+        Everframe_OnError(e, "Main (source/main.brs)", false)
+      end try
+      rec = EfQ_List(sec)[0].rec
+      built = EfE_Build(rec, EfE_Context("0.1.0"), EfU_NowMs()).context.app.debug
+      print "EFTEST:" + FormatJson({ appDebug: rec.appDebug, built: built })
+    `, { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs'), path.join(LIB_DIR, 'ef_envelope.brs')] });
+    expect(lines[0]).toEqual({ appDebug: false, built: false });
+  });
+
+  it('a configured debugBuild: true is stamped by the hook too, and detection applies only with no override', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = EfU_Section()
+      m["efDebugBuild"] = true
+      sec.Write("ver", EfU_VersionJson())
+      m.Delete("efDebugBuild")
+      a = EfR_FromException("soft", "try-catch", false).appDebug
+      sec.Delete("ver")
+      b = EfR_FromException("soft", "try-catch", false).appDebug
+      print "EFTEST:" + FormatJson({ a: a, b: b, detected: CreateObject("roAppInfo").IsDev() })
+    `);
+    expect(lines[0].a).toBe(true);
+    expect(lines[0].b).toBe(lines[0].detected);
   });
 
   it('never throws, even with garbage input', async () => {

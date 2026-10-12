@@ -136,7 +136,7 @@ export interface VegaEnvelopeInput {
   handledOptions?: VegaCaptureOptions | undefined;
   jsBundle?: JsBundleMetadata | undefined;
   sdk: ReportEnvelope['sdk'];
-  app: { name: string; version: string; build?: string };
+  app: { name: string; version: string; build?: string; debug: boolean };
   device: DeviceMetadata;
   breadcrumbs: Breadcrumb[];
   user: VegaUser | null;

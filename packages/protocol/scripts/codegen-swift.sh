@@ -143,18 +143,20 @@ source = source.replace(exposurePattern, block => block.slice(0, -1) + `
 const exposureAppPattern = /public struct EverframeNativeExposureApp: Codable \{[\s\S]*?\n\}/;
 const exposureAppBlock = source.match(exposureAppPattern)?.[0];
 if (!exposureAppBlock || !exposureAppBlock.includes('    public let build: String?\n')
+  || !exposureAppBlock.includes('    public let debug: Bool\n')
   || !exposureAppBlock.includes('    public let version: String\n')) {
   throw new Error('codegen-swift: NativeExposureApp block missing or reshaped');
 }
 source = source.replace(exposureAppPattern, block => block.slice(0, -1) + `
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(build, forKey: .build)
         try container.encode(version, forKey: .version)
+        try container.encode(build, forKey: .build)
+        try container.encode(debug, forKey: .debug)
     }
 }`);
 // The pointer's app must not take the envelope app's published name.
-if (!source.includes('public struct EverframeApp: Codable {\n    public let build: String?\n    public let name, version: String\n')) {
+if (!source.includes('public struct EverframeApp: Codable {\n    public let build: String?\n    public let debug: Bool?\n    public let name, version: String\n')) {
   throw new Error('codegen-swift: EverframeApp was renamed or reshaped');
 }
 source = source.replace(/recoveredStall: EverframeRecoveredStallEvidence\?,/g, 'recoveredStall: EverframeRecoveredStallEvidence? = nil,');

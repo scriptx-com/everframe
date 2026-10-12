@@ -79,6 +79,7 @@ Metro and are not mapped.
 | `appName` | `Vega app` | Shown on reports. |
 | `appVersion` | `0.0.0` | Your app version. |
 | `appBuild` | none | A build number or CI build id. |
+| `debugBuild` | `__DEV__` | Whether this is a debug build. Everframe never makes a release out of one. |
 | `captureUnhandledRejections` | `true` | `false` stops reporting promise rejections. |
 | `device` | none | `{ model, osVersion }`, e.g. from `@amazon-devices/react-native-device-info`. React Native for Vega does not expose them to JavaScript. |
 | `enabled` | `true` | `false` turns the SDK off. |

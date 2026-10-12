@@ -31,6 +31,21 @@ class EverframeBrowserDriverTest {
         client.kill()
     }
 
+    @Test fun passesTheDebugBuildOverrideToWebSdkOnlyWhenSet() {
+        val configs = mutableListOf<dynamic>()
+        val init: dynamic = { received: dynamic ->
+            configs.add(received)
+            js("({ destroy() {} })")
+        }
+        val capture = js("({ captureScreenshot: async () => null })")
+        val unset = EverframeKmp(EverframeBrowserDriver(init, capture, "0.10.2"))
+        assertTrue(unset.start(EverframeKmpConfig("app", "key")))
+        assertEquals("undefined", jsTypeOf(configs[0].debugBuild))
+        val set = EverframeKmp(EverframeBrowserDriver(init, capture, "0.10.2"))
+        assertTrue(set.start(EverframeKmpConfig("app", "key", debugBuild = true)))
+        assertEquals(true, configs[1].debugBuild as Boolean)
+    }
+
     @Test fun routesSharedContextToBrowserHandle() {
         val calls = mutableListOf<String>()
         val handle = js("({})")

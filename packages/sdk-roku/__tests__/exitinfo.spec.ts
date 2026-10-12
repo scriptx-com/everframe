@@ -326,4 +326,18 @@ describe('ef_exitinfo.brs', () => {
     `);
     expect(lines[0]).toEqual({ r: 'reported', v: '1.0.0', b: '7', prev: false, now: true });
   });
+
+  it('an exit processed after the debug flag changed carries the exited session\'s flag', async () => {
+    const { lines } = await runBrs(LIBS, `
+      sec = EfU_Section()
+      m["efDebugBuild"] = false
+      sec.Write("ver", EfU_VersionJson())
+      m["efDebugBuild"] = true
+      EfU_RotateVersion(sec)
+      r = EfX_Process(sec, ${INFO('EXIT_CHANNEL_MEM_LIMIT_FG')})
+      rec = EfQ_List(sec)[0].rec
+      print "EFTEST:" + FormatJson({ r: r, d: rec.appDebug })
+    `);
+    expect(lines[0]).toEqual({ r: 'reported', d: false });
+  });
 });

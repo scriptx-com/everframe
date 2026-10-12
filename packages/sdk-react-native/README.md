@@ -120,7 +120,9 @@ Hermes bundle identity that `@everframe/metro` adds at build time (or the
 `includeDebugBuilds: true` to count debug builds too. The configuration is read
 when the Provider mounts, so remount it with a changed `key` to change `enabled`
 or `userId`. A configure with `enabled: false` turns release health off and
-erases its queued records on the device. See
+erases its queued records on the device.
+Release health skips a debug build, which is `__DEV__` unless you set
+`debugBuild` on the Provider. See
 [release health](../../docs/release-health.md).
 
 ## Promise rejection observation

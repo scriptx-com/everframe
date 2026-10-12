@@ -62,7 +62,7 @@ class AndroidNativeRecoveryControllerTest {
         val platform = Platform()
         val launch = UUID.randomUUID().toString()
         var pointer: dev.everframe.health.NativeExposurePointer? = dev.everframe.health.NativeExposurePointer(
-            UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", dev.everframe.capture.AppRelease("2.4.0", null), null,
+            UUID.randomUUID().toString(), launch, "2026-10-09T10:00:00.000Z", dev.everframe.capture.AppRelease("2.4.0", null, debug = false), null,
             dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
         val controller = AndroidNativeRecoveryController(::engine, platform, launch, exposure = { pointer })
         assertTrue(controller.enable(1, allowed, 3000, ::template) { true })
@@ -77,7 +77,7 @@ class AndroidNativeRecoveryControllerTest {
         assertFalse(frozen().containsKey("nativeExposure"))
         assertTrue(controller.ready(1)) // Background collection continues.
         pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
-            "2026-10-09T10:00:01.000Z", dev.everframe.capture.AppRelease("2.4.0", null), null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+            "2026-10-09T10:00:01.000Z", dev.everframe.capture.AppRelease("2.4.0", null, debug = false), null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
         controller.invalidateExposure()
         assertTrue(controller.refreshExposure(1))
         assertEquals(pointer!!.exposureId, frozen()["nativeExposure"]!!.jsonObject["exposureId"]!!.jsonPrimitive.content)
@@ -110,7 +110,7 @@ class AndroidNativeRecoveryControllerTest {
         assertFalse(controller.ready(1)); assertTrue(platform.registrations.none { it != null })
         platform.beforeHistory = {}
         pointer = dev.everframe.health.NativeExposurePointer(UUID.randomUUID().toString(), launch,
-            "2026-10-09T10:00:01.000Z", dev.everframe.capture.AppRelease("2.4.0", null), null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
+            "2026-10-09T10:00:01.000Z", dev.everframe.capture.AppRelease("2.4.0", null, debug = false), null, dev.everframe.config.ReleaseHealthBundleStatus.NOT_APPLICABLE)
         assertTrue(controller.refreshExposure(1)); assertTrue(controller.ready(1))
         val queue = OutboxStore(File(folder.root, "contexts"), keys, ops)
         val frozen = Json.parseToJsonElement(queue.readIfPresent(queue.snapshotTokens().single())!!.entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject

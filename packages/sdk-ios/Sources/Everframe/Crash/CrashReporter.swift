@@ -423,6 +423,8 @@ public enum CrashReporter {
             "title": String("\(cappedExceptionType): \(message)".prefix(50)),
             "description": "",
             "captureControl.degradedReason": "crash-capture",
+            // The captured config decides, so `debugBuild` wins over detection.
+            "app.debug": String(DebugBuild.current(configured: config.debugBuild)),
         ]
         if let d = device {
             extra["device.model"] = d.model

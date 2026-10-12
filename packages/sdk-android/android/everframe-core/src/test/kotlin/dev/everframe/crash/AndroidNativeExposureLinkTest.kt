@@ -27,7 +27,7 @@ class AndroidNativeExposureLinkTest {
     private val allowed = object : OutboxAuthorization { override fun isAllowed() = true }
     private fun store(name: String) = OutboxStore(File(folder.root, name), keys, ops, 8, 2 * 1024 * 1024)
     private fun engine() = AndroidNativeRecovery(store("contexts"), store("prepared"))
-    private fun producer(release: AppRelease = AppRelease("2.4.0", null)) = ReleaseHealthProducer(store("health"), ReleaseHealthConfig(),
+    private fun producer(release: AppRelease = AppRelease("2.4.0", null, debug = false)) = ReleaseHealthProducer(store("health"), ReleaseHealthConfig(),
         release, "test", "key-A", "https://a.example", allowed, allowed, launch, { 1000 }, { 0 })
     private fun template() = UUID.randomUUID().toString().let { id -> OutboxEntry(id, 1000,
         """{"reportId":"$id","submittedAt":"1970-01-01T00:00:01Z","context":{"app":{"name":"A","version":"1","build":"17"}},"reporter":{"title":"","description":""},"payload":{}}""".toByteArray(),
@@ -45,7 +45,7 @@ class AndroidNativeExposureLinkTest {
         var token = byteArrayOf()
         engine().arm(template(), 99, "app", allowed, diagnostics = true, processLaunchId = launch.toString(), apiLevel = 35,
             nativeExposure = pointer) { token = it }
-        val next = producer(AppRelease("2.5.0", "413")); assertTrue(next.start())
+        val next = producer(AppRelease("2.5.0", "413", debug = false)); assertTrue(next.start())
         assertNotEquals(pointer.exposureId, next.readyPointer()!!.exposureId)
         val body = recover(token)
         val diagnostic = body["payload"]!!.jsonObject["diagnostic"]!!.jsonObject
@@ -130,7 +130,7 @@ class AndroidNativeExposureLinkTest {
     @Test fun `health opt out after pointer read prevents a new E8 admission using the cached pointer`() {
         val epoch = AtomicInteger(1)
         val health = ReleaseHealthController({ store("health") }, launch, initiallyForeground = true)
-        assertTrue(health.activate(health.request(1, true), ReleaseHealthConfig(), AppRelease("2.4.0", null), "test", "key-A",
+        assertTrue(health.activate(health.request(1, true), ReleaseHealthConfig(), AppRelease("2.4.0", null, debug = false), "test", "key-A",
             "https://a.example", allowed, allowed))
         val selected = CountDownLatch(1); val resume = CountDownLatch(1)
         val registered = AtomicBoolean(false); val result = AtomicBoolean(true)

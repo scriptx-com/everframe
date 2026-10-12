@@ -36,7 +36,7 @@ const issues = (value: unknown) => {
 };
 const exposure = (processLaunchId: string) => ({ exposureId: '3f0d3c0e-1d2b-4c55-9a5e-6f7a8b9c0d1f',
   processLaunchId, startedAt: '2026-10-10T18:00:00.000Z',
-  app: { version: '1.0.0', build: '1' }, loadedBuildId: null, loadedBundleStatus: 'not_applicable' });
+  app: { version: '1.0.0', build: '1', debug: false }, loadedBuildId: null, loadedBundleStatus: 'not_applicable' });
 
 describe('inferred Apple foreground termination', () => {
   it('derives every fingerprint from its exception type and cause', () => {

@@ -64,4 +64,16 @@ class ReleaseHealthBuildGateTest {
         ReleaseHealthBuildGate.__debuggableForTesting = false
         assertTrue(ReleaseHealthBuildGate.enabled(debug(), ReleaseHealthConfig()))
     }
+
+    @Test fun `debugBuild overrides the host flag in both directions`() {
+        // A debuggable host that says it is a release build keeps release health on, without a log line.
+        assertTrue(ReleaseHealthBuildGate.enabled(debug(), ReleaseHealthConfig(), debugBuild = false))
+        assertEquals(emptyList<String>(), lines())
+        // A release host that says it is a debug build turns it off, with exactly one log line.
+        assertFalse(ReleaseHealthBuildGate.enabled(release(), ReleaseHealthConfig(), debugBuild = true))
+        assertEquals(listOf(line), lines())
+        // Null keeps the host flag.
+        assertFalse(ReleaseHealthBuildGate.enabled(debug(), ReleaseHealthConfig(), debugBuild = null))
+        assertTrue(ReleaseHealthBuildGate.enabled(release(), ReleaseHealthConfig(), debugBuild = null))
+    }
 }

@@ -257,15 +257,25 @@ class ReleaseHealthRuntimeTest {
         shadowOf(context.packageManager).getInternalMutablePackageInfo(context.packageName).apply {
             versionName = "2.4.0"; longVersionCode = 412
         }
-        start()
+        start(using = config.copy(debugBuild = false))
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
         val session = pointer()!!
-        assertEquals(dev.everframe.capture.AppRelease("2.4.0", "412"), session.app)
+        assertEquals(dev.everframe.capture.AppRelease("2.4.0", "412", debug = false), session.app)
         val record = records().single()
-        assertEquals(4, record.getValue("schemaVersion").jsonPrimitive.int)
-        assertEquals(buildJsonObject { put("version", "2.4.0"); put("build", "412") },
+        assertEquals(5, record.getValue("schemaVersion").jsonPrimitive.int)
+        assertEquals(buildJsonObject { put("version", "2.4.0"); put("build", "412"); put("debug", false) },
             record.getValue("exposure").jsonObject.getValue("app"))
         assertEquals(session.toJson(), JsonObject(record.getValue("exposure").jsonObject.filterKeys { it in session.toJson().keys }))
+    }
+    @Test fun `the session of a debuggable host is marked debug unless debugBuild says otherwise`() {
+        shadowOf(context.packageManager).getInternalMutablePackageInfo(context.packageName).apply {
+            versionName = "2.4.0"; longVersionCode = 412
+        }
+        // Robolectric runs the merged debug manifest, so the host is debuggable here.
+        start(using = config.copy(debugBuild = null, releaseHealth = ReleaseHealthConfig(includeDebugBuilds = true)))
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
+        assertEquals(true, pointer()!!.app.debug)
+        assertEquals(true, records().single().getValue("exposure").jsonObject.getValue("app").jsonObject.getValue("debug").jsonPrimitive.boolean)
     }
     @Test fun `foreground entry keeps the OS context registered until the session context replaces it`() {
         start()
@@ -412,5 +422,23 @@ class ReleaseHealthRuntimeTest {
         assertTrue(Everframe.isReleaseHealthReady())
         assertEquals("start", records().single().text("phase"))
         assertEquals(emptyList<String>(), skipLines())
+    }
+
+    @Test fun `debugBuild false records on a debuggable host and debugBuild true skips a release host`() {
+        ShadowLog.clear()
+        ReleaseHealthBuildGate.__debuggableForTesting = true
+        start(using = config.copy(debugBuild = false))
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
+        assertTrue("debugBuild = false did not keep release health on", Everframe.isReleaseHealthReady())
+        assertEquals(false, pointer()!!.app.debug)
+        assertEquals(emptyList<String>(), skipLines())
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_STOP); settle()
+
+        ReleaseHealthBuildGate.__debuggableForTesting = false
+        Everframe.start(context, config.copy(debugBuild = true))
+        idleUntil("the debugBuild = true start never skipped release health") { skipLines().isNotEmpty() }
+        assertEquals(listOf(skipLine), skipLines())
+        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START); settle()
+        assertFalse(Everframe.isReleaseHealthReady())
     }
 }

@@ -228,7 +228,7 @@ describe('native exposure pointer JSON schema', () => {
   const validate = ajv.compile(jsonSchema);
   const pointer = () => ({ exposureId: '33333333-3333-4333-8333-333333333333',
     processLaunchId: '22222222-2222-4222-8222-222222222222', startedAt: '2026-10-07T09:00:00.000Z',
-    app: { version: '2.4.0', build: null as string | null }, loadedBuildId: null, loadedBundleStatus: 'not_applicable' });
+    app: { version: '2.4.0', build: null as string | null, debug: false }, loadedBuildId: null, loadedBundleStatus: 'not_applicable' });
   const diagnostic = (nativeExposure: unknown) => {
     const value = structuredClone(minimal) as any;
     value.source = 'diagnostic'; value.sdk.platform = 'android';
@@ -250,22 +250,25 @@ describe('native exposure pointer JSON schema', () => {
     expect(NativeExposure.properties.app).toEqual({ $ref: '#/$defs/NativeExposureApp' });
     expect(NativeExposure.properties).not.toHaveProperty('nativeBuildId');
     expect(NativeExposureApp.title).toBe('NativeExposureApp');
-    expect(NativeExposureApp.required).toEqual(['version', 'build']);
+    expect(NativeExposureApp.required).toEqual(['version', 'build', 'debug']);
     expect(NativeExposureApp.additionalProperties).toBe(false);
     expect(NativeExposureApp.properties.version).toMatchObject({ type: 'string', minLength: 1, maxLength: 64 });
+    expect(NativeExposureApp.properties.debug).toEqual({ type: 'boolean' });
     expect(NativeExposureApp.properties.build.anyOf).toContainEqual({ type: 'null' });
     expect(NativeExposureApp.properties.build.anyOf)
       .toContainEqual(expect.objectContaining({ type: 'string', minLength: 1, maxLength: 64 }));
   });
-  it('validates a diagnostic carrying the version 4 pointer', () => {
+  it('validates a diagnostic carrying the version 5 pointer', () => {
     expect(validate(diagnostic(pointer()))).toBe(true);
-    expect(validate(diagnostic({ ...pointer(), app: { version: '2.4.0', build: '412' } }))).toBe(true);
+    expect(validate(diagnostic({ ...pointer(), app: { version: '2.4.0', build: '412', debug: false } }))).toBe(true);
   });
   it.each([
     ['the retired nativeBuildId', { nativeBuildId: 'native-artifact-a' }],
-    ['an app without build', { app: { version: '2.4.0' } }],
-    ['an empty version', { app: { version: '', build: null } }],
-    ['an extra app key', { app: { version: '2.4.0', build: null, name: 'Shop' } }],
+    ['an app without build', { app: { version: '2.4.0', debug: false } }],
+    ['an app without debug', { app: { version: '2.4.0', build: null } }],
+    ['a non-boolean app debug', { app: { version: '2.4.0', build: null, debug: 'no' } }],
+    ['an empty version', { app: { version: '', build: null, debug: false } }],
+    ['an extra app key', { app: { version: '2.4.0', build: null, debug: false, name: 'Shop' } }],
   ] as const)('rejects a pointer with %s', (_name, patch) => {
     expect(validate(diagnostic({ ...pointer(), ...patch }))).toBe(false);
   });

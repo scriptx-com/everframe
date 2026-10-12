@@ -270,7 +270,7 @@ if (!exposureAppMatch || !exposureAppMatch[1].includes('    val build: String? =
 rewritten = rewritten.replace(exposureAppPattern, exposureAppMatch[0].replace(
   '    val build: String? = null,', '    @Required\n    val build: String? = null,'));
 // The pointer's app must not take the envelope app's published name.
-if (!/\n@Serializable\ndata class App \(\n    val build: String\? = null,\n    val name: String,\n    val version: String\n\)/.test(rewritten)) {
+if (!/\n@Serializable\ndata class App \(\n    val build: String\? = null,\n    val debug: Boolean\? = null,\n    val name: String,\n    val version: String\n\)/.test(rewritten)) {
   throw new Error('codegen-kotlin: App was renamed or reshaped');
 }
 const formatPattern = /@Serializable\nenum class Format\(val value: String\) \{[\s\S]*?\n\}\n/u;

@@ -132,6 +132,7 @@ import { PKG_VERSION } from './internal/version.js';
 import { captureUserSnapshot } from './internal/user-snapshot.js';
 import { globalScope } from './internal/global-scope.js';
 import { resolveAppBuild } from './build-identity.js';
+import { resolveDebugBuild } from './debug-build.js';
 
 /**
  * The structural slice of sdk-core's `IdentityTokenHolder` that this adapter
@@ -1576,6 +1577,7 @@ export function createWebPlatformAdapter(
                 name: _config.appName ?? 'unknown',
                 version: _config.appVersion ?? '0.0.0',
                 ...((build) => (build !== undefined ? { build } : {}))(resolveAppBuild(_config.appBuild)),
+                debug: resolveDebugBuild(_config.debugBuild, typeof location === 'undefined' ? null : location),
               },
               ...(typeof window !== 'undefined' ? { route: window.location.pathname } : {}),
               redaction: crashRedaction,

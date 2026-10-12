@@ -100,6 +100,7 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
       // No Hermes build identity under vitest, so the on-by-default release health is sent explicitly off.
       expect(nativeMock.configure).toHaveBeenCalledExactlyOnceWith({
         sdkKey: "legacy-key",
+        debugBuild: false,
         releaseHealthEnabled: false,
       });
       topLevelCaptureException(thrown);

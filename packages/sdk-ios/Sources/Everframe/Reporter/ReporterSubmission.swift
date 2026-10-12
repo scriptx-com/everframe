@@ -359,6 +359,9 @@ public enum ReporterSubmission {
         var extra: [String: String] = [
             "title": inputs.title,
             "description": inputs.description,
+            // Not device metadata, so it rides along whatever `includeMetadata` says. The report's
+            // own config decides, so `debugBuild` wins over detection.
+            "app.debug": String(DebugBuild.current(configured: cfg.debugBuild)),
         ]
         if inputs.includeMetadata {
             extra["device.model"] = device.model

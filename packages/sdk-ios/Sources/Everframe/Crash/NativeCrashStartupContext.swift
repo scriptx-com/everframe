@@ -13,6 +13,7 @@ enum NativeCrashStartupContext {
             "app.name": device.bundleIdentifier ?? "unknown",
             "app.version": config.release ?? device.appVersion ?? "unknown",
             "app.build": device.appBuild ?? "unknown",
+            "app.debug": String(DebugBuild.current(configured: config.debugBuild)),
             "device.model": device.model, "device.os": device.osName,
             "device.osVersion": device.osVersion, "device.locale": device.locale,
             "device.timezone": device.timezone,

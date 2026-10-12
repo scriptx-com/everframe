@@ -37,6 +37,7 @@ function EfX_ToRecord(info as object) as object
         frames: [],
         thread: "main",
         "appVersion": CreateObject("roAppInfo").GetVersion(),
+        "appDebug": EfU_DebugBuild(),
         crumbs: [],
         "exitInfo": meta
     }
@@ -141,6 +142,7 @@ function EfX_Process(sec as object, info as dynamic) as string
                 rec["appVersion"] = prevVer.v
                 rec.Delete("appBuild")
                 if prevVer.b <> invalid then rec["appBuild"] = prevVer.b
+                if prevVer.d <> invalid then rec["appDebug"] = prevVer.d
             end if
             rec.crumbs = EfX_SnapCrumbs(info, prevCrumbs)
             route = EfX_SnapScreen(info, prevScreen)
