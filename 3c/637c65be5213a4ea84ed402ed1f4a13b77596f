@@ -1,0 +1,27 @@
+examples/kmp-compose-mobile-probe/ios/KmpComposeProbeApp.swift
+  s_dbd309ddf8ec5b::t_29e943bfb21b04 24
+examples/kmp-ios-native-probe/KmpNativeProbeApp.swift
+  s_dbd309ddf8ec5b::t_0e870129a66b21 30
+packages/everframe_flutter/android/src/main/kotlin/dev/everframe/flutter/EverframeFlutterPlugin.kt
+  s_dbd309ddf8ec5b::t_edce175abfd6d9 81
+packages/everframe_flutter/ios/everframe_flutter.podspec
+  s_dbd309ddf8ec5b::t_1752e50b2b73c7 15
+packages/everframe_flutter/ios/everframe_flutter/Package.swift
+  s_dbd309ddf8ec5b::t_6025a829b656e0 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3c637c65be5213a4ea84ed402ed1f4a13b77596f",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
