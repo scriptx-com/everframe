@@ -92,7 +92,7 @@ it("uploads the discovered app, framework and extension from an Xcode build", as
   expect(r.upload).toHaveBeenCalledWith({
     appId: APP_ID,
     token: "secret",
-    apiUrl: "https://api.everframe.dev/api/v1",
+    apiUrl: "https://everframe.dev/api/v1",
     binaries: [
       { path: f.bundle.executable, required: true },
       { path: f.bundle.framework, required: false },

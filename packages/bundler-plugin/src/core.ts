@@ -41,7 +41,7 @@ export function resolveSettings(options: EverframeBundlerOptions, env: NodeJS.Pr
     appId,
     buildId: options.buildId ?? env.EVERFRAME_BUILD_ID ?? randomUUID(),
     deleteAfterUpload: options.deleteAfterUpload ?? true,
-    apiUrl: options.apiUrl ?? env.EVERFRAME_API_URL ?? 'https://api.everframe.dev/api/v1',
+    apiUrl: options.apiUrl ?? env.EVERFRAME_API_URL ?? 'https://everframe.dev/api/v1',
     token: env.EVERFRAME_API_TOKEN || undefined,
     ci: isCi(env),
   };

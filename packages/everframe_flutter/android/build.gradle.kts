@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 group = "dev.everframe.flutter"
-version = "1.0.0"
+version = "1.2.0"
 
 buildscript {
     repositories { google(); mavenCentral() }
@@ -44,7 +44,7 @@ kotlin {
 }
 
 val everframeNativeVersion = providers.gradleProperty("everframeNativeVersion")
-    .orElse("[1.0.0,1.1.0)")
+    .orElse("[1.2.0,1.3.0)")
 
 dependencies {
     implementation("dev.everframe:core") {
