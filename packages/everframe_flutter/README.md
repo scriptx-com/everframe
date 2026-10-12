@@ -15,14 +15,13 @@ flutter pub add everframe_flutter
 
 The plugin requires Flutter 3.47+ and Dart 3.13+, with Android API 24+ or
 iOS 15+ on the respective host platform.
-Its Android bridge resolves the native Everframe 0.10.x modules; the iOS bridge
-requires native Everframe 1.2.0 or newer, the first release with
-`EverframeConfig(sdkKey:)` and `EverframeConfig(releaseHealth:)`. Android hosts must use
-`FlutterFragmentActivity` for the Compose reporter and declare the `INTERNET`
-permission for release builds. The native SDK owns the ingest endpoint;
-published binaries use the production endpoint. Release health isn't supported
-by this plugin yet; overriding the Android native version to 1.2.0 or later
-turns it on, because native 1.2.0 enables it by default.
+Both native bridges use native Everframe 1.2: the Android bridge resolves the
+`dev.everframe` 1.2.x modules, and the iOS bridge requires `Everframe` 1.2.x, the
+first release with `EverframeConfig(sdkKey:)` and `EverframeConfig(releaseHealth:)`.
+Android hosts must use `FlutterFragmentActivity` for the Compose reporter and
+declare the `INTERNET` permission for release builds. The native SDK owns the
+ingest endpoint; published binaries use the production endpoint. Release health
+isn't supported by this plugin yet, so both bridges turn it off.
 
 ## Send a report
 

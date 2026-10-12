@@ -2,11 +2,12 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { collectStagedBuild } from "../src/build-collect.js";
+import { DEFAULT_API_URL } from "../src/defaults.js";
 import { main } from "../src/index.js";
 
 describe("main", () => {
@@ -75,6 +76,40 @@ describe("main", () => {
     expect(stdout).toContain("--bundle-name");
     expect(stdout).toContain("--source-map");
     expect(stderr).toBe("");
+  });
+
+  it("prints the package version from the built executable", async () => {
+    const { version } = JSON.parse(
+      await readFile(join(import.meta.dirname, "..", "package.json"), "utf8"),
+    ) as { version: string };
+    for (const flag of ["--version", "-v"]) {
+      const child = spawn(
+        process.execPath,
+        [join(import.meta.dirname, "..", "dist", "index.js"), flag],
+        { stdio: ["ignore", "pipe", "pipe"] },
+      );
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => (stdout += String(chunk)));
+      child.stderr.on("data", (chunk) => (stderr += String(chunk)));
+      const [code] = (await once(child, "close")) as [number];
+      expect(code).toBe(0);
+      expect(stdout).toBe(`${version}\n`);
+      expect(stderr).toBe("");
+    }
+  });
+
+  it("defaults to the production API", async () => {
+    expect(DEFAULT_API_URL).toBe("https://everframe.dev/api/v1");
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["--help"], {});
+      expect(log.mock.calls.flat().join("\n")).toContain(
+        "EVERFRAME_API_URL    API base URL (default: https://everframe.dev/api/v1)",
+      );
+    } finally {
+      log.mockRestore();
+    }
   });
 });
 it("collects one snapshot and still rejects map changes after reporting uncovered files", async () => {

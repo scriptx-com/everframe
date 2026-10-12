@@ -22,6 +22,7 @@
 // misses it, or exceeds REPLAY_BYTE_CAP, is `omitted` and the error ships
 // flagged `replayOmitted`, as bug reports do.
 import { __traceReplay, type ReplayCapture, type ReplayState } from '@everframe/sdk-core';
+import { ReplayCheckpointOmitted } from './checkpoint.js';
 import { REPLAY_BYTE_CAP } from '../../transport/draft-to-envelope.js';
 
 export const MAX_ERROR_REPLAYS_PER_PAGE = 2;
@@ -29,7 +30,7 @@ export const ERROR_REPLAY_DEADLINE_MS = 3_000;
 
 export type ErrorReplayOutcome =
   | { kind: 'attach'; capture: ReplayCapture }
-  | { kind: 'omitted'; reason: 'deadline' | 'over_cap' }
+  | { kind: 'omitted'; reason: 'deadline' | 'over_cap' | 'unsupported_state' }
   | { kind: 'none' };
 
 export interface ErrorReplayDeps {
@@ -71,8 +72,9 @@ export function beginErrorReplay(deps: ErrorReplayDeps): Promise<ErrorReplayOutc
   let exported: Promise<ReplayCapture | null>;
   try {
     exported = deps.snapshot();
-  } catch {
-    return null;
+  } catch (error) {
+    return error instanceof ReplayCheckpointOmitted
+      ? Promise.resolve({ kind: 'omitted', reason: 'unsupported_state' }) : null;
   }
   budget.slotsTaken += 1;
   const setTimer = deps.setTimer ?? ((fn: () => void, ms: number): unknown => setTimeout(fn, ms));
@@ -104,7 +106,8 @@ export function beginErrorReplay(deps: ErrorReplayDeps): Promise<ErrorReplayOutc
         else if (capture.bytes.byteLength > REPLAY_BYTE_CAP) exportedOutcome({ kind: 'omitted', reason: 'over_cap' });
         else exportedOutcome({ kind: 'attach', capture });
       },
-      () => exportedOutcome({ kind: 'none' }),
+      error => exportedOutcome(error instanceof ReplayCheckpointOmitted
+        ? { kind: 'omitted', reason: 'unsupported_state' } : { kind: 'none' }),
     );
   });
 }

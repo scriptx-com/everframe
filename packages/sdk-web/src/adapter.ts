@@ -107,9 +107,10 @@ import {
 import { captureFocusedNode as captureFocusedNodeImpl } from './capture/focus.js';
 import { getDeviceMetadata as getDeviceMetadataImpl } from './capture/metadata.js';
 import { createOutbox } from './outbox/index.js';
-import { beginErrorReplay } from './capture/replay/error-replay.js';
+import { beginErrorReplay, ERROR_REPLAY_DEADLINE_MS } from './capture/replay/error-replay.js';
 import {
   forgetErrorReplay,
+  revokeErrorReplays,
   markErrorReplayPending,
   settleErrorReplay,
 } from './transport/error-replay-parts.js';
@@ -622,6 +623,7 @@ export function createWebPlatformAdapter(
   // error unmounts the provider in the same commit that reports it, and that
   // release must not discard the report.
   let consentRevocations = 0;
+  const errorReplayOwner = {};
 
   // Adapter-OWNED window listeners (today: the 'online' outbox-drain
   // listener). Distinct from `uninstallers`, which is dominated by the
@@ -1698,7 +1700,10 @@ export function createWebPlatformAdapter(
               lifecycleState: () => replayLifecycle?.state ?? null,
               snapshot: liveRecorder ? () => liveRecorder.snapshot() : undefined,
             });
-            if (replayOutcome) markErrorReplayPending(item.reportId);
+            if (replayOutcome) {
+              Object.assign(item.metadata, markErrorReplayPending(item.reportId, { owner: errorReplayOwner, sdkKey: _config.sdkKey }));
+              item.metadata['errorReplayUntil'] = String(item.enqueuedAt + ERROR_REPLAY_DEADLINE_MS);
+            }
             // Persist first (durable if the tab dies), then ship immediately —
             // "next launch" may never come for a closed tab. The replay never
             // enters the outbox (JSON only): it waits in memory, see
@@ -2338,7 +2343,10 @@ export function createWebPlatformAdapter(
       reportingOwnership += 1;
       // A release (the React provider unmounting) is not a consent decision:
       // crash reports already accepted still get persisted and delivered.
-      if (reason !== 'release') consentRevocations += 1;
+      if (reason !== 'release') {
+        consentRevocations += 1;
+        revokeErrorReplays(errorReplayOwner);
+      }
       // A smart-TV pre-capture taken before kill() must never be handed out
       // after a revive (`__rebindCrumbHooks`) either.
       tvPreCapture = null;

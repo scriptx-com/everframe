@@ -291,7 +291,7 @@ describe('record options (spec 2026-10-11, "Web masking")', () => {
     });
     rec.start(30);
     await vi.waitFor(() => expect(seen).toBeDefined());
-    expect(seen!['blockSelector']).toBe(`[${SENSITIVE_ATTR}]`);
+    expect(seen!['blockSelector']).toBe(`[${SENSITIVE_ATTR}], [${SENSITIVE_ATTR}] *, .rr-block, .rr-block *`);
     expect(seen!['maskAllInputs']).toBe(true);
     expect(seen!['maskTextSelector']).toBeUndefined();
     rec.stop();
@@ -309,6 +309,58 @@ describe('real rrweb, end to end', () => {
     el.value = value;
     el.dispatchEvent(new Event('input', { bubbles: true }));
   };
+
+  it('blocks existing descendant characterData after dynamically marking its ancestor', async () => {
+    document.body.innerHTML = '<section id="panel"><span>Public before</span></section><p>Visible ordinary text</p>';
+    const rec = createReplayRecorder({ gzip: testGzip });
+    try {
+      rec.start(30);
+      await vi.waitFor(() => expect(rec.__diagnostics().recording).toBe(true));
+      sensitiveRegistry.addRef(document.querySelector('#panel')!);
+      document.querySelector('span')!.firstChild!.textContent = 'Private medical diagnosis';
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const capture = await rec.snapshot();
+      const json = gunzipSync(Buffer.from(capture!.bytes)).toString('utf8');
+      expect(json).not.toContain('Private medical diagnosis');
+      expect(json).toContain('Visible ordinary text');
+    } finally { rec.kill(); }
+  });
+
+  it('disables production capture if installed rrweb has no privacy mirror', async () => {
+    const mirror = record.mirror;
+    Object.defineProperty(record, 'mirror', { value: undefined, configurable: true, writable: true });
+    const rec = createReplayRecorder({ gzip: testGzip });
+    try {
+      rec.start(30);
+      await vi.waitFor(() => expect(rec.disabled).toBe(true));
+      expect(await rec.snapshot()).toBeNull();
+    } finally { rec.kill(); Object.defineProperty(record, 'mirror', { value: mirror, configurable: true, writable: true }); }
+  });
+
+  it.each(['host', 'outside ancestor'])('blocks existing shadow descendants after marking %s sensitive', async marked => {
+    document.body.innerHTML = '<section id="outside"><div id="host"></div></section><p>Visible ordinary text</p>';
+    const host = document.querySelector('#host')!;
+    const shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML = '<span>Public before</span>';
+    const rec = createReplayRecorder({ gzip: testGzip });
+    try {
+      rec.start(30);
+      await vi.waitFor(() => expect(rec.__diagnostics().recording).toBe(true));
+      sensitiveRegistry.addRef(marked === 'host' ? host : document.querySelector('#outside')!);
+      shadow.querySelector('span')!.firstChild!.textContent = 'Private shadow diagnosis';
+      shadow.querySelector('span')!.setAttribute('class', 'private-shadow-class');
+      const added = document.createElement('span'); added.textContent = 'New private shadow notes'; shadow.append(added);
+      record.addCustomEvent('private-shadow-custom', { text: 'Private custom diagnostic' });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const capture = await rec.snapshot();
+      const json = gunzipSync(Buffer.from(capture!.bytes)).toString('utf8');
+      expect(json).not.toContain('Private shadow diagnosis');
+      expect(json).not.toContain('private-shadow-class');
+      expect(json).not.toContain('New private shadow notes');
+      expect(json).not.toContain('Private custom diagnostic');
+      expect(json).toContain('Visible ordinary text');
+    } finally { rec.kill(); }
+  });
 
   it('ships no input value and no pattern match, and keeps ordinary text readable', async () => {
     const jwt = SEEDED_PII[1]!;

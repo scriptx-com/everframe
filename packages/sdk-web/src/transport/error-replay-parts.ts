@@ -18,28 +18,40 @@
 // An entry goes when its item does (sent, rejected, discarded). Nothing here
 // survives a reload: an error that outlives its page ships without a replay.
 import type { AttachmentRef, ReportEnvelope } from '@everframe/protocol';
-import type { ReplayCapture } from '@everframe/sdk-core';
+import type { OutboxItem, ReplayCapture } from '@everframe/sdk-core';
+import { ERROR_REPLAY_DEADLINE_MS } from '../capture/replay/error-replay.js';
 import type { ErrorReplayOutcome } from '../capture/replay/error-replay.js';
 
 /** The part name bug-report replays use; multipart.ts maps it to kind `session-replay`. */
 export const ERROR_REPLAY_PART = 'session-replay';
 
-type Entry =
+type Entry = { owner?: object; sdkKey?: string } & (
   | { state: 'pending' }
   | { state: 'attach'; capture: ReplayCapture }
-  | { state: 'omitted' };
+  | { state: 'omitted' });
 
 const entries = new Map<string, Entry>();
+const pageOwner = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-export function markErrorReplayPending(reportId: string): void {
-  entries.set(reportId, { state: 'pending' });
+export function markErrorReplayPending(reportId: string, ownership: { owner: object; sdkKey: string } | undefined = undefined): Record<string, string> {
+  entries.set(reportId, { state: 'pending', ...ownership });
+  return { errorReplayOwner: pageOwner, errorReplayUntil: String(Date.now() + ERROR_REPLAY_DEADLINE_MS) };
+}
+
+/** Tiny persisted lease: reloads retain its original deadline, never its bytes. */
+export function errorReplayHoldMs(item: OutboxItem): number {
+  if (item.metadata?.['errorReplayOwner'] === pageOwner) return 0;
+  const deadline = Number(item.metadata?.['errorReplayUntil']);
+  if (!Number.isFinite(deadline) || deadline > item.enqueuedAt + ERROR_REPLAY_DEADLINE_MS) return 0;
+  return Math.max(0, Math.min(ERROR_REPLAY_DEADLINE_MS, deadline - Date.now()));
 }
 
 /** Record how the export ended. Ignored when the report was discarded meanwhile. */
 export function settleErrorReplay(reportId: string, outcome: ErrorReplayOutcome): void {
-  if (entries.get(reportId)?.state !== 'pending') return;
-  if (outcome.kind === 'attach') entries.set(reportId, { state: 'attach', capture: outcome.capture });
-  else if (outcome.kind === 'omitted') entries.set(reportId, { state: 'omitted' });
+  const entry = entries.get(reportId);
+  if (entry?.state !== 'pending') return;
+  if (outcome.kind === 'attach') entries.set(reportId, { ...entry, state: 'attach', capture: outcome.capture });
+  else if (outcome.kind === 'omitted') entries.set(reportId, { ...entry, state: 'omitted' });
   else entries.delete(reportId);
 }
 
@@ -54,6 +66,16 @@ export function omitErrorReplay(reportId: string): void {
 
 export function forgetErrorReplay(reportId: string): void {
   entries.delete(reportId);
+}
+
+/** Consent withdrawal only revokes the capturing client's bytes. */
+export function revokeErrorReplays(owner: object): void {
+  for (const [reportId, entry] of entries) if (entry.owner === owner) entries.delete(reportId);
+}
+
+export function ownsErrorReplayBytes(reportId: string, bytes: Uint8Array): boolean {
+  const entry = entries.get(reportId);
+  return entry?.state === 'attach' && entry.capture.bytes === bytes;
 }
 
 /**

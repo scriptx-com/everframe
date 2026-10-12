@@ -9,7 +9,7 @@ import { adviceFor, verifyStagedBuild } from "./build-verify.js";
 import { collectHermesBuild } from "./hermes.js";
 import { collectBuild } from "./manifest.js";
 import { dsymUploadBuildCommand } from "./apple-command.js";
-import { uploadBudget } from "./defaults.js";
+import { DEFAULT_API_URL, uploadBudget } from "./defaults.js";
 import { elfUploadBuildCommand } from "./elf-command.js";
 import { uploadAndroidElfBuild } from "./elf-upload.js";
 import { collectElfBuild } from "./elf.js";
@@ -49,6 +49,7 @@ export type { CollectedVegaBuilds, VegaBuild } from "./vega.js";
 export { collectVegaBuilds } from "./vega.js";
 
 const HELP = `Usage:
+  everframe --version
   everframe sourcemaps upload --app-id <uuid> --build <id> --dir <path> [--url-prefix <url>] [--delete-after-upload]
   everframe sourcemaps upload-hermes --app-id <uuid> --build <id> --platform <android|ios|vega> --bundle-name <name> --bundle <path> --source-map <path>
   everframe sourcemaps upload-hermes --manifest <dir> --platform <android|ios> --app-id <uuid>
@@ -66,7 +67,7 @@ const HELP = `Usage:
 
 Environment:
   EVERFRAME_API_TOKEN  API token with artifacts:write scope (required)
-  EVERFRAME_API_URL    API base URL (default: https://api.everframe.dev/api/v1)
+  EVERFRAME_API_URL    API base URL (default: ${DEFAULT_API_URL})
   EVERFRAME_APP_ID     Default application UUID for upload commands
   EVERFRAME_SYMBOLS_STRICT  Set to 1 to fail builds when symbols cannot be uploaded (default: warn)
   EVERFRAME_UPLOAD_TIMEOUT_SECONDS  Overall upload time limit (default 600 for build integrations)
@@ -78,6 +79,10 @@ export async function main(
 ): Promise<number> {
   if (argv.length === 1 && (argv[0] === "--help" || argv[0] === "-h")) {
     console.log(HELP);
+    return 0;
+  }
+  if (argv.length === 1 && (argv[0] === "--version" || argv[0] === "-v")) {
+    console.log(CLI_VERSION);
     return 0;
   }
   const isSourceMapCommand =
@@ -189,7 +194,7 @@ export async function main(
         distDir: parsed.values.dist,
         stagingDir: parsed.values.staging,
         appId,
-        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         token,
       });
       for (const { platform, buildUuid } of results)
@@ -291,7 +296,7 @@ export async function main(
       const result = await uploadCollectedBuild(local, {
         appId,
         root: dirname(resolve(dwarfPath)),
-        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         token,
         deleteAfterUpload: false,
       });
@@ -328,7 +333,7 @@ export async function main(
       const result = await uploadCollectedBuild(local, {
         appId,
         root: dirname(resolve(libraryPath)),
-        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         token,
         deleteAfterUpload: false,
       });
@@ -362,7 +367,7 @@ export async function main(
       const result = await uploadCollectedBuild(local, {
         appId,
         root: dirname(resolve(mappingPath)),
-        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         token,
         deleteAfterUpload: false,
       }, uploadBudget(env, false));
@@ -397,7 +402,7 @@ export async function main(
         const result = await uploadCollectedBuild(local, {
           appId,
           root: resolve(dir),
-          apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+          apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
           token,
           deleteAfterUpload: false,
         });
@@ -455,7 +460,7 @@ export async function main(
             stagingDir: manifestDir,
             platform,
             appId,
-            apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+            apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
             token,
           },
           // The RN/Expo build phase sets EVERFRAME_UPLOAD_TIMEOUT_SECONDS.
@@ -485,7 +490,7 @@ export async function main(
       const result = await uploadCollectedBuild(local, {
         appId,
         root: dirname(resolve(sourceMapPath)),
-        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         token,
         deleteAfterUpload: false,
       });
@@ -526,7 +531,7 @@ export async function main(
         buildId,
         root,
         urlPrefix,
-        apiUrl: env.EVERFRAME_API_URL ?? "https://api.everframe.dev/api/v1",
+        apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         token,
         deleteAfterUpload: parsed.values["delete-after-upload"],
       },

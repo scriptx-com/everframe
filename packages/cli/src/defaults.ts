@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-export const DEFAULT_API_URL = "https://api.everframe.dev/api/v1";
+/** The production Everframe API. Override with EVERFRAME_API_URL. */
+export const DEFAULT_API_URL = "https://everframe.dev/api/v1";
 export const MISSING_TOKEN =
   "missing_api_token: set EVERFRAME_API_TOKEN to a token with the artifacts:write scope.";
 /**

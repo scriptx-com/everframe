@@ -181,6 +181,74 @@ final class ErrorReplayTests: XCTestCase {
         XCTAssertEqual(try box.hydrate().map(\.reportId), [held.reportId])
     }
 
+    func testReopenedHeldOutboxWakesAtExpiryWithoutAnotherDrain() async throws {
+        RecordingURLProtocol.reset()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RecordingURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel(); RecordingURLProtocol.reset() }
+        let original = outbox()
+        let held = heldEntry(until: Date().addingTimeInterval(5))
+        try original.enqueue(held)
+        let reopened = outbox()
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "ios-error-replay-test"), outbox: reopened, session: session)
+        // Diagnostic-only startup cannot own a handled error's wakeup.
+        await submitter.restrictingOutboxToAppleDiagnostics().drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
+            epochAtInitiation: 0, currentEpoch: { 0 })
+        await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
+            epochAtInitiation: 0, currentEpoch: { 0 })
+        await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
+            epochAtInitiation: 0, currentEpoch: { 0 })
+        XCTAssertEqual(RecordingURLProtocol.recorded.count, 0)
+        try await Task.sleep(nanoseconds: 5_100_000_000)
+        XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
+        XCTAssertEqual(try reopened.hydrate(), [])
+    }
+
+    func testDiagnosticWakeupCannotSuppressGeneralWakeupWithMixedHeldEntries() async throws {
+        RecordingURLProtocol.reset()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RecordingURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        let owner = UUID()
+        defer { session.invalidateAndCancel(); RecordingURLProtocol.reset(); AppleDiagnosticDelivery.remove(owner: owner) }
+        let box = outbox()
+        let apple = OutboxEntry(reportId: UUID(), createdAt: Date(),
+            envelopeBytes: Data(#"{"attachments":[],"payload":{"appleDiagnostic":{}}}"#.utf8),
+            idempotencyKey: "apple-held", attachmentRefs: [], sdkKey: "ios-error-replay-test",
+            endpoint: "https://ingest.example.invalid/api/ingest", heldUntil: Date().addingTimeInterval(3))
+        try box.enqueue(apple)
+        let persistedApple = try XCTUnwrap(try box.hydrate().first)
+        AppleDiagnosticDelivery.publish(owner: owner, entry: persistedApple, settled: {})
+        try box.enqueue(heldEntry(until: Date().addingTimeInterval(5)))
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "ios-error-replay-test"), outbox: box, session: session)
+        let diagnostics = submitter.restrictingOutboxToAppleDiagnostics()
+        await diagnostics.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off }, epochAtInitiation: 0, currentEpoch: { 0 })
+        await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off }, epochAtInitiation: 0, currentEpoch: { 0 })
+        // A later diagnostics-only drain must not steal the general callback either.
+        await diagnostics.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off }, epochAtInitiation: 0, currentEpoch: { 0 })
+        XCTAssertEqual(RecordingURLProtocol.recorded.count, 0)
+        try await Task.sleep(nanoseconds: 5_100_000_000)
+        XCTAssertEqual(RecordingURLProtocol.recorded.count, 2)
+        XCTAssertEqual(try box.hydrate(), [])
+    }
+
+    func testReopenedHoldWakeupDoesNotSendAfterEpochChanges() async throws {
+        RecordingURLProtocol.reset()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RecordingURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel(); RecordingURLProtocol.reset() }
+        let box = outbox()
+        try box.enqueue(heldEntry(until: Date().addingTimeInterval(1)))
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "ios-error-replay-test"), outbox: box, session: session)
+        await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
+            epochAtInitiation: 0, currentEpoch: { 1 })
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+        XCTAssertEqual(RecordingURLProtocol.recorded.count, 0)
+        XCTAssertEqual(try box.hydrate().count, 1)
+    }
+
     func testCaptureClaimCannotReserveOrOwnAResumedRecording() throws {
         let gate = ErrorReplayGate()
         gate.publish(recording: true, epoch: 1)

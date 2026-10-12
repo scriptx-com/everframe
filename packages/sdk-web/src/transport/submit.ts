@@ -25,6 +25,8 @@ import type { HostSdkName } from '../internal/sdk-identity.js';
 import { draftToEnvelope, type CaptureBundle } from './draft-to-envelope.js';
 import {
   applyErrorReplay,
+  errorReplayHoldMs,
+  ownsErrorReplayBytes,
   forgetErrorReplay,
   isErrorReplayPending,
   omitErrorReplay,
@@ -552,6 +554,23 @@ export async function discardEnqueuedReport(
   enqueuedSubjects.delete(reportId);
 }
 
+// At most one expiry wakeup per outbox; a newer drain replaces its context.
+const replayWakeups = new WeakMap<OutboxAdapter, { at: number; timer: ReturnType<typeof setTimeout>; run: () => void }>();
+function wakeAfterReplayHold(opts: DrainOutboxOptions, delay: number, isOwned?: () => boolean): void {
+  const at = Date.now() + delay;
+  const existing = replayWakeups.get(opts.outbox);
+  const run = () => { void drainOutboxInternal(opts, isOwned).catch(() => undefined); };
+  if (existing && existing.at <= at) { existing.run = run; return; }
+  if (existing) clearTimeout(existing.timer);
+  const wakeup = { at, run, timer: undefined as unknown as ReturnType<typeof setTimeout> };
+  wakeup.timer = setTimeout(() => {
+    if (replayWakeups.get(opts.outbox) !== wakeup) return;
+    replayWakeups.delete(opts.outbox);
+    wakeup.run();
+  }, delay);
+  replayWakeups.set(opts.outbox, wakeup);
+}
+
 async function drainOutboxInternal(
   opts: DrainOutboxOptions,
   isOwned?: () => boolean,
@@ -606,6 +625,8 @@ async function drainOutboxInternal(
   for (const item of items) {
     if (ownershipReleased()) return { submitted, failed, provisionedThreadIds };
     // The capturing sink drains again once the export settles or its deadline expires.
+    const holdMs = errorReplayHoldMs(item);
+    if (holdMs > 0) { wakeAfterReplayHold(opts, holdMs, isOwned); continue; }
     if (isErrorReplayPending(item.reportId)) continue;
     try {
       const json = new TextDecoder().decode(item.payload);
@@ -687,11 +708,18 @@ async function drainOutboxInternal(
 
       // Replays on errors (spec 2026-10-11): an error carries its replay from
       // the in-memory table, never from the outbox (error-replay-parts.ts).
+      if (isThisApp && opts.config.sessionReplay?.disabled === true) forgetErrorReplay(item.reportId);
       const replayParts = applyErrorReplay(item.reportId, envelope);
       const built = await buildMultipart({ envelope, attachments: replayParts });
       if (ownershipReleased()) return { submitted, failed, provisionedThreadIds };
       const submitOptions = (encoding: 'gzip' | undefined) => ({
-        ...(attemptFetch ? { fetchImpl: attemptFetch } : {}),
+        fetchImpl: async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+          // Recheck at every retry, including after asynchronous multipart packing.
+          if (replayParts[0] && !ownsErrorReplayBytes(item.reportId, replayParts[0].bytes)) {
+            return new Response(null, { status: 499 });
+          }
+          return (attemptFetch ?? globalThis.fetch)(input, init);
+        },
         ...(opts.retryScheduleMs !== undefined ? { retryScheduleMs: opts.retryScheduleMs } : {}),
         ...(encoding ? { envelopeContentEncoding: encoding } : {}),
         ...(itemDeviceToken ? { deviceToken: itemDeviceToken } : {}),
@@ -707,6 +735,7 @@ async function drainOutboxInternal(
         omitErrorReplay(item.reportId);
         const bare = JSON.parse(json) as ReportEnvelope;
         applyErrorReplay(item.reportId, bare);
+        replayParts.length = 0;
         const rebuilt = await buildMultipart({ envelope: bare, attachments: [] });
         if (ownershipReleased()) return { submitted, failed, provisionedThreadIds };
         result = await submitReport(url, itemSdkKey, rebuilt.body, submitOptions(rebuilt.envelopeContentEncoding));

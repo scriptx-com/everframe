@@ -46,24 +46,28 @@ struct NativeVideoRing: Sendable {
               segment.endNanos > segment.startNanos,
               segment.endNanos - segment.startNanos <= durationNanos,
               segment.lastFrameNanos.map({ $0 >= segment.startNanos && $0 < segment.endNanos }) ?? true,
-              segments.last.map({ $0.canPrecede(segment) }) ?? true
+              segments.last(where: { $0.startNanos < segment.startNanos }).map({ $0.canPrecede(segment) }) ?? true,
+              segments.first(where: { $0.startNanos >= segment.startNanos }).map({ segment.canPrecede($0) }) ?? true
         else {
             try FileManager.default.removeItem(at: segment.url)
             return false
         }
-        // Evict before insertion: retained bytes never transiently exceed budget.
-        let windowStart = segment.endNanos > durationNanos ? segment.endNanos - durationNanos : 0
-        while let first = segments.first {
-            let nextStart = segments.count > 1 ? segments[1].startNanos : segment.startNanos
-            // A final captured frame holds until the next real segment starts.
-            // Keep at most one predecessor before the logical window when that
-            // hold intersects it, including across an arbitrarily long idle.
+        // A snapshot close may finish after newer captures have rolled over.
+        // Sort before pruning, keeping one held predecessor and the byte cap.
+        var retained = (segments + [segment]).sorted { $0.startNanos < $1.startNanos }
+        let newestEnd = retained.map(\.endNanos).max() ?? segment.endNanos
+        let windowStart = newestEnd > durationNanos ? newestEnd - durationNanos : 0
+        var bytes = byteCount + segment.byteCount
+        while let first = retained.first {
+            let nextStart = retained.count > 1 ? retained[1].startNanos : newestEnd
             let holdsIntoWindow = first.lastFrameNanos != nil && nextStart > windowStart
-            let expired = segment.endNanos - first.startNanos > durationNanos && !holdsIntoWindow
-            guard expired || byteCount > byteLimit - segment.byteCount else { break }
-            try removeFirst()
+            let expired = newestEnd - first.startNanos > durationNanos && !holdsIntoWindow
+            guard expired || bytes > byteLimit else { break }
+            try FileManager.default.removeItem(at: first.url)
+            bytes -= first.byteCount
+            retained.removeFirst()
         }
-        segments.append(segment)
+        segments = retained
         return true
     }
 

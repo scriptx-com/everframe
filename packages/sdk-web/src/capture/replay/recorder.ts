@@ -31,6 +31,8 @@ import {
   type RollingBuffer,
 } from './buffer.js';
 import { applyReplayMaskClasses, buildRecordOptions, REDACTION_DISABLED } from './mask-mapping.js';
+import { checkpointWindow } from './checkpoint.js';
+import { filterReplayEvent, type ReplayNodeMirror } from './privacy-filter.js';
 import { scrubReplayEvents } from './scrub.js';
 import { SENSITIVE_ATTR } from '../../sensitive/registry.js';
 
@@ -53,6 +55,7 @@ export const MAX_OVERFLOW_RESETS = 20;
 interface RrwebModule {
   record: ((options: Record<string, unknown>) => (() => void) | undefined) & {
     takeFullSnapshot?: (isCheckout?: boolean) => void;
+    mirror?: ReplayNodeMirror;
   };
 }
 
@@ -469,18 +472,21 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
       restoreMasks = applyReplayMaskClasses(els.filter((el) => el.closest(`[${SENSITIVE_ATTR}]`) === null));
     }
     const myGeneration = ++startGeneration;
+    let mirror: ReplayNodeMirror | undefined;
     const options = buildRecordOptions({
       durationSec,
       emit: (event, isCheckout) => {
         // A stopped rrweb instance may emit late, after a new visible window
         // has opened. Those events must never anchor or enter its fresh history.
         if (myGeneration !== startGeneration) return;
-        handleEmit(event, isCheckout);
+        const safe = !REDACTION_DISABLED && mirror ? filterReplayEvent(event as BufferEvent, mirror) : event;
+        if (safe) handleEmit(safe, isCheckout);
       },
       // rrweb evaluates this per node on every snapshot and mutation, so an
       // element marked sensitive AFTER recording started is blocked too (the
       // rr-block class above is applied once, at start).
-      blockSelector: `[${SENSITIVE_ATTR}]`,
+      // characterData checks only the immediate parent; match descendants too.
+      blockSelector: `[${SENSITIVE_ATTR}], [${SENSITIVE_ATTR}] *, .rr-block, .rr-block *`,
       errorHandler: () => true,
     });
     __traceReplay('recorder.start', { durationSec, frames: buffer.size() });
@@ -504,6 +510,13 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
           return;
         }
         try {
+          mirror = typeof mod.record.mirror?.getNode === 'function' ? mod.record.mirror : undefined;
+          // Installed rrweb must provide ancestry lookup before any events
+          // enter the buffer. Explicit test importers can emit synthetic data.
+          if (!REDACTION_DISABLED && !mirror && !deps.importRrweb) {
+            selfDisable('privacy_mirror_unavailable');
+            return;
+          }
           const handle = mod.record(options as unknown as Record<string, unknown>);
           stopFn = typeof handle === 'function' ? handle : null;
           takeFullSnapshotFn =
@@ -631,7 +644,11 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
       // Copy at the call: later emits, freezing or teardown cannot change it.
       const all = buffer.frames();
       const capturedEnd = freezeNow();
-      const events = windowFromAnchor(all.filter((event) => event.timestamp <= capturedEnd), capturedEnd - durationSec * 1000);
+      const windowStart = capturedEnd - durationSec * 1000;
+      // Replay the anchor and pre-window mutations in their original order at
+      // offset zero. They reconstruct the held DOM, without exporting idle time
+      // before the configured window or backdating any later event.
+      const events = windowFromAnchor(all.filter((event) => event.timestamp <= capturedEnd), windowStart);
       if (events.length === 0) {
         __traceReplay('recorder.snapshot', { result: 'no_anchor', frames: all.length });
         return Promise.resolve(null);
@@ -639,7 +656,7 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
       // rrweb Custom events are non-mutating but extend the real Replayer timeline.
       // Append only to this independent window; later reports keep the original events.
       events.push({ type: 5, timestamp: capturedEnd, data: { tag: 'everframe-error-end', payload: {} } });
-      return yieldToHost().then(() => encodeWindow(events, { op: 'snapshot', frames: all.length }));
+      return yieldToHost().then(() => encodeWindow(checkpointWindow(events, windowStart), { op: 'snapshot', frames: all.length }));
     },
 
     stop(): void {
