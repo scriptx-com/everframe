@@ -133,6 +133,42 @@ struct CrashOnlyReplayTests {
         }
     }
 
+    @Test func anUpgradeKeepsRecordingWhenTheCrashOnlyRateIsAboveTheReportRate() async throws {
+        try await withGlobalCaptureStateLock {
+            ErrorReplayGate.shared.__resetForTesting()
+            // Every draw passes a crash-only rate of 1 and none passes a report rate of 0.
+            let body = #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":0,"crashOnlySamplingRate":1,"nativeVideo":{"framesPerSecond":10},"networkBodies":{"captureBodies":true}}"#
+            let fetcher = CrashOnlyConfigFetcher([body])
+            let box = SessionBox()
+            Everframe.__replaySessionFactoryForTesting = { _ in
+                MainActor.assumeIsolated {
+                    let session = ReplaySession(provider: provider(fetcher), locallyDisabled: false)
+                    box.session = session
+                    return session
+                }
+            }
+            defer {
+                Everframe.__resetReplaySessionFactoryForTesting()
+                box.session?.teardown()
+                Everframe.shared.kill()
+                Everframe.__setConfigForTesting(nil)
+                ErrorReplayGate.shared.__resetForTesting()
+            }
+
+            try Everframe.shared.start(config: crashOnlyConfig())
+            #expect(await eventually { box.session?.__lifecycleStateForTesting() == .buffering })
+            let session = try #require(box.session)
+
+            RelayWSClient(endpoint: URL(string: "https://relay.example.com")!, companion: CompanionAPI(),
+                sdkKey: nil, deviceLabel: nil, announceTransport: nil)
+                .handleControl(#"{"type":"pair.bonded","pair_id":"p"}"#)
+            #expect(await eventually { Everframe.shared.crashOnlyCoverageState.upgraded })
+            await session.refreshConfigNow()
+            #expect(session.__lifecycleStateForTesting() == .buffering, "the upgrade keeps the recording")
+            #expect(ErrorReplayGate.shared.capture(epoch: epoch) != nil)
+        }
+    }
+
     @Test func anUpgradeWithoutAConfirmedConfigFetchesOne() async throws {
         try await withGlobalCaptureStateLock {
             let fetcher = CrashOnlyConfigFetcher([nil, serverConfig])

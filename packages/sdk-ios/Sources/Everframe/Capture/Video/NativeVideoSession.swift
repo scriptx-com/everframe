@@ -44,10 +44,23 @@ import UIKit
 
 /// Which replay coverage a session samples against (crash-only sessions spec 2026-10-12).
 enum ReplayCoverage: Hashable, Sendable {
-    /// A session that can file a report, or an upgraded crash-only one: `samplingRate`.
+    /// A session that can file a report: `samplingRate`.
     case report
-    /// A crash-only session before any companion bond: `crashOnlySamplingRate`.
+    /// A crash-only session before any companion bond: `crashOnlySamplingRate`, 0 when absent.
     case crashOnly
+    /// A crash-only session after a companion bond: the higher of the two rates. It also
+    /// inherits an admission the crash-only coverage already made, so an upgrade never stops
+    /// a recording.
+    case upgraded
+
+    /// The rate this coverage samples against.
+    func samplingRate(report: Double, crashOnly: Double?) -> Double {
+        switch self {
+        case .report: return report
+        case .crashOnly: return crashOnly ?? 0
+        case .upgraded: return max(report, crashOnly ?? 0)
+        }
+    }
 }
 
 /// Policy and reporter ownership around the capture/recording workers. Freeze
@@ -69,8 +82,9 @@ enum ReplayCoverage: Hashable, Sendable {
     private var settings: NativeVideoSettings?
     private var durationSec = 30
     /// The session's one random draw, taken the first time settings apply. Every
-    /// coverage compares this same value, so an upgrade from crash-only to report
-    /// coverage keeps a recording whenever the report rate also admits it.
+    /// coverage compares this same value. An upgraded session samples at the higher
+    /// of the two rates and inherits the crash-only admission, so an upgrade never
+    /// stops a recording.
     private var draw: Double?
     /// One decision per coverage, made the first time that coverage applies
     /// settings and kept for the session: a later rate change never flips it.
@@ -131,14 +145,16 @@ enum ReplayCoverage: Hashable, Sendable {
         if settings != nil, sampledIn[coverage] == nil {
             let draw = self.draw ?? random()
             self.draw = draw
-            sampledIn[coverage] = samplingRate.isFinite && draw < max(0, min(1, samplingRate))
+            sampledIn[coverage] = (coverage == .upgraded && sampledIn[.crashOnly] == true)
+                || (samplingRate.isFinite && draw < max(0, min(1, samplingRate)))
         }
         if self.settings != settings || self.durationSec != duration {
             invalidate()
             self.settings = settings; self.durationSec = duration
         } else if sampledIn[coverage] != true, recorder != nil {
-            // The new coverage does not admit this draw: only possible when the
-            // crash-only rate is set above the report rate.
+            // The new coverage does not admit this draw. An upgrade never lands
+            // here (it inherits the crash-only admission); kept so no coverage
+            // can record past its own decision.
             invalidate()
         }
         startIfEligible()

@@ -536,7 +536,8 @@ public final class ReplaySession: NSObject {
         // crash-only session captures no bodies and samples replay at the
         // crash-only rate below; bodies keep the ordinary `samplingRate` draw.
         let coverage = Everframe.shared.crashOnlyCoverageState
-        let crashOnly = coverage.config?.reporterEnabled == false && !coverage.upgraded
+        let replayCoverage: ReplayCoverage = coverage.config?.reporterEnabled != false ? .report
+            : coverage.upgraded ? .upgraded : .crashOnly
         NetworkBodyCaptureGate.shared.applyConfig(
             succeeded ? latest.networkBodies : nil,
             samplingRate: latest.samplingRate,
@@ -589,8 +590,9 @@ public final class ReplaySession: NSObject {
         video.apply(
             settings: locallyDisabled ? nil : effectiveNativeVideo(config: latest, fetchConfirmed: succeeded),
             durationSec: latest.replayDurationSec,
-            samplingRate: crashOnly ? (latest.crashOnlySamplingRate ?? 0) : latest.samplingRate,
-            coverage: crashOnly ? .crashOnly : .report
+            samplingRate: replayCoverage.samplingRate(report: latest.samplingRate,
+                                                      crashOnly: latest.crashOnlySamplingRate),
+            coverage: replayCoverage
         )
         // Independent review, round 4 (Serious 3) — mirrors the `configBox.value`
         // write above (now ahead of `applyImageConfig` — see Task 4 fix round 1's
