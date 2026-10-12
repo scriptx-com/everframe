@@ -151,6 +151,9 @@ RCT_EXPORT_MODULE(Everframe)
   // above; `EverframeBridge` coerces nil/unrecognised to `.bottomRight`.
   BOOL companionBadgeEnabled = opts.companionBadgeEnabled().value_or(true);
   BOOL shakeToReportEnabled = opts.shakeToReportEnabled().value_or(true);
+  // Crash-only session switch (spec 2026-10-12) — `std::optional<bool>`, same shape as
+  // `networkBodiesDisabled()`. Absent means a normal report session.
+  BOOL reporterDisabled = opts.reporterDisabled().value_or(false);
   NSString *companionBadgePosition = opts.companionBadgePosition();
   // Inline reporter theme (reporter branding spec 2026-08-25, RN slice) —
   // 8 flat optional STRING fields on ConfigOpts (RN codegen cannot express
@@ -206,6 +209,7 @@ RCT_EXPORT_MODULE(Everframe)
           releaseHealthLoadedBuildId:opts.releaseHealthLoadedBuildId()
                  releaseHealthUserId:opts.releaseHealthUserId()
      releaseHealthIncludeDebugBuilds:opts.releaseHealthIncludeDebugBuilds().value_or(false)
+                    reporterDisabled:reporterDisabled
                                error:&err];
   if (err != nil) {
     // Configure is void-typed at the spec; we can't reject a promise here.
@@ -242,7 +246,9 @@ RCT_EXPORT_MODULE(Everframe)
               reject:(RCTPromiseRejectBlock)reject {
   [EverframeBridge openReporterWithCompletion:^(NSDictionary *result, NSError *err) {
     if (err) {
-      reject(@"open_reporter_failed", err.localizedDescription, err);
+      // `EVERFRAME_REPORTER_DISABLED` for a crash-only session (the JS facade maps it to
+      // `EverframeReporterDisabledError`); `open_reporter_failed` for every other failure.
+      reject([EverframeBridge openReporterRejectCodeFor:err], err.localizedDescription, err);
     } else {
       resolve(result ?: @{});
     }
