@@ -1,0 +1,23 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReplayConfigProvider.kt
+  s_dbd309ddf8ec5b::t_d273065efafb7e 534-539,577,773-775,838-839,842
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/CrashOnlyConfigWireTest.kt
+  s_dbd309ddf8ec5b::t_ad2017f8b832a2 1-73
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/ReplayConfigProviderTest.kt
+  s_dbd309ddf8ec5b::t_59f6707ff36f7f 471
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "078f2cfe8be44adae9af32bc4f16bf8530893b2e",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
