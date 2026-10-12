@@ -111,10 +111,19 @@ data class EverframeConfig(
      * `FLAG_DEBUGGABLE` when null.
      */
     val debugBuild: Boolean? = null,
+    /**
+     * Crash-only session switch (spec 2026-10-12). `false` turns off every on-device way to open the
+     * reporter: shake never installs, and [dev.everframe.Everframe.report] `open()` throws
+     * [ReporterDisabledException]. Network bodies stay off and replay records at the dashboard's crash-only
+     * coverage (none by default) until a companion bonds, which gives the rest of the session normal replay
+     * coverage and server body rules; the entry points stay off. Crash and error capture, breadcrumbs,
+     * vitals, release health and companion are unchanged. Flat `Boolean` veto, like [shakeToReportEnabled].
+     */
+    val reporterEnabled: Boolean = true,
 ) {
     // The constructors and copy overloads below keep the exact JVM descriptors released builds were compiled
     // against (EverframeConfigBinaryCompatTest pins them); each forwards to the primary constructor with
-    // `debugBuild = null`, or with this configuration's `debugBuild` for copy.
+    // `debugBuild = null` and `reporterEnabled = true`, or with this configuration's values for copy.
 
     /** Preserve the previous Java constructor and Kotlin default-argument descriptor; both get the release health default. */
     constructor(
@@ -135,7 +144,7 @@ data class EverframeConfig(
         r8MappingId: String? = null,
     ) : this(appId, sdkKey, environment, release, capture, bubble, useDynamicColor,
         companionDeviceId, companionBadgeEnabled, shakeToReportEnabled, companionBadgePosition,
-        theme, installIdentifierEnabled, vitals, r8MappingId, ReleaseHealthConfig(), null)
+        theme, installIdentifierEnabled, vitals, r8MappingId, ReleaseHealthConfig(), null, true)
 
     /** The constructor that was primary before `debugBuild`: same descriptor and default-argument variant. */
     constructor(
@@ -157,9 +166,32 @@ data class EverframeConfig(
         releaseHealth: ReleaseHealthConfig? = ReleaseHealthConfig(),
     ) : this(appId, sdkKey, environment, release, capture, bubble, useDynamicColor,
         companionDeviceId, companionBadgeEnabled, shakeToReportEnabled, companionBadgePosition,
-        theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth, null)
+        theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth, null, true)
 
-    /** Old compiled copy calls keep this configuration's release health and `debugBuild` settings, including an explicit `null`. */
+    /** The constructor that was primary before `reporterEnabled`: same descriptor and default-argument variant. */
+    constructor(
+        appId: String,
+        sdkKey: String,
+        environment: Environment = Environment.production,
+        release: String? = null,
+        capture: CaptureConfig = CaptureConfig(),
+        bubble: Boolean = true,
+        useDynamicColor: Boolean = false,
+        companionDeviceId: String? = null,
+        companionBadgeEnabled: Boolean = true,
+        shakeToReportEnabled: Boolean = true,
+        companionBadgePosition: String? = null,
+        theme: ReporterThemeOptions? = null,
+        installIdentifierEnabled: Boolean = true,
+        vitals: VitalsConfig = VitalsConfig(),
+        r8MappingId: String? = null,
+        releaseHealth: ReleaseHealthConfig? = ReleaseHealthConfig(),
+        debugBuild: Boolean? = null,
+    ) : this(appId, sdkKey, environment, release, capture, bubble, useDynamicColor,
+        companionDeviceId, companionBadgeEnabled, shakeToReportEnabled, companionBadgePosition,
+        theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth, debugBuild, true)
+
+    /** Old compiled copy calls keep this configuration's release health, `debugBuild` and `reporterEnabled` settings, including an explicit `null`. */
     fun copy(
         appId: String = this.appId,
         sdkKey: String = this.sdkKey,
@@ -178,9 +210,10 @@ data class EverframeConfig(
         r8MappingId: String? = this.r8MappingId,
     ): EverframeConfig = EverframeConfig(appId, sdkKey, environment, release, capture,
         bubble, useDynamicColor, companionDeviceId, companionBadgeEnabled, shakeToReportEnabled,
-        companionBadgePosition, theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth, debugBuild)
+        companionBadgePosition, theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth, debugBuild,
+        reporterEnabled)
 
-    /** The `copy` that was generated before `debugBuild`: same descriptor; keeps this configuration's `debugBuild`. */
+    /** The `copy` that was generated before `debugBuild`: same descriptor; keeps this configuration's `debugBuild` and `reporterEnabled`. */
     fun copy(
         appId: String = this.appId,
         sdkKey: String = this.sdkKey,
@@ -200,7 +233,32 @@ data class EverframeConfig(
         releaseHealth: ReleaseHealthConfig? = this.releaseHealth,
     ): EverframeConfig = EverframeConfig(appId, sdkKey, environment, release, capture,
         bubble, useDynamicColor, companionDeviceId, companionBadgeEnabled, shakeToReportEnabled,
-        companionBadgePosition, theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth, debugBuild)
+        companionBadgePosition, theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth, debugBuild,
+        reporterEnabled)
+
+    /** The `copy` that was generated before `reporterEnabled`: same descriptor; keeps this configuration's `reporterEnabled`. */
+    fun copy(
+        appId: String = this.appId,
+        sdkKey: String = this.sdkKey,
+        environment: Environment = this.environment,
+        release: String? = this.release,
+        capture: CaptureConfig = this.capture,
+        bubble: Boolean = this.bubble,
+        useDynamicColor: Boolean = this.useDynamicColor,
+        companionDeviceId: String? = this.companionDeviceId,
+        companionBadgeEnabled: Boolean = this.companionBadgeEnabled,
+        shakeToReportEnabled: Boolean = this.shakeToReportEnabled,
+        companionBadgePosition: String? = this.companionBadgePosition,
+        theme: ReporterThemeOptions? = this.theme,
+        installIdentifierEnabled: Boolean = this.installIdentifierEnabled,
+        vitals: VitalsConfig = this.vitals,
+        r8MappingId: String? = this.r8MappingId,
+        releaseHealth: ReleaseHealthConfig? = this.releaseHealth,
+        debugBuild: Boolean? = this.debugBuild,
+    ): EverframeConfig = EverframeConfig(appId, sdkKey, environment, release, capture,
+        bubble, useDynamicColor, companionDeviceId, companionBadgeEnabled, shakeToReportEnabled,
+        companionBadgePosition, theme, installIdentifierEnabled, vitals, r8MappingId, releaseHealth, debugBuild,
+        reporterEnabled)
 }
 
 /**
@@ -291,6 +349,15 @@ sealed class EverframeConfigError(message: String) : Exception(message) {
     object BlankSdkKey : EverframeConfigError("sdkKey is blank")
     object InvalidVitalsSampleRate : EverframeConfigError("vitals.sampleRate must be within 0.0..1.0")
 }
+
+/**
+ * Thrown by `Everframe.report.open()` (and delivered to `openAsync`'s `onError`) in a crash-only session,
+ * started with [EverframeConfig.reporterEnabled] `= false`. It is an error rather than
+ * [ReportResult.Cancelled] because the host asked for something its own configuration turned off. A companion
+ * bond does not lift it: reports from that session come through companion.
+ */
+class ReporterDisabledException :
+    IllegalStateException("The reporter is turned off for this session (reporterEnabled = false).")
 
 // `EverframeTransportError` lives at `dev.everframe.transport.EverframeTransportError`
 // (Plan 05-05 canonical home). Plan 05-02 declared a placeholder here; Plan 05-05
