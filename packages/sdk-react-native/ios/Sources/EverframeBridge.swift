@@ -7,7 +7,7 @@
 // new D-decision):
 //
 //   The RN bridge surface is the Phase 06 5-method TurboModule (configure,
-//   openReporter, registerSensitiveRect, setExtra, attachReactTree). The native
+//   openReporter, registerSensitiveRect, setExtra). The native
 //   EFReporterPresenter owns the entire report UX (capture + annotate + redact +
 //   submit) on iOS/iPadOS. On tvOS the on-device modal reporter was removed —
 //   tvOS hosts call the companion start API and route reporting through the
@@ -669,7 +669,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// `Everframe.shared.addBreadcrumb(message:kind:level:data:)` (Task 5) —
     /// NO validation/coercion happens here. That singleton already owns
     /// kind/level/data coercion AND gating (no-op pre-start / while killed),
-    /// exactly like `setExtra`/`attachReactTree` above never re-check
+    /// exactly like `setExtra` above never re-checks
     /// `captureGate` themselves. `data` crosses as an `NSDictionary?` — the
     /// codegen-typed `UnsafeObject` boundary for freeform objects; a
     /// non-dictionary payload (shouldn't happen via codegen, but fail-soft
@@ -693,8 +693,8 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
 
     /// Forward a host-declared user from JS into `Everframe.shared.setUser`.
     /// Pure pass-through: the native singleton owns storage — NO
-    /// validation/coercion happens here, same contract as `setExtra`/
-    /// `attachReactTree` above. `nil` clears the active user (the bridge
+    /// validation/coercion happens here, same contract as `setExtra`
+    /// above. `nil` clears the active user (the bridge
     /// forbids `T | null`, so JS expresses "clear" by calling with no
     /// argument, which crosses as `nil` here). A missing key on the incoming
     /// dictionary must become `nil`, never an empty string — that's what

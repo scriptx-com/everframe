@@ -524,10 +524,6 @@ public final class Everframe: @unchecked Sendable {
     /// `EXTRA_MAX_CHARS` on write. Consumed and cleared on next
     /// `report.open()`.
     private var _pendingExtra: String?
-    /// Sticky React-fiber walk produced by a host (typically the RN bridge's
-    /// bippy adapter). Legacy attachment storage only; never included in reports.
-    /// Consumed and discarded when the next report opens.
-    private var _pendingReactTreeJSON: Data?
     /// false = capture disabled (kill switch active OR pre-start). The capture
     /// pipeline (04-03+) reads this gate before each capture cycle.
     nonisolated(unsafe) internal static var captureGate: Bool = false
@@ -2062,40 +2058,13 @@ public final class Everframe: @unchecked Sendable {
         VitalsRuntime.shared.current()?.trackVitals(name, data: data, playerId: nil)
     }
 
-    /// Attach a React-fiber tree (as JSON-encoded `ReactTree`).
-    ///
-    /// NO LONGER SHIPPED. UI-tree capture and tap-to-identify are gone (spec
-    /// 2026-08-29): the envelope no longer declares tree fields, the
-    /// in-process reporter presenter drains this slot into `_`, and the
-    /// companion bridge also discards it at request time.
-    /// Whatever is attached here is consumed once and discarded — it never
-    /// reaches `payload.reactTree` or any other part of the report.
-    ///
-    /// Retained (with `detachReactTree()` and `__consumePendingAttachments()`)
-    /// purely so the consume-once drain keeps its contract for the pairing
-    /// flow, and so a pure-native host that still calls this keeps compiling.
-    @available(
-        *, deprecated,
-        message: "The attached tree is no longer shipped in any report — it is drained and discarded. Remove the call."
-    )
-    public func attachReactTree(_ json: Data) {
-        stateLock.lock(); defer { stateLock.unlock() }
-        _pendingReactTreeJSON = json
-    }
-
-    /// Detach without opening a report.
-    public func detachReactTree() {
-        stateLock.lock(); defer { stateLock.unlock() }
-        _pendingReactTreeJSON = nil
-    }
-
-    /// Drain pending attachments. Returns the snapshot and clears state in a
+    /// Drain the pending host extra. Returns the snapshot and clears it in a
     /// single critical section so two concurrent reports can't both consume.
     /// `public` only because the reporter UI lives in a separate SwiftPM
     /// product (`EverframeReporterUI`) and can't see internal symbols. Treat
     /// as private — the `__` prefix marks it as an Everframe SDK seam; production
     /// callers use `report.open()` which drains via this method.
-    public func __consumePendingAttachments() async -> (extra: String?, reactTreeJSON: Data?) {
+    public func __consumePendingAttachments() async -> String? {
         // No hook installed (pure-native host, or an RN host before its
         // bridge configures) — drain immediately, exactly as before this
         // feature landed. Never touches `extraResolveSerializer`.
@@ -2132,13 +2101,11 @@ public final class Everframe: @unchecked Sendable {
 
     /// Synchronous drain — see `__consumePendingAttachments()`'s doc comment
     /// for why this is split out.
-    private func drainPendingAttachmentsLocked() -> (extra: String?, reactTreeJSON: Data?) {
+    private func drainPendingAttachmentsLocked() -> String? {
         stateLock.lock(); defer { stateLock.unlock() }
         let extra = _pendingExtra
-        let tree = _pendingReactTreeJSON
         _pendingExtra = nil
-        _pendingReactTreeJSON = nil
-        return (extra, tree)
+        return extra
     }
 
     #if canImport(UIKit)

@@ -70,11 +70,9 @@ public final class EverframeEventEmitter: RCTEventEmitter {
     /// Payload: `{ code, requestedByName, ttlMs }` | NSNull.
     public static let attachChallengeEvent = "everframe.companion.attachChallenge"
 
-    /// Fired when a `report.request` arrives from the paired phone. This
-    /// used to give JS a window to walk the React fiber tree and call
-    /// `attachReactTree`; both are gone (spec 2026-08-29). The event and
-    /// the bridge's brief wait survive as the companion's JS-ready
-    /// handshake (see CompanionCaptureBridge.awaitJsReactTreeAttach).
+    /// Fired when a `report.request` arrives from the paired phone. The event
+    /// and the bridge's brief wait are the companion's JS-ready handshake
+    /// (see CompanionCaptureBridge.awaitJsReactTreeAttach).
     /// Payload: String — the correlation_id of the inbound request.
     public static let reportRequestedEvent = "everframe.companion.reportRequested"
 
