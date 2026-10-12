@@ -1,0 +1,29 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/ReporterDisabledTest.kt
+  s_dbd309ddf8ec5b::t_26484b71e711bd 1-81
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/TXReporterPresenterCrashOnlyTest.kt
+  s_dbd309ddf8ec5b::t_825df89e3e676c 1-51
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/TXReporterPresenter.kt
+  s_dbd309ddf8ec5b::t_3f36334913045a 98-102
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_dbd309ddf8ec5b::t_a60d94e1b29912 1064,2759-2761,2763-2765,2769
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/trigger/ShakeToReport.kt
+  s_dbd309ddf8ec5b::t_5039b438970d80 18,124-130
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/trigger/ShakeToReportTest.kt
+  s_dbd309ddf8ec5b::t_9550e717930b7d 16-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "421edd008d3418a336f1f67eee24f81e2c838275",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
