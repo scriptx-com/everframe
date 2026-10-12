@@ -1,0 +1,25 @@
+packages/sdk-android/android/README.md
+  s_dbd309ddf8ec5b::t_74e3ffad721831 438,463-482,493-494
+packages/expo/README.md
+  s_dbd309ddf8ec5b::t_43555f546635a8 62-87
+packages/cli/README.md
+  s_dbd309ddf8ec5b::t_43555f546635a8 210-267
+packages/sdk-react-native/README.md
+  s_dbd309ddf8ec5b::t_21941b500e01ca 32-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "78a0f314ec9cfb8e10fb4a8bf48eb186007689e6",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
