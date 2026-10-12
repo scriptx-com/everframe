@@ -168,6 +168,9 @@ export {
   __getCompanionRunning,
   __onCompanionRunning,
 } from './companion/singleton.js';
+// Crash-only sessions (spec 2026-10-12): both hosts upgrade a crash-only
+// session on a companion bond through this one watcher.
+export { __watchCompanionBond } from './companion/bond-upgrade.js';
 export {
   __setCompanionHost,
   __getCompanionHost,

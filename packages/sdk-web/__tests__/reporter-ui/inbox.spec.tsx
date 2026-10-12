@@ -76,6 +76,13 @@ describe('InboxDialog list view', () => {
     expect(onNewReport).toHaveBeenCalled();
   });
 
+  // Crash-only sessions (spec 2026-10-12): the host leaves onNewReport out.
+  it('shows no New report button without onNewReport', () => {
+    render(<InboxDialog open onClose={() => {}} threads={fakeFacade([]) as never} />);
+    expect(screen.getByText('No reports yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New report' })).toBeNull();
+  });
+
   it('renders nothing when closed', () => {
     const { container } = render(
       <InboxDialog open={false} onClose={() => {}} threads={fakeFacade() as never} onNewReport={() => {}} />,
@@ -428,6 +435,17 @@ describe('InboxDialog thread view', () => {
     fireEvent.click(await screen.findByText('Login crash'));
     fireEvent.click(await screen.findByRole('button', { name: 'Send a follow-up report' }));
     expect(onNewReport).toHaveBeenCalled();
+  });
+
+  it('shows no follow-up button without onNewReport (crash-only session)', async () => {
+    const facade = fakeFacade();
+    (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: false, fresh: true,
+    });
+    render(<InboxDialog open onClose={() => {}} threads={facade as never} />);
+    fireEvent.click(await screen.findByText('Login crash'));
+    await screen.findByRole('button', { name: 'Delete this conversation' });
+    expect(screen.queryByRole('button', { name: 'Send a follow-up report' })).toBeNull();
   });
 
   it('a back button returns from the thread view to the list', async () => {
