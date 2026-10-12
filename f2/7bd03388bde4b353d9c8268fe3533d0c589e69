@@ -1,0 +1,25 @@
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoExporter.swift
+  s_269319d6df67e5::t_9cbe6342c58960 60-62
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoRing.swift
+  s_269319d6df67e5::t_ab23b181234e76 55-63
+packages/sdk-ios/Tests/EverframeTests/ErrorReplayTests.swift
+  s_269319d6df67e5::t_9e0bd1234b8722 341-410
+packages/sdk-ios/Tests/EverframeTests/NativeVideoRingTests.swift
+  s_269319d6df67e5::t_819066dcc7c112 80-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f27bd03388bde4b353d9c8268fe3533d0c589e69",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
