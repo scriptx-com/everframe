@@ -1,0 +1,41 @@
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/HermesPluginFunctionalTest.kt
+  s_dbd309ddf8ec5b::t_0f32668040136d 1-82
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframeCli.kt
+  s_dbd309ddf8ec5b::t_6641894298fe90 17-21,26,30-35
+  s_dbd309ddf8ec5b::t_e22dee767ac6d3 36
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframePlugin.kt
+  s_dbd309ddf8ec5b::t_8e10b894151c00 21-24
+  s_dbd309ddf8ec5b::t_2273c05c9e2b71 50
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/VariantIntegration.kt
+  s_dbd309ddf8ec5b::t_8e10b894151c00 11-15,38
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/EverframeUploadPolicyTest.kt
+  s_dbd309ddf8ec5b::t_3bf3a794630085 73-75,80-88
+  s_dbd309ddf8ec5b::t_8b6ef1551cb433 89
+packages/sdk-android/android/everframe-gradle-plugin/src/test/kotlin/dev/everframe/gradle/PluginFixture.kt
+  s_dbd309ddf8ec5b::t_ecf87c0d95c2d0 34-45,143-161,166,182,202-244
+  s_dbd309ddf8ec5b::t_1ba1cc2eb37f71 245-246
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframeUploadPolicy.kt
+  s_dbd309ddf8ec5b::t_6641894298fe90 76,85,102,116,118
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/EverframeExtension.kt
+  s_dbd309ddf8ec5b::t_6641894298fe90 5,10,14,20-24
+packages/sdk-android/android/everframe-gradle-plugin/src/main/kotlin/dev/everframe/gradle/UploadHermesSourceMapTask.kt
+  s_dbd309ddf8ec5b::t_8e10b894151c00 1-91
+packages/sdk-android/android/everframe-gradle-plugin/build.gradle.kts
+  s_dbd309ddf8ec5b::t_99a222d06f8060 76,99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "08d501a3edd7ebfeeb2a766d8269869538d2ac6b",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
