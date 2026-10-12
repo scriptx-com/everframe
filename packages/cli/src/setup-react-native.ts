@@ -19,6 +19,7 @@ const exists = (path: string) =>
 /**
  * One-time setup for bare React Native: same native steps the Expo plugin adds.
  * Patches whichever of android/ and ios/ exist; everything is read and patched before any write.
+ * Re-running it replaces the long blocks earlier versions generated with the short ones.
  */
 export async function setupReactNative(options: {
   projectRoot: string;

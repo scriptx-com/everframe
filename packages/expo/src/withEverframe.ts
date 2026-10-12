@@ -32,7 +32,11 @@ export function applyIos(project: XcodeProjectLike, appId: string): void {
   patchXcodeProject(project, appId);
 }
 
-/** Injects the build-artifact upload step into both Gradle and Xcode. */
+/**
+ * Sets up build-artifact uploads in Gradle and Xcode. The generated lines only apply the
+ * dev.everframe Gradle plugin with the app id and run `everframe xcode build-phase`; the upload
+ * logic ships in those packages. Blocks that earlier versions generated are replaced.
+ */
 export const withEverframe: ConfigPlugin<WithEverframeOptions> = (config, { appId }) => {
   config = withProjectBuildGradle(config, (mod) => {
     mod.modResults = applyAndroidProject(mod.modResults);
