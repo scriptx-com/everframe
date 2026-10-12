@@ -1,0 +1,27 @@
+packages/sdk-react/__tests__/provider-crash-only.spec.tsx
+  s_dbd309ddf8ec5b::t_3fc5704f7c334b 1-180
+packages/sdk-react/src/contextSeam.ts
+  s_dbd309ddf8ec5b::t_962e94371ed08b 17-21,23
+packages/sdk-react/src/hook.ts
+  s_dbd309ddf8ec5b::t_749cfd43c153a8 20-21
+packages/sdk-react/src/index.ts
+  s_dbd309ddf8ec5b::t_f7bc38b0a767df 24-33
+packages/sdk-react/src/provider.tsx
+  s_dbd309ddf8ec5b::t_8cba668f781ac2 32,215-218,329-337,894-903
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1bdd82a2802151f97507b12d3488a7427899f758",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
