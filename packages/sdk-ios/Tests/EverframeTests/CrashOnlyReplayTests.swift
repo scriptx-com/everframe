@@ -133,6 +133,36 @@ struct CrashOnlyReplayTests {
         }
     }
 
+    @Test func aCrashOnlyStartWhileCompanionIsBondedRecordsFromItsFirstConfig() async throws {
+        try await withGlobalCaptureStateLock {
+            ErrorReplayGate.shared.__resetForTesting()
+            let fetcher = CrashOnlyConfigFetcher([serverConfig])
+            let box = SessionBox()
+            Everframe.__replaySessionFactoryForTesting = { _ in
+                MainActor.assumeIsolated {
+                    let session = ReplaySession(provider: provider(fetcher), locallyDisabled: false)
+                    box.session = session
+                    return session
+                }
+            }
+            let companion = Everframe.shared.companion
+            defer {
+                Everframe.__resetReplaySessionFactoryForTesting()
+                box.session?.teardown()
+                companion.__setState(.unpaired)
+                Everframe.shared.kill()
+                Everframe.__setConfigForTesting(nil)
+                ErrorReplayGate.shared.__resetForTesting()
+            }
+
+            companion.__setState(.paired)
+            try Everframe.shared.start(config: crashOnlyConfig())
+            #expect(await eventually { box.session?.__lifecycleStateForTesting() == .buffering })
+            #expect(NetworkBodyCaptureGate.shared.isActive)
+            #expect(ErrorReplayGate.shared.capture(epoch: epoch) != nil)
+        }
+    }
+
     @Test func anUpgradeKeepsRecordingWhenTheCrashOnlyRateIsAboveTheReportRate() async throws {
         try await withGlobalCaptureStateLock {
             ErrorReplayGate.shared.__resetForTesting()

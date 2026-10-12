@@ -100,6 +100,48 @@ struct CrashOnlySessionTests {
         }
     }
 
+    @Test func aCrashOnlySessionThatStartsWhileCompanionIsBondedStartsUpgraded() async throws {
+        try await withGlobalCaptureStateLock {
+            let companion = Everframe.shared.companion
+            defer { companion.__setState(.unpaired); Self.stop() }
+
+            companion.__setState(.paired)
+            try Everframe.shared.start(config: Self.config(reporterEnabled: false))
+            #expect(upgraded, "no new pair.bonded comes for a bond that already exists")
+            await #expect(throws: EverframeReporterError.reporterDisabled) {
+                try await Everframe.shared.report.open()
+            }
+
+            companion.__beginReport(correlationId: "c1")
+            try Everframe.shared.start(config: Self.config(reporterEnabled: false))
+            #expect(upgraded, "a companion report in progress is a bond")
+
+            companion.__setState(.phoneDisconnected)
+            try Everframe.shared.start(config: Self.config(reporterEnabled: false))
+            #expect(upgraded, "a phone away inside the grace window is still bonded")
+
+            try Everframe.shared.start(config: Self.config(reporterEnabled: true))
+            #expect(!upgraded, "a report session is never upgraded")
+
+            companion.__setState(.unpaired)
+            try Everframe.shared.start(config: Self.config(reporterEnabled: false))
+            #expect(!upgraded, "after a detach the next session is crash-only again")
+        }
+    }
+
+    @Test func aBackgroundedNeverBondedCompanionDoesNotUpgradeTheNextStart() async throws {
+        try await withGlobalCaptureStateLock {
+            let companion = Everframe.shared.companion
+            defer { companion.__setState(.unpaired); Self.stop() }
+            // `handleDidEnterBackground()` enters `.phoneDisconnected` without any bond.
+            companion.__setState(.unpaired)
+            companion.__setState(.phoneDisconnected)
+            #expect(!companion.__isBonded)
+            try Everframe.shared.start(config: Self.config(reporterEnabled: false))
+            #expect(!upgraded)
+        }
+    }
+
     @Test func aBondInAReportSessionChangesNothing() async throws {
         try await withGlobalCaptureStateLock {
             defer { Self.stop() }

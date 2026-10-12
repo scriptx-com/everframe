@@ -489,8 +489,10 @@ public final class Everframe: @unchecked Sendable {
     /// Crash-only sessions (spec 2026-10-12): set when a companion bond (a phone scanning the QR
     /// code, or a dashboard member attaching) upgrades a crash-only session, so its replay and
     /// network bodies follow the normal server rules. Sticky until the next `start()` or
-    /// `kill()`, which clear it in their epoch sections; a detach does not clear it. Shake and
-    /// `report.open()` read `reporterEnabled` alone, so they stay off after an upgrade.
+    /// `kill()`, which clear it in their epoch sections; a detach does not clear it. A
+    /// crash-only `start()` that publishes while `companion` is still bonded seeds it, since no
+    /// new `pair.bonded` comes for a bond that already exists. Shake and `report.open()` read
+    /// `reporterEnabled` alone, so they stay off after an upgrade.
     private var _companionUpgraded = false
     /// The in-flight start() heavy-init Task, retained so `kill()` can
     /// cancel it directly — belt-and-suspenders alongside the epoch guard
@@ -1226,6 +1228,13 @@ public final class Everframe: @unchecked Sendable {
         guard _startEpoch == epoch else { stateLock.unlock(); return }
         _config = config
         nativeCrashPublishedEpoch = epoch
+        // Crash-only sessions (spec 2026-10-12): a crash-only session that starts while the
+        // companion is still bonded (a re-start, or a React Native reconfigure with the phone
+        // attached) starts upgraded. Read here, in the publication section, rather than in the
+        // epoch section: `__companionMemberAttached()` ignores a bond until this line publishes
+        // the epoch, so a bond landing between the two sections is caught by this read, and one
+        // landing after it by that call. `__isBonded` takes only its own lock.
+        _companionUpgraded = !config.reporterEnabled && companion.__isBonded
         // Follow-ups item 9, fourth round — bumped HERE, with the assignment
         // it describes, never in the epoch section above. That is the whole
         // point of it being a separate counter.
