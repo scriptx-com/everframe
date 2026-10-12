@@ -1,0 +1,31 @@
+packages/sdk-web/__tests__/capture/replay/checkpoint.spec.ts
+  s_269319d6df67e5::t_4299e7829fce6d 4-5,41-54,72-78
+packages/sdk-web/__tests__/capture/replay/mask-zero-leak.spec.ts
+  s_269319d6df67e5::t_aabc40f2cfafe0 329-364
+packages/sdk-web/__tests__/capture/replay/privacy-filter.spec.ts
+  s_269319d6df67e5::t_921b9908282ca9 1-20
+packages/sdk-web/__tests__/capture/replay/snapshot.spec.ts
+  s_269319d6df67e5::t_bf48c7c3866c02 113,126-128,151-152
+packages/sdk-web/src/capture/replay/privacy-filter.ts
+  s_269319d6df67e5::t_bc207938157157 1-45
+packages/sdk-web/src/capture/replay/recorder.ts
+  s_269319d6df67e5::t_139e6e9fb70494 35,58,475,482-483,513-519
+packages/sdk-web/src/capture/replay/scrub.ts
+  s_269319d6df67e5::t_29f5d2d4fa42cb 139-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c22dce66e8473e383ac53c14fa404d79b66db539",
+  "prompts": {},
+  "sessions": {
+    "s_269319d6df67e5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12c9e-4e2f-75f1-a678-e0e107b066e1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
