@@ -2243,7 +2243,13 @@ export function createWebPlatformAdapter(
       identityTokenHolderGet = get;
     },
     __startReleaseHealth: (): void => {
-      if (reportingKilled) return;
+      if (reportingKilled) {
+        // A committed provider can be killed by a child effect before acquiring
+        // its lease. Withdraw the prior mount's work only at this commit seam;
+        // stale adapters with a lease remain subject to its ownership check.
+        if (!healthLease) revokeWebHealth(INGEST_URL, _config.sdkKey);
+        return;
+      }
       if (_config.disabled || _config.crashReporting?.disabled ||
           resolveDebugBuild(_config.debugBuild, typeof location === 'undefined' ? null : location)) {
         revokeWebHealth(INGEST_URL, _config.sdkKey);

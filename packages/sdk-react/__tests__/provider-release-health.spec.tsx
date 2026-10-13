@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { StrictMode } from 'react';
+import { StrictMode, useContext, useEffect } from 'react';
 import { cleanup,render } from '@testing-library/react';
 import { afterEach,expect,it,vi } from 'vitest';
-import { EverframeProvider } from '../src/provider.js';
+import { EverframeProvider, EverframeContext } from '../src/provider.js';
 vi.mock('@everframe/web/ui',()=>({ReporterDialog:()=>null,ReporterFab:()=>null,CompanionPinCard:()=>null,CompanionBadge:()=>null,InboxDialog:()=>null,Toast:()=>null}));
 afterEach(()=>{cleanup();localStorage.clear();vi.unstubAllGlobals();});
 it('reports one document session across StrictMode effects and provider remounts',async()=>{
@@ -25,4 +25,32 @@ it.each([{ crashReporting: { disabled: true } }, { disabled: true }])('erases pe
  expect(queued()).toHaveLength(1); first.unmount();
  render(<EverframeProvider config={{ ...config, ...veto }}><span>off</span></EverframeProvider>);
  await new Promise(r => setTimeout(r, 20)); expect(queued()).toHaveLength(0);
+});
+
+it('withdraws pending delivery when a replacement is killed in a child mount effect', async () => {
+ vi.useFakeTimers();
+ const sdkKey = 'key-' + crypto.randomUUID();
+ let online = false;
+ const delivered: string[] = [];
+ vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+  if (!online) throw Error('offline');
+  if (String(url).endsWith('/api/ingest/release-health')) delivered.push(JSON.parse(String(init?.body)).phase);
+  return new Response('{}', { status: 200 });
+ });
+ const config = { sdkKey, appVersion: '1', debugBuild: false, reporter: { disabled: true } };
+ const first = render(<EverframeProvider config={config}><span>host</span></EverframeProvider>);
+ await vi.advanceTimersByTimeAsync(0);
+ first.unmount();
+ function WithdrawConsent() {
+  const ctx = useContext(EverframeContext)!;
+  useEffect(() => { ctx.client.kill(); }, [ctx]);
+  return null;
+ }
+ try {
+  render(<EverframeProvider config={config}><WithdrawConsent /></EverframeProvider>);
+  online = true;
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(delivered).toEqual([]);
+  expect(Object.keys(localStorage).filter(k => k.startsWith('everframe:release-health:') && localStorage.getItem(k)!.includes(sdkKey))).toEqual([]);
+ } finally { vi.useRealTimers(); }
 });

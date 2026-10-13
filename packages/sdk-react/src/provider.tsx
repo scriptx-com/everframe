@@ -383,6 +383,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     // them back without reviving what the explicit kill closed.
     if (explicitlyKilled()) {
       ctxValue.adapter.__rebindCrumbHooks({ revive: false });
+      ctxValue.adapter.__startReleaseHealth();
       return;
     }
     ctxValue.adapter.__setBreadcrumbBuffer(

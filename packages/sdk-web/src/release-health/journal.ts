@@ -44,6 +44,14 @@ export function createWebHealthJournal(storage: Storage | null): WebHealthJourna
       const frozen = JSON.parse(JSON.stringify(item)) as WebHealthDelivery;
       try { if (!storage) throw Error('memory'); storage.setItem(PREFIX+item.record.recordId,JSON.stringify(frozen)); }
       catch { memory.set(item.record.recordId,frozen); }
+      if (item.record.phase === 'failure') {
+        for (const pending of list(new Date())) {
+          if (pending.endpoint === item.endpoint && pending.sdkKey === item.sdkKey &&
+              pending.record.exposure.exposureId === item.record.exposure.exposureId && pending.record.phase === 'end') {
+            remove(pending.record.recordId);
+          }
+        }
+      }
       list(new Date());
     },
     list, remove,

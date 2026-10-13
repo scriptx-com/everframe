@@ -29,14 +29,18 @@ export function acquireWebHealth(options:WebHealthOptions):WebHealthLease {
     const scoped={...journal,list:(now:Date)=>journal.list(now).filter(x=>x.endpoint===options.endpoint&&x.sdkKey===options.sdkKey)};
     const transport=entry && !entry.revoked ? entry.transport : createWebHealthTransport(scoped), session=createWebHealthSession(exposure.data);
     const revocationKey='everframe:health-revoked:'+key;
+    let exiting = false;
     const emit=(record:WebReleaseHealthRecord|null,keepalive=false)=>{
       if(!record || current.revoked)return;
-      journal.put({endpoint:options.endpoint,sdkKey:options.sdkKey,record});void transport.flush({keepalive});
+      journal.put({endpoint:options.endpoint,sdkKey:options.sdkKey,record});
+      // Let synchronous exit errors replace completion before starting delivery.
+      if (record.phase === 'end') void Promise.resolve().then(() => transport.flush({keepalive}));
+      else void transport.flush({keepalive, urgent: record.phase === 'failure' && keepalive});
     };
-    const onHide=(event:PageTransitionEvent)=>{if(!event.persisted&&current.owner)emit(session.complete(new Date()),true);else void transport.flush({keepalive:true});};
+    const onHide=(event:PageTransitionEvent)=>{if(!event.persisted&&current.owner){exiting=true;emit(session.complete(new Date()),true);}else void transport.flush({keepalive:true});};
     const onVisibility=()=>{void transport.flush({keepalive:document.visibilityState==='hidden'});};
     const onStorage=(event:StorageEvent)=>{if(event.key===revocationKey)current.revoke();};
-    const current:Entry={journal,transport,fingerprint,owner:null,revoked:false,fail:(mechanism,reportId)=>emit(session.fail(mechanism,new Date(),reportId)),
+    const current:Entry={journal,transport,fingerprint,owner:null,revoked:false,fail:(mechanism,reportId)=>emit(session.fail(mechanism,new Date(),reportId),exiting),
       dispose(){current.owner=null;window.removeEventListener('pagehide',onHide);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('storage',onStorage);},
       revoke(){current.revoked=true;transport.revoke(options.endpoint,options.sdkKey);current.dispose();},
     };
