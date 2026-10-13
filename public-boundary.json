@@ -27,6 +27,8 @@
     ".gitleaks.toml",
     ".gitleaksignore",
     ".npmrc",
+    ".prettierignore",
+    ".prettierrc.json",
     ".reuse",
     "brand-identity.json",
     "CODE_OF_CONDUCT.md",
@@ -177,9 +179,7 @@
       "reason": "unrelated repository URL"
     }
   ],
-  "envTemplates": [
-    ".env.example"
-  ],
+  "envTemplates": [".env.example"],
   "license": {
     "ownedExtensions": [
       ".c",

@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+
+# Dependencies, local workspaces, build products, and test output.
+**/node_modules/**
+**/dist/**
+/build/
+packages/*/build/
+examples/*/build/
+**/coverage/**
+**/target/**
+**/.build/**
+**/.gradle/**
+**/.turbo/**
+**/.swc/**
+**/DerivedData/**
+**/test-results/**
+**/playwright-report/**
+**/blob-report/**
+.worktrees/
+.superpowers/
+.everframe-sdk/
+
+# Machine-generated dependency metadata and patches.
+**/pnpm-lock.yaml
+**/package-lock.json
+**/yarn.lock
+**/Cargo.lock
+**/Gemfile.lock
+patches/
+
+# Fixtures and snapshots intentionally preserve their original bytes.
+**/fixtures/**
+**/Fixtures/**
+**/src/test/resources/**
+**/src/commonTest/resources/**
+**/__fixtures__/**
+**/_fixtures/**
+**/__snapshots__/**
+**/*.snap
+
+# Upstream source and generated protocol/version outputs have other owners.
+**/vendor/**
+**/Vendor/**
+**/generated/**
+**/Generated/**
+packages/protocol/schemas-json/
+packages/cli/src/version.ts
+packages/protocol/src/version.ts
+packages/sdk-web/src/internal/version.ts
+packages/sdk-react/src/internal/version.ts
+packages/sdk-vega/src/version.ts
+
+# Local credentials and generated example projects/configuration.
+**/.env*
+examples/react-native/android/
+examples/react-native/ios/
+examples/tvos-replay/ReplayTV.xcodeproj/
