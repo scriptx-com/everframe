@@ -1,0 +1,37 @@
+packages/protocol/__tests__/crash-reporting-extension.spec.ts
+  s_fb5ca7e7bd2185::t_b3ef745ea38421 51,56-57
+packages/protocol/__tests__/release-health-alert.spec.ts
+  s_fb5ca7e7bd2185::t_20375267474985 31-34,68
+packages/protocol/__tests__/release-health.spec.ts
+  s_fb5ca7e7bd2185::t_01b6690d15b99d 185
+packages/protocol/__tests__/web-release-health.spec.ts
+  s_fb5ca7e7bd2185::t_3ac6de30ae4507 1-29
+packages/protocol/__tests__/web-runtime-platform.spec.ts
+  s_fb5ca7e7bd2185::t_5f4bddb66e44e4 1-12
+packages/protocol/src/index.ts
+  s_fb5ca7e7bd2185::t_68a1e1563f6076 92-95
+packages/protocol/src/release-health-alert.ts
+  s_fb5ca7e7bd2185::t_f2c64bbc26f65f 4,34
+packages/protocol/src/release-health.ts
+  s_fb5ca7e7bd2185::t_c9558b97ac7b40 4,9,69,75,78,91-115
+packages/protocol/src/sdk-platform.ts
+  s_fb5ca7e7bd2185::t_e73a7406f46e43 6
+packages/protocol/src/web-runtime-platform.ts
+  s_fb5ca7e7bd2185::t_3cde77cf8edf1d 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "15878b258d48612827921149f840663b6e48c6da",
+  "prompts": {},
+  "sessions": {
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
