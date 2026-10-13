@@ -19,7 +19,7 @@ import {
   type VegaStatus,
 } from './client.js';
 import type { VegaBreadcrumb, VegaCaptureOptions, VegaConfig, VegaUser } from './config.js';
-import { readDevice } from './device.js';
+import { readAppState, readDevice } from './device.js';
 import type { FetchLike } from './transport.js';
 
 export type {
@@ -44,6 +44,9 @@ const host = globalThis as VegaGlobal;
 // Globals are read when init() runs, not when this module loads, so an import
 // that happens to run before React Native's InitializeCore still works.
 const client = createVegaClient({
+  get appState() {
+    return readAppState();
+  },
   get errorUtils() {
     return host.ErrorUtils;
   },

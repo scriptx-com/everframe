@@ -64,3 +64,29 @@ describe('public entry', () => {
     ]);
   });
 });
+
+describe('qualified Vega AppState wiring', () => {
+  it.each([72, 83])(
+    'only enables foreground health on React Native for Vega 0.72 (runtime 0.%s)',
+    async (minor) => {
+      const { AppState, Platform } = await import('./stubs/react-native.js');
+      const originalMinor = Platform.constants.reactNativeVersion.minor;
+      AppState.currentState = 'active';
+      Platform.constants.reactNativeVersion.minor = minor;
+      try {
+        const errorUtils = createErrorUtils();
+        const fetch = createFetch();
+        Object.assign(host, { ErrorUtils: errorUtils, fetch, __DEV__: false });
+        const sdk = await import('../src/index.js');
+        sdk.init({ sdkKey: 'evf_live_key', storage: createStorage(), appVersion: '2.0' });
+        await sdk.flush();
+        expect(
+          fetch.requests.filter((request) => request.url.endsWith('/release-health')),
+        ).toHaveLength(minor === 72 ? 1 : 0);
+      } finally {
+        AppState.currentState = null;
+        Platform.constants.reactNativeVersion.minor = originalMinor;
+      }
+    },
+  );
+});

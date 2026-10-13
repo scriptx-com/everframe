@@ -167,3 +167,42 @@ describe('outbox', () => {
     });
   });
 });
+
+describe('independent bounded health outbox', () => {
+  it('keeps its own storage key and prunes oversized loaded queues before sending', async () => {
+    const storage = createStorage();
+    const key = '@everframe/vega/release-health/v1';
+    const binding = { endpoint: 'https://everframe.dev/api/release-health', keyHash: 'health-key' };
+    const items = Array.from({ length: 8 }, (_, i) => ({
+      ...binding,
+      reportId: `health-${i}`,
+      body: '{}',
+      enqueuedAt: Date.now(),
+      attempts: 0,
+      fatal: false,
+    }));
+    storage.data.set(key, JSON.stringify(items));
+    const queue = createOutbox({
+      storage,
+      binding,
+      now: Date.now,
+      warn: () => {},
+      debug: () => {},
+      storageKey: key,
+      maxItems: 3,
+    });
+    expect((await queue.due()).map((item) => item.reportId)).toEqual([
+      'health-5',
+      'health-6',
+      'health-7',
+    ]);
+    await queue.add({ ...items[0]!, reportId: 'new' });
+    expect((await queue.due()).map((item) => item.reportId)).toEqual([
+      'health-6',
+      'health-7',
+      'new',
+    ]);
+    expect(storage.data.has(OUTBOX_KEY)).toBe(false);
+    expect(JSON.parse(storage.data.get(key)!)).toHaveLength(3);
+  });
+});

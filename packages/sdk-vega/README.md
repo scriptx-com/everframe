@@ -80,6 +80,7 @@ Metro and are not mapped.
 | `appVersion`                 | `0.0.0`                 | Your app version.                                                                                                                       |
 | `appBuild`                   | none                    | A build number or CI build id.                                                                                                          |
 | `debugBuild`                 | `__DEV__`               | Whether this is a debug build. Everframe never makes a release out of one.                                                              |
+| `releaseHealth`              | `true`                  | Anonymous foreground sessions and fatal JavaScript release health; requires an explicit valid `appVersion`.                             |
 | `captureUnhandledRejections` | `true`                  | `false` stops reporting promise rejections.                                                                                             |
 | `device`                     | none                    | `{ model, osVersion }`, e.g. from `@amazon-devices/react-native-device-info`. React Native for Vega does not expose them to JavaScript. |
 | `enabled`                    | `true`                  | `false` turns the SDK off.                                                                                                              |
@@ -108,6 +109,44 @@ Reports group by exception type and top stack frames, ignoring line numbers
 and the bundle id, so one error stays one group across builds. An error thrown
 straight in an anonymous function (a timer or promise callback) has a stack
 that names no function, so its message is part of the key as well.
+
+## Release health
+
+Release builds on React Native for Vega 0.72 send anonymous foreground sessions
+to `/api/release-health` by default. Set `releaseHealth: false` to opt out;
+this also best-effort erases the pending health queue without changing crash
+reporting. `enabled: false` performs no storage or network work, including erasure.
+Debug builds never create or send health records (`debugBuild` overrides `__DEV__`).
+Provide an explicit `appVersion` and, optionally, `appBuild`; each must be nonblank,
+at most 64 UTF-16 units, with no control or unpaired surrogate characters. Invalid or omitted
+versions disable health without changing error reporting.
+
+A session starts only after AppState reports an active component. For multiple
+components, any active component keeps the session open; only an all-background
+snapshot completes it. Unknown startup or lifecycle state does not create a
+completion. The fatal pointer is armed only after the start has been added to
+the queue and its storage attempt has finished, leaving a startup monitoring gap.
+A fatal ErrorUtils report freezes that pointer and ends monitoring synchronously.
+Handled errors, nonfatal ErrorUtils errors and promise rejections do not fail a
+session. `setUser` never changes the anonymous health identity. Native crashes,
+Hermes aborts, ANRs, forced exits and missing session ends remain unknown.
+
+Health uses the separate AsyncStorage key `@everframe/vega/release-health/v1`,
+with at most 100 records and approximately 512 KiB of serialized content;
+oldest records are dropped first. Records expire after 7 days or 8 attempts.
+Load and writes are serialized, and retries preserve record bytes and IDs.
+Automatic retries back off by 2 s, 10 s, 60 s, then 300 s. The endpoint and a
+one-way SDK-key fingerprint bind each record; a different endpoint or key on
+relaunch discards it. Queue losses are not counted. Health traffic cannot delay
+fatal crash persistence or extend the existing 1500 ms fatal-handler handoff.
+
+AsyncStorage and background delivery are best effort: Vega can destroy a
+background surface before asynchronous work finishes. Without storage, or when
+a write fails, records survive only in memory. Missing AppState, an unavailable
+ErrorUtils hook, an invalid version or a debug build disables health delivery;
+pending records remain stored until a later eligible launch or explicit opt-out.
+React Native 0.83 is not qualified for health. The existing crash-report API
+continues to work independently.
 
 ## Compatibility
 

@@ -25,3 +25,11 @@ export const PixelRatio = {
     return 1;
   },
 };
+
+export const AppState = {
+  currentState: null as string | null,
+  currentModuleStates: null as unknown,
+  addEventListener(_event: string, _listener: (value: unknown) => void) {
+    return { remove() {} };
+  },
+};
