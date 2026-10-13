@@ -15,6 +15,11 @@ class EverframeBrowserDriver(
     private val sdkVersion: String,
     private val appVersion: String,
 ) : EverframeNativeDriver {
+    private companion object {
+        // @everframe/web owns one page singleton. A new driver must retire its previous owner.
+        var activeDriver: EverframeBrowserDriver? = null
+    }
+
     private data class StartConfiguration(
         val appId: String,
         val sdkKey: String,
@@ -52,9 +57,11 @@ class EverframeBrowserDriver(
         // Left out, @everframe/web detects a debug build itself.
         if (debugBuild != null) config.debugBuild = debugBuild
         return try {
+            activeDriver?.takeIf { it !== this }?.kill()
             kill()
             handle = initWeb(config)
             startConfiguration = requested
+            activeDriver = this
             true
         } catch (_: Throwable) {
             false
@@ -106,5 +113,6 @@ class EverframeBrowserDriver(
         handle?.destroy()
         handle = null
         startConfiguration = null
+        if (activeDriver === this) activeDriver = null
     }
 }

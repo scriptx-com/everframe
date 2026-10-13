@@ -51,7 +51,10 @@ required and must be the nonblank version of the host app; the driver no longer
 invents `0.0.0`. The browser requires `@everframe/web` 1.2.2 or newer, uses its release-health collector, and
 forwards `releaseHealth` as its independent health opt-out. Repeating `start`
 with the same configuration reuses the browser collector; changed settings
-destroy it and start a new one, so opting out takes effect immediately. The Web SDK
+destroy it and start a new one, so opting out takes effect immediately. Only one
+KMP browser driver owns the page SDK at a time: starting another driver retires
+the old one and applies the new driver's settings. Let the driver own initialization;
+do not also initialize `@everframe/web` separately on the same page. The Web SDK
 owns the reporter UI, delivery, and retry. No screen-recording permission is
 needed. The browser canvas report and replay passed a Chromium loopback probe;
 an installed third-party Compose browser app has not been verified.

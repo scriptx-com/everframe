@@ -100,6 +100,42 @@ class EverframeBrowserDriverTest {
         client.kill()
     }
 
+    @Test fun replacementDriverAppliesItsSettingsToThePageSingleton() {
+        val configs = mutableListOf<dynamic>()
+        var singleton: dynamic = null
+        var destroyed = 0
+        val init: dynamic = { config: dynamic ->
+            if (singleton == null) {
+                configs.add(config)
+                val created = js("({})")
+                created.destroy = { destroyed += 1; singleton = null }
+                singleton = created
+            }
+            singleton
+        }
+        val capture = js("({ captureScreenshot: async () => null })")
+        val first = EverframeKmp(EverframeBrowserDriver(init, capture, "1.2.1", "2.0.0"))
+        val replacement = EverframeKmp(EverframeBrowserDriver(init, capture, "1.2.1", "3.0.0"))
+        assertTrue(first.start(EverframeKmpConfig("app", "key")))
+        assertTrue(replacement.start(EverframeKmpConfig("app", "key", debugBuild = true, releaseHealth = false)))
+        assertEquals(2, configs.size)
+        assertEquals(false, configs.last().releaseHealth.enabled as Boolean)
+        assertEquals(true, configs.last().debugBuild as Boolean)
+        assertEquals("3.0.0", configs.last().appVersion as String)
+        assertEquals(1, destroyed)
+        // A superseded driver must reinitialize, even when its own requested config is unchanged.
+        assertTrue(first.start(EverframeKmpConfig("app", "key")))
+        assertEquals(3, configs.size)
+        assertEquals(true, configs.last().releaseHealth.enabled as Boolean)
+        assertEquals("2.0.0", configs.last().appVersion as String)
+        assertEquals(2, destroyed)
+        replacement.kill()
+        assertEquals(2, destroyed)
+        assertTrue(singleton != null)
+        first.kill()
+        assertEquals(3, destroyed)
+    }
+
     @Test fun healthOptOutPreservesHandledErrorsAndDestroy() {
         var config: dynamic = null
         var handledMessage: String? = null
