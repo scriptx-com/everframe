@@ -1,0 +1,51 @@
+packages/protocol/__tests__/web-release-health.spec.ts
+  s_fb5ca7e7bd2185::t_c5ef09391c7666 6-58,63-64,68,71-81
+packages/protocol/__tests__/web-runtime-platform.spec.ts
+  s_fb5ca7e7bd2185::t_9df262b5ec5a6a 6-15
+packages/protocol/src/release-health.ts
+  s_fb5ca7e7bd2185::t_d5b05702a94692 13-22,39-47,50-59,69-81,83-110,112-113,117-120,124-151,159-170,172-175,177-227
+packages/protocol/src/web-runtime-platform.ts
+  s_fb5ca7e7bd2185::t_6313c0cae8791b 4-11,13-17
+packages/sdk-react/__tests__/provider-release-health.spec.tsx
+  s_fb5ca7e7bd2185::t_6be1943f174078 4-5,7-18,20-50,52-81,84-126
+packages/sdk-react/tests/release-health-host.tsx
+  s_fb5ca7e7bd2185::t_e06b8300d730d2 7-18,20-27,29-35
+packages/sdk-web/__tests__/release-health-integration.spec.ts
+  s_fb5ca7e7bd2185::t_faec48639eb78f 3-13,15-19,21-76,79-90
+packages/sdk-web/__tests__/release-health/fixture.ts
+  s_fb5ca7e7bd2185::t_d27f0b21880bb3 5-12
+packages/sdk-web/__tests__/release-health/journal.spec.ts
+  s_fb5ca7e7bd2185::t_c60d6aecae415b 7-11,14-24,27-38,41-42
+packages/sdk-web/__tests__/release-health/runtime.spec.ts
+  s_fb5ca7e7bd2185::t_787d871079696b 5-44,47-75,78-111,114-135
+packages/sdk-web/__tests__/release-health/session.spec.ts
+  s_fb5ca7e7bd2185::t_f9eeda13727091 7-16,19-24
+packages/sdk-web/__tests__/release-health/transport.spec.ts
+  s_fb5ca7e7bd2185::t_d30d906016b21f 9-11,13-31,33-79,82-100,103-125,129-156,159-188,191-216,219-254
+packages/sdk-web/src/release-health/journal.ts
+  s_fb5ca7e7bd2185::t_42f0e91ba91934 3-12,23-30,35-38,44-53,55-66,68-85,93-98,101-106,113-118
+packages/sdk-web/src/release-health/runtime.ts
+  s_fb5ca7e7bd2185::t_b1154ebb61311a 3-9,15-64,66-71,73-74,76-85,87-90,92-103,105-106,108-132,135-154,159-162,165-169
+packages/sdk-web/src/release-health/session.ts
+  s_fb5ca7e7bd2185::t_b4f379c47b2004 6-14,16-28,34-40,42-46,49-56
+packages/sdk-web/src/release-health/transport.ts
+  s_fb5ca7e7bd2185::t_84622c755ee539 4,9-12,16-17,19-22,27-34,36-55,58-60,63-68,75-82,85-88,94-99,108-113,120-130,132-134,137-149
+packages/sdk-web/tests/release-health-host.ts
+  s_fb5ca7e7bd2185::t_e9e322ca00726c 6-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d82aa667d679ce37237a702742c65c2c538cc8df",
+  "prompts": {},
+  "sessions": {
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
