@@ -76,9 +76,9 @@ module.exports = ({ config }) => withEverframe(config, { appId: '00000000-0000-4
   `everframe { appId = "…" }`. The Gradle plugin uploads the Hermes map after
   each release bundle, and R8 mappings and native libraries after
   `assembleRelease` and `bundleRelease`.
-- Xcode: an "Upload Everframe Build Artifacts" Run Script phase of one line,
-  `"${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "…"`,
-  with the app's dSYM as its input, plus `SOURCEMAP_FILE` when the target does
+- Xcode: an "Upload Everframe Build Artifacts" Run Script phase of one line
+  that runs `"${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "…"`
+  when the script exists and warns when it does not, with the app's dSYM as its input, plus `SOURCEMAP_FILE` when the target does
   not set it and `ENABLE_USER_SCRIPT_SANDBOXING = NO`. The script ships in
   `@everframe/cli` and runs `everframe xcode build-phase`. Release builds
   upload the Hermes map and the iOS dSYMs: the app's, and those of pod
@@ -87,8 +87,8 @@ module.exports = ({ config }) => withEverframe(config, { appId: '00000000-0000-4
 `expo prebuild` finds `@everframe/cli` from the app root the way Node does, so
 in a monorepo that hoists it to the workspace root the path starts with
 `${SRCROOT}/../../../node_modules`, for example. Without an installed CLI it
-writes the standard path above, and a Release build fails until the package is
-installed. With pnpm, add `@everframe/cli` to the app's own dependencies.
+writes the standard path above, and builds warn that nothing was uploaded until
+the package is installed (or fail, with `EVERFRAME_SYMBOLS_STRICT=1`). With pnpm, add `@everframe/cli` to the app's own dependencies.
 
 A missing `EVERFRAME_API_TOKEN` or a failed upload warns and the build
 continues, unless `EVERFRAME_SYMBOLS_STRICT=1`. For an OTA

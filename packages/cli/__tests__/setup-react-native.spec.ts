@@ -5,7 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { main } from '../src/index.js';
-import { DEFAULT_XCODE_UPLOAD_SCRIPT, XCODE_UPLOAD_SCRIPT } from '../src/native-setup/index.js';
+import { DEFAULT_XCODE_UPLOAD_SCRIPT, XCODE_UPLOAD_SCRIPT, xcodePhaseScript } from '../src/native-setup/index.js';
+
+/** The phase line as the pbxproj stores it. */
+const stored = (path: string) => `shellScript = "${xcodePhaseScript(APP, path).replace(/"/g, '\\"')}";`;
 import { setupReactNative } from '../src/setup-react-native.js';
 
 const APP = '00000000-0000-4000-8000-000000000000';
@@ -42,9 +45,7 @@ describe('setupReactNative', () => {
     const result = await setupReactNative({ projectRoot: root, appId: APP });
     expect(result.uploadScript).toEqual({ path: DEFAULT_XCODE_UPLOAD_SCRIPT, installed: true });
     const pbx = await readFile(join(root, 'ios/App.xcodeproj/project.pbxproj'), 'utf8');
-    expect(pbx).toContain(
-      `shellScript = "\\"\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id \\"${APP}\\"";`,
-    );
+    expect(pbx).toContain(stored(DEFAULT_XCODE_UPLOAD_SCRIPT));
     expect(pbx).not.toContain('EVERFRAME_DSYM_INPUT');
   });
 
@@ -57,7 +58,7 @@ describe('setupReactNative', () => {
     const result = await setupReactNative({ projectRoot: root, appId: APP });
     expect(result.uploadScript).toEqual({ path: '${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh', installed: true });
     const pbx = await readFile(join(root, 'ios/App.xcodeproj/project.pbxproj'), 'utf8');
-    expect(pbx).toContain('\\"${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id');
+    expect(pbx).toContain(stored('${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh'));
   });
 
   it('warns when no installed CLI has the script, and writes the standard path', async () => {
@@ -72,11 +73,9 @@ describe('setupReactNative', () => {
       log.mockRestore();
     }
     expect(warnings).toEqual([
-      'warning: no installed @everframe/cli with scripts/xcode-upload.sh was found from this app, so the Xcode phase runs ${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh. Install @everframe/cli in the app (npm install --save-dev @everframe/cli) and run this command again; a Release build fails until the script exists.',
+      'warning: no installed @everframe/cli with scripts/xcode-upload.sh was found from this app, so the Xcode phase runs ${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh. Install @everframe/cli in the app (npm install --save-dev @everframe/cli) and run this command again. Until then, builds warn that nothing was uploaded.',
     ]);
-    expect(await readFile(join(root, 'ios/App.xcodeproj/project.pbxproj'), 'utf8')).toContain(
-      '\\"${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id',
-    );
+    expect(await readFile(join(root, 'ios/App.xcodeproj/project.pbxproj'), 'utf8')).toContain(stored(DEFAULT_XCODE_UPLOAD_SCRIPT));
   });
 
   it('replaces an earlier phase of the same name in place instead of adding a second one', async () => {
@@ -86,7 +85,7 @@ describe('setupReactNative', () => {
     const fresh = await readFile(path, 'utf8');
     // The earlier, multi-line form of the phase, with its two inputs.
     const earlier = fresh
-      .replace(/shellScript = "\\"\$\{SRCROOT\}[^\n]*\n/, 'shellScript = "if [ \\"${CONFIGURATION:-}\\" = \\"Debug\\" ]; then exit 0; fi\\nexit 0";\n')
+      .replace(/shellScript = "EVERFRAME_UPLOAD=[^\n]*\n/, 'shellScript = "if [ \\"${CONFIGURATION:-}\\" = \\"Debug\\" ]; then exit 0; fi\\nexit 0";\n')
       .replace(
         /inputPaths = \(\n(\t+)"\$\(DWARF_DSYM_FOLDER_PATH\)[^\n]*\n/,
         (_m, indent: string) => `inputPaths = (\n${indent}"$(EVERFRAME_DSYM_INPUT)",\n${indent}"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",\n`,

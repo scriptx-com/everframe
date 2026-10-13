@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { xcodePhaseScript } from '../src/native-setup/index.js';
 import { XCODE_DEBUG_SKIP, XCODE_NO_TOKEN_WARNING } from '../src/xcode-build-phase.js';
 
 const APP = '00000000-0000-4000-8000-000000000000';
@@ -39,8 +40,8 @@ function app(options: { exitCode?: number; pnpm?: boolean } = {}) {
   );
   mkdirSync(dirname(linked), { recursive: true });
   if (options.pnpm) symlinkSync('../.pnpm/@everframe+cli@9.9.9/node_modules/@everframe/cli', linked);
-  // The phase's one line, as Xcode runs it: bash -c with the phase's shell.
-  const line = `"\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`;
+  // The generated phase line, as Xcode runs it: bash -c with the phase's shell.
+  const line = xcodePhaseScript(APP);
   const run = (env: Record<string, string>) =>
     spawnSync('/bin/bash', ['-c', line], {
       env: { PATH: process.env.PATH!, SRCROOT: join(root, 'ios'), CONFIGURATION: 'Release', NODE_BINARY: process.execPath, ...env },
@@ -137,6 +138,40 @@ describe('scripts/xcode-upload.sh', () => {
     expect(result.status).toBe(0);
     expect(result.stderr).toContain('Cannot find module');
     expect(result.stdout).toContain('warning: everframe: @everframe/cli stopped with exit status 1.');
+  });
+
+  describe('the phase line without an installed CLI', () => {
+    const missing = (h: ReturnType<typeof app>) => {
+      rmSync(join(h.root, 'node_modules'), { recursive: true });
+      return `${h.srcroot}/../node_modules/@everframe/cli/scripts/xcode-upload.sh`;
+    };
+
+    it('warns and lets the build continue', () => {
+      const h = app();
+      const path = missing(h);
+      const result = h.run({});
+      expect(result.status).toBe(0);
+      expect(result.stdout.trim()).toBe(
+        `warning: everframe: @everframe/cli is not installed: ${path} is missing. Build artifacts were not uploaded and the build continues. Install @everframe/cli in the app, or set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead.`,
+      );
+    });
+
+    it.each(['1', 'true'])('fails the build when EVERFRAME_SYMBOLS_STRICT=%s', (strict) => {
+      const h = app();
+      const path = missing(h);
+      const result = h.run({ EVERFRAME_SYMBOLS_STRICT: strict });
+      expect(result.status).toBe(1);
+      expect(result.stdout.trim()).toBe(`error: everframe: @everframe/cli is not installed: ${path} is missing.`);
+    });
+
+    it('treats a script without its executable bit as missing', () => {
+      const h = app();
+      chmodSync(join(h.root, 'node_modules/@everframe/cli/scripts/xcode-upload.sh'), 0o644);
+      const result = h.run({});
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('warning: everframe: @everframe/cli is not installed');
+      expect(h.args()).toBeUndefined();
+    });
   });
 
   describe('with the built CLI', () => {

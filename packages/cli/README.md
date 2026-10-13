@@ -236,24 +236,27 @@ The plugin uploads R8 mappings and native libraries. It also uploads the Hermes
 bundle and its source map after React Native bundles each release variant.
 
 The Xcode app target gets an "Upload Everframe Build Artifacts" Run Script
-phase of one line:
+phase of one line that runs a script shipped in `@everframe/cli`:
 
 ```sh
-"${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "00000000-0000-4000-8000-000000000001"
+EVERFRAME_UPLOAD="${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh"; if [ -x "$EVERFRAME_UPLOAD" ]; then "$EVERFRAME_UPLOAD" --app-id "00000000-0000-4000-8000-000000000001"; else …; fi
 ```
 
-The script ships in `@everframe/cli`. Debug and `SKIP_BUNDLING` builds skip
-before Node starts. Other builds take `NODE_BINARY` from `ios/.xcode.env` and
-`ios/.xcode.env.local`, as React Native's own phases do, and run
-`everframe xcode build-phase` with the same arguments. The installer finds the
-package from the app root the way Node does, so in a monorepo that hoists
-`@everframe/cli` to the workspace root the path becomes, for example,
+The `else` branch prints a `warning:` when the script is missing, because
+`@everframe/cli` is not installed, and the build continues. With
+`EVERFRAME_SYMBOLS_STRICT=1` it fails the build instead.
+
+The script skips Debug and `SKIP_BUNDLING` builds before Node starts. Other
+builds take `NODE_BINARY` from `ios/.xcode.env` and `ios/.xcode.env.local`, as
+React Native's own phases do, and run `everframe xcode build-phase` with the
+same arguments. The installer finds the package from the app root the way Node
+does, so in a monorepo that hoists `@everframe/cli` to the workspace root the
+path becomes, for example,
 `${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh`.
 When no installed `@everframe/cli` has the script, the installer writes the
-standard path above and warns: install the package and run it again. A
-Release build fails while the script is missing. With pnpm, add
-`@everframe/cli` to the app's own dependencies so `node_modules/@everframe/cli`
-exists.
+standard path above and warns: install the package and run it again. With
+pnpm, add `@everframe/cli` to the app's own dependencies so
+`node_modules/@everframe/cli` exists.
 
 The phase declares the dSYM as its input, like `setup xcode`. The installer
 also sets `SOURCEMAP_FILE` to `$(DERIVED_FILE_DIR)/main.jsbundle.map` if the
@@ -270,9 +273,9 @@ does. A failed Hermes upload does not stop the dSYM upload. Metro stages each
 bundle in `.everframe` beside `ios/`; pass `--staging <dir>` if yours is
 elsewhere.
 
-On both platforms, a missing `EVERFRAME_API_TOKEN`, a missing Node, a CLI
-that fails to start, or a failed upload prints a `warning:` line and the build
-continues. Set `EVERFRAME_SYMBOLS_STRICT=1` to fail the build instead. Each upload stops after
+On both platforms, a missing `EVERFRAME_API_TOKEN`, a missing Node or CLI, a
+CLI that fails to start, or a failed upload prints a `warning:` line and the
+build continues. Set `EVERFRAME_SYMBOLS_STRICT=1` to fail the build instead. Each upload stops after
 `EVERFRAME_UPLOAD_TIMEOUT_SECONDS`, 600 by default.
 
 ## Android ELF upload

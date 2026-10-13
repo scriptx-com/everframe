@@ -3,7 +3,7 @@
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { SOURCEMAP_FILE_VALUE } from '@everframe/cli/native-setup';
+import { DEFAULT_XCODE_UPLOAD_SCRIPT, SOURCEMAP_FILE_VALUE, xcodePhaseScript } from '@everframe/cli/native-setup';
 import { describe, expect, it } from 'vitest';
 import { applyAndroid, applyAndroidProject, applyIos } from '../src/withEverframe.js';
 
@@ -61,7 +61,7 @@ describe('@everframe/expo', () => {
       {
         name: 'Upload Everframe Build Artifacts',
         shellPath: '/bin/bash',
-        shellScript: `"\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`,
+        shellScript: xcodePhaseScript(APP, DEFAULT_XCODE_UPLOAD_SCRIPT),
         inputPaths: ['"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"'],
       },
     ]);
@@ -75,7 +75,7 @@ describe('@everframe/expo', () => {
     mkdirSync(join(app, 'ios'), { recursive: true });
     applyIos(project, APP, join(app, 'ios'));
     expect(phases[0]!.shellScript).toBe(
-      `"\${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`,
+      xcodePhaseScript(APP, '${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh'),
     );
   });
 
@@ -83,7 +83,7 @@ describe('@everframe/expo', () => {
     const { project, phases } = fakeProject();
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'everframe-expo-')));
     applyIos(project, APP, join(root, 'ios'));
-    expect(phases[0]!.shellScript).toBe(`"\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`);
+    expect(phases[0]!.shellScript).toBe(xcodePhaseScript(APP, DEFAULT_XCODE_UPLOAD_SCRIPT));
   });
 
   it('runs the patcher from the prebuild ios folder', async () => {
