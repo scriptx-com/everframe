@@ -18,14 +18,16 @@ if [ "${CONFIGURATION:-}" = "Debug" ] || [ -n "${SKIP_BUNDLING:-}" ]; then
   exit 0
 fi
 
-everframe_strict=0
-case "${EVERFRAME_SYMBOLS_STRICT:-}" in 1|true) everframe_strict=1;; esac
-
 # A build started from the Xcode app has a short PATH.
 export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"
-# The project's .xcode.env files set NODE_BINARY, as for React Native's own phases.
+# The project's .xcode.env files set NODE_BINARY, as for React Native's own phases, and may
+# set EVERFRAME_SYMBOLS_STRICT, which the CLI reads too.
 if [ -f "${SRCROOT:-}/.xcode.env" ]; then . "$SRCROOT/.xcode.env"; fi
 if [ -f "${SRCROOT:-}/.xcode.env.local" ]; then . "$SRCROOT/.xcode.env.local"; fi
+if [ -n "${EVERFRAME_SYMBOLS_STRICT:-}" ]; then export EVERFRAME_SYMBOLS_STRICT; fi
+
+everframe_strict=0
+case "${EVERFRAME_SYMBOLS_STRICT:-}" in 1|true) everframe_strict=1;; esac
 
 everframe_skip() {
   if [ "$everframe_strict" = 1 ]; then

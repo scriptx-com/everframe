@@ -248,8 +248,9 @@ Sentry's and Bugsnag's phases, the line runs it with the shell, so the file
 needs no executable bit, and fails the build with `No such file or directory`
 when the script is missing, in every configuration.
 Debug and `SKIP_BUNDLING` builds skip
-before Node starts. Other builds take `NODE_BINARY` from `ios/.xcode.env` and
-`ios/.xcode.env.local`, as React Native's own phases do, and run
+before Node starts. Other builds take `NODE_BINARY`, and optionally
+`EVERFRAME_SYMBOLS_STRICT`, from `ios/.xcode.env` and `ios/.xcode.env.local`,
+as React Native's own phases do, and run
 `everframe xcode build-phase` with the same arguments. The installer finds the
 package from the app root the way Node does, so in a monorepo that hoists
 `@everframe/cli` to the workspace root the path becomes, for example,

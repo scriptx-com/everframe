@@ -121,6 +121,17 @@ describe('scripts/xcode-upload.sh', () => {
     expect(h.args()).toBeUndefined();
   });
 
+  it.each(['export EVERFRAME_SYMBOLS_STRICT=1', 'EVERFRAME_SYMBOLS_STRICT=true'])(
+    'takes strict mode from .xcode.env (%s) and keeps a failed status',
+    (line) => {
+      const h = app({ exitCode: 3 });
+      writeFileSync(join(h.srcroot, '.xcode.env'), `${line}\n`);
+      const result = h.run({});
+      expect(result.status).toBe(3);
+      expect(result.stdout).not.toContain('warning:');
+    },
+  );
+
   it('turns a failed CLI run into a warning, and keeps its status when strict', () => {
     const h = app({ exitCode: 3 });
     const lenient = h.run({});
@@ -160,6 +171,18 @@ describe('scripts/xcode-upload.sh', () => {
       expect(result.status).toBe(0);
       expect(result.stderr.trim()).toBe(XCODE_NO_TOKEN_WARNING);
     });
+
+    it.each(['export EVERFRAME_SYMBOLS_STRICT=1', 'EVERFRAME_SYMBOLS_STRICT=1'])(
+      'fails a Release build without a token when only .xcode.env sets strict mode (%s)',
+      (line) => {
+        const srcroot = mkdtempSync(join(tmpdir(), 'everframe-xcode-env-'));
+        roots.push(srcroot);
+        writeFileSync(join(srcroot, '.xcode.env'), `${line}\n`);
+        const result = run({ SRCROOT: srcroot });
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain('error: everframe: missing_api_token');
+      },
+    );
 
     it('fails a strict Release build without a token', () => {
       const result = run({ EVERFRAME_SYMBOLS_STRICT: '1' });
