@@ -3955,9 +3955,11 @@ public enum EverframePlatform: String, Codable {
     case androidtv = "androidtv"
     case ios = "ios"
     case roku = "roku"
+    case titanos = "titanos"
     case tizen = "tizen"
     case tvos = "tvos"
     case vega = "vega"
+    case vidaa = "vidaa"
     case web = "web"
     case webos = "webos"
 }

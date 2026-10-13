@@ -1542,7 +1542,8 @@ export function createWebPlatformAdapter(
           // This is the FIRST check on purpose: it must hold even for a crash
           // that arrives before `handlingCrash`/throttle state is consulted.
           if (reportingKilled) return;
-          if (!handlingCrash && mechanism !== 'captureException') healthLease?.fail(mechanism);
+          const crashReportId = generateReportId();
+          if (!handlingCrash && mechanism !== 'captureException') healthLease?.fail(mechanism, crashReportId);
           const ownership = reportingOwnership;
           const stillOwned = (): boolean =>
             !reportingKilled && reportingOwnership === ownership;
@@ -1604,7 +1605,7 @@ export function createWebPlatformAdapter(
               fatal: uncaughtReact !== undefined,
               ...(uncaughtReact?.componentStack ? { componentStack: uncaughtReact.componentStack } : {}),
               occurredAt: new Date().toISOString(),
-              reportId: generateReportId(),
+              reportId: crashReportId,
               submittedAt: new Date().toISOString(),
               sdk: {
                 name: sdkName,

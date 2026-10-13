@@ -7,7 +7,7 @@ import { createWebHealthSession } from './session.js';
 import { createWebHealthJournal } from './journal.js';
 import { createWebHealthTransport } from './transport.js';
 export interface WebHealthOptions { sdkKey:string; endpoint:string; app:ReleaseHealthApp; sdkVersion:string; platform:WebRuntimePlatform; subject:ReleaseHealthSubject }
-export interface WebHealthLease { fail(mechanism:'onerror'|'unhandledrejection'):void; release():void; revoke():void }
+export interface WebHealthLease { fail(mechanism:'onerror'|'unhandledrejection',reportId?:string):void; release():void; revoke():void }
 interface Entry { fingerprint:string; owner:object|null; revoked:boolean; fail:WebHealthLease['fail']; dispose():void; revoke():void }
 const NOOP:WebHealthLease={fail(){},release(){},revoke(){}};
 export function acquireWebHealth(options:WebHealthOptions):WebHealthLease {
@@ -35,7 +35,7 @@ export function acquireWebHealth(options:WebHealthOptions):WebHealthLease {
     const onHide=(event:PageTransitionEvent)=>{if(!event.persisted&&current.owner)emit(session.complete(new Date()),true);else void transport.flush({keepalive:true});};
     const onVisibility=()=>{void transport.flush({keepalive:document.visibilityState==='hidden'});};
     const onStorage=(event:StorageEvent)=>{if(event.key===revocationKey)current.revoke();};
-    const current:Entry={fingerprint,owner:null,revoked:false,fail:mechanism=>emit(session.fail(mechanism,new Date())),
+    const current:Entry={fingerprint,owner:null,revoked:false,fail:(mechanism,reportId)=>emit(session.fail(mechanism,new Date(),reportId)),
       dispose(){current.owner=null;window.removeEventListener('pagehide',onHide);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('storage',onStorage);},
       revoke(){current.revoked=true;transport.revoke(options.endpoint,options.sdkKey);current.dispose();},
     };
@@ -44,7 +44,7 @@ export function acquireWebHealth(options:WebHealthOptions):WebHealthLease {
     emit(session.start());
   }
   const current=entry,owner={};current.owner=owner;
-  return {fail(mechanism){if(current.owner===owner&&!current.revoked)current.fail(mechanism);},
+  return {fail(mechanism,reportId){if(current.owner===owner&&!current.revoked)current.fail(mechanism,reportId);},
     release(){if(current.owner===owner)current.owner=null;},
     revoke(){if(current.owner!==owner)return;current.revoke();try{window.localStorage.setItem('everframe:health-revoked:'+key,generateReportId());}catch{/*restricted storage*/}},
   };

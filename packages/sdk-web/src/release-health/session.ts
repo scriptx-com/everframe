@@ -16,10 +16,10 @@ export function createWebHealthSession(input: WebReleaseHealthExposure) {
       completed = true;
       return Object.freeze({ ...common(at), phase:'end', sequence:1, outcome:'completed', endReason:'pagehide' });
     },
-    fail(mechanism: 'onerror' | 'unhandledrejection', at: Date): WebReleaseHealthRecord | null {
+    fail(mechanism: 'onerror' | 'unhandledrejection', at: Date, reportId?: string): WebReleaseHealthRecord | null {
       if (failed) return null;
       failed = true;
-      return Object.freeze({ ...common(at), phase:'failure', sequence:2, outcome:'crashed', mechanism });
+      return Object.freeze({ ...common(at), phase:'failure', sequence:2, outcome:'crashed', mechanism, ...(reportId ? { reportId } : {}) });
     },
   };
 }

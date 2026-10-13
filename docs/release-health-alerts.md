@@ -13,7 +13,7 @@ drops below 99% crash-free sessions". Admins set it up on the project's
 - the webhook endpoint to send to, from any app in the project.
 
 Everframe checks the rule about every five minutes, for every version of the
-project's Android, iOS and React Native apps, with all platforms counted
+project's Android, iOS, React Native, web and React apps, with all platforms counted
 together. When a version drops below the target, it sends one
 `release_health.threshold_reached` webhook with event schema 2.0, over the
 normal signed webhook transport. `ReleaseHealthThresholdEventSchema` in
@@ -22,6 +22,13 @@ event is checked against it before it is sent.
 
 The rate is the one the release health page shows; see
 [what a crash-free session is](release-health.md#what-a-crash-free-session-is).
+
+Web sessions join existing rules automatically, using the same thresholds and
+minimum resolved-session count. No new opt-in is needed. Unknown page outcomes
+do not enter the rate. As with native alerts, sending requires a retained crash
+report: if the detailed report was not delivered or was erased, the rate can be
+below target while notification waits for a report. Health counts themselves do
+not depend on the detailed report upload.
 
 ## Payload
 
@@ -52,9 +59,9 @@ Everything except `id`, `type`, `schemaVersion` and `createdAt` is in `data`.
 - `projectId` and `ruleId` name the project and its rule.
 - `version` is the app version, 1 to 64 UTF-16 code units, exactly as the SDKs
   read it; see [versions and builds](release-health.md#versions-and-builds).
-- `platforms` lists `android`, `ios` or both, sorted, for the platforms that had
-  sessions of this version in the window. React Native apps count under their
-  platform.
+- `platforms` lists the sorted, unique runtime platforms with sessions in the
+  window: `android`, `ios`, `web`, `tizen`, `webos`, `vega`, `vidaa`, `titanos`.
+  React Native apps count under their native platform; React uses the web runtime.
 - `window` covers sessions that started at or after `from` and at or before `to`
   and that Everframe still keeps. `days` is always 7, and `to` equals
   `observedAt`.

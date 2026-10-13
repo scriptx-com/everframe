@@ -1041,9 +1041,11 @@ enum class Platform(val value: String) {
     @SerialName("androidtv") Androidtv("androidtv"),
     @SerialName("ios") Ios("ios"),
     @SerialName("roku") Roku("roku"),
+    @SerialName("titanos") Titanos("titanos"),
     @SerialName("tizen") Tizen("tizen"),
     @SerialName("tvos") Tvos("tvos"),
     @SerialName("vega") Vega("vega"),
+    @SerialName("vidaa") Vidaa("vidaa"),
     @SerialName("web") Web("web"),
     @SerialName("webos") Webos("webos");
 }

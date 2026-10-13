@@ -27,3 +27,6 @@ it.each([
 ])('rejects incompatible web fields %j', patch => {
   expect(ReleaseHealthRecordSchema.safeParse({ ...webStart, ...patch }).success).toBe(false);
 });
+it('can correlate a failure with its detailed report without requiring delivery of that report',()=>{
+ expect(ReleaseHealthRecordSchema.safeParse({...webStart,phase:'failure',sequence:2,outcome:'crashed',mechanism:'onerror',reportId:'55555555-5555-4555-8555-555555555555'}).success).toBe(true);
+});

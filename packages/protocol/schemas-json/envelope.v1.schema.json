@@ -61,7 +61,9 @@
             "webos",
             "androidtv",
             "roku",
-            "vega"
+            "vega",
+            "vidaa",
+            "titanos"
           ],
           "$id": "SDKPlatform",
           "description": "All TV form factors enumerated from v1 (PLAT-04)"

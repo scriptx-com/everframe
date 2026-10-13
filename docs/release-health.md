@@ -4,9 +4,9 @@
 # Release health
 
 Release health answers one question: is the version you just shipped crashing
-more than the one before it? For every version of your Android, iOS and React
-Native apps, Everframe counts foreground sessions and shows how many ended
-without a crash. Each project has a **Release health** page, with one row per
+more than the one before it? For every version of your native and web apps, Everframe counts
+foreground sessions on Android, iOS and React Native, and page sessions on web.
+It shows how many completed without an observed crash. Each project has a **Release health** page, with one row per
 version and a page for each version.
 
 ## Set up
@@ -80,9 +80,36 @@ Per platform:
   development builds when you left `releaseHealth` out, and in every build when
   you set it. Every Provider configure applies its own setting.
 
+## Web and React setup
+
+Starting with SDK 1.2.2, web release health starts automatically when you supply
+an explicit valid `appVersion` in a production build. Browser, Tizen, webOS,
+Vega web runtimes, Vidaa, and TitanOS use the same producer. The separate native
+Vega SDK is not part of this page-session collector.
+
+```ts
+import { init } from '@everframe/web';
+init({ sdkKey: 'YOUR_SDK_KEY', appVersion: '12.3.5-12-web', debugBuild: false });
+```
+
+```tsx
+import { EverframeProvider } from '@everframe/react';
+<EverframeProvider config={{ sdkKey: 'YOUR_SDK_KEY', appVersion: '12.3.5-12-web', debugBuild: false }}>
+  <App />
+</EverframeProvider>
+```
+
+Use your build's production/debug setting for `debugBuild`; true suppresses web
+health sessions and automatic releases. When unset, the existing SDK debug
+build detection applies. Missing app versions do not create health releases.
+`disabled`, SDK kill, and `crashReporting.disabled` turn collection off.
+`reporter.disabled` keeps health collection active in crash-only mode.
+There is no separate web release-health option.
+
 ## What a crash-free session is
 
-A crash-free session is a foreground session that didn't end in a crash.
+A crash-free session has an observed completion and no qualifying crash. Native
+apps use foreground sessions; web apps use page sessions.
 
 A session starts when your app comes to the foreground and ends when it goes to
 the background. A session that reaches the background is **completed**. A
@@ -93,6 +120,26 @@ session **crashed** when the app crashed during it, from any of these causes:
 - an unhandled JavaScript error that ends a React Native app (Hermes);
 - app not responding on Android: the system ended the app because it stopped
   responding (an ANR, reported on Android 11 and later).
+
+On web, a session starts when the SDK initializes in a document. SPA navigation,
+React remounts, hiding the tab, and back/forward-cache restoration do not start
+another session. A full document reload does. A non-cached page exit reports
+completion. The first global uncaught exception or unhandled promise rejection
+marks that session crashed immediately, even if the page continues running.
+Handled exceptions, console errors, resource-load errors, and errors caught by
+React boundaries do not count. A later completion cannot undo a failure.
+
+An open TV page can report sessions before it has a resolved outcome. Closing a
+browser, losing power, or losing the exit request may leave an unknown outcome;
+these are never inferred to be crashes or successful completions. Exit delivery
+is best effort and queued observations retry when possible. These measurements
+cover the time the SDK observes, not time before SDK initialization or a verified
+browser-process crash rate. Runtime platform is detected separately from the
+version string; versions are kept exactly as supplied.
+
+For web user rates, only a valid explicitly supplied user ID available at session
+start is frozen into that session. Later identity changes do not rewrite it.
+Anonymous sessions do not become synthetic users.
 
 Crash-free sessions = completed ÷ (completed + crashed).
 

@@ -105,7 +105,7 @@ export const WebReleaseHealthRecordSchema = z.discriminatedUnion('phase', [
   z.object({ ...webRecord, phase: z.literal('end'), sequence: z.literal(1), outcome: z.literal('completed'),
     elapsedMs, endReason: z.literal('pagehide') }).strict(),
   z.object({ ...webRecord, phase: z.literal('failure'), sequence: z.literal(2), outcome: z.literal('crashed'),
-    elapsedMs, mechanism: z.enum(['onerror', 'unhandledrejection']) }).strict(),
+    elapsedMs, mechanism: z.enum(['onerror', 'unhandledrejection']), reportId: uuid.optional() }).strict(),
 ]).refine(value => value.capturedAt >= value.exposure.startedAt, { message: 'Observation cannot predate start' });
 export const ReleaseHealthExposureSchema = z.union([NativeReleaseHealthExposureSchema, WebReleaseHealthExposureSchema]);
 export const ReleaseHealthRecordSchema = z.union([NativeReleaseHealthRecordSchema, WebReleaseHealthRecordSchema]);
