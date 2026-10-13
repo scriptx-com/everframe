@@ -278,12 +278,20 @@ SDK version, the loaded JavaScript bundle ID in React Native apps, the start
 time and length, and the user ID if you set one. It holds no device or install
 identifier.
 
-The SDK saves each session start to an encrypted, app-private queue before it
+The native SDK saves each session start to an encrypted, app-private queue before it
 ties crash reports to that session. The queue keeps at most 256 records and
 1 MiB, for seven days. When it is full, the SDK refuses new records rather than
 dropping older ones. Retries resend each record's original bytes to its original
 SDK key and endpoint. Session records are sent independently of crash and error
 reports, which have their own queue.
+
+Web and React keep pending session records in origin-local `localStorage`, without
+additional encryption, or memory when storage is unavailable. The web queue holds
+at most 128 records and 1 MiB, expires records after 30 days, and evicts the oldest
+records first when full. A failed storage write or lost exit request can leave an
+unknown session. Only initialize with user IDs you intend to include in telemetry.
+`kill()`, disabling the SDK or crash reporting, and switching to a debug build
+stop web health delivery and erase pending records for that SDK key and endpoint.
 
 Turning release health off erases the records still waiting on the device:
 `releaseHealth = null` or `ReleaseHealthConfig(enabled = false)` on Android,

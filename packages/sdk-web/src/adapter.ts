@@ -135,7 +135,7 @@ import { globalScope } from './internal/global-scope.js';
 import { resolveAppBuild } from './build-identity.js';
 import { resolveDebugBuild } from './debug-build.js';
 import { detectWebRuntimePlatform, ReleaseHealthSubjectSchema } from '@everframe/protocol';
-import { acquireWebHealth, type WebHealthLease } from './release-health/runtime.js';
+import { acquireWebHealth, revokeWebHealth, type WebHealthLease } from './release-health/runtime.js';
 
 /**
  * The structural slice of sdk-core's `IdentityTokenHolder` that this adapter
@@ -2243,8 +2243,13 @@ export function createWebPlatformAdapter(
       identityTokenHolderGet = get;
     },
     __startReleaseHealth: (): void => {
-      if (reportingKilled || _config.disabled || _config.crashReporting?.disabled || !_config.appVersion ||
-          resolveDebugBuild(_config.debugBuild, typeof location === 'undefined' ? null : location)) return;
+      if (reportingKilled) return;
+      if (_config.disabled || _config.crashReporting?.disabled ||
+          resolveDebugBuild(_config.debugBuild, typeof location === 'undefined' ? null : location)) {
+        revokeWebHealth(INGEST_URL, _config.sdkKey);
+        return;
+      }
+      if (!_config.appVersion) return;
       try {
         const id = readUser()?.id;
         const subject = ReleaseHealthSubjectSchema.safeParse(id ? { kind: 'provided', id } : { kind: 'anonymous' });
