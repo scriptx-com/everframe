@@ -1,0 +1,25 @@
+.changeset/xcode-one-line-phase.md
+  s_dbd309ddf8ec5b::t_6d3fdd1aff010d 9
+packages/cli/README.md
+  s_dbd309ddf8ec5b::t_b5b3ff488badb6 251-253
+packages/cli/__tests__/xcode-upload-script.spec.ts
+  s_dbd309ddf8ec5b::t_fee2075ea9c7c6 124-134,175-186
+packages/cli/scripts/xcode-upload.sh
+  s_dbd309ddf8ec5b::t_6e0b7a24ceddcb 23-24,27-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ee3a678a9b625a4101cc05f7a894058f62ee5aaa",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
