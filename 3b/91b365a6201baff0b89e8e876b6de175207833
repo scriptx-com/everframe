@@ -1,0 +1,21 @@
+examples/ios-native/SampleApp.xcodeproj/project.pbxproj
+  s_dbd309ddf8ec5b::t_e84d97b7334321 269,308
+examples/ios-native/project.yml
+  s_dbd309ddf8ec5b::t_ac53e549758887 68-69,103-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3b91b365a6201baff0b89e8e876b6de175207833",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
