@@ -255,6 +255,7 @@ export function init(config: WebEverframeConfig): Everframe {
   adapter.__setNetworkBodiesBuffer(() => __internalClientState.get(client)?.networkBodies);
   adapter.__setIdentityTokenHolder(() => __internalClientState.get(client)?.identityToken);
   adapter.__setUserGetter(() => __internalClientState.get(client)?.user ?? null);
+  adapter.__startReleaseHealth();
   // The crumb/crash/body forwarding slots are PAGE-GLOBAL and the previous
   // instance's `destroy()` deliberately does not uninstall the patchers it
   // shares with the rest of the page (see destroy()). A fresh init() must
