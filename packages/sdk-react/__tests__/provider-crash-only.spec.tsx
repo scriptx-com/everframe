@@ -4,7 +4,8 @@
 //
 // Crash-only sessions (spec 2026-10-12), React host. A Provider whose config
 // sets `reporter: { disabled: true }` binds no hotkey, rejects `open()`,
-// hands the inbox no "New report" action, and upgrades replay coverage when
+// hands the inbox no "New report" action (the FAB that opens it is hidden too;
+// see provider-fab-kill-switch.spec (h)), and upgrades replay coverage when
 // the page-wide companion bonds, including after a StrictMode rebuild. Each
 // refusal is paired with a live control on a report session.
 import { StrictMode, useContext } from 'react';

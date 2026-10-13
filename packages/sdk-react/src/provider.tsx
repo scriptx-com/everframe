@@ -876,7 +876,10 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
       />
       <CompanionPinCard />
       <CompanionBadge />
+      {/* A crash-only session (`reporter.disabled`) has no on-device way to
+          open the reporter, so it gets no FAB and therefore no inbox. */}
       {ctxValue.adapter.threads && ctxValue.config.replies?.ui !== 'headless'
+        && ctxValue.config.reporter?.disabled !== true
         && threadState.count > 0 ? (
         <ReporterFab
           unreadCount={threadState.unread}

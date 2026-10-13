@@ -1,29 +1,46 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { existsSync } from 'node:fs';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { checkedAppId } from './script.js';
 import { SYMBOLS_BUILD_SETTINGS, SYMBOLS_PHASE_INPUTS } from './xcode-symbols.js';
 
 export const XCODE_PHASE_NAME = 'Upload Everframe Build Artifacts';
 export const SOURCEMAP_FILE_VALUE = '"$(DERIVED_FILE_DIR)/main.jsbundle.map"';
+/** The upload script inside an installed `@everframe/cli`, from the folder that holds `node_modules`. */
+export const XCODE_UPLOAD_SCRIPT = 'node_modules/@everframe/cli/scripts/xcode-upload.sh';
+/** The script's path when `node_modules` sits in the app root, beside `ios/`. */
+export const DEFAULT_XCODE_UPLOAD_SCRIPT = `\${SRCROOT}/../${XCODE_UPLOAD_SCRIPT}`;
+const SCRIPT_PATH = /^\$\{SRCROOT\}\/(?:\.\.\/)+node_modules\/@everframe\/cli\/scripts\/xcode-upload\.sh$/;
 
 /**
- * The Run Script body: it finds the installed `@everframe/cli` the way Node would from the app
- * root and runs `everframe xcode build-phase`, which owns the upload logic (token, strict mode,
- * time budget, Hermes map, dSYMs). Debug and SKIP_BUNDLING builds skip before Node starts, as
- * the CLI itself does, so they never depend on Node. `.xcode.env` supplies NODE_BINARY, as in
- * React Native's own phases. When Node or the CLI is missing, or the CLI fails before it can
- * apply its own policy (an incomplete install), the build warns and continues, unless
- * EVERFRAME_SYMBOLS_STRICT=1, which keeps the failing status.
+ * Where the phase finds the upload script, relative to `${SRCROOT}` (the folder that holds the
+ * `.xcodeproj`, `ios/` in React Native and Expo). It looks for `@everframe/cli` the way Node
+ * does from the app root, `SRCROOT/..`: the nearest `node_modules/@everframe/cli` in it or a
+ * parent folder, so a monorepo that hoists the package to its root works. It keeps symlinks
+ * instead of resolving them, so a pnpm link keeps working after an upgrade. When no installed
+ * CLI has the script, it returns the standard path and `installed: false`.
  */
-export function xcodePhaseScript(appId: string): string {
-  return [
-    'if [ "${CONFIGURATION:-}" = "Debug" ] || [ -n "${SKIP_BUNDLING:-}" ]; then echo "everframe: Debug build, skipping artifact upload"; exit 0; fi',
-    'if [ -f "$SRCROOT/.xcode.env" ]; then . "$SRCROOT/.xcode.env"; fi',
-    'if [ -f "$SRCROOT/.xcode.env.local" ]; then . "$SRCROOT/.xcode.env.local"; fi',
-    `EVERFRAME_CLI_JS="$(cd "$SRCROOT/.." && "\${NODE_BINARY:-node}" --print "require.resolve('@everframe/cli')" 2>/dev/null)" && "\${NODE_BINARY:-node}" "$EVERFRAME_CLI_JS" xcode build-phase --app-id "${checkedAppId(appId)}"`,
-    'EVERFRAME_STATUS=$?; if [ "$EVERFRAME_STATUS" = 0 ]; then exit 0; fi; case "${EVERFRAME_SYMBOLS_STRICT:-}" in 1|true) exit "$EVERFRAME_STATUS";; esac',
-    'echo "warning: everframe: could not run @everframe/cli with Node from $SRCROOT/.. (exit status $EVERFRAME_STATUS); build artifacts were not uploaded and the build continues. Install @everframe/cli in the app, or set NODE_BINARY in ios/.xcode.env.local. Set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead."',
-  ].join('\n');
+export function xcodeUploadScriptPath(srcRoot: string): { path: string; installed: boolean } {
+  const root = resolve(srcRoot);
+  for (let dir = dirname(root); ; dir = dirname(dir)) {
+    const script = join(dir, XCODE_UPLOAD_SCRIPT);
+    if (existsSync(script)) return { path: `\${SRCROOT}/${relative(root, script).split(sep).join('/')}`, installed: true };
+    if (dirname(dir) === dir) return { path: DEFAULT_XCODE_UPLOAD_SCRIPT, installed: false };
+  }
+}
+
+/**
+ * The Run Script body: one line that runs the `scripts/xcode-upload.sh` shipped in
+ * `@everframe/cli` with `/bin/bash`, so it does not depend on the file's mode (`pnpm pack`
+ * writes it as 0644). When the package is missing, bash fails the build with
+ * `No such file or directory`. The script skips Debug and SKIP_BUNDLING builds, reads NODE_BINARY from
+ * `.xcode.env`, and runs `everframe xcode build-phase`, which owns the upload logic (token,
+ * strict mode, time budget, Hermes map, dSYMs).
+ */
+export function xcodePhaseScript(appId: string, scriptPath = DEFAULT_XCODE_UPLOAD_SCRIPT): string {
+  if (!SCRIPT_PATH.test(scriptPath)) throw new Error(`invalid_upload_script_path: ${scriptPath}`);
+  return `/bin/bash "${scriptPath}" --app-id "${checkedAppId(appId)}"`;
 }
 
 /** The subset of the `xcode` package's project object this module uses. */
@@ -42,16 +59,17 @@ export interface XcodeProjectLike {
 }
 
 /**
- * Appends the upload as the last Run Script phase, or rewrites an existing phase's script; defines
- * `SOURCEMAP_FILE` only where the app has not set it.
+ * Appends the upload as the last Run Script phase, or rewrites the phase of the same name in
+ * place; defines `SOURCEMAP_FILE` only where the app has not set it, and turns off script
+ * sandboxing. `scriptPath` comes from {@link xcodeUploadScriptPath}.
  */
-export function patchXcodeProject(project: XcodeProjectLike, appId: string): void {
+export function patchXcodeProject(project: XcodeProjectLike, appId: string, scriptPath = DEFAULT_XCODE_UPLOAD_SCRIPT): void {
   const target = project.getFirstTarget();
-  const script = xcodePhaseScript(appId);
+  const script = xcodePhaseScript(appId, scriptPath);
   const existing = project.pbxItemByComment(XCODE_PHASE_NAME, 'PBXShellScriptBuildPhase') as
     | { shellScript?: string; inputPaths?: string[]; alwaysOutOfDate?: number }
     | null;
-  // The inputs order the phase after dSYM generation; it reads fresh outputs every build.
+  // The dSYM input orders the phase after dSYM generation; it reads fresh outputs every build.
   if (existing) {
     // Same quoting `addBuildPhase` applies, so an unchanged script serializes identically.
     existing.shellScript = `"${script.replace(/"/g, '\\"')}"`;
@@ -73,7 +91,7 @@ export function patchXcodeProject(project: XcodeProjectLike, appId: string): voi
     if (!config || typeof config === 'string') continue;
     config.buildSettings ??= {};
     config.buildSettings.SOURCEMAP_FILE ??= SOURCEMAP_FILE_VALUE;
-    // The phase reads node_modules and dSYM folders, and its inputs must exist in Debug too.
+    // The phase reads node_modules, the app bundle and dSYM folders.
     Object.assign(config.buildSettings, SYMBOLS_BUILD_SETTINGS);
   }
 }

@@ -3,9 +3,9 @@
 /** @vitest-environment jsdom */
 //
 // Crash-only sessions (spec 2026-10-12), vanilla host. `init()` with
-// `reporter: { disabled: true }` binds no hotkey, rejects `open()`, hides the
-// inbox's "New report" buttons, and upgrades replay coverage when the
-// page-wide companion bonds. Each refusal is paired with a live control on a
+// `reporter: { disabled: true }` binds no hotkey, rejects `open()`, shows no
+// replies FAB (so no inbox) even when the device has threads, and upgrades
+// replay coverage when the page-wide companion bonds. Each refusal is paired with a live control on a
 // report session so a broken harness fails as loudly as a missing gate.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -136,10 +136,17 @@ describe('crash-only init(): entry points', () => {
       unreadCount: 1,
     };
 
-    async function openInbox(reporterDisabled: boolean): Promise<IslandOpts> {
+    const fabEl = (): Element | null | undefined =>
+      document.getElementById('everframe-host')?.shadowRoot?.querySelector('[data-testid=reporter-fab]');
+
+    function mountWithThread(reporterDisabled: boolean): Everframe {
       localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), `evr_${'0'.repeat(36)}`);
       stubFetch({ ...replayOff, replies: { enabled: true } }, [thread]);
-      mount(reporterDisabled);
+      return mount(reporterDisabled);
+    }
+
+    async function openInbox(reporterDisabled: boolean): Promise<IslandOpts> {
+      mountWithThread(reporterDisabled);
       const fab = await vi.waitFor(
         () => {
           const el = document
@@ -160,9 +167,14 @@ describe('crash-only init(): entry points', () => {
       expect(typeof opts.onNewReport).toBe('function');
     });
 
-    it('hands the inbox no "New report" action', async () => {
-      const opts = await openInbox(true);
-      expect(opts.onNewReport).toBeUndefined();
+    it('shows no FAB, so no inbox, even though the device has a thread', async () => {
+      const handle = mountWithThread(true);
+      // The poll really ran and the device really has a thread: the hidden
+      // FAB is the crash-only gate, not an empty list.
+      await vi.waitFor(() => expect(handle.threads?.list()).toHaveLength(1), { timeout: 3000 });
+      await flush();
+      expect(fabEl()).toBeFalsy();
+      expect(islands).toHaveLength(0);
     });
   });
 });

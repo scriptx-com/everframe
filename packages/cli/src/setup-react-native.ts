@@ -3,7 +3,14 @@
 import { access, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import xcode from 'xcode';
-import { assertGroovy, checkedAppId, patchAppBuildGradle, patchRootBuildGradle, patchXcodeProject } from './native-setup/index.js';
+import {
+  assertGroovy,
+  checkedAppId,
+  patchAppBuildGradle,
+  patchRootBuildGradle,
+  patchXcodeProject,
+  xcodeUploadScriptPath,
+} from './native-setup/index.js';
 
 const METRO_HINT = [
   "const { withEverframe } = require('@everframe/metro');",
@@ -24,7 +31,13 @@ const exists = (path: string) =>
 export async function setupReactNative(options: {
   projectRoot: string;
   appId: string;
-}): Promise<{ files: Array<{ path: string; changed: boolean }>; changed: string[]; metroHint: string }> {
+}): Promise<{
+  files: Array<{ path: string; changed: boolean }>;
+  changed: string[];
+  metroHint: string;
+  /** The Xcode phase's script path, and whether an installed `@everframe/cli` has it yet. */
+  uploadScript?: { path: string; installed: boolean };
+}> {
   checkedAppId(options.appId);
   const writes: Array<{ relative: string; before: string; after: string }> = [];
 
@@ -49,13 +62,15 @@ export async function setupReactNative(options: {
   const entries = await readdir(join(options.projectRoot, 'ios')).catch(() => [] as string[]);
   const projects = entries.filter((name) => name.endsWith('.xcodeproj'));
   if (projects.length > 1) throw new Error('multiple_xcode_projects');
+  let uploadScript: { path: string; installed: boolean } | undefined;
   if (projects.length === 1) {
     const relative = `ios/${projects[0]}/project.pbxproj`;
     const pbxPath = join(options.projectRoot, relative);
     const before = await readFile(pbxPath, 'utf8');
     const project = xcode.project(pbxPath);
     project.parseSync();
-    patchXcodeProject(project, options.appId);
+    uploadScript = xcodeUploadScriptPath(join(options.projectRoot, 'ios'));
+    patchXcodeProject(project, options.appId, uploadScript.path);
     writes.push({ relative, before, after: project.writeSync() });
   }
 
@@ -66,5 +81,10 @@ export async function setupReactNative(options: {
     if (after !== before) await writeFile(join(options.projectRoot, relative), after);
     files.push({ path: relative, changed: after !== before });
   }
-  return { files, changed: files.filter((file) => file.changed).map((file) => file.path), metroHint: METRO_HINT };
+  return {
+    files,
+    changed: files.filter((file) => file.changed).map((file) => file.path),
+    metroHint: METRO_HINT,
+    ...(uploadScript && { uploadScript }),
+  };
 }

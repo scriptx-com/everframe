@@ -132,8 +132,11 @@ the build environment, which includes every build setting of the target.
 It adds an "Upload Everframe Symbols" Run Script phase as the last phase of
 every application target (narrow it with `--target <name>`, repeatable). The
 phase runs `everframe dsym upload-build --xcode` on every build, after Xcode
-has written the dSYMs and `Info.plist`, so archives, `xcodebuild`, fastlane and
+has written the app's dSYM, so archives, `xcodebuild`, fastlane and
 Xcode Cloud upload without extra steps. Running the command again is safe.
+A native app usually has no `node_modules`, so this phase carries its own
+script, which can fetch the CLI with `npx`, instead of the one-line phase that
+React Native and Expo apps get.
 
 - Debug builds skip (set `EVERFRAME_UPLOAD_DEBUG=1` to upload them).
 - Without `EVERFRAME_API_TOKEN`, or when the upload fails, the phase prints a
@@ -143,10 +146,11 @@ Xcode Cloud upload without extra steps. Running the command again is safe.
   because the phase reads embedded frameworks, dSYM folders and
   `node_modules`, which a sandboxed script cannot list. A phase that still runs
   sandboxed reports `xcode_script_sandboxed` with this fix.
-- The phase declares the dSYM as an input only for `dwarf-with-dsym` builds,
-  which orders it after dSYM generation. Debug (`dwarf`) builds declare
-  `Info.plist` instead, so a missing dSYM can never fail the build. The
-  installer writes the `EVERFRAME_DSYM_INPUT*` build settings that do this.
+- The phase declares the app's dSYM as its one input:
+  `$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)`.
+  Without it, Xcode generates the dSYM after the last Run Script phase, so the
+  phase would only find the previous build's. Debug (`dwarf`) builds never
+  write the file, and Xcode runs the phase without it.
 - The phase finds the CLI in this order: `EVERFRAME_CLI_JS` (a built
   `dist/index.js`), then `@everframe/cli` in the project's `node_modules`, then
   `npx --yes --prefer-offline @everframe/cli@<version that installed the phase>`
@@ -167,18 +171,13 @@ targets:
     settings:
       base:
         ENABLE_USER_SCRIPT_SANDBOXING: NO
-        EVERFRAME_DSYM_INPUT: $(EVERFRAME_DSYM_INPUT_$(DEBUG_INFORMATION_FORMAT:c99extidentifier))
-        EVERFRAME_DSYM_INPUT_dwarf_with_dsym: $(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)
-        EVERFRAME_DSYM_INPUT_dwarf: $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
-        EVERFRAME_DSYM_INPUT_: $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
     postBuildScripts:
       - name: Upload Everframe Symbols
         path: scripts/upload-everframe-symbols.sh
         shell: /bin/bash
         basedOnDependencyAnalysis: false
         inputFiles:
-          - $(EVERFRAME_DSYM_INPUT)
-          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+          - $(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)
 ```
 
 The native sample app (`examples/ios-native/project.yml` in the repository) is wired this way.
@@ -217,8 +216,9 @@ npx @everframe/cli setup react-native --app-id "$EVERFRAME_APP_ID"
 ```
 
 It lists each file it patched, as `Updated <path>` or `No changes: <path>`.
-Running it again is safe. Install `@everframe/cli` in the app, because the
-build finds it in `node_modules`.
+Running it again is safe. Install `@everframe/cli` in the app first: the Xcode
+phase runs a script from the installed package, and every iOS build fails
+without it.
 
 `android/build.gradle` gets one classpath line:
 
@@ -237,17 +237,36 @@ The plugin uploads R8 mappings and native libraries. It also uploads the Hermes
 bundle and its source map after React Native bundles each release variant.
 
 The Xcode app target gets an "Upload Everframe Build Artifacts" Run Script
-phase. Debug and `SKIP_BUNDLING` builds skip before Node starts. Other builds
-find the CLI with Node and run:
+phase of one line:
 
 ```sh
-everframe xcode build-phase --app-id "00000000-0000-4000-8000-000000000001"
+/bin/bash "${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "00000000-0000-4000-8000-000000000001"
 ```
 
-The installer also sets `SOURCEMAP_FILE` to
-`$(DERIVED_FILE_DIR)/main.jsbundle.map` if the target does not set it, and
-writes the same `ENABLE_USER_SCRIPT_SANDBOXING` and `EVERFRAME_DSYM_INPUT*`
-settings as `setup xcode`.
+The script ships in `@everframe/cli`, which must be installed in the app. Like
+Sentry's and Bugsnag's phases, the line runs it with the shell, so the file
+needs no executable bit, and fails the build with `No such file or directory`
+when the script is missing, in every configuration.
+Debug and `SKIP_BUNDLING` builds skip
+before Node starts. Other builds take `NODE_BINARY`, and optionally
+`EVERFRAME_SYMBOLS_STRICT`, from `ios/.xcode.env` and `ios/.xcode.env.local`,
+as React Native's own phases do, and run
+`everframe xcode build-phase` with the same arguments. The installer finds the
+package from the app root the way Node does, so in a monorepo that hoists
+`@everframe/cli` to the workspace root the path becomes, for example,
+`${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh`.
+When no installed `@everframe/cli` has the script, the installer writes the
+standard path above and warns that builds fail until the package is installed:
+install it and run the installer again. With pnpm, add
+`@everframe/cli` to the app's own dependencies so `node_modules/@everframe/cli`
+exists.
+
+The phase declares the dSYM as its input, like `setup xcode`. The installer
+also sets `SOURCEMAP_FILE` to `$(DERIVED_FILE_DIR)/main.jsbundle.map` if the
+target does not set it, and `ENABLE_USER_SCRIPT_SANDBOXING = NO`.
+`SOURCEMAP_FILE` is a target build setting rather than an `export` in React
+Native's bundle phase because the upload runs in a later phase, which would not
+see the export.
 
 `everframe xcode build-phase` reads Xcode's build settings. Debug builds and
 builds with `SKIP_BUNDLING` skip. Release builds upload the Hermes bundle from
@@ -257,9 +276,10 @@ does. A failed Hermes upload does not stop the dSYM upload. Metro stages each
 bundle in `.everframe` beside `ios/`; pass `--staging <dir>` if yours is
 elsewhere.
 
-On both platforms, a missing `EVERFRAME_API_TOKEN`, a missing Node or CLI, a
-CLI that fails to start, or a failed upload prints a `warning:` line and the
-build continues. Set `EVERFRAME_SYMBOLS_STRICT=1` to fail the build instead. Each upload stops after
+On both platforms, a missing `EVERFRAME_API_TOKEN`, a missing Node, a CLI
+that fails to start, or a failed upload prints a `warning:` line and the build
+continues. A missing `@everframe/cli` package is the exception on iOS: the
+build fails. Set `EVERFRAME_SYMBOLS_STRICT=1` to fail the build instead. Each upload stops after
 `EVERFRAME_UPLOAD_TIMEOUT_SECONDS`, 600 by default.
 
 ## Android ELF upload

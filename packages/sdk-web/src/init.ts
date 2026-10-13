@@ -859,16 +859,19 @@ export function init(config: WebEverframeConfig): Everframe {
   let unsubscribeThreads: (() => void) | null = null;
   if (threads) {
     // The FAB's render gate, mirroring provider.tsx exactly:
-    // `adapter.threads && replies.ui !== 'headless' && count > 0`. Thread rows
-    // are populated EXCLUSIVELY by a successful listThreads() inside
-    // pollOnce(), strictly after its enabled/read-only gate — so `count > 0`
-    // alone already proves "this device has conversations worth showing",
+    // `adapter.threads && replies.ui !== 'headless' && !reporter.disabled &&
+    // count > 0`. Thread rows are populated EXCLUSIVELY by a successful
+    // listThreads() inside pollOnce(), strictly after its enabled/read-only
+    // gate — so `count > 0` alone already proves "this device has conversations worth showing",
     // whether replies are currently enabled or kill-switch latched read-only.
     // Gating on `enabled` instead is the bug provider-fab-kill-switch.spec
     // exists to prevent: the very config flip that engages the read-only
     // latch also flips `enabled` false, hiding the only entry point into the
     // inbox the kill-switch contract says must stay reachable.
-    const uiVisible = config.replies?.ui !== 'headless';
+    //
+    // A crash-only session (`reporter.disabled`) has no on-device way to open
+    // the reporter, so it gets no FAB and therefore no inbox.
+    const uiVisible = config.replies?.ui !== 'headless' && !reporterDisabled;
     const applyThreadState = (s: ThreadClientState): void => {
       ambient.setUnread(s.unreadCount);
       ambient.setVisible(uiVisible && s.threads.length > 0);
