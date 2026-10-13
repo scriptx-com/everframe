@@ -406,4 +406,24 @@ describe('FAB stays reachable when the replies kill switch latches read-only', (
     await flush(30);
     expect((globalThis.fetch as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(before);
   });
+
+  it('(h) a crash-only session shows no FAB even though the device has threads', async () => {
+    // `reporter: { disabled: true }` means the device has no way to open the
+    // reporter, so it gets no inbox either. The thread list is real here (the
+    // poll ran and returned a row), so the missing FAB is the gate, not an
+    // empty list; (b) is the live control for the same fixture.
+    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
+    stubFetch({ enabled: true, threads: oneOpenThread });
+    let threads: ThreadClient | undefined;
+
+    const { queryByTestId } = render(
+      <EverframeProvider config={{ ...baseConfig, reporter: { disabled: true } }}>
+        <ClientProbe onAdapter={(t) => { threads = t; }} />
+      </EverframeProvider>,
+    );
+    await flush(30);
+    await waitFor(() => expect(threads?.getState().threads.length).toBe(1));
+
+    expect(queryByTestId('reporter-fab')).toBeNull();
+  });
 });

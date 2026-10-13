@@ -129,7 +129,7 @@ A visible trigger (bubble, menu item, etc.) is the host app's responsibility —
 
 To report crashes and errors without letting users file reports, set
 `reporter: { disabled: true }` in the provider config. That session has no
-hotkey, the inbox has no "New report" button, and `open()` rejects with
+hotkey, no replies button or inbox, and `open()` rejects with
 `EverframeReporterDisabledError`. Session replay uses the app's crash-only
 sampling rate (0 by default) and network bodies stay off, until a phone or
 dashboard member bonds through the companion. See

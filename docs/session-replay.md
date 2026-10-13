@@ -127,8 +127,8 @@ session.
   from then on. Detaching doesn't undo the upgrade. A crash-only session that
   starts while a companion is still attached, for example after a restart or
   a React Native reconfigure, starts upgraded.
-- **No reporter.** The hotkey, shake-to-report, the inbox's "New report"
-  button and `open()` stay off for the whole session, also after an upgrade.
+- **No reporter.** The hotkey, shake-to-report, the replies button and inbox,
+  and `open()` stay off for the whole session, also after an upgrade.
   Reports from an upgraded session come through the companion. On the web
   and React Native, `open()` rejects with `EverframeReporterDisabledError`.
 - **Network bodies** aren't captured in a crash-only session. After an
