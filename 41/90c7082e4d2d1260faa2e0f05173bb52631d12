@@ -1,0 +1,31 @@
+.github/workflows/formatting.yml
+  s_fb5ca7e7bd2185::t_1146d695db6720 1-27
+.prettierignore
+  s_fb5ca7e7bd2185::t_0d07e8c600a823 1-58
+.prettierrc.json
+  s_fb5ca7e7bd2185::t_05306d19a8a8db 1-9
+CONTRIBUTING.md
+  s_fb5ca7e7bd2185::t_7cc8aa5480b0d3 14,33-44
+package.json
+  s_fb5ca7e7bd2185::t_d6a8e597033fe8 13,30-32,44-45
+pnpm-lock.yaml
+  s_fb5ca7e7bd2185::t_d2e7188dd6cec8 53-55,4980-4984,10872-10873
+public-boundary.json
+  s_fb5ca7e7bd2185::t_bfabdfe7abb4f7 30-31,182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4190c7082e4d2d1260faa2e0f05173bb52631d12",
+  "prompts": {},
+  "sessions": {
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
