@@ -11,6 +11,7 @@ export const WebRuntimePlatformSchema = z.enum([
 ]);
 export type WebRuntimePlatform = z.infer<typeof WebRuntimePlatformSchema>;
 export const ReleaseHealthPlatformSchema = z.enum([
+  'roku',
   'android',
   'ios',
   'tvos',

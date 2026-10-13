@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import {
   mkdtempSync,
   readFileSync,
+  readdirSync,
   existsSync,
   cpSync,
   mkdirSync,
@@ -17,7 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Parser } from 'brighterscript';
 import { instrument, injectHookImports, OUT_MARKER } from '../src/instrument.js';
-import { runBrs } from './brs-harness.js';
+import { runBrs, HOOK_DIR, LIB_DIR } from './brs-harness.js';
 
 const FIX = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures/channel-basic');
 const tmp = () => mkdtempSync(path.join(tmpdir(), 'efinst-'));
@@ -25,6 +26,8 @@ const read = (p: string) => readFileSync(p, 'utf8');
 const HOOKS = [
   'everframe_hook.brs',
   'ef_util.brs',
+  'ef_health.brs',
+  'ef_version.brs',
   'ef_frames.brs',
   'ef_record.brs',
   'ef_queue.brs',
@@ -106,6 +109,37 @@ describe('instrument', () => {
       read(path.join(FIX, 'components/Static.xml')),
     );
     expect(r.injected.sort()).toEqual(['components/HomeScene.xml', 'components/Loader.xml']);
+  });
+
+  it('upgrades the documented tier 1 helper install to tier 2 without duplicate global functions', async () => {
+    const root = tmp();
+    cpSync(FIX, root, { recursive: true });
+    const readme = read(path.join(HOOK_DIR, '..', 'README.md'));
+    const helperDirectory = readme.match(/mkdir -p (source\/[^\n]+)/)![1]!;
+    mkdirSync(path.join(root, helperDirectory), { recursive: true });
+    for (const file of HOOKS) {
+      cpSync(
+        path.join(file === 'everframe_hook.brs' ? HOOK_DIR : LIB_DIR, file),
+        path.join(root, helperDirectory, file),
+      );
+    }
+    writeFileSync(
+      path.join(root, 'source/main.brs'),
+      'sub Main()\n  Everframe_RecordLastExit()\n  print "EFTEST:" + FormatJson({ ran: true })\nend sub\n',
+    );
+    const out = tmp();
+    instrument({ root, out });
+    const main = path.join(out, 'source/main.brs');
+    writeFileSync(
+      path.join(out, 'source/host.brs'),
+      read(main).replace(/sub Main\(\)/i, 'sub HostMain()'),
+    );
+    rmSync(main);
+    const sources = readdirSync(path.join(out, 'source'), { recursive: true })
+      .filter((file) => typeof file === 'string' && file.endsWith('.brs'))
+      .map((file) => path.join(out, 'source', String(file)));
+    const { lines, stdout } = await runBrs([], 'HostMain()', { extraFiles: sources });
+    expect(lines, stdout).toEqual([{ ran: true }]);
   });
 
   it('is idempotent when run on its own output', () => {

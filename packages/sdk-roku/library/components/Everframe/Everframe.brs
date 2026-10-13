@@ -24,6 +24,7 @@ end sub
 
 function start(config as object) as boolean
     try
+        if type(config) = "roAssociativeArray" and config.releaseHealth = false then EfH_Purge(EfU_Section())
         if m.reporter <> invalid then
             ' start({ enabled: false }) after a successful start turns it off
             ' (e.g. the viewer withdrew consent).
@@ -69,7 +70,16 @@ function start(config as object) as boolean
         endpoint = "https://everframe.dev"
         if config.endpoint <> invalid and config.endpoint <> "" then endpoint = config.endpoint
         m.reporter = CreateObject("roSGNode", "EverframeReporter")
-        m.reporter.config = { "sdkKey": config.sdkKey, endpoint: endpoint, "debugBuild": m["efDebugBuild"] }
+        healthEnabled = config.releaseHealth <> false
+        reporterConfig = { "sdkKey": config.sdkKey, endpoint: endpoint, "debugBuild": m["efDebugBuild"], "releaseHealth": healthEnabled, "releaseHealthLaunch": config.releaseHealthLaunch }
+        m.reporter.config = reporterConfig
+        ' Persistence is local only; the Task owns health network I/O.
+        try
+            EfH_Start(sec, reporterConfig, ParseJson(EfU_VersionJson()), EfU_NowMs())
+        catch ignored
+            sec.Delete("hSession")
+            sec.Flush()
+        end try
         m.reporter.control = "RUN"
         if m.global.hasField("everframe") then
             m.global.everframe = m.top
@@ -220,6 +230,7 @@ end function
 ' nothing captured so far is uploaded by a later enabled start(). A running
 ' reporter is stopped and this session's crumbs and user are dropped.
 sub EfN_Disable(sec as object)
+    EfH_Purge(sec)
     sec.Write("disabled", "1")
     for each k in EfQ_Keys(sec)
         sec.Delete(k)

@@ -6,7 +6,7 @@
 Release health answers one question: is the version you just shipped crashing
 more than the one before it? For every version of your native and web apps, Everframe counts
 foreground sessions on Android and iOS (including React Native, Flutter, and KMP), plus native tvOS and Vega,
-and page sessions on web.
+page sessions on web, and eligible launch sessions on Roku.
 It shows how many completed without an observed crash. Each project has a **Release health** page, with one row per
 version and a page for each version.
 
@@ -350,3 +350,44 @@ days. Crash reports already captured keep their own delivery and retention.
 
 A project can send a webhook when a version drops below a crash-free target.
 See [release health alerts](release-health-alerts.md).
+
+## Roku
+
+Roku release health is on by default after `start()` for release builds on Roku
+OS 13.0+ with the updated host `Main()` exit bridge. Follow the
+[Roku setup](../packages/sdk-roku/README.md#tier-1-componentlibrary-bundled), or
+rebuild with the current instrumentation CLI. The host scene must pass
+`releaseHealthLaunch: ReadAsciiFile("tmp:/everframe-health-launch.json")` to
+`start()`, even with instrumentation. An older inline Main snippet,
+missing bridge, unsupported OS, disabled SDK, or library that never starts
+produces no eligible launch exposure. The bridge clears previous eligibility
+on every launch, even when the library fails, so later exits never acquire a
+stale session. A launch without later observed exit evidence stays unknown.
+
+Roku uses anonymous subjects and one session per launch (`launch-v1`), with
+`roku-exit-info-v1` coverage; it does not claim foreground/background tracking
+or user counts. Effective `debugBuild` defaults to `roAppInfo.IsDev()`. Debug
+launches neither collect nor send health. Set `debugBuild: false` explicitly
+only when you intend a sideloaded build to count as a release.
+
+Only the OS exit code `EXIT_USER_NAV` confirms normal completion. Only
+`EXIT_BRIGHTSCRIPT_CRASH` and `EXIT_NATIVE_CRASH` count as confirmed crashes.
+Memory pressure, resource limits, system kills, stops/timeouts and other OS
+reasons remain separate from confirmed crashes. Unknown/missing evidence never
+confirms completion, and caught/manual exceptions do not make health crashes.
+The SDK does not attach speculative report links to those observations.
+
+The frozen exposure owns its original app version/build and delivery binding
+across updates. Clock skew may clamp a terminal timestamp to the start time;
+time never determines ownership. Health has a small bounded durable queue,
+retries independently from crash reports, and expires after seven days. Queue
+loss accounting is unavailable; missing records reduce observed coverage.
+
+```brightscript
+' Keep crash reporting but purge and disable release health.
+ef.callFunc("start", { sdkKey: "evf_live_...", releaseHealth: false })
+```
+
+`enabled: false` disables and purges both health and reports. Health opt-out also
+works after the node has already started; it does not open a replacement session
+within the same launch.

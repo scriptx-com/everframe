@@ -7,6 +7,8 @@ import { runBrs, brsString, LIB_DIR, HOOK_DIR } from './brs-harness.js';
 
 const LIBS = [
   'ef_util.brs',
+  'ef_health.brs',
+  'ef_version.brs',
   'ef_frames.brs',
   'ef_record.brs',
   'ef_queue.brs',

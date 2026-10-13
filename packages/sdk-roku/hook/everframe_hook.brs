@@ -38,16 +38,34 @@ end sub
 ' render thread, so this must run in Main (or a Task), never in a component.
 sub Everframe_RecordLastExit()
     try
-        am = CreateObject("roAppManager")
-        if am <> invalid and FindMemberFunction(am, "GetLastExitInfo") <> invalid then
-            Everframe__StoreExit(am.GetLastExitInfo())
-        end if
+        ' Main and RunUserInterface may both be instrumented. tmp: disappears
+        ' at process exit, so this guards only repeated calls in this launch.
+        if ReadAsciiFile("tmp:/everframe-health-launch.json") <> "" then return
+        sec = EfU_Section()
+        ' Rotate before asking the OS: failed/unsupported/disabled launches
+        ' cannot leave an eligible session behind for a future exit.
+        previous = EfH_TakeSession(sec)
+        info = invalid
+        supported = false
+        try
+            am = CreateObject("roAppManager")
+            if am <> invalid and FindMemberFunction(am, "GetLastExitInfo") <> invalid then
+                info = am.GetLastExitInfo()
+                supported = true
+            end if
+        catch ignored
+        end try
+        Everframe__StoreExit(info, previous, true, supported)
     catch ignored
     end try
 end sub
 
-sub Everframe__StoreExit(info as dynamic)
+sub Everframe__StoreExit(info as dynamic, previous = invalid as dynamic, rotated = false as boolean, supported = true as boolean)
     try
+        sec = EfU_Section()
+        if not rotated then previous = EfH_TakeSession(sec)
+        EfH_Exit(sec, previous, info)
+        EfH_SetBridge(supported)
         if type(info) = "roAssociativeArray" then
             if Everframe__IsStr(info["exit_code"]) and Everframe__IsStr(info["timestamp"]) then
                 sec = EfU_Section()

@@ -68,7 +68,7 @@ end sub
 sub onLibraryStatus()
     if m.lib.loadStatus = "ready" and not m.started then
         ef = CreateObject("roSGNode", "Everframe:Everframe")
-        cfg = { "sdkKey": m.cfg.sdkKey }
+        cfg = { "sdkKey": m.cfg.sdkKey, "releaseHealthLaunch": ReadAsciiFile("tmp:/everframe-health-launch.json") }
         if m.cfg.endpoint <> "" then cfg.endpoint = m.cfg.endpoint
         m.started = ef.callFunc("start", cfg)
         ' Manual screen tracking (setScreen). DetailsScreen is tracked

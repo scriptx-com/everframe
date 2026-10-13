@@ -250,13 +250,116 @@ export const WebReleaseHealthRecordSchema = z
   .refine((value) => value.capturedAt >= value.exposure.startedAt, {
     message: 'Observation cannot predate start',
   });
+/** Roku confirms the previous monitored launch through the host's OS exit bridge. */
+export const ROKU_RELEASE_HEALTH_SCHEMA_VERSION = 7;
+export const RokuReleaseHealthExposureSchema = z
+  .object({
+    exposureId: uuid,
+    processLaunchId: uuid,
+    startedAt: timestamp,
+    platform: z.literal('roku'),
+    sdkVersion: text(64),
+    app: ReleaseHealthAppSchema.extend({ debug: z.literal(false) }),
+    loadedBuildId: z.null(),
+    loadedBundleStatus: z.literal('not_applicable'),
+    subject: z.object({ kind: z.literal('anonymous') }).strict(),
+    sessionPolicy: z.literal('launch-v1'),
+    coverage: segmentCoverage('roku-exit-info-v1'),
+  })
+  .strict();
+/** Explicit OS reasons. USER_NAV has its own completed record; unrecognized codes remain unreported. */
+export const RokuReleaseHealthExitCodeSchema = z.enum([
+  'EXIT_UNKNOWN',
+  'EXIT_POWER_MODE',
+  'EXIT_DIAL_DELETE',
+  'EXIT_OUT_OF_MEMORY',
+  'EXIT_IDLE_AUTO_EXIT',
+  'EXIT_BRIGHTSCRIPT_CRASH',
+  'EXIT_NATIVE_CRASH',
+  'EXIT_BRIGHTSCRIPT_STOP',
+  'EXIT_BRIGHTSCRIPT_UNK_FUNC',
+  'EXIT_BRIGHTSCRIPT_TIMEOUT',
+  'EXIT_USER_KILL',
+  'EXIT_AM_LOWRESOURCE',
+  'EXIT_SYSTEM_KILL',
+  'EXIT_GRAPHICS_NOT_RELEASED',
+  'EXIT_DECODER_NOT_RELEASED',
+  'EXIT_RUNNING_AFTER_SUSPEND',
+  'EXIT_NOT_RESUMED',
+  'EXIT_SIGNAL_TIMEOUT',
+  'EXIT_APP_ERROR',
+  'EXIT_UNLOADED',
+  'EXIT_GUEST_MODE_ENABLED',
+  'EXIT_GUEST_MODE_DISABLED',
+  'EXIT_GUEST_CHECKOUT',
+  'EXIT_OS_UPDATE',
+  'EXIT_CHANNEL_UPDATE',
+  'EXIT_CHANNEL_SIDELOAD',
+  'EXIT_CHANNEL_RESTART',
+  'EXIT_TILE_HIDDEN',
+  'EXIT_SETTINGS_UPDATE',
+  'EXIT_CHANNEL_MEM_LIMIT_FG',
+  'EXIT_CHANNEL_MEM_LIMIT_BG',
+  'EXIT_ADDON_DEPENDENCY',
+  'EXIT_SOFTFAIL',
+]);
+const rokuRecord = {
+  schemaVersion: z.literal(ROKU_RELEASE_HEALTH_SCHEMA_VERSION),
+  recordId: uuid,
+  exposure: RokuReleaseHealthExposureSchema,
+  capturedAt: timestamp,
+};
+export const RokuReleaseHealthRecordSchema = z
+  .discriminatedUnion('phase', [
+    z
+      .object({
+        ...rokuRecord,
+        phase: z.literal('start'),
+        sequence: z.literal(0),
+        elapsedMs: z.literal(0),
+      })
+      .strict()
+      .refine((value) => value.capturedAt === value.exposure.startedAt, {
+        message: 'Start must use its frozen timestamp',
+      }),
+    z
+      .object({
+        ...rokuRecord,
+        phase: z.literal('end'),
+        sequence: z.literal(1),
+        outcome: z.literal('completed'),
+        elapsedMs,
+        endReason: z.literal('user_navigation'),
+      })
+      .strict(),
+    z
+      .object({
+        ...rokuRecord,
+        phase: z.literal('exit'),
+        sequence: z.literal(2),
+        outcome: z.literal('terminated'),
+        elapsedMs,
+        exitCode: RokuReleaseHealthExitCodeSchema,
+        reportId: uuid.optional(),
+      })
+      .strict(),
+  ])
+  .refine((value) => value.capturedAt >= value.exposure.startedAt, {
+    message: 'Observation cannot predate start',
+  });
+export type RokuReleaseHealthExposure = z.infer<typeof RokuReleaseHealthExposureSchema>;
+export type RokuReleaseHealthRecord = z.infer<typeof RokuReleaseHealthRecordSchema>;
+export type RokuReleaseHealthExitCode = z.infer<typeof RokuReleaseHealthExitCodeSchema>;
+
 export const ReleaseHealthExposureSchema = z.union([
   NativeReleaseHealthExposureSchema,
   WebReleaseHealthExposureSchema,
+  RokuReleaseHealthExposureSchema,
 ]);
 export const ReleaseHealthRecordSchema = z.union([
   NativeReleaseHealthRecordSchema,
   WebReleaseHealthRecordSchema,
+  RokuReleaseHealthRecordSchema,
 ]);
 export type NativeReleaseHealthRecord = z.infer<typeof NativeReleaseHealthRecordSchema>;
 export type NativeReleaseHealthExposure = z.infer<typeof NativeReleaseHealthExposureSchema>;
