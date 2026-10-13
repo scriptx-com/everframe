@@ -32,7 +32,7 @@ const bundleMessage = { message: 'Loaded bundle identity must match its status' 
 
 /**
  * The app release the SDK read itself: Android `versionName` (else `versionCode` as text) and
- * `versionCode`; iOS `CFBundleShortVersionString` (else `CFBundleVersion`) and `CFBundleVersion`.
+ * `versionCode`; iOS/tvOS `CFBundleShortVersionString` (else `CFBundleVersion`) and `CFBundleVersion`.
  * `build` is always present and null when there is none, so the pointer's bytes never depend on
  * an encoder dropping null keys. Named for codegen: `App` already names the envelope's `context.app`.
  */
@@ -108,9 +108,24 @@ export const IOSReleaseHealthExposureSchema = z
   })
   .strict()
   .refine(bundleConsistent, bundleMessage);
+export const TVOSReleaseHealthExposureSchema = z
+  .object({
+    exposureId: uuid,
+    processLaunchId: uuid,
+    startedAt: timestamp,
+    platform: z.literal('tvos'),
+    sdkVersion: text(64),
+    app: ReleaseHealthAppSchema,
+    ...bundleIdentity,
+    ...foregroundSession,
+    coverage: segmentCoverage('tvos-sdk-segment-v1'),
+  })
+  .strict()
+  .refine(bundleConsistent, bundleMessage);
 export const NativeReleaseHealthExposureSchema = z.discriminatedUnion('platform', [
   AndroidReleaseHealthExposureSchema,
   IOSReleaseHealthExposureSchema,
+  TVOSReleaseHealthExposureSchema,
 ]);
 
 const record = {
@@ -155,6 +170,7 @@ export type NativeExposurePointer = z.infer<typeof NativeExposurePointerSchema>;
 export type ReleaseHealthSubject = z.infer<typeof ReleaseHealthSubjectSchema>;
 export type AndroidReleaseHealthExposure = z.infer<typeof AndroidReleaseHealthExposureSchema>;
 export type IOSReleaseHealthExposure = z.infer<typeof IOSReleaseHealthExposureSchema>;
+export type TVOSReleaseHealthExposure = z.infer<typeof TVOSReleaseHealthExposureSchema>;
 export const WEB_RELEASE_HEALTH_SCHEMA_VERSION = 6;
 export const WebReleaseHealthExposureSchema = z
   .object({

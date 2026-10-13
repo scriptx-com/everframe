@@ -43,6 +43,7 @@ describe('release_health.threshold_reached 2.0', () => {
             'ios',
             'titanos',
             'tizen',
+            'tvos',
             'vega',
             'vidaa',
             'web',

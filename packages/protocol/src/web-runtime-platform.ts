@@ -13,6 +13,7 @@ export type WebRuntimePlatform = z.infer<typeof WebRuntimePlatformSchema>;
 export const ReleaseHealthPlatformSchema = z.enum([
   'android',
   'ios',
+  'tvos',
   ...WebRuntimePlatformSchema.options,
 ]);
 export type ReleaseHealthPlatform = z.infer<typeof ReleaseHealthPlatformSchema>;

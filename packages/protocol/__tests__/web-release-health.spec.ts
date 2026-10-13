@@ -60,6 +60,7 @@ it.each([
   { exposure: { ...webStart.exposure, app: { ...webStart.exposure.app, debug: true } } },
   { exposure: { ...webStart.exposure, processLaunchId: webStart.exposure.pageLaunchId } },
   { exposure: { ...webStart.exposure, platform: 'android' } },
+  { exposure: { ...webStart.exposure, platform: 'tvos' } },
   { schemaVersion: 5 },
   { sequence: 1 },
   { phase: 'failure', sequence: 2, outcome: 'crashed', mechanism: 'captureException' },

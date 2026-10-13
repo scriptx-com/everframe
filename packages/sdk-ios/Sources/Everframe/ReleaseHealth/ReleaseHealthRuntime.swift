@@ -10,7 +10,7 @@ typealias ReleaseHealthSend = @Sendable (ReleaseHealthEntry, @escaping ReleaseHe
 /// Memory-only admission lock, serial disk worker and independent HTTP task.
 final class ReleaseHealthRuntime: @unchecked Sendable {
     static func makeRuntime() -> ReleaseHealthRuntime? {
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         guard NSClassFromString("XCTestCase") == nil,
               ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return nil }
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].resolvingSymlinksInPath()

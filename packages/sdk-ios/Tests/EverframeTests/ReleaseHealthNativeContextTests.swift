@@ -2,6 +2,9 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import XCTest
 import Foundation
+#if os(tvOS)
+import UIKit
+#endif
 import EverframeProtocol
 @testable import EverframeKit
 
@@ -16,6 +19,50 @@ final class ReleaseHealthNativeContextTests: XCTestCase {
         return try NativeCrashRecoveryContext(sdkKey: old.sdkKey, endpoint: old.endpoint, identitySubject: nil,
             envelopeTemplate: old.envelopeTemplate, redaction: old.redaction, releaseHealthExposure: pointer)
     }
+    #if os(tvOS)
+    @MainActor func testTVOSFatalRecoveryKeepsPlatformAndImmutableExposure() throws {
+        let exposure = pointer(), contextID = UUID()
+        let context = try NativeCrashStartupContext.make(config: .init(sdkKey: "sdk-A", debugBuild: false),
+            user: nil, device: DeviceMetadata.snapshot(), endpoint: "https://example.invalid", releaseHealthExposure: exposure)
+        let restored = try NativeCrashRecoveryContext.decode(context.encoded())
+        let raw = try NativeCrashRecordDecoder.decode(NativeRecoveryTestData.raw(context: contextID), redact: { $0 })
+        let envelope = try ReleaseHealthDate.decoder().decode(EverframeReportEnvelope.self, from: restored.entry(for: raw).envelopeBytes)
+        XCTAssertEqual(envelope.sdk.platform, .tvos)
+        XCTAssertEqual(envelope.sdk.formFactor, .tv)
+        XCTAssertEqual(envelope.context.device.os, "tvOS")
+        XCTAssertEqual(envelope.payload.crash?.fatal, true)
+        XCTAssertNil(envelope.payload.inferredTermination)
+        let evidence = try XCTUnwrap(envelope.payload.crash?.native?.releaseHealthEvidence)
+        XCTAssertEqual(evidence.attribution, .immutableFatalContext)
+        XCTAssertEqual(evidence.contextID, contextID.uuidString.lowercased())
+        XCTAssertEqual(evidence.exposure.exposureID, exposure.exposureID)
+    }
+
+    @MainActor func testTVOSAutomaticallyObservesApplicationForegroundBoundaries() async throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let health = ReleaseHealthRuntime(root: root, keyProvider: { Data(repeating: 0x64, count: 32) },
+            appRelease: { _ in .testRelease }, transport: { _, _ in .retry })
+        let sdk = Everframe(nativeCrashRuntime: nil, appleDiagnosticRuntime: nil, releaseHealthRuntime: health)
+        defer { sdk.kill() }
+        let ready = try XCTUnwrap(sdk.releaseHealthLifecycleReady, "tvOS must register the UIKit lifecycle observer")
+        await ready.value
+        NotificationCenter.default.post(name: UIApplication.willEnterForegroundNotification, object: nil)
+        let ticket = health.requestEnable(configuration: ReleaseHealthConfiguration(), sdkKey: "sdk-A", endpoint: "https://example.invalid").ticket
+        let enabled = await health.enable(ticket: ticket, sdkVersion: "test"); XCTAssertTrue(enabled)
+        let pointer = try XCTUnwrap(health.readyPointer)
+        NotificationCenter.default.post(name: UIApplication.willResignActiveNotification, object: nil)
+        XCTAssertEqual(health.readyPointer?.exposureID, pointer.exposureID)
+        NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        XCTAssertNil(health.readyPointer, "background must withdraw the fatal pointer synchronously")
+        await health.barrier()
+        let records = try ReleaseHealthStore(root: root, keyProvider: { Data(repeating: 0x64, count: 32) }).pending()
+        let end = try XCTUnwrap(records.last)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: end.body) as? [String: Any])
+        XCTAssertEqual(json["endReason"] as? String, "background")
+        XCTAssertEqual(json["outcome"] as? String, "completed")
+    }
+    #endif
     func testAContextWithoutAnExposureInventsNone() throws {
         let plain = try NativeRecoveryTestData.context(), restored = try NativeCrashRecoveryContext.decode(plain.encoded())
         XCTAssertNil(restored.releaseHealthExposure)

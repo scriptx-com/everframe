@@ -11,7 +11,7 @@ import {
 } from '../src/index.js';
 
 const startedAt = '2026-10-07T12:00:00.000Z';
-const exposure = (platform: 'android' | 'ios' = 'android') => ({
+const exposure = (platform: 'android' | 'ios' | 'tvos' = 'android') => ({
   exposureId: '11111111-1111-4111-8111-111111111111',
   processLaunchId: '22222222-2222-4222-8222-222222222222',
   startedAt,
@@ -72,6 +72,34 @@ describe('release-health records, version 5', () => {
     expect(ReleaseHealthRecordSchema.parse(value)).toEqual(value);
     const stopped = { ...end(exposure('ios')), endReason: 'sdk_stop' };
     expect(ReleaseHealthRecordSchema.parse(stopped)).toEqual(stopped);
+  });
+
+  it('accepts tvOS foreground starts and completed ends with its own coverage policy', () => {
+    const record = start(exposure('tvos'));
+    expect(ReleaseHealthRecordSchema.parse(record)).toEqual(record);
+    expect(ReleaseHealthRecordSchema.parse(end(exposure('tvos')))).toEqual(end(exposure('tvos')));
+    expect(Object.keys(ReleaseHealthRecordSchema.parse(record).exposure)).toEqual(
+      Object.keys(ReleaseHealthRecordSchema.parse(start(exposure('ios'))).exposure),
+    );
+  });
+
+  it.each(['android', 'ios'] as const)('rejects %s coverage on tvOS', (platform) => {
+    expect(
+      ReleaseHealthRecordSchema.safeParse(
+        start({
+          ...exposure('tvos'),
+          coverage: exposure(platform).coverage,
+        }),
+      ).success,
+    ).toBe(false);
+    expect(
+      ReleaseHealthRecordSchema.safeParse(
+        start({
+          ...exposure(platform),
+          coverage: exposure('tvos').coverage,
+        }),
+      ).success,
+    ).toBe(false);
   });
 
   it.each([

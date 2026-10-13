@@ -44,7 +44,10 @@ export const ReleaseHealthThresholdEventSchema = z
         projectId: z.uuid(),
         ruleId: z.uuid(),
         version: text(RELEASE_HEALTH_APP_TEXT_MAX),
-        platforms: z.array(ReleaseHealthPlatformSchema).min(1).max(8),
+        platforms: z
+          .array(ReleaseHealthPlatformSchema)
+          .min(1)
+          .max(ReleaseHealthPlatformSchema.options.length),
         window: z.object({ days: z.literal(WINDOW_DAYS), from: instant, to: instant }).strict(),
         observedAt: instant,
         target: ReleaseHealthAlertTargetSchema,

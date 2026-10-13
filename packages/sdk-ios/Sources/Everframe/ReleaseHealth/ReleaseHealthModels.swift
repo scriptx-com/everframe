@@ -63,12 +63,17 @@ struct ReleaseHealthSegment {
         let id = UUID(), captured = end ? max(ReleaseHealthDate.canonical(now), pointer.startedAt) : pointer.startedAt
         // The record's app is the pointer's app, with "build": null written explicitly.
         let release: [String: Any] = ["version": app.version, "build": app.build as Any? ?? NSNull(), "debug": app.debug]
+        #if os(tvOS)
+        let platform = "tvos", coveragePolicy = "tvos-sdk-segment-v1"
+        #else
+        let platform = "ios", coveragePolicy = "ios-sdk-segment-v1"
+        #endif
         let exposure: [String: Any] = ["exposureId": pointer.exposureID, "processLaunchId": pointer.processLaunchID,
-            "startedAt": ReleaseHealthDate.text(pointer.startedAt), "platform": "ios", "sdkVersion": sdkVersion,
+            "startedAt": ReleaseHealthDate.text(pointer.startedAt), "platform": platform, "sdkVersion": sdkVersion,
             "app": release, "loadedBuildId": configuration.loadedBuildId as Any? ?? NSNull(),
             "loadedBundleStatus": configuration.loadedBundleStatus.rawValue, "sessionPolicy": "foreground-v1",
             "subject": configuration.userId.map { ["kind": "provided", "id": $0] } ?? ["kind": "anonymous"],
-            "coverage": ["policy": "ios-sdk-segment-v1", "sampleRate": 1, "priorQueueLosses": NSNull(), "queueLossAccounting": "unavailable"]]
+            "coverage": ["policy": coveragePolicy, "sampleRate": 1, "priorQueueLosses": NSNull(), "queueLossAccounting": "unavailable"]]
         var record: [String: Any] = ["schemaVersion": 5, "recordId": id.uuidString.lowercased(), "exposure": exposure,
             "capturedAt": ReleaseHealthDate.text(captured), "phase": end ? "end" : "start", "sequence": end ? 1 : 0,
             "elapsedMs": end ? Int(min(max(0, (uptime - startedUptime) * 1000), 31 * 86400 * 1000)) : 0]

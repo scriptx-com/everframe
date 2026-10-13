@@ -30,6 +30,28 @@ final class ReleaseHealthRuntimeTests: XCTestCase {
     }
     private func rows() throws -> [ReleaseHealthEntry] { try ReleaseHealthStore(root: root, keyProvider: { self.key }).pending() }
     private func records() throws -> [[String: Any]] { try rows().map { try JSONSerialization.jsonObject(with: $0.body) as! [String: Any] } }
+    func testForegroundRecordsKeepTheNativePlatformAndCoveragePolicy() async throws {
+        let runtime = runtime()
+        let enabled = try await enable(runtime); XCTAssertTrue(enabled)
+        _ = runtime.setForeground(false)
+        await runtime.barrier()
+        let bodies = try records()
+        XCTAssertEqual(bodies.compactMap { $0["phase"] as? String }, ["start", "end"])
+        for body in bodies {
+            let exposure = try XCTUnwrap(body["exposure"] as? [String: Any])
+            let coverage = try XCTUnwrap(exposure["coverage"] as? [String: Any])
+            #if os(tvOS)
+            XCTAssertEqual(exposure["platform"] as? String, "tvos")
+            XCTAssertEqual(coverage["policy"] as? String, "tvos-sdk-segment-v1")
+            #else
+            XCTAssertEqual(exposure["platform"] as? String, "ios")
+            XCTAssertEqual(coverage["policy"] as? String, "ios-sdk-segment-v1")
+            #endif
+            XCTAssertEqual(body["schemaVersion"] as? Int, 5)
+            XCTAssertEqual(exposure["sessionPolicy"] as? String, "foreground-v1")
+            XCTAssertEqual(coverage["sampleRate"] as? Int, 1)
+        }
+    }
     func testForegroundSubjectsAreFrozenAcrossAccountRotation() async throws {
         let runtime = runtime()
         let first = try ReleaseHealthConfiguration(userId: "opaque-a", loadedBuildId: "bundle-a", loadedBundleStatus: .known)
