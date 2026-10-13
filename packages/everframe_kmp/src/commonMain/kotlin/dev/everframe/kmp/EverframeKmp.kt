@@ -8,11 +8,11 @@ class EverframeKmpConfig(
     val sdkKey: String,
     val environment: String = "production",
     /**
-     * Whether this is a debug build, which Everframe never turns into a release. Null lets the platform SDK detect it.
-     * Only the browser driver passes it on today; the Android and iOS drivers ignore it because the pinned native
-     * SDKs detect debug builds themselves. Wiring it to them waits for a native SDK dependency bump.
+     * Whether this is a debug build. Null uses platform detection; false explicitly overrides it.
      */
     val debugBuild: Boolean? = null,
+    /** Collect foreground release-health sessions through the platform SDK. False leaves other capture enabled. */
+    val releaseHealth: Boolean = true,
 )
 
 class EverframeReportOutcome(
@@ -28,7 +28,7 @@ class EverframeReportOutcome(
 
 /** Swift hosts implement this protocol to call the existing Swift-only Everframe SDK. */
 interface EverframeNativeDriver {
-    fun start(appId: String, sdkKey: String, environment: String, debugBuild: Boolean?): Boolean
+    fun start(appId: String, sdkKey: String, environment: String, debugBuild: Boolean?, releaseHealth: Boolean): Boolean
     fun setUser(id: String?, email: String?, displayName: String?)
     fun recordScreen(name: String)
     fun addBreadcrumb(message: String, kind: String?, level: String?)
@@ -46,7 +46,7 @@ class EverframeKmp(private val driver: EverframeNativeDriver) {
     fun start(config: EverframeKmpConfig): Boolean {
         if (config.environment !in setOf("development", "staging", "production") ||
             config.appId.isBlank() || config.sdkKey.isBlank()) return false
-        started = driver.start(config.appId, config.sdkKey, config.environment, config.debugBuild)
+        started = driver.start(config.appId, config.sdkKey, config.environment, config.debugBuild, config.releaseHealth)
         return started
     }
 

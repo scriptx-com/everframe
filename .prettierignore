@@ -11,6 +11,10 @@ examples/*/build/
 **/target/**
 **/.build/**
 **/.gradle/**
+**/.kotlin/**
+**/.dart_tool/**
+**/.symlinks/**
+**/Pods/**
 **/.turbo/**
 **/.swc/**
 **/DerivedData/**

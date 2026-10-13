@@ -10,6 +10,7 @@ import dev.everframe.capture.SensitiveRectRegistry
 import dev.everframe.config.CaptureConfig
 import dev.everframe.config.Environment
 import dev.everframe.config.EverframeConfig
+import dev.everframe.config.ReleaseHealthConfig
 import dev.everframe.config.ReportResult
 import dev.everframe.config.TXUser
 import dev.everframe.ui.EFReporterFromImage
@@ -47,7 +48,7 @@ class AndroidEverframeDriver(
         if (activity != null && started && Everframe.captureGate) beginCapture()
     }
 
-    override fun start(appId: String, sdkKey: String, environment: String, debugBuild: Boolean?): Boolean {
+    override fun start(appId: String, sdkKey: String, environment: String, debugBuild: Boolean?, releaseHealth: Boolean): Boolean {
         return try {
             val nativeEnvironment = Environment.entries.firstOrNull { it.name == environment } ?: return false
             Everframe.start(context, EverframeConfig(
@@ -55,8 +56,7 @@ class AndroidEverframeDriver(
                 sdkKey = sdkKey,
                 environment = nativeEnvironment,
                 capture = CaptureConfig(screenshot = false, crash = true, network = true, networkBodies = false),
-                // The plugin has no release-health option yet, so release health stays off.
-                releaseHealth = null,
+                releaseHealth = ReleaseHealthConfig(enabled = releaseHealth),
                 debugBuild = debugBuild,
             ), hostActivity())
             Everframe.captureGate.also {

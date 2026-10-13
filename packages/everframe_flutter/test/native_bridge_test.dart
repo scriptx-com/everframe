@@ -13,13 +13,13 @@ void main() {
     calls.clear();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-      calls.add(call);
-      return call.method == 'openReporter'
-          ? {'status': 'cancelled', 'reason': 'dismissed'}
-          : call.method == 'captureException'
+          calls.add(call);
+          return call.method == 'openReporter'
+              ? {'status': 'cancelled', 'reason': 'dismissed'}
+              : call.method == 'captureException'
               ? true
               : null;
-    });
+        });
   });
 
   tearDown(() {
@@ -27,35 +27,68 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
-  test('starts native SDK and forwards context without changing arguments',
-      () async {
-    const bridge = EverframeNativeBridge();
-    await bridge.start(
-        appId: 'app_test', sdkKey: 'txx_dev_test', environment: 'development');
-    await bridge.setUser(id: 'u1', email: 'a@example.com');
-    await bridge.recordScreen('Checkout');
-    await bridge.addBreadcrumb('Tapped pay', kind: 'ui');
-    expect(calls.map((call) => call.method), [
-      'start',
-      'setUser',
-      'recordScreen',
-      'addBreadcrumb',
-    ]);
-    expect(calls.first.arguments, {
-      'appId': 'app_test',
-      'sdkKey': 'txx_dev_test',
-      'environment': 'development',
-      'crash': true,
-    });
-    expect(calls[1].arguments, {'id': 'u1', 'email': 'a@example.com'});
-  });
+  test(
+    'starts native SDK and forwards context without changing arguments',
+    () async {
+      const bridge = EverframeNativeBridge();
+      await bridge.start(
+        appId: 'app_test',
+        sdkKey: 'txx_dev_test',
+        environment: 'development',
+      );
+      await bridge.setUser(id: 'u1', email: 'a@example.com');
+      await bridge.recordScreen('Checkout');
+      await bridge.addBreadcrumb('Tapped pay', kind: 'ui');
+      expect(calls.map((call) => call.method), [
+        'start',
+        'setUser',
+        'recordScreen',
+        'addBreadcrumb',
+      ]);
+      expect(calls.first.arguments, {
+        'appId': 'app_test',
+        'sdkKey': 'txx_dev_test',
+        'environment': 'development',
+        'crash': true,
+        'releaseHealth': true,
+      });
+      expect(calls[1].arguments, {'id': 'u1', 'email': 'a@example.com'});
+    },
+  );
+
+  test(
+    'release health and debug overrides cross the bridge independently',
+    () async {
+      const bridge = EverframeNativeBridge();
+      await bridge.start(
+        appId: 'app_test',
+        sdkKey: 'evf_live_test',
+        releaseHealth: false,
+        debugBuild: true,
+      );
+      expect(calls.single.arguments['releaseHealth'], false);
+      expect(calls.single.arguments['debugBuild'], true);
+      expect(calls.single.arguments['crash'], true);
+    },
+  );
+
+  test(
+    'native debug detection is preserved when no override is provided',
+    () async {
+      await const EverframeNativeBridge().start(
+        appId: 'app_test',
+        sdkKey: 'evf_live_test',
+      );
+      expect((calls.single.arguments as Map).containsKey('debugBuild'), false);
+    },
+  );
 
   test('returns native reporter outcome', () async {
     const bridge = EverframeNativeBridge();
     expect(
-        await bridge.openReporter(),
-        const EverframeReporterOutcome(
-            status: 'cancelled', reason: 'dismissed'));
+      await bridge.openReporter(),
+      const EverframeReporterOutcome(status: 'cancelled', reason: 'dismissed'),
+    );
   });
 
   test('passes production configuration to the native bridge', () async {
@@ -66,32 +99,45 @@ void main() {
       'sdkKey': 'evf_live_test',
       'environment': 'production',
       'crash': true,
+      'releaseHealth': true,
     });
   });
 
   test('forwards the crash capture switch to the native SDK', () async {
     const bridge = EverframeNativeBridge();
-    await bridge.start(appId: 'app_test', sdkKey: 'evf_live_test', crash: false);
+    await bridge.start(
+      appId: 'app_test',
+      sdkKey: 'evf_live_test',
+      crash: false,
+    );
     expect(calls.single.arguments['crash'], false);
+    expect(calls.single.arguments['releaseHealth'], false);
   });
 
   test('passes staging configuration to the native bridge', () async {
     const bridge = EverframeNativeBridge();
     await bridge.start(
-        appId: 'app_test', sdkKey: 'evf_live_test', environment: 'staging');
+      appId: 'app_test',
+      sdkKey: 'evf_live_test',
+      environment: 'staging',
+    );
     expect(calls.single.arguments['environment'], 'staging');
   });
 
   test('rejects invalid configuration before crossing bridge', () async {
     const bridge = EverframeNativeBridge();
-    expect(() => bridge.start(appId: '', sdkKey: 'txx_dev_test'),
-        throwsArgumentError);
     expect(
-        () => bridge.start(
-            appId: 'app_test',
-            sdkKey: 'txx_dev_test',
-            environment: 'unknown'),
-        throwsArgumentError);
+      () => bridge.start(appId: '', sdkKey: 'txx_dev_test'),
+      throwsArgumentError,
+    );
+    expect(
+      () => bridge.start(
+        appId: 'app_test',
+        sdkKey: 'txx_dev_test',
+        environment: 'unknown',
+      ),
+      throwsArgumentError,
+    );
     expect(calls, isEmpty);
   });
 
@@ -121,29 +167,32 @@ void main() {
     });
   });
 
-  test('network context strips credentials, path, query, and fragment',
-      () async {
-    const bridge = EverframeNativeBridge();
-    await bridge.recordNetwork(
-      method: 'POST',
-      url: Uri.parse(
-          'https://alice:secret@api.example.com/private/customer/123?token=secret#frag'),
-      statusCode: 201,
-      durationMs: 93,
-    );
-    expect(calls.single.method, 'addBreadcrumb');
-    expect(calls.single.arguments, {
-      'message': 'POST https://api.example.com 201',
-      'kind': 'network',
-      'level': 'info',
-      'data': {
-        'method': 'POST',
-        'origin': 'https://api.example.com',
-        'statusCode': 201,
-        'durationMs': 93,
-      },
-    });
-  });
+  test(
+    'network context strips credentials, path, query, and fragment',
+    () async {
+      const bridge = EverframeNativeBridge();
+      await bridge.recordNetwork(
+        method: 'POST',
+        url: Uri.parse(
+          'https://alice:secret@api.example.com/private/customer/123?token=secret#frag',
+        ),
+        statusCode: 201,
+        durationMs: 93,
+      );
+      expect(calls.single.method, 'addBreadcrumb');
+      expect(calls.single.arguments, {
+        'message': 'POST https://api.example.com 201',
+        'kind': 'network',
+        'level': 'info',
+        'data': {
+          'method': 'POST',
+          'origin': 'https://api.example.com',
+          'statusCode': 201,
+          'durationMs': 93,
+        },
+      });
+    },
+  );
 
   test('invalid network input never crosses the native bridge', () async {
     const bridge = EverframeNativeBridge();

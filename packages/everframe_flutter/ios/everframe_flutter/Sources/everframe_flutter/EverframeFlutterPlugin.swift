@@ -45,9 +45,10 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
             capture.crash = args["crash"] as? Bool ?? true
             do {
                 // The iOS SDK takes only the SDK key; the App ID is unused here.
-                // The plugin has no release-health option yet, so release health stays off.
                 try Everframe.shared.start(config: EverframeConfig(
-                    sdkKey: sdkKey, environment: environment, capture: capture, releaseHealth: nil))
+                    sdkKey: sdkKey, environment: environment, capture: capture,
+                    releaseHealth: capture.crash && (args["releaseHealth"] as? Bool ?? true) ? ReleaseHealthConfiguration() : nil,
+                    debugBuild: args["debugBuild"] as? Bool))
                 Task { @MainActor in
                     EFReporterPresenter.installResolver()
                     result(nil)

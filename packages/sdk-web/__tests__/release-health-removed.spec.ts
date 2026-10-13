@@ -2,9 +2,8 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** @vitest-environment jsdom */
 //
-// Web release health is gone. The package exports no producer, the handle
-// `init()` returns has no `releaseHealth`, and a JavaScript caller that still
-// passes the old option starts the SDK without opening IndexedDB.
+// The old manual producer remains removed. Page health is automatic, with
+// a config opt-out; there is no manual handle API or IndexedDB producer.
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { init, type Everframe } from '../src/init.js';
@@ -31,7 +30,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe('web release health is removed', () => {
+describe('legacy manual release health remains removed', () => {
   it('exports no release-health producer', async () => {
     const web = await import('../src/index.js');
     expect('setupReleaseHealth' in web).toBe(false);
@@ -43,14 +42,15 @@ describe('web release health is removed', () => {
     expect('releaseHealth' in handle).toBe(false);
   });
 
-  it('has no releaseHealth on the config or handle types', () => {
-    // Each declaration stops compiling under `tsc -p tsconfig.test.json` if the key comes back.
-    const configHasNoKey: 'releaseHealth' extends keyof WebEverframeConfig ? false : true = true;
+  it('supports a config opt-out without adding a manual handle API', () => {
+    // Typecheck both the new config option and the unchanged handle contract.
+    const config: WebEverframeConfig = { sdkKey: 'pk_test', releaseHealth: { enabled: false } };
     const handleHasNoKey: 'releaseHealth' extends keyof Everframe ? false : true = true;
-    expect([configHasNoKey, handleHasNoKey]).toEqual([true, true]);
+    expect(config.releaseHealth?.enabled).toBe(false);
+    expect(handleHasNoKey).toBe(true);
   });
 
-  it('ignores a leftover releaseHealth option without opening IndexedDB', async () => {
+  it('does not open IndexedDB for automatic page health', async () => {
     // Real Web Crypto, so the removed producer would have reached IndexedDB.
     vi.stubGlobal('crypto', webcrypto);
     const open = vi.fn(() => {

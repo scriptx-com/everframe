@@ -13,9 +13,23 @@ class EverframeBrowserDriver(
     private val initWeb: dynamic,
     private val visualCapture: dynamic,
     private val sdkVersion: String,
-    private val appVersion: String = "0.0.0",
+    private val appVersion: String,
 ) : EverframeNativeDriver {
+    private companion object {
+        // @everframe/web owns one page singleton. A new driver must retire its previous owner.
+        var activeDriver: EverframeBrowserDriver? = null
+    }
+
+    private data class StartConfiguration(
+        val appId: String,
+        val sdkKey: String,
+        val environment: String,
+        val debugBuild: Boolean?,
+        val releaseHealth: Boolean,
+    )
+
     private var handle: dynamic = null
+    private var startConfiguration: StartConfiguration? = null
 
     init {
         require(jsTypeOf(initWeb) == "function") { "KMP web requires @everframe/web init" }
@@ -23,23 +37,31 @@ class EverframeBrowserDriver(
             "KMP web requires a renderer-owned captureScreenshot provider"
         }
         require(sdkVersion.isNotBlank()) { "KMP SDK version is required" }
+        require(appVersion.isNotBlank()) { "KMP web requires the host app version" }
     }
 
-    override fun start(appId: String, sdkKey: String, environment: String, debugBuild: Boolean?): Boolean {
+    override fun start(appId: String, sdkKey: String, environment: String, debugBuild: Boolean?, releaseHealth: Boolean): Boolean {
         // @everframe/web fixes its ingest endpoint when the browser bundle is built.
         // Never silently send a staging/development request to a production bundle.
         if (environment != "production") return false
-        if (handle != null) return true
+        val requested = StartConfiguration(appId, sdkKey, environment, debugBuild, releaseHealth)
+        if (handle != null && startConfiguration == requested) return true
         val config = js("({})")
         config.sdkKey = sdkKey
         config.appVersion = appVersion
+        config.releaseHealth = js("({})")
+        config.releaseHealth.enabled = releaseHealth
         config.sdkName = "everframe-kmp"
         config.sdkVersion = sdkVersion
         config.visualCapture = visualCapture
         // Left out, @everframe/web detects a debug build itself.
         if (debugBuild != null) config.debugBuild = debugBuild
         return try {
+            activeDriver?.takeIf { it !== this }?.kill()
+            kill()
             handle = initWeb(config)
+            startConfiguration = requested
+            activeDriver = this
             true
         } catch (_: Throwable) {
             false
@@ -90,5 +112,7 @@ class EverframeBrowserDriver(
     override fun kill() {
         handle?.destroy()
         handle = null
+        startConfiguration = null
+        if (activeDriver === this) activeDriver = null
     }
 }

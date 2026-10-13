@@ -5,7 +5,8 @@
 
 Release health answers one question: is the version you just shipped crashing
 more than the one before it? For every version of your native and web apps, Everframe counts
-foreground sessions on Android, iOS and React Native, and page sessions on web.
+foreground sessions on Android and iOS (including React Native, Flutter, and KMP),
+and page sessions on web.
 It shows how many completed without an observed crash. Each project has a **Release health** page, with one row per
 version and a page for each version.
 
@@ -104,7 +105,26 @@ health sessions and automatic releases. When unset, the existing SDK debug
 build detection applies. Missing app versions do not create health releases.
 `disabled`, SDK kill, and `crashReporting.disabled` turn collection off.
 `reporter.disabled` keeps health collection active in crash-only mode.
-There is no separate web release-health option.
+Set `releaseHealth: { enabled: false }` to disable page health independently
+of ordinary error reporting.
+
+## Flutter and KMP
+
+The Flutter and KMP bridges enable Android/iOS foreground sessions by default,
+using the native SDK's app version, lifecycle, crash evidence, and debug gate.
+Set `releaseHealth: false` on Flutter's `EverframeNativeBridge.start` or
+`releaseHealth = false` on `EverframeKmpConfig` to opt out. Flutter's
+`crash: false` also turns health off. Native sessions are anonymous in these
+wrappers; `setUser` does not change their frozen health subject.
+
+This first pass counts native process crashes and Android JVM crashes/ANRs.
+Dart errors and handled Kotlin exceptions do not mark a session crashed. There
+is no new automatic Dart error observer. The Flutter/KMP browser drivers reuse
+web page sessions and their global-error rules, require the real host app
+version, and forward the health opt-out and debug setting to `@everframe/web`.
+
+See [Flutter setup](../packages/everframe_flutter/README.md#release-health) and
+[KMP setup](../packages/everframe_kmp/README.md#release-health).
 
 ## What a crash-free session is
 

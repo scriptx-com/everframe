@@ -6,6 +6,8 @@ import type { HostVisualCapture } from '../capture/host-visual.js';
 
 /** The web config a host passes to `init` or `<EverframeProvider>`. */
 export interface WebEverframeConfig extends EverframeConfig {
+  /** Page-session health is on for versioned production builds. Opting out keeps error reporting active. */
+  releaseHealth?: { enabled?: boolean };
   /** Renderer host attribution; absent keeps ordinary web identity. */
   sdkName?: 'everframe-flutter' | 'everframe-kmp';
   /** Host package version when sdkName names a renderer host. */
