@@ -1,0 +1,71 @@
+.changeset/flutter-kmp-release-health.md
+  s_fb5ca7e7bd2185::t_7f1637797e433c 1-9
+.prettierignore
+  s_fb5ca7e7bd2185::t_238729195b4908 14-17
+docs/release-health.md
+  s_fb5ca7e7bd2185::t_4e4b60470cab1c 8-9,108-127
+examples/kmp-compose-mobile-probe/ios/KmpComposeProbeApp.swift
+  s_fb5ca7e7bd2185::t_1d8b6c386f6470 24
+examples/kmp-ios-native-probe/KmpNativeProbeApp.swift
+  s_fb5ca7e7bd2185::t_d43294c678322c 30
+packages/everframe_flutter/CHANGELOG.md
+  s_fb5ca7e7bd2185::t_e9896badcb0d33 4-8
+packages/everframe_flutter/README.md
+  s_fb5ca7e7bd2185::t_4d4596d0074074 18,23-53
+packages/everframe_flutter/android/src/main/kotlin/dev/everframe/flutter/EverframeFlutterPlugin.kt
+  s_fb5ca7e7bd2185::t_ee306ddb7f9b9f 17,82-83
+packages/everframe_flutter/ios/everframe_flutter/Sources/everframe_flutter/EverframeFlutterPlugin.swift
+  s_fb5ca7e7bd2185::t_908aaa434a4d39 49-51
+packages/everframe_flutter/lib/src/native_bridge.dart
+  s_fb5ca7e7bd2185::t_f77966eeff179f 19-21,27-28,33,35-38,45-46,64-66,77-79,98-105,155-157,178
+packages/everframe_flutter/lib/src/web_sdk_stub.dart
+  s_fb5ca7e7bd2185::t_b21309a27b144c 7-12
+packages/everframe_flutter/lib/src/web_sdk_web.dart
+  s_fb5ca7e7bd2185::t_a41a30f9778eb6 16-21,24-28,32-36,40-44,71-72,79,81,85-87,89-91,96-99,108-111,114,116-120,128,130,144-148,154-162,176-182,192,195
+packages/everframe_flutter/test/native_bridge_test.dart
+  s_fb5ca7e7bd2185::t_589655845a6ede 16-19,22,30-84,89-91,102,108-112,114,120-123,130-140,170-195
+packages/everframe_flutter/test/web_sdk_web_test.dart
+  s_fb5ca7e7bd2185::t_90a128466a3a7a 11,33-43,47-50,53-104
+packages/everframe_kmp/README.md
+  s_fb5ca7e7bd2185::t_4664cd5651619d 10,14-33,49-54,63
+packages/everframe_kmp/ios/EverframeSwiftDriver.swift
+  s_fb5ca7e7bd2185::t_e1ba66f896983c 11,27-28
+packages/everframe_kmp/src/androidMain/kotlin/dev/everframe/kmp/AndroidEverframeDriver.kt
+  s_fb5ca7e7bd2185::t_69dad2a5a7a5a1 13,51,59
+packages/everframe_kmp/src/commonMain/kotlin/dev/everframe/kmp/EverframeKmp.kt
+  s_fb5ca7e7bd2185::t_f558aa1ece8fbc 11,14-15,31,49
+packages/everframe_kmp/src/commonTest/kotlin/dev/everframe/kmp/EverframeKmpTest.kt
+  s_fb5ca7e7bd2185::t_74873c7fc10feb 14,38,45,47,57-67
+packages/everframe_kmp/src/jsMain/kotlin/dev/everframe/kmp/EverframeBrowserDriver.kt
+  s_fb5ca7e7bd2185::t_f5e172306749a6 16,18-25,27,35,38,42-43,47-48,55,57,108
+packages/everframe_kmp/src/jsTest/kotlin/dev/everframe/kmp/EverframeBrowserDriverTest.kt
+  s_fb5ca7e7bd2185::t_67f314e3f23ae5 13-22,39-40,52,55,60-123,133,146
+packages/sdk-react/__tests__/provider-release-health.spec.tsx
+  s_fb5ca7e7bd2185::t_29e74b1003d622 52-70,72-81
+packages/sdk-web/__tests__/crash-reporting.spec.ts
+  s_fb5ca7e7bd2185::t_014274d84f575d 90-101,103-145
+packages/sdk-web/__tests__/release-health-integration.spec.ts
+  s_fb5ca7e7bd2185::t_c71824a0be6d41 65,93-130
+packages/sdk-web/__tests__/release-health-removed.spec.ts
+  s_fb5ca7e7bd2185::t_aca28fcf33e75d 5-6,33,45-47,49-50,53
+packages/sdk-web/src/adapter.ts
+  s_fb5ca7e7bd2185::t_018d9d698879e3 2302
+packages/sdk-web/src/internal/types.ts
+  s_fb5ca7e7bd2185::t_7048825374d2a6 9-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "24769a6ada7e70300a7618306889e3c2a39cc4c5",
+  "prompts": {},
+  "sessions": {
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
