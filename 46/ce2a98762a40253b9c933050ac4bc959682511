@@ -1,0 +1,21 @@
+packages/everframe_flutter/lib/src/web_sdk_web.dart
+  s_fb5ca7e7bd2185::t_3059d20d37016b 73,93,97,102-105,112-114,200-201
+packages/everframe_flutter/test/web_sdk_web_test.dart
+  s_fb5ca7e7bd2185::t_9ff3f34e69d5d1 105-159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "46ce2a98762a40253b9c933050ac4bc959682511",
+  "prompts": {},
+  "sessions": {
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
