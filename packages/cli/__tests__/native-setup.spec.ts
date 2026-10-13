@@ -34,7 +34,7 @@ const THIN_GRADLE = [
   '// @generated end everframe-build-artifacts',
 ].join('\n');
 
-const ONE_LINE = `"\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`;
+const ONE_LINE = `/bin/bash "\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`;
 const DSYM_INPUT = '"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"';
 
 describe('xcodePhaseScript', () => {
@@ -45,7 +45,7 @@ describe('xcodePhaseScript', () => {
 
   it('takes a hoisted script path', () => {
     const hoisted = '${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh';
-    expect(xcodePhaseScript(APP, hoisted)).toBe(`"${hoisted}" --app-id "${APP}"`);
+    expect(xcodePhaseScript(APP, hoisted)).toBe(`/bin/bash "${hoisted}" --app-id "${APP}"`);
   });
 
   it.each([
@@ -210,7 +210,7 @@ describe('patchXcodeProject', () => {
     });
     patchXcodeProject(project, APP, '${SRCROOT}/../../node_modules/@everframe/cli/scripts/xcode-upload.sh');
     expect(phaseScripts(project)).toEqual([
-      `"\\"\${SRCROOT}/../../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id \\"${APP}\\""`,
+      `"/bin/bash \\"\${SRCROOT}/../../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id \\"${APP}\\""`,
     ]);
     const section = project.hash.project.objects.PBXShellScriptBuildPhase ?? {};
     const key = Object.keys(section).find((k) => section[`${k}_comment`] === XCODE_PHASE_NAME)!;

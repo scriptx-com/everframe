@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -33,6 +33,8 @@ function app(options: { exitCode?: number; pnpm?: boolean } = {}) {
   mkdirSync(join(cli, 'scripts'), { recursive: true });
   mkdirSync(join(cli, 'dist'));
   copyFileSync(SCRIPT, join(cli, 'scripts/xcode-upload.sh'));
+  // pnpm pack writes files that are not bins as 0644; the phase runs the script with /bin/bash.
+  chmodSync(join(cli, 'scripts/xcode-upload.sh'), 0o644);
   const record = join(root, 'args.json');
   writeFileSync(
     join(cli, 'dist/index.js'),
@@ -57,12 +59,10 @@ function app(options: { exitCode?: number; pnpm?: boolean } = {}) {
 }
 
 describe('scripts/xcode-upload.sh', () => {
-  it('is executable and ships in the package as a bin, which keeps it executable when packed and installed', () => {
-    expect(statSync(SCRIPT).mode & 0o111).toBe(0o111);
+  it('ships in the package without a bin of its own, so npx still finds the one `everframe` bin', () => {
     const pkg = JSON.parse(readFileSync(join(PACKAGE, 'package.json'), 'utf8')) as { files: string[]; bin: Record<string, string> };
     expect(pkg.files).toContain('scripts');
-    // pnpm pack writes 0644 for every file that is not a bin.
-    expect(pkg.bin['everframe-xcode-upload']).toBe('./scripts/xcode-upload.sh');
+    expect(pkg.bin).toEqual({ everframe: './dist/index.js' });
   });
 
   it('runs `everframe xcode build-phase` from its own package with the phase arguments', () => {

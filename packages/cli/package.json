@@ -22,8 +22,7 @@
     "node": ">=22"
   },
   "bin": {
-    "everframe": "./dist/index.js",
-    "everframe-xcode-upload": "./scripts/xcode-upload.sh"
+    "everframe": "./dist/index.js"
   },
   "exports": {
     ".": {

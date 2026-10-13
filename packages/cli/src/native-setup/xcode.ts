@@ -32,13 +32,15 @@ export function xcodeUploadScriptPath(srcRoot: string): { path: string; installe
 
 /**
  * The Run Script body: one line that runs the `scripts/xcode-upload.sh` shipped in
- * `@everframe/cli`. The script skips Debug and SKIP_BUNDLING builds, reads NODE_BINARY from
+ * `@everframe/cli` with `/bin/bash`, so it does not depend on the file's mode (`pnpm pack`
+ * writes it as 0644). When the package is missing, bash fails the build with
+ * `No such file or directory`. The script skips Debug and SKIP_BUNDLING builds, reads NODE_BINARY from
  * `.xcode.env`, and runs `everframe xcode build-phase`, which owns the upload logic (token,
  * strict mode, time budget, Hermes map, dSYMs).
  */
 export function xcodePhaseScript(appId: string, scriptPath = DEFAULT_XCODE_UPLOAD_SCRIPT): string {
   if (!SCRIPT_PATH.test(scriptPath)) throw new Error(`invalid_upload_script_path: ${scriptPath}`);
-  return `"${scriptPath}" --app-id "${checkedAppId(appId)}"`;
+  return `/bin/bash "${scriptPath}" --app-id "${checkedAppId(appId)}"`;
 }
 
 /** The subset of the `xcode` package's project object this module uses. */

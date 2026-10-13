@@ -77,7 +77,7 @@ module.exports = ({ config }) => withEverframe(config, { appId: '00000000-0000-4
   each release bundle, and R8 mappings and native libraries after
   `assembleRelease` and `bundleRelease`.
 - Xcode: an "Upload Everframe Build Artifacts" Run Script phase of one line,
-  `"${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "…"`,
+  `/bin/bash "${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "…"`,
   with the app's dSYM as its input, plus `SOURCEMAP_FILE` when the target does
   not set it and `ENABLE_USER_SCRIPT_SANDBOXING = NO`. The script ships in
   `@everframe/cli` and runs `everframe xcode build-phase`. Release builds

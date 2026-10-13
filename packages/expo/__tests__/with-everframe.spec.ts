@@ -61,7 +61,7 @@ describe('@everframe/expo', () => {
       {
         name: 'Upload Everframe Build Artifacts',
         shellPath: '/bin/bash',
-        shellScript: `"\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`,
+        shellScript: `/bin/bash "\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`,
         inputPaths: ['"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"'],
       },
     ]);
@@ -75,7 +75,7 @@ describe('@everframe/expo', () => {
     mkdirSync(join(app, 'ios'), { recursive: true });
     applyIos(project, APP, join(app, 'ios'));
     expect(phases[0]!.shellScript).toBe(
-      `"\${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`,
+      `/bin/bash "\${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`,
     );
   });
 
@@ -83,7 +83,7 @@ describe('@everframe/expo', () => {
     const { project, phases } = fakeProject();
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'everframe-expo-')));
     applyIos(project, APP, join(root, 'ios'));
-    expect(phases[0]!.shellScript).toBe(`"\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`);
+    expect(phases[0]!.shellScript).toBe(`/bin/bash "\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`);
   });
 
   it('runs the patcher from the prebuild ios folder', async () => {
@@ -98,7 +98,7 @@ describe('@everframe/expo', () => {
     const mod = config.mods?.ios?.xcodeproj;
     expect(mod).toBeTypeOf('function');
     await mod!({ modResults: project, modRequest: { platformProjectRoot: join(app, 'ios') } });
-    expect(phases[0]!.shellScript).toContain('"${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh"');
+    expect(phases[0]!.shellScript).toContain('/bin/bash "${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh"');
   });
 
   it('adds the Everframe Gradle plugin classpath to the project build.gradle', () => {

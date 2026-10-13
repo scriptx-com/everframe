@@ -43,7 +43,7 @@ describe('setupReactNative', () => {
     expect(result.uploadScript).toEqual({ path: DEFAULT_XCODE_UPLOAD_SCRIPT, installed: true });
     const pbx = await readFile(join(root, 'ios/App.xcodeproj/project.pbxproj'), 'utf8');
     expect(pbx).toContain(
-      `shellScript = "\\"\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id \\"${APP}\\"";`,
+      `shellScript = "/bin/bash \\"\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id \\"${APP}\\"";`,
     );
     expect(pbx).not.toContain('EVERFRAME_DSYM_INPUT');
   });
@@ -57,7 +57,7 @@ describe('setupReactNative', () => {
     const result = await setupReactNative({ projectRoot: root, appId: APP });
     expect(result.uploadScript).toEqual({ path: '${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh', installed: true });
     const pbx = await readFile(join(root, 'ios/App.xcodeproj/project.pbxproj'), 'utf8');
-    expect(pbx).toContain('\\"${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id');
+    expect(pbx).toContain('/bin/bash \\"${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id');
   });
 
   it('warns when no installed CLI has the script, and writes the standard path', async () => {
@@ -75,7 +75,7 @@ describe('setupReactNative', () => {
       "warning: @everframe/cli is not installed in this app, so the Xcode phase's script ${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh does not exist and every build of the app fails until it does. Install @everframe/cli in the app (npm install --save-dev @everframe/cli) and run this command again.",
     ]);
     expect(await readFile(join(root, 'ios/App.xcodeproj/project.pbxproj'), 'utf8')).toContain(
-      '\\"${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id',
+      '/bin/bash \\"${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id',
     );
   });
 
@@ -86,7 +86,7 @@ describe('setupReactNative', () => {
     const fresh = await readFile(path, 'utf8');
     // The earlier, multi-line form of the phase, with its two inputs.
     const earlier = fresh
-      .replace(/shellScript = "\\"\$\{SRCROOT\}[^\n]*\n/, 'shellScript = "if [ \\"${CONFIGURATION:-}\\" = \\"Debug\\" ]; then exit 0; fi\\nexit 0";\n')
+      .replace(/shellScript = "\/bin\/bash \\"\$\{SRCROOT\}[^\n]*\n/, 'shellScript = "if [ \\"${CONFIGURATION:-}\\" = \\"Debug\\" ]; then exit 0; fi\\nexit 0";\n')
       .replace(
         /inputPaths = \(\n(\t+)"\$\(DWARF_DSYM_FOLDER_PATH\)[^\n]*\n/,
         (_m, indent: string) => `inputPaths = (\n${indent}"$(EVERFRAME_DSYM_INPUT)",\n${indent}"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",\n`,

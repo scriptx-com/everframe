@@ -5,7 +5,7 @@
 # The "Upload Everframe Build Artifacts" Run Script phase that `everframe setup react-native`
 # and @everframe/expo add to the app target runs this script in one line:
 #
-#   "${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "<App ID>"
+#   /bin/bash "${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "<App ID>"
 #
 # It runs `everframe xcode build-phase` from this package with the same arguments. That
 # command uploads the Hermes source map and the dSYMs of the build. Debug and SKIP_BUNDLING

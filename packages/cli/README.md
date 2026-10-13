@@ -240,12 +240,13 @@ The Xcode app target gets an "Upload Everframe Build Artifacts" Run Script
 phase of one line:
 
 ```sh
-"${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "00000000-0000-4000-8000-000000000001"
+/bin/bash "${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "00000000-0000-4000-8000-000000000001"
 ```
 
 The script ships in `@everframe/cli`, which must be installed in the app. Like
-Sentry's and Bugsnag's phases, the line fails the build with the shell's
-`No such file or directory` when the script is missing, in every configuration.
+Sentry's and Bugsnag's phases, the line runs it with the shell, so the file
+needs no executable bit, and fails the build with `No such file or directory`
+when the script is missing, in every configuration.
 Debug and `SKIP_BUNDLING` builds skip
 before Node starts. Other builds take `NODE_BINARY` from `ios/.xcode.env` and
 `ios/.xcode.env.local`, as React Native's own phases do, and run
