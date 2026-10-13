@@ -41,6 +41,7 @@ describe('release_health.threshold_reached 2.0', () => {
           v.data.platforms = [
             'android',
             'ios',
+            'roku',
             'titanos',
             'tizen',
             'tvos',
@@ -151,7 +152,7 @@ describe('release_health.threshold_reached 2.0', () => {
     [
       'an unsupported platform',
       (v: any) => {
-        v.data.platforms = ['android', 'roku'];
+        v.data.platforms = ['android', 'unsupported'];
       },
     ],
     [

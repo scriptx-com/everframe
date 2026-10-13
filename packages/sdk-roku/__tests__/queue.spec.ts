@@ -33,7 +33,7 @@ describe('ef_queue.brs', () => {
     expect(lines[1]).toBe(1);
   });
 
-  it('keeps at most 6 records, dropping the oldest', async () => {
+  it('keeps at most 4 records, dropping the oldest', async () => {
     const puts = Array.from(
       { length: 8 },
       (_, i) => `EfQ_Put(sec, ${REC(String(1790000000000 + i))})`,
@@ -47,7 +47,7 @@ describe('ef_queue.brs', () => {
       print "EFTEST:" + FormatJson({ n: items.Count(), first: items[0].rec.t.ToStr() })
     `,
     );
-    expect(lines[0]).toEqual({ n: 6, first: '1790000000002' });
+    expect(lines[0]).toEqual({ n: 4, first: '1790000000004' });
   });
 
   it('fits an oversized record under 2000 chars (crumbs first, then frames)', async () => {
@@ -126,7 +126,7 @@ describe('ef_queue.brs', () => {
       print "EFTEST:" + FormatJson({ n: items.Count(), keys: keys, rl: sec.Exists("rl") })
     `,
     );
-    expect(lines[0].n).toBe(6);
+    expect(lines[0].n).toBe(4);
     expect(lines[0].keys).not.toContain('rl');
     expect(lines[0].rl).toBe(true);
   });

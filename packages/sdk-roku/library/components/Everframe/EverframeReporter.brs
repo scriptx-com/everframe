@@ -57,6 +57,13 @@ sub EfRep_Run()
             print "[everframe] drain failed: "; e.message
             retry = true
         end try
+        try
+            healthRetry = EfH_Drain(m.sec, m.top.config, EfU_NowMs(), EfRep_PostHealth)
+            retry = retry or healthRetry
+        catch e
+            print "[everframe] health drain failed: "; e.message
+            retry = true
+        end try
         if retry then
             if backoff = 0 then backoff = 5000 else backoff = backoff * 2
             if backoff > 300000 then backoff = 300000
@@ -198,6 +205,25 @@ function EfRep_Post(env as object) as integer
     xfer.AddHeader("Authorization", "Bearer " + cfg.sdkKey)
     xfer.AddHeader("Content-Type", "multipart/form-data; boundary=" + boundary)
     if not xfer.AsyncPostFromString(EfM_Body(FormatJson(env), boundary)) then return 0
+    msg = wait(15000, port)
+    if type(msg) = "roUrlEvent" then return msg.GetResponseCode()
+    xfer.AsyncCancel()
+    return 0
+end function
+
+' JSON health observations are separate from multipart crash reports.
+function EfRep_PostHealth(env as object) as integer
+    cfg = m.top.config
+    if EfU_IsDisabled(m.sec) or m.sec.Exists("hDisabled") then return 0
+    xfer = CreateObject("roUrlTransfer")
+    port = CreateObject("roMessagePort")
+    xfer.SetMessagePort(port)
+    xfer.SetUrl(cfg.endpoint + "/api/ingest/release-health")
+    xfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
+    xfer.InitClientCertificates()
+    xfer.AddHeader("Authorization", "Bearer " + cfg.sdkKey)
+    xfer.AddHeader("Content-Type", "application/json")
+    if not xfer.AsyncPostFromString(FormatJson(env)) then return 0
     msg = wait(15000, port)
     if type(msg) = "roUrlEvent" then return msg.GetResponseCode()
     xfer.AsyncCancel()

@@ -4,10 +4,10 @@
 ' Registry-backed record queue. One key per record so the hook (any thread)
 ' and the reporter never read-modify-write a shared blob. Keys are
 ' "r" + 13-digit ms + "_" + 8 id chars, so sorting keys sorts by time.
-' Roku gives a channel ~16KB of registry: 6 records x 2000 chars.
+' Roku gives a channel ~16KB of registry: 4 records x 2000 chars, reserving room for release health.
 
 function EfQ_MaxRecords() as integer
-    return 6
+    return 4
 end function
 
 function EfQ_MaxChars() as integer

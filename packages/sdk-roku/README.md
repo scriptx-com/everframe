@@ -34,35 +34,40 @@ Copy `node_modules/@everframe/roku/dist/everframe-roku-<version>.zip` into your 
 </children>
 ```
 
-Then add this at the very top of `Main()`, before you create the `roSGScreen`:
+Copy the host bridge and its helpers into your channel. Keep these files from
+one SDK version, and refresh them whenever you upgrade the library:
+
+```sh
+mkdir -p source/everframe
+cp node_modules/@everframe/roku/hook/everframe_hook.brs source/everframe/
+for helper in ef_util ef_health ef_version ef_frames ef_record ef_queue ef_fingerprint; do
+  cp "node_modules/@everframe/roku/library/components/Everframe/lib/$helper.brs" source/everframe/
+done
+```
+
+Then call the bridge at the very top of `Main()`, before creating `roSGScreen`:
 
 ```brightscript
 ' source/main.brs
 sub Main()
-    ' Everframe: record why the previous launch ended. Keep this first.
-    try
-        am = CreateObject("roAppManager")
-        info = am.GetLastExitInfo()
-        if type(info) = "roAssociativeArray" and info["exit_code"] <> invalid and info["timestamp"] <> invalid then
-            ' One section per channel: Roku shares the registry across a developer's channels.
-            sec = CreateObject("roRegistrySection", "Everframe_" + CreateObject("roAppInfo").GetID())
-            ' Keep the exited session's screen and breadcrumbs with the exit.
-            if sec.Exists("screen") then info["efScreen"] = sec.Read("screen")
-            if sec.Exists("crumbs") then info["efCrumbs"] = sec.Read("crumbs")
-            ' Skip sessions that ran with start({ enabled: false }), and never replace an
-            ' exit the SDK has not taken yet (the library did not load last launch).
-            keep = sec.Exists("disabled") or sec.Exists("pendingExit")
-            if not keep then sec.Write("pendingExit", FormatJson(info)) : sec.Flush()
-        end if
-    catch e
-    end try
-
+    Everframe_RecordLastExit()
     screen = CreateObject("roSGScreen")
     ' ... your existing Main() ...
 end sub
 ```
 
-Roku returns the previous launch's exit record (`GetLastExitInfo`, Roku OS 13.0+) only to your channel's own code. Called from inside the Everframe ComponentLibrary it always answers `EXIT_UNKNOWN` with no timestamp, so the library cannot read it itself. These lines store the record in the registry (section `Everframe_<channel ID>`, key `pendingExit`); the library picks it up after `start()` and reports it, together with the screen and breadcrumbs of the session that ended (copied before the new launch writes its own). A crash already reported by `try`/`catch` is matched to its exit by kind, not by clock, because the device clock and the exit timestamp can differ by tens of seconds. Without them, tier 1 still sends `captureException` reports, but crashes that end the channel are not detected. Tier 2 inserts the equivalent call (`Everframe_RecordLastExit()`) into `Main` / `RunUserInterface` for you.
+Roku returns `GetLastExitInfo` (OS 13.0+) only to the channel's own code, so
+this bridge runs in `Main`, before this launch writes its state. It snapshots
+the previous session's exit and clears its eligibility even when the SDK is
+disabled or the library never loads. A launch-local `tmp:` token proves that
+the updated bridge ran and detected the exit API; old inline snippets do not
+enable release health. In the host scene, pass the token to `start()` using
+`releaseHealthLaunch: ReadAsciiFile("tmp:/everframe-health-launch.json")`, as below.
+Read it in channel code, not in the ComponentLibrary; this avoids relying on
+shared temporary-file access across those scopes. The bridge also preserves existing next-launch crash
+reports and their screen and breadcrumb snapshots. Tier 2 installs these
+helpers and inserts `Everframe_RecordLastExit()` automatically; rebuild your
+instrumented channel when upgrading.
 
 > **Warning:** calling `GetLastExitInfo()` in your own code as well is fine: reading it does not consume the record. Call it from `Main()` or a Task only, never from the render thread (a component's `init`, observers, or `onKeyEvent`): `roAppManager` cannot be created there.
 
@@ -79,19 +84,21 @@ sub onEverframeLoad()
     if m.efLib.loadStatus <> "ready" or m.efStarted <> invalid then return
     m.efStarted = true
     ef = CreateObject("roSGNode", "Everframe:Everframe")
-    ef.callFunc("start", { sdkKey: "evf_live_..." })
+    ef.callFunc("start", { sdkKey: "evf_live_...", releaseHealthLaunch: ReadAsciiFile("tmp:/everframe-health-launch.json") })
 end sub
 ```
 
 `start()` publishes the node as `m.global.everframe`. Supported config keys:
 
-| Key              | Default                 | Meaning                                                                                                                                                                     |
-| ---------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sdkKey`         | required                | Your Everframe SDK key                                                                                                                                                      |
-| `endpoint`       | `https://everframe.dev` | Ingest host. For self-testing only                                                                                                                                          |
-| `enabled`        | `true`                  | Set `false` to turn the SDK off. This is remembered on the device: queued reports are discarded, and instrumented code records nothing until a later `start()` without it.  |
-| `debugBuild`     | detected                | `true` or `false` to say whether this is a debug build. By default a sideloaded channel (`roAppInfo.IsDev()`) is one. Everframe never creates a release from a debug build. |
-| `maxBreadcrumbs` | `50`                    | Breadcrumb ring size. An integer, clamped to 1–50; other values are ignored                                                                                                 |
+| Key                   | Default                 | Meaning                                                                                                                                                                      |
+| --------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sdkKey`              | required                | Your Everframe SDK key                                                                                                                                                       |
+| `endpoint`            | `https://everframe.dev` | Ingest host. For self-testing only                                                                                                                                           |
+| `enabled`             | `true`                  | Set `false` to turn the SDK off. This is remembered on the device: queued reports are discarded, and instrumented code records nothing until a later `start()` without it.   |
+| `debugBuild`          | detected                | `true` or `false` to say whether this is a debug build. By default a sideloaded channel (`roAppInfo.IsDev()`) is one. Everframe never creates a release from a debug build.  |
+| `releaseHealthLaunch` | absent                  | Opaque launch token read by host code from `tmp:/everframe-health-launch.json`; required for release health. Read it fresh each launch after the Main bridge.                |
+| `releaseHealth`       | `true`                  | Anonymous release launch health on Roku OS 13.0+ with the updated Main bridge. `false` purges health observations and stops health collection; crash reports remain enabled. |
+| `maxBreadcrumbs`      | `50`                    | Breadcrumb ring size. An integer, clamped to 1–50; other values are ignored                                                                                                  |
 
 ## Tier 1: ComponentLibrary, remote
 
@@ -255,7 +262,49 @@ Both tiers keep the latest 20 breadcrumbs in the registry (section `Everframe_<c
 
 Where `roAppMemoryMonitor` is available, the SDK's reporter Task checks memory use every 5 seconds. It leaves a `custom` breadcrumb at level `warn` the first time use crosses 75, 90 and 95 % of the channel's limit (for example `memory 90% of 286 MB`), and one for the OS memory warning event. Every report carries the latest reading in `details.metadata.memory` as `{ percent, limitMb }`; a crash found on the next launch carries the last reading taken before it.
 
-The registry holds up to 6 queued reports of 2000 characters each plus the breadcrumbs and the current screen (at most 128 characters), about 14 KB of Roku's 16 KB registry. Leave room for your own registry data accordingly. The section name includes the channel ID (`roAppInfo.GetID()`, `dev` when sideloaded) because Roku shares the registry between channels signed with the same developer key.
+The registry holds up to **4 queued crash reports** of 2000 characters each.
+Release health has a separate queue capped at 2048 UTF-8 bytes (including keys)
+and six observations, plus at most 768 bytes for the active session and small
+control markers: less than 3 KiB total. This reserves room for health compared
+with the former six-report queue. Breadcrumbs, previous breadcrumbs, pending
+exit snapshots, screen, versions and rate-limit metadata also use the registry;
+Unicode report text may occupy more bytes than characters. These limits do not
+guarantee that the SDK and your own data fit Roku's shared approximately 16 KiB
+registry. Storage failures drop observations; a failed start write never arms
+an eligible session. The section name includes the channel ID (`roAppInfo.GetID()`, `dev` when sideloaded) because Roku shares the registry between channels signed with the same developer key.
+
+## Release health
+
+Release health is enabled by default for release launches on Roku OS 13.0+
+with the updated host bridge. The effective `debugBuild` flag defaults to
+`roAppInfo.IsDev()`; debug launches neither open sessions nor send saved health
+observations. `debugBuild: false` deliberately treats a sideloaded QA channel
+as a release. There is one anonymous exposure per configured launch, with
+`launch-v1` / `roku-exit-info-v1` coverage. `setUser` does not identify health
+subjects.
+
+On the next launch, only `EXIT_USER_NAV` completes the preceding eligible
+session. Only OS-confirmed `EXIT_BRIGHTSCRIPT_CRASH` and `EXIT_NATIVE_CRASH`
+count as crashes. Resource/system exits, execution stops/timeouts and other
+known exit reasons remain separate; unknown or missing evidence never means
+completion. Manual exceptions and recovered instrumented exceptions never
+count as health crashes. Launches where the library failed to load or was not
+started have no eligible exposure, and their exits cannot attach to an older
+session. A start without later confirmed evidence stays unknown.
+
+Observations retain the original app version/build, SDK version and key hash /
+endpoint binding across updates. They use the current key only when that
+binding still matches, retry transient network errors and 408/429/5xx in the
+reporter Task, and expire after seven days. The queue drops its oldest records
+when full; queue-loss accounting is unavailable. Health delivery is independent
+of crash-report rate limits. `releaseHealth: false` purges health only, including
+when called after `start`; `enabled: false` purges both. No network work runs
+on the render thread.
+
+Roku exit timestamps can lag the channel clock; when necessary the terminal
+time is clamped to the frozen start time (zero elapsed time). Timestamps never
+select which session owns an exit. See [release health](../../docs/release-health.md#roku)
+for how these observations are counted.
 
 ## Endpoint
 

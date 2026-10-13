@@ -22,4 +22,6 @@
   <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_fingerprint.brs" />
   <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_crumbs.brs" />
   <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_screen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_health.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Everframe/lib/ef_version.brs" />
 </component>

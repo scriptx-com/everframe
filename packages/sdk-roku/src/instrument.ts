@@ -54,6 +54,8 @@ const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HOOK_SET = [
   'everframe_hook.brs',
   'ef_util.brs',
+  'ef_health.brs',
+  'ef_version.brs',
   'ef_frames.brs',
   'ef_record.brs',
   'ef_queue.brs',

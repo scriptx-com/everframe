@@ -7,6 +7,8 @@ import { runBrs, HOOK_DIR, LIB_DIR } from './brs-harness.js';
 
 const LIBS = [
   'ef_util.brs',
+  'ef_health.brs',
+  'ef_version.brs',
   'ef_frames.brs',
   'ef_record.brs',
   'ef_queue.brs',
@@ -345,37 +347,20 @@ describe('everframe_hook.brs (no SceneGraph node yet)', () => {
     expect(lines[0]).toEqual({ r: [false, false, false], crumbs: 0, user: true, route: true });
   });
 
-  it('the README tier 1 Main() snippet stores an exit, never replaces a pending one, and skips disabled sessions', async () => {
+  it('the documented tier 1 bridge clears eligibility and preserves pending abnormal reports', async () => {
     const readme = readFileSync(path.join(HOOK_DIR, '..', 'README.md'), 'utf8');
     const block = readme.match(/```brightscript\n' source\/main\.brs\n([\s\S]*?)```/)![1]!;
-    const lines = block.split('\n');
-    const from = lines.findIndex((l) => l.includes('if type(info) = "roAssociativeArray"'));
-    const to = lines.findIndex((l, i) => i > from && l === '        end if');
-    const store = lines.slice(from, to + 1).join('\n');
-    const run = (setup: string) =>
-      runBrs(
-        LIBS,
-        `
-      sec0 = EfU_Section()
+    const setup = block.slice(block.indexOf('\n') + 1, block.indexOf('    screen ='));
+    const { lines } = await runBrs(
+      LIBS,
+      `
+      sec = EfU_Section()
+      sec.Write("hSession", "{}")
+      sec.Write("pendingExit", FormatJson({ exit_code: "EXIT_NATIVE_CRASH", timestamp: "saved" }))
       ${setup}
-      info = { exit_code: "EXIT_BRIGHTSCRIPT_CRASH", timestamp: "2026-09-29T10:00:00.000Z" }
-${store}
-      s = EfU_Section()
-      out = invalid
-      if s.Exists("pendingExit") then out = ParseJson(s.Read("pendingExit"))
-      print "EFTEST:" + FormatJson(out)
-    `,
-      );
-    const fresh = await run('sec0.Write("screen", "Home")');
-    expect(fresh.lines[0]).toMatchObject({
-      exit_code: 'EXIT_BRIGHTSCRIPT_CRASH',
-      efScreen: 'Home',
-    });
-    const pending = await run(
-      'sec0.Write("pendingExit", FormatJson({ exit_code: "EXIT_CHANNEL_MEM_LIMIT_FG", timestamp: "x" }))',
+      print "EFTEST:" + FormatJson({ armed: sec.Exists("hSession"), pending: ParseJson(sec.Read("pendingExit")).exit_code })`,
+      { extraFiles: [path.join(HOOK_DIR, 'everframe_hook.brs')] },
     );
-    expect(pending.lines[0]).toMatchObject({ exit_code: 'EXIT_CHANNEL_MEM_LIMIT_FG' });
-    const disabled = await run('sec0.Write("disabled", "1")');
-    expect(disabled.lines[0]).toBeNull();
+    expect(lines[0]).toEqual({ armed: false, pending: 'EXIT_NATIVE_CRASH' });
   });
 });
