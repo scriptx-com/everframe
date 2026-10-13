@@ -42,9 +42,9 @@ npx @everframe/cli setup react-native --app-id "$EVERFRAME_APP_ID"
 ```
 
 Either way, Android gets `apply plugin: "dev.everframe"` and
-`everframe { appId = "…" }` plus one classpath line, and Xcode gets a Run
-Script phase that runs `everframe xcode build-phase`. The upload logic lives in
-the Gradle plugin and the CLI. Set `EVERFRAME_API_TOKEN` in release builds;
+`everframe { appId = "…" }` plus one classpath line, and Xcode gets a
+one-line Run Script phase that runs `scripts/xcode-upload.sh` from the installed
+`@everframe/cli`. The upload logic lives in the Gradle plugin and the CLI. Set `EVERFRAME_API_TOKEN` in release builds;
 without it the build warns and continues. See the
 [CLI guide](../cli/README.md#react-native-and-expo).
 
