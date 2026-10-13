@@ -5,14 +5,14 @@
 
 Release health answers one question: is the version you just shipped crashing
 more than the one before it? For every version of your native and web apps, Everframe counts
-foreground sessions on Android and iOS (including React Native, Flutter, and KMP),
+foreground sessions on Android and iOS (including React Native, Flutter, and KMP), plus native tvOS,
 and page sessions on web.
 It shows how many completed without an observed crash. Each project has a **Release health** page, with one row per
 version and a page for each version.
 
 ## Set up
 
-Release health is on by default in the Android, iOS and React Native SDKs, and
+Release health is on by default in the Android, iOS/tvOS and React Native SDKs, and
 the SDK reads the app version and build itself. Ship a release build: sessions
 appear after the app has been in the foreground and the SDK has sent them.
 
@@ -22,7 +22,7 @@ version's rate. The SDK records nothing from a debug build and logs
 
 - **Android:** an app whose `debuggable` flag is set, as Android Studio's debug
   build type sets it.
-- **iOS:** an app running in the simulator, or one signed with a development
+- **iOS/tvOS:** an app running in the simulator, or one signed with a development
   profile (`get-task-allow`), as Xcode signs Debug builds run on a device.
   TestFlight, App Store, ad hoc and enterprise builds all count.
 
@@ -45,7 +45,7 @@ EverframeConfig(sdkKey: sdkKey, releaseHealth: ReleaseHealthConfiguration(includ
 releaseHealth: { includeDebugBuilds: true },
 ```
 
-`includeDebugBuilds` applies to the configuration it is set on. On iOS, a
+`includeDebugBuilds` applies to the configuration it is set on. On iOS/tvOS, a
 configuration you pass to `setReleaseHealth` needs `includeDebugBuilds: true`
 again, or a debug build is skipped.
 
@@ -70,10 +70,12 @@ Per platform:
   from the manifest; without it no session opens and the SDK logs
   `process-lifecycle-unavailable`. `Everframe.isReleaseHealthReady()` is true
   while a foreground session is being recorded.
-- **iOS:** `Everframe.shared.start` applies `EverframeConfig.releaseHealth`.
+- **iOS/tvOS:** `Everframe.shared.start` applies `EverframeConfig.releaseHealth`.
   `setReleaseHealth(_:)` changes it while the app runs, until the next `start`,
-  and returns `true` once a foreground session has started. tvOS doesn't collect
-  release health.
+  and returns `true` once a foreground session has started. tvOS uses the same
+  collector and appears under its own platform badge and filter. Use the existing
+  iOS integration SDK key for Apple TV apps; iOS and tvOS sessions remain separate
+  under the runtime filter even when they share that key and version.
 - **React Native** reports through the Android and iOS SDKs, so use the Provider
   option and not the native calls. It needs the Hermes bundle identity that
   `@everframe/metro` adds at build time, or the `jsBundle` option. Without one,
@@ -135,7 +137,7 @@ A native session starts when your app comes to the foreground and ends when it g
 the background. A session that reaches the background is **completed**. A
 session **crashed** when the app crashed during it, from any of these causes:
 
-- a native crash (C, C++, Swift or Objective-C) on Android or iOS;
+- a native crash (C, C++, Swift or Objective-C) on Android, iOS or tvOS;
 - an uncaught Kotlin or Java exception on Android;
 - an unhandled JavaScript error that ends a React Native app (Hermes);
 - app not responding on Android: the system ended the app because it stopped
@@ -187,7 +189,7 @@ These don't count as crashes:
   as crashes on web.
 
 "Last 7 days" and "Last 30 days" are rolling periods that end now. The daily
-chart uses UTC days. The platform filter covers iOS, Android, Web, Tizen, webOS,
+chart uses UTC days. The platform filter covers iOS, tvOS, Android, Web, Tizen, webOS,
 Vega, Vidaa and TitanOS.
 
 ## Unknown outcomes
@@ -196,7 +198,7 @@ Some sessions end without the SDK learning how:
 
 - the user force-quit the app, or the device shut down or restarted;
 - the system ended the app to free memory (a low-memory kill), including the
-  low-memory, unresponsive and unexplained terminations that the iOS SDK infers
+  low-memory, unresponsive and unexplained terminations that the iOS/tvOS SDK infers
   on the next launch. On Android, a low-memory kill while the app was visible
   still appears under Errors as a "Low memory kill" crash, but its session
   counts as unknown;
@@ -235,7 +237,7 @@ non-blank, at most 128 UTF-16 code units and free of control characters
   account switch, call `Everframe.start` again with the new value
   (`userId = null` on logout). An invalid ID keeps release health off; nothing
   is thrown.
-- **iOS:** `releaseHealth: try ReleaseHealthConfiguration(userId: accountId)` in
+- **iOS/tvOS:** `releaseHealth: try ReleaseHealthConfiguration(userId: accountId)` in
   `EverframeConfig`, then `setReleaseHealth` whenever the account changes
   (`ReleaseHealthConfiguration()` on logout). An invalid ID throws
   `ReleaseHealthConfiguration.ValidationError.invalidUserIdentity`.
@@ -249,7 +251,7 @@ completed session, so an app that learns the ID after launch adds one
 crash-free session per launch. When the ID is known at start, pass it in the
 start configuration instead: `ReleaseHealthConfig(userId = …)` in
 `EverframeConfig` on Android, `releaseHealth: try ReleaseHealthConfiguration(userId: …)`
-in `EverframeConfig` on iOS, and `releaseHealth: { userId }` at first mount on
+in `EverframeConfig` on iOS/tvOS, and `releaseHealth: { userId }` at first mount on
 React Native.
 
 ## Versions and builds
@@ -260,7 +262,7 @@ A release is an app version. The SDK reads it, and you don't pass it:
   UTF-16 code units or holds control characters, the SDK uses `versionCode` as
   text instead, and `0.0.0` only when it can't read the package at all. The
   build is `versionCode`.
-- **iOS:** `CFBundleShortVersionString`, trimmed, else `CFBundleVersion`, else
+- **iOS/tvOS:** `CFBundleShortVersionString`, trimmed, else `CFBundleVersion`, else
   `0.0.0`. The build is `CFBundleVersion`, or none.
 - **React Native:** the native app's version and build, read as above. An
   over-the-air JavaScript update keeps the native version, so its sessions count
@@ -272,7 +274,7 @@ match its sessions. Every release build of a version counts toward the version,
 and the version page lists the builds it has seen. Debug builds aren't counted
 (see [Set up](#set-up)).
 
-On iOS, `EverframeConfig(release:)` overrides the version of native crash
+On iOS/tvOS, `EverframeConfig(release:)` overrides the version of native crash
 reports. If you set it, native crashes (Mach exceptions and signals) and the
 terminations the SDK infers on the next launch report under that value instead
 of the app version. Release health keeps using the app version, so those crashes
@@ -315,8 +317,8 @@ stop web health delivery and erase pending records for that SDK key and endpoint
 
 Turning release health off erases the records still waiting on the device:
 `releaseHealth = null` or `ReleaseHealthConfig(enabled = false)` on Android,
-`releaseHealth: nil` or `setReleaseHealth(nil)` on iOS, `enabled: false` in
-React Native, a debug build that isn't counted, and `kill()` on Android and iOS.
+`releaseHealth: nil` or `setReleaseHealth(nil)` on iOS/tvOS, `enabled: false` in
+React Native, a debug build that isn't counted, and `kill()` on Android, iOS and tvOS.
 Records Everframe has already received are not recalled; they expire after 30
 days. Crash reports already captured keep their own delivery and retention.
 

@@ -79,7 +79,7 @@ public struct EverframeConfig: Sendable, Equatable {
     /// Release health: crash-free sessions for each app version (spec 2026-10-11). On by default
     /// and anonymous. `nil` turns it off and erases undelivered local records at `start`.
     /// `start(config:)` applies it; `setReleaseHealth(_:)` changes it until the next `start`.
-    /// Debug builds record nothing unless `includeDebugBuilds` is set. tvOS does not collect it.
+    /// Collected on iOS and tvOS. Debug builds record nothing unless `includeDebugBuilds` is set.
     /// The React Native bridge passes its health separately and leaves this nil.
     public var releaseHealth: ReleaseHealthConfiguration?
     /// Whether this app is a debug build, which Everframe never creates a release from. `nil` (the

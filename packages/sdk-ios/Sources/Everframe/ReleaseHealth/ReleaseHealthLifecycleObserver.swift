@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import Foundation
-#if os(iOS)
+#if os(iOS) || os(tvOS)
 import UIKit
 #endif
 
@@ -30,7 +30,7 @@ final class ReleaseHealthLifecycleObserver: @unchecked Sendable {
         guard foreground != value else { return }
         foreground = value; onChange(value)
     }
-    #if os(iOS)
+    #if os(iOS) || os(tvOS)
     @MainActor static func observeApplication(onChange: @escaping @Sendable (Bool) -> Void) -> ReleaseHealthLifecycleObserver {
         // Launch is commonly inactive until didBecomeActive. It is already in
         // foreground unless UIKit explicitly says background (e.g. a fetch launch).

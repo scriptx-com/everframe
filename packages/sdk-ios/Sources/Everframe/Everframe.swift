@@ -54,7 +54,7 @@ public final class Everframe: @unchecked Sendable {
         self.nativeDeviceSnapshot = nativeDeviceSnapshot
         self.isDebugBuild = isDebugBuild
         self.releaseHealthNotice = releaseHealthNotice
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         if releaseHealthRuntime != nil {
             releaseHealthLifecycleReady = Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -69,7 +69,7 @@ public final class Everframe: @unchecked Sendable {
     private let appleDiagnosticRuntime: AppleDiagnosticRuntime?
     private let releaseHealthRuntime: ReleaseHealthRuntime?
     private var releaseHealthLifecycleObserver: ReleaseHealthLifecycleObserver?
-    /// Delivers the first application state. Assigned once, by init on iOS.
+    /// Delivers the first application state. Assigned once, by init on iOS and tvOS.
     internal var releaseHealthLifecycleReady: Task<Void, Never>?
     /// Release health skips debug builds. Takes `EverframeConfig.debugBuild`, which wins when set.
     /// Injected so tests get one answer on the macOS host and in the simulator, where the

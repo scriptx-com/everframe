@@ -169,7 +169,7 @@ qualification of jetsam and watchdog thresholds is pending.
 
 ---
 
-## Release health (iOS)
+## Release health (iOS and tvOS)
 
 Release health counts crash-free foreground sessions for each version of your
 app. It is on by default, and debug builds (the simulator, or a
@@ -191,8 +191,9 @@ Set `EverframeConfig.debugBuild` to force the answer, for example `false` for a
 development-signed build that should count as a release; it also marks reports'
 `context.app.debug`.
 `releaseHealth: nil`, `setReleaseHealth(nil)` or `kill()` turns release health
-off and erases its queued records. tvOS doesn't collect release health. In a
-React Native app, use the Provider's `releaseHealth` option instead. See
+off and erases its queued records. iOS and tvOS sessions are counted separately.
+For native apps, only linked fatal evidence proves a crashed session; an inferred
+termination or missing end record does not. In a React Native app, use the Provider's `releaseHealth` option instead. See
 [release health](../../docs/release-health.md).
 
 ## Apple hang and exit diagnostics
