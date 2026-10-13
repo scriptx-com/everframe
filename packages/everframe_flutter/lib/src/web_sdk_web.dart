@@ -70,6 +70,7 @@ class EverframeWebBridge {
   static _WebHandle? _handle;
   static (String, String, bool?, bool)? _settings;
   static int _generation = 0;
+  static void Function()? _cancelPendingStart;
 
   /// [debugBuild] overrides @everframe/web's own debug-build detection; null leaves it to the SDK.
   Future<void> start({
@@ -89,22 +90,28 @@ class EverframeWebBridge {
     final settings = (sdkKey, appVersion, debugBuild, releaseHealth);
     if (_handle != null && _settings == settings) return;
     final generation = ++_generation;
+    _cancelPendingStart?.call();
     if (_initializer == null) {
       final ready = Completer<void>();
       late JSFunction callback;
-      callback = ((web.Event _) {
+      final finishWaiting = () {
         web.window.removeEventListener(
           'everframe-flutter-web-sdk-ready',
           callback,
         );
-        ready.complete();
-      }).toJS;
+        if (!ready.isCompleted) ready.complete();
+      };
+      callback = ((web.Event _) => finishWaiting()).toJS;
+      _cancelPendingStart = finishWaiting;
       web.window.addEventListener('everframe-flutter-web-sdk-ready', callback);
       try {
         if (_initializer == null) {
           await ready.future.timeout(const Duration(seconds: 10));
         }
       } finally {
+        if (identical(_cancelPendingStart, finishWaiting)) {
+          _cancelPendingStart = null;
+        }
         web.window.removeEventListener(
           'everframe-flutter-web-sdk-ready',
           callback,
@@ -190,6 +197,8 @@ class EverframeWebBridge {
 
   void kill() {
     _generation++;
+    _cancelPendingStart?.call();
+    _cancelPendingStart = null;
     _handle?.destroy();
     _handle = null;
     _settings = null;

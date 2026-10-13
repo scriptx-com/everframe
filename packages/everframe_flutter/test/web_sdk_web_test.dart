@@ -102,4 +102,59 @@ void main() {
     await pending;
     expect(configs, isEmpty);
   });
+  testWidgets(
+    'kill settles a pending start even when the host SDK never loads',
+    (tester) async {
+      const bridge = EverframeWebBridge();
+      globalContext.delete('everframeFlutterInit'.toJS);
+      var settled = false;
+      Object? failure;
+      bridge
+          .start(sdkKey: 'evf_live_test', appVersion: '1.0.0')
+          .then(
+            (_) => settled = true,
+            onError: (Object error) {
+              failure = error;
+            },
+          );
+      bridge.kill();
+      await tester.pump();
+      expect(settled, isTrue);
+      await tester.pump(const Duration(seconds: 11));
+      expect(failure, isNull);
+      expect(configs, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'a replacement start settles the old wait and keeps the new settings',
+    (tester) async {
+      const bridge = EverframeWebBridge();
+      final init = globalContext['everframeFlutterInit'];
+      globalContext.delete('everframeFlutterInit'.toJS);
+      var firstSettled = false;
+      final first = bridge
+          .start(sdkKey: 'evf_live_test', appVersion: '1.0.0')
+          .then((_) => firstSettled = true);
+      final replacement = bridge.start(
+        sdkKey: 'evf_live_test',
+        appVersion: '1.0.0',
+        releaseHealth: false,
+      );
+      await tester.pump();
+      expect(firstSettled, isTrue);
+      expect(configs, isEmpty);
+      globalContext['everframeFlutterInit'] = init;
+      web.window.dispatchEvent(web.Event('everframe-flutter-web-sdk-ready'));
+      await tester.pump();
+      await Future.wait([first, replacement]);
+      expect(configs, hasLength(1));
+      expect(
+        ((configs.single['releaseHealth'] as JSObject)['enabled'] as JSBoolean)
+            .toDart,
+        isFalse,
+      );
+      await tester.pump(const Duration(seconds: 11));
+    },
+  );
 }
