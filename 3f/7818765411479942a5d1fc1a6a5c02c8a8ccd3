@@ -1,0 +1,27 @@
+packages/sdk-web/__tests__/release-health/fixture.ts
+  s_fb5ca7e7bd2185::t_27506e290e35ce 1-2
+packages/sdk-web/__tests__/release-health/journal.spec.ts
+  s_fb5ca7e7bd2185::t_ab4a98d47167f5 1-2
+packages/sdk-web/__tests__/release-health/runtime.spec.ts
+  s_fb5ca7e7bd2185::t_ca722061cccc7a 1-2
+packages/sdk-web/__tests__/release-health/session.spec.ts
+  s_fb5ca7e7bd2185::t_e7cd33485adb6b 1-2
+packages/sdk-web/__tests__/release-health/transport.spec.ts
+  s_fb5ca7e7bd2185::t_0c4cfea15dd795 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3f7818765411479942a5d1fc1a6a5c02c8a8ccd3",
+  "prompts": {},
+  "sessions": {
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
