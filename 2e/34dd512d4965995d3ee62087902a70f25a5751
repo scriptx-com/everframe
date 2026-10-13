@@ -1,0 +1,35 @@
+.changeset/crash-only-hides-inbox.md
+  s_dbd309ddf8ec5b::t_5353f5ee9e4bc2 1-10
+docs/session-replay.md
+  s_dbd309ddf8ec5b::t_e0879e4aea2f9b 130-131
+packages/sdk-react/README.md
+  s_dbd309ddf8ec5b::t_19e434eede67fa 132
+packages/sdk-react/__tests__/provider-crash-only.spec.tsx
+  s_dbd309ddf8ec5b::t_871c125a54b378 7-8
+packages/sdk-react/__tests__/provider-fab-kill-switch.spec.tsx
+  s_dbd309ddf8ec5b::t_0dffa819282fc9 409-428
+packages/sdk-react/src/provider.tsx
+  s_dbd309ddf8ec5b::t_b1bdd3fc8b42c6 877-878,880
+packages/sdk-web/README.md
+  s_dbd309ddf8ec5b::t_18f4ae1f46cffa 288-289
+packages/sdk-web/__tests__/crash-only-init.spec.ts
+  s_dbd309ddf8ec5b::t_a32b4370e46800 6-8,139-142,145-149,170-177
+packages/sdk-web/src/init.ts
+  s_dbd309ddf8ec5b::t_ce3f883e9b41af 861-864,870-873
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2e34dd512d4965995d3ee62087902a70f25a5751",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
