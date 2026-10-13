@@ -1,0 +1,23 @@
+packages/everframe_kmp/README.md
+  s_fb5ca7e7bd2185::t_74738820f7a5f4 54-57
+packages/everframe_kmp/src/jsMain/kotlin/dev/everframe/kmp/EverframeBrowserDriver.kt
+  s_fb5ca7e7bd2185::t_d5b7f523ce2e12 18-22,60,64,116
+packages/everframe_kmp/src/jsTest/kotlin/dev/everframe/kmp/EverframeBrowserDriverTest.kt
+  s_fb5ca7e7bd2185::t_c5149f7d27498a 103-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2a530746f9fefa6b3ce8389a04cc077d45c6a3b0",
+  "prompts": {},
+  "sessions": {
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
