@@ -15,6 +15,7 @@ import { buildEnvelope, redactStringContent, type DeviceMetadata } from '@everfr
 import { isSensitiveKey } from '@everframe/protocol';
 import type {
   Breadcrumb,
+  NativeExposurePointer,
   CrashDetails,
   CrashFrame,
   CrashPayload,
@@ -151,6 +152,7 @@ export interface VegaEnvelopeInput {
   framesRaw: string[];
   mechanism: 'errorutils' | 'unhandledrejection' | 'captureException';
   fatal: boolean;
+  nativeExposure?: NativeExposurePointer | undefined;
   handledOptions?: VegaCaptureOptions | undefined;
   jsBundle?: JsBundleMetadata | undefined;
   sdk: ReportEnvelope['sdk'];
@@ -176,6 +178,9 @@ export function buildVegaEnvelope(input: VegaEnvelopeInput): ReportEnvelope {
     mechanism: input.mechanism,
     handled,
     fatal: input.fatal,
+    ...(input.fatal && input.mechanism === 'errorutils' && input.nativeExposure
+      ? { nativeExposure: input.nativeExposure }
+      : {}),
     occurredAt: input.occurredAt,
     fingerprint: vegaFingerprint(input.exceptionType, frames, message),
     ...(handled ? { details: projectDetails(input.handledOptions, redact) } : {}),

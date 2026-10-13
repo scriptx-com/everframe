@@ -5,7 +5,7 @@
 
 Release health answers one question: is the version you just shipped crashing
 more than the one before it? For every version of your native and web apps, Everframe counts
-foreground sessions on Android and iOS (including React Native, Flutter, and KMP), plus native tvOS,
+foreground sessions on Android and iOS (including React Native, Flutter, and KMP), plus native tvOS and Vega,
 and page sessions on web.
 It shows how many completed without an observed crash. Each project has a **Release health** page, with one row per
 version and a page for each version.
@@ -128,6 +128,28 @@ version, and forward the health opt-out and debug setting to `@everframe/web`.
 See [Flutter setup](../packages/everframe_flutter/README.md#release-health) and
 [KMP setup](../packages/everframe_kmp/README.md#release-health).
 
+## Native Vega
+
+`@everframe/vega` records anonymous foreground sessions by default when configured
+with a valid `appVersion` and a production build. Set `releaseHealth: false` to
+opt out; `enabled: false` disables the whole SDK, and `debugBuild: true` excludes
+health collection. Use the Vega integration's SDK key. Browser Vega apps continue
+using the web SDK and page sessions.
+
+This collector targets the SDK's existing Vega OS 1.1 / React Native 0.72 support.
+It observes AppState and keeps a session open while any app component is active.
+An unknown lifecycle state does not create a completed session. Only a fatal
+`ErrorUtils` JavaScript error carrying the frozen foreground session identity
+counts as a crash. Handled errors, non-fatal errors and promise rejections do not
+change the crash rate. Native/C++ crashes, engine aborts, ANRs, watchdog kills and
+power loss are not detected; an absent completion remains unknown.
+
+Session delivery uses a separate queue in the supplied AsyncStorage. As with
+Vega crash reports, storage and delivery are best effort; an abrupt exit may
+interrupt them. Sessions are anonymous even if `setUser` was called. See the
+[Vega SDK setup](../packages/sdk-vega/README.md) for lifecycle requirements and
+queue behavior.
+
 ## What a crash-free session is
 
 A crash-free session has an observed completion and no qualifying crash. Native
@@ -139,7 +161,7 @@ session **crashed** when the app crashed during it, from any of these causes:
 
 - a native crash (C, C++, Swift or Objective-C) on Android, iOS or tvOS;
 - an uncaught Kotlin or Java exception on Android;
-- an unhandled JavaScript error that ends a React Native app (Hermes);
+- a fatal JavaScript error that ends a React Native or native Vega app (Hermes);
 - app not responding on Android: the system ended the app because it stopped
   responding (an ANR, reported on Android 11 and later).
 
@@ -256,7 +278,7 @@ React Native.
 
 ## Versions and builds
 
-A release is an app version. The SDK reads it, and you don't pass it:
+For Android, Apple and React Native apps, the SDK reads the app version:
 
 - **Android:** `versionName`, trimmed. When it is missing, blank, longer than 64
   UTF-16 code units or holds control characters, the SDK uses `versionCode` as
@@ -267,6 +289,8 @@ A release is an app version. The SDK reads it, and you don't pass it:
 - **React Native:** the native app's version and build, read as above. An
   over-the-air JavaScript update keeps the native version, so its sessions count
   toward that version.
+
+Web and native Vega apps supply `appVersion` and optional `appBuild` explicitly.
 
 Crash and error reports carry the same version in `context.app.version`. That is
 how a version's "New errors" (error groups first seen in it) and "Top errors"
@@ -300,8 +324,8 @@ SDK version, the loaded JavaScript bundle ID in React Native apps, the start
 time and length, and the user ID if you set one. It holds no device or install
 identifier.
 
-The native SDK saves each session start to an encrypted, app-private queue before it
-ties crash reports to that session. The queue keeps at most 256 records and
+The Android and Apple SDKs save each session start to an encrypted, app-private queue before they
+tie crash reports to that session. The queue keeps at most 256 records and
 1 MiB, for seven days. When it is full, the SDK refuses new records rather than
 dropping older ones. Retries resend each record's original bytes to its original
 SDK key and endpoint. Session records are sent independently of crash and error

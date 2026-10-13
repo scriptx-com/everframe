@@ -122,10 +122,26 @@ export const TVOSReleaseHealthExposureSchema = z
   })
   .strict()
   .refine(bundleConsistent, bundleMessage);
+/** JavaScript-only monitoring for the native Vega SDK; browser Vega uses page-v1. */
+export const VegaReleaseHealthExposureSchema = z
+  .object({
+    exposureId: uuid,
+    processLaunchId: uuid,
+    startedAt: timestamp,
+    platform: z.literal('vega'),
+    sdkVersion: text(64),
+    app: ReleaseHealthAppSchema,
+    ...bundleIdentity,
+    ...foregroundSession,
+    coverage: segmentCoverage('vega-js-segment-v1'),
+  })
+  .strict()
+  .refine(bundleConsistent, bundleMessage);
 export const NativeReleaseHealthExposureSchema = z.discriminatedUnion('platform', [
   AndroidReleaseHealthExposureSchema,
   IOSReleaseHealthExposureSchema,
   TVOSReleaseHealthExposureSchema,
+  VegaReleaseHealthExposureSchema,
 ]);
 
 const record = {
@@ -171,6 +187,7 @@ export type ReleaseHealthSubject = z.infer<typeof ReleaseHealthSubjectSchema>;
 export type AndroidReleaseHealthExposure = z.infer<typeof AndroidReleaseHealthExposureSchema>;
 export type IOSReleaseHealthExposure = z.infer<typeof IOSReleaseHealthExposureSchema>;
 export type TVOSReleaseHealthExposure = z.infer<typeof TVOSReleaseHealthExposureSchema>;
+export type VegaReleaseHealthExposure = z.infer<typeof VegaReleaseHealthExposureSchema>;
 export const WEB_RELEASE_HEALTH_SCHEMA_VERSION = 6;
 export const WebReleaseHealthExposureSchema = z
   .object({

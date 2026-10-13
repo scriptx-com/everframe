@@ -50,6 +50,8 @@ export interface Outbox {
 
 export interface OutboxDeps {
   storage: AsyncStorageLike | undefined;
+  storageKey?: string;
+  maxItems?: number;
   now: () => number;
   warn: (message: string) => void;
   /** The running configuration; only reports bound to it are kept. */
@@ -85,10 +87,10 @@ function expired(item: OutboxItem, now: number): boolean {
 }
 
 /** Oldest non-fatal reports go first, then the oldest of the rest. */
-export function fit(items: OutboxItem[]): OutboxItem[] {
+export function fit(items: OutboxItem[], maxItems = MAX_ITEMS): OutboxItem[] {
   const kept = items.slice();
   const size = () => kept.reduce((total, item) => total + item.body.length + 128, 2);
-  while (kept.length > MAX_ITEMS || (kept.length > 1 && size() > MAX_SERIALIZED_CHARS)) {
+  while (kept.length > maxItems || (kept.length > 1 && size() > MAX_SERIALIZED_CHARS)) {
     const nonFatal = kept.findIndex((item) => !item.fatal);
     kept.splice(nonFatal >= 0 ? nonFatal : 0, 1);
   }
@@ -97,13 +99,15 @@ export function fit(items: OutboxItem[]): OutboxItem[] {
 
 export function createOutbox(deps: OutboxDeps): Outbox {
   let items: OutboxItem[] = [];
+  const storageKey = deps.storageKey ?? OUTBOX_KEY;
+  const maxItems = Math.max(1, deps.maxItems ?? MAX_ITEMS);
   let warnedWrite = false;
 
   let stale = false;
   const load = async (): Promise<void> => {
     if (!deps.storage) return;
     try {
-      const raw = await deps.storage.getItem(OUTBOX_KEY);
+      const raw = await deps.storage.getItem(storageKey);
       if (typeof raw !== 'string' || raw.length === 0) return;
       const parsed: unknown = JSON.parse(raw);
       if (!Array.isArray(parsed)) return;
@@ -121,6 +125,12 @@ export function createOutbox(deps: OutboxDeps): Outbox {
         seen.add(item.reportId);
         return true;
       });
+      const bounded = fit(
+        items.filter((item) => !expired(item, deps.now())),
+        maxItems,
+      );
+      if (bounded.length !== items.length) stale = true;
+      items = bounded;
       if (foreign > 0) {
         stale = true;
         deps.debug(
@@ -139,7 +149,7 @@ export function createOutbox(deps: OutboxDeps): Outbox {
   const persist = async (): Promise<void> => {
     if (!deps.storage) return;
     try {
-      await deps.storage.setItem(OUTBOX_KEY, JSON.stringify(items));
+      await deps.storage.setItem(storageKey, JSON.stringify(items));
     } catch {
       if (!warnedWrite) {
         warnedWrite = true;
@@ -172,7 +182,7 @@ export function createOutbox(deps: OutboxDeps): Outbox {
     add(item) {
       if (!sameBinding(item, deps.binding)) return Promise.resolve();
       return mutate((current) =>
-        fit([...current.filter((existing) => existing.reportId !== item.reportId), item]),
+        fit([...current.filter((existing) => existing.reportId !== item.reportId), item], maxItems),
       );
     },
     remove(reportId) {

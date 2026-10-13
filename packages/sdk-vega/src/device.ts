@@ -4,7 +4,8 @@
 // Device context from React Native for Vega. Its `Platform.constants` carries
 // only `keplerOSVariant`, `uiMode` and `reactNativeVersion` (no model or OS
 // release), so those come from the host config when it has them.
-import { Dimensions, PixelRatio, Platform } from 'react-native';
+import { AppState, Dimensions, PixelRatio, Platform } from 'react-native';
+import type { AppStateLike } from './release-health.js';
 import type { DeviceMetadata } from '@everframe/sdk-core';
 
 export const VEGA_OS_NAME = 'Vega OS';
@@ -57,4 +58,14 @@ export function readDevice(overrides: { model?: string; osVersion?: string } = {
 /** `Platform.OS` on Vega OS is `kepler`. */
 export function isVegaRuntime(): boolean {
   return attempt(() => Platform.OS as string, '') === 'kepler';
+}
+
+/** Lifecycle is qualified against the Vega 0.72 API, including moduleChange. */
+export function readAppState(): AppStateLike | undefined {
+  return attempt(() => {
+    const version = Platform.constants.reactNativeVersion;
+    return (Platform.OS as string) === 'kepler' && version?.major === 0 && version.minor === 72
+      ? (AppState as unknown as AppStateLike)
+      : undefined;
+  }, undefined);
 }

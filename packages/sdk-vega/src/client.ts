@@ -26,6 +26,8 @@ import {
 } from './outbox.js';
 import { sendReport, type FetchLike } from './transport.js';
 import { SDK_VERSION } from './version.js';
+import { createReleaseHealth, HEALTH_OUTBOX_KEY, type AppStateLike } from './release-health.js';
+import type { NativeExposurePointer } from '@everframe/protocol';
 
 type GlobalHandler = (error: unknown, isFatal?: boolean) => void;
 
@@ -46,6 +48,8 @@ export interface HermesInternalLike {
 
 export interface VegaEnvironment {
   errorUtils: ErrorUtilsLike | undefined;
+  /** Qualified React Native for Vega 0.72 lifecycle; absent means health is unavailable. */
+  appState?: AppStateLike | undefined;
   hermes: HermesInternalLike | undefined;
   fetch: FetchLike | undefined;
   now: () => number;
@@ -140,6 +144,7 @@ function cleanUser(user: VegaUser | null | undefined): VegaUser | null {
 
 export function createVegaClient(env: VegaEnvironment): VegaClient {
   let config: ResolvedConfig | null = null;
+  let health: ReturnType<typeof createReleaseHealth> | undefined;
   let binding: OutboxBinding | undefined;
   let phase: 'idle' | 'running' | 'disabled' = 'idle';
   let outbox: Outbox | undefined;
@@ -192,6 +197,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
     mechanism: Mechanism,
     fatal: boolean,
     options: VegaCaptureOptions | undefined,
+    nativeExposure?: NativeExposurePointer,
   ): OutboxItem | undefined {
     if (!config || !device) return undefined;
     // Rejected non-Error values are often responses or request configs:
@@ -213,6 +219,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
       framesRaw,
       mechanism,
       fatal,
+      nativeExposure,
       handledOptions: mechanism === 'captureException' ? options : undefined,
       jsBundle: bundleId ? jsBundleFor(bundleId) : undefined,
       sdk: { ...SDK },
@@ -332,10 +339,12 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
     options?: VegaCaptureOptions,
   ): Promise<void> | undefined {
     if (phase !== 'running' || capturing) return undefined;
+    // Withdraw even when a fatal arrives before the start write settles.
+    const nativeExposure = fatal && mechanism === 'errorutils' ? health?.fatal() : undefined;
     capturing = true;
     let item: OutboxItem | undefined;
     try {
-      item = buildItem(value, mechanism, fatal, options);
+      item = buildItem(value, mechanism, fatal, options, nativeExposure);
     } catch {
       item = undefined;
     } finally {
@@ -364,9 +373,9 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
     }
   }
 
-  function installErrorHandler(): void {
+  function installErrorHandler(): boolean {
     const errorUtils = env.errorUtils;
-    if (!errorUtils || typeof errorUtils.setGlobalHandler !== 'function') return;
+    if (!errorUtils || typeof errorUtils.setGlobalHandler !== 'function') return false;
     let previous: GlobalHandler | undefined | null;
     try {
       previous = errorUtils.getGlobalHandler();
@@ -401,6 +410,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
       timer = env.setTimeout(handOff, FATAL_HANDOFF_MS);
       work.then(handOff, handOff);
     });
+    return true;
   }
 
   function installRejectionTracker(): void {
@@ -449,6 +459,11 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
         return;
       }
       config = resolved;
+      if (input.releaseHealth === false && resolved.storage) {
+        try {
+          void resolved.storage.setItem(HEALTH_OUTBOX_KEY, '[]').catch(() => undefined);
+        } catch {}
+      }
       try {
         bundleId = probeBundleId(env.probeStack());
       } catch {
@@ -481,7 +496,15 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
       });
       phase = 'running';
       try {
-        installErrorHandler();
+        const observed = installErrorHandler();
+        if (observed && resolved.releaseHealth && env.appState) {
+          health = createReleaseHealth(
+            env,
+            resolved,
+            { ...binding, endpoint: resolved.ingestUrl.replace(/\/ingest$/, '/release-health') },
+            bundleId,
+          );
+        }
       } catch {
         // A host whose ErrorUtils throws still gets captureException and replay.
       }
@@ -509,7 +532,9 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
     },
     flush() {
       if (phase !== 'running') return Promise.resolve();
-      return Promise.all(Array.from(deliveries)).then(() => drain(true));
+      return Promise.all(Array.from(deliveries)).then(async () => {
+        await Promise.all([drain(true), health?.flush()]);
+      });
     },
     getStatus() {
       return {

@@ -75,6 +75,8 @@ export interface VegaConfig {
   enabled?: boolean;
   /** Report promise rejections still unhandled after about 2 s. Default `true`. */
   captureUnhandledRejections?: boolean;
+  /** Anonymous foreground sessions and fatal JavaScript release health. Default true; never debug. */
+  releaseHealth?: boolean;
   /**
    * Device facts React Native for Vega does not expose to JavaScript, for
    * hosts that read them from `@amazon-devices/react-native-device-info`.
@@ -92,6 +94,7 @@ export interface ResolvedConfig {
   app: { name: string; version: string; build?: string; debug: boolean };
   ingestUrl: string;
   captureUnhandledRejections: boolean;
+  releaseHealth: boolean;
   device: { model?: string; osVersion?: string };
 }
 
@@ -114,6 +117,13 @@ export function resolveConfig(config: VegaConfig, dev: boolean): ResolvedConfig 
       : undefined;
   const model = text(config.device?.model, 256);
   const osVersion = text(config.device?.osVersion, 128);
+  const debugBuild = typeof config.debugBuild === 'boolean' ? config.debugBuild : dev;
+  const validHealthText = (value: unknown): value is string =>
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 64 &&
+    value.trim().length > 0 &&
+    !/[\u0000-\u001f\ud800-\udfff]/u.test(value);
   return {
     sdkKey,
     storage: usableStorage,
@@ -121,10 +131,15 @@ export function resolveConfig(config: VegaConfig, dev: boolean): ResolvedConfig 
       name: text(config.appName, 256) ?? DEFAULT_APP_NAME,
       version: text(config.appVersion, 128) ?? DEFAULT_APP_VERSION,
       ...(build ? { build } : {}),
-      debug: typeof config.debugBuild === 'boolean' ? config.debugBuild : dev,
+      debug: debugBuild,
     },
     ingestUrl: `${endpoint}/api/ingest`,
     captureUnhandledRejections: config.captureUnhandledRejections !== false,
+    releaseHealth:
+      config.releaseHealth !== false &&
+      !debugBuild &&
+      validHealthText(config.appVersion) &&
+      (config.appBuild === undefined || validHealthText(config.appBuild)),
     device: { ...(model ? { model } : {}), ...(osVersion ? { osVersion } : {}) },
   };
 }
