@@ -1,0 +1,19 @@
+packages/sdk-ios/Sources/Everframe/Config/EverframeConfig.swift
+  s_fb5ca7e7bd2185::t_635fcafcc02ca4 82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9de16e6777db3f779c4a4ea3dee6266f96b5e741",
+  "prompts": {},
+  "sessions": {
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
