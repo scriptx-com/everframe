@@ -1,0 +1,63 @@
+packages/protocol/__tests__/roku-release-health.spec.ts
+  s_fb5ca7e7bd2185::t_55a6efc4474620 1-58
+  s_fb5ca7e7bd2185::t_270595847a963d 59-88
+.changeset/roku-release-health.md
+  s_fb5ca7e7bd2185::t_e9c6d49654960f 1-8
+packages/protocol/src/index.ts
+  s_fb5ca7e7bd2185::t_108c3389afa61d 122-125,140-142
+packages/protocol/__tests__/release-health-alert.spec.ts
+  s_fb5ca7e7bd2185::t_e8bdb7b86f192d 44,155
+packages/protocol/src/release-health.ts
+  s_fb5ca7e7bd2185::t_108c3389afa61d 253-308
+  s_fb5ca7e7bd2185::t_df52d2cbd38b45 309-353,357,362
+packages/protocol/src/web-runtime-platform.ts
+  s_fb5ca7e7bd2185::t_108c3389afa61d 14
+docs/release-health.md
+  s_fb5ca7e7bd2185::t_bec26cd3f296f9 9,353-393
+examples/roku-channel/components/LabScene.brs
+  s_fb5ca7e7bd2185::t_40b18aa8467b21 71
+packages/sdk-roku/README.md
+  s_fb5ca7e7bd2185::t_857d28b01d552c 37-48,53,59-70,87,93-101,265-307
+packages/sdk-roku/__tests__/exitinfo.spec.ts
+  s_fb5ca7e7bd2185::t_227db464ca0558 10-11
+packages/sdk-roku/__tests__/hook.spec.ts
+  s_fb5ca7e7bd2185::t_a6bd66e067a44d 10-11,350,353-359,361-362,364
+packages/sdk-roku/__tests__/instrument.spec.ts
+  s_fb5ca7e7bd2185::t_2c489c533a77f4 7,21,29-30,114-144
+packages/sdk-roku/__tests__/queue.spec.ts
+  s_fb5ca7e7bd2185::t_d17d525d8b1d6f 36,50,129
+packages/sdk-roku/__tests__/release-health.spec.ts
+  s_fb5ca7e7bd2185::t_2dd61b97d124f6 1-337
+packages/sdk-roku/hook/everframe_hook.brs
+  s_fb5ca7e7bd2185::t_90b8bec4e614ab 41-58,63,65-68
+packages/sdk-roku/library/components/Everframe/Everframe.brs
+  s_fb5ca7e7bd2185::t_b8b9f25a32dc3e 27,73-82,233
+packages/sdk-roku/library/components/Everframe/Everframe.xml
+  s_fb5ca7e7bd2185::t_1e86cd03228905 25-26
+packages/sdk-roku/library/components/Everframe/EverframeReporter.brs
+  s_fb5ca7e7bd2185::t_198376ee7a13d9 60-66,213-231
+packages/sdk-roku/library/components/Everframe/EverframeReporter.xml
+  s_fb5ca7e7bd2185::t_cbdc1e12cd3e95 22
+packages/sdk-roku/library/components/Everframe/lib/ef_health.brs
+  s_fb5ca7e7bd2185::t_5217c07999622f 1-273
+packages/sdk-roku/library/components/Everframe/lib/ef_queue.brs
+  s_fb5ca7e7bd2185::t_d558076b4e6253 7,10
+packages/sdk-roku/src/instrument.ts
+  s_fb5ca7e7bd2185::t_7dcb0b8519a9a8 57-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "86aac4e22eaeb78653e4572bd098c92c3026a42b",
+  "prompts": {},
+  "sessions": {
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
