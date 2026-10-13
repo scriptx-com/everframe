@@ -1,0 +1,49 @@
+.changeset/tvos-release-health.md
+  s_fb5ca7e7bd2185::t_e0f5ff793bef40 1-8
+docs/release-health.md
+  s_fb5ca7e7bd2185::t_18abef48ab826d 8,15,25,48,73,75-78,140,192,201,240,254,265,277,320-321
+packages/protocol/__tests__/release-health-alert.spec.ts
+  s_fb5ca7e7bd2185::t_2085210e466d5c 46
+packages/protocol/__tests__/release-health.spec.ts
+  s_fb5ca7e7bd2185::t_36d9cde73ea1be 14,77-104
+packages/protocol/__tests__/web-release-health.spec.ts
+  s_fb5ca7e7bd2185::t_b28c7a7d30fb9e 63
+packages/protocol/src/index.ts
+  s_fb5ca7e7bd2185::t_aa57dd20bfe3a2 120,133
+packages/protocol/src/release-health-alert.ts
+  s_fb5ca7e7bd2185::t_496a8f70c3fcaf 47-50
+packages/protocol/src/release-health.ts
+  s_fb5ca7e7bd2185::t_cee34007b8e53d 35,111-124,128,173
+packages/protocol/src/web-runtime-platform.ts
+  s_fb5ca7e7bd2185::t_728f36c5ca1728 16
+packages/sdk-ios/README.md
+  s_fb5ca7e7bd2185::t_0ee8d655f391a0 172,194-196
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_fb5ca7e7bd2185::t_ce818c5b54fe6c 57,72
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthLifecycleObserver.swift
+  s_fb5ca7e7bd2185::t_a91fe9cc9a3e7f 4,33
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthModels.swift
+  s_fb5ca7e7bd2185::t_50d7d6050dc72d 66-70,72,76
+packages/sdk-ios/Sources/Everframe/ReleaseHealth/ReleaseHealthRuntime.swift
+  s_fb5ca7e7bd2185::t_6d5dcf2a825ecf 13
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthNativeContextTests.swift
+  s_fb5ca7e7bd2185::t_8f4fcc36da9fbd 5-7,22-65
+packages/sdk-ios/Tests/EverframeTests/ReleaseHealthRuntimeTests.swift
+  s_fb5ca7e7bd2185::t_08f5cf68c213aa 33-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "792cdfbfb6d981ee6c06036d35b3c6f858768db8",
+  "prompts": {},
+  "sessions": {
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
