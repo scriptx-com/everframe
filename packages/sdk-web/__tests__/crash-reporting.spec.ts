@@ -87,58 +87,62 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     return adapter;
   };
 
-  it('uncaught error → error crumb preserved + envelope enqueued + immediate drain', async () => {
-    const adapter = mk({
-      sdkKey: 'pk_test',
-      appName: 'demo',
-      appVersion: '1.0.0',
-      appBuild: 'web-abc123',
-    });
-    const buf = createBreadcrumbBuffer();
-    adapter.__setBreadcrumbBuffer(() => buf);
+  it.each([true, false])(
+    'uncaught error still reports with release health enabled=%s',
+    async (enabled) => {
+      const adapter = mk({
+        sdkKey: 'pk_test',
+        appName: 'demo',
+        appVersion: '1.0.0',
+        appBuild: 'web-abc123',
+        releaseHealth: { enabled },
+      });
+      const buf = createBreadcrumbBuffer();
+      adapter.__setBreadcrumbBuffer(() => buf);
 
-    const inner = new RangeError('root failure');
-    Object.defineProperty(inner, 'stack', {
-      configurable: true,
-      value: 'RangeError: root failure\n    at root (root.ts:9:4)',
-    });
-    const err = new TypeError('boom', { cause: inner });
-    err.stack = 'TypeError: boom\n    at f (a.ts:1:1)';
-    window.onerror?.('boom', 'a.ts', 1, 1, err);
+      const inner = new RangeError('root failure');
+      Object.defineProperty(inner, 'stack', {
+        configurable: true,
+        value: 'RangeError: root failure\n    at root (root.ts:9:4)',
+      });
+      const err = new TypeError('boom', { cause: inner });
+      err.stack = 'TypeError: boom\n    at f (a.ts:1:1)';
+      window.onerror?.('boom', 'a.ts', 1, 1, err);
 
-    // Existing behavior preserved: the error breadcrumb landed.
-    expect(
-      adapter
-        .__getBreadcrumbBuffer()
-        ?.snapshot()
-        .some((b) => b.kind === 'error'),
-    ).toBe(true);
+      // Existing behavior preserved: the error breadcrumb landed.
+      expect(
+        adapter
+          .__getBreadcrumbBuffer()
+          ?.snapshot()
+          .some((b) => b.kind === 'error'),
+      ).toBe(true);
 
-    // Envelope reached the outbox and the immediate drain POSTed it.
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const body = fetchMock.mock.calls[0]?.[1]?.body as FormData;
-    const envelopeJson = JSON.parse(await (body.get('envelope') as Blob).text());
-    expect(envelopeJson.source).toBe('error');
-    expect(envelopeJson.payload.crash.exceptionType).toBe('TypeError');
-    expect(envelopeJson.payload.crash).toMatchObject({
-      handled: false,
-      fatal: false,
-      details: { severity: 'error' },
-      causeChain: {
-        causes: [
-          {
-            exceptionType: 'RangeError',
-            message: 'root failure',
-            frames: [{ raw: 'at root (root.ts:9:4)' }],
-            framesTruncated: false,
-          },
-        ],
-        truncated: false,
-      },
-    });
-    expect(envelopeJson.context.app.build).toBe('web-abc123');
-    expect(envelopeJson.reporter.title).toBe('TypeError: boom');
-  });
+      // Envelope reached the outbox and the immediate drain POSTed it.
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      const body = fetchMock.mock.calls[0]?.[1]?.body as FormData;
+      const envelopeJson = JSON.parse(await (body.get('envelope') as Blob).text());
+      expect(envelopeJson.source).toBe('error');
+      expect(envelopeJson.payload.crash.exceptionType).toBe('TypeError');
+      expect(envelopeJson.payload.crash).toMatchObject({
+        handled: false,
+        fatal: false,
+        details: { severity: 'error' },
+        causeChain: {
+          causes: [
+            {
+              exceptionType: 'RangeError',
+              message: 'root failure',
+              frames: [{ raw: 'at root (root.ts:9:4)' }],
+              framesTruncated: false,
+            },
+          ],
+          truncated: false,
+        },
+      });
+      expect(envelopeJson.context.app.build).toBe('web-abc123');
+      expect(envelopeJson.reporter.title).toBe('TypeError: boom');
+    },
+  );
 
   it('same error twice → one report (fingerprint throttle), crumbs still land both times', async () => {
     const adapter = mk({ sdkKey: 'pk_test' });

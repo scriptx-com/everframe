@@ -16,25 +16,34 @@ class EverframeNativeBridge {
   /// Starts the native SDK. [crash] is its crash capture switch (`capture.crash`): on Android it
   /// covers JVM exceptions, native crashes and ANRs; on iOS native crashes. It also gates
   /// [captureException]. On by default, as in the native SDKs.
+  /// [releaseHealth] counts native foreground sessions and native crashes, not Dart errors.
+  /// Setting it false leaves crash/error reporting on. [crash] false also disables health.
+  /// [debugBuild] overrides native detection when supplied; debug builds do not count.
   Future<void> start({
     required String appId,
     required String sdkKey,
     String environment = 'production',
     bool crash = true,
+    bool releaseHealth = true,
+    bool? debugBuild,
   }) {
     if (appId.isEmpty || sdkKey.isEmpty) {
       throw ArgumentError('appId and sdkKey are required');
     }
-    if (!const {'development', 'staging', 'production'}
-        .contains(environment)) {
+    if (!const {'development', 'staging', 'production'}.contains(environment)) {
       throw ArgumentError.value(
-          environment, 'environment', 'unsupported environment');
+        environment,
+        'environment',
+        'unsupported environment',
+      );
     }
     return _channel.invokeMethod<void>('start', {
       'appId': appId,
       'sdkKey': sdkKey,
       'environment': environment,
       'crash': crash,
+      'releaseHealth': releaseHealth && crash,
+      if (debugBuild != null) 'debugBuild': debugBuild,
     });
   }
 
@@ -52,8 +61,9 @@ class EverframeNativeBridge {
     if (boundaryKey != null) {
       await WidgetsBinding.instance.endOfFrame;
     }
-    final rects =
-        boundaryKey == null ? null : sensitiveRegions!.rectsInView(boundaryKey);
+    final rects = boundaryKey == null
+        ? null
+        : sensitiveRegions!.rectsInView(boundaryKey);
     if (boundaryKey != null && rects == null) {
       throw StateError('Sensitive widget geometry is unavailable');
     }
@@ -64,8 +74,9 @@ class EverframeNativeBridge {
       throw StateError('Masked Flutter screenshot is unavailable');
     }
     final context = boundaryKey?.currentContext;
-    final pixelRatio =
-        context == null ? null : View.of(context).devicePixelRatio;
+    final pixelRatio = context == null
+        ? null
+        : View.of(context).devicePixelRatio;
     // captureMaskedFrame emits one pixel per logical Flutter point. A failed
     // replay export omits replay while preserving the manual bug report.
     Uint8List? replayVTree;
@@ -84,12 +95,14 @@ class EverframeNativeBridge {
         if (replayVTree != null) 'replayVTree': replayVTree,
         if (rects != null)
           'sensitiveRects': rects
-              .map((rect) => {
-                    'left': rect.left,
-                    'top': rect.top,
-                    'right': rect.right,
-                    'bottom': rect.bottom,
-                  })
+              .map(
+                (rect) => {
+                  'left': rect.left,
+                  'top': rect.top,
+                  'right': rect.right,
+                  'bottom': rect.bottom,
+                },
+              )
               .toList(),
       },
     );
@@ -139,8 +152,9 @@ class EverframeNativeBridge {
     final message = error.toString();
     return await _channel.invokeMethod<bool>('captureException', {
           'exceptionType': error.runtimeType.toString(),
-          'message':
-              message.length > 4096 ? message.substring(0, 4096) : message,
+          'message': message.length > 4096
+              ? message.substring(0, 4096)
+              : message,
           'framesRaw': frames,
         }) ??
         false;
@@ -161,7 +175,7 @@ class EverframeNativeBridge {
       'PUT',
       'PATCH',
       'DELETE',
-      'OPTIONS'
+      'OPTIONS',
     };
     if (!methods.contains(method)) throw ArgumentError.value(method, 'method');
     if (!const {'http', 'https'}.contains(url.scheme) || url.host.isEmpty) {

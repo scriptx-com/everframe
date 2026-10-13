@@ -49,36 +49,36 @@ it('reports one document session across StrictMode effects and provider remounts
   expect(records[0].exposure.exposureId).toBe(records[1].exposure.exposureId);
   second.unmount();
 });
-it.each([{ crashReporting: { disabled: true } }, { disabled: true }])(
-  'erases pending health work when a remount withdraws permission %j',
-  async (veto) => {
-    const sdkKey = 'key-' + crypto.randomUUID();
-    vi.stubGlobal('fetch', async () => {
-      throw Error('offline');
-    });
-    const config = { sdkKey, appVersion: '1', debugBuild: false, reporter: { disabled: true } };
-    const first = render(
-      <EverframeProvider config={config}>
-        <span>host</span>
-      </EverframeProvider>,
+it.each([
+  { crashReporting: { disabled: true } },
+  { disabled: true },
+  { releaseHealth: { enabled: false } },
+])('erases pending health work when a remount withdraws permission %j', async (veto) => {
+  const sdkKey = 'key-' + crypto.randomUUID();
+  vi.stubGlobal('fetch', async () => {
+    throw Error('offline');
+  });
+  const config = { sdkKey, appVersion: '1', debugBuild: false, reporter: { disabled: true } };
+  const first = render(
+    <EverframeProvider config={config}>
+      <span>host</span>
+    </EverframeProvider>,
+  );
+  await new Promise((r) => setTimeout(r, 20));
+  const queued = () =>
+    Object.keys(localStorage).filter(
+      (k) => k.startsWith('everframe:release-health:') && localStorage.getItem(k)!.includes(sdkKey),
     );
-    await new Promise((r) => setTimeout(r, 20));
-    const queued = () =>
-      Object.keys(localStorage).filter(
-        (k) =>
-          k.startsWith('everframe:release-health:') && localStorage.getItem(k)!.includes(sdkKey),
-      );
-    expect(queued()).toHaveLength(1);
-    first.unmount();
-    render(
-      <EverframeProvider config={{ ...config, ...veto }}>
-        <span>off</span>
-      </EverframeProvider>,
-    );
-    await new Promise((r) => setTimeout(r, 20));
-    expect(queued()).toHaveLength(0);
-  },
-);
+  expect(queued()).toHaveLength(1);
+  first.unmount();
+  render(
+    <EverframeProvider config={{ ...config, ...veto }}>
+      <span>off</span>
+    </EverframeProvider>,
+  );
+  await new Promise((r) => setTimeout(r, 20));
+  expect(queued()).toHaveLength(0);
+});
 
 it('withdraws pending delivery when a replacement is killed in a child mount effect', async () => {
   vi.useFakeTimers();

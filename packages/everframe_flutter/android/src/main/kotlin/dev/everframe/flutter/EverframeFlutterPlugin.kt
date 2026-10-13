@@ -14,6 +14,7 @@ import dev.everframe.capture.SensitiveRectRegistry
 import dev.everframe.config.CaptureConfig
 import dev.everframe.config.Environment
 import dev.everframe.config.EverframeConfig
+import dev.everframe.config.ReleaseHealthConfig
 import dev.everframe.config.ReportResult
 import dev.everframe.config.TXUser
 import dev.everframe.crash.CrashReporter
@@ -78,8 +79,8 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
                         sdkKey = sdkKey,
                         environment = environment,
                         capture = CaptureConfig(screenshot = false, crash = crash),
-                        // The plugin has no release-health option yet, so release health stays off.
-                        releaseHealth = null,
+                        releaseHealth = ReleaseHealthConfig(enabled = crash && call.argument<Boolean>("releaseHealth") != false),
+                        debugBuild = call.argument<Boolean>("debugBuild"),
                     ), activity)
                     result.success(null)
                 }

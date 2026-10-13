@@ -2299,6 +2299,7 @@ export function createWebPlatformAdapter(
       if (
         _config.disabled ||
         _config.crashReporting?.disabled ||
+        _config.releaseHealth?.enabled === false ||
         resolveDebugBuild(_config.debugBuild, typeof location === 'undefined' ? null : location)
       ) {
         revokeWebHealth(INGEST_URL, _config.sdkKey);

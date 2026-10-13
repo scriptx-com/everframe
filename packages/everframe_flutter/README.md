@@ -15,13 +15,42 @@ flutter pub add everframe_flutter
 
 The plugin requires Flutter 3.47+ and Dart 3.13+, with Android API 24+ or
 iOS 15+ on the respective host platform.
-Both native bridges use native Everframe 1.2: the Android bridge resolves the
+Both native bridges require native Everframe 1.2.1 or later in 1.2.x: the Android bridge resolves the
 `dev.everframe` 1.2.x modules, and the iOS bridge requires `Everframe` 1.2.x, the
 first release with `EverframeConfig(sdkKey:)` and `EverframeConfig(releaseHealth:)`.
 Android hosts must use `FlutterFragmentActivity` for the Compose reporter and
 declare the `INTERNET` permission for release builds. The native SDK owns the
-ingest endpoint; published binaries use the production endpoint. Release health
-isn't supported by this plugin yet, so both bridges turn it off.
+ingest endpoint; published binaries use the production endpoint.
+
+## Release health
+
+Release health is on by default. Android and iOS use the existing native
+foreground-session collectors and read the app version/build from the installed
+application. Native crashes (and Android JVM crashes/ANRs) affect the crash-free
+rate. Dart errors, including `captureException`, do not affect it in this first
+pass; no automatic Dart error hooks are installed.
+
+```dart
+await const EverframeNativeBridge().start(
+  appId: 'YOUR_APP_ID',
+  sdkKey: 'YOUR_SDK_KEY',
+  releaseHealth: false, // Optional: disable health while keeping crash reports.
+);
+```
+
+`crash: false` disables both native crash capture and health collection. Debug
+builds do not report health; leave `debugBuild` unset for native detection or
+pass the host build flag explicitly. `kill()` stops collection. Native sessions
+are anonymous in this wrapper: `setUser` does not identify their health records,
+so the dashboard shows session rates rather than crash-free user rates.
+
+The browser bridge uses `@everframe/web` 1.2.2 or later for page sessions. It
+requires an explicit host `appVersion` and forwards `debugBuild` and
+`releaseHealth` (default true). Setting `releaseHealth: false` leaves browser
+error reporting enabled. Identical repeated starts reuse the collector; changed
+settings destroy and replace it. Browser global uncaught exceptions/rejections
+follow the web measurement rules; framework-caught Dart errors do not become
+health failures. See [how release health is measured](../../docs/release-health.md).
 
 ## Send a report
 

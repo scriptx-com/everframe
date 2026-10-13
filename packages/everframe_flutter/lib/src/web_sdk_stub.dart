@@ -4,9 +4,12 @@ import 'native_bridge.dart';
 
 class EverframeWebBridge {
   const EverframeWebBridge();
-  Future<void> start({required String sdkKey,
-    required String appVersion, bool? debugBuild}) async =>
-      throw UnsupportedError('EverframeWebBridge requires Flutter web');
+  Future<void> start({
+    required String sdkKey,
+    required String appVersion,
+    bool? debugBuild,
+    bool releaseHealth = true,
+  }) async => throw UnsupportedError('EverframeWebBridge requires Flutter web');
   Future<EverframeReporterOutcome> openReporter() async =>
       throw UnsupportedError('EverframeWebBridge requires Flutter web');
   void setUser({String? id, String? email, String? displayName}) =>

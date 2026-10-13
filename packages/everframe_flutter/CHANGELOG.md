@@ -1,6 +1,11 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
+## Unreleased
+
+- Native release-health sessions are enabled by default. `releaseHealth: false` opts out without disabling error reports; `crash: false` disables both. Native `start(debugBuild:)` forwards an explicit build flag. Dart errors remain outside the native crash rate.
+- The web bridge forwards the health opt-out to Web SDK 1.2.2+, applies changed settings on repeated starts, and cancels deferred initialization when killed.
+
 ## 1.2.1
 
 - The plugin ships on the same version as every other Everframe SDK. Its Android and iOS bridges resolve the native SDK of that exact version and any later patch on the same minor line.
