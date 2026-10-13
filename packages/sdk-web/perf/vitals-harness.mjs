@@ -36,7 +36,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PERF_PORT ?? 8931);
 const BASE = `http://127.0.0.1:${PORT}`;
 const RUN_MS = Number(process.env.RUN_MS ?? 60_000);
-const MODES = (process.env.MODES ?? 'off,on').split(',').map((m) => m.trim()).filter(Boolean);
+const MODES = (process.env.MODES ?? 'off,on')
+  .split(',')
+  .map((m) => m.trim())
+  .filter(Boolean);
 const MODE_LABEL = {
   off: 'vitals **off**',
   on: 'vitals **on**',
@@ -88,14 +91,19 @@ async function runMode(mode) {
         return route.fulfill({ status: 204, headers: CORS });
       }
       api.other.push(`${req.method()} ${url.pathname}`);
-      return route.fulfill({ status: 404, headers: { ...CORS, 'content-type': 'application/json' }, body: '{}' });
+      return route.fulfill({
+        status: 404,
+        headers: { ...CORS, 'content-type': 'application/json' },
+        body: '{}',
+      });
     });
     await page.addInitScript(() => {
       window.__lt = [];
       window.__mem = [];
       try {
         new PerformanceObserver((l) => {
-          for (const e of l.getEntries()) window.__lt.push({ s: Math.round(e.startTime), d: Math.round(e.duration) });
+          for (const e of l.getEntries())
+            window.__lt.push({ s: Math.round(e.startTime), d: Math.round(e.duration) });
         }).observe({ type: 'longtask', buffered: true });
       } catch {
         // longtask PerformanceObserver unsupported — long-task count stays 0,
@@ -169,14 +177,32 @@ async function runMode(mode) {
             k.tid === t.tid &&
             k.ts >= t.ts &&
             k.ts + k.dur <= t.ts + t.dur &&
-            ['FunctionCall', 'TimerFire', 'EventDispatch', 'EvaluateScript', 'v8.compile', 'MajorGC', 'MinorGC', 'ParseHTML', 'UpdateLayoutTree', 'Layout', 'Paint'].includes(k.name),
+            [
+              'FunctionCall',
+              'TimerFire',
+              'EventDispatch',
+              'EvaluateScript',
+              'v8.compile',
+              'MajorGC',
+              'MinorGC',
+              'ParseHTML',
+              'UpdateLayoutTree',
+              'Layout',
+              'Paint',
+            ].includes(k.name),
         )
         .sort((a, b) => b.dur - a.dur)
         .slice(0, 4)
-        .map((k) => ({ name: k.name, ms: +(k.dur / 1000).toFixed(1), url: k.args?.data?.url ?? k.args?.data?.type ?? '' }));
+        .map((k) => ({
+          name: k.name,
+          ms: +(k.dur / 1000).toFixed(1),
+          url: k.args?.data?.url ?? k.args?.data?.type ?? '',
+        }));
       return { ms: +(t.dur / 1000).toFixed(1), kids };
     });
-    const sdkFn = ev.filter((k) => k.name === 'FunctionCall' && String(k.args?.data?.url ?? '').includes('/dist/'));
+    const sdkFn = ev.filter(
+      (k) => k.name === 'FunctionCall' && String(k.args?.data?.url ?? '').includes('/dist/'),
+    );
     const sdkMs = sdkFn.reduce((a, k) => a + k.dur / 1000, 0);
     const sdkMax = sdkFn.reduce((a, k) => Math.max(a, k.dur / 1000), 0);
     const peak = Math.max(0, ...mem.map((m) => m.used));
@@ -184,10 +210,25 @@ async function runMode(mode) {
       mode,
       runMs: RUN_MS,
       api,
-      longTasks: { count: lt.length, maxMs: Math.max(0, ...lt.map((e) => e.d)), totalMs: lt.reduce((a, e) => a + e.d, 0), entries: lt },
+      longTasks: {
+        count: lt.length,
+        maxMs: Math.max(0, ...lt.map((e) => e.d)),
+        totalMs: lt.reduce((a, e) => a + e.d, 0),
+        entries: lt,
+      },
       traceTasksOver50: attributed,
-      sdkFunctionCalls: { count: sdkFn.length, totalMs: +sdkMs.toFixed(1), maxMs: +sdkMax.toFixed(2) },
-      heap: { afterGcStart: heapStart, afterGcEnd: heapEnd, steadyDelta: heapEnd - heapStart, sampledPeak: peak, samples: mem.length },
+      sdkFunctionCalls: {
+        count: sdkFn.length,
+        totalMs: +sdkMs.toFixed(1),
+        maxMs: +sdkMax.toFixed(2),
+      },
+      heap: {
+        afterGcStart: heapStart,
+        afterGcEnd: heapEnd,
+        steadyDelta: heapEnd - heapStart,
+        sampledPeak: peak,
+        samples: mem.length,
+      },
     };
     // Gitignored (see .gitignore's `packages/sdk-web/perf/result-*.json`) —
     // kept for local debugging of a single run, not a build artifact.
@@ -214,7 +255,10 @@ function printTable(results) {
     sep,
     row(`Long tasks (> 50 ms) observed in ${seconds} s`, (r) => r.longTasks.count),
     row('Trace `RunTask`s > 50 ms', (r) => r.traceTasksOver50.length),
-    row(`JS time attributed to the SDK bundle in ${seconds} s`, (r) => `${r.sdkFunctionCalls.totalMs} ms`),
+    row(
+      `JS time attributed to the SDK bundle in ${seconds} s`,
+      (r) => `${r.sdkFunctionCalls.totalMs} ms`,
+    ),
     row('Longest single SDK function call', (r) => `${r.sdkFunctionCalls.maxMs} ms`),
     row('Heap after forced GC, start → end', (r) => fmtHeap(r.heap.steadyDelta)),
     row('Sampled peak heap', (r) => `${(r.heap.sampledPeak / 1024 / 1024).toFixed(2)} MB`),
@@ -232,7 +276,9 @@ function printTable(results) {
     if (!results[onMode] || !results[offMode]) continue;
     const delta = results[onMode].heap.steadyDelta - results[offMode].heap.steadyDelta;
     const cells = modes.map((m) => (m === onMode ? `**${fmtHeap(delta)}**` : '—'));
-    lines.push(`| **Vitals-attributable steady-state heap growth (${label})** | ${cells.join(' | ')} |`);
+    lines.push(
+      `| **Vitals-attributable steady-state heap growth (${label})** | ${cells.join(' | ')} |`,
+    );
   }
 
   return lines.join('\n');
@@ -245,7 +291,13 @@ try {
     for (const mode of MODES) {
       console.log(`--- running mode "${mode}" for ${RUN_MS}ms ---`);
       results[mode] = await runMode(mode);
-      console.log(JSON.stringify({ ...results[mode], longTasks: { ...results[mode].longTasks, entries: undefined } }, null, 1));
+      console.log(
+        JSON.stringify(
+          { ...results[mode], longTasks: { ...results[mode].longTasks, entries: undefined } },
+          null,
+          1,
+        ),
+      );
     }
   } finally {
     await new Promise((resolve) => server.close(resolve));

@@ -67,7 +67,15 @@
 // blanked options cannot narrow it.
 // The one computed-style read per judged element feeds all of this.
 import { MASK_PLACEHOLDER } from '../replay/mask-mapping.js';
-import { SN_DOCUMENT, SN_ELEMENT, SN_TEXT, type SnAttributeValue, type SnElement, type SnNode, type SnParent } from './sn-types.js';
+import {
+  SN_DOCUMENT,
+  SN_ELEMENT,
+  SN_TEXT,
+  type SnAttributeValue,
+  type SnElement,
+  type SnNode,
+  type SnParent,
+} from './sn-types.js';
 
 export interface PruneRect {
   left: number;
@@ -121,7 +129,10 @@ type Withhold = (node: SnNode, change: Withheld) => void;
 
 function makeWithhold(result: PruneResult): Withhold {
   return (node, change) => {
-    if (change.childNodes !== undefined && (node.type === SN_ELEMENT || node.type === SN_DOCUMENT)) {
+    if (
+      change.childNodes !== undefined &&
+      (node.type === SN_ELEMENT || node.type === SN_DOCUMENT)
+    ) {
       const next = new Set(change.childNodes);
       for (const old of node.childNodes) {
         if (!next.has(old)) {
@@ -170,7 +181,15 @@ type Verdict = 'remove' | 'visible' | 'hidden' | 'keep';
  * - `judge`: an element with a live box — pruned when neither it nor any
  *   descendant is seen.
  */
-type Mode = 'root' | 'transparent' | 'always' | 'head' | 'svg' | 'svgContent' | 'selectContent' | 'judge';
+type Mode =
+  | 'root'
+  | 'transparent'
+  | 'always'
+  | 'head'
+  | 'svg'
+  | 'svgContent'
+  | 'selectContent'
+  | 'judge';
 
 interface Frame {
   node: SnParent;
@@ -227,7 +246,15 @@ const SKIP_ATTR = 'data-everframe-skip-capture';
 const REPLACED = new Set(['img', 'video', 'canvas', 'picture', 'iframe', 'object', 'embed']);
 /** SVG elements that other content references by id (`<use href>`, `url(#…)`). Lower-case. */
 const SVG_DEFS = new Set([
-  'defs', 'symbol', 'clippath', 'mask', 'lineargradient', 'radialgradient', 'pattern', 'filter', 'marker',
+  'defs',
+  'symbol',
+  'clippath',
+  'mask',
+  'lineargradient',
+  'radialgradient',
+  'pattern',
+  'filter',
+  'marker',
 ]);
 /** SVG elements whose text is never rendered (tooltips, descriptions, metadata). */
 const SVG_NON_RENDERED = new Set(['desc', 'title', 'metadata']);
@@ -238,8 +265,23 @@ const SVG_URL_ATTRS = ['href', 'xlink:href', 'src'];
 const SVG_TEXT_HOSTS = new Set(['text', 'tspan', 'textpath', 'style']);
 /** Attributes of a kept off-screen inline element that carry text or URLs and have no layout effect. */
 const CONTENT_ATTRS = new Set(['href', 'title', 'alt', 'placeholder']);
-const BLOCK_LEVEL = new Set(['block', 'list-item', 'table', 'flex', 'grid', 'flow-root', '-webkit-box']);
-const FLEX_OR_GRID = new Set(['flex', 'inline-flex', 'grid', 'inline-grid', '-webkit-box', '-webkit-inline-box']);
+const BLOCK_LEVEL = new Set([
+  'block',
+  'list-item',
+  'table',
+  'flex',
+  'grid',
+  'flow-root',
+  '-webkit-box',
+]);
+const FLEX_OR_GRID = new Set([
+  'flex',
+  'inline-flex',
+  'grid',
+  'inline-grid',
+  '-webkit-box',
+  '-webkit-inline-box',
+]);
 /** Margin-collapse probe bounds (S18): levels descended, style reads and nodes examined per side. */
 const COLLAPSE_MAX_DEPTH = 8;
 const COLLAPSE_MAX_READS = 16;
@@ -333,7 +375,8 @@ function placeholderStyle(
   add('align-self', s.alignSelf);
   add('order', s.order);
   if (s.gridRowStart && s.gridRowEnd) parts.push(`grid-row:${s.gridRowStart} / ${s.gridRowEnd}`);
-  if (s.gridColumnStart && s.gridColumnEnd) parts.push(`grid-column:${s.gridColumnStart} / ${s.gridColumnEnd}`);
+  if (s.gridColumnStart && s.gridColumnEnd)
+    parts.push(`grid-column:${s.gridColumnStart} / ${s.gridColumnEnd}`);
   add('float', s.cssFloat);
   add('clear', s.clear);
   add('vertical-align', s.verticalAlign);
@@ -350,7 +393,12 @@ function placeholderStyle(
 
 /** Out-of-flow placeholder that still hosts carried SVG definitions (display:none would disable them). */
 const OUT_OF_FLOW_CARRIER = important([
-  'display:block', 'position:absolute', 'width:0', 'height:0', 'overflow:hidden', 'visibility:hidden',
+  'display:block',
+  'position:absolute',
+  'width:0',
+  'height:0',
+  'overflow:hidden',
+  'visibility:hidden',
 ]);
 /**
  * A re-homed definitions SVG. `visibility:visible` because it sits inside a
@@ -358,7 +406,13 @@ const OUT_OF_FLOW_CARRIER = important([
  * inherits `hidden` contributes nothing: the visible icon clipped by it would
  * vanish. Safe — the SVG is zero-size and holds only non-rendering definitions.
  */
-const ZERO_SVG = important(['position:absolute', 'width:0', 'height:0', 'overflow:hidden', 'visibility:visible']);
+const ZERO_SVG = important([
+  'position:absolute',
+  'width:0',
+  'height:0',
+  'overflow:hidden',
+  'visibility:visible',
+]);
 
 /** Adds the ids of `node` and its whole (current) subtree. Iterative; a node already recorded had its whole subtree recorded. */
 function collectIds(node: SnNode, into: Set<number>): void {
@@ -422,23 +476,28 @@ function svgDefinitions(svg: SnElement, withhold: Withhold): SnElement[] {
 }
 
 /** Drops text- and URL-bearing attributes (and `extra` ones). */
-function stripContentAttrs(node: SnElement, withhold: Withhold, extra: readonly string[] = []): void {
+function stripContentAttrs(
+  node: SnElement,
+  withhold: Withhold,
+  extra: readonly string[] = [],
+): void {
   const next: Record<string, SnAttributeValue> = {};
   for (const key of Object.keys(node.attributes)) {
     const lower = key.toLowerCase();
-    if (CONTENT_ATTRS.has(lower) || lower.startsWith('aria-') || lower.startsWith('data-') || extra.indexOf(lower) !== -1) continue;
+    if (
+      CONTENT_ATTRS.has(lower) ||
+      lower.startsWith('aria-') ||
+      lower.startsWith('data-') ||
+      extra.indexOf(lower) !== -1
+    )
+      continue;
     next[key] = node.attributes[key] as SnAttributeValue;
   }
   withhold(node, { attributes: next });
 }
 
 function isOutOfFlow(s: CSSStyleDeclaration): boolean {
-  return (
-    s.display === 'none' ||
-    s.position === 'absolute' ||
-    s.position === 'fixed' ||
-    isFloat(s)
-  );
+  return s.display === 'none' || s.position === 'absolute' || s.position === 'fixed' || isFloat(s);
 }
 
 function isFloat(s: CSSStyleDeclaration): boolean {
@@ -458,7 +517,12 @@ function collapsesThrough(s: CSSStyleDeclaration, side: 'top' | 'bottom'): boole
   if (s.display !== 'block' && s.display !== 'list-item') return false;
   if (s.position === 'absolute' || s.position === 'fixed') return false;
   if (isFloat(s)) return false;
-  if (!isVisibleOverflow(s.overflowX) || !isVisibleOverflow(s.overflowY) || !isVisibleOverflow(s.overflow)) return false;
+  if (
+    !isVisibleOverflow(s.overflowX) ||
+    !isVisibleOverflow(s.overflowY) ||
+    !isVisibleOverflow(s.overflow)
+  )
+    return false;
   return side === 'top'
     ? num(s.borderTopWidth) === 0 && num(s.paddingTop) === 0
     : num(s.borderBottomWidth) === 0 && num(s.paddingBottom) === 0;
@@ -472,7 +536,13 @@ function isClosedSelect(live: Element): boolean {
 
 /** Whether overflow on one axis clips its content (hidden, clip, auto, scroll). */
 function clipsAxis(value: string | undefined): boolean {
-  return value === 'hidden' || value === 'clip' || value === 'auto' || value === 'scroll' || value === 'overlay';
+  return (
+    value === 'hidden' ||
+    value === 'clip' ||
+    value === 'auto' ||
+    value === 'scroll' ||
+    value === 'overlay'
+  );
 }
 
 function isPositioned(s: CSSStyleDeclaration | null): boolean {
@@ -501,13 +571,27 @@ function establishesContainingBlock(s: CSSStyleDeclaration | null): boolean {
   if (s === null) return false;
   const x = s as unknown as Record<string, string | undefined>;
   return (
-    isSet(x.transform) || isSet(x.webkitTransform) ||
-    isSet(x.perspective) || isSet(x.webkitPerspective) ||
-    isSet(x.filter) || isSet(x.webkitFilter) ||
-    isSet(x.backdropFilter) || isSet(x.webkitBackdropFilter) ||
+    isSet(x.transform) ||
+    isSet(x.webkitTransform) ||
+    isSet(x.perspective) ||
+    isSet(x.webkitPerspective) ||
+    isSet(x.filter) ||
+    isSet(x.webkitFilter) ||
+    isSet(x.backdropFilter) ||
+    isSet(x.webkitBackdropFilter) ||
     hasKeyword(x.contain, ['paint', 'layout', 'strict', 'content']) ||
-    hasKeyword(x.willChange, ['transform', 'perspective', 'filter', 'backdrop-filter', '-webkit-transform', '-webkit-filter']) ||
-    (x.containerType !== undefined && x.containerType !== null && x.containerType !== '' && x.containerType !== 'normal')
+    hasKeyword(x.willChange, [
+      'transform',
+      'perspective',
+      'filter',
+      'backdrop-filter',
+      '-webkit-transform',
+      '-webkit-filter',
+    ]) ||
+    (x.containerType !== undefined &&
+      x.containerType !== null &&
+      x.containerType !== '' &&
+      x.containerType !== 'normal')
   );
 }
 
@@ -523,11 +607,23 @@ function isZeroOpacity(s: CSSStyleDeclaration | null): boolean {
 }
 
 function toRect(left: number, top: number, right: number, bottom: number): PruneRect {
-  return { left, top, right, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+  return {
+    left,
+    top,
+    right,
+    bottom,
+    width: Math.max(0, right - left),
+    height: Math.max(0, bottom - top),
+  };
 }
 
 function intersectRects(x: PruneRect, y: PruneRect): PruneRect {
-  return toRect(Math.max(x.left, y.left), Math.max(x.top, y.top), Math.min(x.right, y.right), Math.min(x.bottom, y.bottom));
+  return toRect(
+    Math.max(x.left, y.left),
+    Math.max(x.top, y.top),
+    Math.min(x.right, y.right),
+    Math.min(x.bottom, y.bottom),
+  );
 }
 
 /** Longer than any real computed `clip` / `clip-path` value worth parsing. */
@@ -543,7 +639,11 @@ function pxLength(token: string): number | null {
 
 /** The inside of `name( … )` split on whitespace/commas, or null. Short, capped input only. */
 function functionArgs(value: string, name: string): string[] | null {
-  if (value.length > MAX_CLIP_VALUE_LENGTH || value.slice(0, name.length + 1).toLowerCase() !== `${name}(`) return null;
+  if (
+    value.length > MAX_CLIP_VALUE_LENGTH ||
+    value.slice(0, name.length + 1).toLowerCase() !== `${name}(`
+  )
+    return null;
   const close = value.indexOf(')');
   if (close === -1) return null;
   const inner = value.slice(name.length + 1, close).trim();
@@ -554,7 +654,8 @@ function functionArgs(value: string, name: string): string[] | null {
 function clipRectRegion(value: string, r: PruneRect): PruneRect | null {
   const args = functionArgs(value.trim(), 'rect');
   if (args === null || args.length !== 4) return null;
-  const at = (k: number, auto: number): number | null => (args[k] === 'auto' ? auto : pxLength(args[k]!));
+  const at = (k: number, auto: number): number | null =>
+    args[k] === 'auto' ? auto : pxLength(args[k]!);
   const t = at(0, 0);
   const rt = at(1, r.width);
   const b = at(2, r.height);
@@ -569,10 +670,14 @@ function insetRegion(value: string, r: PruneRect): PruneRect | null {
   const round = t.toLowerCase().indexOf(' round ');
   const args = functionArgs(round === -1 ? t : `${t.slice(0, round)})`, 'inset');
   if (args === null || args.length < 1 || args.length > 4) return null;
-  const parts = args.length === 1 ? [args[0], args[0], args[0], args[0]]
-    : args.length === 2 ? [args[0], args[1], args[0], args[1]]
-      : args.length === 3 ? [args[0], args[1], args[2], args[1]]
-        : args;
+  const parts =
+    args.length === 1
+      ? [args[0], args[0], args[0], args[0]]
+      : args.length === 2
+        ? [args[0], args[1], args[0], args[1]]
+        : args.length === 3
+          ? [args[0], args[1], args[2], args[1]]
+          : args;
   const len = (token: string | undefined, basis: number): number | null => {
     if (token === undefined) return null;
     if (token.slice(-1) === '%') {
@@ -603,9 +708,14 @@ function cssClipRegion(s: CSSStyleDeclaration, r: PruneRect): PruneRect | null {
   let region: PruneRect | null = null;
   if (s.position === 'absolute' || s.position === 'fixed') {
     const clip = x.clip;
-    if (clip !== undefined && clip !== null && clip !== '' && clip !== 'auto') region = clipRectRegion(clip, r) ?? border;
+    if (clip !== undefined && clip !== null && clip !== '' && clip !== 'auto')
+      region = clipRectRegion(clip, r) ?? border;
   }
-  const path = isSet(x.clipPath) ? x.clipPath : isSet(x.webkitClipPath) ? x.webkitClipPath : undefined;
+  const path = isSet(x.clipPath)
+    ? x.clipPath
+    : isSet(x.webkitClipPath)
+      ? x.webkitClipPath
+      : undefined;
   if (path !== undefined) {
     const shape = insetRegion(path, r) ?? border;
     region = region === null ? shape : intersectRects(region, shape);
@@ -621,14 +731,23 @@ function cssClipRegion(s: CSSStyleDeclaration, r: PruneRect): PruneRect | null {
  * root, which clips its content to its viewport even when display:inline);
  * display:contents and display:none boxes do not clip at all.
  */
-function clipFor(outer: PruneRect, r: PruneRect, s: CSSStyleDeclaration | null, atomic = false): PruneRect {
+function clipFor(
+  outer: PruneRect,
+  r: PruneRect,
+  s: CSSStyleDeclaration | null,
+  atomic = false,
+): PruneRect {
   if (s === null || s.display === 'contents' || s.display === 'none') return outer;
   const region = cssClipRegion(s, r);
   if (region !== null) outer = intersectRects(outer, region);
   if (s.display === 'inline' && !atomic) return outer;
   // Paint containment clips to the overflow clip edge (the padding box) on
   // both axes whatever `overflow` says (CSS Containment §3.3).
-  const paint = hasKeyword((s as unknown as Record<string, string | undefined>).contain, ['paint', 'strict', 'content']);
+  const paint = hasKeyword((s as unknown as Record<string, string | undefined>).contain, [
+    'paint',
+    'strict',
+    'content',
+  ]);
   const x = paint || clipsAxis(s.overflowX);
   const y = paint || clipsAxis(s.overflowY);
   if (!x && !y) return outer;
@@ -670,9 +789,19 @@ export function defaultTextRectsOf(text: Node): PruneRect[] {
  */
 function fragmentStyle(r: PruneRect): string {
   return important([
-    'display:inline-block', 'box-sizing:border-box', `width:${px(r.width)}`, `height:${px(r.height)}`,
-    'min-width:0', 'min-height:0', 'max-width:none', 'max-height:none',
-    `margin:${spx(-r.height)} 0 0 0`, 'padding:0', 'border:0', 'vertical-align:text-bottom', 'visibility:hidden',
+    'display:inline-block',
+    'box-sizing:border-box',
+    `width:${px(r.width)}`,
+    `height:${px(r.height)}`,
+    'min-width:0',
+    'min-height:0',
+    'max-width:none',
+    'max-height:none',
+    `margin:${spx(-r.height)} 0 0 0`,
+    'padding:0',
+    'border:0',
+    'vertical-align:text-bottom',
+    'visibility:hidden',
   ]);
 }
 
@@ -696,9 +825,14 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
    * itself (codex r9 F1); its descendants are still judged on their own.
    */
   const overlaps = (r: PruneRect, clip: PruneRect): boolean =>
-    r.width > 0 && r.height > 0 &&
-    clip.right > clip.left && clip.bottom > clip.top &&
-    r.right > clip.left && r.bottom > clip.top && r.left < clip.right && r.top < clip.bottom;
+    r.width > 0 &&
+    r.height > 0 &&
+    clip.right > clip.left &&
+    clip.bottom > clip.top &&
+    r.right > clip.left &&
+    r.bottom > clip.top &&
+    r.left < clip.right &&
+    r.top < clip.bottom;
   /** Pruned placeholders' effective margins, for their pruned ancestors' collapse probe. */
   const prunedFlow = new WeakMap<SnElement, PrunedFlow>();
   const zeroed = new WeakSet<SnElement>();
@@ -711,7 +845,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       while (ids.length > 0) {
         const n = ids.pop() as SnNode;
         if (n.id > max) max = n.id;
-        if (n.type === SN_ELEMENT || n.type === SN_DOCUMENT) for (const c of n.childNodes) ids.push(c);
+        if (n.type === SN_ELEMENT || n.type === SN_DOCUMENT)
+          for (const c of n.childNodes) ids.push(c);
       }
       nextId = max + 1;
     }
@@ -729,8 +864,21 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
   const fragmentNodes = (rects: PruneRect[]): SnNode[] => {
     const out: SnNode[] = [];
     for (const r of rects) {
-      if (out.length > 0) out.push({ type: SN_ELEMENT, id: freshId(), tagName: 'br', attributes: {}, childNodes: [] });
-      out.push({ type: SN_ELEMENT, id: freshId(), tagName: 'span', attributes: { style: fragmentStyle(r) }, childNodes: [] });
+      if (out.length > 0)
+        out.push({
+          type: SN_ELEMENT,
+          id: freshId(),
+          tagName: 'br',
+          attributes: {},
+          childNodes: [],
+        });
+      out.push({
+        type: SN_ELEMENT,
+        id: freshId(),
+        tagName: 'span',
+        attributes: { style: fragmentStyle(r) },
+        childNodes: [],
+      });
     }
     return out;
   };
@@ -741,8 +889,18 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
   };
 
   /** A frame inheriting its parent's clips and fading (pass-through: no box judged). */
-  const frame = (node: SnParent, mode: Mode, live: Element | null, rect: PruneRect | null, parent: Frame | null): Frame => ({
-    node, mode, live, rect, style: undefined,
+  const frame = (
+    node: SnParent,
+    mode: Mode,
+    live: Element | null,
+    rect: PruneRect | null,
+    parent: Frame | null,
+  ): Frame => ({
+    node,
+    mode,
+    live,
+    rect,
+    style: undefined,
     maskText: parent?.maskText ?? false,
     hideText: false,
     blankText: false,
@@ -754,7 +912,10 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     clip: parent?.clip ?? VIEWPORT,
     absClip: parent?.absClip ?? VIEWPORT,
     fixedClip: parent?.fixedClip ?? VIEWPORT,
-    index: 0, kept: [], anyVisible: false, carry: null,
+    index: 0,
+    kept: [],
+    anyVisible: false,
+    carry: null,
   });
 
   /**
@@ -765,22 +926,40 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const s = styleOnce(f);
     const rect = f.rect as PruneRect;
     const position = s?.position;
-    const incoming = position === 'fixed' ? parent.fixedClip : position === 'absolute' ? parent.absClip : parent.clip;
+    const incoming =
+      position === 'fixed'
+        ? parent.fixedClip
+        : position === 'absolute'
+          ? parent.absClip
+          : parent.clip;
     f.faded = parent.faded || isZeroOpacity(s);
     const invisible = f.faded || isInvisible(s);
     f.hideText = invisible;
     // CSS clip / clip-path hides the element's OWN box too, not only its
     // descendants: an sr-only wrapper is unseen even though its box is on screen.
-    const region = s !== null && s.display !== 'contents' && s.display !== 'none' ? cssClipRegion(s, rect) : null;
-    f.seen = !invisible && overlaps(rect, region === null ? incoming : intersectRects(incoming, region));
+    const region =
+      s !== null && s.display !== 'contents' && s.display !== 'none'
+        ? cssClipRegion(s, rect)
+        : null;
+    f.seen =
+      !invisible && overlaps(rect, region === null ? incoming : intersectRects(incoming, region));
     f.clip = clipFor(incoming, rect, s, atomic);
     // A transform/filter/containment box is the containing block of absolute
     // AND fixed descendants, so its clip reaches them; position alone only
     // captures absolute ones.
     const block = establishesContainingBlock(s);
     // The clip region paints over positioned descendants too.
-    f.absClip = isPositioned(s) || block ? f.clip : region === null ? parent.absClip : intersectRects(parent.absClip, region);
-    f.fixedClip = block ? f.clip : region === null ? parent.fixedClip : intersectRects(parent.fixedClip, region);
+    f.absClip =
+      isPositioned(s) || block
+        ? f.clip
+        : region === null
+          ? parent.absClip
+          : intersectRects(parent.absClip, region);
+    f.fixedClip = block
+      ? f.clip
+      : region === null
+        ? parent.fixedClip
+        : intersectRects(parent.fixedClip, region);
   };
 
   const styleOnce = (f: Frame): CSSStyleDeclaration | null => {
@@ -793,7 +972,11 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
    * margin combined (max positive + most negative) with the chain of first
    * (last) in-flow descendant margins that collapsed through it. Bounded.
    */
-  const collapsedMargin = (node: SnElement, s: CSSStyleDeclaration, side: 'top' | 'bottom'): number => {
+  const collapsedMargin = (
+    node: SnElement,
+    s: CSSStyleDeclaration,
+    side: 'top' | 'bottom',
+  ): number => {
     const own = num(side === 'top' ? s.marginTop : s.marginBottom);
     let pos = Math.max(0, own);
     let neg = Math.min(0, own);
@@ -846,7 +1029,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
   const stripUrlAttrs = (node: SnElement): void => {
     const next: Record<string, SnAttributeValue> = {};
     for (const key of Object.keys(node.attributes)) {
-      if (SVG_URL_ATTRS.indexOf(key.toLowerCase()) === -1) next[key] = node.attributes[key] as SnAttributeValue;
+      if (SVG_URL_ATTRS.indexOf(key.toLowerCase()) === -1)
+        next[key] = node.attributes[key] as SnAttributeValue;
     }
     withhold(node, { attributes: next });
   };
@@ -901,7 +1085,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       }
       if (sensitiveSafe(a)) verdict.sensitive = true;
       const st = deps.styleOf(a);
-      if (st !== null && (st.display === 'none' || isZeroOpacity(st) || isInvisible(st))) verdict.hidden = true;
+      if (st !== null && (st.display === 'none' || isZeroOpacity(st) || isInvisible(st)))
+        verdict.hidden = true;
       verdict.clip = clipFor(verdict.clip, deps.rectOf(a), st);
       a = composedParent(a);
     }
@@ -936,7 +1121,14 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const fallback = (w: string, h: string): string =>
       important(['display:inline-block', `width:${w}`, `height:${h}`, 'background:#000']);
     if (live === null) {
-      withhold(node, { attributes: { style: fallback(lengthAttr(node.attributes.rr_width), lengthAttr(node.attributes.rr_height)) } });
+      withhold(node, {
+        attributes: {
+          style: fallback(
+            lengthAttr(node.attributes.rr_width),
+            lengthAttr(node.attributes.rr_height),
+          ),
+        },
+      });
       return 'hidden';
     }
     const rect = deps.rectOf(live);
@@ -944,9 +1136,13 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const size = deps.sizeOf(live, rect);
     withhold(node, {
       attributes: {
-        style: style !== null
-          ? placeholderStyle(style, size, true, { top: num(style.marginTop), bottom: num(style.marginBottom) })
-          : fallback(px(size.width), px(size.height)),
+        style:
+          style !== null
+            ? placeholderStyle(style, size, true, {
+                top: num(style.marginTop),
+                bottom: num(style.marginBottom),
+              })
+            : fallback(px(size.width), px(size.height)),
       },
     });
     return overlaps(rect, parent.clip) && !parent.faded ? 'visible' : 'hidden';
@@ -961,7 +1157,12 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
    * definitions survive), visibility/opacity mask its text; a <text> whose
    * box misses the clip (the SVG viewport, the screen) is hidden too.
    */
-  const enterSvgContent = (node: SnElement, tag: string, live: Element | null, parent: Frame): Frame => {
+  const enterSvgContent = (
+    node: SnElement,
+    tag: string,
+    live: Element | null,
+    parent: Frame,
+  ): Frame => {
     const f = frame(node, 'svgContent', live, null, parent);
     f.hideText = parent.hideText;
     if (SVG_DEFS.has(tag) || (parent.mode === 'svg' && !parent.seen)) f.svgSkip = true;
@@ -972,7 +1173,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     if (f.svgSkip || live === null) return f;
     // Resource-bearing elements (<image>, <use>, <feImage>, anything with an
     // href/src) are judged whatever their children; other leaves cost nothing.
-    const resource = SVG_RESOURCE_LEAVES.has(tag) || SVG_URL_ATTRS.some((name) => hasOwnAttr(node, name));
+    const resource =
+      SVG_RESOURCE_LEAVES.has(tag) || SVG_URL_ATTRS.some((name) => hasOwnAttr(node, name));
     if (node.childNodes.length === 0 && !resource) return f;
     const s = styleOnce(f);
     f.faded = parent.faded || isZeroOpacity(s);
@@ -980,7 +1182,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     const none = s !== null && s.display === 'none';
     // An unseen resource loads nothing — withheld before definition retention
     // is computed, so a hidden <use> keeps no symbol alive.
-    if (resource && (none || f.hideText || !overlaps(deps.rectOf(live), parent.clip))) stripUrlAttrs(node);
+    if (resource && (none || f.hideText || !overlaps(deps.rectOf(live), parent.clip)))
+      stripUrlAttrs(node);
     if (none) {
       f.svgHidden = true;
     } else if (tag === 'text') {
@@ -996,7 +1199,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
   const enter = (node: SnElement, outer: Frame): Verdict | Frame => {
     const tag = node.tagName.toLowerCase();
     if (REMOVE.has(tag)) return 'remove';
-    if (hasOwn(node.attributes, SKIP_ATTR) && node.attributes[SKIP_ATTR] === 'true') return 'remove';
+    if (hasOwn(node.attributes, SKIP_ATTR) && node.attributes[SKIP_ATTR] === 'true')
+      return 'remove';
     const live = liveElement(node);
     if (live !== null && live.getAttribute(SKIP_ATTR) === 'true') return 'remove';
     // Slotted content is judged in its composed-tree context (codex r7 F1).
@@ -1017,11 +1221,18 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     if (sensitive) {
       sensitiveStyle = deps.styleOf(live);
       const judgedHere =
-        parent.mode !== 'svg' && parent.mode !== 'svgContent' && parent.mode !== 'selectContent' && !parent.closedSelect &&
-        !ALWAYS_VISIBLE.has(tag) && !NEVER_PRUNE.has(tag) && tag !== 'svg';
-      if (sensitiveStyle === null || sensitiveStyle.display !== 'contents' || !judgedHere) return maskBlocked(node, live, parent);
+        parent.mode !== 'svg' &&
+        parent.mode !== 'svgContent' &&
+        parent.mode !== 'selectContent' &&
+        !parent.closedSelect &&
+        !ALWAYS_VISIBLE.has(tag) &&
+        !NEVER_PRUNE.has(tag) &&
+        tag !== 'svg';
+      if (sensitiveStyle === null || sensitiveStyle.display !== 'contents' || !judgedHere)
+        return maskBlocked(node, live, parent);
     }
-    if (parent.mode === 'svg' || parent.mode === 'svgContent') return enterSvgContent(node, tag, live, parent);
+    if (parent.mode === 'svg' || parent.mode === 'svgContent')
+      return enterSvgContent(node, tag, live, parent);
     if (parent.closedSelect || parent.mode === 'selectContent') {
       const inSelect = frame(node, 'selectContent', live, null, parent);
       inSelect.hideText = parent.hideText;
@@ -1032,7 +1243,11 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
         // for masked inputs) and show the masked value in its place.
         node.attributes.selected = true;
         let first: SnNode | undefined;
-        for (const child of node.childNodes) if (child.type === SN_TEXT) { first = child; break; }
+        for (const child of node.childNodes)
+          if (child.type === SN_TEXT) {
+            first = child;
+            break;
+          }
         if (first !== undefined && first.type === SN_TEXT) {
           withhold(first, { textContent: MASK_PLACEHOLDER });
           withhold(node, { childNodes: [first] });
@@ -1066,7 +1281,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     // An option of a visible listbox (closed selects are handled above): rrweb
     // drops `selected` for masked inputs, so restore the live selection, as
     // the closed-select branch does for its shown option (codex r11 F2).
-    if (tag === 'option' && (live as HTMLOptionElement).selected === true) node.attributes.selected = true;
+    if (tag === 'option' && (live as HTMLOptionElement).selected === true)
+      node.attributes.selected = true;
     const judged = frame(node, 'judge', live, rect, parent);
     if (sensitiveStyle !== null) judged.style = sensitiveStyle;
     judgeBox(judged, parent);
@@ -1074,7 +1290,11 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       // Pin the measured box: blanked options would otherwise narrow it.
       judged.closedSelect = true;
       const size = deps.sizeOf(live, rect);
-      const pin = important(['box-sizing:border-box', `width:${px(size.width)}`, `height:${px(size.height)}`]);
+      const pin = important([
+        'box-sizing:border-box',
+        `width:${px(size.width)}`,
+        `height:${px(size.height)}`,
+      ]);
       const own = hasOwn(node.attributes, 'style') ? node.attributes.style : undefined;
       node.attributes.style = typeof own === 'string' && own !== '' ? `${pin};${own}` : pin;
     }
@@ -1125,7 +1345,10 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       const isItem = parentStyle !== null && FLEX_OR_GRID.has(parentStyle.display);
       const margins = isItem
         ? { top: num(style.marginTop), bottom: num(style.marginBottom) }
-        : { top: collapsedMargin(node, style, 'top'), bottom: collapsedMargin(node, style, 'bottom') };
+        : {
+            top: collapsedMargin(node, style, 'top'),
+            bottom: collapsedMargin(node, style, 'bottom'),
+          };
       css = placeholderStyle(style, deps.sizeOf(live, rect), false, margins);
       prunedFlow.set(node, { style, top: margins.top, bottom: margins.bottom });
     }
@@ -1176,7 +1399,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       }
       const live = deps.nodeFor(child.id);
       // No live text to measure: it cannot be shown to be seen.
-      const rects = live === null ? [] : rectsSafe(() => (deps.textRectsOf ?? defaultTextRectsOf)(live), []);
+      const rects =
+        live === null ? [] : rectsSafe(() => (deps.textRectsOf ?? defaultTextRectsOf)(live), []);
       if (rects.some((r) => overlaps(r, f.clip))) {
         next.push(child);
         continue;
@@ -1224,7 +1448,8 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
         // re-homes this SVG under its placeholder). Everything else in it is
         // withheld — and hidden: nothing focused in it may be named.
         const keptDefs = new Set<SnNode>(defs);
-        for (const child of node.childNodes) if (!keptDefs.has(child)) collectIds(child, result.hiddenIds);
+        for (const child of node.childNodes)
+          if (!keptDefs.has(child)) collectIds(child, result.hiddenIds);
         withhold(node, { childNodes: defs });
         f.carry = [node];
         return 'keep';
@@ -1240,7 +1465,10 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     // neither can be replaced by a same-box placeholder. <svg> roots and
     // replaced elements (img, video, …) are atomic boxes even when inline, so
     // they are pruned to an inline-block of the same size (rulings 8, S20).
-    if (style !== null && (style.display === 'contents' || (style.display === 'inline' && !isReplaced(node)))) {
+    if (
+      style !== null &&
+      (style.display === 'contents' || (style.display === 'inline' && !isReplaced(node)))
+    ) {
       stripContentAttrs(node, withhold);
       if (style.display === 'inline') blankInline(f);
       else blankUnseenText(f);
@@ -1249,7 +1477,12 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
     return prune(f, parent);
   };
 
-  const settle = (parent: Frame, child: SnNode, verdict: Verdict, childFrame: Frame | null): void => {
+  const settle = (
+    parent: Frame,
+    child: SnNode,
+    verdict: Verdict,
+    childFrame: Frame | null,
+  ): void => {
     if (verdict === 'remove') return;
     parent.kept.push(child);
     if (verdict === 'visible') {
@@ -1275,8 +1508,14 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
       } else if (child.type === SN_DOCUMENT) {
         stack.push(frame(child, 'transparent', null, null, top));
       } else {
-        if (child.type === SN_TEXT && (top.blankText || top.maskText || top.hideText) && !isBlankText(child.textContent)) {
-          withhold(child, { textContent: top.blankText ? '' : child.textContent.replace(/\S/g, '•') });
+        if (
+          child.type === SN_TEXT &&
+          (top.blankText || top.maskText || top.hideText) &&
+          !isBlankText(child.textContent)
+        ) {
+          withhold(child, {
+            textContent: top.blankText ? '' : child.textContent.replace(/\S/g, '•'),
+          });
         } else if (child.type === SN_TEXT && !isBlankText(child.textContent)) {
           // Bare text slotted into a shadow tree: masked when its slot is
           // sensitive, hidden or clips it away (codex r7 F1).
@@ -1285,8 +1524,12 @@ export function pruneSnapshot(root: SnParent, deps: PruneDeps): PruneResult {
           if (v !== null) {
             const clip = intersect(top.clip, v.clip);
             const unseen =
-              v.sensitive || v.hidden || top.faded ||
-              !rectsSafe(() => (deps.textRectsOf ?? defaultTextRectsOf)(liveText as Node), []).some((r) => overlaps(r, clip));
+              v.sensitive ||
+              v.hidden ||
+              top.faded ||
+              !rectsSafe(() => (deps.textRectsOf ?? defaultTextRectsOf)(liveText as Node), []).some(
+                (r) => overlaps(r, clip),
+              );
             if (unseen) {
               if (v.sensitive) result.masked = true;
               withhold(child, { textContent: child.textContent.replace(/\S/g, '•') });
@@ -1375,7 +1618,10 @@ function dropUnreferencedDefinitions(root: SnParent, withhold: Withhold): void {
   while (stack.length > 0) {
     const { node, parent, unit, inDefs } = stack.pop() as Item;
     if (node.type === SN_TEXT) {
-      if (node.isStyle === true || (parent !== null && parent.type === SN_ELEMENT && parent.tagName.toLowerCase() === 'style')) {
+      if (
+        node.isStyle === true ||
+        (parent !== null && parent.type === SN_ELEMENT && parent.tagName.toLowerCase() === 'style')
+      ) {
         addUrlRefs(node.textContent, unit?.refs ?? outsideRefs);
       }
       continue;
@@ -1385,14 +1631,24 @@ function dropUnreferencedDefinitions(root: SnParent, withhold: Withhold): void {
     let childInDefs = false;
     if (node.type === SN_ELEMENT) {
       const tag = node.tagName.toLowerCase();
-      if (own === null && node.isSVG === true && parent !== null && tag !== 'style' && (inDefs || (SVG_DEFS.has(tag) && tag !== 'defs'))) {
+      if (
+        own === null &&
+        node.isSVG === true &&
+        parent !== null &&
+        tag !== 'style' &&
+        (inDefs || (SVG_DEFS.has(tag) && tag !== 'defs'))
+      ) {
         own = { node, parent, ids: [], refs: new Set() };
         units.push(own);
       }
       if (own === null && node.isSVG === true && tag === 'defs') {
         childInDefs = true;
         // Bare text directly in <defs> never renders.
-        withhold(node, { childNodes: node.childNodes.filter((c) => c.type !== SN_TEXT || isBlankText(c.textContent)) });
+        withhold(node, {
+          childNodes: node.childNodes.filter(
+            (c) => c.type !== SN_TEXT || isBlankText(c.textContent),
+          ),
+        });
       }
       if (own !== null) {
         const id = hasOwn(node.attributes, 'id') ? node.attributes.id : undefined;
@@ -1401,18 +1657,24 @@ function dropUnreferencedDefinitions(root: SnParent, withhold: Withhold): void {
       addNodeRefs(node, own?.refs ?? outsideRefs);
     }
     for (let i = node.childNodes.length - 1; i >= 0; i--) {
-      stack.push({ node: node.childNodes[i] as SnNode, parent: node, unit: own, inDefs: childInDefs });
+      stack.push({
+        node: node.childNodes[i] as SnNode,
+        parent: node,
+        unit: own,
+        inDefs: childInDefs,
+      });
     }
   }
   if (units.length === 0) return;
 
   // Closure: a kept definition's own references keep more definitions.
   const byId = new Map<string, DefUnit[]>();
-  for (const u of units) for (const id of u.ids) {
-    const list = byId.get(id);
-    if (list === undefined) byId.set(id, [u]);
-    else list.push(u);
-  }
+  for (const u of units)
+    for (const id of u.ids) {
+      const list = byId.get(id);
+      if (list === undefined) byId.set(id, [u]);
+      else list.push(u);
+    }
   const kept = new Set<DefUnit>();
   const pending: string[] = [];
   outsideRefs.forEach((id) => pending.push(id));
@@ -1458,4 +1720,3 @@ function dropStrayText(def: SnElement, withhold: Withhold): void {
     withhold(el, { childNodes: next });
   }
 }
-

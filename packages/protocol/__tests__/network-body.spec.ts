@@ -31,8 +31,12 @@ describe('NetworkBodyEntry schema + parity fixture', () => {
   });
 
   it('rejects an invalid skip reason', () => {
-    expect(() => NetworkBodyEntrySchema.parse({ ref: 1, t: 1, resBodySkipped: 'not-a-real-reason' })).toThrow();
-    expect(() => NetworkBodyEntrySchema.parse({ ref: 1, t: 1, reqBodySkipped: 'not-a-real-reason' })).toThrow();
+    expect(() =>
+      NetworkBodyEntrySchema.parse({ ref: 1, t: 1, resBodySkipped: 'not-a-real-reason' }),
+    ).toThrow();
+    expect(() =>
+      NetworkBodyEntrySchema.parse({ ref: 1, t: 1, reqBodySkipped: 'not-a-real-reason' }),
+    ).toThrow();
   });
 
   it('payload.networkBodies is typed on the envelope (bad entry rejected)', () => {

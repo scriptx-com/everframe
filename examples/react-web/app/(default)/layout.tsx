@@ -1,22 +1,18 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-"use client";
+'use client';
 
-import type { ReactNode } from "react";
-import { EverframeProvider } from "@everframe/react";
-import { SiteNav } from "../components/SiteNav";
-import { ReportFab } from "../components/ReportFab";
-import {
-  SessionProvider,
-  UserSwitcher,
-  useSession,
-} from "../components/UserSwitcher";
-import "../globals.css";
+import type { ReactNode } from 'react';
+import { EverframeProvider } from '@everframe/react';
+import { SiteNav } from '../components/SiteNav';
+import { ReportFab } from '../components/ReportFab';
+import { SessionProvider, UserSwitcher, useSession } from '../components/UserSwitcher';
+import '../globals.css';
 
 // Mint a real key from /admin/ → app detail → "Create SDK key" and put it in
 // examples/react-web/.env.local as NEXT_PUBLIC_EVERFRAME_KEY=evf_live_…
 // `txx_live_test` is the placeholder accepted only by the e2e stub server.
-const EVERFRAME_KEY = process.env.NEXT_PUBLIC_EVERFRAME_KEY ?? "txx_live_test";
+const EVERFRAME_KEY = process.env.NEXT_PUBLIC_EVERFRAME_KEY ?? 'txx_live_test';
 
 /**
  * Recognition is ONE PROP. It used to be <IdentityBridge/> — a component whose
@@ -40,7 +36,7 @@ function Shell({ children }: { children: ReactNode }) {
         vitals: { enabled: true },
       }}
       identity={{
-        endpoint: "/api/everframe-identity",
+        endpoint: '/api/everframe-identity',
         key: user?.id,
         headers: (): Record<string, string> => {
           const token = getAccessToken();

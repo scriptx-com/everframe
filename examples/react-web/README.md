@@ -158,12 +158,12 @@ recognition can never fail or stall a report.
   - `/playback/hls` — hls.js VOD + live through `trackPlayer({ hls })`; Safari
     falls back to native HLS with no integration
   - `/playback/dash` — Shaka Player over DASH through `trackPlayer({ shaka })`
-  The HLS/DASH streams are public third-party test streams and will rot;
-  override `NEXT_PUBLIC_DEMO_HLS_URL`, `NEXT_PUBLIC_DEMO_HLS_LIVE_URL`, or
-  `NEXT_PUBLIC_DEMO_DASH_URL` in the repo-root `.env` (`gen-env-local.sh`
-  projects them into `.env.local`).
+    The HLS/DASH streams are public third-party test streams and will rot;
+    override `NEXT_PUBLIC_DEMO_HLS_URL`, `NEXT_PUBLIC_DEMO_HLS_LIVE_URL`, or
+    `NEXT_PUBLIC_DEMO_DASH_URL` in the repo-root `.env` (`gen-env-local.sh`
+    projects them into `.env.local`).
 - `/strict-csp` — minimal fixture under `Content-Security-Policy: default-src 'self';
-  script-src 'self' 'nonce-X'; style-src 'self' 'nonce-X'`
+script-src 'self' 'nonce-X'; style-src 'self' 'nonce-X'`
 
 ## The floating report button
 

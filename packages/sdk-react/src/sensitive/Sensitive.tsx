@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
-import { useEffect, useRef, type ReactNode, type CSSProperties, type JSX, type RefObject } from 'react';
+import {
+  useEffect,
+  useRef,
+  type ReactNode,
+  type CSSProperties,
+  type JSX,
+  type RefObject,
+} from 'react';
 import { sensitiveRegistry } from '@everframe/web';
 import type { Rect } from '@everframe/sdk-core';
 

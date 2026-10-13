@@ -37,7 +37,9 @@ export function CollapsiblePanel({
   children,
 }: CollapsiblePanelProps): JSX.Element {
   const [open, setOpen] = useState(false);
-  const cls = ['everframe-panel', !included && 'everframe-panel-excluded'].filter(Boolean).join(' ');
+  const cls = ['everframe-panel', !included && 'everframe-panel-excluded']
+    .filter(Boolean)
+    .join(' ');
   return (
     <section className={cls} data-testid={testId}>
       <div className="everframe-panel-header">

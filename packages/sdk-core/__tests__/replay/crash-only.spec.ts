@@ -88,27 +88,43 @@ describe('per-kind replay sampling', () => {
   });
 
   it('a crash-only session at the default rate never records, even with the lowest draw', () => {
-    const { lc, calls } = wire(() => cfg(1), () => 'crashOnly', () => 0);
+    const { lc, calls } = wire(
+      () => cfg(1),
+      () => 'crashOnly',
+      () => 0,
+    );
     expect(lc.tryStart()).toBe(false);
     expect(lc.state).toBe('IDLE');
     expect(calls).toEqual([]);
   });
 
   it('a crash-only session records when its draw is under crashOnlySamplingRate', () => {
-    const { lc } = wire(() => cfg(1, 0.05), () => 'crashOnly', () => 0.03);
+    const { lc } = wire(
+      () => cfg(1, 0.05),
+      () => 'crashOnly',
+      () => 0.03,
+    );
     expect(lc.tryStart()).toBe(true);
     expect(lc.state).toBe('BUFFERING');
   });
 
   it('a crash-only session ignores samplingRate', () => {
-    const { lc } = wire(() => cfg(1, 0.05), () => 'crashOnly', () => 0.5);
+    const { lc } = wire(
+      () => cfg(1, 0.05),
+      () => 'crashOnly',
+      () => 0.5,
+    );
     expect(lc.tryStart()).toBe(false);
   });
 
   it('an upgrade starts recording against samplingRate with the same draw', () => {
     const random = vi.fn(() => 0.3);
     let kind: ReplaySessionKind = 'crashOnly';
-    const { lc } = wire(() => cfg(0.5, 0), () => kind, random);
+    const { lc } = wire(
+      () => cfg(0.5, 0),
+      () => kind,
+      random,
+    );
 
     expect(lc.tryStart()).toBe(false);
     kind = 'upgraded';
@@ -120,7 +136,11 @@ describe('per-kind replay sampling', () => {
 
   it('an upgrade whose draw is above both rates stays off', () => {
     let kind: ReplaySessionKind = 'crashOnly';
-    const { lc } = wire(() => cfg(0.5, 0), () => kind, () => 0.7);
+    const { lc } = wire(
+      () => cfg(0.5, 0),
+      () => kind,
+      () => 0.7,
+    );
     lc.tryStart();
     kind = 'upgraded';
     expect(lc.tryStart()).toBe(false);
@@ -129,7 +149,11 @@ describe('per-kind replay sampling', () => {
 
   it('an upgrade never stops or restarts a recording that is running', () => {
     let kind: ReplaySessionKind = 'crashOnly';
-    const { lc, calls } = wire(() => cfg(1, 0.05), () => kind, () => 0.01);
+    const { lc, calls } = wire(
+      () => cfg(1, 0.05),
+      () => kind,
+      () => 0.01,
+    );
     expect(lc.tryStart()).toBe(true);
     kind = 'upgraded';
     expect(lc.tryStart()).toBe(false); // already BUFFERING: guarded no-op
@@ -142,7 +166,11 @@ describe('per-kind replay sampling', () => {
     // kind compares against the higher rate, so a restart after a forced
     // discard (identity change) still records instead of stopping.
     let kind: ReplaySessionKind = 'crashOnly';
-    const { lc, calls } = wire(() => cfg(0.01, 0.05), () => kind, () => 0.03);
+    const { lc, calls } = wire(
+      () => cfg(0.01, 0.05),
+      () => kind,
+      () => 0.03,
+    );
     expect(lc.tryStart()).toBe(true);
     kind = 'upgraded';
     lc.forceDiscard();
@@ -154,7 +182,11 @@ describe('per-kind replay sampling', () => {
   it('an upgrade inherits the crash-only admission after both rates drop', () => {
     let kind: ReplaySessionKind = 'crashOnly';
     let config = cfg(0.01, 0.05);
-    const { lc } = wire(() => config, () => kind, () => 0.03);
+    const { lc } = wire(
+      () => config,
+      () => kind,
+      () => 0.03,
+    );
     expect(lc.tryStart()).toBe(true);
     config = cfg(0.01, 0.01); // neither live rate admits the draw any more
     kind = 'upgraded';
@@ -163,13 +195,21 @@ describe('per-kind replay sampling', () => {
   });
 
   it('an upgraded session records at the crash-only rate when samplingRate is lower', () => {
-    const { lc } = wire(() => cfg(0.01, 0.05), () => 'upgraded', () => 0.03);
+    const { lc } = wire(
+      () => cfg(0.01, 0.05),
+      () => 'upgraded',
+      () => 0.03,
+    );
     expect(lc.tryStart()).toBe(true);
   });
 
   it('keeps an admitted kind admitted when its rate later drops', () => {
     let rate = 0.5;
-    const { lc } = wire(() => cfg(rate), () => 'report', () => 0.3);
+    const { lc } = wire(
+      () => cfg(rate),
+      () => 'report',
+      () => 0.3,
+    );
     expect(lc.tryStart()).toBe(true);
     rate = 0.1; // the draw no longer passes the live rate
     lc.forceDiscard(); // identity change: back to IDLE
@@ -179,7 +219,11 @@ describe('per-kind replay sampling', () => {
   it('keeps the crash-only decision separate from the report decision', () => {
     let kind: ReplaySessionKind = 'report';
     let reportRate = 0.5;
-    const { lc } = wire(() => cfg(reportRate, 0), () => kind, () => 0.3);
+    const { lc } = wire(
+      () => cfg(reportRate, 0),
+      () => kind,
+      () => 0.3,
+    );
     expect(lc.tryStart()).toBe(true);
     lc.forceDiscard();
     // Not a real transition (an upgrade is one-way); it proves the report
@@ -194,7 +238,11 @@ describe('per-kind replay sampling', () => {
   it('a sampled-out crash-only session is admitted when its rate widens past the draw', () => {
     let crashRate = 0.01;
     const random = vi.fn(() => 0.04);
-    const { lc } = wire(() => cfg(1, crashRate), () => 'crashOnly', random);
+    const { lc } = wire(
+      () => cfg(1, crashRate),
+      () => 'crashOnly',
+      random,
+    );
     expect(lc.tryStart()).toBe(false);
     crashRate = 0.05;
     expect(lc.tryStart()).toBe(true);

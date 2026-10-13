@@ -151,7 +151,13 @@ describe('report.submit shots', () => {
       title: 't',
       description: { text: 'd', redactions: [] },
       annotations: [],
-      includes: { logs: true, network: true, uiTree: true, metadata: true, screenshot: true as const },
+      includes: {
+        logs: true,
+        network: true,
+        uiTree: true,
+        metadata: true,
+        screenshot: true as const,
+      },
     };
     expect(relay.RelayMessage.parse(msg)).toEqual(msg);
   });
@@ -163,7 +169,13 @@ describe('report.submit shots', () => {
       title: 't',
       description: { text: 'd', redactions: [] },
       annotations: [],
-      includes: { logs: true, network: true, uiTree: true, metadata: true, screenshot: true as const },
+      includes: {
+        logs: true,
+        network: true,
+        uiTree: true,
+        metadata: true,
+        screenshot: true as const,
+      },
       shots: [
         {
           shot_id: 's2',

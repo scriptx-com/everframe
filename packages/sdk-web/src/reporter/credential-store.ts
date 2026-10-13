@@ -262,7 +262,8 @@ export function makeWebInstallIdSupplier(
       // and return nil/null for `"10abc"`; matching that strictness here is
       // deliberate platform parity, not defensive noise, so web isn't the
       // one platform that disagrees on what counts as a valid marker.
-      const storedDay = stored !== null && /^\d+$/.test(stored) ? Number.parseInt(stored, 10) : null;
+      const storedDay =
+        stored !== null && /^\d+$/.test(stored) ? Number.parseInt(stored, 10) : null;
       if (storedDay !== null && storedDay === today) return null;
       const id = deriveWebInstallId(scope);
       if (!id) return null;

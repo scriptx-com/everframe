@@ -19,7 +19,9 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function T
   const generatedIdRef = useRef<string>(`everframe-input-${Math.random().toString(36).slice(2)}`);
   const inputId = id ?? generatedIdRef.current;
   const helperId = errorText ? `${inputId}-helper` : undefined;
-  const cls = ['everframe-input', errorText && 'everframe-input-error', className].filter(Boolean).join(' ');
+  const cls = ['everframe-input', errorText && 'everframe-input-error', className]
+    .filter(Boolean)
+    .join(' ');
   return (
     <div className="everframe-field">
       {label ? (

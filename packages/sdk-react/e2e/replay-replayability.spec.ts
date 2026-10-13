@@ -32,7 +32,9 @@ test('REPLAY-01: frozen window replays to the final frame headless', async ({ pa
   );
   // Inject the rrweb UMD bundle — exposes window.rrweb.{record,Replayer,EventType}.
   await page.addScriptTag({ content: rrwebUmd });
-  await page.waitForFunction(() => typeof (window as unknown as { rrweb?: unknown }).rrweb !== 'undefined');
+  await page.waitForFunction(
+    () => typeof (window as unknown as { rrweb?: unknown }).rrweb !== 'undefined',
+  );
 
   // Record a short rolling buffer, mutate the DOM, then freeze + return events.
   const frozenEvents = await page.evaluate(async () => {
@@ -68,9 +70,16 @@ test('REPLAY-01: frozen window replays to the final frame headless', async ({ pa
   // Feed the frozen window into a headless Replayer and assert it reaches the
   // final frame WITHOUT "no full snapshot".
   const result = await page.evaluate(async (events) => {
-    const rr = (window as unknown as {
-      rrweb: { Replayer: new (events: unknown[], cfg?: unknown) => { play: () => void; on: (ev: string, cb: () => void) => void } };
-    }).rrweb;
+    const rr = (
+      window as unknown as {
+        rrweb: {
+          Replayer: new (
+            events: unknown[],
+            cfg?: unknown,
+          ) => { play: () => void; on: (ev: string, cb: () => void) => void };
+        };
+      }
+    ).rrweb;
     let errored: string | null = null;
     const orig = console.error;
     console.error = (...args: unknown[]) => {

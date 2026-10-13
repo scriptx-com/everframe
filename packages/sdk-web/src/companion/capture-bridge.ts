@@ -48,7 +48,13 @@ import {
   type ShotStash,
   type StashedShotCapture,
 } from './shot-stash.js';
-import { captureSubmitIdentity, decodeImageBlob, reportFailed, safe, type StashedCapture } from './bridge-helpers.js';
+import {
+  captureSubmitIdentity,
+  decodeImageBlob,
+  reportFailed,
+  safe,
+  type StashedCapture,
+} from './bridge-helpers.js';
 import { captureShotVia, type ShotCapture } from '../capture/shot-capture.js';
 import { DEGRADED_REASONS } from '../internal/degraded-reasons.js';
 
@@ -258,7 +264,14 @@ export async function handleCompanionReportRequest(
     // phones already parse (ruling S25c).
     const tvPathActive = safe(() => host.adapter.__tvSnapshotPathActive?.() === true, false);
     if (shot?.image !== undefined) {
-      await shipCapture(correlationId, reply, shot.image, ticket, counts, tvPathActive ? { degradedReason: shot.degradedReason } : undefined);
+      await shipCapture(
+        correlationId,
+        reply,
+        shot.image,
+        ticket,
+        counts,
+        tvPathActive ? { degradedReason: shot.degradedReason } : undefined,
+      );
       return;
     }
     // This used to `return` silently, stranding the phone in "capturing…"
@@ -365,7 +378,9 @@ async function shipCapture(
     toggles: IMAGE_TOGGLES,
     counts: countsFrame(counts),
     ...(snapshotPath !== undefined ? { outcome: 'image' as const } : {}),
-    ...(snapshotPath?.degradedReason !== undefined ? { degraded_reason: snapshotPath.degradedReason } : {}),
+    ...(snapshotPath?.degradedReason !== undefined
+      ? { degraded_reason: snapshotPath.degradedReason }
+      : {}),
   };
 
   ws.send(assembled);
@@ -377,7 +392,13 @@ async function shipCapture(
 // still parses the frame, but it must report the truth: a `true` here would
 // have the phone echo it back in `includes`, and an artifact that cannot exist
 // has no business claiming it was on.
-const IMAGE_TOGGLES = { logs: true, network: true, uiTree: false, metadata: true, screenshot: true } as const;
+const IMAGE_TOGGLES = {
+  logs: true,
+  network: true,
+  uiTree: false,
+  metadata: true,
+  screenshot: true,
+} as const;
 
 function countsFrame(counts: ReportCounts): ReportAssembled['counts'] {
   return {
@@ -423,8 +444,15 @@ function shipImageless(
     toggles: IMAGE_TOGGLES,
     counts: countsFrame(counts),
     ...(snapshot !== undefined
-      ? { outcome: 'snapshot' as const, degraded_reason: reason, snapshot: { byte_length: snapshot.byteLength, sha256: snapshot.sha256 } }
-      : { outcome: 'unavailable' as const, degraded_reason: DEGRADED_REASONS.screenshot_unavailable }),
+      ? {
+          outcome: 'snapshot' as const,
+          degraded_reason: reason,
+          snapshot: { byte_length: snapshot.byteLength, sha256: snapshot.sha256 },
+        }
+      : {
+          outcome: 'unavailable' as const,
+          degraded_reason: DEGRADED_REASONS.screenshot_unavailable,
+        }),
   };
   ws.send(assembled);
 }
@@ -499,7 +527,8 @@ function maybeRunSubmit(
   const shotParts = new Map(pendingShotParts);
   resetSubmitFraming();
   const stashed = requestStash.get(msg.correlation_id) ?? null;
-  const stash = activeShotStash?.correlationId === msg.correlation_id ? activeShotStash.stash : null;
+  const stash =
+    activeShotStash?.correlationId === msg.correlation_id ? activeShotStash.stash : null;
   // Codex round-7 finding 2 — the ownership ticket is taken HERE, before the
   // lazy import starts: a host unmounted while the chunk loads is no longer
   // the published one, and a ticket taken after the import would mistake it
@@ -508,7 +537,8 @@ function maybeRunSubmit(
   // Codex round-8 finding 2 — and WHO the report is from, at the same
   // moment: user and extra read now, the identity-token capture started now.
   // An account switch while the chunk loads cannot re-attribute it.
-  const identity = host !== null && !__isCompanionKilled(ticket) ? captureSubmitIdentity(host) : null;
+  const identity =
+    host !== null && !__isCompanionKilled(ticket) ? captureSubmitIdentity(host) : null;
   // Lazy chunk (companion-submit-*.js): the submit body is not always-loaded
   // weight. The two-argument `then` keeps the load-failure answer apart from
   // the submit itself, which answers the phone on every path of its own — a
@@ -786,10 +816,13 @@ async function capturePreviewFrame(host: CompanionHost): Promise<PreviewFrameCap
  */
 async function captureShotFull(host: CompanionHost): Promise<StashedShotCapture> {
   const shot = await captureShotVia(host.adapter);
-  if (shot.image === undefined) throw new Error(shot.degradedReason ?? DEGRADED_REASONS.screenshot_unavailable);
+  if (shot.image === undefined)
+    throw new Error(shot.degradedReason ?? DEGRADED_REASONS.screenshot_unavailable);
   const image = shot.image;
   const mime: StashedShotCapture['mime'] =
-    image.blob.type === 'image/webp' || image.blob.type === 'image/jpeg' ? image.blob.type : 'image/png';
+    image.blob.type === 'image/webp' || image.blob.type === 'image/jpeg'
+      ? image.blob.type
+      : 'image/png';
   return {
     bytes: await readBlobArrayBuffer(image.blob),
     mime,

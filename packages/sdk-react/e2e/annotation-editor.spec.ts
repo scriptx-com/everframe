@@ -88,9 +88,7 @@ test('pointer tool selects a drawn shape by clicking it', async ({ page }) => {
   await expect(page.getByTestId('tool-delete')).toBeDisabled();
 });
 
-test('clicking a shape with a drawing tool selects it; empty click deselects', async ({
-  page,
-}) => {
+test('clicking a shape with a drawing tool selects it; empty click deselects', async ({ page }) => {
   await openEditor(page);
   await page.getByTestId('tool-rect').click();
   await dragOnStage(page, 0.2, 0.2, 0.5, 0.4);

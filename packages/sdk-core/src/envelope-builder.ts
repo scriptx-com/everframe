@@ -58,7 +58,8 @@ export function buildEnvelope(input: BuildEnvelopeInput): ReportEnvelope {
   // Deprecation window (spec §1): legacy logs/network derived from the SAME
   // trimmed chain when not supplied directly. Derived arrays are already
   // budget-bound by trimBreadcrumbs — deliberately NO second trimLogs pass.
-  const derivedLogs = breadcrumbs && !input.logs ? deriveLogsFromBreadcrumbs(breadcrumbs) : undefined;
+  const derivedLogs =
+    breadcrumbs && !input.logs ? deriveLogsFromBreadcrumbs(breadcrumbs) : undefined;
   const derivedNetwork =
     breadcrumbs && !input.network ? deriveNetworkFromBreadcrumbs(breadcrumbs) : undefined;
   const logs = input.logs ?? (derivedLogs?.length ? derivedLogs : undefined);
@@ -80,7 +81,7 @@ export function buildEnvelope(input: BuildEnvelopeInput): ReportEnvelope {
     (breadcrumbs ?? [])
       .filter((c) => c.kind === 'network')
       .map((c) => reqIdOf(c.data))
-      .filter((id): id is number => id !== undefined)
+      .filter((id): id is number => id !== undefined),
   );
   const filteredBodies =
     input.networkBodies && !excludedArtifacts.includes('network')
@@ -93,9 +94,7 @@ export function buildEnvelope(input: BuildEnvelopeInput): ReportEnvelope {
   if (logs && !excludedArtifacts.includes('logs')) includedArtifacts.push('logs');
   if (network && !excludedArtifacts.includes('network')) includedArtifacts.push('network');
   if (networkBodies) includedArtifacts.push('networkBodies');
-  if (
-    input.attachments.some((a) => a.kind === 'screenshot' || a.kind === 'annotated-screenshot')
-  ) {
+  if (input.attachments.some((a) => a.kind === 'screenshot' || a.kind === 'annotated-screenshot')) {
     if (!excludedArtifacts.includes('screenshot')) includedArtifacts.push('screenshot');
   }
 
@@ -133,7 +132,9 @@ export function buildEnvelope(input: BuildEnvelopeInput): ReportEnvelope {
       ...(input.focus ? { focus: input.focus } : {}),
       ...(breadcrumbs ? { breadcrumbs } : {}),
       ...(logs && includedArtifacts.includes('logs') ? { logs: logs as unknown[] } : {}),
-      ...(network && includedArtifacts.includes('network') ? { network: network as unknown[] } : {}),
+      ...(network && includedArtifacts.includes('network')
+        ? { network: network as unknown[] }
+        : {}),
       ...(networkBodies ? { networkBodies } : {}),
       ...(input.draft.annotations.length ? { annotations: input.draft.annotations } : {}),
       ...(input.draft.redactions.length ? { redactions: input.draft.redactions } : {}),

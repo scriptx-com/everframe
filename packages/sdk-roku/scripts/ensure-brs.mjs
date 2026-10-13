@@ -17,7 +17,12 @@ import { fileURLToPath } from 'node:url';
 
 const pkg = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const toolDir = path.join(pkg, 'test-tools');
-const bin = path.join(toolDir, 'node_modules', '.bin', process.platform === 'win32' ? 'brs-cli.cmd' : 'brs-cli');
+const bin = path.join(
+  toolDir,
+  'node_modules',
+  '.bin',
+  process.platform === 'win32' ? 'brs-cli.cmd' : 'brs-cli',
+);
 const committedLock = path.join(toolDir, 'pnpm-lock.yaml');
 const installedLock = path.join(toolDir, 'node_modules', '.pnpm', 'lock.yaml');
 
@@ -46,7 +51,9 @@ const args = [
   '--frozen-lockfile',
 ];
 
-process.stdout.write(`[sdk-roku] installing brs-cli into ${path.relative(process.cwd(), toolDir) || '.'}\n`);
+process.stdout.write(
+  `[sdk-roku] installing brs-cli into ${path.relative(process.cwd(), toolDir) || '.'}\n`,
+);
 const result = spawnSync(command, args, {
   cwd: toolDir,
   stdio: 'inherit',

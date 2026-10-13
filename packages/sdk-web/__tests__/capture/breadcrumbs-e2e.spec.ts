@@ -38,7 +38,10 @@ describe('breadcrumbs E2E slice (capture → envelope)', () => {
     uninstalls.push(installLifecycleCrumbs(sink, gate));
     uninstalls.push(installTapCrumbs(sink, gate, () => []));
     uninstalls.push(installConsolePatcher({ crumbSink: sink, crumbGate: gate }));
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('ok', { status: 200 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('ok', { status: 200 })),
+    );
     uninstalls.push(installFetchPatcher({ crumbSink: sink, crumbGate: gate }));
 
     // One event per auto kind.
@@ -61,11 +64,21 @@ describe('breadcrumbs E2E slice (capture → envelope)', () => {
     expect(frozen.filter((c) => c.kind === 'tap')).toHaveLength(1); // post-freeze tap excluded
 
     const draft: ReportDraft = {
-      title: 't', description: 'd', excludedArtifacts: [], annotations: [], redactions: [],
+      title: 't',
+      description: 'd',
+      excludedArtifacts: [],
+      annotations: [],
+      redactions: [],
     };
     const bundle: CaptureBundle = {
-      screenshotBlob: null, screenshotSha256: null, screenshotWidth: 0, screenshotHeight: 0,
-      focused: null, logs: [], network: [], metadata: null,
+      screenshotBlob: null,
+      screenshotSha256: null,
+      screenshotWidth: 0,
+      screenshotHeight: 0,
+      focused: null,
+      logs: [],
+      network: [],
+      metadata: null,
       breadcrumbs: frozen,
       breadcrumbTrim: { byteBudget: 16384, consoleEntryCap: 1024 },
     };

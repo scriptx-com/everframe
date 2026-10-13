@@ -29,7 +29,8 @@ describe('boundJson', () => {
   });
 
   it('marks cyclic or BigInt input as unserializable', () => {
-    const cyc: Record<string, unknown> = {}; cyc.self = cyc;
+    const cyc: Record<string, unknown> = {};
+    cyc.self = cyc;
     expect(boundJson(cyc)).toEqual({ data: { unserializable: true }, truncated: true });
     expect(boundJson(10n)).toEqual({ data: { unserializable: true }, truncated: true });
   });
@@ -42,7 +43,7 @@ describe('boundJson', () => {
   // own reference. If the customer mutated it afterwards, the collector's
   // held entry mutated right along with it, silently corrupting an already-
   // bounded entry. `boundJson` must hand back a defensive copy instead.
-  it('returns a defensive copy for the under-cap path, not the caller\'s own reference', () => {
+  it("returns a defensive copy for the under-cap path, not the caller's own reference", () => {
     const original = { a: 1, nested: { b: 2 } };
     const out = boundJson(original);
     expect(out.data).toEqual({ a: 1, nested: { b: 2 } });
@@ -106,10 +107,7 @@ describe('boundStructuredJson', () => {
   });
 
   it('shrinks only the oversized STRING field, keeping every scalar field intact', () => {
-    const out = boundStructuredJson(
-      { message: 'x'.repeat(100_000), code: 3, fatal: true },
-      2048,
-    );
+    const out = boundStructuredJson({ message: 'x'.repeat(100_000), code: 3, fatal: true }, 2048);
     expect(out.truncated).toBe(true);
     expect(out.data?.code).toBe(3);
     expect(out.data?.fatal).toBe(true);

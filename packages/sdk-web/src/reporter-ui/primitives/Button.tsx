@@ -19,7 +19,16 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * supplied (WCAG 1.4.1 lock; admin Phase 02.1 set the precedent at the type level).
  */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'secondary', size = 'default', loading, iconOnly, className, children, disabled, ...rest },
+  {
+    variant = 'secondary',
+    size = 'default',
+    loading,
+    iconOnly,
+    className,
+    children,
+    disabled,
+    ...rest
+  },
   ref,
 ): JSX.Element {
   const cls = [

@@ -28,12 +28,14 @@ export interface SourceMapManifestV2 {
   runtime: 'hermes';
   platform: HermesBundlePlatform;
   buildId: string;
-  artifacts: [{
-    url: string;
-    generatedSha256: string;
-    mapSha256: string;
-    mapBytes: number;
-  }];
+  artifacts: [
+    {
+      url: string;
+      generatedSha256: string;
+      mapSha256: string;
+      mapBytes: number;
+    },
+  ];
 }
 
 export const R8_ASSET_URL = 'r8://android/mapping.txt';
@@ -50,22 +52,24 @@ export interface R8MappingManifestV3 {
   runtime: 'r8';
   platform: 'android';
   buildId: string;
-  artifacts: [{
-    url: typeof R8_ASSET_URL;
-    mapSha256: string;
-    mapBytes: number;
-    generatedSha256?: never;
-  }];
+  artifacts: [
+    {
+      url: typeof R8_ASSET_URL;
+      mapSha256: string;
+      mapBytes: number;
+      generatedSha256?: never;
+    },
+  ];
 }
 
-export const DSYM_ASSET_URL = "dsym://apple/dwarf";
+export const DSYM_ASSET_URL = 'dsym://apple/dwarf';
 export const DSYM_MAX_BYTES = 512 * 1024 * 1024;
 
 /** Raw DWARF file; image identity is derived from verified bytes by the server. */
 export interface DsymManifestV4 {
   version: 4;
-  runtime: "apple";
-  platform: "apple";
+  runtime: 'apple';
+  platform: 'apple';
   buildId: string;
   artifacts: [
     {
@@ -73,18 +77,18 @@ export interface DsymManifestV4 {
       mapSha256: string;
       mapBytes: number;
       generatedSha256?: never;
-    }
+    },
   ];
 }
 
-export const ELF_ASSET_URL = "elf://android/library";
+export const ELF_ASSET_URL = 'elf://android/library';
 export const ELF_MAX_BYTES = 64 * 1024 * 1024;
 
 /** Raw unstripped ELF file; image identity is derived from verified bytes by the server. */
 export interface ElfManifestV5 {
   version: 5;
-  runtime: "android-native";
-  platform: "android";
+  runtime: 'android-native';
+  platform: 'android';
   buildId: string;
   artifacts: [
     {
@@ -92,7 +96,7 @@ export interface ElfManifestV5 {
       mapSha256: string;
       mapBytes: number;
       generatedSha256?: never;
-    }
+    },
   ];
 }
 
@@ -105,7 +109,13 @@ export type SourceMapManifest =
 export type ArtifactKind = 'source_map' | 'r8' | 'dsym' | 'elf';
 
 export function artifactKind(manifest: SourceMapManifest): ArtifactKind {
-  return manifest.version === 5 ? 'elf' : manifest.version === 4 ? 'dsym' : manifest.version === 3 ? 'r8' : 'source_map';
+  return manifest.version === 5
+    ? 'elf'
+    : manifest.version === 4
+      ? 'dsym'
+      : manifest.version === 3
+        ? 'r8'
+        : 'source_map';
 }
 
 export interface BuildUploadStatus {
@@ -191,8 +201,8 @@ const ManifestV3Schema = z
 const ManifestV4Schema = z
   .object({
     version: z.literal(4),
-    runtime: z.literal("apple"),
-    platform: z.literal("apple"),
+    runtime: z.literal('apple'),
+    platform: z.literal('apple'),
     buildId: z.string().length(69),
     artifacts: z
       .array(
@@ -202,7 +212,7 @@ const ManifestV4Schema = z
             mapSha256: Sha256Schema,
             mapBytes: z.number().int().positive().max(DSYM_MAX_BYTES),
           })
-          .strict()
+          .strict(),
       )
       .length(1),
   })
@@ -211,8 +221,8 @@ const ManifestV4Schema = z
 const ManifestV5Schema = z
   .object({
     version: z.literal(5),
-    runtime: z.literal("android-native"),
-    platform: z.literal("android"),
+    runtime: z.literal('android-native'),
+    platform: z.literal('android'),
     buildId: z.string().length(68),
     artifacts: z
       .array(
@@ -222,7 +232,7 @@ const ManifestV5Schema = z
             mapSha256: Sha256Schema,
             mapBytes: z.number().int().positive().max(ELF_MAX_BYTES),
           })
-          .strict()
+          .strict(),
       )
       .length(1),
   })
@@ -294,10 +304,7 @@ export function normalizeAssetUrl(input: string): string {
 
 const BundleNameSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/);
 
-export function hermesAssetUrl(
-  platform: HermesBundlePlatform,
-  bundleName: string,
-): string {
+export function hermesAssetUrl(platform: HermesBundlePlatform, bundleName: string): string {
   if (
     (platform !== 'android' && platform !== 'ios' && platform !== 'vega') ||
     !BundleNameSchema.safeParse(bundleName).success
@@ -307,10 +314,7 @@ export function hermesAssetUrl(
   return `hermes://${platform}/${bundleName}`;
 }
 
-function parseHermesAssetUrl(
-  input: string,
-  platform: HermesBundlePlatform,
-): string {
+function parseHermesAssetUrl(input: string, platform: HermesBundlePlatform): string {
   const match = /^hermes:\/\/(android|ios|vega)\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})$/.exec(input);
   if (!match || match[1] !== platform) {
     throw new SourceMapManifestError('invalid_asset_url');
@@ -341,12 +345,12 @@ export function parseManifest(input: unknown): SourceMapManifest {
 
   if (result.data.version === 5) {
     const artifact = result.data.artifacts[0]!;
-    if (result.data.buildId !== "elf:" + artifact.mapSha256)
-      throw new SourceMapManifestError("invalid_manifest");
+    if (result.data.buildId !== 'elf:' + artifact.mapSha256)
+      throw new SourceMapManifestError('invalid_manifest');
     return {
       version: 5,
-      runtime: "android-native",
-      platform: "android",
+      runtime: 'android-native',
+      platform: 'android',
       buildId: result.data.buildId,
       artifacts: [
         {
@@ -360,12 +364,12 @@ export function parseManifest(input: unknown): SourceMapManifest {
 
   if (result.data.version === 4) {
     const artifact = result.data.artifacts[0]!;
-    if (result.data.buildId !== "dsym:" + artifact.mapSha256)
-      throw new SourceMapManifestError("invalid_manifest");
+    if (result.data.buildId !== 'dsym:' + artifact.mapSha256)
+      throw new SourceMapManifestError('invalid_manifest');
     return {
       version: 4,
-      runtime: "apple",
-      platform: "apple",
+      runtime: 'apple',
+      platform: 'apple',
       buildId: result.data.buildId,
       artifacts: [
         {
@@ -384,11 +388,13 @@ export function parseManifest(input: unknown): SourceMapManifest {
       runtime: 'r8',
       platform: 'android',
       buildId: result.data.buildId,
-      artifacts: [{
-        url: R8_ASSET_URL,
-        mapSha256: artifact.mapSha256,
-        mapBytes: artifact.mapBytes,
-      }],
+      artifacts: [
+        {
+          url: R8_ASSET_URL,
+          mapSha256: artifact.mapSha256,
+          mapBytes: artifact.mapBytes,
+        },
+      ],
     };
   }
 
@@ -399,12 +405,14 @@ export function parseManifest(input: unknown): SourceMapManifest {
       runtime: 'hermes',
       platform: result.data.platform,
       buildId: result.data.buildId,
-      artifacts: [{
-        url: parseHermesAssetUrl(artifact.url, result.data.platform),
-        generatedSha256: artifact.generatedSha256,
-        mapSha256: artifact.mapSha256,
-        mapBytes: artifact.mapBytes,
-      }],
+      artifacts: [
+        {
+          url: parseHermesAssetUrl(artifact.url, result.data.platform),
+          generatedSha256: artifact.generatedSha256,
+          mapSha256: artifact.mapSha256,
+          mapBytes: artifact.mapBytes,
+        },
+      ],
     };
   }
 
@@ -437,7 +445,10 @@ export function parseManifest(input: unknown): SourceMapManifest {
 /** Written by @everframe/metro before hermesc runs; completed by the CLI after. */
 export const StagedBuildPartial = z.object({
   schema: z.literal(1),
-  buildId: z.string().min(1).max(200)
+  buildId: z
+    .string()
+    .min(1)
+    .max(200)
     .regex(/\S/u)
     .regex(/^(?:[^\u0000\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/u),
   platform: z.enum(['android', 'ios']),

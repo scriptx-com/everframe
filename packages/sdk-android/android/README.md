@@ -16,14 +16,14 @@ artifact name.
 
 ## Maven coordinates
 
-| Module                       | Purpose                                                                      | Required? |
-| ---------------------------- | ---------------------------------------------------------------------------- | --------- |
-| `dev.everframe:core` | SDK kernel: capture, envelope, transport, outbox, OkHttp interceptor         | yes       |
-| `dev.everframe:protocol` | quicktype-generated kotlinx-serialization data classes for `ReportEnvelope` | transitively via `-core` |
-| `dev.everframe:reporter-ui` | Compose Material 3 reporter UI for phone + tablet (bubble, modal, annotation) | yes for in-app reporting |
-| `dev.everframe:media3` | Media3 and ExoPlayer diagnostics | optional |
-| `dev.everframe:gradle-plugin` | Optional R8 keep rules and Compose display name preservation | optional; available with 0.10.2 |
-| `dev.everframe:native-crash` | Native fault frames on Android 8–11 (API 26–30); needs `useLegacyPackaging = true` | optional; not yet on Maven Central, see [`../native`](../native/README.md) |
+| Module                        | Purpose                                                                            | Required?                                                                  |
+| ----------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `dev.everframe:core`          | SDK kernel: capture, envelope, transport, outbox, OkHttp interceptor               | yes                                                                        |
+| `dev.everframe:protocol`      | quicktype-generated kotlinx-serialization data classes for `ReportEnvelope`        | transitively via `-core`                                                   |
+| `dev.everframe:reporter-ui`   | Compose Material 3 reporter UI for phone + tablet (bubble, modal, annotation)      | yes for in-app reporting                                                   |
+| `dev.everframe:media3`        | Media3 and ExoPlayer diagnostics                                                   | optional                                                                   |
+| `dev.everframe:gradle-plugin` | Optional R8 keep rules and Compose display name preservation                       | optional; available with 0.10.2                                            |
+| `dev.everframe:native-crash`  | Native fault frames on Android 8–11 (API 26–30); needs `useLegacyPackaging = true` | optional; not yet on Maven Central, see [`../native`](../native/README.md) |
 
 Android modules ship under one version. The older `0.10.0` plugin uses the
 older `dev.everframe:everframe-gradle-plugin` artifact; Gradle plugin users keep
@@ -584,14 +584,14 @@ the Compose sample app on every PR.
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| Network panel is empty in submitted reports | Customer's OkHttpClient skipped `addEverframeInterceptor()` | Add the interceptor to every customer-built OkHttp client; the SDK does NOT install a global default interceptor. |
-| Shake gesture never fires | The dashboard or local SDK option is disabled, the app is backgrounded, or the device has no accelerometer. | Enable Shake to report in the app dashboard and keep `shakeToReportEnabled = true`. Android TV is intentionally unsupported. |
-| Reporter never opens on Android TV | The SDK no longer installs a TV key-combo handler (Phase 05.1). | Override `Activity.dispatchKeyEvent` and run a host-owned debouncer; see the [Triggers are host-app concern](#triggers-are-host-app-concern) section and `examples/android-compose/app/src/tv/kotlin/com/example/composesample/tv/SampleTVDebouncer.kt`. |
-| Reserved-key configuration error at `start()` | n/a after Phase 05.1 — the SDK no longer validates trigger keys. | Per-host responsibility: never bind `KEYCODE_BACK / HOME / MENU / single-press KEYCODE_MEDIA_PLAY_PAUSE` as triggers (Play Store reject defense). |
-| `IllegalStateException: Reporter UI module not on classpath` | `:everframe-reporter-ui` not in the dependency graph | Add `implementation("dev.everframe:reporter-ui:0.10.0")` — it auto-registers a startup `Initializer` that wires the resolver. |
-| Customer's R8 fails with `Missing class timber.log.**` or `com.google.errorprone.annotations.**` | Customer build excludes consumer-rules from a transitive AAR | The `-dontwarn` rules ship in `:everframe-core/consumer-rules.pro`. Re-merge or copy them into your own `proguard-rules.pro`. |
+| Symptom                                                                                          | Cause                                                                                                       | Fix                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Network panel is empty in submitted reports                                                      | Customer's OkHttpClient skipped `addEverframeInterceptor()`                                                 | Add the interceptor to every customer-built OkHttp client; the SDK does NOT install a global default interceptor.                                                                                                                                        |
+| Shake gesture never fires                                                                        | The dashboard or local SDK option is disabled, the app is backgrounded, or the device has no accelerometer. | Enable Shake to report in the app dashboard and keep `shakeToReportEnabled = true`. Android TV is intentionally unsupported.                                                                                                                             |
+| Reporter never opens on Android TV                                                               | The SDK no longer installs a TV key-combo handler (Phase 05.1).                                             | Override `Activity.dispatchKeyEvent` and run a host-owned debouncer; see the [Triggers are host-app concern](#triggers-are-host-app-concern) section and `examples/android-compose/app/src/tv/kotlin/com/example/composesample/tv/SampleTVDebouncer.kt`. |
+| Reserved-key configuration error at `start()`                                                    | n/a after Phase 05.1 — the SDK no longer validates trigger keys.                                            | Per-host responsibility: never bind `KEYCODE_BACK / HOME / MENU / single-press KEYCODE_MEDIA_PLAY_PAUSE` as triggers (Play Store reject defense).                                                                                                        |
+| `IllegalStateException: Reporter UI module not on classpath`                                     | `:everframe-reporter-ui` not in the dependency graph                                                        | Add `implementation("dev.everframe:reporter-ui:0.10.0")` — it auto-registers a startup `Initializer` that wires the resolver.                                                                                                                            |
+| Customer's R8 fails with `Missing class timber.log.**` or `com.google.errorprone.annotations.**` | Customer build excludes consumer-rules from a transitive AAR                                                | The `-dontwarn` rules ship in `:everframe-core/consumer-rules.pro`. Re-merge or copy them into your own `proguard-rules.pro`.                                                                                                                            |
 
 ---
 

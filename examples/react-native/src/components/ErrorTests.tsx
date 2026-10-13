@@ -55,10 +55,13 @@ export function ErrorTests(): React.JSX.Element {
         Handled errors keep the app open. Find rn-error-test in this app’s Errors in admin.
       </Text>
       <Text style={type.monoNote}>
-        {hasKey ? 'SDK key configured; capture and delivery must be checked in admin.' : 'SDK key missing. Configure the RN example key and restart Metro.'}
+        {hasKey
+          ? 'SDK key configured; capture and delivery must be checked in admin.'
+          : 'SDK key missing. Configure the RN example key and restart Metro.'}
       </Text>
       <Text testID="error-test-build" style={type.monoNote}>
-        {process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID ?? 'Metro development build — no release map identity'}
+        {process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID ??
+          'Metro development build — no release map identity'}
       </Text>
       {[
         { id: 'trigger-handled-error', label: 'Handled error', onPress: handledTopLevel },
@@ -76,17 +79,18 @@ export function ErrorTests(): React.JSX.Element {
             styles.button,
             id === 'trigger-unhandled-error' && styles.unhandled,
             (pressed || focused || !hasKey) && styles.dimmed,
-          ]}>
+          ]}
+        >
           <Text style={styles.buttonText}>{label}</Text>
         </Pressable>
       ))}
       <Text style={type.muted}>
-        The unhandled test may show the development error overlay or close the app.
-        Relaunch afterward to check delivery. This triggers a JavaScript error, not a native crash.
+        The unhandled test may show the development error overlay or close the app. Relaunch
+        afterward to check delivery. This triggers a JavaScript error, not a native crash.
       </Text>
       <Text style={type.muted}>
-        Repeated handled errors at the same location may be deduplicated. Restart the app
-        between runs. A button press does not confirm storage or delivery.
+        Repeated handled errors at the same location may be deduplicated. Restart the app between
+        runs. A button press does not confirm storage or delivery.
       </Text>
       <Text testID="error-test-status" accessibilityLiveRegion="polite" style={type.monoNote}>
         {lastAttempt}

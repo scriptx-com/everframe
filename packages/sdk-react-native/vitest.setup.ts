@@ -8,21 +8,20 @@
 // addBreadcrumb, the reportCrash sync method (spec 2026-07-18), and setUser
 // (spec 2026-08-12)) as vi.fn() stubs, so spec-shape tests can introspect the
 // surface without booting RN.
-import { vi } from "vitest";
+import { vi } from 'vitest';
 
 // Pass-through stubs for any RN primitive a JSX file may import at module load
 // time. The provider/modal/preview files only USE these during render — they
 // never call into them at import — so returning a no-op identity for `create`
 // and string-tagged placeholders for components is sufficient for unit-test
 // imports (the rendering itself is exercised by 06-06 Maestro smoke).
-const passthrough = (name: string) =>
-  Object.assign(() => null, { displayName: name });
+const passthrough = (name: string) => Object.assign(() => null, { displayName: name });
 
-vi.mock("react-native", () => ({
+vi.mock('react-native', () => ({
   TurboModuleRegistry: {
     getEnforcing: () => ({
       configureSync: vi.fn(() => true),
-      openReporter: vi.fn().mockResolvedValue({ status: "cancelled" }),
+      openReporter: vi.fn().mockResolvedValue({ status: 'cancelled' }),
       registerSensitiveRect: vi.fn(),
       setExtra: vi.fn(),
       setExtraResolverActive: vi.fn(),
@@ -44,21 +43,21 @@ vi.mock("react-native", () => ({
   // mock must carry it. iOS is the default; adapters take an explicit
   // `platform` option in tests that need the Android path.
   Platform: {
-    OS: "ios",
+    OS: 'ios',
     isTV: false,
     select: (o: Record<string, unknown>) => o.ios ?? o.default,
   },
   requireNativeComponent: (name: string) => passthrough(name),
   // UI primitives — components are no-op functional components for unit tests.
-  View: passthrough("View"),
-  Text: passthrough("Text"),
-  TextInput: passthrough("TextInput"),
-  Pressable: passthrough("Pressable"),
-  Image: passthrough("Image"),
-  ScrollView: passthrough("ScrollView"),
-  FlatList: passthrough("FlatList"),
-  Modal: passthrough("Modal"),
-  ActivityIndicator: passthrough("ActivityIndicator"),
+  View: passthrough('View'),
+  Text: passthrough('Text'),
+  TextInput: passthrough('TextInput'),
+  Pressable: passthrough('Pressable'),
+  Image: passthrough('Image'),
+  ScrollView: passthrough('ScrollView'),
+  FlatList: passthrough('FlatList'),
+  Modal: passthrough('Modal'),
+  ActivityIndicator: passthrough('ActivityIndicator'),
   // StyleSheet.create is a pass-through identity at runtime (RN returns the
   // same object keyed by string id; behaviour we don't exercise in unit tests).
   StyleSheet: {

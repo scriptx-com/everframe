@@ -3,14 +3,24 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { constants, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import {
+  constants,
+  copyFileSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+} from 'node:fs';
 import path from 'node:path';
 import { verifyMobileBundleArtifacts } from './mobile-bundle-artifacts.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const android = path.join(root, 'packages/sdk-android/android');
 const kmp = path.join(root, 'packages/everframe_kmp');
-const usage = 'Usage: node scripts/build-mobile-maven-bundle.mjs [--prepare] [--output <new-zip-path>] [--native-workspace <verified-build-directory>]';
+const usage =
+  'Usage: node scripts/build-mobile-maven-bundle.mjs [--prepare] [--output <new-zip-path>] [--native-workspace <verified-build-directory>]';
 let prepareOnly = false;
 let outputPath;
 let nativeWorkspace;
@@ -18,22 +28,35 @@ for (let i = 2; i < process.argv.length; i += 1) {
   const arg = process.argv[i];
   if (arg === '--prepare' && !prepareOnly) {
     prepareOnly = true;
-  } else if (arg === '--output' && !outputPath && process.argv[i + 1] && !process.argv[i + 1].startsWith('--')) {
+  } else if (
+    arg === '--output' &&
+    !outputPath &&
+    process.argv[i + 1] &&
+    !process.argv[i + 1].startsWith('--')
+  ) {
     outputPath = path.resolve(process.argv[++i]);
-  } else if (arg === '--native-workspace' && !nativeWorkspace && process.argv[i + 1] && !process.argv[i + 1].startsWith('--')) {
+  } else if (
+    arg === '--native-workspace' &&
+    !nativeWorkspace &&
+    process.argv[i + 1] &&
+    !process.argv[i + 1].startsWith('--')
+  ) {
     nativeWorkspace = path.resolve(process.argv[++i]);
   } else {
     throw new Error(usage);
   }
 }
 
-const versionLine = readFileSync(path.join(android, 'gradle.properties'), 'utf8')
-  .match(/^everframeVersion=(\d+\.\d+\.\d+)$/m);
+const versionLine = readFileSync(path.join(android, 'gradle.properties'), 'utf8').match(
+  /^everframeVersion=(\d+\.\d+\.\d+)$/m,
+);
 assert.ok(versionLine, 'Android gradle.properties must declare the mobile release version');
 const version = versionLine[1];
 
 if (!prepareOnly && (!process.env.SIGNING_KEY || !process.env.SIGNING_PASSWORD)) {
-  throw new Error('A publishable bundle requires SIGNING_KEY and SIGNING_PASSWORD. Use --prepare to inspect an unsigned bundle.');
+  throw new Error(
+    'A publishable bundle requires SIGNING_KEY and SIGNING_PASSWORD. Use --prepare to inspect an unsigned bundle.',
+  );
 }
 
 function run(program, args, options = {}) {
@@ -41,7 +64,8 @@ function run(program, args, options = {}) {
 }
 
 const androidArgs = ['centralPortalBundle'];
-if (nativeWorkspace) androidArgs.push(`-PeverframeNativeBuildDir=${nativeWorkspace}`, '-PeverframeNativeAbis=all');
+if (nativeWorkspace)
+  androidArgs.push(`-PeverframeNativeBuildDir=${nativeWorkspace}`, '-PeverframeNativeAbis=all');
 run(path.join(android, 'gradlew'), androidArgs, { cwd: android });
 const androidRepository = path.join(android, 'build/central-bundle/repository');
 run(path.join(kmp, 'gradlew'), ['centralPortalBundle'], {
@@ -72,27 +96,50 @@ for (const artifact of artifacts) {
   const prefix = path.join(group, artifact, version, `${artifact}-${version}`);
   const pom = readFileSync(`${prefix}.pom`, 'utf8');
   assert.match(pom, /<groupId>dev\.everframe<\/groupId>/);
-  assert.ok(pom.includes(`<artifactId>${artifact}</artifactId>`), `${artifact} POM has the wrong artifact ID`);
+  assert.ok(
+    pom.includes(`<artifactId>${artifact}</artifactId>`),
+    `${artifact} POM has the wrong artifact ID`,
+  );
   assert.ok(pom.includes(`<version>${version}</version>`), `${artifact} POM has the wrong version`);
 }
 
-const marker = readFileSync(path.join(group, 'dev.everframe.gradle.plugin', version,
-  `dev.everframe.gradle.plugin-${version}.pom`), 'utf8');
-assert.ok(marker.includes('<artifactId>gradle-plugin</artifactId>'), 'Gradle plugin marker has the wrong implementation');
+const marker = readFileSync(
+  path.join(
+    group,
+    'dev.everframe.gradle.plugin',
+    version,
+    `dev.everframe.gradle.plugin-${version}.pom`,
+  ),
+  'utf8',
+);
+assert.ok(
+  marker.includes('<artifactId>gradle-plugin</artifactId>'),
+  'Gradle plugin marker has the wrong implementation',
+);
 
 const kmpMetadata = readFileSync(path.join(group, 'kmp', version, `kmp-${version}.module`), 'utf8');
 for (const target of ['android', 'iosarm64', 'iossimulatorarm64', 'jvm', 'js']) {
   assert.ok(kmpMetadata.includes(`"module": "kmp-${target}"`), `KMP metadata omits ${target}`);
 }
-const kmpAndroidPom = readFileSync(path.join(group, 'kmp-android', version,
-  `kmp-android-${version}.pom`), 'utf8');
+const kmpAndroidPom = readFileSync(
+  path.join(group, 'kmp-android', version, `kmp-android-${version}.pom`),
+  'utf8',
+);
 for (const nativeArtifact of ['core', 'reporter-ui']) {
-  assert.ok(kmpAndroidPom.includes(`<artifactId>${nativeArtifact}</artifactId>\n      <version>${version}</version>`),
-    `KMP Android must depend on ${nativeArtifact} ${version}`);
+  assert.ok(
+    kmpAndroidPom.includes(
+      `<artifactId>${nativeArtifact}</artifactId>\n      <version>${version}</version>`,
+    ),
+    `KMP Android must depend on ${nativeArtifact} ${version}`,
+  );
 }
 
 run(path.join(root, 'scripts/verify-android-publication.sh'), [version], {
-  env: { ...process.env, MAVEN_LOCAL_REPOSITORY: repository, EVERFRAME_VERIFY_NATIVE_CRASH: nativeWorkspace ? '1' : '0' },
+  env: {
+    ...process.env,
+    MAVEN_LOCAL_REPOSITORY: repository,
+    EVERFRAME_VERIFY_NATIVE_CRASH: nativeWorkspace ? '1' : '0',
+  },
 });
 if (!prepareOnly) {
   run(path.join(root, 'scripts/verify-central-bundle.sh'), [repository, version], {
@@ -108,4 +155,5 @@ if (outputPath) {
 }
 console.log(`${prepareOnly ? 'Unsigned preparation bundle' : 'Signed release bundle'}: ${bundle}`);
 if (outputPath) console.log(`Release bundle copied to: ${outputPath}`);
-if (prepareOnly) console.log('The unsigned preparation bundle cannot be uploaded to Maven Central.');
+if (prepareOnly)
+  console.log('The unsigned preparation bundle cannot be uploaded to Maven Central.');

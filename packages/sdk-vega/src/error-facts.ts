@@ -69,7 +69,12 @@ export function renderValue(value: unknown): string {
         append('{');
         let enumerated = 0;
         for (const key in item) {
-          if (++enumerated > MAX_VALUE_NODES || nodes >= MAX_VALUE_NODES || output.length >= MAX_MESSAGE) break;
+          if (
+            ++enumerated > MAX_VALUE_NODES ||
+            nodes >= MAX_VALUE_NODES ||
+            output.length >= MAX_MESSAGE
+          )
+            break;
           if (!Object.prototype.hasOwnProperty.call(item, key)) continue;
           if (!first) append(',');
           first = false;
@@ -124,8 +129,12 @@ export function isErrorValue(value: unknown): boolean {
   }
 }
 
-export function extractFacts(value: unknown, renderOther: (value: unknown) => string = renderValue): ErrorFacts {
-  if (!isErrorValue(value)) return { exceptionType: 'UnhandledValue', message: renderOther(value), framesRaw: [] };
+export function extractFacts(
+  value: unknown,
+  renderOther: (value: unknown) => string = renderValue,
+): ErrorFacts {
+  if (!isErrorValue(value))
+    return { exceptionType: 'UnhandledValue', message: renderOther(value), framesRaw: [] };
   const error = value as object;
   const name = read(error, 'name');
   const exceptionType = typeof name === 'string' && name ? name.slice(0, MAX_TYPE) : 'Error';

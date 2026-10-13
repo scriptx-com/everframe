@@ -16,7 +16,10 @@ function stubBitmapAndCanvas(
   const drawArgs: unknown[][] = [];
   const fillArgs: unknown[][] = [];
   const fillStyleAtFill: string[] = [];
-  vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: w, height: h })));
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async () => ({ width: w, height: h })),
+  );
   vi.stubGlobal('OffscreenCanvas', undefined);
   const ctx = {
     fillStyle: '',

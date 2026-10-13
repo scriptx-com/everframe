@@ -135,9 +135,12 @@ describe('shared sensitive API', () => {
     const element = document.createElement('div');
     const ref = { current: element };
     const rect = { x: 1, y: 2, width: 3, height: 4 };
-    const { rerender, unmount } = renderHook(({ bounds }) => useEverframeSensitiveRef(ref, bounds), {
-      initialProps: { bounds: rect as typeof rect | null },
-    });
+    const { rerender, unmount } = renderHook(
+      ({ bounds }) => useEverframeSensitiveRef(ref, bounds),
+      {
+        initialProps: { bounds: rect as typeof rect | null },
+      },
+    );
     expect(sensitiveRegistry.snapshotElements()).toContain(element);
     expect(element.hasAttribute(SENSITIVE_ATTR)).toBe(true);
     rerender({ bounds: null });

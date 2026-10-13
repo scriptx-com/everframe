@@ -31,10 +31,15 @@ describe('mintIdentityToken', () => {
 
   it('verifies against its own secret', async () => {
     const token = await mintIdentityToken({
-      secret: SECRET, projectId: PROJECT_ID, user: { id: 'u_alice' }, now: NOW,
+      secret: SECRET,
+      projectId: PROJECT_ID,
+      user: { id: 'u_alice' },
+      now: NOW,
     });
     const { payload } = await jwtVerify(token, new TextEncoder().encode(SECRET), {
-      algorithms: ['HS256'], audience: PROJECT_ID, currentDate: NOW,
+      algorithms: ['HS256'],
+      audience: PROJECT_ID,
+      currentDate: NOW,
     });
     expect(payload.sub).toBe('u_alice');
   });
@@ -43,7 +48,10 @@ describe('mintIdentityToken', () => {
     // The verifier rejects exp - iat > 600 outright. Reading the clock twice
     // could drift a 600 mint to 601 and produce a token that always fails.
     const token = await mintIdentityToken({
-      secret: SECRET, projectId: PROJECT_ID, user: { id: 'u_alice' }, ttlSeconds: 600,
+      secret: SECRET,
+      projectId: PROJECT_ID,
+      user: { id: 'u_alice' },
+      ttlSeconds: 600,
     });
     const { iat, exp } = decodeJwt(token);
     expect(exp! - iat!).toBe(600);
@@ -51,7 +59,10 @@ describe('mintIdentityToken', () => {
 
   it('omits email and name when absent', async () => {
     const token = await mintIdentityToken({
-      secret: SECRET, projectId: PROJECT_ID, user: { id: 'u_alice' }, now: NOW,
+      secret: SECRET,
+      projectId: PROJECT_ID,
+      user: { id: 'u_alice' },
+      now: NOW,
     });
     const payload = decodeJwt(token);
     expect(payload).not.toHaveProperty('email');
@@ -76,20 +87,33 @@ describe('mintIdentityToken', () => {
 
   it('trims whitespace-only email and name to absent', async () => {
     const token = await mintIdentityToken({
-      secret: SECRET, projectId: PROJECT_ID, user: { id: 'u_alice', email: '   ' }, now: NOW,
+      secret: SECRET,
+      projectId: PROJECT_ID,
+      user: { id: 'u_alice', email: '   ' },
+      now: NOW,
     });
     expect(decodeJwt(token)).not.toHaveProperty('email');
   });
 
   it('throws above the 600s ceiling', async () => {
     await expect(
-      mintIdentityToken({ secret: SECRET, projectId: PROJECT_ID, user: { id: 'u' }, ttlSeconds: 601 }),
+      mintIdentityToken({
+        secret: SECRET,
+        projectId: PROJECT_ID,
+        user: { id: 'u' },
+        ttlSeconds: 601,
+      }),
     ).rejects.toThrow(/ttlSeconds/);
   });
 
   it('accepts exactly 600', async () => {
     await expect(
-      mintIdentityToken({ secret: SECRET, projectId: PROJECT_ID, user: { id: 'u' }, ttlSeconds: 600 }),
+      mintIdentityToken({
+        secret: SECRET,
+        projectId: PROJECT_ID,
+        user: { id: 'u' },
+        ttlSeconds: 600,
+      }),
     ).resolves.toBeTypeOf('string');
   });
 

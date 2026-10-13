@@ -23,10 +23,10 @@ const everframe = useEverframe();
     <p data-testid="home-heading">Everframe Web SDK Example</p>
     <h1>A field catalog built to be broken</h1>
     <p>
-      Elytra is a small insect field guide that exists so the Everframe reporter has
-      something real to capture: pages to navigate, lists to mutate, images to
-      screenshot, and seeded PII to redact. File a bug about a bug — the report button
-      is in the corner of every page, or press Cmd/Ctrl+Shift+B.
+      Elytra is a small insect field guide that exists so the Everframe reporter has something real
+      to capture: pages to navigate, lists to mutate, images to screenshot, and seeded PII to
+      redact. File a bug about a bug — the report button is in the corner of every page, or press
+      Cmd/Ctrl+Shift+B.
     </p>
     <SpecimenPlate v-if="hero" :specimen="hero" />
     <button type="button" data-testid="open-via-handle" @click="everframe?.open().catch(() => {})">
@@ -48,12 +48,7 @@ const everframe = useEverframe();
       </dl>
       <div>
         <label for="member-password">Member password (input type=password)</label>
-        <input
-          id="member-password"
-          data-testid="password-input"
-          type="password"
-          value="hunter2"
-        />
+        <input id="member-password" data-testid="password-input" type="password" value="hunter2" />
       </div>
 
       <!-- Surface 1 of 2: the attribute. Scanned from the live DOM at capture

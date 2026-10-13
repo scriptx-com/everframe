@@ -13,10 +13,7 @@
 'use client';
 
 export { ReporterDialog } from './reporter-ui/ReporterDialog.js';
-export type {
-  ReporterCompletePayload,
-  ReporterDialogProps,
-} from './reporter-ui/ReporterDialog.js';
+export type { ReporterCompletePayload, ReporterDialogProps } from './reporter-ui/ReporterDialog.js';
 export { ReporterFab } from './reporter-ui/ReporterFab.js';
 export { CompanionBadge } from './reporter-ui/CompanionBadge.js';
 export { CompanionPinCard } from './reporter-ui/CompanionPinCard.js';

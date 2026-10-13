@@ -57,7 +57,11 @@ export function CompanionBadge(): React.ReactElement | null {
     const offAttached = api.onAttachedUserName((n) => setAttached(n !== null));
     const offName = api.onResolvedName(setName);
     const offCode = api.onCode(setCode);
-    return () => { offAttached(); offName(); offCode(); };
+    return () => {
+      offAttached();
+      offName();
+      offCode();
+    };
   }, [api]);
 
   // A server-driven config change (dashboard toggle/reposition) must be

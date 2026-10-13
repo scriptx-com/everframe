@@ -30,14 +30,28 @@ export function CompanionControls({
   return (
     <section style={{ marginTop: 24 }}>
       <h2 style={{ fontSize: 20, margin: '0 0 8px' }}>Companion</h2>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, lineHeight: '28px' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          fontSize: 18,
+          lineHeight: '28px',
+        }}
+      >
         <span style={{ opacity: 0.6 }}>Relay</span>
         <span style={{ color: connected ? '#8fd8a8' : '#f0f0f0' }}>
           {STATUS_LABEL[status] ?? status}
         </span>
       </div>
       {code && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, lineHeight: '28px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: 18,
+            lineHeight: '28px',
+          }}
+        >
           <span style={{ opacity: 0.6 }}>Code</span>
           <span>{code}</span>
         </div>
@@ -45,8 +59,8 @@ export function CompanionControls({
       {error && <p style={{ fontSize: 15, color: '#ff9c9c', margin: '4px 0 0' }}>{error}</p>}
       {!discoverable && (
         <p style={{ fontSize: 14, color: '#ffcf8f', margin: '4px 0 0' }}>
-          No SDK key baked — device won't appear on the dashboard. Set EVERFRAME_KEY_WEB in
-          the repo-root .env and restart the dev server / rebuild.
+          No SDK key baked — device won't appear on the dashboard. Set EVERFRAME_KEY_WEB in the
+          repo-root .env and restart the dev server / rebuild.
         </p>
       )}
       <div

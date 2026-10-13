@@ -65,7 +65,12 @@ interface Grow {
 
 const NO_GROW: Grow = { l: 0, t: 0, r: 0, b: 0 };
 
-function pushRects(out: ViewportRect[], list: ArrayLike<DOMRect>, clip: Clip, grow: Grow = NO_GROW): void {
+function pushRects(
+  out: ViewportRect[],
+  list: ArrayLike<DOMRect>,
+  clip: Clip,
+  grow: Grow = NO_GROW,
+): void {
   for (let i = 0; i < list.length; i++) {
     const r = list[i]!;
     if (!(r.width > 0 && r.height > 0)) continue;
@@ -144,7 +149,12 @@ function styleOf(el: Element): CSSStyleDeclaration | null {
  * positioned element may escape clips above it, so it drops them (fail
  * closed: larger, never smaller).
  */
-function coverSubtree(node: Node, out: ViewportRect[], clip: Clip, excluded: (el: Element) => boolean): void {
+function coverSubtree(
+  node: Node,
+  out: ViewportRect[],
+  clip: Clip,
+  excluded: (el: Element) => boolean,
+): void {
   if (node.nodeType === 3) {
     // Text inherits along the flat tree: from its slot when it is slotted.
     const from = (node as Text).assignedSlot ?? node.parentElement;
@@ -210,7 +220,8 @@ export function collectSensitiveRects(
     if (judge(el)) {
       if (el === root) {
         const r = el.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) out.push({ x: r.left, y: r.top, width: r.width, height: r.height }); // NaN left/top → refused when painted
+        if (r.width > 0 && r.height > 0)
+          out.push({ x: r.left, y: r.top, width: r.width, height: r.height }); // NaN left/top → refused when painted
       }
       coverSubtree(el, out, UNCLIPPED, (e) => e !== root && excluded(e));
       return;
@@ -261,7 +272,11 @@ export function paintViewportRects(
   if (rects.length === 0) return true;
   // Fail closed: a rect (or offset) with no finite position would paint
   // nothing and ship the sensitive pixels under it.
-  if (!rects.every(isFiniteRect) || !offsets.every((o) => Number.isFinite(o.dx) && Number.isFinite(o.dy)) || !Number.isFinite(pixelRatio)) {
+  if (
+    !rects.every(isFiniteRect) ||
+    !offsets.every((o) => Number.isFinite(o.dx) && Number.isFinite(o.dy)) ||
+    !Number.isFinite(pixelRatio)
+  ) {
     return false;
   }
   let ctx: CanvasRenderingContext2D | null = null;

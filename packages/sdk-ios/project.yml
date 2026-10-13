@@ -36,10 +36,10 @@ settings:
     # "copy .swiftinterface into framework" step under this configuration,
     # so the build script patches the archives post-hoc — see
     # scripts/build-xcframework.sh.)
-    OTHER_SWIFT_FLAGS: "$(inherited) -enable-library-evolution -emit-module-interface"
+    OTHER_SWIFT_FLAGS: '$(inherited) -enable-library-evolution -emit-module-interface'
     SKIP_INSTALL: NO
     DEFINES_MODULE: YES
-    SWIFT_VERSION: "5.10"
+    SWIFT_VERSION: '5.10'
     # `package`-scoped declarations (CompanionAPI.__builtinPinUiInstalled /
     # __builtinPinUiSuppressed, written from the EverframeReporterUI module)
     # need swiftc's `-package-name`. SwiftPM derives it from Package.swift, so
@@ -51,7 +51,7 @@ settings:
     # project-level value is correct; it must match across them or `package`
     # access stops resolving.
     SWIFT_PACKAGE_NAME: Everframe
-    SWIFT_OPTIMIZATION_LEVEL: "-O"
+    SWIFT_OPTIMIZATION_LEVEL: '-O'
     SWIFT_COMPILATION_MODE: wholemodule
     # A dSYM per framework, written before the binary is stripped below. It
     # ships in each xcframework slice so an app's symbol upload (the Xcode
@@ -87,18 +87,17 @@ settings:
     # the slice via -sdk and -destination. SUPPORTED_PLATFORMS gates which
     # SDKs the target accepts; TARGETED_DEVICE_FAMILY covers iPhone (1) +
     # iPad (2) + Apple TV (3).
-    SUPPORTED_PLATFORMS: "iphoneos iphonesimulator appletvos appletvsimulator"
+    SUPPORTED_PLATFORMS: 'iphoneos iphonesimulator appletvos appletvsimulator'
     SUPPORTS_MACCATALYST: NO
-    TARGETED_DEVICE_FAMILY: "1,2,3"
-    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
-    TVOS_DEPLOYMENT_TARGET: "15.0"
+    TARGETED_DEVICE_FAMILY: '1,2,3'
+    IPHONEOS_DEPLOYMENT_TARGET: '15.0'
+    TVOS_DEPLOYMENT_TARGET: '15.0'
 
 packages:
   EverframeCrashRecorder:
     path: crash-recorder
 
 targets:
-
   EverframeProtocol:
     type: framework
     platform: iOS
@@ -122,8 +121,8 @@ targets:
     sources:
       - path: Sources/Everframe
         excludes:
-          - "PrivacyInfo.xcprivacy"
-          - "Resources/**"
+          - 'PrivacyInfo.xcprivacy'
+          - 'Resources/**'
       - path: Sources/Everframe/PrivacyInfo.xcprivacy
         buildPhase: resources
       - path: Sources/Everframe/Resources

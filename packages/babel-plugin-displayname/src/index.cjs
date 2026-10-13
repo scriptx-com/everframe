@@ -101,8 +101,14 @@ module.exports = function babelPluginDisplayName(babel) {
         statementHasJSXReturn(stmt.finalizer)
       );
     }
-    if (t.isForStatement(stmt) || t.isForInStatement(stmt) || t.isForOfStatement(stmt) ||
-        t.isWhileStatement(stmt) || t.isDoWhileStatement(stmt) || t.isLabeledStatement(stmt)) {
+    if (
+      t.isForStatement(stmt) ||
+      t.isForInStatement(stmt) ||
+      t.isForOfStatement(stmt) ||
+      t.isWhileStatement(stmt) ||
+      t.isDoWhileStatement(stmt) ||
+      t.isLabeledStatement(stmt)
+    ) {
       return statementHasJSXReturn(stmt.body);
     }
     // Do NOT recurse into FunctionDeclaration / FunctionExpression / ArrowFunctionExpression bodies —
@@ -130,8 +136,10 @@ module.exports = function babelPluginDisplayName(babel) {
   function hasStaticDisplayName(classNode) {
     return classNode.body.body.some((member) => {
       if (!member.static) return false;
-      if (t.isClassProperty(member) && t.isIdentifier(member.key, { name: 'displayName' })) return true;
-      if (t.isClassMethod(member) && t.isIdentifier(member.key, { name: 'displayName' })) return true;
+      if (t.isClassProperty(member) && t.isIdentifier(member.key, { name: 'displayName' }))
+        return true;
+      if (t.isClassMethod(member) && t.isIdentifier(member.key, { name: 'displayName' }))
+        return true;
       return false;
     });
   }
@@ -141,8 +149,8 @@ module.exports = function babelPluginDisplayName(babel) {
       t.assignmentExpression(
         '=',
         t.memberExpression(t.identifier(name), t.identifier('displayName')),
-        t.stringLiteral(name)
-      )
+        t.stringLiteral(name),
+      ),
     );
   }
 
@@ -158,8 +166,7 @@ module.exports = function babelPluginDisplayName(babel) {
         if (!init) return;
 
         const isFactory = isFactoryOrNestedFactory(init, extraFactories);
-        const isInlineComponent =
-          !isFactory && isPascalCase(name) && isInlineComponentInit(init);
+        const isInlineComponent = !isFactory && isPascalCase(name) && isInlineComponentInit(init);
 
         if (!isFactory && !isInlineComponent) return;
 
@@ -199,10 +206,7 @@ module.exports = function babelPluginDisplayName(babel) {
         if (!extendsReactBaseClass(node.superClass)) return;
         if (hasStaticDisplayName(node)) return;
 
-        const prop = t.classProperty(
-          t.identifier('displayName'),
-          t.stringLiteral(name)
-        );
+        const prop = t.classProperty(t.identifier('displayName'), t.stringLiteral(name));
         prop.static = true;
         node.body.body.unshift(prop);
       },

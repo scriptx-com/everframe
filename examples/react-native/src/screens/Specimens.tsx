@@ -32,7 +32,8 @@ function SpecimenDetail({
         style={({ pressed, focused }) => [
           styles.backLink,
           (pressed || focused) && styles.backLinkPressed,
-        ]}>
+        ]}
+      >
         <Text style={styles.backLinkText}>← Catalog</Text>
       </Pressable>
 
@@ -110,7 +111,8 @@ export function Specimens(): React.JSX.Element {
                 styles.chip,
                 isActive && styles.chipActive,
                 (pressed || focused) && styles.chipFocused,
-              ]}>
+              ]}
+            >
               <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
                 {o ?? 'All orders'}
               </Text>
@@ -130,7 +132,8 @@ export function Specimens(): React.JSX.Element {
             style={({ pressed, focused }) => [
               styles.gridCard,
               (pressed || focused) && styles.gridCardFocused,
-            ]}>
+            ]}
+          >
             <SpecimenPlate specimen={s} size={PLATE_SIZE} />
             <Text style={styles.cardName}>{s.commonName}</Text>
             <Text style={styles.cardLatin}>{s.latinName}</Text>

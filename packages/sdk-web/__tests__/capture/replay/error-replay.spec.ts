@@ -80,11 +80,14 @@ describe('which errors get a replay', () => {
     expect(timers.armed[0]?.cleared).toBe(true);
   });
 
-  it.each<ReplayState | null>(['IDLE', 'FROZEN', null])('takes no snapshot when the lifecycle is %s', (state) => {
-    const snapshot = vi.fn(async () => capture());
-    expect(begin(snapshot, state)).toBeNull();
-    expect(snapshot).not.toHaveBeenCalled();
-  });
+  it.each<ReplayState | null>(['IDLE', 'FROZEN', null])(
+    'takes no snapshot when the lifecycle is %s',
+    (state) => {
+      const snapshot = vi.fn(async () => capture());
+      expect(begin(snapshot, state)).toBeNull();
+      expect(snapshot).not.toHaveBeenCalled();
+    },
+  );
 
   it('takes none without a recorder that can snapshot (host-rendered replay)', () => {
     expect(begin(undefined)).toBeNull();
@@ -109,7 +112,9 @@ describe('which errors get a replay', () => {
   it('keeps timed-out exports in the concurrency budget until they actually settle', async () => {
     const timers = clock();
     const finishes: Array<(value: ReplayCapture | null) => void> = [];
-    const snapshot = vi.fn(() => new Promise<ReplayCapture | null>((resolve) => finishes.push(resolve)));
+    const snapshot = vi.fn(
+      () => new Promise<ReplayCapture | null>((resolve) => finishes.push(resolve)),
+    );
     const first = begin(snapshot, 'BUFFERING', timers);
     const second = begin(snapshot, 'BUFFERING', timers);
     timers.expire();
@@ -129,26 +134,34 @@ describe('which errors get a replay', () => {
 
   it('gives the slot back when there was nothing to send', async () => {
     await expect(begin(async () => null)).resolves.toEqual({ kind: 'none' });
-    await expect(begin(async () => {
-      throw new Error('gzip failed');
-    })).resolves.toEqual({ kind: 'none' });
+    await expect(
+      begin(async () => {
+        throw new Error('gzip failed');
+      }),
+    ).resolves.toEqual({ kind: 'none' });
     await begin(async () => capture());
     await begin(async () => capture());
     expect(begin(async () => capture())).toBeNull();
   });
 
   it('omits a replay over the 8,000,000-byte limit and gives the slot back', async () => {
-    await expect(begin(async () => capture(REPLAY_BYTE_CAP + 1))).resolves.toEqual({ kind: 'omitted', reason: 'over_cap' });
-    await expect(begin(async () => capture(REPLAY_BYTE_CAP))).resolves.toMatchObject({ kind: 'attach' });
+    await expect(begin(async () => capture(REPLAY_BYTE_CAP + 1))).resolves.toEqual({
+      kind: 'omitted',
+      reason: 'over_cap',
+    });
+    await expect(begin(async () => capture(REPLAY_BYTE_CAP))).resolves.toMatchObject({
+      kind: 'attach',
+    });
   });
 
   it('omits the replay at the 3-second deadline and ignores a late export', async () => {
     const timers = clock();
     let finish!: (value: ReplayCapture) => void;
     const outcome = begin(
-      () => new Promise<ReplayCapture | null>((resolve) => {
-        finish = resolve;
-      }),
+      () =>
+        new Promise<ReplayCapture | null>((resolve) => {
+          finish = resolve;
+        }),
       'BUFFERING',
       timers,
     );
@@ -163,9 +176,11 @@ describe('which errors get a replay', () => {
   });
 
   it('takes no slot when the snapshot throws synchronously', async () => {
-    expect(begin(() => {
-      throw new Error('boom');
-    })).toBeNull();
+    expect(
+      begin(() => {
+        throw new Error('boom');
+      }),
+    ).toBeNull();
     await begin(async () => capture());
     await begin(async () => capture());
     expect(begin(async () => capture())).toBeNull();

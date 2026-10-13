@@ -236,7 +236,12 @@ function networkCrumb(
 ): void {
   try {
     if (opts.crumbSink && (opts.crumbGate?.('network') ?? true)) {
-      opts.crumbSink({ kind: 'network', level: input.level, message: input.message, data: input.data });
+      opts.crumbSink({
+        kind: 'network',
+        level: input.level,
+        message: input.message,
+        data: input.data,
+      });
     }
   } catch {
     /* swallow — DEFE-02 */
@@ -281,9 +286,10 @@ export function filterHeaders(
 }
 
 /** Read a request init body as text when cheaply possible; else signal 'unsupported'. */
-function readRequestBody(
-  init: RequestInit | undefined,
-): { text?: string; skipped?: 'unsupported' } {
+function readRequestBody(init: RequestInit | undefined): {
+  text?: string;
+  skipped?: 'unsupported';
+} {
   const b = init?.body;
   if (b == null) return {};
   if (typeof b === 'string') return { text: b };
@@ -524,8 +530,7 @@ export function installFetchPatcher(opts: NetworkPatcherOptions = {}): () => voi
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const start = performance.now();
     const startedAt = Date.now();
-    const url =
-      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const method =
       init?.method ?? (typeof input !== 'string' && !(input instanceof URL) ? input.method : 'GET');
     // F42 (round-9 review) — pin body-capture identity to whichever adapter
@@ -568,8 +573,14 @@ export function installFetchPatcher(opts: NetworkPatcherOptions = {}): () => voi
               const body = init?.body;
               if (typeof body === 'string') {
                 reqHeadersObj.set('content-type', 'text/plain;charset=UTF-8');
-              } else if (typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams) {
-                reqHeadersObj.set('content-type', 'application/x-www-form-urlencoded;charset=UTF-8');
+              } else if (
+                typeof URLSearchParams !== 'undefined' &&
+                body instanceof URLSearchParams
+              ) {
+                reqHeadersObj.set(
+                  'content-type',
+                  'application/x-www-form-urlencoded;charset=UTF-8',
+                );
               }
             }
             const reqCt = reqHeadersObj.get('content-type');
@@ -646,7 +657,13 @@ export function installFetchPatcher(opts: NetworkPatcherOptions = {}): () => voi
       networkCrumb(opts, {
         message: `${method} ${url} ${res.status}`,
         level: statusLevel(res.status),
-        data: { method, url, status: res.status, durationMs, ...(reqId !== undefined ? { reqId } : {}) },
+        data: {
+          method,
+          url,
+          status: res.status,
+          durationMs,
+          ...(reqId !== undefined ? { reqId } : {}),
+        },
       });
       return res;
     } catch (err) {
@@ -785,7 +802,10 @@ export function installXHRPatcher(opts: NetworkPatcherOptions = {}): () => void 
               reqId = bc.nextReqId();
               const cfg = bc.config();
               const redaction = bc.redaction();
-              const entry: NetworkBodyEntry = { ref: reqId, t: this.__everframe_startedAt ?? Date.now() };
+              const entry: NetworkBodyEntry = {
+                ref: reqId,
+                t: this.__everframe_startedAt ?? Date.now(),
+              };
 
               if (reqBodyUnsupported) {
                 entry.reqBodySkipped = 'unsupported';

@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Installed recovered-stall fixture
 
 This credential-free API26+ host consumes the actual SDK Release Maven artifacts and minifies its own Release APK. Publish the SDK into an isolated Maven repository, then run the SDK Gradle wrapper against this directory with `-PeverframeMavenRepo=<absolute path>`, `-PeverframeVersion=<local version>` and `:app:assembleRelease`. Use `-PproofApplicationId=<unique owned package>`.

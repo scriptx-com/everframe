@@ -19,11 +19,19 @@ class FakeXHR {
   responseText = '';
   private headers: Record<string, string> = {};
   private listeners: Record<string, Array<() => void>> = {};
-  constructor() { FakeXHR.instances.push(this); }
+  constructor() {
+    FakeXHR.instances.push(this);
+  }
   open(_m: string, _u: string) {}
-  setRequestHeader(k: string, v: string) { this.headers[k.toLowerCase()] = v; }
-  getResponseHeader(k: string) { return this.headers[k.toLowerCase()] ?? null; }
-  addEventListener(t: string, cb: () => void) { (this.listeners[t] ??= []).push(cb); }
+  setRequestHeader(k: string, v: string) {
+    this.headers[k.toLowerCase()] = v;
+  }
+  getResponseHeader(k: string) {
+    return this.headers[k.toLowerCase()] ?? null;
+  }
+  addEventListener(t: string, cb: () => void) {
+    (this.listeners[t] ??= []).push(cb);
+  }
   removeEventListener() {}
   send(_b?: unknown) {
     this.readyState = 4;
@@ -76,11 +84,19 @@ describe('xhr body capture', () => {
       responseText = '';
       headers: Record<string, string> = {};
       listeners: Record<string, Array<() => void>> = {};
-      constructor() { SecretXHR.instances.push(this); }
+      constructor() {
+        SecretXHR.instances.push(this);
+      }
       open(_m: string, _u: string) {}
-      setRequestHeader(k: string, v: string) { this.headers[k.toLowerCase()] = v; }
-      getResponseHeader(k: string) { return this.headers[k.toLowerCase()] ?? null; }
-      addEventListener(t: string, cb: () => void) { (this.listeners[t] ??= []).push(cb); }
+      setRequestHeader(k: string, v: string) {
+        this.headers[k.toLowerCase()] = v;
+      }
+      getResponseHeader(k: string) {
+        return this.headers[k.toLowerCase()] ?? null;
+      }
+      addEventListener(t: string, cb: () => void) {
+        (this.listeners[t] ??= []).push(cb);
+      }
       removeEventListener() {}
       send(_b?: unknown) {
         this.readyState = 4;
@@ -130,7 +146,9 @@ describe('xhr body capture', () => {
   });
 
   it('does not read a non-text responseType', () => {
-    class BlobXHR extends FakeXHR { override responseType: XMLHttpRequestResponseType = 'blob'; }
+    class BlobXHR extends FakeXHR {
+      override responseType: XMLHttpRequestResponseType = 'blob';
+    }
     vi.stubGlobal('XMLHttpRequest', BlobXHR as unknown as typeof XMLHttpRequest);
     const { h, sunk } = hooks();
     const uninstall = installXHRPatcher({ bodyCapture: h });
@@ -187,9 +205,15 @@ describe('xhr body capture', () => {
       headers: Record<string, string> = {};
       listeners: Record<string, Array<() => void>> = {};
       open(_m: string, _u: string) {}
-      setRequestHeader(k: string, v: string) { this.headers[k.toLowerCase()] = v; }
-      getResponseHeader(k: string) { return this.headers[k.toLowerCase()] ?? null; }
-      addEventListener(t: string, cb: () => void) { (this.listeners[t] ??= []).push(cb); }
+      setRequestHeader(k: string, v: string) {
+        this.headers[k.toLowerCase()] = v;
+      }
+      getResponseHeader(k: string) {
+        return this.headers[k.toLowerCase()] ?? null;
+      }
+      addEventListener(t: string, cb: () => void) {
+        (this.listeners[t] ??= []).push(cb);
+      }
       removeEventListener() {}
       send(_b?: unknown) {
         this.readyState = 4;
@@ -238,9 +262,15 @@ describe('xhr body capture', () => {
       headers: Record<string, string> = {};
       listeners: Record<string, Array<() => void>> = {};
       open(_m: string, _u: string) {}
-      setRequestHeader(k: string, v: string) { this.headers[k.toLowerCase()] = v; }
-      getResponseHeader(k: string) { return this.headers[k.toLowerCase()] ?? null; }
-      addEventListener(t: string, cb: () => void) { (this.listeners[t] ??= []).push(cb); }
+      setRequestHeader(k: string, v: string) {
+        this.headers[k.toLowerCase()] = v;
+      }
+      getResponseHeader(k: string) {
+        return this.headers[k.toLowerCase()] ?? null;
+      }
+      addEventListener(t: string, cb: () => void) {
+        (this.listeners[t] ??= []).push(cb);
+      }
       removeEventListener() {}
       send(_b?: unknown) {
         this.readyState = 4;

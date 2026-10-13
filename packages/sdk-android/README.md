@@ -21,13 +21,13 @@ for exact tested paths, unsupported combinations and remaining qualification.
 
 ## Modules
 
-| Gradle module | Maven artifact | Purpose |
-| --- | --- | --- |
-| `everframe-protocol` | `dev.everframe:protocol` | Generated wire-protocol models |
-| `everframe-core` | `dev.everframe:core` | Capture, envelope, transport, outbox, and SDK lifecycle |
-| `everframe-reporter-ui` | `dev.everframe:reporter-ui` | Compose reporter and annotation UI |
-| `everframe-media3` | `dev.everframe:media3` | Media3 and ExoPlayer session-vitals integration |
-| `everframe-gradle-plugin` | `dev.everframe:gradle-plugin` | Build integration and optimized-build metadata |
+| Gradle module             | Maven artifact                | Purpose                                                 |
+| ------------------------- | ----------------------------- | ------------------------------------------------------- |
+| `everframe-protocol`      | `dev.everframe:protocol`      | Generated wire-protocol models                          |
+| `everframe-core`          | `dev.everframe:core`          | Capture, envelope, transport, outbox, and SDK lifecycle |
+| `everframe-reporter-ui`   | `dev.everframe:reporter-ui`   | Compose reporter and annotation UI                      |
+| `everframe-media3`        | `dev.everframe:media3`        | Media3 and ExoPlayer session-vitals integration         |
+| `everframe-gradle-plugin` | `dev.everframe:gradle-plugin` | Build integration and optimized-build metadata          |
 
 ## Development
 
@@ -72,12 +72,12 @@ with truncation flags. Causes do not change the outer error's grouping key.
 
 `Everframe.start` arms crash capture whenever `capture.crash` is `true`, which is the default. No other call is needed. The SDK picks the mechanism from the API level:
 
-| API | JVM exceptions (including `OutOfMemoryError`) | Native crashes | ANRs | Low-memory kills while the user could see or hear the app |
-| --- | --- | --- | --- | --- |
-| 24–25 | yes | — | — | — |
-| 26–29 | yes | with the optional `dev.everframe:native-crash` module (not yet on Maven Central) | — | — |
-| 30 | yes | OS exit record without frames; with `native-crash`, the fault frame, reported once | yes | yes |
-| 31+ | yes | OS exit record with tombstone frames | yes | yes |
+| API   | JVM exceptions (including `OutOfMemoryError`) | Native crashes                                                                     | ANRs | Low-memory kills while the user could see or hear the app |
+| ----- | --------------------------------------------- | ---------------------------------------------------------------------------------- | ---- | --------------------------------------------------------- |
+| 24–25 | yes                                           | —                                                                                  | —    | —                                                         |
+| 26–29 | yes                                           | with the optional `dev.everframe:native-crash` module (not yet on Maven Central)   | —    | —                                                         |
+| 30    | yes                                           | OS exit record without frames; with `native-crash`, the fault frame, reported once | yes  | yes                                                       |
+| 31+   | yes                                           | OS exit record with tombstone frames                                               | yes  | yes                                                       |
 
 Native and OS exit capture run in the default app process only; other processes report JVM exceptions. Capture begins once the asynchronous arm after `start()` completes; a native crash or ANR before that is not reported. `Everframe.isNativeCrashCaptureReady()` becomes true once every mechanism selected for the current start has armed. It stays false where no native mechanism exists, while setup runs, and when a mechanism refused (another app-bundled native crash collector, or unextracted native libraries).
 

@@ -5,8 +5,9 @@ import { createHash } from 'node:crypto';
 import { ReportEnvelope, vtree } from '@everframe/protocol';
 
 function part(body: Buffer, contentType: string, name: string): Buffer | null {
-  const boundary = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/)?.[1]
-    ?? contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/)?.[2];
+  const boundary =
+    contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/)?.[1] ??
+    contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/)?.[2];
   if (!boundary) return null;
   const start = body.indexOf(`name="${name}"`);
   if (start < 0) return null;
@@ -15,33 +16,52 @@ function part(body: Buffer, contentType: string, name: string): Buffer | null {
   return from < 4 || to < 0 ? null : body.subarray(from, to);
 }
 
-test('submits masked Flutter screenshot and image replay through the web reporter', async ({ page, request }) => {
+test('submits masked Flutter screenshot and image replay through the web reporter', async ({
+  page,
+  request,
+}) => {
   const origins = new Set<string>();
   page.on('request', (req) => {
     const url = new URL(req.url());
     if (url.pathname.startsWith('/api/')) origins.add(url.origin);
   });
   await page.goto('/');
-  await page.waitForFunction(() => Boolean((window as unknown as { __everframeProbe?: unknown }).__everframeProbe));
-  await page.waitForFunction(() => Boolean((window as unknown as { everframeFlutterProbeFrame?: string }).everframeFlutterProbeFrame));
-  const firstFrame = await page.evaluate(() => (window as unknown as { everframeFlutterProbeFrame: string }).everframeFlutterProbeFrame);
+  await page.waitForFunction(() =>
+    Boolean((window as unknown as { __everframeProbe?: unknown }).__everframeProbe),
+  );
+  await page.waitForFunction(() =>
+    Boolean(
+      (window as unknown as { everframeFlutterProbeFrame?: string }).everframeFlutterProbeFrame,
+    ),
+  );
+  const firstFrame = await page.evaluate(
+    () => (window as unknown as { everframeFlutterProbeFrame: string }).everframeFlutterProbeFrame,
+  );
   await page.mouse.click(350, 120);
   await page.waitForFunction((first) => {
-    const frame = (window as unknown as { everframeFlutterProbeFrame?: string }).everframeFlutterProbeFrame;
+    const frame = (window as unknown as { everframeFlutterProbeFrame?: string })
+      .everframeFlutterProbeFrame;
     return Boolean(frame) && frame !== first;
   }, firstFrame);
   await page.evaluate(() => {
-    const sdk = (window as unknown as { __everframeProbe: { open(): Promise<unknown> } }).__everframeProbe;
+    const sdk = (window as unknown as { __everframeProbe: { open(): Promise<unknown> } })
+      .__everframeProbe;
     void sdk.open();
   });
   await page.getByTestId('report-title').fill('Flutter web image replay');
   await page.getByTestId('submit-report').click();
-  await expect.poll(async () => {
-    const response = await request.get('/probe/last-report');
-    if (!response.ok()) return '';
-    const envelope = part(await response.body(), response.headers()['content-type'] ?? '', 'envelope');
-    return envelope ? JSON.parse(envelope.toString()).reporter?.title ?? '' : '';
-  }).toBe('Flutter web image replay');
+  await expect
+    .poll(async () => {
+      const response = await request.get('/probe/last-report');
+      if (!response.ok()) return '';
+      const envelope = part(
+        await response.body(),
+        response.headers()['content-type'] ?? '',
+        'envelope',
+      );
+      return envelope ? (JSON.parse(envelope.toString()).reporter?.title ?? '') : '';
+    })
+    .toBe('Flutter web image replay');
 
   const response = await request.get('/probe/last-report');
   const body = await response.body();
@@ -56,17 +76,25 @@ test('submits masked Flutter screenshot and image replay through the web reporte
   const replay = vtree.VTreeTimeline.parse(JSON.parse(replayBytes!.toString()));
   expect(envelope.sdk.name).toBe('everframe-flutter');
   expect(envelope.sdk.version).toBe('0.1.1');
-  expect(envelope.attachments.find((entry) => entry.kind === 'session-replay')?.format).toBe('everframe-vtree-v1');
+  expect(envelope.attachments.find((entry) => entry.kind === 'session-replay')?.format).toBe(
+    'everframe-vtree-v1',
+  );
   expect(replay.version).toBe('everframe-vtree-v1');
   expect(replay.frames.length).toBeGreaterThanOrEqual(2);
   expect(Object.keys(replay.assets).length).toBeGreaterThanOrEqual(2);
-  for (const [kind, bytes] of [['screenshot', screenshot], ['session-replay', replayBytes]] as const) {
+  for (const [kind, bytes] of [
+    ['screenshot', screenshot],
+    ['session-replay', replayBytes],
+  ] as const) {
     const ref = envelope.attachments.find((entry) => entry.kind === kind);
     expect(ref?.byteLength).toBe(bytes!.length);
     expect(ref?.sha256).toBe(createHash('sha256').update(bytes!).digest('hex'));
   }
   expect([...origins]).toEqual(['http://127.0.0.1:8938']);
-  const images = [screenshot!.toString('base64'), ...Object.values(replay.assets).map((asset) => asset.b64)];
+  const images = [
+    screenshot!.toString('base64'),
+    ...Object.values(replay.assets).map((asset) => asset.b64),
+  ];
   const publicColors = new Set<string>();
   for (const image of images) {
     const pixels = await page.evaluate(async (base64) => {
@@ -98,7 +126,9 @@ test('submits masked Flutter screenshot and image replay through the web reporte
         sensitiveBlack: blackFraction(140),
         platformBlack: blackFraction(240),
         magenta,
-        publicColor: Array.from(ctx.getImageData(80, 80, 1, 1).data).slice(0, 3).join(','),
+        publicColor: Array.from(ctx.getImageData(80, 80, 1, 1).data)
+          .slice(0, 3)
+          .join(','),
       };
     }, image);
     expect(pixels.sensitiveBlack).toBeGreaterThan(0.99);
@@ -110,7 +140,10 @@ test('submits masked Flutter screenshot and image replay through the web reporte
   expect(publicColors).toContain('0,102,255');
 });
 
-test('retries the exact masked report after a temporary ingest failure', async ({ page, request }) => {
+test('retries the exact masked report after a temporary ingest failure', async ({
+  page,
+  request,
+}) => {
   let attempted: Buffer | null = null;
   let attemptedType = '';
   await page.route('**/api/ingest', async (route) => {
@@ -119,29 +152,46 @@ test('retries the exact masked report after a temporary ingest failure', async (
     await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
   });
   await page.goto('/');
-  await page.waitForFunction(() => Boolean((window as unknown as { __everframeProbe?: unknown }).__everframeProbe));
-  await page.waitForFunction(() => Boolean((window as unknown as { everframeFlutterProbeFrame?: string }).everframeFlutterProbeFrame));
+  await page.waitForFunction(() =>
+    Boolean((window as unknown as { __everframeProbe?: unknown }).__everframeProbe),
+  );
+  await page.waitForFunction(() =>
+    Boolean(
+      (window as unknown as { everframeFlutterProbeFrame?: string }).everframeFlutterProbeFrame,
+    ),
+  );
   await page.evaluate(() => {
-    const sdk = (window as unknown as { __everframeProbe: { open(): Promise<unknown> } }).__everframeProbe;
+    const sdk = (window as unknown as { __everframeProbe: { open(): Promise<unknown> } })
+      .__everframeProbe;
     void sdk.open();
   });
   await page.getByTestId('report-title').fill('Flutter web queued visual report');
   await page.getByTestId('submit-report').click();
   await expect.poll(() => attempted !== null).toBe(true);
-  const queuedEnvelope = ReportEnvelope.parse(JSON.parse(part(attempted!, attemptedType, 'envelope')!.toString()));
+  const queuedEnvelope = ReportEnvelope.parse(
+    JSON.parse(part(attempted!, attemptedType, 'envelope')!.toString()),
+  );
   expect(queuedEnvelope.attachments.some((entry) => entry.kind === 'session-replay')).toBe(true);
   await page.unroute('**/api/ingest');
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await expect.poll(async () => {
-    const response = await request.get('/probe/last-report');
-    if (!response.ok()) return '';
-    const envelope = part(await response.body(), response.headers()['content-type'] ?? '', 'envelope');
-    return envelope ? JSON.parse(envelope.toString()).reporter?.title ?? '' : '';
-  }).toBe('Flutter web queued visual report');
+  await expect
+    .poll(async () => {
+      const response = await request.get('/probe/last-report');
+      if (!response.ok()) return '';
+      const envelope = part(
+        await response.body(),
+        response.headers()['content-type'] ?? '',
+        'envelope',
+      );
+      return envelope ? (JSON.parse(envelope.toString()).reporter?.title ?? '') : '';
+    })
+    .toBe('Flutter web queued visual report');
   const delivered = await request.get('/probe/last-report');
   const deliveredBody = await delivered.body();
   const deliveredType = delivered.headers()['content-type'] ?? '';
-  const deliveredEnvelope = ReportEnvelope.parse(JSON.parse(part(deliveredBody, deliveredType, 'envelope')!.toString()));
+  const deliveredEnvelope = ReportEnvelope.parse(
+    JSON.parse(part(deliveredBody, deliveredType, 'envelope')!.toString()),
+  );
   expect(deliveredEnvelope.reportId).toBe(queuedEnvelope.reportId);
   expect(deliveredEnvelope.attachments).toEqual(queuedEnvelope.attachments);
   for (const name of ['screenshot', 'session-replay']) {

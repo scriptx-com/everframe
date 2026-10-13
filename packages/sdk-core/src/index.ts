@@ -10,14 +10,20 @@ export {
   REPLAY_TRACE_MAX,
 } from './debug/replay-trace.js';
 export type { ReplayTraceEntry } from './debug/replay-trace.js';
-export { createClient, __internalClientState, toEverframeError, resolveClientExtra } from './client.js';
+export {
+  createClient,
+  __internalClientState,
+  toEverframeError,
+  resolveClientExtra,
+} from './client.js';
 export type { EverframeClient, ExtraResolver, ExtraState } from './client.js';
 export { trimLogs, MAX_LOG_CHARS, TRIMMED_LOGS_MESSAGE } from './trim-logs.js';
-export {
-  createBreadcrumbBuffer,
-  MAX_BREADCRUMBS,
+export { createBreadcrumbBuffer, MAX_BREADCRUMBS } from './breadcrumbs/buffer.js';
+export type {
+  BreadcrumbBuffer,
+  BreadcrumbBufferDeps,
+  BreadcrumbInput,
 } from './breadcrumbs/buffer.js';
-export type { BreadcrumbBuffer, BreadcrumbBufferDeps, BreadcrumbInput } from './breadcrumbs/buffer.js';
 export {
   trimBreadcrumbs,
   crumbCost,
@@ -82,11 +88,7 @@ export {
   DEVICE_TOKEN_BYTES,
 } from './reporter/device-token.js';
 export { deriveInstallId, INSTALL_ID_DOMAIN_SEPARATOR } from './install-id.js';
-export {
-  createReporterApi,
-  ReporterApiError,
-  MESSAGE_BODY_MAX,
-} from './reporter/api.js';
+export { createReporterApi, ReporterApiError, MESSAGE_BODY_MAX } from './reporter/api.js';
 export type {
   ReporterApi,
   ReporterApiDeps,
@@ -168,7 +170,11 @@ export type { SummaryAccumulator } from './vitals/summary.js';
 export { boundJson } from './vitals/bound-json.js';
 export type { BoundedJson } from './vitals/bound-json.js';
 export type {
-  PlayerEmit, PlayerIntegration, PlayerIntegrationContext, PlayerSnapshot, PlayerStartupTimings,
+  PlayerEmit,
+  PlayerIntegration,
+  PlayerIntegrationContext,
+  PlayerSnapshot,
+  PlayerStartupTimings,
 } from './vitals/player-integration.js';
 // Re-export protocol types so platform packages can import everything from sdk-core.
 export * from '@everframe/protocol';

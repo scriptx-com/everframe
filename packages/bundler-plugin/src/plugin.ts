@@ -3,7 +3,13 @@
 import { dirname, resolve } from 'node:path';
 import MagicString from 'magic-string';
 import { createUnplugin, type UnpluginInstance } from 'unplugin';
-import { finishBuild, identityBanner, resolvePluginSettings, type EverframeBundlerOptions, type Settings } from './core.js';
+import {
+  finishBuild,
+  identityBanner,
+  resolvePluginSettings,
+  type EverframeBundlerOptions,
+  type Settings,
+} from './core.js';
 import type { uploadBuild } from '@everframe/cli/upload';
 
 export interface PluginDeps {
@@ -17,7 +23,14 @@ function outputRoot(output: { dir?: string | undefined; file?: string | undefine
 
 interface WebpackCompilerLike {
   options: { devtool?: unknown; mode?: string; output: { path?: string } };
-  webpack: { BannerPlugin: new (options: { banner: string; raw: boolean; entryOnly: boolean; test: RegExp }) => { apply(c: unknown): void } };
+  webpack: {
+    BannerPlugin: new (options: {
+      banner: string;
+      raw: boolean;
+      entryOnly: boolean;
+      test: RegExp;
+    }) => { apply(c: unknown): void };
+  };
   hooks: { afterEmit: { tapPromise(name: string, fn: () => Promise<void>): void } };
 }
 
@@ -33,8 +46,15 @@ export function applyWebpack(
 ): void {
   if (compiler.options.mode !== 'production') return;
   if (!compiler.options.devtool) compiler.options.devtool = 'hidden-source-map';
-  new compiler.webpack.BannerPlugin({ banner: identityBanner(settings.buildId), raw: true, entryOnly: true, test: /\.[cm]?js$/ }).apply(compiler);
-  compiler.hooks.afterEmit.tapPromise('everframe', () => finish(resolve(compiler.options.output.path ?? 'dist', uploadSubdir)));
+  new compiler.webpack.BannerPlugin({
+    banner: identityBanner(settings.buildId),
+    raw: true,
+    entryOnly: true,
+    test: /\.[cm]?js$/,
+  }).apply(compiler);
+  compiler.hooks.afterEmit.tapPromise('everframe', () =>
+    finish(resolve(compiler.options.output.path ?? 'dist', uploadSubdir)),
+  );
 }
 
 function finisher(settings: Settings, deps: PluginDeps): (dir: string) => Promise<void> {
@@ -42,17 +62,23 @@ function finisher(settings: Settings, deps: PluginDeps): (dir: string) => Promis
 }
 
 /** Next's client chunks live under `.next/static`; the rest of `.next` is server output. */
-export function createNextWebpackPlugin(options: EverframeBundlerOptions, deps: PluginDeps = {}): { apply(compiler: unknown): void } {
+export function createNextWebpackPlugin(
+  options: EverframeBundlerOptions,
+  deps: PluginDeps = {},
+): { apply(compiler: unknown): void } {
   const settings = resolvePluginSettings(options, deps.env ?? process.env);
   return {
     apply(compiler) {
-      if (settings) applyWebpack(compiler as WebpackCompilerLike, settings, finisher(settings, deps), 'static');
+      if (settings)
+        applyWebpack(compiler as WebpackCompilerLike, settings, finisher(settings, deps), 'static');
     },
   };
 }
 
 /** Factory with injectable env/upload for tests; production code uses `everframeUnplugin`. */
-export function createEverframePlugin(deps: PluginDeps = {}): UnpluginInstance<EverframeBundlerOptions, false> {
+export function createEverframePlugin(
+  deps: PluginDeps = {},
+): UnpluginInstance<EverframeBundlerOptions, false> {
   return createUnplugin<EverframeBundlerOptions, false>((options) => {
     const settings = resolvePluginSettings(options, deps.env ?? process.env);
     if (!settings) return { name: 'everframe' };
@@ -114,7 +140,8 @@ export function createEverframePlugin(deps: PluginDeps = {}): UnpluginInstance<E
               return;
             }
             const dir = opts.outdir ?? (opts.outfile ? dirname(opts.outfile) : undefined);
-            if (!dir) throw new Error('everframe: esbuild needs outdir or outfile to upload source maps');
+            if (!dir)
+              throw new Error('everframe: esbuild needs outdir or outfile to upload source maps');
             await finish(resolve(dir));
           });
         },

@@ -69,12 +69,14 @@ const STATUS_BAR_HEIGHT = Platform.isTV
 const EVERFRAME_CONFIG = {
   sdkKey: process.env.EXPO_PUBLIC_EVERFRAME_KEY ?? '',
   appName: 'examplereactnative',
-  ...(process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID ? {
-    jsBundle: {
-      buildId: process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID,
-      bundleName: Platform.OS === 'android' ? 'index.android.bundle' : 'main.jsbundle',
-    },
-  } : {}),
+  ...(process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID
+    ? {
+        jsBundle: {
+          buildId: process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID,
+          bundleName: Platform.OS === 'android' ? 'index.android.bundle' : 'main.jsbundle',
+        },
+      }
+    : {}),
   integrations: [consoleIntegration()],
   // Inline reporter theme (reporter branding spec 2026-08-25) — brands the
   // NATIVE report dialogs. Renders only on a paid plan (server says
@@ -139,10 +141,7 @@ export function App(): React.JSX.Element {
         {tab === 'log' ? (
           <FieldLog />
         ) : (
-          <ScrollView
-            key={tab}
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}>
+          <ScrollView key={tab} style={styles.scroll} contentContainerStyle={styles.scrollContent}>
             {tab === 'desk' && <Home />}
             {tab === 'specimens' && <Specimens />}
             {tab === 'profile' && <Form />}

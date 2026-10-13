@@ -40,7 +40,7 @@ const SAFE_TEXT_PROPS = new Set(['componentType', 'displayName']);
 
 export function applyRedaction(
   envelope: ReportEnvelope,
-  config: RedactionConfig
+  config: RedactionConfig,
 ): { envelope: ReportEnvelope; maskPlan: Rect[] } {
   const maskPlan: Rect[] = [];
   // Deep clone via structured-clone-equivalent JSON round-trip to avoid mutating input.
@@ -55,12 +55,12 @@ export function applyRedaction(
   }
   if (cloned.payload.network) {
     cloned.payload.network = (cloned.payload.network as unknown[]).map((n) =>
-      redactNetworkEntry(n as Record<string, unknown>, config)
+      redactNetworkEntry(n as Record<string, unknown>, config),
     );
   }
   if (cloned.payload.logs) {
     cloned.payload.logs = (cloned.payload.logs as unknown[]).map((l) =>
-      redactLogEntry(l as Record<string, unknown>, config)
+      redactLogEntry(l as Record<string, unknown>, config),
     );
   }
 
@@ -104,14 +104,12 @@ function redactUITree(node: UINode, config: RedactionConfig, maskPlan: Rect[]): 
 
 function redactNetworkEntry(
   entry: Record<string, unknown>,
-  config: RedactionConfig
+  config: RedactionConfig,
 ): Record<string, unknown> {
   const headers = (entry['headers'] as Record<string, string> | undefined) ?? {};
   const masked: Record<string, string> = {};
   for (const [k, v] of Object.entries(headers)) {
-    masked[k] = SENSITIVE_HEADERS.test(k)
-      ? '[REDACTED]'
-      : redactStringContent(String(v), config);
+    masked[k] = SENSITIVE_HEADERS.test(k) ? '[REDACTED]' : redactStringContent(String(v), config);
   }
   const url = entry['url'];
   return {
@@ -123,7 +121,7 @@ function redactNetworkEntry(
 
 function redactLogEntry(
   entry: Record<string, unknown>,
-  config: RedactionConfig
+  config: RedactionConfig,
 ): Record<string, unknown> {
   const message = typeof entry['message'] === 'string' ? (entry['message'] as string) : '';
   return { ...entry, message: redactStringContent(message, config) };
@@ -143,9 +141,7 @@ export function redactStringContent(s: string, config: RedactionConfig): string 
       s = s.replace(rule.match, rule.replacement ?? '[REDACTED]');
     } else if (rule.type === 'urlParam') {
       const pattern =
-        rule.match instanceof RegExp
-          ? rule.match
-          : new RegExp(`(${rule.match}=)[^&]+`, 'g');
+        rule.match instanceof RegExp ? rule.match : new RegExp(`(${rule.match}=)[^&]+`, 'g');
       s = s.replace(pattern, rule.replacement ?? '[REDACTED]');
     } else if (rule.type === 'header') {
       // Header rules are applied at the header layer (redactNetworkEntry already handles

@@ -13,12 +13,7 @@
 // Constructed lazily at first listener attachment so importing a module that
 // uses this doesn't require NativeEventEmitter wiring before the
 // EverframeProvider has configured the native side.
-import {
-  NativeEventEmitter,
-  NativeModules,
-  Platform,
-  type EventSubscription,
-} from 'react-native';
+import { NativeEventEmitter, NativeModules, Platform, type EventSubscription } from 'react-native';
 
 /**
  * SDK-facing listener surface. React Native 0.87 intentionally types raw

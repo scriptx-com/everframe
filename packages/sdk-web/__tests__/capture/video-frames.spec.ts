@@ -397,7 +397,10 @@ describe('untransformedBorderBox', () => {
     // for a scale(2) video. Feeding that back as width/height while ALSO
     // copying the transform renders it at 400x200 — the stand-in must be sized
     // in layout space, where the transform has not been applied yet.
-    const box = untransformedBorderBox(video(), computed({ transform: 'matrix(2, 0, 0, 2, 0, 0)' }));
+    const box = untransformedBorderBox(
+      video(),
+      computed({ transform: 'matrix(2, 0, 0, 2, 0, 0)' }),
+    );
     expect(box).toEqual({ width: 100, height: 50 });
   });
 
@@ -523,7 +526,12 @@ describe('installVideoStandIns — cost ceilings', () => {
   it('judges an off-screen video from left/top when the rect has no x/y (Chrome < 61 ClientRect)', async () => {
     document.body.innerHTML = '<video></video>';
     const video = document.querySelector('video')!;
-    vi.spyOn(video, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 99_999, width: 320, height: 180 } as DOMRect);
+    vi.spyOn(video, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 99_999,
+      width: 320,
+      height: 180,
+    } as DOMRect);
     (video as HTMLElement).style.width = '320px';
     (video as HTMLElement).style.height = '180px';
     const createElement = vi.spyOn(document, 'createElement');
@@ -535,7 +543,7 @@ describe('installVideoStandIns — cost ceilings', () => {
     restore();
   });
 
-  it('holds an off-screen video\'s box open without reading its frame', async () => {
+  it("holds an off-screen video's box open without reading its frame", async () => {
     // The capture is cropped to the viewport, so an off-screen video cannot
     // contribute a pixel — but one above the fold still holds layout open for
     // what IS visible, so the box must survive.
@@ -660,7 +668,7 @@ describe('clipHidesEverything', () => {
   });
 });
 
-describe('installVideoStandIns — respects the application\'s own writes', () => {
+describe("installVideoStandIns — respects the application's own writes", () => {
   it('leaves display alone when the app restyled the video mid-capture', async () => {
     // A capture can be in flight for seconds. If React re-renders the video or
     // a player toggles fullscreen in that window, writing the pre-capture value

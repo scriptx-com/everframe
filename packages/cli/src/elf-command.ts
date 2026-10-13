@@ -1,13 +1,21 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { basename, dirname } from "node:path";
-import { parseArgs } from "node:util";
-import { adviceFor } from "./build-verify.js";
-import { DEFAULT_API_URL, MISSING_TOKEN, NO_TOKEN_WARNING, redact, symbolsStrict, uploadBudget, uploadFailureWarnings } from "./defaults.js";
-import { discoverElfBinaries, type ElfBinaryInput } from "./elf-build.js";
-import { uploadAndroidElfBuild } from "./elf-upload.js";
+import { basename, dirname } from 'node:path';
+import { parseArgs } from 'node:util';
+import { adviceFor } from './build-verify.js';
+import {
+  DEFAULT_API_URL,
+  MISSING_TOKEN,
+  NO_TOKEN_WARNING,
+  redact,
+  symbolsStrict,
+  uploadBudget,
+  uploadFailureWarnings,
+} from './defaults.js';
+import { discoverElfBinaries, type ElfBinaryInput } from './elf-build.js';
+import { uploadAndroidElfBuild } from './elf-upload.js';
 
-const ANDROID_ABIS = new Set(["armeabi-v7a", "arm64-v8a", "x86", "x86_64", "riscv64"]);
+const ANDROID_ABIS = new Set(['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64', 'riscv64']);
 
 export interface ElfCommandDependencies {
   upload?: typeof uploadAndroidElfBuild;
@@ -27,7 +35,7 @@ export interface ElfCommandDependencies {
 export async function elfUploadBuildCommand(
   args: string[],
   env: NodeJS.ProcessEnv,
-  deps: ElfCommandDependencies = {}
+  deps: ElfCommandDependencies = {},
 ): Promise<number> {
   const log = deps.log ?? console.log,
     warn = deps.warn ?? console.warn;
@@ -36,25 +44,26 @@ export async function elfUploadBuildCommand(
     allowPositionals: false,
     strict: true,
     options: {
-      "app-id": { type: "string" },
-      binary: { type: "string", multiple: true },
-      "binaries-dir": { type: "string" },
-      "symbols-dir": { type: "string" },
-      "project-native-dir": { type: "string", multiple: true },
-      abi: { type: "string", multiple: true },
-      summary: { type: "boolean", default: false },
-      strict: { type: "boolean", default: false },
+      'app-id': { type: 'string' },
+      binary: { type: 'string', multiple: true },
+      'binaries-dir': { type: 'string' },
+      'symbols-dir': { type: 'string' },
+      'project-native-dir': { type: 'string', multiple: true },
+      abi: { type: 'string', multiple: true },
+      summary: { type: 'boolean', default: false },
+      strict: { type: 'boolean', default: false },
     },
   });
   const abis = values.abi ?? [];
   for (const abi of abis)
-    if (!ANDROID_ABIS.has(abi)) throw new Error(`invalid_abi: ${abi} (expected one of ${[...ANDROID_ABIS].join(", ")})`);
+    if (!ANDROID_ABIS.has(abi))
+      throw new Error(`invalid_abi: ${abi} (expected one of ${[...ANDROID_ABIS].join(', ')})`);
   const explicit = values.binary ?? [],
-    directory = values["binaries-dir"];
-  if ((explicit.length > 0) === (directory !== undefined))
-    throw new Error("elf_input_mode: pass either --binaries-dir <dir> or --binary <path>...");
-  const symbolsDir = values["symbols-dir"];
-  if (!symbolsDir) throw new Error("missing_required_option: --symbols-dir");
+    directory = values['binaries-dir'];
+  if (explicit.length > 0 === (directory !== undefined))
+    throw new Error('elf_input_mode: pass either --binaries-dir <dir> or --binary <path>...');
+  const symbolsDir = values['symbols-dir'];
+  if (!symbolsDir) throw new Error('missing_required_option: --symbols-dir');
   const strict = symbolsStrict(env, values.strict);
   const failHard = strict || explicit.length > 0;
   const token = env.EVERFRAME_API_TOKEN;
@@ -65,10 +74,17 @@ export async function elfUploadBuildCommand(
     else {
       // AGP merges every ABI a dependency ships; only the ABIs the variant packages matter.
       binaries = (await discoverElfBinaries(directory!))
-        .filter((path) => !abis.length || !ANDROID_ABIS.has(basename(dirname(path))) || abis.includes(basename(dirname(path))))
+        .filter(
+          (path) =>
+            !abis.length ||
+            !ANDROID_ABIS.has(basename(dirname(path))) ||
+            abis.includes(basename(dirname(path))),
+        )
         .map((path) => ({ path, required: strict }));
       if (!binaries.length) {
-        log(`No native libraries under ${directory}${abis.length ? ` for ${abis.join(", ")}` : ""}; nothing to upload.`);
+        log(
+          `No native libraries under ${directory}${abis.length ? ` for ${abis.join(', ')}` : ''}; nothing to upload.`,
+        );
         return 0;
       }
     }
@@ -77,8 +93,8 @@ export async function elfUploadBuildCommand(
       warn(NO_TOKEN_WARNING);
       return 0;
     }
-    const appId = values["app-id"] ?? env.EVERFRAME_APP_ID;
-    if (!appId) throw new Error("missing_app_id: pass --app-id or set EVERFRAME_APP_ID");
+    const appId = values['app-id'] ?? env.EVERFRAME_APP_ID;
+    if (!appId) throw new Error('missing_app_id: pass --app-id or set EVERFRAME_APP_ID');
     const result = await (deps.upload ?? uploadAndroidElfBuild)(
       {
         appId,
@@ -86,29 +102,38 @@ export async function elfUploadBuildCommand(
         apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         binaries,
         symbolsDir: symbolsDir!,
-        projectDirs: values["project-native-dir"],
+        projectDirs: values['project-native-dir'],
         lenient: !failHard,
       },
-      uploadBudget(env, explicit.length === 0)
+      uploadBudget(env, explicit.length === 0),
     );
-    log(`Symbols for ${result.images.length} images are ready (${result.artifacts.length} ELF files).`);
+    log(
+      `Symbols for ${result.images.length} images are ready (${result.artifacts.length} ELF files).`,
+    );
     // Rejected files are warnings even in summary mode: the Gradle plugin passes `warning:` lines through.
     for (const entry of result.failed)
       warn(`warning: everframe: upload failed for ${entry.path}: ${redact(entry.message, token)}`);
-    if (result.failed.length) warn(uploadFailureWarnings("", token)[1]!);
+    if (result.failed.length) warn(uploadFailureWarnings('', token)[1]!);
     if (values.summary) {
       // A build integration summarizes these lines itself and logs them in detail.
-      for (const entry of result.uncovered) log(`detail: ${entry.kind} ${entry.path}: ${entry.reason}`);
+      for (const entry of result.uncovered)
+        log(`detail: ${entry.kind} ${entry.path}: ${entry.reason}`);
       return 0;
     }
-    const prebuilt = result.uncovered.filter((entry) => entry.kind === "prebuilt"),
-      problems = result.uncovered.filter((entry) => entry.kind !== "prebuilt");
+    const prebuilt = result.uncovered.filter((entry) => entry.kind === 'prebuilt'),
+      problems = result.uncovered.filter((entry) => entry.kind !== 'prebuilt');
     for (const entry of problems.slice(0, 16))
       warn(`warning: no symbols for ${entry.path}: ${entry.reason}; its frames stay raw.`);
-    if (problems.length > 16) warn(`warning: and ${problems.length - 16} more libraries without symbols`);
+    if (problems.length > 16)
+      warn(`warning: and ${problems.length - 16} more libraries without symbols`);
     // Libraries shipped stripped (AndroidX, SDK prebuilts) are expected; they are not warnings.
     if (prebuilt.length)
-      log(`${prebuilt.length} prebuilt ${prebuilt.length === 1 ? "library ships" : "libraries ship"} without debug information; their frames stay raw: ${prebuilt.slice(0, 16).map((entry) => basename(entry.path)).join(", ")}${prebuilt.length > 16 ? ", …" : ""}`);
+      log(
+        `${prebuilt.length} prebuilt ${prebuilt.length === 1 ? 'library ships' : 'libraries ship'} without debug information; their frames stay raw: ${prebuilt
+          .slice(0, 16)
+          .map((entry) => basename(entry.path))
+          .join(', ')}${prebuilt.length > 16 ? ', …' : ''}`,
+      );
     return 0;
   }
 
@@ -116,7 +141,7 @@ export async function elfUploadBuildCommand(
     return await run();
   } catch (error) {
     if (failHard) throw error;
-    const message = error instanceof Error ? error.message : "upload_failed";
+    const message = error instanceof Error ? error.message : 'upload_failed';
     for (const line of uploadFailureWarnings(adviceFor(message), token)) warn(line);
     return 0;
   }

@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it, beforeEach, vi } from 'vitest';
-import {
-  getNativeTagFromHostFiber,
-  __resetHostTagWarn,
-} from '../../src/capture/host-tag-rn.js';
+import { getNativeTagFromHostFiber, __resetHostTagWarn } from '../../src/capture/host-tag-rn.js';
 
 describe('getNativeTagFromHostFiber', () => {
   beforeEach(() => {

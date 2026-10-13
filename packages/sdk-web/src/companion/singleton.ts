@@ -18,11 +18,7 @@
 'use client';
 
 import { createCompanion, type CompanionAPI } from './state.js';
-import {
-  createRelayWSClient,
-  type RelayWSClient,
-  type ReportSubmit,
-} from './ws-client.js';
+import { createRelayWSClient, type RelayWSClient, type ReportSubmit } from './ws-client.js';
 import {
   handleReportRequest,
   handleCompanionReportRequest,
@@ -142,7 +138,8 @@ let _api: CompanionAPI | null = null;
 let _ws: RelayWSClient | null = null;
 let _attachPinUiMode: AttachPinUiMode = 'builtin';
 let _badgeConfig: { enabled: boolean; position: BadgePosition } = {
-  enabled: true, position: 'bottom-right',
+  enabled: true,
+  position: 'bottom-right',
 };
 
 /**
@@ -343,12 +340,12 @@ export function start(opts: CompanionStartOptions = {}): void {
     _warnedNoPinSurface = true;
     console.warn(
       '[Everframe] companion.start(): attachPinUi is "builtin", but this host has no ' +
-        'built-in PIN surface (CompanionPinCard is mounted only by @everframe/react\'s ' +
+        "built-in PIN surface (CompanionPinCard is mounted only by @everframe/react's " +
         'EverframeProvider). Attach-PIN support will NOT be announced, so the dashboard ' +
-        'falls back to one-click attach. To support it, pass attachPinUi: \'custom\' and ' +
+        "falls back to one-click attach. To support it, pass attachPinUi: 'custom' and " +
         'render the challenge yourself from __getCompanionApi().onAttachChallenge() ' +
-        '(import it as a top-level export from \'@everframe/web\'), ' +
-        'or pass attachPinUi: \'off\' to silence this.',
+        "(import it as a top-level export from '@everframe/web'), " +
+        "or pass attachPinUi: 'off' to silence this.",
     );
   }
   _attachPinUiMode = noSurfaceForBuiltin ? 'off' : requestedPinUi;
@@ -368,8 +365,8 @@ export function start(opts: CompanionStartOptions = {}): void {
     _warnedNoBadgeSurface = true;
     console.warn(
       '[Everframe] companion.start(): companionBadge was configured, but this host has no ' +
-        'built-in badge surface (CompanionBadge is rendered only by @everframe/react\'s ' +
-        'EverframeProvider — it is an ambient surface, and the vanilla mount\'s only ambient ' +
+        "built-in badge surface (CompanionBadge is rendered only by @everframe/react's " +
+        "EverframeProvider — it is an ambient surface, and the vanilla mount's only ambient " +
         'element is the FAB). The badge will NOT be shown. Render your own from ' +
         '__getCompanionApi().onAttachedUserName() + .onResolvedName() if you need it.',
     );

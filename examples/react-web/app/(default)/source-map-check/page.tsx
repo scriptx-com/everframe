@@ -38,18 +38,23 @@ export default function SourceMapCheckPage() {
       <section className="card">
         <h2 className="section-title">Send a handled error</h2>
         <p className="muted">
-          This button throws and catches an error, then sends it through the SDK.
-          Open this app’s errors in the dashboard and look for <code>source-map-check</code>.
+          This button throws and catches an error, then sends it through the SDK. Open this app’s
+          errors in the dashboard and look for <code>source-map-check</code>.
         </p>
-        <button className="btn btn-primary" onClick={captureSourceMapCheck}>Capture source-map-check</button>
-        <button className="btn" onClick={captureSourceMapCheckWithCauses}>Capture source-map-check with causes</button>
+        <button className="btn btn-primary" onClick={captureSourceMapCheck}>
+          Capture source-map-check
+        </button>
+        <button className="btn" onClick={captureSourceMapCheckWithCauses}>
+          Capture source-map-check with causes
+        </button>
         <p className="fixture-note">
-          Build: <code>{process.env.NEXT_PUBLIC_EVERFRAME_APP_BUILD || 'development (no build ID)'}</code>
+          Build:{' '}
+          <code>{process.env.NEXT_PUBLIC_EVERFRAME_APP_BUILD || 'development (no build ID)'}</code>
         </p>
         <p className="muted">
-          With source maps uploaded for this build, the stack should point to
-          this page’s original throw statement. Use the production error-test
-          build to verify mapping from minified JavaScript.
+          With source maps uploaded for this build, the stack should point to this page’s original
+          throw statement. Use the production error-test build to verify mapping from minified
+          JavaScript.
         </p>
       </section>
     </main>

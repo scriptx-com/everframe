@@ -56,9 +56,9 @@ describe('web crash reporting (spec 2026-07-18)', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ status: 'received' }), { status: 200 }),
-    );
+    fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ status: 'received' }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
     vitalsOnPlayerEvent = undefined;
@@ -67,12 +67,12 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     vitalsSamplerStopSpy.mockReset();
     vitalsPlayerStopSpy.mockReset();
     startResourceSamplerMock.mockReset().mockReturnValue(vitalsSamplerStopSpy);
-    attachPlayerVitalsMock.mockReset().mockImplementation(
-      (deps: { onEvent: (e: { t: number; type: string }) => void }) => {
+    attachPlayerVitalsMock
+      .mockReset()
+      .mockImplementation((deps: { onEvent: (e: { t: number; type: string }) => void }) => {
         vitalsOnPlayerEvent = deps.onEvent;
         return { trackPlayer: vi.fn(), sampleQuality: vi.fn(), stop: vitalsPlayerStopSpy };
-      },
-    );
+      });
     createVitalsTransportMock.mockReset().mockReturnValue(vitalsSendSpy);
   });
   afterEach(() => {
@@ -88,7 +88,12 @@ describe('web crash reporting (spec 2026-07-18)', () => {
   };
 
   it('uncaught error → error crumb preserved + envelope enqueued + immediate drain', async () => {
-    const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0', appBuild: 'web-abc123' });
+    const adapter = mk({
+      sdkKey: 'pk_test',
+      appName: 'demo',
+      appVersion: '1.0.0',
+      appBuild: 'web-abc123',
+    });
     const buf = createBreadcrumbBuffer();
     adapter.__setBreadcrumbBuffer(() => buf);
 
@@ -102,7 +107,12 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     window.onerror?.('boom', 'a.ts', 1, 1, err);
 
     // Existing behavior preserved: the error breadcrumb landed.
-    expect(adapter.__getBreadcrumbBuffer()?.snapshot().some((b) => b.kind === 'error')).toBe(true);
+    expect(
+      adapter
+        .__getBreadcrumbBuffer()
+        ?.snapshot()
+        .some((b) => b.kind === 'error'),
+    ).toBe(true);
 
     // Envelope reached the outbox and the immediate drain POSTed it.
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
@@ -115,12 +125,14 @@ describe('web crash reporting (spec 2026-07-18)', () => {
       fatal: false,
       details: { severity: 'error' },
       causeChain: {
-        causes: [{
-          exceptionType: 'RangeError',
-          message: 'root failure',
-          frames: [{ raw: 'at root (root.ts:9:4)' }],
-          framesTruncated: false,
-        }],
+        causes: [
+          {
+            exceptionType: 'RangeError',
+            message: 'root failure',
+            frames: [{ raw: 'at root (root.ts:9:4)' }],
+            framesTruncated: false,
+          },
+        ],
         truncated: false,
       },
     });
@@ -139,7 +151,12 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     window.onerror?.('dup', 'b.ts', 2, 2, err);
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    expect(adapter.__getBreadcrumbBuffer()?.snapshot().filter((b) => b.kind === 'error').length).toBe(2);
+    expect(
+      adapter
+        .__getBreadcrumbBuffer()
+        ?.snapshot()
+        .filter((b) => b.kind === 'error').length,
+    ).toBe(2);
   });
 
   it('crashReporting.disabled vetoes reports but not crumbs', async () => {
@@ -150,7 +167,12 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     window.onerror?.('x', 'c.ts', 1, 1, new Error('x'));
     await new Promise((r) => setTimeout(r, 20));
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(adapter.__getBreadcrumbBuffer()?.snapshot().some((b) => b.kind === 'error')).toBe(true);
+    expect(
+      adapter
+        .__getBreadcrumbBuffer()
+        ?.snapshot()
+        .some((b) => b.kind === 'error'),
+    ).toBe(true);
   });
 
   it('unhandledrejection → error crumb preserved + envelope enqueued + immediate drain', async () => {
@@ -167,7 +189,12 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     Object.defineProperty(ev, 'reason', { value: err });
     window.dispatchEvent(ev);
 
-    expect(adapter.__getBreadcrumbBuffer()?.snapshot().some((b) => b.kind === 'error')).toBe(true);
+    expect(
+      adapter
+        .__getBreadcrumbBuffer()
+        ?.snapshot()
+        .some((b) => b.kind === 'error'),
+    ).toBe(true);
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = fetchMock.mock.calls[0]?.[1]?.body as FormData;
@@ -270,10 +297,9 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     const wake = vi.spyOn(threads!, 'wake');
 
     fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({ status: 'received', thread: { id: 't-crash' } }),
-        { status: 200 },
-      ),
+      new Response(JSON.stringify({ status: 'received', thread: { id: 't-crash' } }), {
+        status: 200,
+      }),
     );
 
     const err = new Error('wake-me');
@@ -315,7 +341,10 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     const err = new Error('smoke js-render: ExplodingRow');
     err.stack = 'Error: smoke js-render: ExplodingRow\n    at ExplodingRow (index.js:1:20)';
 
-    adapter.__captureUncaughtReactError(err, '\n    at ExplodingRow (index.js:1:20)\n    at CrashHost (index.js:1:90)');
+    adapter.__captureUncaughtReactError(
+      err,
+      '\n    at ExplodingRow (index.js:1:20)\n    at CrashHost (index.js:1:90)',
+    );
     // React then reports the same object to the page.
     window.onerror?.(err.message, 'index.js', 1, 20, err);
 
@@ -326,8 +355,9 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     expect(envelopeJson.reporter.title).toBe('Error: smoke js-render: ExplodingRow');
     expect(envelopeJson.payload.crash).toMatchObject({
       exceptionType: 'Error',
-      message: 'smoke js-render: ExplodingRow\n\nThis error is located at:'
-        + '\n    at ExplodingRow (index.js:1:20)\n    at CrashHost (index.js:1:90)',
+      message:
+        'smoke js-render: ExplodingRow\n\nThis error is located at:' +
+        '\n    at ExplodingRow (index.js:1:20)\n    at CrashHost (index.js:1:90)',
       frames: [{ raw: 'at ExplodingRow (index.js:1:20)' }],
       mechanism: 'onerror',
       handled: false,
@@ -345,7 +375,11 @@ describe('web crash reporting (spec 2026-07-18)', () => {
     const body = fetchMock.mock.calls[0]?.[1]?.body as FormData;
     const envelopeJson = JSON.parse(await (body.get('envelope') as Blob).text());
     expect(envelopeJson.source).toBe('crash');
-    expect(envelopeJson.payload.crash).toMatchObject({ message: 'no stack info', fatal: true, handled: false });
+    expect(envelopeJson.payload.crash).toMatchObject({
+      message: 'no stack info',
+      fatal: true,
+      handled: false,
+    });
   });
 
   it('crashReporting.disabled vetoes uncaught React errors too', async () => {

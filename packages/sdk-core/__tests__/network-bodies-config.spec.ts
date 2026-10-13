@@ -154,7 +154,9 @@ describe('F21: NetworkBodiesServerConfig wire ceilings (mirrors server + native)
     expect(withContentTypes([]).success).toBe(false);
   });
   it('bodyContentTypes: 10,000 entries (reviewer repro) is rejected', () => {
-    expect(withContentTypes(Array.from({ length: 10_000 }, (_, i) => `type/${i}`)).success).toBe(false);
+    expect(withContentTypes(Array.from({ length: 10_000 }, (_, i) => `type/${i}`)).success).toBe(
+      false,
+    );
   });
   it('bodyContentTypes: a 64-char entry is accepted (upper bound, inclusive)', () => {
     expect(withContentTypes(['a'.repeat(64)]).success).toBe(true);

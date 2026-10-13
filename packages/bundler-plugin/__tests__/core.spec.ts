@@ -4,7 +4,12 @@ import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { finishBuild, identityBanner, resolvePluginSettings, resolveSettings } from '../src/core.js';
+import {
+  finishBuild,
+  identityBanner,
+  resolvePluginSettings,
+  resolveSettings,
+} from '../src/core.js';
 
 const APP = '00000000-0000-4000-8000-000000000000';
 
@@ -21,8 +26,12 @@ describe('resolveSettings', () => {
     const a = resolveSettings({ appId: APP }, {});
     const b = resolveSettings({ appId: APP }, {});
     expect(a.buildId).not.toBe(b.buildId);
-    expect(resolveSettings({ appId: APP }, { EVERFRAME_BUILD_ID: 'env-id' }).buildId).toBe('env-id');
-    expect(resolveSettings({ appId: APP, buildId: 'opt' }, { EVERFRAME_BUILD_ID: 'env-id' }).buildId).toBe('opt');
+    expect(resolveSettings({ appId: APP }, { EVERFRAME_BUILD_ID: 'env-id' }).buildId).toBe(
+      'env-id',
+    );
+    expect(
+      resolveSettings({ appId: APP, buildId: 'opt' }, { EVERFRAME_BUILD_ID: 'env-id' }).buildId,
+    ).toBe('opt');
   });
 
   it('detects CI from CI=true or CI=1', () => {
@@ -37,8 +46,15 @@ describe('resolveSettings', () => {
 
   it('uploads to the production API unless told otherwise', () => {
     expect(resolveSettings({ appId: APP }, {}).apiUrl).toBe('https://everframe.dev/api/v1');
-    expect(resolveSettings({ appId: APP }, { EVERFRAME_API_URL: 'https://env.test/api/v1' }).apiUrl).toBe('https://env.test/api/v1');
-    expect(resolveSettings({ appId: APP, apiUrl: 'https://opt.test/api/v1' }, { EVERFRAME_API_URL: 'https://env.test/api/v1' }).apiUrl).toBe('https://opt.test/api/v1');
+    expect(
+      resolveSettings({ appId: APP }, { EVERFRAME_API_URL: 'https://env.test/api/v1' }).apiUrl,
+    ).toBe('https://env.test/api/v1');
+    expect(
+      resolveSettings(
+        { appId: APP, apiUrl: 'https://opt.test/api/v1' },
+        { EVERFRAME_API_URL: 'https://env.test/api/v1' },
+      ).apiUrl,
+    ).toBe('https://opt.test/api/v1');
   });
 });
 
@@ -52,13 +68,18 @@ describe('resolvePluginSettings', () => {
   });
 
   it('keeps failing in CI', () => {
-    expect(() => resolvePluginSettings({ appId: undefined }, { CI: 'true' }, vi.fn())).toThrow(/appId must be an Everframe application UUID/);
+    expect(() => resolvePluginSettings({ appId: undefined }, { CI: 'true' }, vi.fn())).toThrow(
+      /appId must be an Everframe application UUID/,
+    );
     expect(() => resolvePluginSettings({ appId: 'nope' }, { CI: '1' }, vi.fn())).toThrow(/appId/);
   });
 
   it('resolves settings for a valid app id without logging', () => {
     const log = vi.fn();
-    expect(resolvePluginSettings({ appId: APP, buildId: 'b1' }, {}, log)).toMatchObject({ appId: APP, buildId: 'b1' });
+    expect(resolvePluginSettings({ appId: APP, buildId: 'b1' }, {}, log)).toMatchObject({
+      appId: APP,
+      buildId: 'b1',
+    });
     expect(log).not.toHaveBeenCalled();
   });
 });
@@ -73,14 +94,28 @@ describe('finishBuild', () => {
   it('uploads with path-only urls and the resolved build id', async () => {
     const dir = await output();
     const upload = vi.fn().mockResolvedValue({ buildUuid: 'u', status: 'ready', artifacts: [] });
-    await finishBuild(dir, resolveSettings({ appId: APP, buildId: 'b1' }, { EVERFRAME_API_TOKEN: 't' }), { upload });
-    expect(upload).toHaveBeenCalledWith(expect.objectContaining({ appId: APP, buildId: 'b1', root: dir, token: 't', deleteAfterUpload: true }));
+    await finishBuild(
+      dir,
+      resolveSettings({ appId: APP, buildId: 'b1' }, { EVERFRAME_API_TOKEN: 't' }),
+      { upload },
+    );
+    expect(upload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appId: APP,
+        buildId: 'b1',
+        root: dir,
+        token: 't',
+        deleteAfterUpload: true,
+      }),
+    );
     expect(upload.mock.calls[0]![0]).not.toHaveProperty('urlPrefix');
   });
 
   it('fails in CI without a token', async () => {
     const dir = await output();
-    await expect(finishBuild(dir, resolveSettings({ appId: APP }, { CI: 'true' }))).rejects.toThrow('missing_api_token');
+    await expect(finishBuild(dir, resolveSettings({ appId: APP }, { CI: 'true' }))).rejects.toThrow(
+      'missing_api_token',
+    );
   });
 
   it('warns, skips and deletes maps locally without a token', async () => {
@@ -96,6 +131,8 @@ describe('finishBuild', () => {
   it('fails the build when upload fails', async () => {
     const dir = await output();
     const upload = vi.fn().mockRejectedValue(new Error('request_failed:storage_unavailable'));
-    await expect(finishBuild(dir, resolveSettings({ appId: APP }, { EVERFRAME_API_TOKEN: 't' }), { upload })).rejects.toThrow('storage_unavailable');
+    await expect(
+      finishBuild(dir, resolveSettings({ appId: APP }, { EVERFRAME_API_TOKEN: 't' }), { upload }),
+    ).rejects.toThrow('storage_unavailable');
   });
 });

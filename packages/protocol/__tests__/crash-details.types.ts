@@ -34,7 +34,9 @@ const symbolMetadataRejected: NonNullable<CrashDetails['metadata']> = {
 };
 const classMetadataRejected: NonNullable<CrashDetails['metadata']> = {
   // @ts-expect-error — class instances are not JSON objects.
-  instance: new (class Example { value = 1; })(),
+  instance: new (class Example {
+    value = 1;
+  })(),
 };
 
 void [

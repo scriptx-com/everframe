@@ -25,7 +25,9 @@ export function Toggle({
   className,
   ...rest
 }: ToggleProps): JSX.Element {
-  const cls = ['everframe-switch', checked && 'everframe-switch-on', className].filter(Boolean).join(' ');
+  const cls = ['everframe-switch', checked && 'everframe-switch-on', className]
+    .filter(Boolean)
+    .join(' ');
   return (
     <button
       type="button"

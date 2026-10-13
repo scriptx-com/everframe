@@ -53,7 +53,9 @@ describe('render HTTP contract', () => {
   it('accepts exactly 10 missing-asset urls of 256 chars', () => {
     const url = `https://x.example/${'a'.repeat(238)}`;
     expect(url.length).toBe(256);
-    expect(parseRenderMeta(meta({ missingAssets: 40, missingAssetUrls: Array(10).fill(url) }))).not.toBeNull();
+    expect(
+      parseRenderMeta(meta({ missingAssets: 40, missingAssetUrls: Array(10).fill(url) })),
+    ).not.toBeNull();
   });
 
   it.each([
@@ -83,7 +85,9 @@ describe('render HTTP contract', () => {
       'invalid_sdk_key',
       'org_suspended',
     ]);
-    expect(RenderErrorBody.safeParse({ error: 'render_timeout', retryAfter: 3 }).success).toBe(true);
+    expect(RenderErrorBody.safeParse({ error: 'render_timeout', retryAfter: 3 }).success).toBe(
+      true,
+    );
     expect(RenderErrorBody.safeParse({ error: 'teapot' }).success).toBe(false);
   });
 });

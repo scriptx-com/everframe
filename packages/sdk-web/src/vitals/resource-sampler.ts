@@ -88,8 +88,9 @@ export function startResourceSampler(deps: ResourceSamplerDeps): () => void {
         return;
       }
 
-      const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory
-        ?.usedJSHeapSize ?? 0;
+      const mem =
+        (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory
+          ?.usedJSHeapSize ?? 0;
       const loopLagMs = Math.max(0, actualElapsed - intervalMs);
       const extras: Record<string, number> = { longTaskMs, loopLagMs };
       longTaskMs = 0;

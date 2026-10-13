@@ -117,9 +117,7 @@ describe('XHR → crumb bridge', () => {
             message: 'GET http://127.0.0.1:9/unreachable failed',
           });
           const entry = networkBuffer.snapshot()[0]!;
-          expect((crumbs[0]!.data as { durationMs: number }).durationMs).toBe(
-            entry.durationMs,
-          );
+          expect((crumbs[0]!.data as { durationMs: number }).durationMs).toBe(entry.durationMs);
           resolve();
         } catch (e) {
           reject(e as Error);

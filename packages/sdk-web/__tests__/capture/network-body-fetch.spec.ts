@@ -15,7 +15,10 @@ function bigBody(byteLen: number): string {
   return 'x '.repeat(Math.ceil(byteLen / 2));
 }
 
-function hooks(over: Partial<BodyCaptureHooks> = {}): { h: BodyCaptureHooks; sunk: NetworkBodyEntry[] } {
+function hooks(over: Partial<BodyCaptureHooks> = {}): {
+  h: BodyCaptureHooks;
+  sunk: NetworkBodyEntry[];
+} {
   const sunk: NetworkBodyEntry[] = [];
   let id = 0;
   const h: BodyCaptureHooks = {
@@ -34,8 +37,12 @@ describe('fetch body capture', () => {
 
   it('captures + redacts a JSON response body and does not disturb app consumption', async () => {
     const appJson = { card: '4242 4242 4242 4242' };
-    const original = vi.fn(async () =>
-      new Response(JSON.stringify(appJson), { status: 200, headers: { 'content-type': 'application/json' } }),
+    const original = vi.fn(
+      async () =>
+        new Response(JSON.stringify(appJson), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     );
     vi.stubGlobal('fetch', original);
     const { h, sunk } = hooks();
@@ -44,7 +51,7 @@ describe('fetch body capture', () => {
     const res = await fetch('https://api.test/x', { method: 'POST', body: '{"q":1}' });
     const appBody = await res.json(); // app still reads its body
 
-    expect(appBody).toEqual(appJson);           // app consumption intact
+    expect(appBody).toEqual(appJson); // app consumption intact
     await vi.waitFor(() => expect(sunk).toHaveLength(1)); // response body sinks in the background
     expect(sunk[0].resBody).toContain('[REDACTED:CC]'); // body redacted
     expect(sunk[0].reqBody).toBe('{"q":1}');
@@ -53,8 +60,13 @@ describe('fetch body capture', () => {
   });
 
   it('skips a non-allowlisted response body with resBodySkipped', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response('PNGDATA', { status: 200, headers: { 'content-type': 'image/png' } })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('PNGDATA', { status: 200, headers: { 'content-type': 'image/png' } }),
+      ),
+    );
     const { h, sunk } = hooks();
     const uninstall = installFetchPatcher({ bodyCapture: h });
     await fetch('https://api.test/img');
@@ -65,8 +77,13 @@ describe('fetch body capture', () => {
   });
 
   it('marks an unsupported (Blob) request body as skipped', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      ),
+    );
     const { h, sunk } = hooks();
     const uninstall = installFetchPatcher({ bodyCapture: h });
     await fetch('https://api.test/x', { method: 'POST', body: new Blob(['bin']) });
@@ -76,8 +93,13 @@ describe('fetch body capture', () => {
   });
 
   it('captures nothing when the gate is disabled', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      ),
+    );
     const { h, sunk } = hooks({ enabled: () => false });
     const uninstall = installFetchPatcher({ bodyCapture: h });
     await fetch('https://api.test/x');
@@ -99,7 +121,10 @@ describe('fetch body capture', () => {
       },
     });
     const res = new Response(stream, { status: 200, headers: { 'content-type': 'text/plain' } });
-    vi.stubGlobal('fetch', vi.fn(async () => res));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => res),
+    );
 
     // Spy on the reader prototype so we can assert OUR code called
     // reader.cancel() — we deliberately do NOT assert the underlying
@@ -113,7 +138,9 @@ describe('fetch body capture', () => {
     const cancelSpy = vi.spyOn(Object.getPrototypeOf(probeReader), 'cancel');
 
     const byteCap = 10;
-    const { h, sunk } = hooks({ config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }) });
+    const { h, sunk } = hooks({
+      config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }),
+    });
     const uninstall = installFetchPatcher({ bodyCapture: h });
 
     // The app's fetch resolves promptly — it is never gated behind the
@@ -152,7 +179,10 @@ describe('fetch body capture', () => {
       },
     });
     const res = new Response(stream, { status: 200, headers: { 'content-type': 'text/plain' } });
-    vi.stubGlobal('fetch', vi.fn(async () => res));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => res),
+    );
 
     // TextDecoder.decode() is called exactly once on the merged/bounded
     // buffer inside readCappedText — spying on it lets us assert on the
@@ -160,7 +190,9 @@ describe('fetch body capture', () => {
     // output, so this test fails if the unbounded chunk is retained.
     const decodeSpy = vi.spyOn(TextDecoder.prototype, 'decode');
 
-    const { h, sunk } = hooks({ config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }) });
+    const { h, sunk } = hooks({
+      config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }),
+    });
     const uninstall = installFetchPatcher({ bodyCapture: h });
     await fetch('https://api.test/huge-chunk');
     await vi.waitFor(() => expect(sunk).toHaveLength(1));
@@ -198,9 +230,14 @@ describe('fetch body capture', () => {
       },
     });
     const res = new Response(stream, { status: 200, headers: { 'content-type': 'text/plain' } });
-    vi.stubGlobal('fetch', vi.fn(async () => res));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => res),
+    );
 
-    const { h, sunk } = hooks({ config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }) });
+    const { h, sunk } = hooks({
+      config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }),
+    });
     const uninstall = installFetchPatcher({ bodyCapture: h });
     await fetch('https://api.test/many-small-chunks');
     await vi.waitFor(() => expect(sunk).toHaveLength(1));
@@ -223,10 +260,16 @@ describe('fetch body capture', () => {
     // WIDENED window first, then truncating the REDACTED text down to the cap,
     // must never leak that raw digit run.
     const body = 'aaaa:4242424242424242';
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response(body, { status: 200, headers: { 'content-type': 'text/plain' } })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () => new Response(body, { status: 200, headers: { 'content-type': 'text/plain' } }),
+      ),
+    );
     const byteCap = 13;
-    const { h, sunk } = hooks({ config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }) });
+    const { h, sunk } = hooks({
+      config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }),
+    });
     const uninstall = installFetchPatcher({ bodyCapture: h });
     await fetch('https://api.test/secret');
     await vi.waitFor(() => expect(sunk).toHaveLength(1));
@@ -244,12 +287,19 @@ describe('fetch body capture', () => {
   // every direction, not just the streamed fetch-response path ====================
 
   it('F29: a multi-megabyte fetch REQUEST body only hands redaction a bounded window, not the full body', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      ),
+    );
     const redactSpy = vi.spyOn(networkBodyModule, 'redactBodyText');
     const byteCap = 8192;
     const windowCap = byteCap + 4096; // SECRET_SCAN_OVERLAP
-    const { h, sunk } = hooks({ config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['application/json', 'text/*'] }) });
+    const { h, sunk } = hooks({
+      config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['application/json', 'text/*'] }),
+    });
     const uninstall = installFetchPatcher({ bodyCapture: h });
 
     const hugeBody = bigBody(5_000_000); // ~5 MB request body
@@ -283,11 +333,16 @@ describe('fetch body capture', () => {
       },
       text: async () => hugeBody,
     };
-    vi.stubGlobal('fetch', vi.fn(async () => fakeRes as unknown as Response));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => fakeRes as unknown as Response),
+    );
     const redactSpy = vi.spyOn(networkBodyModule, 'redactBodyText');
     const byteCap = 8192;
     const windowCap = byteCap + 4096;
-    const { h, sunk } = hooks({ config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }) });
+    const { h, sunk } = hooks({
+      config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }),
+    });
     const uninstall = installFetchPatcher({ bodyCapture: h });
 
     await fetch('https://api.test/huge-fallback');
@@ -313,12 +368,19 @@ describe('fetch body capture', () => {
     // shrinking the string to 18 bytes. A small cap forces truncation so
     // `reqBodyBytes` gets reported at all (existing convention: bytes is
     // only set when truncated).
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      ),
+    );
     const body = 'aaaa:4242424242424242';
     expect(new TextEncoder().encode(body).length).toBe(21); // sanity on the raw size
     const byteCap = 13;
-    const { h, sunk } = hooks({ config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['application/json', 'text/*'] }) });
+    const { h, sunk } = hooks({
+      config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['application/json', 'text/*'] }),
+    });
     const uninstall = installFetchPatcher({ bodyCapture: h });
 
     await fetch('https://api.test/x', { method: 'POST', body });
@@ -337,10 +399,16 @@ describe('fetch body capture', () => {
     // covers the "total > byteCap but !hitWindow" branch that previously
     // omitted exactBytes even though the size was already known.
     const body = 'aaaa:4242424242424242'; // 21 bytes
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response(body, { status: 200, headers: { 'content-type': 'text/plain' } })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () => new Response(body, { status: 200, headers: { 'content-type': 'text/plain' } }),
+      ),
+    );
     const byteCap = 13;
-    const { h, sunk } = hooks({ config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }) });
+    const { h, sunk } = hooks({
+      config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }),
+    });
     const uninstall = installFetchPatcher({ bodyCapture: h });
 
     await fetch('https://api.test/secret');
@@ -369,8 +437,13 @@ describe('fetch body capture', () => {
 
     {
       const res = await streamOf(50_000, true);
-      vi.stubGlobal('fetch', vi.fn(async () => res));
-      const { h, sunk } = hooks({ config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }) });
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => res),
+      );
+      const { h, sunk } = hooks({
+        config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }),
+      });
       const uninstall = installFetchPatcher({ bodyCapture: h });
       await fetch('https://api.test/known-length');
       await vi.waitFor(() => expect(sunk).toHaveLength(1));
@@ -384,8 +457,13 @@ describe('fetch body capture', () => {
     // (Android reports null when Content-Length is absent), never invent one.
     {
       const res = await streamOf(50_000, false);
-      vi.stubGlobal('fetch', vi.fn(async () => res));
-      const { h, sunk } = hooks({ config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }) });
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => res),
+      );
+      const { h, sunk } = hooks({
+        config: () => ({ bodyByteCap: byteCap, bodyContentTypes: ['text/*'] }),
+      });
       const uninstall = installFetchPatcher({ bodyCapture: h });
       await fetch('https://api.test/unknown-length');
       await vi.waitFor(() => expect(sunk).toHaveLength(1));
@@ -436,8 +514,12 @@ describe('F34: gate generation token must be authoritative at the sink boundary'
   it("reviewer's probe: a remote captureBodies:false landing between decision and sink drops the already-built entry", async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        new Response('{"secret":"leak-me"}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      vi.fn(
+        async () =>
+          new Response('{"secret":"leak-me"}', {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
       ),
     );
     const { h, buf, setLive } = hooksWithLiveGate({ active: true, generation: 1 });
@@ -464,8 +546,12 @@ describe('F34: gate generation token must be authoritative at the sink boundary'
   it('happy path: an unchanged gate does not over-block a normal capture', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      vi.fn(
+        async () =>
+          new Response('{"ok":true}', {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
       ),
     );
     const { h, buf } = hooksWithLiveGate({ active: true, generation: 1 });
@@ -481,8 +567,12 @@ describe('F34: gate generation token must be authoritative at the sink boundary'
   it('a hooks object that omits generation() keeps the pre-F34 unguarded behavior', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      vi.fn(
+        async () =>
+          new Response('{"ok":true}', {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
       ),
     );
     const buf = createNetworkBodyBuffer();

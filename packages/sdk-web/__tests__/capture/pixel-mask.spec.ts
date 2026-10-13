@@ -34,7 +34,12 @@ function textBoxes(map: Map<Node, DOMRect[]>): void {
   });
 }
 
-const plain = (r: DOMRect): ViewportRect => ({ x: r.left, y: r.top, width: r.width, height: r.height });
+const plain = (r: DOMRect): ViewportRect => ({
+  x: r.left,
+  y: r.top,
+  width: r.width,
+  height: r.height,
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -119,8 +124,7 @@ describe('collectSensitiveRects', () => {
   });
 
   it('clips only the overflowing axis, and never an absolute/fixed descendant', () => {
-    document.body.innerHTML =
-      `<div id="sc" ${SENS} style="overflow-x:hidden;overflow-y:visible"><div id="wide">w</div><div id="abs" style="position:absolute">a</div></div>`;
+    document.body.innerHTML = `<div id="sc" ${SENS} style="overflow-x:hidden;overflow-y:visible"><div id="wide">w</div><div id="abs" style="position:absolute">a</div></div>`;
     // (jsdom does not expand the `overflow` shorthand: longhands throughout.)
     boxes(document.getElementById('sc')!, rect(10, 10, 100, 50));
     boxes(document.getElementById('wide')!, rect(10, 10, 500, 400));
@@ -137,7 +141,11 @@ describe('collectSensitiveRects', () => {
     boxes(document.getElementById('pin')!, rect(510, 505, 40, 20));
     boxes(document.getElementById('s')!, rect(0, 0, 10, 10));
     textBoxes(new Map());
-    const out = collectSensitiveRects(document.body, bySensAttr, (el) => el.getAttribute('data-everframe-skip-capture') === 'true');
+    const out = collectSensitiveRects(
+      document.body,
+      bySensAttr,
+      (el) => el.getAttribute('data-everframe-skip-capture') === 'true',
+    );
     expect(out).toEqual([{ x: 0, y: 0, width: 10, height: 10 }]);
   });
 
@@ -153,7 +161,12 @@ describe('collectSensitiveRects', () => {
         'text-shadow': 'rgba(0, 0, 0, 0.5) 3px 40px 2px',
         '-webkit-text-stroke-width': '1px',
       };
-      return { position: 'static', overflowX: 'visible', overflowY: 'visible', getPropertyValue: (k: string) => props[k] ?? '' } as unknown as CSSStyleDeclaration;
+      return {
+        position: 'static',
+        overflowX: 'visible',
+        overflowY: 'visible',
+        getPropertyValue: (k: string) => props[k] ?? '',
+      } as unknown as CSSStyleDeclaration;
     });
     textBoxes(new Map([[p.firstChild!, [rect(100, 100, 60, 20)]]]));
     const out = collectSensitiveRects(document.body, bySensAttr);
@@ -211,16 +224,11 @@ describe('paintViewportRects', () => {
 
   it('paints every rect at every renderer offset', () => {
     const { canvas, fills } = fakeCanvas();
-    paintViewportRects(
-      canvas,
-      [{ x: 10, y: 10, width: 10, height: 10 }],
-      1,
-      [
-        { dx: 0, dy: 0 },
-        { dx: -8, dy: -8 },
-        { dx: -24, dy: -100 },
-      ],
-    );
+    paintViewportRects(canvas, [{ x: 10, y: 10, width: 10, height: 10 }], 1, [
+      { dx: 0, dy: 0 },
+      { dx: -8, dy: -8 },
+      { dx: -24, dy: -100 },
+    ]);
     expect(fills).toEqual([
       [8, 8, 14, 14],
       [0, 0, 14, 14],
@@ -249,8 +257,15 @@ describe('old-engine ClientRect geometry', () => {
     const rects = collectSensitiveRects(document.body, bySensAttr);
     expect(rects).toContainEqual({ x: 40, y: 30, width: 120, height: 30 });
     const fills: number[][] = [];
-    const ctx = { save: vi.fn(), restore: vi.fn(), setTransform: vi.fn(), fillRect: (...a: number[]) => fills.push(a) };
-    expect(paintViewportRects({ getContext: () => ctx } as unknown as HTMLCanvasElement, rects, 1)).toBe(true);
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      setTransform: vi.fn(),
+      fillRect: (...a: number[]) => fills.push(a),
+    };
+    expect(
+      paintViewportRects({ getContext: () => ctx } as unknown as HTMLCanvasElement, rects, 1),
+    ).toBe(true);
     expect(fills).toContainEqual([38, 28, 124, 34]);
   });
 
@@ -261,17 +276,29 @@ describe('old-engine ClientRect geometry', () => {
     const rects = collectSensitiveRects(document.body, bySensAttr);
     expect(rects.length).toBeGreaterThan(0);
     const fills: number[][] = [];
-    const ctx = { save: vi.fn(), restore: vi.fn(), setTransform: vi.fn(), fillRect: (...a: number[]) => fills.push(a) };
-    expect(paintViewportRects({ getContext: () => ctx } as unknown as HTMLCanvasElement, rects, 1)).toBe(false);
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      setTransform: vi.fn(),
+      fillRect: (...a: number[]) => fills.push(a),
+    };
+    expect(
+      paintViewportRects({ getContext: () => ctx } as unknown as HTMLCanvasElement, rects, 1),
+    ).toBe(false);
     expect(fills).toEqual([]);
   });
 
   it('refuses a non-finite rect or offset outright', () => {
     const ctx = { save: vi.fn(), restore: vi.fn(), setTransform: vi.fn(), fillRect: vi.fn() };
     const canvas = { getContext: () => ctx } as unknown as HTMLCanvasElement;
-    expect(paintViewportRects(canvas, [{ x: Number.NaN, y: 0, width: 1, height: 1 }], 1)).toBe(false);
-    expect(paintViewportRects(canvas, [{ x: 0, y: 0, width: 1, height: 1 }], 1, [{ dx: Number.NaN, dy: 0 }])).toBe(false);
+    expect(paintViewportRects(canvas, [{ x: Number.NaN, y: 0, width: 1, height: 1 }], 1)).toBe(
+      false,
+    );
+    expect(
+      paintViewportRects(canvas, [{ x: 0, y: 0, width: 1, height: 1 }], 1, [
+        { dx: Number.NaN, dy: 0 },
+      ]),
+    ).toBe(false);
     expect(ctx.fillRect).not.toHaveBeenCalled();
   });
 });
-

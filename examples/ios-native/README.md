@@ -6,11 +6,11 @@
 A standalone Xcode project that dogfoods every public Everframe SDK API across
 all three locked-decision form factors:
 
-| Scheme              | Platform | Recommended destination          |
-| ------------------- | -------- | -------------------------------- |
-| `SampleApp-iPhone`  | iOS      | iPhone 15 Pro Simulator          |
-| `SampleApp-iPad`    | iOS      | iPad Pro (12.9-inch) Simulator   |
-| `SampleAppTV`       | tvOS     | Apple TV 4K Simulator            |
+| Scheme             | Platform | Recommended destination        |
+| ------------------ | -------- | ------------------------------ |
+| `SampleApp-iPhone` | iOS      | iPhone 15 Pro Simulator        |
+| `SampleApp-iPad`   | iOS      | iPad Pro (12.9-inch) Simulator |
+| `SampleAppTV`      | tvOS     | Apple TV 4K Simulator          |
 
 The two underlying targets (`SampleApp`, `SampleAppTV`) consume
 `packages/sdk-ios/` as a **Local Package** dependency via the relative path
@@ -34,20 +34,20 @@ CI runs `xcodegen generate` on every PR and fails on drift between
 
 ## What the sample exercises
 
-| Feature                                     | Where (iOS)                         | Where (tvOS)                              |
-| ------------------------------------------- | ----------------------------------- | ----------------------------------------- |
-| `Everframe.shared.start(config:)`            | `SampleApp.swift`                   | `SampleAppTV.swift`                       |
-| `setUser(_:)`, `setMetadata(_:)`            | `SampleApp.swift`                   | `SampleAppTV.swift`                       |
-| `EFSensitiveView` wrapper                   | `Screens/LoginScreen.swift`         | n/a (UI-SPEC tvOS branch)                 |
-| `UITextField.isSecureTextEntry` auto-detect | `Screens/LoginScreen.swift`         | `TVLoginScreen` in `ContentView.swift`    |
-| `Everframe.shared.markSensitive(_:)`         | `Screens/PaymentScreen.swift`       | n/a                                       |
-| Network capture                             | `Screens/DetailScreen.swift`        | `TVDetailScreen` in `ContentView.swift`   |
-| Log capture (os_log)                        | `Screens/DetailScreen.swift`        | n/a                                       |
-| Reporter overlay (SwiftUI modifier)         | `ContentView.swift`                 | invoked via Play/Pause × 3 (LOCKED)       |
-| Bubble trigger                              | bottom-right (default ON)           | n/a                                       |
-| TV press combo trigger                      | n/a                                 | `playPauseTriple` (default)               |
-| `trackPlayer(_:name:)`                      | `Screens/PlaybackScreen.swift`      | `TVPlaybackScreen.swift`                  |
-| `trackVitals(_:data:)`                      | `Screens/PlaybackScreen.swift`      | `TVPlaybackScreen.swift`                  |
+| Feature                                     | Where (iOS)                    | Where (tvOS)                            |
+| ------------------------------------------- | ------------------------------ | --------------------------------------- |
+| `Everframe.shared.start(config:)`           | `SampleApp.swift`              | `SampleAppTV.swift`                     |
+| `setUser(_:)`, `setMetadata(_:)`            | `SampleApp.swift`              | `SampleAppTV.swift`                     |
+| `EFSensitiveView` wrapper                   | `Screens/LoginScreen.swift`    | n/a (UI-SPEC tvOS branch)               |
+| `UITextField.isSecureTextEntry` auto-detect | `Screens/LoginScreen.swift`    | `TVLoginScreen` in `ContentView.swift`  |
+| `Everframe.shared.markSensitive(_:)`        | `Screens/PaymentScreen.swift`  | n/a                                     |
+| Network capture                             | `Screens/DetailScreen.swift`   | `TVDetailScreen` in `ContentView.swift` |
+| Log capture (os_log)                        | `Screens/DetailScreen.swift`   | n/a                                     |
+| Reporter overlay (SwiftUI modifier)         | `ContentView.swift`            | invoked via Play/Pause × 3 (LOCKED)     |
+| Bubble trigger                              | bottom-right (default ON)      | n/a                                     |
+| TV press combo trigger                      | n/a                            | `playPauseTriple` (default)             |
+| `trackPlayer(_:name:)`                      | `Screens/PlaybackScreen.swift` | `TVPlaybackScreen.swift`                |
+| `trackVitals(_:data:)`                      | `Screens/PlaybackScreen.swift` | `TVPlaybackScreen.swift`                |
 
 ## How to run
 
@@ -72,18 +72,22 @@ The SampleApp talks to a local ingest service so reports show up in the admin
 dashboard's Events panel. Setup is once per clone:
 
 1. **Repo-root `.env`.** From the repo root:
+
    ```bash
    cp .env.example .env
    ```
+
    Open `.env` and update the secrets you want different from defaults
    (`SDK_KEY_PEPPER`, `SESSION_SECRET`, `WEBHOOK_SECRET_ENC_KEY` — generate
    with `openssl rand -hex 16` / `openssl rand -hex 32` / `openssl rand -hex 32`).
 
 2. **Boot the ingest service.** From the repo root:
+
    ```bash
    pnpm install
    pnpm dev:api
    ```
+
    The admin UI is now at `http://localhost:8787/admin` (or run
    `pnpm dev:admin` separately for the standalone Vite dev server).
 
@@ -95,10 +99,12 @@ dashboard's Events panel. Setup is once per clone:
    - Confirm `INGEST_URL=http://localhost:8787` is also present in `.env`.
 
 4. **Run.** With ingest still running, from the repo root:
+
    ```bash
    pnpm gen-ios-config
    open examples/ios-native/SampleApp.xcodeproj
    ```
+
    `pnpm gen-ios-config` materializes `Config/Local.xcconfig` from `.env`.
    Select an iPhone, iPad, or Apple TV scheme and simulator in Xcode.
 
@@ -115,6 +121,7 @@ dashboard's Events panel. Setup is once per clone:
    xcodegen generate --spec project.yml --project .  # only if you edited project.yml
    open SampleApp.xcodeproj
    ```
+
    In Xcode: pick scheme `SampleApp-iPhone`, destination `iPhone 16` Simulator,
    Run. The xcconfig pipeline runs at build time; you do not need to re-run
    `gen-ios-config` unless `.env` changed.
@@ -126,6 +133,7 @@ dashboard's Events panel. Setup is once per clone:
    and the **Timeline** tab lists the breadcrumbs leading up to it.
 
 ## What changed in Phase 04.2
+
 - Walker descends past `_UIHostingView`; emitted `componentType` strings
   are sanitized via family detection (no private API leaks).
 - `EverframeConfig.sdkKey` is hard-validated at `start()` —

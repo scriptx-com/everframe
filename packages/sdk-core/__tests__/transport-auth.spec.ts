@@ -12,10 +12,10 @@ describe('AUTH-01: SDK-key authentication', () => {
       retryScheduleMs: [],
     });
     expect(fetchImpl).toHaveBeenCalledOnce();
-    const callArgs = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit]);
+    const callArgs = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     const init = callArgs[1];
     expect((init.headers as Record<string, string>)['Authorization']).toBe(
-      'Bearer sdk_test_key_123'
+      'Bearer sdk_test_key_123',
     );
   });
 });

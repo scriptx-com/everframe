@@ -73,7 +73,9 @@ export function ScreenshotStrip({
           key={s.id}
           role="listitem"
           className={
-            s.id === activeId ? 'everframe-shot-thumb everframe-shot-thumb-active' : 'everframe-shot-thumb'
+            s.id === activeId
+              ? 'everframe-shot-thumb everframe-shot-thumb-active'
+              : 'everframe-shot-thumb'
           }
         >
           <button

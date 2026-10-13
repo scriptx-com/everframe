@@ -8,11 +8,7 @@
 // state a CDP probe can read off a device.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { gzipSync } from 'node:zlib';
-import {
-  __enableReplayTrace,
-  __getReplayTrace,
-  __resetReplayTrace,
-} from '@everframe/sdk-core';
+import { __enableReplayTrace, __getReplayTrace, __resetReplayTrace } from '@everframe/sdk-core';
 import { createReplayRecorder } from '../../../src/capture/replay/recorder.js';
 
 const FULL = 2;

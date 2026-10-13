@@ -75,7 +75,9 @@ export function Playback(): React.JSX.Element {
   useEffect(() => {
     if (initialised.has(player)) return;
     initialised.add(player);
-    void player.initialize().catch(() => { /* surfaced through onError/onStatusChange */ });
+    void player.initialize().catch(() => {
+      /* surfaced through onError/onStatusChange */
+    });
   }, [player]);
 
   return (
@@ -129,10 +131,8 @@ function Control({
       accessibilityLabel={label}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed, focused }) => [
-        styles.btn,
-        (pressed || focused) && styles.btnPressed,
-      ]}>
+      style={({ pressed, focused }) => [styles.btn, (pressed || focused) && styles.btnPressed]}
+    >
       <Text style={styles.btnText}>{label}</Text>
     </Pressable>
   );

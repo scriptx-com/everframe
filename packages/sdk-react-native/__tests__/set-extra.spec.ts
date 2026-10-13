@@ -61,7 +61,9 @@ describe('setExtra', () => {
     expect(nativeMock.setExtra).toHaveBeenCalledWith(big);
     expect(nativeMock.setExtra).toHaveBeenCalledTimes(1);
     expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy.mock.calls[0][0]).toContain(`${big.length} chars exceeds the ${EXTRA_MAX_CHARS} limit`);
+    expect(warnSpy.mock.calls[0][0]).toContain(
+      `${big.length} chars exceeds the ${EXTRA_MAX_CHARS} limit`,
+    );
     warnSpy.mockRestore();
   });
 

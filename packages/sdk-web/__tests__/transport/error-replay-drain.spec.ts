@@ -4,8 +4,18 @@
 // Replays on errors (spec 2026-10-11): the outbox holds JSON only, so a queued
 // error's replay waits in memory and every drain consults it.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { sha256BytesHex, type OutboxAdapter, type OutboxItem, type ReplayCapture } from '@everframe/sdk-core';
-import { discardEnqueuedReport, drainOutbox, drainOutboxWhileOwned, recordEnqueuedIdentitySubject } from '../../src/transport/submit.js';
+import {
+  sha256BytesHex,
+  type OutboxAdapter,
+  type OutboxItem,
+  type ReplayCapture,
+} from '@everframe/sdk-core';
+import {
+  discardEnqueuedReport,
+  drainOutbox,
+  drainOutboxWhileOwned,
+  recordEnqueuedIdentitySubject,
+} from '../../src/transport/submit.js';
 import {
   ERROR_REPLAY_PART,
   applyErrorReplay,
@@ -39,7 +49,12 @@ function outboxOf(items: OutboxItem[]): OutboxAdapter & { deleted: string[] } {
 }
 
 function errorItem(reportId: string): OutboxItem {
-  const envelope = { reportId, source: 'error', captureControl: { included: [], excluded: [] }, attachments: [] };
+  const envelope = {
+    reportId,
+    source: 'error',
+    captureControl: { included: [], excluded: [] },
+    attachments: [],
+  };
   return {
     reportId,
     enqueuedAt: 1,
@@ -49,7 +64,11 @@ function errorItem(reportId: string): OutboxItem {
   };
 }
 
-type Sent = { envelope: Record<string, any>; replay: Uint8Array | null; headers: Record<string, string> };
+type Sent = {
+  envelope: Record<string, any>;
+  replay: Uint8Array | null;
+  headers: Record<string, string>;
+};
 
 function server(statuses: number[]) {
   const sent: Sent[] = [];
@@ -57,8 +76,14 @@ function server(statuses: number[]) {
     const body = init?.body as FormData;
     const envelope = JSON.parse(await (body.get('envelope') as Blob).text()) as Record<string, any>;
     const part = body.get(ERROR_REPLAY_PART) as Blob | null;
-    sent.push({ envelope, replay: part ? new Uint8Array(await readBlobArrayBuffer(part)) : null, headers: init?.headers as Record<string, string> });
-    return new Response(JSON.stringify({ status: 'received' }), { status: statuses.shift() ?? 200 });
+    sent.push({
+      envelope,
+      replay: part ? new Uint8Array(await readBlobArrayBuffer(part)) : null,
+      headers: init?.headers as Record<string, string>,
+    });
+    return new Response(JSON.stringify({ status: 'received' }), {
+      status: statuses.shift() ?? 200,
+    });
   });
   return { sent, fetch };
 }
@@ -93,15 +118,17 @@ describe('error replays in the outbox drain', () => {
     await drain(outbox, fetch);
     expect(sent).toHaveLength(1);
     expect(sent[0]!.replay).toEqual(REPLAY.bytes);
-    expect(sent[0]!.envelope.attachments).toEqual([{
-      partName: 'session-replay',
-      kind: 'session-replay',
-      contentType: 'application/octet-stream',
-      byteLength: 4,
-      sha256: sha256BytesHex(REPLAY.bytes),
-      format: 'rrweb',
-      durationMs: 2_500,
-    }]);
+    expect(sent[0]!.envelope.attachments).toEqual([
+      {
+        partName: 'session-replay',
+        kind: 'session-replay',
+        contentType: 'application/octet-stream',
+        byteLength: 4,
+        sha256: sha256BytesHex(REPLAY.bytes),
+        format: 'rrweb',
+        durationMs: 2_500,
+      },
+    ]);
     expect(outbox.deleted).toEqual(['r-1']);
     expect(isErrorReplayPending('r-1')).toBe(false);
   });
@@ -129,16 +156,18 @@ describe('error replays in the outbox drain', () => {
   });
 
   it('revokes only the capturing owner and preserves another app replay', async () => {
-    const ownerA = {}, ownerB = {};
+    const ownerA = {},
+      ownerB = {};
     markErrorReplayPending('r-1', { owner: ownerA, sdkKey: 'key-A' });
     markErrorReplayPending('r-2', { owner: ownerB, sdkKey: 'key-B' });
     settleErrorReplay('r-1', { kind: 'attach', capture: REPLAY });
     settleErrorReplay('r-2', { kind: 'attach', capture: REPLAY });
     revokeErrorReplays(ownerA);
-    const itemB = errorItem('r-2'); itemB.metadata!['sdkKey'] = 'key-B';
+    const itemB = errorItem('r-2');
+    itemB.metadata!['sdkKey'] = 'key-B';
     const { sent, fetch } = server([]);
     await drain(outboxOf([errorItem('r-1'), itemB]), fetch);
-    expect(sent.map(s => s.replay !== null)).toEqual([false, true]);
+    expect(sent.map((s) => s.replay !== null)).toEqual([false, true]);
     expect(sent[1]!.headers.Authorization).toBe('Bearer key-B');
   });
 
@@ -173,17 +202,20 @@ describe('error replays in the outbox drain', () => {
     expect(outbox.deleted).toEqual(['r-2']);
   });
 
-  it.each([200, 401, 400])('cleans up settled replay state after terminal status %s', async (status) => {
-    markErrorReplayPending('r-1');
-    settleErrorReplay('r-1', { kind: 'attach', capture: REPLAY });
-    const outbox = outboxOf([errorItem('r-1')]);
-    const { fetch } = server([status, status]);
-    await drain(outbox, fetch);
-    expect(outbox.deleted).toEqual(['r-1']);
-    const envelope = JSON.parse(new TextDecoder().decode(errorItem('r-1').payload));
-    expect(applyErrorReplay('r-1', envelope)).toEqual([]);
-    expect(envelope.captureControl.replayOmitted).toBeUndefined();
-  });
+  it.each([200, 401, 400])(
+    'cleans up settled replay state after terminal status %s',
+    async (status) => {
+      markErrorReplayPending('r-1');
+      settleErrorReplay('r-1', { kind: 'attach', capture: REPLAY });
+      const outbox = outboxOf([errorItem('r-1')]);
+      const { fetch } = server([status, status]);
+      await drain(outbox, fetch);
+      expect(outbox.deleted).toEqual(['r-1']);
+      const envelope = JSON.parse(new TextDecoder().decode(errorItem('r-1').payload));
+      expect(applyErrorReplay('r-1', envelope)).toEqual([]);
+      expect(envelope.captureControl.replayOmitted).toBeUndefined();
+    },
+  );
 
   it('does not resurrect a replay whose pending error was discarded', async () => {
     markErrorReplayPending('r-1');
@@ -194,33 +226,38 @@ describe('error replays in the outbox drain', () => {
     expect(sent[0]!.replay).toBeNull();
   });
 
-  it.each([false, true])('preserves per-item identity and consent on the fallback (foreign=%s)', async (foreign) => {
-    const token = `${btoa(JSON.stringify({ alg: 'HS256' }))}.${btoa(JSON.stringify({ sub: 'alice', exp: 4_000_000_000 }))}.sig`;
-    const deviceToken = `evr_${'a'.repeat(43)}`;
-    markErrorReplayPending('r-1');
-    settleErrorReplay('r-1', { kind: 'attach', capture: REPLAY });
-    recordEnqueuedIdentitySubject('r-1', 'alice');
-    const { sent, fetch } = server([400]);
-    await drainOutbox({
-      outbox: outboxOf([errorItem('r-1')]),
-      config: { sdkKey: foreign ? 'key-B' : 'key-A', replies: { disabled: true } },
-      sdkVersion: 'test',
-      fetch: fetch as never,
-      retryScheduleMs: [],
-      identityToken: { get: async () => token },
-      credentials: {
-        load: async () => deviceToken, save: async () => {}, clear: async () => {},
-        randomBytes: (n: number) => new Uint8Array(n),
-      },
-    });
-    expect(sent).toHaveLength(2);
-    for (const attempt of sent) {
-      expect(attempt.headers.Authorization).toBe('Bearer key-A');
-      expect(attempt.headers['X-Everframe-Replies-Opt-Out']).toBe('1');
-      expect(attempt.headers['X-Everframe-Device-Token']).toBe(foreign ? undefined : deviceToken);
-      expect(attempt.headers['X-Everframe-Identity-Token']).toBe(foreign ? undefined : token);
-    }
-  });
+  it.each([false, true])(
+    'preserves per-item identity and consent on the fallback (foreign=%s)',
+    async (foreign) => {
+      const token = `${btoa(JSON.stringify({ alg: 'HS256' }))}.${btoa(JSON.stringify({ sub: 'alice', exp: 4_000_000_000 }))}.sig`;
+      const deviceToken = `evr_${'a'.repeat(43)}`;
+      markErrorReplayPending('r-1');
+      settleErrorReplay('r-1', { kind: 'attach', capture: REPLAY });
+      recordEnqueuedIdentitySubject('r-1', 'alice');
+      const { sent, fetch } = server([400]);
+      await drainOutbox({
+        outbox: outboxOf([errorItem('r-1')]),
+        config: { sdkKey: foreign ? 'key-B' : 'key-A', replies: { disabled: true } },
+        sdkVersion: 'test',
+        fetch: fetch as never,
+        retryScheduleMs: [],
+        identityToken: { get: async () => token },
+        credentials: {
+          load: async () => deviceToken,
+          save: async () => {},
+          clear: async () => {},
+          randomBytes: (n: number) => new Uint8Array(n),
+        },
+      });
+      expect(sent).toHaveLength(2);
+      for (const attempt of sent) {
+        expect(attempt.headers.Authorization).toBe('Bearer key-A');
+        expect(attempt.headers['X-Everframe-Replies-Opt-Out']).toBe('1');
+        expect(attempt.headers['X-Everframe-Device-Token']).toBe(foreign ? undefined : deviceToken);
+        expect(attempt.headers['X-Everframe-Identity-Token']).toBe(foreign ? undefined : token);
+      }
+    },
+  );
 
   it('stops before the fallback if capture ownership is released', async () => {
     markErrorReplayPending('r-1');
@@ -231,9 +268,16 @@ describe('error replays in the outbox drain', () => {
       owned = false;
       return new Response('{}', { status: 400 });
     });
-    await drainOutboxWhileOwned({
-      outbox, config: { sdkKey: 'key-A' }, sdkVersion: 'test', fetch, retryScheduleMs: [],
-    }, () => owned);
+    await drainOutboxWhileOwned(
+      {
+        outbox,
+        config: { sdkKey: 'key-A' },
+        sdkVersion: 'test',
+        fetch,
+        retryScheduleMs: [],
+      },
+      () => owned,
+    );
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(outbox.deleted).toEqual([]);
     const { sent, fetch: retry } = server([]);
@@ -267,5 +311,4 @@ describe('error replays in the outbox drain', () => {
     const envelope = JSON.parse(new TextDecoder().decode(item.payload));
     expect(applyErrorReplay('r-1', envelope)).toEqual([]);
   });
-
 });

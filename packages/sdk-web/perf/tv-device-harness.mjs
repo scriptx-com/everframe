@@ -15,7 +15,10 @@ import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 
-const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i === -1 ? fallback : process.argv[i + 1]; };
+const arg = (name, fallback) => {
+  const i = process.argv.indexOf(`--${name}`);
+  return i === -1 ? fallback : process.argv[i + 1];
+};
 const TARGET = arg('target', 'chrome79');
 const HOST = arg('host', '127.0.0.1');
 const API = arg('api', `http://${HOST}:8787`);
@@ -48,12 +51,17 @@ await build({
   // sdk-web's package.json says `"sideEffects": false`, which would make
   // esbuild drop the bare `import './polyfills.js'`; the prelude is nothing
   // BUT side effects.
-  plugins: [{
-    name: 'polyfills-have-side-effects',
-    setup(b) {
-      b.onResolve({ filter: /\/polyfills\.js$/ }, (a) => ({ path: join(a.resolveDir, 'polyfills.ts'), sideEffects: true }));
+  plugins: [
+    {
+      name: 'polyfills-have-side-effects',
+      setup(b) {
+        b.onResolve({ filter: /\/polyfills\.js$/ }, (a) => ({
+          path: join(a.resolveDir, 'polyfills.ts'),
+          sideEffects: true,
+        }));
+      },
     },
-  }],
+  ],
   logLevel: 'info',
 });
 
@@ -62,15 +70,26 @@ if (process.argv.includes('--package')) {
   await mkdir(app, { recursive: true });
   await copyFile(join(ROOT, 'webos-app', 'appinfo.json'), join(app, 'appinfo.json'));
   const target = `http://${HOST}:${PORT}/harness.html?sdkKey=${encodeURIComponent(KEY)}&mode=${MODE}&runs=${RUNS}`;
-  await writeFile(join(app, 'index.html'), `<!-- ${SPDX} -->\n<!doctype html><meta charset="utf-8"><script>location.replace(${JSON.stringify(target)});</script>`);
-  const icon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+  await writeFile(
+    join(app, 'index.html'),
+    `<!-- ${SPDX} -->\n<!doctype html><meta charset="utf-8"><script>location.replace(${JSON.stringify(target)});</script>`,
+  );
+  const icon = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+    'base64',
+  );
   await writeFile(join(app, 'icon.png'), icon);
   execFileSync('ares-package', [app, '-o', OUT], { stdio: 'inherit' });
 }
 
 // Posters are generated here rather than committed as binaries: four distinct
 // gradients with a large number, enough to tell tiles apart in a render.
-const POSTER_COLORS = { 1: ['#e4572e', '#29335c'], 2: ['#17bebb', '#2e282a'], 3: ['#ffc914', '#76b041'], 4: ['#8e44ad', '#1b98e0'] };
+const POSTER_COLORS = {
+  1: ['#e4572e', '#29335c'],
+  2: ['#17bebb', '#2e282a'],
+  3: ['#ffc914', '#76b041'],
+  4: ['#8e44ad', '#1b98e0'],
+};
 function poster(n) {
   const [a, b] = POSTER_COLORS[n];
   return `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="720" height="400" fill="url(#g)"/><circle cx="560" cy="120" r="90" fill="#fff" fill-opacity="0.25"/><text x="40" y="360" font-family="sans-serif" font-weight="bold" font-size="160" fill="#fff">${n}</text></svg>`;
@@ -84,19 +103,30 @@ async function writeReference(snapshotPath) {
   const snap = JSON.parse(await readFile(snapshotPath, 'utf8'));
   const { viewport, dpr, media } = snap.context;
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport, deviceScaleFactor: Math.min(dpr, 2), colorScheme: media.prefersColorScheme });
+  const page = await browser.newPage({
+    viewport,
+    deviceScaleFactor: Math.min(dpr, 2),
+    colorScheme: media.prefersColorScheme,
+  });
   await page.goto(`http://127.0.0.1:${PORT}/harness.html?runs=0`);
   await page.waitForLoadState('networkidle');
   await page.evaluate(() => document.fonts.ready);
   // The on-screen log is skip-capture in every TV shot; keep it out of the reference too.
-  await page.evaluate(() => { document.getElementById('log').style.display = 'none'; });
+  await page.evaluate(() => {
+    document.getElementById('log').style.display = 'none';
+  });
   await page.focus('#tile-2');
   await page.screenshot({ path: join(OUT, 'reference.png') });
   await browser.close();
   console.log(`[tv-device] wrote ${join(OUT, 'reference.png')}`);
 }
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript',
+  '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2',
+};
 let n = 0;
 createServer(async (req, res) => {
   const path = new URL(req.url ?? '/', 'http://x').pathname;
@@ -118,19 +148,45 @@ createServer(async (req, res) => {
       await writeFile(join(OUT, `${tag}.snapshot.json`), text);
       leaks = ['HARNESSSECRET', '4111'].filter((p) => text.includes(p));
     }
-    console.log(JSON.stringify({ tag, ua: r.ua, secureContext: r.secureContext, outcome: r.outcome, reason: r.reason, error: r.error, totalMs: r.totalMs, longestBlockMs: r.longestBlockMs, snapshotKB: r.snapshotKB, render: r.render, image: r.image && `${r.image.w}x${r.image.h}`, leaks }));
+    console.log(
+      JSON.stringify({
+        tag,
+        ua: r.ua,
+        secureContext: r.secureContext,
+        outcome: r.outcome,
+        reason: r.reason,
+        error: r.error,
+        totalMs: r.totalMs,
+        longestBlockMs: r.longestBlockMs,
+        snapshotKB: r.snapshotKB,
+        render: r.render,
+        image: r.image && `${r.image.w}x${r.image.h}`,
+        leaks,
+      }),
+    );
     res.writeHead(204).end();
     return;
   }
   const posterMatch = /^\/posters\/([1-4])\.svg$/.exec(path);
   if (posterMatch) {
-    res.writeHead(200, { 'content-type': TYPES['.svg'], 'cache-control': 'no-store' }).end(poster(posterMatch[1]));
+    res
+      .writeHead(200, { 'content-type': TYPES['.svg'], 'cache-control': 'no-store' })
+      .end(poster(posterMatch[1]));
     return;
   }
   const file = path === '/bundle.js' ? join(OUT, 'bundle.js') : join(ROOT, normalize(path));
-  if (!file.startsWith(ROOT)) { res.writeHead(403).end(); return; }
+  if (!file.startsWith(ROOT)) {
+    res.writeHead(403).end();
+    return;
+  }
   readFile(file).then(
-    (body) => { res.writeHead(200, { 'content-type': TYPES[file.slice(file.lastIndexOf('.'))] ?? 'application/octet-stream', 'cache-control': 'no-store' }); res.end(body); },
+    (body) => {
+      res.writeHead(200, {
+        'content-type': TYPES[file.slice(file.lastIndexOf('.'))] ?? 'application/octet-stream',
+        'cache-control': 'no-store',
+      });
+      res.end(body);
+    },
     () => res.writeHead(404).end(),
   );
 }).listen(PORT, '0.0.0.0', () => {

@@ -18,12 +18,14 @@ export interface CompanionDeviceFacts {
   osVersion: string | null;
 }
 
-const cap = (s: string | null, n: number): string | null =>
-  s === null ? null : s.slice(0, n);
+const cap = (s: string | null, n: number): string | null => (s === null ? null : s.slice(0, n));
 
 export function deriveDeviceFacts(ua: string): CompanionDeviceFacts {
   const none: CompanionDeviceFacts = {
-    platform: 'web', model: null, osName: null, osVersion: null,
+    platform: 'web',
+    model: null,
+    osName: null,
+    osVersion: null,
   };
   if (typeof ua !== 'string' || ua.length === 0) return none;
 
@@ -31,7 +33,9 @@ export function deriveDeviceFacts(ua: string): CompanionDeviceFacts {
   const tizen = /Tizen[ /]?(\d+(?:\.\d+)?)?/i.exec(ua);
   if (tizen) {
     return {
-      platform: 'web', model: 'Samsung TV', osName: 'Tizen',
+      platform: 'web',
+      model: 'Samsung TV',
+      osName: 'Tizen',
       osVersion: cap(tizen[1] ?? null, 40),
     };
   }
@@ -39,7 +43,9 @@ export function deriveDeviceFacts(ua: string): CompanionDeviceFacts {
   if (/Web0S|webOS/i.test(ua)) {
     const v = /webOS(?:\.TV)?[ /-]?(\d+(?:\.\d+)?)/i.exec(ua);
     return {
-      platform: 'web', model: 'LG TV', osName: 'webOS',
+      platform: 'web',
+      model: 'LG TV',
+      osName: 'webOS',
       osVersion: cap(v?.[1] ?? null, 40),
     };
   }

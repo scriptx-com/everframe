@@ -30,21 +30,23 @@ const webServer = [
   },
   ...(SKIP_VUE_SERVER
     ? []
-    : [{
-        // `dev`, not `preview`: the specs run against source so a failure points
-        // at a file you can edit. The SDK itself is still the BUILT dist/ — Vite
-        // resolves @everframe/web through the workspace link to its dist.
-        command: `pnpm --filter examples-vue-web dev`,
-        // Threaded to examples/vue-web/vite.config.ts, which reads this same
-        // var for its dev-server port (defaulting to 3020 too) — without this,
-        // E2E_VUE_PORT would change VUE_PORT above but Vite would keep serving
-        // 3020 regardless, and Playwright would wait forever on a port nothing
-        // is listening on.
-        env: { E2E_VUE_PORT: VUE_PORT },
-        url: VUE_BASE_URL,
-        timeout: 120_000,
-        reuseExistingServer: !process.env.CI,
-      }]),
+    : [
+        {
+          // `dev`, not `preview`: the specs run against source so a failure points
+          // at a file you can edit. The SDK itself is still the BUILT dist/ — Vite
+          // resolves @everframe/web through the workspace link to its dist.
+          command: `pnpm --filter examples-vue-web dev`,
+          // Threaded to examples/vue-web/vite.config.ts, which reads this same
+          // var for its dev-server port (defaulting to 3020 too) — without this,
+          // E2E_VUE_PORT would change VUE_PORT above but Vite would keep serving
+          // 3020 regardless, and Playwright would wait forever on a port nothing
+          // is listening on.
+          env: { E2E_VUE_PORT: VUE_PORT },
+          url: VUE_BASE_URL,
+          timeout: 120_000,
+          reuseExistingServer: !process.env.CI,
+        },
+      ]),
 ];
 
 export default defineConfig({

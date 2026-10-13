@@ -7,11 +7,20 @@ import { runBrs } from './brs-harness.js';
 
 // Mirrors ingest: unknown top-level keys are rejected.
 const Strict = (ReportEnvelope as unknown as z.ZodObject<z.ZodRawShape>).catchall(z.never());
-const LIBS = ['ef_util.brs', 'ef_fingerprint.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_envelope.brs', 'ef_multipart.brs'];
+const LIBS = [
+  'ef_util.brs',
+  'ef_fingerprint.brs',
+  'ef_frames.brs',
+  'ef_record.brs',
+  'ef_envelope.brs',
+  'ef_multipart.brs',
+];
 
 describe('ef_envelope.brs', () => {
   it('builds a schema-valid crash envelope from a Path A record', async () => {
-    const { lines } = await runBrs(LIBS, `
+    const { lines } = await runBrs(
+      LIBS,
+      `
       try
         throw "kaboom"
       catch e
@@ -23,14 +32,30 @@ describe('ef_envelope.brs', () => {
       rec.user = { id: "u1" }
       ctx = EfE_Context("0.1.0")
       print "EFTEST:" + FormatJson(EfE_Build(rec, ctx, EfU_NowMs()))
-    `);
+    `,
+    );
     const env = lines[0];
     const parsed = Strict.safeParse(env);
     expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
-    expect(env.sdk).toEqual({ name: 'everframe-roku', version: '0.1.0', platform: 'roku', formFactor: 'tv' });
+    expect(env.sdk).toEqual({
+      name: 'everframe-roku',
+      version: '0.1.0',
+      platform: 'roku',
+      formFactor: 'tv',
+    });
     expect(env.source).toBe('crash');
-    expect(env.reporter).toEqual({ title: 'RuntimeError(&h28): kaboom', description: '', user: { id: 'u1' } });
-    expect(env.payload.crash).toMatchObject({ mechanism: 'try-catch', handled: false, fatal: true, threadName: 'render', details: { context: 'onKeyEvent (components/Home.brs)' } });
+    expect(env.reporter).toEqual({
+      title: 'RuntimeError(&h28): kaboom',
+      description: '',
+      user: { id: 'u1' },
+    });
+    expect(env.payload.crash).toMatchObject({
+      mechanism: 'try-catch',
+      handled: false,
+      fatal: true,
+      threadName: 'render',
+      details: { context: 'onKeyEvent (components/Home.brs)' },
+    });
     expect(Object.keys(env.payload.crash)).toContain('threadName');
     expect(Object.keys(env.payload.crash)).not.toContain('threadname');
     expect(env.payload.crash.fingerprint).toMatch(/^[0-9a-f]{16}$/);
@@ -39,20 +64,28 @@ describe('ef_envelope.brs', () => {
   });
 
   it('builds a schema-valid handled error with exit metadata and no crumbs', async () => {
-    const { lines } = await runBrs(LIBS, `
+    const { lines } = await runBrs(
+      LIBS,
+      `
       rec = EfR_FromException("soft", "captureException", true)
       rec.exitInfo = { exitCode: "EXIT_OUT_OF_MEMORY", memLimitMb: 512 }
       print "EFTEST:" + FormatJson(EfE_Build(rec, EfE_Context("0.1.0"), EfU_NowMs()))
-    `);
+    `,
+    );
     const env = lines[0];
     expect(Strict.safeParse(env).success).toBe(true);
     expect(env.source).toBe('error');
     expect(env.captures.breadcrumbs).toBe(false);
-    expect(env.payload.crash.details.metadata).toEqual({ exitCode: 'EXIT_OUT_OF_MEMORY', memLimitMb: 512 });
+    expect(env.payload.crash.details.metadata).toEqual({
+      exitCode: 'EXIT_OUT_OF_MEMORY',
+      memLimitMb: 512,
+    });
   });
 
   it('merges the memory reading into metadata without clobbering exit metadata', async () => {
-    const { lines } = await runBrs(LIBS, `
+    const { lines } = await runBrs(
+      LIBS,
+      `
       rec = EfR_FromException("oom", "exit-info", false)
       rec["exitInfo"] = { "exitCode": "EXIT_CHANNEL_MEM_LIMIT_FG", "memLimitMb": 286, "appState": "foreground" }
       rec.memory = { "percent": 97, "limitMb": 286 }
@@ -64,14 +97,18 @@ describe('ef_envelope.brs', () => {
       rec3.memory = { "percent": "bad" }
       c = EfE_Build(rec3, EfE_Context("0.1.0"), EfU_NowMs())
       print "EFTEST:" + FormatJson({ a: a, b: b, c: c, exitInfo: rec.exitInfo })
-    `);
+    `,
+    );
     const { a, b, c, exitInfo } = lines[0];
     for (const env of [a, b, c]) {
       const parsed = Strict.safeParse(env);
       expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
     }
     expect(a.payload.crash.details.metadata).toEqual({
-      exitCode: 'EXIT_CHANNEL_MEM_LIMIT_FG', memLimitMb: 286, appState: 'foreground', memory: { percent: 97, limitMb: 286 },
+      exitCode: 'EXIT_CHANNEL_MEM_LIMIT_FG',
+      memLimitMb: 286,
+      appState: 'foreground',
+      memory: { percent: 97, limitMb: 286 },
     });
     expect(exitInfo).not.toHaveProperty('memory'); // the record itself is not mutated
     expect(b.payload.crash.details.metadata).toEqual({ memory: { percent: 41 } });
@@ -79,31 +116,41 @@ describe('ef_envelope.brs', () => {
   });
 
   it('serializes a numeric user id as a string', async () => {
-    const { lines } = await runBrs(LIBS, `
+    const { lines } = await runBrs(
+      LIBS,
+      `
       rec = EfR_FromException("soft", "captureException", true)
       rec.user = EfU_NormalizeUser({ id: 42, displayName: "Ann" })
       print "EFTEST:" + FormatJson(EfE_Build(rec, EfE_Context("0.1.0"), EfU_NowMs()))
-    `);
+    `,
+    );
     const env = lines[0];
     expect(Strict.safeParse(env).success).toBe(true);
     expect(env.reporter.user).toEqual({ id: '42', displayName: 'Ann' });
   });
 
   it('multipart body parses as form-data with one envelope part', async () => {
-    const { lines } = await runBrs(LIBS, `
+    const { lines } = await runBrs(
+      LIBS,
+      `
       b = EfM_Boundary()
       print "EFTEST:" + FormatJson({ b: b, body: EfM_Body("{""x"":1}", b) })
-    `);
+    `,
+    );
     const { b, body } = lines[0];
-    const form = await new Response(body, { headers: { 'content-type': `multipart/form-data; boundary=${b}` } }).formData();
+    const form = await new Response(body, {
+      headers: { 'content-type': `multipart/form-data; boundary=${b}` },
+    }).formData();
     const part = form.get('envelope') as File;
     expect(part.name).toBe('envelope.json');
     expect(part.type).toBe('application/json');
     expect(JSON.parse(await part.text())).toEqual({ x: 1 });
   });
 
-  it('a record keeps its own session\'s version and build, not the running app\'s', async () => {
-    const { lines } = await runBrs(LIBS, `
+  it("a record keeps its own session's version and build, not the running app's", async () => {
+    const { lines } = await runBrs(
+      LIBS,
+      `
       ctx = EfE_Context("0.1.0")
       ctx.app.build = "9"
       base = { v: 1, id: "id-v-xxxxxxxx", t: 1790000000100&, kind: "crash", handled: false, fatal: true, mechanism: "exit-info", exceptionType: "E", message: "m", frames: [], crumbs: [] }
@@ -113,24 +160,30 @@ describe('ef_envelope.brs', () => {
       base["appBuild"] = "7"
       c = EfE_Build(base, ctx, EfU_NowMs()).context.app
       print "EFTEST:" + FormatJson({ a: a.build, b: [b.version, b.build], c: [c.version, c.build] })
-    `);
+    `,
+    );
     expect(lines[0]).toEqual({ a: '9', b: ['1.0.0', null], c: ['1.0.0', '7'] });
   });
 
   it('reports a sideloaded channel as a debug build unless start() said otherwise', async () => {
-    const { lines } = await runBrs(LIBS, `
+    const { lines } = await runBrs(
+      LIBS,
+      `
       a = EfE_Context("0.1.0").app.debug
       m["efDebugBuild"] = false
       b = EfE_Context("0.1.0").app.debug
       m["efDebugBuild"] = true
       c = EfE_Context("0.1.0").app.debug
       print "EFTEST:" + FormatJson({ a: a, b: b, c: c })
-    `);
+    `,
+    );
     expect(lines[0]).toEqual({ a: true, b: false, c: true });
   });
 
-  it('a record keeps the debug flag it was captured with, not the running app\'s', async () => {
-    const { lines } = await runBrs(LIBS, `
+  it("a record keeps the debug flag it was captured with, not the running app's", async () => {
+    const { lines } = await runBrs(
+      LIBS,
+      `
       rec = EfR_FromException("soft", "captureException", true)
       captured = rec.appDebug
       m["efDebugBuild"] = false
@@ -139,7 +192,8 @@ describe('ef_envelope.brs', () => {
       rec.Delete("appDebug")
       noStamp = EfE_Build(rec, ctx, EfU_NowMs()).context.app.debug
       print "EFTEST:" + FormatJson({ captured: captured, sentLater: sentLater, noStamp: noStamp })
-    `);
+    `,
+    );
     expect(lines[0]).toEqual({ captured: true, sentLater: true, noStamp: false });
   });
 });

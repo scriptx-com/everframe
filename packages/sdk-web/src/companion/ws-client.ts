@@ -42,8 +42,7 @@ import {
 // the identifier appears in both positions — see packages/protocol/dist/
 // index.d.ts:444). The runtime VALUE is exported normally — we reach it via
 // a defensive cast. Drop-in for when protocol's dts emits the value alias too.
-const RelayMessageSchema = (relay as unknown as { RelayMessage: ZodType })
-  .RelayMessage;
+const RelayMessageSchema = (relay as unknown as { RelayMessage: ZodType }).RelayMessage;
 
 // Derive types from the branch schemas (which ARE exported as both value+type
 // per `index_ReportSubmit: typeof ReportSubmit` in the dts) and union them.
@@ -188,8 +187,7 @@ export function createRelayWSClient(opts: RelayWSClientOpts): RelayWSClient {
   const endpoint = opts.endpoint ?? INGEST_URL;
   const WS = opts.webSocketCtor ?? globalThis.WebSocket;
   const storage =
-    opts.storage ??
-    (typeof window !== 'undefined' ? window.sessionStorage : undefined);
+    opts.storage ?? (typeof window !== 'undefined' ? window.sessionStorage : undefined);
 
   if (!WS) {
     throw new Error('companion ws-client: WebSocket constructor unavailable');
@@ -210,8 +208,7 @@ export function createRelayWSClient(opts: RelayWSClientOpts): RelayWSClient {
   // Scheme/origin derivation — UNCHANGED from the pre-companion implementation.
   // Schemes follow the page's protocol — wss when https, ws when localhost.
   function wsScheme(): string {
-    const isSecure =
-      typeof window !== 'undefined' && window.location?.protocol === 'https:';
+    const isSecure = typeof window !== 'undefined' && window.location?.protocol === 'https:';
     const scheme = isSecure ? 'wss' : 'ws';
     // If the endpoint itself was https://, prefer wss regardless of page protocol
     // (the SDK can be embedded on http://localhost dev pages targeting prod relays).
@@ -259,14 +256,14 @@ export function createRelayWSClient(opts: RelayWSClientOpts): RelayWSClient {
       return;
     }
     const delay =
-      attempt < BACKOFF_STEPS_MS.length
-        ? BACKOFF_STEPS_MS[attempt]!
-        : BACKOFF_CEILING_MS;
+      attempt < BACKOFF_STEPS_MS.length ? BACKOFF_STEPS_MS[attempt]! : BACKOFF_CEILING_MS;
     attempt += 1;
     // Transient drop within the grace window — surface as phoneDisconnected
     // only if we were already paired (pre-bond drops stay `unpaired`).
-    if (opts.companion.getState() === 'paired' ||
-        opts.companion.getState() === 'report_in_progress') {
+    if (
+      opts.companion.getState() === 'paired' ||
+      opts.companion.getState() === 'report_in_progress'
+    ) {
       opts.companion.__setState('phone_disconnected');
     }
     reconnectTimer = setTimeout(() => {

@@ -313,7 +313,9 @@ export function useIdentityProp(
       })
       .catch(() => undefined);
 
-    return () => { disposed = true; };
+    return () => {
+      disposed = true;
+    };
     // `latest` is a ref and deliberately absent. `ctxValue` is stable for the
     // provider's lifetime (useMemo(…, [])). `settled` is NOT stable — it's a
     // new arrow every render — but that's fine here: it's never read from the

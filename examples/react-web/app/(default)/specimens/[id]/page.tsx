@@ -4,19 +4,15 @@
 // Specimen detail — dynamic route. Exercises deep-link navigation, a large
 // image capture target, a <Sensitive> region, and a cross-page write (log
 // an observation → /log via localStorage).
-"use client";
-import { use, useState } from "react";
-import Link from "next/link";
-import { Sensitive } from "@everframe/react";
-import { getSpecimen } from "../../../lib/specimens";
-import { SpecimenPlate } from "../../../components/SpecimenPlate";
-import { appendLog } from "../../../lib/field-log";
+'use client';
+import { use, useState } from 'react';
+import Link from 'next/link';
+import { Sensitive } from '@everframe/react';
+import { getSpecimen } from '../../../lib/specimens';
+import { SpecimenPlate } from '../../../components/SpecimenPlate';
+import { appendLog } from '../../../lib/field-log';
 
-export default function SpecimenDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function SpecimenDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const specimen = getSpecimen(id);
   const [logged, setLogged] = useState(false);
@@ -27,8 +23,8 @@ export default function SpecimenDetailPage({
         <p className="eyebrow">Catalog</p>
         <h1 className="display">Plate not found</h1>
         <p className="lede">
-          No specimen is filed under “{id}”. It may have flown off — the
-          catalog only goes to TXX-008.
+          No specimen is filed under “{id}”. It may have flown off — the catalog only goes to
+          TXX-008.
         </p>
         <Link href="/specimens" className="btn btn-primary">
           Back to the catalog
@@ -42,7 +38,7 @@ export default function SpecimenDetailPage({
       id: `obs-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       note: `Observed: ${specimen.commonName} (${specimen.latinName})`,
       specimenId: specimen.id,
-      site: "Logged from plate",
+      site: 'Logged from plate',
       confirmed: false,
     });
     setLogged(true);
@@ -61,7 +57,7 @@ export default function SpecimenDetailPage({
           <h1 className="display" data-testid="specimen-heading">
             {specimen.commonName}
           </h1>
-          <p className="lede" style={{ fontStyle: "italic", marginBottom: 8 }}>
+          <p className="lede" style={{ fontStyle: 'italic', marginBottom: 8 }}>
             {specimen.latinName}
           </p>
           <span className="taxon-tag">{specimen.order}</span>
@@ -85,9 +81,8 @@ export default function SpecimenDetailPage({
 
           <Sensitive>
             <p className="mono-note" data-testid="collector-notes">
-              Collector’s private note: exact sighting coordinates withheld —
-              this block is wrapped in &lt;Sensitive&gt; and must be masked in
-              captures.
+              Collector’s private note: exact sighting coordinates withheld — this block is wrapped
+              in &lt;Sensitive&gt; and must be masked in captures.
             </p>
           </Sensitive>
 
@@ -97,7 +92,7 @@ export default function SpecimenDetailPage({
               onClick={logObservation}
               data-testid="log-observation"
             >
-              {logged ? "Logged — add another" : "Log an observation"}
+              {logged ? 'Logged — add another' : 'Log an observation'}
             </button>
             <Link href="/log" className="btn">
               Open field log

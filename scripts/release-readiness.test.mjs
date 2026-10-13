@@ -37,13 +37,22 @@ function versionAlignmentProblems(version, readFile) {
   };
   for (const dir of [...Object.values(published), ...Object.values(nativeMarkers)]) {
     const pkg = JSON.parse(readFile(`packages/${dir}/package.json`));
-    if (pkg.version !== version) problems.push(`packages/${dir}/package.json: version ${pkg.version}`);
+    if (pkg.version !== version)
+      problems.push(`packages/${dir}/package.json: version ${pkg.version}`);
   }
   // `prebuild` rewrites these from package.json. A stale committed literal makes every build
   // dirty the tree, which blocks the next production deploy's fast-forward of the SDK checkout.
-  for (const dir of ['sdk-web', 'sdk-react']) expect(`packages/${dir}/src/internal/version.ts`, `PKG_VERSION = '${version}';`);
-  expect('packages/sdk-roku/library/components/Everframe/lib/ef_version.brs', `return "${version}"`);
-  for (const line of [`major_version=${major}`, `minor_version=${minor}`, `build_version=${patch}`]) {
+  for (const dir of ['sdk-web', 'sdk-react'])
+    expect(`packages/${dir}/src/internal/version.ts`, `PKG_VERSION = '${version}';`);
+  expect(
+    'packages/sdk-roku/library/components/Everframe/lib/ef_version.brs',
+    `return "${version}"`,
+  );
+  for (const line of [
+    `major_version=${major}`,
+    `minor_version=${minor}`,
+    `build_version=${patch}`,
+  ]) {
     expect('packages/sdk-roku/library/manifest', new RegExp(`^${line}$`, 'm'));
   }
   expect('packages/everframe_flutter/pubspec.yaml', `version: ${version}\n`);
@@ -51,16 +60,32 @@ function versionAlignmentProblems(version, readFile) {
   expect('packages/everframe_flutter/android/build.gradle.kts', `version = "${version}"`);
   expect('packages/everframe_flutter/ios/everframe_flutter.podspec', `s.version = '${version}'`);
   expect('packages/sdk-android/android/gradle.properties', `everframeVersion=${version}\n`);
-  expect('packages/sdk-ios/Everframe.podspec', new RegExp(`^\\s*spec\\.version\\s*=\\s*"${version.replaceAll('.', '\\.')}"`, 'm'));
-  for (const file of ['packages/sdk-ios/Package.binary.swift', 'Package.swift']) expect(file, `let binaryVersion = "${version}"`);
+  expect(
+    'packages/sdk-ios/Everframe.podspec',
+    new RegExp(`^\\s*spec\\.version\\s*=\\s*"${version.replaceAll('.', '\\.')}"`, 'm'),
+  );
+  for (const file of ['packages/sdk-ios/Package.binary.swift', 'Package.swift'])
+    expect(file, `let binaryVersion = "${version}"`);
   // The bridges accept native patches within the release's minor line, from this release on.
-  for (const file of ['packages/everframe_flutter/android/build.gradle.kts', 'packages/sdk-react-native/android/build.gradle.kts']) {
+  for (const file of [
+    'packages/everframe_flutter/android/build.gradle.kts',
+    'packages/sdk-react-native/android/build.gradle.kts',
+  ]) {
     expect(file, nativeRange);
   }
-  expect('packages/everframe_flutter/ios/everframe_flutter.podspec', `'Everframe/Core', '~> ${version}'`);
-  expect('packages/everframe_flutter/ios/everframe_flutter.podspec', `'Everframe/ReporterUI', '~> ${version}'`);
+  expect(
+    'packages/everframe_flutter/ios/everframe_flutter.podspec',
+    `'Everframe/Core', '~> ${version}'`,
+  );
+  expect(
+    'packages/everframe_flutter/ios/everframe_flutter.podspec',
+    `'Everframe/ReporterUI', '~> ${version}'`,
+  );
   expect('packages/sdk-react-native/EverframeRN.podspec', `'~> ${version}'`);
-  expect('packages/everframe_flutter/ios/everframe_flutter/Package.swift', `.upToNextMinor(from: "${version}")`);
+  expect(
+    'packages/everframe_flutter/ios/everframe_flutter/Package.swift',
+    `.upToNextMinor(from: "${version}")`,
+  );
   return problems;
 }
 
@@ -73,9 +98,12 @@ function bumpedReader(from, to) {
   return (file) => {
     let text = read(file);
     if (file.endsWith('package.json')) return JSON.stringify({ ...JSON.parse(text), version: to });
-    text = text.replaceAll(`,${fromMajor}.${fromMinor + 1}.0)`, `,${toMajor}.${toMinor + 1}.0)`).replaceAll(from, to);
+    text = text
+      .replaceAll(`,${fromMajor}.${fromMinor + 1}.0)`, `,${toMajor}.${toMinor + 1}.0)`)
+      .replaceAll(from, to);
     if (file === 'packages/sdk-roku/library/manifest') {
-      text = text.replace(/^major_version=.*$/m, `major_version=${toMajor}`)
+      text = text
+        .replace(/^major_version=.*$/m, `major_version=${toMajor}`)
         .replace(/^minor_version=.*$/m, `minor_version=${toMinor}`)
         .replace(/^build_version=.*$/m, `build_version=${toPatch}`);
     }
@@ -84,12 +112,18 @@ function bumpedReader(from, to) {
 }
 
 // Private workspace markers whose CHANGELOGs record the native Android and iOS releases.
-const nativeMarkers = { '@everframe/sdk-android': 'sdk-android', '@everframe/sdk-ios-marker': 'sdk-ios' };
+const nativeMarkers = {
+  '@everframe/sdk-android': 'sdk-android',
+  '@everframe/sdk-ios-marker': 'sdk-ios',
+};
 
 test('every published npm package and native marker is in the one fixed changeset group', () => {
   const { fixed } = JSON.parse(read('.changeset/config.json'));
   assert.equal(fixed.length, 1);
-  assert.deepEqual([...fixed[0]].sort(), [...Object.keys(published), ...Object.keys(nativeMarkers)].sort());
+  assert.deepEqual(
+    [...fixed[0]].sort(),
+    [...Object.keys(published), ...Object.keys(nativeMarkers)].sort(),
+  );
 });
 
 test('the native markers carry the release version, so their CHANGELOGs share its heading', () => {
@@ -112,11 +146,14 @@ test('every published npm package is publishable at the release version', () => 
 });
 
 test('no other workspace package is published', () => {
-  const dirs = readdirSync('packages', { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const dirs = readdirSync('packages', { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name);
   for (const dir of dirs) {
     if (!existsSync(`packages/${dir}/package.json`)) continue;
     const pkg = manifest(dir);
-    if (pkg.private !== true) assert.ok(pkg.name in published, `${pkg.name} is publishable but not on the release line`);
+    if (pkg.private !== true)
+      assert.ok(pkg.name in published, `${pkg.name} is publishable but not on the release line`);
   }
 });
 
@@ -139,7 +176,8 @@ test('the alignment checks hold for a patch release where native and bridges sha
   assert.deepEqual(versionAlignmentProblems(next, bumpedReader(releaseVersion, next)), []);
   // A bridge left on the previous release's floor fails the patch check.
   const stale = bumpedReader(releaseVersion, next);
-  const staleRange = (file) => file === 'packages/sdk-react-native/android/build.gradle.kts' ? read(file) : stale(file);
+  const staleRange = (file) =>
+    file === 'packages/sdk-react-native/android/build.gradle.kts' ? read(file) : stale(file);
   assert.equal(versionAlignmentProblems(next, staleRange).length, 1);
 });
 
@@ -153,5 +191,8 @@ test('Gradle coordinates the release depends on', () => {
   assert.match(read('packages/everframe_kmp/build.gradle.kts'), /version = mobileReleaseVersion/);
   assert.match(read('packages/everframe_kmp/build.gradle.kts'), /\.orElse\(mobileReleaseVersion\)/);
   assert.match(read('packages/everframe_kmp/settings.gradle.kts'), /^rootProject\.name = "kmp"$/m);
-  assert.match(read('packages/sdk-android/android/everframe-gradle-plugin/build.gradle.kts'), /artifactId = "gradle-plugin"/);
+  assert.match(
+    read('packages/sdk-android/android/everframe-gradle-plugin/build.gradle.kts'),
+    /artifactId = "gradle-plugin"/,
+  );
 });

@@ -30,7 +30,7 @@ describe('<EverframeSensitive> handleSensitiveLayout (Plan 06-05 Task 2)', () =>
     handleSensitiveLayout(
       { _nativeTag: 1, canonical: { _nativeTag: 9999 } } as unknown,
       register,
-      evt()
+      evt(),
     );
     expect(register).toHaveBeenCalledWith(9999, { x: 1, y: 2, width: 3, height: 4 });
   });

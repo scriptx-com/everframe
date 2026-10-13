@@ -20,7 +20,9 @@ vi.mock('../../src/resources/index.js', async (importOriginal) => {
   return {
     ...actual,
     startResourceSampler: () => () => {
-      throw new Error('disconnect boom — simulates the unguarded observer?.disconnect() in resources/sampler.ts');
+      throw new Error(
+        'disconnect boom — simulates the unguarded observer?.disconnect() in resources/sampler.ts',
+      );
     },
   };
 });

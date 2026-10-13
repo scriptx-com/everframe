@@ -19,7 +19,12 @@
 //     (getVariantTracks(), drmInfo(), getStats()) rather than putting it on
 //     event payloads, so several handlers re-query the player instead of
 //     reading the event.
-import type { PlayerIntegration, PlayerIntegrationContext, PlayerSnapshot, PlayerStartupTimings } from '@everframe/sdk-core';
+import type {
+  PlayerIntegration,
+  PlayerIntegrationContext,
+  PlayerSnapshot,
+  PlayerStartupTimings,
+} from '@everframe/sdk-core';
 import { safeWrap } from '@everframe/sdk-core';
 
 export const SHAKA_EVENTS = {
@@ -34,7 +39,12 @@ export const SHAKA_EVENTS = {
 
 type Handler = (event?: unknown) => void;
 
-interface VariantTrack { active?: boolean; bandwidth?: number; width?: number; height?: number }
+interface VariantTrack {
+  active?: boolean;
+  bandwidth?: number;
+  width?: number;
+  height?: number;
+}
 interface ShakaLike {
   addEventListener?(event: string, handler: Handler): void;
   removeEventListener?(event: string, handler: Handler): void;
@@ -48,8 +58,12 @@ interface ShakaLike {
   constructor?: { version?: unknown };
 }
 
-function finite(n: unknown): n is number { return typeof n === 'number' && Number.isFinite(n); }
-function rec(v: unknown): Record<string, unknown> { return (v && typeof v === 'object' ? v : {}) as Record<string, unknown>; }
+function finite(n: unknown): n is number {
+  return typeof n === 'number' && Number.isFinite(n);
+}
+function rec(v: unknown): Record<string, unknown> {
+  return (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+}
 
 export function shakaIntegration(instance: unknown): PlayerIntegration {
   const player = (instance ?? {}) as ShakaLike;
@@ -65,7 +79,11 @@ export function shakaIntegration(instance: unknown): PlayerIntegration {
 
   function activeVariant(): Record<string, number> {
     let tracks: unknown;
-    try { tracks = player.getVariantTracks?.(); } catch { return {}; }
+    try {
+      tracks = player.getVariantTracks?.();
+    } catch {
+      return {};
+    }
     const t = Array.isArray(tracks) ? tracks.find((x) => rec(x).active === true) : undefined;
     const v = rec(t);
     const out: Record<string, number> = {};
@@ -76,7 +94,11 @@ export function shakaIntegration(instance: unknown): PlayerIntegration {
   }
 
   function stats(): Record<string, unknown> {
-    try { return rec(player.getStats?.()); } catch { return {}; }
+    try {
+      return rec(player.getStats?.());
+    } catch {
+      return {};
+    }
   }
 
   /**
@@ -95,15 +117,27 @@ export function shakaIntegration(instance: unknown): PlayerIntegration {
   function protocolOf(): 'hls' | 'dash' | 'unknown' | undefined {
     if (typeof player.getManifestType !== 'function') return undefined;
     let t: unknown;
-    try { t = player.getManifestType(); } catch { t = undefined; }
+    try {
+      t = player.getManifestType();
+    } catch {
+      t = undefined;
+    }
     return t === 'HLS' ? 'hls' : t === 'DASH' ? 'dash' : 'unknown';
   }
 
   function currentSource(): Record<string, unknown> {
     let src: unknown;
-    try { src = player.getAssetUri?.(); } catch { src = undefined; }
+    try {
+      src = player.getAssetUri?.();
+    } catch {
+      src = undefined;
+    }
     let live: unknown;
-    try { live = player.isLive?.(); } catch { live = undefined; }
+    try {
+      live = player.isLive?.();
+    } catch {
+      live = undefined;
+    }
     const protocol = protocolOf();
     return {
       src: typeof src === 'string' ? src : '',
@@ -119,9 +153,17 @@ export function shakaIntegration(instance: unknown): PlayerIntegration {
     // duck-typed calls — a throw from one must not suppress the fallback to
     // the other, or a real fallback path silently degrades to 'none'.
     let ks: unknown;
-    try { ks = rec(player.drmInfo?.()).keySystem; } catch { ks = undefined; }
+    try {
+      ks = rec(player.drmInfo?.()).keySystem;
+    } catch {
+      ks = undefined;
+    }
     if (ks === undefined) {
-      try { ks = player.keySystem?.(); } catch { ks = undefined; }
+      try {
+        ks = player.keySystem?.();
+      } catch {
+        ks = undefined;
+      }
     }
     const keySystem = typeof ks === 'string' && ks !== '' ? ks : 'none';
     const lt = stats().licenseTime;
@@ -139,7 +181,11 @@ export function shakaIntegration(instance: unknown): PlayerIntegration {
       // look like a Shaka player at all, so the adapter can degrade to
       // native instead of leaving the player labelled 'shaka' but
       // permanently silent.
-      if (typeof player.addEventListener !== 'function' || typeof player.removeEventListener !== 'function') return false;
+      if (
+        typeof player.addEventListener !== 'function' ||
+        typeof player.removeEventListener !== 'function'
+      )
+        return false;
       // Item 1 (codex round 1) — same reasoning as hls.ts: these handlers
       // run from Shaka's own event dispatch and read foreign methods
       // (getVariantTracks(), drmInfo(), getStats(), …) before reaching the
@@ -168,19 +214,26 @@ export function shakaIntegration(instance: unknown): PlayerIntegration {
       });
       on(SHAKA_EVENTS.MANIFEST_PARSED, () => {
         if (manifestMs === undefined) {
-          manifestMs = loadingT !== undefined
-            ? Math.max(0, ctx.now() - loadingT)
-            : (() => { const s = stats().manifestTimeSeconds; return finite(s) ? Math.round(s * 1000) : undefined; })();
+          manifestMs =
+            loadingT !== undefined
+              ? Math.max(0, ctx.now() - loadingT)
+              : (() => {
+                  const s = stats().manifestTimeSeconds;
+                  return finite(s) ? Math.round(s * 1000) : undefined;
+                })();
         }
         if (sourceEmitted) return; // late-attach already described this load's source
         sourceEmitted = true;
         ctx.emit('source_change', currentSource());
       });
       on(SHAKA_EVENTS.LOADED, () => {
-        if (firstFragmentMs === undefined && loadingT !== undefined) firstFragmentMs = Math.max(0, ctx.now() - loadingT);
+        if (firstFragmentMs === undefined && loadingT !== undefined)
+          firstFragmentMs = Math.max(0, ctx.now() - loadingT);
         emitDrm(ctx);
       });
-      on(SHAKA_EVENTS.DRM_SESSION_UPDATE, () => { emitDrm(ctx); });
+      on(SHAKA_EVENTS.DRM_SESSION_UPDATE, () => {
+        emitDrm(ctx);
+      });
       on(SHAKA_EVENTS.ADAPTATION, () => {
         const dims = activeVariant();
         if (!('bitrate' in dims)) return;
@@ -196,7 +249,10 @@ export function shakaIntegration(instance: unknown): PlayerIntegration {
         const code = d.code;
         const category = d.category;
         ctx.emit('error', {
-          message: typeof d.message === 'string' ? d.message : `shaka error ${finite(code) ? code : String(code)}`,
+          message:
+            typeof d.message === 'string'
+              ? d.message
+              : `shaka error ${finite(code) ? code : String(code)}`,
           ...(finite(code) ? { code } : {}),
           fatal: d.severity === 2,
           ...(finite(category) ? { detail: `category ${category}` } : {}),
@@ -209,7 +265,11 @@ export function shakaIntegration(instance: unknown): PlayerIntegration {
       // immediately, and latch it so a manifestparsed racing right behind
       // attach() cannot double-fire it for the same load.
       let uri: unknown;
-      try { uri = player.getAssetUri?.(); } catch { uri = undefined; }
+      try {
+        uri = player.getAssetUri?.();
+      } catch {
+        uri = undefined;
+      }
       if (typeof uri === 'string' && uri !== '') {
         sourceEmitted = true;
         ctx.emit('source_change', currentSource());
@@ -232,7 +292,13 @@ export function shakaIntegration(instance: unknown): PlayerIntegration {
     },
 
     detach(): void {
-      for (const [name, fn] of handlers) { try { player.removeEventListener?.(name, fn); } catch { /* ignore */ } }
+      for (const [name, fn] of handlers) {
+        try {
+          player.removeEventListener?.(name, fn);
+        } catch {
+          /* ignore */
+        }
+      }
       handlers = [];
     },
   };

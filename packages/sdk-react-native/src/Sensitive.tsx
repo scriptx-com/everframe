@@ -10,12 +10,18 @@
 // `canonical.nativeTag`; Fabric public instance: `__nativeTag`) — this is
 // the load-bearing logic and the only thing unit-tested in this file.
 import * as React from 'react';
-import { View, Platform, requireNativeComponent, type ViewProps, type LayoutChangeEvent } from 'react-native';
+import {
+  View,
+  Platform,
+  requireNativeComponent,
+  type ViewProps,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { useEverframe } from './EverframeProvider.js';
 
 // A single Yoga node whose Android constructor marks sensitivity before native insertion.
-const SensitiveHost = Platform.OS === 'android'
-  ? requireNativeComponent<ViewProps>('EverframeSensitiveView') : View;
+const SensitiveHost =
+  Platform.OS === 'android' ? requireNativeComponent<ViewProps>('EverframeSensitiveView') : View;
 
 type Rect = { x: number; y: number; width: number; height: number };
 type Register = (tag: number, rect: Rect) => void;
@@ -30,10 +36,7 @@ type NativeTagHost = {
 
 function readNativeTag(node: NativeTagHost): number | undefined {
   return (
-    node.canonical?.nativeTag ??
-    node.canonical?._nativeTag ??
-    node.__nativeTag ??
-    node._nativeTag
+    node.canonical?.nativeTag ?? node.canonical?._nativeTag ?? node.__nativeTag ?? node._nativeTag
   );
 }
 
@@ -51,7 +54,7 @@ function readNativeTag(node: NativeTagHost): number | undefined {
 export function handleSensitiveLayout(
   node: unknown,
   register: Register,
-  event: { nativeEvent: { layout: Rect } }
+  event: { nativeEvent: { layout: Rect } },
 ): void {
   if (node == null) return;
   const tag = readNativeTag(node as NativeTagHost);
@@ -75,15 +78,19 @@ export function EverframeSensitive(props: ViewProps): React.ReactElement {
       handleSensitiveLayout(
         viewRef.current as unknown,
         sensitive.register,
-        e as { nativeEvent: { layout: Rect } }
+        e as { nativeEvent: { layout: Rect } },
       );
       userOnLayout?.(e);
     },
-    [sensitive.register, userOnLayout]
+    [sensitive.register, userOnLayout],
   );
 
-  return React.createElement(SensitiveHost, { ...props, ref: viewRef, onLayout,
-    ...(Platform.OS === 'android' ? { collapsable: false } : {}) });
+  return React.createElement(SensitiveHost, {
+    ...props,
+    ref: viewRef,
+    onLayout,
+    ...(Platform.OS === 'android' ? { collapsable: false } : {}),
+  });
 }
 
 /**
@@ -94,7 +101,7 @@ export function EverframeSensitive(props: ViewProps): React.ReactElement {
  */
 export function useEverframeSensitiveRef<T>(
   ref: React.RefObject<T | null>,
-  rect: Rect | null
+  rect: Rect | null,
 ): void {
   const { sensitive } = useEverframe();
   React.useEffect(() => {

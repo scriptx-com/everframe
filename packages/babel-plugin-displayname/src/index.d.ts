@@ -7,7 +7,10 @@ interface BabelPluginDisplayNameOptions {
   debug?: boolean;
 }
 
-declare const babelPluginDisplayName: (babel: any, options?: BabelPluginDisplayNameOptions) => PluginObj;
+declare const babelPluginDisplayName: (
+  babel: any,
+  options?: BabelPluginDisplayNameOptions,
+) => PluginObj;
 
 // `export =`, not `export default`: src/index.cjs assigns `module.exports =
 // <function>` directly, so `require()` yields the function itself. Declaring

@@ -12,11 +12,11 @@ run in any modern browser)
 
 ## Which install do I want?
 
-| Your app | Use |
-| --- | --- |
-| Has a bundler (Vite, Webpack, Next.js, Nuxt, SvelteKit, Angular CLI, Astro's build) | **ESM install**, below |
-| Plain HTML / Rails / Django / WordPress / no bundler at all | **Script tag (CDN)**, below |
-| React | [`@everframe/react`](https://www.npmjs.com/package/@everframe/react) — an idiomatic provider + hook over this same core |
+| Your app                                                                            | Use                                                                                                                     |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Has a bundler (Vite, Webpack, Next.js, Nuxt, SvelteKit, Angular CLI, Astro's build) | **ESM install**, below                                                                                                  |
+| Plain HTML / Rails / Django / WordPress / no bundler at all                         | **Script tag (CDN)**, below                                                                                             |
+| React                                                                               | [`@everframe/react`](https://www.npmjs.com/package/@everframe/react) — an idiomatic provider + hook over this same core |
 
 Both are ES modules and both produce the identical envelope; they differ only
 in what is bundled in. Pick the one that matches your app — see
@@ -70,7 +70,7 @@ nothing left to resolve. Don't point one at `dist/index.js`.
 ```
 
 **jsDelivr is the CDN.** It serves every npm package automatically, so
-`@everframe/web`'s ordinary `npm publish` *is* the CDN publish — there is no
+`@everframe/web`'s ordinary `npm publish` _is_ the CDN publish — there is no
 separate upload, bucket or deploy step. `dist/browser/index.js` is the
 package's browser build: same source as the ESM entry, but with every
 dependency (React, konva, rrweb, modern-screenshot) inlined, so there is
@@ -85,13 +85,13 @@ paths are immutable on jsDelivr and are served with long-lived cache headers.
 If you would rather take patches automatically, `@^0.6` is the opt-in — it
 resolves to the newest `0.6.x` and updates without a code change.
 
-**One `<script>` block, not two.** `type="module"` is *deferred*: a classic
-inline `<script>` after it would run *first*, before `init()` had been called.
+**One `<script>` block, not two.** `type="module"` is _deferred_: a classic
+inline `<script>` after it would run _first_, before `init()` had been called.
 Do the `import` and the `init()` in the same module block, as above.
 
 Including the same URL twice (two CMS plugins, a stray duplicate tag) is safe:
 the browser's module registry is keyed by URL, so the second one is a no-op and
-never evaluates. Two *different* versions on one page are two separate modules,
+never evaluates. Two _different_ versions on one page are two separate modules,
 but `init()`'s own per-page guard catches that too — it warns and hands back
 the instance that is already running rather than starting a second, racing SDK.
 
@@ -224,17 +224,17 @@ interface Everframe {
 }
 ```
 
-| Method | What it does |
-| --- | --- |
-| `open()` | Opens the reporter dialog. Resolves with `{ status: 'submitted' \| 'queued' \| 'cancelled', … }`. Rejects if the handle was destroyed or the reporter isn't mounted, and with `EverframeReporterDisabledError` when the config sets `reporter: { disabled: true }`. |
-| `setUser(user)` | Attaches a user identity to subsequent reports. `null` clears it. |
-| `setIdentityToken(source)` | Signed-JWT-based recognition; accepts a token string or a provider function the SDK re-asks as it nears expiry. |
-| `setExtra(value)` | Free-form string attached to the next report as host-supplied context. |
-| `addBreadcrumb(input)` | Manually record a breadcrumb (`{ message, kind?, level?, data? }`) into the trail every report carries. |
-| `captureException(error)` | Reports a caught exception as handled and nonfatal, without opening UI. Uses existing redaction, context, and outbox delivery. |
-| `threads` | Two-way replies — list/read/reply to conversations attached to reports from this device. |
-| `kill()` | Stops this instance from capturing or submitting anything further; the mounted UI and seams stay in place. A reporter already **open** when this lands is not submitted either: pressing Send discards the report, shows "Reporting is turned off — this report was not sent.", and settles a pending `open()` with `{ status: 'cancelled', reason: 'killed' }`. The same applies to a phone-companion capture or submit in flight. |
-| `destroy()` | Full teardown — hotkey, listeners, thread polling, the mounted host element, and the sdk-core client. Safe to call more than once. A host with client-side routing can `init()`/`destroy()` many times per page load without accumulating listeners. |
+| Method                     | What it does                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `open()`                   | Opens the reporter dialog. Resolves with `{ status: 'submitted' \| 'queued' \| 'cancelled', … }`. Rejects if the handle was destroyed or the reporter isn't mounted, and with `EverframeReporterDisabledError` when the config sets `reporter: { disabled: true }`.                                                                                                                                                                 |
+| `setUser(user)`            | Attaches a user identity to subsequent reports. `null` clears it.                                                                                                                                                                                                                                                                                                                                                                   |
+| `setIdentityToken(source)` | Signed-JWT-based recognition; accepts a token string or a provider function the SDK re-asks as it nears expiry.                                                                                                                                                                                                                                                                                                                     |
+| `setExtra(value)`          | Free-form string attached to the next report as host-supplied context.                                                                                                                                                                                                                                                                                                                                                              |
+| `addBreadcrumb(input)`     | Manually record a breadcrumb (`{ message, kind?, level?, data? }`) into the trail every report carries.                                                                                                                                                                                                                                                                                                                             |
+| `captureException(error)`  | Reports a caught exception as handled and nonfatal, without opening UI. Uses existing redaction, context, and outbox delivery.                                                                                                                                                                                                                                                                                                      |
+| `threads`                  | Two-way replies — list/read/reply to conversations attached to reports from this device.                                                                                                                                                                                                                                                                                                                                            |
+| `kill()`                   | Stops this instance from capturing or submitting anything further; the mounted UI and seams stay in place. A reporter already **open** when this lands is not submitted either: pressing Send discards the report, shows "Reporting is turned off — this report was not sent.", and settles a pending `open()` with `{ status: 'cancelled', reason: 'killed' }`. The same applies to a phone-companion capture or submit in flight. |
+| `destroy()`                | Full teardown — hotkey, listeners, thread polling, the mounted host element, and the sdk-core client. Safe to call more than once. A host with client-side routing can `init()`/`destroy()` many times per page load without accumulating listeners.                                                                                                                                                                                |
 
 There is deliberately **no `markSensitive()`** on the handle. `@everframe/react`
 exposes a method of that name on its hook, but it has never been wired to
@@ -439,7 +439,7 @@ phone or dashboard member is attached. Like the PIN card, that component is
 rendered only by `@everframe/react`'s `EverframeProvider`.
 
 It is a harder limitation than the PIN card's, not an oversight: the badge is
-an **ambient** surface — it has to be visible while the reporter is *closed* —
+an **ambient** surface — it has to be visible while the reporter is _closed_ —
 and this package's entire ambient footprint is the plain-DOM inbox bubble,
 which is exactly what keeps React out of the always-loaded bundle. The badge
 lives behind the lazy React island, which is not mounted at the moment the
@@ -469,16 +469,16 @@ api.onResolvedName((name) => {
 
 ## The two builds
 
-| | `dist/index.js` (ESM) | `dist/browser/index.js` (script tag / CDN) |
-| --- | --- | --- |
-| Always-loaded cost (gzip) | **120.9 KB** | **120.9 KB** |
-| Loadable via bare `<script type="module">`? | No — needs a bundler, or an import map for `modern-screenshot` and `rrweb` | Yes — that's the point |
-| React, konva, rrweb, modern-screenshot | Left external, for your bundler to fetch lazily | Inlined into the build's own lazy chunks |
+|                                             | `dist/index.js` (ESM)                                                      | `dist/browser/index.js` (script tag / CDN) |
+| ------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------ |
+| Always-loaded cost (gzip)                   | **120.9 KB**                                                               | **120.9 KB**                               |
+| Loadable via bare `<script type="module">`? | No — needs a bundler, or an import map for `modern-screenshot` and `rrweb` | Yes — that's the point                     |
+| React, konva, rrweb, modern-screenshot      | Left external, for your bundler to fetch lazily                            | Inlined into the build's own lazy chunks   |
 
 Both builds code-split, so React, konva, rrweb and modern-screenshot are
 fetched only when someone actually opens the reporter — the always-loaded cost
-is the same either way. The difference is only *who resolves the
-dependencies*: the ESM entry leaves them to your bundler, and the browser build
+is the same either way. The difference is only _who resolves the
+dependencies_: the ESM entry leaves them to your bundler, and the browser build
 has already inlined them, which is what lets a page with no build step load it
 from a URL.
 

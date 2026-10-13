@@ -68,21 +68,30 @@ export async function collectStagedBuild(options: CollectOptions): Promise<Stage
   if (mapStat.size > MAP_MAX_BYTES) throw new Error('source_map_too_large');
 
   let sourceMap: unknown;
-  try { sourceMap = JSON.parse(await readFile(mapPath, 'utf8')); } catch { throw new Error('invalid_bundle_identity'); }
+  try {
+    sourceMap = JSON.parse(await readFile(mapPath, 'utf8'));
+  } catch {
+    throw new Error('invalid_bundle_identity');
+  }
   const identity = readBundleIdentity(sourceMap, options.platform);
   // The map proves withEverframe ran, so a missing partial means --staging is
   // not the directory it wrote or that directory was not kept until collection.
-  const partial = await readPartial(options.stagingDir, identity.buildId).catch((error: unknown) => {
-    throw error instanceof Error && error.message === 'no_staged_build' ? new Error('staged_partial_missing') : error;
-  });
-  if (partial.buildId !== identity.buildId || partial.platform !== identity.platform || partial.bundleName !== identity.bundleName)
+  const partial = await readPartial(options.stagingDir, identity.buildId).catch(
+    (error: unknown) => {
+      throw error instanceof Error && error.message === 'no_staged_build'
+        ? new Error('staged_partial_missing')
+        : error;
+    },
+  );
+  if (
+    partial.buildId !== identity.buildId ||
+    partial.platform !== identity.platform ||
+    partial.bundleName !== identity.bundleName
+  )
     throw new Error('staged_identity_mismatch');
   await assertCompiledBuildIdentity(bundlePath, identity.buildId);
 
-  const [generatedSha256, mapSha256] = await Promise.all([
-    hashFile(bundlePath),
-    hashFile(mapPath),
-  ]);
+  const [generatedSha256, mapSha256] = await Promise.all([hashFile(bundlePath), hashFile(mapPath)]);
 
   const staged = parseStagedBuild({
     ...partial,

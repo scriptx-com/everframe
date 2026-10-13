@@ -70,7 +70,10 @@ export function joseHeaderPrefix(value: string, start: number): boolean {
     for (let k = 0; k < 3; k++) {
       const byte = byteAt(a, b, c, d, k);
       if (isJsonWhitespace(byte)) continue;
-      if (state === 0 && byte === 0x7b) { state = 1; continue; }
+      if (state === 0 && byte === 0x7b) {
+        state = 1;
+        continue;
+      }
       return state === 1 && byte === 0x22;
     }
   }
@@ -120,7 +123,11 @@ export function joseHeaderKind(value: string, start: number, end: number): 0 | 1
  * A JWE header with two more segments takes all five; otherwise three, with a payload of at least
  * 2 characters (`{}` is `e30`).
  */
-function tokenAt(value: string, runStart: number, headerEnd: number): { start: number; end: number } | null {
+function tokenAt(
+  value: string,
+  runStart: number,
+  headerEnd: number,
+): { start: number; end: number } | null {
   const payloadEnd = segmentEnd(value, headerEnd + 1);
   if (value.charCodeAt(payloadEnd) !== DOT) return null;
   const thirdEnd = segmentEnd(value, payloadEnd + 1);
@@ -155,9 +162,15 @@ export function redactJwt(value: string, replacement: string = JWT_REPLACEMENT):
   let copied = 0;
   let index = 0;
   while (index < value.length) {
-    if (!isSegmentChar(value.charCodeAt(index))) { index++; continue; }
+    if (!isSegmentChar(value.charCodeAt(index))) {
+      index++;
+      continue;
+    }
     const runEnd = segmentEnd(value, index);
-    const token = runEnd - index >= MIN_HEADER && value.charCodeAt(runEnd) === DOT ? tokenAt(value, index, runEnd) : null;
+    const token =
+      runEnd - index >= MIN_HEADER && value.charCodeAt(runEnd) === DOT
+        ? tokenAt(value, index, runEnd)
+        : null;
     if (token) {
       out += value.slice(copied, token.start) + replacement;
       copied = token.end;

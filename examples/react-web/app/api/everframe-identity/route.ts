@@ -56,7 +56,10 @@ export const GET =
             detail:
               'Set EVERFRAME_IDENTITY_SECRET and EVERFRAME_IDENTITY_PROJECT_ID in the repo-root .env, then re-run pnpm dev:example:web.',
           }),
-          { status: 503, headers: { 'cache-control': 'no-store', 'content-type': 'application/json' } },
+          {
+            status: 503,
+            headers: { 'cache-control': 'no-store', 'content-type': 'application/json' },
+          },
         );
 
 // This example is same-origin, so Next's automatic OPTIONS response (which

@@ -29,7 +29,9 @@ const preflight = (origin: string) =>
 describe('CORS', () => {
   it('emits NO cors headers when allowedOrigins is absent', async () => {
     const h = createIdentityHandler({
-      secret: SECRET, projectId: PROJECT_ID, resolveUser: () => ({ id: 'u_alice' }),
+      secret: SECRET,
+      projectId: PROJECT_ID,
+      resolveUser: () => ({ id: 'u_alice' }),
     });
     const res = await h(get(ALLOWED));
     expect(res.headers.get('access-control-allow-origin')).toBeNull();
@@ -72,7 +74,9 @@ describe('CORS', () => {
     expect(res.headers.get('access-control-allow-methods')).toContain('POST');
     // A cross-origin bearer request is ALWAYS preflighted, so authorization
     // must be allowed or the primary auth path cannot work at all.
-    expect(res.headers.get('access-control-allow-headers')?.toLowerCase()).toContain('authorization');
+    expect(res.headers.get('access-control-allow-headers')?.toLowerCase()).toContain(
+      'authorization',
+    );
     expect(res.headers.get('cache-control')).toBe('no-store');
   });
 
@@ -110,7 +114,9 @@ describe('CORS', () => {
 
   it('405s OPTIONS when no allowlist is configured', async () => {
     const h = createIdentityHandler({
-      secret: SECRET, projectId: PROJECT_ID, resolveUser: () => ({ id: 'u_alice' }),
+      secret: SECRET,
+      projectId: PROJECT_ID,
+      resolveUser: () => ({ id: 'u_alice' }),
     });
     const res = await h(preflight(ALLOWED));
     expect(res.status).toBe(405);

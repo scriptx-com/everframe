@@ -45,10 +45,13 @@ const draft: ReportDraft = {
 };
 
 function makeFetch(status: number): typeof globalThis.fetch {
-  return vi.fn(async () => new Response('{}', {
-    status,
-    headers: { 'content-type': 'application/json' },
-  })) as unknown as typeof globalThis.fetch;
+  return vi.fn(
+    async () =>
+      new Response('{}', {
+        status,
+        headers: { 'content-type': 'application/json' },
+      }),
+  ) as unknown as typeof globalThis.fetch;
 }
 
 describe('submitReportFromDraft', () => {
@@ -148,10 +151,13 @@ describe('drainOutbox', () => {
       payload: new TextEncoder().encode(sentinel),
       metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
-    const fetch = vi.fn(async () => new Response(
-      JSON.stringify({ thread: { id: 't9' }, device: { token: 'evr_' + 'e'.repeat(43) } }),
-      { status: 200, headers: { 'content-type': 'application/json' } },
-    )) as unknown as typeof globalThis.fetch;
+    const fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ thread: { id: 't9' }, device: { token: 'evr_' + 'e'.repeat(43) } }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    ) as unknown as typeof globalThis.fetch;
     const result = await drainOutbox({
       outbox,
       config,

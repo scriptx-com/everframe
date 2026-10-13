@@ -45,10 +45,7 @@ describe('REPLAY-05 lazy-load default-OFF', () => {
   });
 
   it('the always-loaded barrel has no static rrweb import (dynamic import only)', async () => {
-    const barrel = readFileSync(
-      resolve(__dirname, '../../../src/capture/replay/index.ts'),
-      'utf8',
-    );
+    const barrel = readFileSync(resolve(__dirname, '../../../src/capture/replay/index.ts'), 'utf8');
     // No static `import … from 'rrweb'` anywhere in the barrel.
     expect(barrel).not.toMatch(/^\s*import .* from ['"]rrweb['"]/m);
     const recorder = readFileSync(

@@ -21,7 +21,14 @@ type Emitted = { t: number; type: string; data?: Record<string, unknown>; player
 // `player_attach`; the phase-4 cases assert on `lifecycle`. `all` preserves
 // the true emission order across both, for the handful of cases (loadstart
 // mid-rebuffer; reseed) whose assertion genuinely spans both streams.
-const LIFECYCLE = new Set(['player_attach', 'player_detach', 'stats', 'source_change', 'quality_change', 'drm']);
+const LIFECYCLE = new Set([
+  'player_attach',
+  'player_detach',
+  'stats',
+  'source_change',
+  'quality_change',
+  'drm',
+]);
 let events: Emitted[];
 let lifecycle: Emitted[];
 let all: Emitted[];
@@ -807,7 +814,8 @@ describe('attachPlayerVitals', () => {
       const collector = createVitalsCollector({
         dims: { platform: 'web', appVersion: '1', sdkVersion: '1' },
         now: () => clockRef.t,
-        send: (body, opts) => sent.push({ body: body as Record<string, unknown>, beacon: opts.beacon }),
+        send: (body, opts) =>
+          sent.push({ body: body as Record<string, unknown>, beacon: opts.beacon }),
         newSessionId: () => `session-${n++}`,
         maxIdleMs: 100,
         onRotate: () => a.reseed(),
@@ -819,7 +827,9 @@ describe('attachPlayerVitals', () => {
       return { adapter: a, collector, sent };
     }
 
-    function lastFinalSummary(sent: Array<{ body: Record<string, unknown> }>): Record<string, unknown> {
+    function lastFinalSummary(
+      sent: Array<{ body: Record<string, unknown> }>,
+    ): Record<string, unknown> {
       const finals = sent.filter((s) => s.body.kind === 'summary' && s.body.final === true);
       return finals[finals.length - 1]!.body;
     }
@@ -956,12 +966,26 @@ describe('attachPlayerVitals', () => {
   });
 
   describe('phase 4 — identity, payloads, stats, integrations', () => {
-    function fakeIntegration(over: Partial<PlayerIntegration> & { onAttach?: (ctx: PlayerIntegrationContext) => void } = {}) {
+    function fakeIntegration(
+      over: Partial<PlayerIntegration> & {
+        onAttach?: (ctx: PlayerIntegrationContext) => void;
+      } = {},
+    ) {
       let ctx: PlayerIntegrationContext | undefined;
-      const integ: PlayerIntegration & { ctx: () => PlayerIntegrationContext | undefined; detached: number } = {
-        library: 'fake', version: '9.9', detached: 0,
-        attach(c) { ctx = c; over.onAttach?.(c); },
-        detach() { integ.detached++; },
+      const integ: PlayerIntegration & {
+        ctx: () => PlayerIntegrationContext | undefined;
+        detached: number;
+      } = {
+        library: 'fake',
+        version: '9.9',
+        detached: 0,
+        attach(c) {
+          ctx = c;
+          over.onAttach?.(c);
+        },
+        detach() {
+          integ.detached++;
+        },
         ctx: () => ctx,
         ...over,
       };
@@ -973,7 +997,13 @@ describe('attachPlayerVitals', () => {
       start();
       const v = document.getElementById('v') as HTMLVideoElement;
       v.dispatchEvent(new Event('play'));
-      expect(lifecycle[0]).toEqual(expect.objectContaining({ type: 'player_attach', playerId: 'p1', data: { tag: 'video', library: 'native' } }));
+      expect(lifecycle[0]).toEqual(
+        expect.objectContaining({
+          type: 'player_attach',
+          playerId: 'p1',
+          data: { tag: 'video', library: 'native' },
+        }),
+      );
       expect(events).toEqual([expect.objectContaining({ type: 'play', playerId: 'p1' })]);
     });
 
@@ -995,7 +1025,10 @@ describe('attachPlayerVitals', () => {
 
       expect(lifecycle.filter((e) => e.type === 'player_attach')).toEqual([
         expect.objectContaining({ playerId: 'p1', data: { tag: 'video', library: 'native' } }),
-        expect.objectContaining({ playerId: 'p1', data: { name: 'main', tag: 'video', library: 'native' } }),
+        expect.objectContaining({
+          playerId: 'p1',
+          data: { name: 'main', tag: 'video', library: 'native' },
+        }),
       ]);
     });
 
@@ -1014,7 +1047,9 @@ describe('attachPlayerVitals', () => {
     it('uses deps.playerIdFor as the id authority', () => {
       document.body.innerHTML = '<video id="v"></video>';
       start(undefined, { playerIdFor: () => 'reg-7' });
-      expect(lifecycle[0]).toEqual(expect.objectContaining({ type: 'player_attach', playerId: 'reg-7' }));
+      expect(lifecycle[0]).toEqual(
+        expect.objectContaining({ type: 'player_attach', playerId: 'reg-7' }),
+      );
     });
 
     it('binds deps.registered players (with name + integration) BEFORE the DOM scan', () => {
@@ -1022,8 +1057,16 @@ describe('attachPlayerVitals', () => {
       const b = document.getElementById('b') as HTMLVideoElement;
       const integ = fakeIntegration();
       start(undefined, { registered: [{ element: b, name: 'pip', integration: integ }] });
-      expect(lifecycle[0]).toEqual(expect.objectContaining({ playerId: 'p1', type: 'player_attach', data: { name: 'pip', tag: 'video', library: 'fake', libraryVersion: '9.9' } }));
-      expect(lifecycle[1]).toEqual(expect.objectContaining({ playerId: 'p2', type: 'player_attach' }));
+      expect(lifecycle[0]).toEqual(
+        expect.objectContaining({
+          playerId: 'p1',
+          type: 'player_attach',
+          data: { name: 'pip', tag: 'video', library: 'fake', libraryVersion: '9.9' },
+        }),
+      );
+      expect(lifecycle[1]).toEqual(
+        expect.objectContaining({ playerId: 'p2', type: 'player_attach' }),
+      );
       expect(integ.ctx()?.element).toBe(b);
     });
 
@@ -1050,7 +1093,10 @@ describe('attachPlayerVitals', () => {
       const bad = {} as HTMLMediaElement; // no addEventListener — bind() would throw
       expect(() =>
         start(undefined, {
-          registered: [{ element: bad, name: 'broken' }, { element: explicitEl, name: 'ok' }],
+          registered: [
+            { element: bad, name: 'broken' },
+            { element: explicitEl, name: 'ok' },
+          ],
         }),
       ).not.toThrow();
       // `bad` itself gets a player_attach too — `emitAttach` runs BEFORE
@@ -1062,7 +1108,9 @@ describe('attachPlayerVitals', () => {
       // loop still ran and bound `scanned` (proof the throw never escaped
       // `attachPlayerVitals` itself — an escape would have skipped
       // everything after the loop, including that scan).
-      const videoAttaches = lifecycle.filter((e) => e.type === 'player_attach' && e.data?.tag === 'video');
+      const videoAttaches = lifecycle.filter(
+        (e) => e.type === 'player_attach' && e.data?.tag === 'video',
+      );
       expect(videoAttaches).toHaveLength(2);
       expect(videoAttaches.some((e) => e.data?.name === 'ok')).toBe(true);
       expect(videoAttaches.some((e) => e.data?.name === undefined)).toBe(true); // the scanned element
@@ -1078,8 +1126,12 @@ describe('attachPlayerVitals', () => {
       stubCurrentSrc(v, 'https://cdn.example.com/b.mp4');
       v.dispatchEvent(new Event('loadstart'));
       expect(lifecycle.filter((e) => e.type === 'source_change')).toEqual([
-        expect.objectContaining({ data: { src: 'https://cdn.example.com/a.m3u8', protocol: 'hls' } }),
-        expect.objectContaining({ data: { src: 'https://cdn.example.com/b.mp4', protocol: 'progressive' } }),
+        expect.objectContaining({
+          data: { src: 'https://cdn.example.com/a.m3u8', protocol: 'hls' },
+        }),
+        expect.objectContaining({
+          data: { src: 'https://cdn.example.com/b.mp4', protocol: 'progressive' },
+        }),
       ]);
     });
 
@@ -1097,7 +1149,12 @@ describe('attachPlayerVitals', () => {
       const v = document.getElementById('v') as HTMLVideoElement;
       stubCurrentSrc(v, new URL('/clip.webm', document.baseURI).href);
       start();
-      expect(lifecycle[1]).toEqual(expect.objectContaining({ type: 'source_change', data: expect.objectContaining({ protocol: 'progressive', mime: 'video/webm' }) }));
+      expect(lifecycle[1]).toEqual(
+        expect.objectContaining({
+          type: 'source_change',
+          data: expect.objectContaining({ protocol: 'progressive', mime: 'video/webm' }),
+        }),
+      );
     });
 
     it('emits quality_change on resize when the dimensions change (native only)', () => {
@@ -1108,24 +1165,38 @@ describe('attachPlayerVitals', () => {
       Object.defineProperty(v, 'videoHeight', { value: 720, configurable: true });
       v.dispatchEvent(new Event('resize'));
       v.dispatchEvent(new Event('resize')); // same dims — nothing
-      expect(lifecycle.filter((e) => e.type === 'quality_change')).toEqual([expect.objectContaining({ data: { width: 1280, height: 720 } })]);
+      expect(lifecycle.filter((e) => e.type === 'quality_change')).toEqual([
+        expect.objectContaining({ data: { width: 1280, height: 720 } }),
+      ]);
     });
 
     it('sampleQuality emits one stats entry per player with bufferAheadMs, droppedFrames delta and the integration snapshot; never dropped_frames', () => {
       document.body.innerHTML = '<video id="v"></video>';
       const v = document.getElementById('v') as HTMLVideoElement;
       let dropped = 42;
-      Object.defineProperty(v, 'getVideoPlaybackQuality', { value: () => ({ droppedVideoFrames: dropped }), configurable: true });
+      Object.defineProperty(v, 'getVideoPlaybackQuality', {
+        value: () => ({ droppedVideoFrames: dropped }),
+        configurable: true,
+      });
       Object.defineProperty(v, 'currentTime', { value: 10, configurable: true });
-      Object.defineProperty(v, 'buffered', { value: { length: 1, start: () => 0, end: () => 22.5 }, configurable: true });
+      Object.defineProperty(v, 'buffered', {
+        value: { length: 1, start: () => 0, end: () => 22.5 },
+        configurable: true,
+      });
       const integ = fakeIntegration({
         // Fix wave item 6 — sampleQuality skips a player with no known
         // source that isn't playing; a real integration always reports
         // source_change at/near attach (see hls.ts/shaka.ts's late-attach
         // paths), so mirror that here rather than leave this element
         // looking idle.
-        onAttach: (ctx) => ctx.emit('source_change', { src: 'https://cdn.example.com/x.m3u8', protocol: 'hls' }),
-        snapshot: () => ({ bitrate: 3_000_000, width: 1920, height: 1080, bandwidthEstimate: 8_000_000 }),
+        onAttach: (ctx) =>
+          ctx.emit('source_change', { src: 'https://cdn.example.com/x.m3u8', protocol: 'hls' }),
+        snapshot: () => ({
+          bitrate: 3_000_000,
+          width: 1920,
+          height: 1080,
+          bandwidthEstimate: 8_000_000,
+        }),
       });
       start();
       adapter!.trackPlayer(v, { integration: integ });
@@ -1134,7 +1205,17 @@ describe('attachPlayerVitals', () => {
       adapter!.sampleQuality();
       const stats = lifecycle.filter((e) => e.type === 'stats');
       expect(stats).toEqual([
-        expect.objectContaining({ playerId: 'p1', data: { bufferAheadMs: 12500, droppedFrames: 0, bitrate: 3_000_000, width: 1920, height: 1080, bandwidthEstimate: 8_000_000 } }),
+        expect.objectContaining({
+          playerId: 'p1',
+          data: {
+            bufferAheadMs: 12500,
+            droppedFrames: 0,
+            bitrate: 3_000_000,
+            width: 1920,
+            height: 1080,
+            bandwidthEstimate: 8_000_000,
+          },
+        }),
         expect.objectContaining({ data: expect.objectContaining({ droppedFrames: 3 }) }),
       ]);
       expect(all.some((e) => e.type === 'dropped_frames')).toBe(false);
@@ -1181,7 +1262,12 @@ describe('attachPlayerVitals', () => {
       expect(id).toBe('p1');
       const attaches = lifecycle.filter((e) => e.type === 'player_attach');
       expect(attaches).toHaveLength(2);
-      expect(attaches[1]).toEqual(expect.objectContaining({ playerId: 'p1', data: expect.objectContaining({ name: 'main', library: 'hls.js' }) }));
+      expect(attaches[1]).toEqual(
+        expect.objectContaining({
+          playerId: 'p1',
+          data: expect.objectContaining({ name: 'main', library: 'hls.js' }),
+        }),
+      );
       expect(integ.ctx()?.element).toBe(v);
     });
 
@@ -1259,7 +1345,9 @@ describe('attachPlayerVitals', () => {
       stubCurrentSrc(v, 'https://example.com/a.mp4');
       v.dispatchEvent(new Event('loadstart'));
       expect(lifecycle.filter((e) => e.type === 'source_change')).toEqual([
-        expect.objectContaining({ data: { src: 'https://example.com/a.mp4', protocol: 'progressive' } }),
+        expect.objectContaining({
+          data: { src: 'https://example.com/a.mp4', protocol: 'progressive' },
+        }),
       ]);
     });
 
@@ -1274,13 +1362,17 @@ describe('attachPlayerVitals', () => {
       const v = document.getElementById('v') as HTMLVideoElement;
       const wrongInstanceIntegration: PlayerIntegration = {
         library: 'hls.js',
-        attach() { return false; },
+        attach() {
+          return false;
+        },
         detach() {},
       };
 
       adapter!.trackPlayer(v, { integration: wrongInstanceIntegration });
 
-      expect(lifecycle.filter((e) => e.type === 'player_attach').map((e) => e.data?.library)).toEqual([
+      expect(
+        lifecycle.filter((e) => e.type === 'player_attach').map((e) => e.data?.library),
+      ).toEqual([
         'native', // start()'s initial auto-attach scan, before trackPlayer() upgrades it
         'hls.js', // the upgrade's initial, since-rejected claim
         'native', // codex round-1 item 7's correction
@@ -1293,13 +1385,17 @@ describe('attachPlayerVitals', () => {
       const v = document.getElementById('v') as HTMLVideoElement;
       const throwingIntegration: PlayerIntegration = {
         library: 'shaka',
-        attach() { throw new Error('attach blew up partway through'); },
+        attach() {
+          throw new Error('attach blew up partway through');
+        },
         detach() {},
       };
 
       adapter!.trackPlayer(v, { integration: throwingIntegration });
 
-      expect(lifecycle.filter((e) => e.type === 'player_attach').map((e) => e.data?.library)).toEqual([
+      expect(
+        lifecycle.filter((e) => e.type === 'player_attach').map((e) => e.data?.library),
+      ).toEqual([
         'native', // start()'s initial auto-attach scan, before trackPlayer() upgrades it
         'shaka',
         'native',
@@ -1317,15 +1413,16 @@ describe('attachPlayerVitals', () => {
 
       const wrongInstanceIntegration: PlayerIntegration = {
         library: 'hls.js',
-        attach() { return false; },
+        attach() {
+          return false;
+        },
         detach() {},
       };
       adapter!.trackPlayer(v, { integration: wrongInstanceIntegration });
 
-      expect(lifecycle.filter((e) => e.type === 'player_attach').map((e) => e.data?.library)).toEqual([
-        'hls.js',
-        'native',
-      ]);
+      expect(
+        lifecycle.filter((e) => e.type === 'player_attach').map((e) => e.data?.library),
+      ).toEqual(['hls.js', 'native']);
     });
 
     // Codex round-2 item 5 — `integration.library`/`.version` are read
@@ -1343,9 +1440,15 @@ describe('attachPlayerVitals', () => {
       const v = document.createElement('video'); // never inserted — outside the auto-attach scan, so trackPlayer below is a genuinely FRESH bind()
       let detachCalls = 0;
       const poisoned: PlayerIntegration = {
-        get library(): string { throw new Error('metadata boom'); },
-        attach() { return true; },
-        detach() { detachCalls++; },
+        get library(): string {
+          throw new Error('metadata boom');
+        },
+        attach() {
+          return true;
+        },
+        detach() {
+          detachCalls++;
+        },
       };
 
       const id = a.trackPlayer(v, { integration: poisoned });
@@ -1362,13 +1465,15 @@ describe('attachPlayerVitals', () => {
       stubCurrentSrc(v, 'https://example.com/a.mp4');
       v.dispatchEvent(new Event('loadstart'));
       expect(lifecycle.filter((e) => e.type === 'source_change')).toEqual([
-        expect.objectContaining({ data: { src: 'https://example.com/a.mp4', protocol: 'progressive' } }),
+        expect.objectContaining({
+          data: { src: 'https://example.com/a.mp4', protocol: 'progressive' },
+        }),
       ]);
     });
 
     // Same defensive read on the UPGRADE path (an existing native player
     // later upgraded to a poisoned integration), not just fresh-bind.
-    it('degrades to native when an UPGRADE integration\'s metadata getter throws', () => {
+    it("degrades to native when an UPGRADE integration's metadata getter throws", () => {
       document.body.innerHTML = '<video id="v"></video>';
       start();
       const v = document.getElementById('v') as HTMLVideoElement;
@@ -1376,14 +1481,20 @@ describe('attachPlayerVitals', () => {
       lifecycle.length = 0;
 
       const poisoned: PlayerIntegration = {
-        get version(): string { throw new Error('metadata boom'); },
+        get version(): string {
+          throw new Error('metadata boom');
+        },
         library: 'hls.js',
-        attach() { return true; },
+        attach() {
+          return true;
+        },
         detach() {},
       };
       adapter!.trackPlayer(v, { integration: poisoned });
 
-      expect(lifecycle.filter((e) => e.type === 'player_attach').map((e) => e.data?.library)).toEqual(['native']);
+      expect(
+        lifecycle.filter((e) => e.type === 'player_attach').map((e) => e.data?.library),
+      ).toEqual(['native']);
     });
 
     // Codex round-2 item 11 — `library`/`libraryVersion` are foreign,
@@ -1398,14 +1509,21 @@ describe('attachPlayerVitals', () => {
       const longLibrary = 'l'.repeat(100);
       const longVersion = 'v'.repeat(100);
       adapter!.trackPlayer(v, {
-        integration: { library: longLibrary, version: longVersion, attach: () => true, detach() {} },
+        integration: {
+          library: longLibrary,
+          version: longVersion,
+          attach: () => true,
+          detach() {},
+        },
       });
-      const attachEvent = lifecycle.find((e) => e.type === 'player_attach' && e.data?.library !== 'native');
+      const attachEvent = lifecycle.find(
+        (e) => e.type === 'player_attach' && e.data?.library !== 'native',
+      );
       expect(attachEvent?.data?.library).toBe('l'.repeat(MAX_PLAYER_LIBRARY_LENGTH));
       expect(attachEvent?.data?.libraryVersion).toBe('v'.repeat(MAX_PLAYER_LIBRARY_LENGTH));
     });
 
-    it('suppresses element-level source_change while an integration is attached and sanitises the integration\'s own source_change', () => {
+    it("suppresses element-level source_change while an integration is attached and sanitises the integration's own source_change", () => {
       document.body.innerHTML = '<video id="v"></video>';
       start();
       const v = document.getElementById('v') as HTMLVideoElement;
@@ -1413,9 +1531,16 @@ describe('attachPlayerVitals', () => {
       adapter!.trackPlayer(v, { integration: integ });
       stubCurrentSrc(v, 'blob:https://app/xyz');
       v.dispatchEvent(new Event('loadstart'));
-      integ.ctx()!.emit('source_change', { src: 'https://cdn.example.com/m.m3u8?sig=1', protocol: 'hls', live: true });
+      integ.ctx()!.emit('source_change', {
+        src: 'https://cdn.example.com/m.m3u8?sig=1',
+        protocol: 'hls',
+        live: true,
+      });
       expect(lifecycle.filter((e) => e.type === 'source_change')).toEqual([
-        expect.objectContaining({ playerId: 'p1', data: { src: 'https://cdn.example.com/m.m3u8', protocol: 'hls', live: true } }),
+        expect.objectContaining({
+          playerId: 'p1',
+          data: { src: 'https://cdn.example.com/m.m3u8', protocol: 'hls', live: true },
+        }),
       ]);
     });
 
@@ -1424,11 +1549,19 @@ describe('attachPlayerVitals', () => {
       document.body.innerHTML = '<video id="v"></video>';
       start(() => clock);
       const v = document.getElementById('v') as HTMLVideoElement;
-      adapter!.trackPlayer(v, { integration: fakeIntegration({ startupTimings: () => ({ manifestMs: 80, firstFragmentMs: 300 }) }) });
+      adapter!.trackPlayer(v, {
+        integration: fakeIntegration({
+          startupTimings: () => ({ manifestMs: 80, firstFragmentMs: 300 }),
+        }),
+      });
       v.dispatchEvent(new Event('loadstart'));
       clock = 1500;
       v.dispatchEvent(new Event('playing'));
-      expect(events.find((e) => e.type === 'startup')?.data).toEqual({ ttffMs: 500, manifestMs: 80, firstFragmentMs: 300 });
+      expect(events.find((e) => e.type === 'startup')?.data).toEqual({
+        ttffMs: 500,
+        manifestMs: 80,
+        firstFragmentMs: 300,
+      });
     });
 
     it('caps non-fatal integration errors at 10 per minute per player; fatal ones always pass', () => {
@@ -1438,7 +1571,8 @@ describe('attachPlayerVitals', () => {
       const v = document.getElementById('v') as HTMLVideoElement;
       const integ = fakeIntegration();
       adapter!.trackPlayer(v, { integration: integ });
-      for (let i = 0; i < 15; i++) integ.ctx()!.emit('error', { message: 'frag retry', fatal: false });
+      for (let i = 0; i < 15; i++)
+        integ.ctx()!.emit('error', { message: 'frag retry', fatal: false });
       integ.ctx()!.emit('error', { message: 'boom', fatal: true });
       clock = 61_000;
       integ.ctx()!.emit('error', { message: 'later', fatal: false });
@@ -1485,7 +1619,10 @@ describe('attachPlayerVitals', () => {
           handlers.set(name, [...(handlers.get(name) ?? []), fn]);
         },
         removeEventListener(name: string, fn: (event?: unknown) => void) {
-          handlers.set(name, (handlers.get(name) ?? []).filter((h) => h !== fn));
+          handlers.set(
+            name,
+            (handlers.get(name) ?? []).filter((h) => h !== fn),
+          );
         },
         getAssetUri: () => '', // skip the late-attach source_change replay — not what this test is about
       };
@@ -1503,7 +1640,9 @@ describe('attachPlayerVitals', () => {
         },
       });
       const err = events.find((e) => e.type === 'error');
-      expect(err?.data?.message).toBe('HTTP_ERROR: request to https://license.example.com/v1/widevine failed with status 403');
+      expect(err?.data?.message).toBe(
+        'HTTP_ERROR: request to https://license.example.com/v1/widevine failed with status 403',
+      );
       expect(JSON.stringify(err)).not.toContain(TOKEN);
     });
 
@@ -1556,7 +1695,9 @@ describe('attachPlayerVitals', () => {
         registered: [registration],
         registrationFor: (el) => (el === v ? registration : undefined),
       });
-      lifecycle.length = 0; all.length = 0; events.length = 0;
+      lifecycle.length = 0;
+      all.length = 0;
+      events.length = 0;
 
       // Reparent — the observer sees this as a removal from w1 followed by
       // an addition to w2.
@@ -1565,7 +1706,9 @@ describe('attachPlayerVitals', () => {
       await flush();
 
       expect(lifecycle.filter((e) => e.type === 'player_attach')).toEqual([
-        expect.objectContaining({ data: { name: 'main', tag: 'video', library: 'fake', libraryVersion: '9.9' } }),
+        expect.objectContaining({
+          data: { name: 'main', tag: 'video', library: 'fake', libraryVersion: '9.9' },
+        }),
       ]);
       expect(integ.ctx()?.element).toBe(v);
     });
@@ -1583,7 +1726,9 @@ describe('attachPlayerVitals', () => {
         registered: [registration],
         registrationFor: (el) => (el === v ? registration : undefined),
       });
-      lifecycle.length = 0; all.length = 0; events.length = 0;
+      lifecycle.length = 0;
+      all.length = 0;
+      events.length = 0;
 
       w.removeChild(v);
       await flush();
@@ -1591,7 +1736,9 @@ describe('attachPlayerVitals', () => {
       await flush();
 
       expect(lifecycle.filter((e) => e.type === 'player_attach')).toEqual([
-        expect.objectContaining({ data: { name: 'main', tag: 'video', library: 'fake', libraryVersion: '9.9' } }),
+        expect.objectContaining({
+          data: { name: 'main', tag: 'video', library: 'fake', libraryVersion: '9.9' },
+        }),
       ]);
       expect(integ.ctx()?.element).toBe(v);
     });
@@ -1603,10 +1750,13 @@ describe('attachPlayerVitals', () => {
       const integ = fakeIntegration();
       adapter!.trackPlayer(v, { integration: integ });
       adapter!.untrackPlayer(v);
-      expect(lifecycle.at(-1)).toEqual(expect.objectContaining({ type: 'player_detach', playerId: 'p1' }));
+      expect(lifecycle.at(-1)).toEqual(
+        expect.objectContaining({ type: 'player_detach', playerId: 'p1' }),
+      );
       expect(integ.detached).toBe(1);
       const w = document.getElementById('w')!;
-      w.removeChild(v); w.appendChild(v);
+      w.removeChild(v);
+      w.appendChild(v);
       await flush();
       v.dispatchEvent(new Event('play'));
       expect(events.filter((e) => e.type === 'play')).toEqual([]);
@@ -1624,7 +1774,9 @@ describe('attachPlayerVitals', () => {
       integ.ctx()!.emit('source_change', { src: 'https://c/x.m3u8', protocol: 'hls' });
       integ.ctx()!.emit('drm', { keySystem: 'com.widevine.alpha' });
       v.dispatchEvent(new Event('play'));
-      all.length = 0; lifecycle.length = 0; events.length = 0;
+      all.length = 0;
+      lifecycle.length = 0;
+      events.length = 0;
       adapter!.reseed();
       expect(all.map((e) => e.type)).toEqual(['player_attach', 'source_change', 'drm', 'play']);
       expect(all[1]?.data).toEqual({ src: 'https://c/x.m3u8', protocol: 'hls' });
@@ -1699,7 +1851,9 @@ describe('attachPlayerVitals', () => {
 
       // The reseed cache must be equally unaffected — it copied at emit
       // time, not a shared reference to `payload`.
-      all.length = 0; lifecycle.length = 0; events.length = 0;
+      all.length = 0;
+      lifecycle.length = 0;
+      events.length = 0;
       adapter!.reseed();
       const replayed = all.find((e) => e.type === 'drm');
       expect(replayed?.data).toEqual({ keySystem: 'com.widevine.alpha' });
@@ -1728,7 +1882,10 @@ describe('attachPlayerVitals', () => {
       document.body.innerHTML = '<video></video><audio></audio>';
       start();
       adapter!.stop();
-      expect(lifecycle.filter((e) => e.type === 'player_detach').map((e) => e.playerId)).toEqual(['p1', 'p2']);
+      expect(lifecycle.filter((e) => e.type === 'player_detach').map((e) => e.playerId)).toEqual([
+        'p1',
+        'p2',
+      ]);
       adapter = undefined;
     });
   });

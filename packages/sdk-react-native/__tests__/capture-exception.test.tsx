@@ -38,7 +38,9 @@ beforeEach(() => {
   current = predecessor;
   vi.stubGlobal('ErrorUtils', {
     getGlobalHandler: () => current,
-    setGlobalHandler: (handler: Handler) => { current = handler; },
+    setGlobalHandler: (handler: Handler) => {
+      current = handler;
+    },
   });
 });
 afterEach(() => {
@@ -81,8 +83,13 @@ describe('public captureException ownership', () => {
     expect(captureException(error('facade'))).toBeUndefined();
     expect(handled).toHaveBeenCalledTimes(2);
     expect(JSON.parse(handled.mock.calls[0]![0])).toMatchObject({
-      exceptionType: 'Error', message: 'boom', framesRaw: ['at hook (bundle.js:12:3)'],
-      source: 'error', mechanism: 'captureException', handled: true, fatal: false,
+      exceptionType: 'Error',
+      message: 'boom',
+      framesRaw: ['at hook (bundle.js:12:3)'],
+      source: 'error',
+      mechanism: 'captureException',
+      handled: true,
+      fatal: false,
     });
     unmount();
     retained.captureException(error('stale'));
@@ -102,7 +109,9 @@ describe('public captureException ownership', () => {
   });
 
   it('disabled reporting gates both hook/facade and automatic capture', () => {
-    const { result } = renderHook(useEverframe, { wrapper: provider({ crashReporting: { disabled: true } }) });
+    const { result } = renderHook(useEverframe, {
+      wrapper: provider({ crashReporting: { disabled: true } }),
+    });
     result.current.captureException(error('hook'));
     captureException(error('facade'));
     current(error('automatic'), false);
@@ -111,20 +120,33 @@ describe('public captureException ownership', () => {
     expect(current).toBe(predecessor);
   });
 
-  it.each(['absent', 'lookup', 'get', 'set'])('explicit capture survives %s ErrorUtils', (failure) => {
-    if (failure === 'absent') vi.stubGlobal('ErrorUtils', undefined);
-    else if (failure === 'lookup') Object.defineProperty(globalThis, 'ErrorUtils', {
-      configurable: true, get() { throw new Error('lookup'); },
-    });
-    else vi.stubGlobal('ErrorUtils', {
-      getGlobalHandler: () => { if (failure === 'get') throw new Error('get'); return predecessor; },
-      setGlobalHandler: () => { throw new Error('set'); },
-    });
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { result } = renderHook(useEverframe, { wrapper: provider() });
-    result.current.captureException(error('available'));
-    expect(handled).toHaveBeenCalledTimes(1);
-  });
+  it.each(['absent', 'lookup', 'get', 'set'])(
+    'explicit capture survives %s ErrorUtils',
+    (failure) => {
+      if (failure === 'absent') vi.stubGlobal('ErrorUtils', undefined);
+      else if (failure === 'lookup')
+        Object.defineProperty(globalThis, 'ErrorUtils', {
+          configurable: true,
+          get() {
+            throw new Error('lookup');
+          },
+        });
+      else
+        vi.stubGlobal('ErrorUtils', {
+          getGlobalHandler: () => {
+            if (failure === 'get') throw new Error('get');
+            return predecessor;
+          },
+          setGlobalHandler: () => {
+            throw new Error('set');
+          },
+        });
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { result } = renderHook(useEverframe, { wrapper: provider() });
+      result.current.captureException(error('available'));
+      expect(handled).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('copies the validated Hermes metadata before host mutation', () => {
     const platform = Platform.OS;
@@ -138,32 +160,61 @@ describe('public captureException ownership', () => {
     current(error('automatic'), false);
     for (const call of [handled.mock.calls[0], automatic.mock.calls[0]]) {
       expect(JSON.parse(call![0]).jsBundle).toEqual({
-        engine: 'hermes', platform: 'android', buildId: 'original-build', bundleName: 'index.android.bundle',
+        engine: 'hermes',
+        platform: 'android',
+        buildId: 'original-build',
+        bundleName: 'index.android.bundle',
       });
     }
     expect(JSON.parse(handled.mock.calls[0]![0]).details).toEqual({
-      severity: 'error', context: 'loaded-bundle',
+      severity: 'error',
+      context: 'loaded-bundle',
     });
     expect(JSON.parse(automatic.mock.calls[0]![0]).details).toBeUndefined();
   });
 
-  it.each(['missing', 'nonfunction', 'lookup', 'call'])('fails softly on %s native handled capability and keeps automatic capture', (failure) => {
-    const runtime = mount();
-    // Define the bridge property directly: RN host-object getters can throw too.
-    const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
-    try {
-      Object.defineProperty(NativeEverframe, 'captureHandledException', failure === 'lookup'
-        ? { configurable: true, get() { throw new Error('lookup'); } }
-        : { configurable: true, value: failure === 'missing' ? undefined : failure === 'nonfunction' ? 42 : () => { throw new Error('call'); } });
-      expect(() => runtime.captureException(error('explicit'))).not.toThrow();
-      expect(automatic).not.toHaveBeenCalled();
-      current(error('automatic'), false);
-      expect(automatic).toHaveBeenCalledTimes(1);
-      expect(JSON.parse(automatic.mock.calls[0]![0]).details).toBeUndefined();
-    } finally {
-      Object.defineProperty(NativeEverframe, 'captureHandledException', descriptor);
-    }
-  });
+  it.each(['missing', 'nonfunction', 'lookup', 'call'])(
+    'fails softly on %s native handled capability and keeps automatic capture',
+    (failure) => {
+      const runtime = mount();
+      // Define the bridge property directly: RN host-object getters can throw too.
+      const descriptor = Object.getOwnPropertyDescriptor(
+        NativeEverframe,
+        'captureHandledException',
+      )!;
+      try {
+        Object.defineProperty(
+          NativeEverframe,
+          'captureHandledException',
+          failure === 'lookup'
+            ? {
+                configurable: true,
+                get() {
+                  throw new Error('lookup');
+                },
+              }
+            : {
+                configurable: true,
+                value:
+                  failure === 'missing'
+                    ? undefined
+                    : failure === 'nonfunction'
+                      ? 42
+                      : () => {
+                          throw new Error('call');
+                        },
+              },
+        );
+        expect(() => runtime.captureException(error('explicit'))).not.toThrow();
+        expect(automatic).not.toHaveBeenCalled();
+        current(error('automatic'), false);
+        expect(automatic).toHaveBeenCalledTimes(1);
+        expect(JSON.parse(automatic.mock.calls[0]![0]).details).toBeUndefined();
+      } finally {
+        Object.defineProperty(NativeEverframe, 'captureHandledException', descriptor);
+      }
+    },
+  );
 
   it('keeps core handled facts independent of the details field', () => {
     let oldDecoderFacts: Record<string, unknown> | undefined;
@@ -174,26 +225,40 @@ describe('public captureException ownership', () => {
       return true;
     });
     mount().captureException(error('old-decoder'), {
-      severity: 'warning', context: 'new-js', metadata: { attempt: 1 },
+      severity: 'warning',
+      context: 'new-js',
+      metadata: { attempt: 1 },
     });
 
     expect(oldDecoderFacts).toMatchObject({
-      exceptionType: 'Error', message: 'boom', framesRaw: ['at old-decoder (bundle.js:12:3)'],
-      source: 'error', mechanism: 'captureException', handled: true, fatal: false,
+      exceptionType: 'Error',
+      message: 'boom',
+      framesRaw: ['at old-decoder (bundle.js:12:3)'],
+      source: 'error',
+      mechanism: 'captureException',
+      handled: true,
+      fatal: false,
     });
   });
 
   it('deactivates old ownership before teardown callbacks and preserves a different runtime remount', () => {
     let next: Runtime | undefined;
     let contextInTeardown: unknown;
-    const old = mount({ integrations: [{ name: 'reentrant', setup: () => () => {
-      contextInTeardown = __getCurrentContext();
-      old.captureException(error('old'));
-      captureException(error('facade-old'));
-      current(error('auto-old'), false);
-      next = mount();
-      captureException(error('new'));
-    } }] });
+    const old = mount({
+      integrations: [
+        {
+          name: 'reentrant',
+          setup: () => () => {
+            contextInTeardown = __getCurrentContext();
+            old.captureException(error('old'));
+            captureException(error('facade-old'));
+            current(error('auto-old'), false);
+            next = mount();
+            captureException(error('new'));
+          },
+        },
+      ],
+    });
     old.unmount();
     expect(contextInTeardown).toBeNull();
     expect(handled).toHaveBeenCalledTimes(1);
@@ -205,11 +270,18 @@ describe('public captureException ownership', () => {
 
   it('detaches the old mount before same-runtime remount inside teardown', () => {
     let teardownCount = 0;
-    const runtime = mount({ integrations: [{ name: 'remount', setup: () => () => {
-      teardownCount++;
-      runtime.captureException(error('inactive'));
-      if (teardownCount === 1) runtime.mount();
-    } }] });
+    const runtime = mount({
+      integrations: [
+        {
+          name: 'remount',
+          setup: () => () => {
+            teardownCount++;
+            runtime.captureException(error('inactive'));
+            if (teardownCount === 1) runtime.mount();
+          },
+        },
+      ],
+    });
     runtime.unmount();
     expect(__getCurrentContext()).toBe(runtime);
     captureException(error('remounted'));
@@ -243,77 +315,93 @@ describe('public captureException ownership', () => {
     expect(predecessor).toHaveBeenCalledTimes(2);
   });
 
-  it.each(['same', 'different'])('preserves the new handler when initial lookup remounts the %s runtime', (kind) => {
-    const old = createRuntime({ sdkKey: 'txx_test_key' });
-    runtimes.push(old);
-    const eu = (globalThis as unknown as { ErrorUtils: { getGlobalHandler: () => Handler } }).ErrorUtils;
-    let reenter = true;
-    let next: Runtime | undefined;
-    let newWrapper: Handler | undefined;
-    eu.getGlobalHandler = () => {
-      const snapshot = current;
-      if (reenter) {
-        reenter = false;
-        old.unmount();
-        if (kind === 'same') { old.mount(); next = old; }
-        else next = mount();
-        newWrapper = current;
-      }
-      return snapshot;
-    };
+  it.each(['same', 'different'])(
+    'preserves the new handler when initial lookup remounts the %s runtime',
+    (kind) => {
+      const old = createRuntime({ sdkKey: 'txx_test_key' });
+      runtimes.push(old);
+      const eu = (globalThis as unknown as { ErrorUtils: { getGlobalHandler: () => Handler } })
+        .ErrorUtils;
+      let reenter = true;
+      let next: Runtime | undefined;
+      let newWrapper: Handler | undefined;
+      eu.getGlobalHandler = () => {
+        const snapshot = current;
+        if (reenter) {
+          reenter = false;
+          old.unmount();
+          if (kind === 'same') {
+            old.mount();
+            next = old;
+          } else next = mount();
+          newWrapper = current;
+        }
+        return snapshot;
+      };
 
-    old.mount();
-    expect(newWrapper).toBeDefined();
-    expect(current).toBe(newWrapper);
-    expect(__getCurrentContext()).toBe(next);
-    const thrown = error('initial-lookup-remount');
-    current(thrown, false);
-    expect(automatic).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(automatic.mock.calls[0]![0])).toMatchObject({
-      mechanism: 'errorutils', message: 'boom', fatal: false,
-    });
-    expect(predecessor).toHaveBeenCalledExactlyOnceWith(thrown, false);
-    next!.unmount();
-    expect(__getCurrentContext()).toBeNull();
-    expect(current).toBe(predecessor);
-    current(error('inactive-after-remount'), false);
-    newWrapper!(error('retained-after-remount'), true);
-    old.captureException(error('old-after-remount'));
-    captureException(error('facade-after-remount'));
-    expect(automatic).toHaveBeenCalledTimes(1);
-    expect(handled).not.toHaveBeenCalled();
-  });
+      old.mount();
+      expect(newWrapper).toBeDefined();
+      expect(current).toBe(newWrapper);
+      expect(__getCurrentContext()).toBe(next);
+      const thrown = error('initial-lookup-remount');
+      current(thrown, false);
+      expect(automatic).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(automatic.mock.calls[0]![0])).toMatchObject({
+        mechanism: 'errorutils',
+        message: 'boom',
+        fatal: false,
+      });
+      expect(predecessor).toHaveBeenCalledExactlyOnceWith(thrown, false);
+      next!.unmount();
+      expect(__getCurrentContext()).toBeNull();
+      expect(current).toBe(predecessor);
+      current(error('inactive-after-remount'), false);
+      newWrapper!(error('retained-after-remount'), true);
+      old.captureException(error('old-after-remount'));
+      captureException(error('facade-after-remount'));
+      expect(automatic).toHaveBeenCalledTimes(1);
+      expect(handled).not.toHaveBeenCalled();
+    },
+  );
 
-  it.each(['same', 'different'])('preserves the new handler when restore lookup remounts the %s runtime', (kind) => {
-    const old = mount();
-    const eu = (globalThis as unknown as { ErrorUtils: { getGlobalHandler: () => Handler } }).ErrorUtils;
-    let reenter = true;
-    let next: Runtime | undefined;
-    let newWrapper: Handler | undefined;
-    eu.getGlobalHandler = () => {
-      const snapshot = current;
-      if (reenter) {
-        reenter = false;
-        if (kind === 'same') { old.mount(); next = old; }
-        else next = mount();
-        newWrapper = current;
-      }
-      return snapshot;
-    };
+  it.each(['same', 'different'])(
+    'preserves the new handler when restore lookup remounts the %s runtime',
+    (kind) => {
+      const old = mount();
+      const eu = (globalThis as unknown as { ErrorUtils: { getGlobalHandler: () => Handler } })
+        .ErrorUtils;
+      let reenter = true;
+      let next: Runtime | undefined;
+      let newWrapper: Handler | undefined;
+      eu.getGlobalHandler = () => {
+        const snapshot = current;
+        if (reenter) {
+          reenter = false;
+          if (kind === 'same') {
+            old.mount();
+            next = old;
+          } else next = mount();
+          newWrapper = current;
+        }
+        return snapshot;
+      };
 
-    old.unmount();
-    expect(newWrapper).toBeDefined();
-    expect(current).toBe(newWrapper);
-    expect(__getCurrentContext()).toBe(next);
-    const thrown = error('restore-lookup-remount');
-    current(thrown, false);
-    expect(automatic).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(automatic.mock.calls[0]![0])).toMatchObject({
-      mechanism: 'errorutils', message: 'boom', fatal: false,
-    });
-    expect(predecessor).toHaveBeenCalledExactlyOnceWith(thrown, false);
-    next!.unmount();
-    current(error('inactive-after-remount'), false);
-    expect(automatic).toHaveBeenCalledTimes(1);
-  });
+      old.unmount();
+      expect(newWrapper).toBeDefined();
+      expect(current).toBe(newWrapper);
+      expect(__getCurrentContext()).toBe(next);
+      const thrown = error('restore-lookup-remount');
+      current(thrown, false);
+      expect(automatic).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(automatic.mock.calls[0]![0])).toMatchObject({
+        mechanism: 'errorutils',
+        message: 'boom',
+        fatal: false,
+      });
+      expect(predecessor).toHaveBeenCalledExactlyOnceWith(thrown, false);
+      next!.unmount();
+      current(error('inactive-after-remount'), false);
+      expect(automatic).toHaveBeenCalledTimes(1);
+    },
+  );
 });

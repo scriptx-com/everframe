@@ -24,21 +24,38 @@ async function makeExpoProject(options: {
   const project = await mkdtemp(join(tmpdir(), 'everframe-expo-'));
   const staging = join(project, '.everframe');
   for (const platform of options.platforms) {
-    const platformBuildId = platform === 'android' ? buildId : '8f3ac21e-0000-4000-8000-000000000002';
+    const platformBuildId =
+      platform === 'android' ? buildId : '8f3ac21e-0000-4000-8000-000000000002';
     const dir = join(project, 'dist', '_expo', 'static', 'js', platform);
     await mkdir(dir, { recursive: true });
     const names = options.extraBundle ? ['index-abc.hbc', 'index-def.hbc'] : ['index-abc.hbc'];
     for (const name of names) {
-      await writeFile(join(dir, name), Buffer.concat([HERMES_MAGIC, Buffer.from(platformBuildId), Buffer.alloc(64)]));
-      const sources = options.identity === false ? [] : [`/.everframe/${platformBuildId}/identity.js`];
-      await writeFile(join(dir, `${name}.map`), JSON.stringify({ version: 3, sources, mappings: '' }));
+      await writeFile(
+        join(dir, name),
+        Buffer.concat([HERMES_MAGIC, Buffer.from(platformBuildId), Buffer.alloc(64)]),
+      );
+      const sources =
+        options.identity === false ? [] : [`/.everframe/${platformBuildId}/identity.js`];
+      await writeFile(
+        join(dir, `${name}.map`),
+        JSON.stringify({ version: 3, sources, mappings: '' }),
+      );
     }
     if (options.staged === false) continue;
     await mkdir(join(staging, platformBuildId), { recursive: true });
-    await writeFile(join(staging, `latest-${platform}.json`), JSON.stringify({ buildId: platformBuildId }));
+    await writeFile(
+      join(staging, `latest-${platform}.json`),
+      JSON.stringify({ buildId: platformBuildId }),
+    );
     await writeFile(
       join(staging, platformBuildId, 'manifest.partial.json'),
-      JSON.stringify({ schema: 1, buildId: platformBuildId, platform, bundleName: platform === 'android' ? 'index.android.bundle' : 'main.jsbundle', dev: false }),
+      JSON.stringify({
+        schema: 1,
+        buildId: platformBuildId,
+        platform,
+        bundleName: platform === 'android' ? 'index.android.bundle' : 'main.jsbundle',
+        dev: false,
+      }),
     );
   }
   return project;
@@ -47,7 +64,9 @@ async function makeExpoProject(options: {
 /** Reserve answers `ready` straight away, echoing the manifest's artifact URLs. */
 function successfulUploadFetch(): typeof fetch {
   return (async (_url: unknown, init?: RequestInit) => {
-    const manifest = JSON.parse(String(init?.body ?? '{}')) as { artifacts?: Array<{ url: string }> };
+    const manifest = JSON.parse(String(init?.body ?? '{}')) as {
+      artifacts?: Array<{ url: string }>;
+    };
     const body = {
       buildUuid: BUILD_UUID,
       status: 'ready',
@@ -57,7 +76,10 @@ function successfulUploadFetch(): typeof fetch {
         available: true,
       })),
     };
-    return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
   }) as typeof fetch;
 }
 
@@ -72,8 +94,14 @@ const base = (project: string) => ({
 describe('uploadExpoExport', () => {
   it('uploads every exported platform in one call', async () => {
     const project = await makeExpoProject({ platforms: ['android', 'ios'] });
-    const results = await uploadExpoExport(base(project), { fetch: successfulUploadFetch(), wait: async () => {} });
-    expect(results).toEqual([{ platform: 'android', buildUuid: expect.any(String) }, { platform: 'ios', buildUuid: expect.any(String) }]);
+    const results = await uploadExpoExport(base(project), {
+      fetch: successfulUploadFetch(),
+      wait: async () => {},
+    });
+    expect(results).toEqual([
+      { platform: 'android', buildUuid: expect.any(String) },
+      { platform: 'ios', buildUuid: expect.any(String) },
+    ]);
   });
 
   it('fails clearly when nothing was exported', async () => {
@@ -96,14 +124,19 @@ describe('uploadExpoExport', () => {
 
   it('names withEverframe when the export map has no identity', async () => {
     const project = await makeExpoProject({ platforms: ['android'], identity: false });
-    await expect(uploadExpoExport(base(project))).rejects.toThrow(/^missing_bundle_identity: .*withEverframe/);
+    await expect(uploadExpoExport(base(project))).rejects.toThrow(
+      /^missing_bundle_identity: .*withEverframe/,
+    );
   });
 });
 
 describe('resolveExpoAppId', () => {
   it('prefers the flag, then EVERFRAME_APP_ID, then app.json', async () => {
     const project = await mkdtemp(join(tmpdir(), 'evf-appjson-'));
-    await writeFile(join(project, 'app.json'), JSON.stringify({ expo: { plugins: [['@everframe/expo', { appId: APP3 }]] } }));
+    await writeFile(
+      join(project, 'app.json'),
+      JSON.stringify({ expo: { plugins: [['@everframe/expo', { appId: APP3 }]] } }),
+    );
     expect(await resolveExpoAppId(APP1, { EVERFRAME_APP_ID: APP2 }, project)).toBe(APP1);
     expect(await resolveExpoAppId(undefined, { EVERFRAME_APP_ID: APP2 }, project)).toBe(APP2);
     expect(await resolveExpoAppId(undefined, {}, project)).toBe(APP3);

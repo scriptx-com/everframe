@@ -279,7 +279,8 @@ export function computeViewportCropRect(args: {
   const sw = Math.min(outW, bmWidth - sx);
   const sh = Math.min(outH, bmHeight - sy);
   if (sw <= 0 || sh <= 0) return null;
-  const noop = sx === 0 && sy === 0 && sw === bmWidth && sh === bmHeight && sw === outW && sh === outH;
+  const noop =
+    sx === 0 && sy === 0 && sw === bmWidth && sh === bmHeight && sw === outW && sh === outH;
   return { sx, sy, sw, sh, outW, outH, noop };
 }
 
@@ -316,7 +317,10 @@ function liveViewportCropRect(
  * canvas untouched when there is no crop rect (no `window`, e.g. SSR / jsdom), when the
  * crop is a no-op, or when a 2d context is unavailable.
  */
-function cropCanvasToViewport(canvas: HTMLCanvasElement, rect: ViewportCropRect | null): HTMLCanvasElement {
+function cropCanvasToViewport(
+  canvas: HTMLCanvasElement,
+  rect: ViewportCropRect | null,
+): HTMLCanvasElement {
   if (!rect || rect.noop) return canvas;
   const { sx, sy, sw, sh, outW, outH } = rect;
   const out = document.createElement('canvas');
@@ -401,55 +405,55 @@ export async function renderViewportWithModernScreenshot(
       : filter;
   const modernScreenshot = await import('modern-screenshot');
   const canvas = await modernScreenshot.domToCanvas(root, {
-        scale: pixelRatio,
-        backgroundColor: '#ffffff',
-        filter: cloneFilter,
-        // Bounds the pre-clone resource wait. Required IN ADDITION to dropping
-        // <video> in filterNode, not instead of it: measured, the filter alone
-        // still costs the full 30s default on a stalled source (that wait runs
-        // BEFORE the filter is consulted), and this option alone does not stop
-        // the hang at all (it never reaches the clone step). Only both together
-        // are fast.
-        timeout: RESOURCE_WAIT_BUDGET_MS,
-        // NOTE — clone-margin drift (do NOT "fix" this with style overrides):
-        // modern-screenshot deletes the root's margin properties from the
-        // cloned node's inline style; when the root is document.body the clone
-        // picks the UA default body margin (8px) back up inside the SVG
-        // foreignObject render (the page's own `body { margin: 0 }` stylesheet
-        // does not exist in the clone), so ALL in-flow content renders shifted
-        // down/right by 8px. Measured live on chromium, firefox and webkit.
-        // Every attempted clone-side correction (style:{margin:'0'}, the same
-        // via !important, a <style> sheet in the SVG, position:relative
-        // offsets, capturing documentElement instead) makes Chromium's SVG
-        // rasterizer DROP absolutely/fixed-positioned elements anchored to the
-        // initial containing block (toasts, FABs, portaled modals) — measured:
-        // they render in the baseline configuration only. The drift is instead
-        // compensated at crop time (see bodyCloneDriftCssPx +
-        // cropCanvasToViewport below), which never touches the clone.
-        // Opt-in feature — defaults off in modern-screenshot for backcompat.
-        // Walks the cloned tree; per node, reads ORIGINAL's scrollTop/scrollLeft
-        // and composes a translate into the clone's transform matrix. Composes
-        // correctly across nested scrollables.
-          features: { restoreScrollPosition: true },
-          // Resolve off-screen images to a transparent pixel instead of a
-          // network round trip (see computeSkippableImageUrls). Returning
-          // `false` hands the URL back to modern-screenshot's normal fetch, so
-          // everything on screen — and everything this scan never saw — is
-          // embedded exactly as before. Omitted entirely when nothing is
-          // skippable, leaving the default fetch path untouched.
-          ...(skippableImageUrls.size > 0
-            ? {
-                fetchFn: (url: string): Promise<string | false> =>
-                  Promise.resolve(skippableImageUrls.has(url) ? SKIPPED_IMAGE_DATA_URL : false),
-              }
-            : {}),
-          // TV profile only: skip webfont embedding and copy the curated style
-          // whitelist instead of all ~300 computed properties — the clone walk
-          // is the dominant capture cost on TV CPUs (capture-profile.ts).
-          ...(profile.fastClone
-            ? { font: false as const, includeStyleProperties: FAST_CLONE_STYLE_PROPERTIES }
-            : {}),
-        });
+    scale: pixelRatio,
+    backgroundColor: '#ffffff',
+    filter: cloneFilter,
+    // Bounds the pre-clone resource wait. Required IN ADDITION to dropping
+    // <video> in filterNode, not instead of it: measured, the filter alone
+    // still costs the full 30s default on a stalled source (that wait runs
+    // BEFORE the filter is consulted), and this option alone does not stop
+    // the hang at all (it never reaches the clone step). Only both together
+    // are fast.
+    timeout: RESOURCE_WAIT_BUDGET_MS,
+    // NOTE — clone-margin drift (do NOT "fix" this with style overrides):
+    // modern-screenshot deletes the root's margin properties from the
+    // cloned node's inline style; when the root is document.body the clone
+    // picks the UA default body margin (8px) back up inside the SVG
+    // foreignObject render (the page's own `body { margin: 0 }` stylesheet
+    // does not exist in the clone), so ALL in-flow content renders shifted
+    // down/right by 8px. Measured live on chromium, firefox and webkit.
+    // Every attempted clone-side correction (style:{margin:'0'}, the same
+    // via !important, a <style> sheet in the SVG, position:relative
+    // offsets, capturing documentElement instead) makes Chromium's SVG
+    // rasterizer DROP absolutely/fixed-positioned elements anchored to the
+    // initial containing block (toasts, FABs, portaled modals) — measured:
+    // they render in the baseline configuration only. The drift is instead
+    // compensated at crop time (see bodyCloneDriftCssPx +
+    // cropCanvasToViewport below), which never touches the clone.
+    // Opt-in feature — defaults off in modern-screenshot for backcompat.
+    // Walks the cloned tree; per node, reads ORIGINAL's scrollTop/scrollLeft
+    // and composes a translate into the clone's transform matrix. Composes
+    // correctly across nested scrollables.
+    features: { restoreScrollPosition: true },
+    // Resolve off-screen images to a transparent pixel instead of a
+    // network round trip (see computeSkippableImageUrls). Returning
+    // `false` hands the URL back to modern-screenshot's normal fetch, so
+    // everything on screen — and everything this scan never saw — is
+    // embedded exactly as before. Omitted entirely when nothing is
+    // skippable, leaving the default fetch path untouched.
+    ...(skippableImageUrls.size > 0
+      ? {
+          fetchFn: (url: string): Promise<string | false> =>
+            Promise.resolve(skippableImageUrls.has(url) ? SKIPPED_IMAGE_DATA_URL : false),
+        }
+      : {}),
+    // TV profile only: skip webfont embedding and copy the curated style
+    // whitelist instead of all ~300 computed properties — the clone walk
+    // is the dominant capture cost on TV CPUs (capture-profile.ts).
+    ...(profile.fastClone
+      ? { font: false as const, includeStyleProperties: FAST_CLONE_STYLE_PROPERTIES }
+      : {}),
+  });
   // Legacy rect-based masking (codex round-3 finding 1): rects are
   // ROOT-relative device px, so they must land on the un-cropped
   // canvas — the old pipeline masked the full-document blob before
@@ -462,7 +466,12 @@ export async function renderViewportWithModernScreenshot(
   const cropRect = liveViewportCropRect(canvas, pixelRatio, cloneDrift);
   const blank =
     (cropRect && !cropRect.noop
-      ? isCanvasBlank(canvas, { sx: cropRect.sx, sy: cropRect.sy, sw: cropRect.sw, sh: cropRect.sh })
+      ? isCanvasBlank(canvas, {
+          sx: cropRect.sx,
+          sy: cropRect.sy,
+          sw: cropRect.sw,
+          sh: cropRect.sh,
+        })
       : isCanvasBlank(canvas)) === true;
   if (opts.maskPlan && opts.maskPlan.length > 0) {
     // Rects arrive in requested-DPR device px; the canvas renders at

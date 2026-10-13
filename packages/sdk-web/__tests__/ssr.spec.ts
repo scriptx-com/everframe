@@ -6,9 +6,7 @@ import { init } from '../src/init.js';
 
 describe('SSR guard', () => {
   it('throws an actionable error instead of crashing on localStorage', () => {
-    expect(() => init({ sdkKey: 'k', appVersion: '1.0.0' })).toThrowError(
-      /only run in a browser/i,
-    );
+    expect(() => init({ sdkKey: 'k', appVersion: '1.0.0' })).toThrowError(/only run in a browser/i);
   });
 
   it('names the client-side hook to call in the message', () => {

@@ -3,7 +3,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createVegaClient, FATAL_HANDOFF_MS, RETRY_DELAYS_MS } from '../src/client.js';
 import { SDK_VERSION } from '../src/version.js';
-import { BUILD_DIR, BUNDLE_ID, createEnv, createStorage, expectValidEnvelope, stored, vegaError } from './fakes.js';
+import {
+  BUILD_DIR,
+  BUNDLE_ID,
+  createEnv,
+  createStorage,
+  expectValidEnvelope,
+  stored,
+  vegaError,
+} from './fakes.js';
 
 const SDK_KEY = 'evf_live_test_key';
 /** Dedup keys ignore digits, so distinct call sites need distinct letters. */
@@ -36,7 +44,12 @@ describe('init', () => {
     const { client, errorUtils, hermes, fetch } = start({}, { enabled: false });
     client.captureException(new Error('x'));
     await client.flush();
-    expect(client.getStatus()).toEqual({ enabled: false, bundleId: null, rejections: 'off', pending: 0 });
+    expect(client.getStatus()).toEqual({
+      enabled: false,
+      bundleId: null,
+      rejections: 'off',
+      pending: 0,
+    });
     expect(errorUtils.handler).toBeUndefined();
     expect(hermes.options).toBeUndefined();
     expect(fetch.requests).toHaveLength(0);
@@ -44,7 +57,12 @@ describe('init', () => {
 
   it('reports its bundle id and observers', () => {
     const { client } = start();
-    expect(client.getStatus()).toEqual({ enabled: true, bundleId: BUNDLE_ID, rejections: 'observed', pending: 0 });
+    expect(client.getStatus()).toEqual({
+      enabled: true,
+      bundleId: BUNDLE_ID,
+      rejections: 'observed',
+      pending: 0,
+    });
   });
 
   it('ignores a second init', () => {
@@ -85,7 +103,10 @@ describe('fatal JavaScript errors', () => {
     expect(envelope).toMatchObject({
       source: 'crash',
       sdk: { name: 'everframe-vega', version: SDK_VERSION, platform: 'vega', formFactor: 'tv' },
-      context: { app: { name: 'Vega app', version: '1.4.0', build: '120' }, device: { os: 'Vega OS' } },
+      context: {
+        app: { name: 'Vega app', version: '1.4.0', build: '120' },
+        device: { os: 'Vega OS' },
+      },
       attachments: [],
       payload: {
         crash: {
@@ -94,7 +115,12 @@ describe('fatal JavaScript errors', () => {
           mechanism: 'errorutils',
           handled: false,
           fatal: true,
-          jsBundle: { engine: 'hermes', platform: 'vega', buildId: BUNDLE_ID, bundleName: `${BUNDLE_ID}.bundle` },
+          jsBundle: {
+            engine: 'hermes',
+            platform: 'vega',
+            buildId: BUNDLE_ID,
+            bundleName: `${BUNDLE_ID}.bundle`,
+          },
         },
       },
     });
@@ -152,7 +178,8 @@ describe('fatal JavaScript errors', () => {
 
   it('always admits fatals, even after the automatic allowance is spent', async () => {
     const { client, errorUtils, fetch } = start();
-    for (let i = 0; i < 12; i++) errorUtils.handler!(vegaError(`e${i}`, { fn: `fn${letter(i)}` }), false);
+    for (let i = 0; i < 12; i++)
+      errorUtils.handler!(vegaError(`e${i}`, { fn: `fn${letter(i)}` }), false);
     errorUtils.handler!(vegaError('e0', { fn: 'fna' }), true);
     await client.flush();
     const sent = fetch.requests.map((r) => r.envelope.payload.crash);
@@ -167,7 +194,10 @@ describe('non-fatal errors', () => {
     errorUtils.handler!(vegaError('soft'), false);
     expect(errorUtils.previous).toHaveLength(1);
     await client.flush();
-    expect(fetch.requests[0]!.envelope).toMatchObject({ source: 'error', payload: { crash: { fatal: false, mechanism: 'errorutils' } } });
+    expect(fetch.requests[0]!.envelope).toMatchObject({
+      source: 'error',
+      payload: { crash: { fatal: false, mechanism: 'errorutils' } },
+    });
   });
 
   it('deduplicates one call site per launch, across bundle line changes', async () => {
@@ -182,7 +212,11 @@ describe('non-fatal errors', () => {
     const { client, errorUtils, fetch } = start();
     errorUtils.handler!('plain string thrown', false);
     await client.flush();
-    expect(fetch.requests[0]!.envelope.payload.crash).toMatchObject({ exceptionType: 'UnhandledValue', message: 'plain string thrown', frames: [] });
+    expect(fetch.requests[0]!.envelope.payload.crash).toMatchObject({
+      exceptionType: 'UnhandledValue',
+      message: 'plain string thrown',
+      frames: [],
+    });
     expectValidEnvelope(fetch.requests[0]!.envelope);
   });
 });
@@ -197,13 +231,23 @@ describe('unhandled promise rejections', () => {
     expectValidEnvelope(envelope);
     expect(envelope).toMatchObject({
       source: 'error',
-      payload: { crash: { exceptionType: 'TypeError', mechanism: 'unhandledrejection', handled: false, fatal: false } },
+      payload: {
+        crash: {
+          exceptionType: 'TypeError',
+          mechanism: 'unhandledrejection',
+          handled: false,
+          fatal: false,
+        },
+      },
     });
   });
 
   it('reports only the type of a rejected non-Error value', async () => {
     const { client, hermes, fetch } = start();
-    hermes.options!.onUnhandled(2, { status: 401, headers: { authorization: 'Bearer secret-token' } });
+    hermes.options!.onUnhandled(2, {
+      status: 401,
+      headers: { authorization: 'Bearer secret-token' },
+    });
     await client.flush();
     const crash = fetch.requests[0]!.envelope.payload.crash;
     expect(crash).toMatchObject({ exceptionType: 'UnhandledValue', message: '[object]' });
@@ -211,7 +255,9 @@ describe('unhandled promise rejections', () => {
   });
 
   it('can be turned off, and says when the runtime has no tracker', () => {
-    expect(start({}, { captureUnhandledRejections: false }).client.getStatus().rejections).toBe('disabled');
+    expect(start({}, { captureUnhandledRejections: false }).client.getStatus().rejections).toBe(
+      'disabled',
+    );
     const harness = createEnv({ hermes: undefined });
     const client = createVegaClient(harness.env);
     client.init({ sdkKey: SDK_KEY });
@@ -229,14 +275,23 @@ describe('captureException', () => {
   it('reports a handled error with details', async () => {
     const { client, fetch } = start();
     client.captureException(vegaError('decode failed'), {
-      severity: 'warning', context: 'PlayerScreen', metadata: { assetId: 'A-42', retries: 2, nested: { no: true } as never },
+      severity: 'warning',
+      context: 'PlayerScreen',
+      metadata: { assetId: 'A-42', retries: 2, nested: { no: true } as never },
     });
     await client.flush();
     const { envelope } = fetch.requests[0]!;
     expectValidEnvelope(envelope);
     expect(envelope.payload.crash).toMatchObject({
-      mechanism: 'captureException', handled: true, fatal: false,
-      details: { severity: 'warning', context: 'PlayerScreen', metadata: { assetId: 'A-42', retries: 2 }, truncated: true },
+      mechanism: 'captureException',
+      handled: true,
+      fatal: false,
+      details: {
+        severity: 'warning',
+        context: 'PlayerScreen',
+        metadata: { assetId: 'A-42', retries: 2 },
+        truncated: true,
+      },
     });
   });
 
@@ -252,7 +307,8 @@ describe('captureException', () => {
 
   it('allows ten distinct handled keys per launch', async () => {
     const { client, fetch } = start();
-    for (let i = 0; i < 12; i++) client.captureException(vegaError(`h${i}`, { fn: `handled${letter(i)}` }));
+    for (let i = 0; i < 12; i++)
+      client.captureException(vegaError(`h${i}`, { fn: `handled${letter(i)}` }));
     await client.flush();
     expect(fetch.requests).toHaveLength(10);
   });
@@ -300,7 +356,12 @@ describe('report contents', () => {
     const { envelope } = fetch.requests[0]!;
     expectValidEnvelope(envelope);
     expect(envelope.reporter.user).toEqual({ id: 'u-1', email: 'viewer@example.com' });
-    expect(envelope.payload.breadcrumbs.map((c: { kind: string; message: string }) => [c.kind, c.message])).toEqual([
+    expect(
+      envelope.payload.breadcrumbs.map((c: { kind: string; message: string }) => [
+        c.kind,
+        c.message,
+      ]),
+    ).toEqual([
       ['navigation', 'opened player'],
       ['custom', 'custom by default'],
     ]);
@@ -309,7 +370,10 @@ describe('report contents', () => {
   });
 
   it('omits the bundle identity in a Debug build served by Metro', async () => {
-    const harness = createEnv({ probeStack: () => 'Error\n    at probe (http://localhost:8081/index.bundle?platform=kepler:1:2)' });
+    const harness = createEnv({
+      probeStack: () =>
+        'Error\n    at probe (http://localhost:8081/index.bundle?platform=kepler:1:2)',
+    });
     const client = createVegaClient(harness.env);
     client.init({ sdkKey: SDK_KEY });
     client.captureException(new Error('dev'));
@@ -320,8 +384,17 @@ describe('report contents', () => {
 
   it('survives a host whose globals throw', async () => {
     const harness = createEnv({
-      errorUtils: { getGlobalHandler: () => { throw new Error('no'); }, setGlobalHandler: () => { throw new Error('no'); } },
-      readDevice: () => { throw new Error('no dims'); },
+      errorUtils: {
+        getGlobalHandler: () => {
+          throw new Error('no');
+        },
+        setGlobalHandler: () => {
+          throw new Error('no');
+        },
+      },
+      readDevice: () => {
+        throw new Error('no dims');
+      },
     });
     const client = createVegaClient(harness.env);
     expect(() => client.init({ sdkKey: SDK_KEY })).not.toThrow();
@@ -415,7 +488,10 @@ describe('credential-named metadata', () => {
       expect(fetch.requests[0]!.body).not.toContain(secret);
     }
     expect(fetch.requests[0]!.envelope.payload.crash.details.metadata).toEqual({
-      password: '[REDACTED]', API_KEY: '[REDACTED]', Authorization: '[REDACTED]', user: 'u-1',
+      password: '[REDACTED]',
+      API_KEY: '[REDACTED]',
+      Authorization: '[REDACTED]',
+      user: 'u-1',
     });
     expectValidEnvelope(fetch.requests[0]!.envelope);
   });

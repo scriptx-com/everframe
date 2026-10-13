@@ -74,12 +74,14 @@ export function beginErrorReplay(deps: ErrorReplayDeps): Promise<ErrorReplayOutc
     exported = deps.snapshot();
   } catch (error) {
     return error instanceof ReplayCheckpointOmitted
-      ? Promise.resolve({ kind: 'omitted', reason: 'unsupported_state' }) : null;
+      ? Promise.resolve({ kind: 'omitted', reason: 'unsupported_state' })
+      : null;
   }
   budget.slotsTaken += 1;
   const setTimer = deps.setTimer ?? ((fn: () => void, ms: number): unknown => setTimeout(fn, ms));
   const clearTimer =
-    deps.clearTimer ?? ((handle: unknown): void => clearTimeout(handle as ReturnType<typeof setTimeout>));
+    deps.clearTimer ??
+    ((handle: unknown): void => clearTimeout(handle as ReturnType<typeof setTimeout>));
   return new Promise<ErrorReplayOutcome>((resolve) => {
     let settled = false;
     const finish = (outcome: ErrorReplayOutcome): void => {
@@ -88,7 +90,9 @@ export function beginErrorReplay(deps: ErrorReplayDeps): Promise<ErrorReplayOutc
       clearTimer(timer);
       __traceReplay(
         'errorReplay.settled',
-        outcome.kind === 'omitted' ? { kind: outcome.kind, reason: outcome.reason } : { kind: outcome.kind },
+        outcome.kind === 'omitted'
+          ? { kind: outcome.kind, reason: outcome.reason }
+          : { kind: outcome.kind },
       );
       resolve(outcome);
     };
@@ -99,15 +103,23 @@ export function beginErrorReplay(deps: ErrorReplayDeps): Promise<ErrorReplayOutc
       if (settled || outcome.kind !== 'attach') budget.slotsTaken -= 1;
       finish(outcome);
     };
-    const timer = setTimer(() => finish({ kind: 'omitted', reason: 'deadline' }), ERROR_REPLAY_DEADLINE_MS);
+    const timer = setTimer(
+      () => finish({ kind: 'omitted', reason: 'deadline' }),
+      ERROR_REPLAY_DEADLINE_MS,
+    );
     exported.then(
       (capture) => {
         if (capture === null || capture.bytes.byteLength === 0) exportedOutcome({ kind: 'none' });
-        else if (capture.bytes.byteLength > REPLAY_BYTE_CAP) exportedOutcome({ kind: 'omitted', reason: 'over_cap' });
+        else if (capture.bytes.byteLength > REPLAY_BYTE_CAP)
+          exportedOutcome({ kind: 'omitted', reason: 'over_cap' });
         else exportedOutcome({ kind: 'attach', capture });
       },
-      error => exportedOutcome(error instanceof ReplayCheckpointOmitted
-        ? { kind: 'omitted', reason: 'unsupported_state' } : { kind: 'none' }),
+      (error) =>
+        exportedOutcome(
+          error instanceof ReplayCheckpointOmitted
+            ? { kind: 'omitted', reason: 'unsupported_state' }
+            : { kind: 'none' },
+        ),
     );
   });
 }

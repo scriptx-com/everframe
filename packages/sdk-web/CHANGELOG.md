@@ -90,7 +90,6 @@
   <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
   The SDK key is renamed to `sdkKey` in every SDK; `apiKey` and `appId` are still accepted but deprecated. `appId` now means only the App ID, the UUID that symbol and source-map uploads take.
-
   - Web, React and React Native: the config field is `sdkKey`, for example `init({ sdkKey: 'evf_live_…' })` and `<EverframeProvider config={{ sdkKey: 'evf_live_…' }}>`. A config that still passes `apiKey` keeps working: the SDK reads it as `sdkKey` and logs one deprecation warning. When both are set, `sdkKey` wins.
   - iOS and tvOS: `EverframeConfig(sdkKey:)` and `.sdkKey` replace `EverframeConfig(appId:)` and `.appId`, which still compile with a deprecation warning. `EverframeConfigError.missingAppId` is now `EverframeConfigError.missingSdkKey`. `ReplaySession(baseURL:sdkKey:locallyDisabled:)` replaces the deprecated `apiKey:` spelling.
   - Android: `EverframeConfig(appId, sdkKey)` already used these names and is unchanged. Internal `ReplaySession`, `ReplayConfigProvider` and `VitalsTransport` parameters named `apiKey` are now `sdkKey`.
@@ -170,7 +169,6 @@
   <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
   Smart-TV engines down to Chrome 53 (webOS 4):
-
   - The SDK loads again: a regular expression using lookbehind and Unicode property escapes no longer stops the module from loading.
   - Reports with a focused element are no longer rejected: the focus position is read from `left`/`top`.
   - The TV snapshot path no longer uses `trimEnd`, `globalThis` or `padStart`.
@@ -203,7 +201,6 @@
   `config.hotkey` override and public `registerHotkey` helper have been removed so
   the dashboard remains authoritative.
 - 061f83a: Give `@traceitx/react` the host-facing API `@traceitx/react-native` already had, and fix `setExtra` corruption.
-
   - `recordScreen`, `useTXScreen` and `<TXScreen>` are now available on web, deriving the same `from → to` breadcrumb the native SDKs emit. Hosts previously hand-rolled this from a recipe in our own docstring, and different hosts got different subsets of the five rules right.
   - Top-level `setUser` on web; calling it with no argument clears, matching React Native.
   - `companion.start()` no longer requires `sdkKey` / `deviceLabel` when a `<TraceItXProvider>` is mounted — it defaults them from the provider config. Explicit arguments still win, and standalone `@traceitx/web` is unchanged.
@@ -333,7 +330,6 @@
   **Deploy the API before releasing this SDK version. This is a hard
   precondition, not a nice-to-have**, and getting the order wrong is worse than
   "vitals are lossy" the way earlier phases could be:
-
   - An old API rejects a phase-4 `VitalsEntry` (the new `playerId`, `custom`
     entries, and player event types, plus `vitals_sessions.player_count` from
     migration `0082`) with a non-retryable 400. On the **vitals chunk/summary

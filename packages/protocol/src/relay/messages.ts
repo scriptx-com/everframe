@@ -207,16 +207,32 @@ export const ReportAssembled = Base.extend({
   .superRefine((m, ctx) => {
     const outcome = m.outcome ?? 'image';
     if (outcome === 'image' && m.size === 0) {
-      ctx.addIssue({ code: 'custom', path: ['size'], message: 'an image outcome announces its image bytes' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['size'],
+        message: 'an image outcome announces its image bytes',
+      });
     }
     if (outcome !== 'image' && m.size !== 0) {
-      ctx.addIssue({ code: 'custom', path: ['size'], message: 'an image-less outcome announces no bytes' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['size'],
+        message: 'an image-less outcome announces no bytes',
+      });
     }
     if ((outcome === 'snapshot') !== (m.snapshot !== undefined)) {
-      ctx.addIssue({ code: 'custom', path: ['snapshot'], message: 'a snapshot reference is present exactly for the snapshot outcome' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['snapshot'],
+        message: 'a snapshot reference is present exactly for the snapshot outcome',
+      });
     }
     if (outcome === 'unavailable' && m.degraded_reason === undefined) {
-      ctx.addIssue({ code: 'custom', path: ['degraded_reason'], message: 'the unavailable outcome names its reason' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['degraded_reason'],
+        message: 'the unavailable outcome names its reason',
+      });
     }
   })
   .meta({ $id: 'ReportAssembled' });
@@ -228,9 +244,7 @@ export const ReportDraftUpdate = Base.extend({
   description_partial: z
     .object({
       text: z.string(),
-      redactions: z.array(
-        z.object({ start: z.number().int(), end: z.number().int() })
-      ),
+      redactions: z.array(z.object({ start: z.number().int(), end: z.number().int() })),
     })
     .optional(),
 }).meta({ $id: 'ReportDraftUpdate' });
@@ -259,7 +273,7 @@ const AnnotationList = z.array(
         h: z.number(),
       }),
     }),
-  ])
+  ]),
 );
 
 export const ReportSubmit = Base.extend({
@@ -268,9 +282,7 @@ export const ReportSubmit = Base.extend({
   title: z.string(),
   description: z.object({
     text: z.string(),
-    redactions: z.array(
-      z.object({ start: z.number().int(), end: z.number().int() })
-    ),
+    redactions: z.array(z.object({ start: z.number().int(), end: z.number().int() })),
   }),
   annotations: AnnotationList,
   includes: z.object({

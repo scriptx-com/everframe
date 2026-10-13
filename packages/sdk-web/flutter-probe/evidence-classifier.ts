@@ -18,12 +18,12 @@ export interface StockEvidenceResult {
 }
 
 export function classifyStockEvidence(input: StockEvidenceInput): StockEvidenceResult {
-  const screenshotVisible = input.width >= 640
-    && input.height >= 360
-    && input.publicColorFraction >= 0.8;
-  const maskSafe = screenshotVisible
-    && input.sensitiveBlackFraction >= 0.95
-    && input.sensitiveMagentaFraction <= 0.01;
+  const screenshotVisible =
+    input.width >= 640 && input.height >= 360 && input.publicColorFraction >= 0.8;
+  const maskSafe =
+    screenshotVisible &&
+    input.sensitiveBlackFraction >= 0.95 &&
+    input.sensitiveMagentaFraction <= 0.01;
   const visualReplay = new Set(input.canvasFrameHashes).size >= 2;
   const reasons: string[] = [];
 

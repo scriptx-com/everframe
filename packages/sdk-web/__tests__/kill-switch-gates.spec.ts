@@ -263,9 +263,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
       console.log('live-primitive-line');
 
       await expect(adapter.captureScreenshot()).resolves.toBeDefined();
-      expect(adapter.captureRecentLogs().map((e) => e.message)).toContain(
-        'live-primitive-line',
-      );
+      expect(adapter.captureRecentLogs().map((e) => e.message)).toContain('live-primitive-line');
       expect(adapter.getDeviceMetadata()).toBeTruthy();
     });
 
@@ -296,9 +294,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
 
       console.log('after-remount-line');
       await expect(adapter.captureScreenshot()).resolves.toBeDefined();
-      expect(adapter.captureRecentLogs().map((e) => e.message)).toContain(
-        'after-remount-line',
-      );
+      expect(adapter.captureRecentLogs().map((e) => e.message)).toContain('after-remount-line');
     });
   });
 
@@ -355,9 +351,13 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
       const outbox = adapter.outbox!;
       const realEnqueue = outbox.enqueue.bind(outbox);
       let release!: () => void;
-      const gate = new Promise<void>((resolve) => { release = resolve; });
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
       let started!: () => void;
-      const enqueueStarted = new Promise<void>((resolve) => { started = resolve; });
+      const enqueueStarted = new Promise<void>((resolve) => {
+        started = resolve;
+      });
       outbox.enqueue = async (item) => {
         started();
         await gate;
@@ -381,9 +381,13 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
         const outbox = adapter.outbox!;
         const realList = outbox.list.bind(outbox);
         let release!: () => void;
-        const gate = new Promise<void>((resolve) => { release = resolve; });
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
         let started!: () => void;
-        const listStarted = new Promise<void>((resolve) => { started = resolve; });
+        const listStarted = new Promise<void>((resolve) => {
+          started = resolve;
+        });
         outbox.list = async () => {
           started();
           await gate;
@@ -406,9 +410,13 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
       const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
       const credentials = adapter.reporterCredentials!;
       let release!: () => void;
-      const gate = new Promise<void>((resolve) => { release = resolve; });
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
       let started!: () => void;
-      const loadStarted = new Promise<void>((resolve) => { started = resolve; });
+      const loadStarted = new Promise<void>((resolve) => {
+        started = resolve;
+      });
       credentials.load = async () => {
         started();
         await gate;
@@ -456,9 +464,13 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
       const outbox = adapter.outbox!;
       const realEnqueue = outbox.enqueue.bind(outbox);
       let release!: () => void;
-      const gate = new Promise<void>((resolve) => { release = resolve; });
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
       let started!: () => void;
-      const enqueueStarted = new Promise<void>((resolve) => { started = resolve; });
+      const enqueueStarted = new Promise<void>((resolve) => {
+        started = resolve;
+      });
       outbox.enqueue = async (item) => {
         started();
         await gate;
@@ -479,9 +491,13 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
       const outbox = adapter.outbox!;
       const realList = outbox.list.bind(outbox);
       let release!: () => void;
-      const gate = new Promise<void>((resolve) => { release = resolve; });
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
       let started!: () => void;
-      const listStarted = new Promise<void>((resolve) => { started = resolve; });
+      const listStarted = new Promise<void>((resolve) => {
+        started = resolve;
+      });
       outbox.list = async () => {
         started();
         await gate;
@@ -514,9 +530,13 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
       const outbox = adapter.outbox!;
       const realEnqueue = outbox.enqueue.bind(outbox);
       let release!: () => void;
-      const gate = new Promise<void>((resolve) => { release = resolve; });
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
       let started!: () => void;
-      const enqueueStarted = new Promise<void>((resolve) => { started = resolve; });
+      const enqueueStarted = new Promise<void>((resolve) => {
+        started = resolve;
+      });
       outbox.enqueue = async (item) => {
         started();
         await gate;

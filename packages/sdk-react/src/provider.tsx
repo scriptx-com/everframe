@@ -172,14 +172,20 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
       // The unmount releases the adapter; only the host's kill() withdraws
       // consent. A crash accepted before the unmount (an error no boundary
       // caught unmounts this provider in the same commit) is still delivered.
-      try { originalOnKill?.(normalCleanupCall ? 'release' : reason); }
-      finally { if (!normalCleanupCall) hostKilled = true; }
+      try {
+        originalOnKill?.(normalCleanupCall ? 'release' : reason);
+      } finally {
+        if (!normalCleanupCall) hostKilled = true;
+      }
     };
     const stopClient = () => {
       stopped = true;
       normalCleanupCall = true;
-      try { client.kill(); }
-      finally { normalCleanupCall = false; }
+      try {
+        client.kill();
+      } finally {
+        normalCleanupCall = false;
+      }
     };
     // Bind the crumb sink to the client's buffer (one chain for auto + manual
     // crumbs; addBreadcrumb and the web adapters share redaction + lifecycle).
@@ -235,8 +241,14 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     // open request).
     adapter.__registerShowModal(openModal);
     return {
-      client, adapter, config, stopClient, openModal,
-      get stoppedNormally() { return stopped && !hostKilled; },
+      client,
+      adapter,
+      config,
+      stopClient,
+      openModal,
+      get stoppedNormally() {
+        return stopped && !hostKilled;
+      },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   };
@@ -644,7 +656,9 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
   const onComplete = (payload: ReporterCompletePayload): void => {
     // Resolve the showReporterUI promise so any sdk-core flow awaiting it unblocks.
     (
-      ctxValue.adapter as unknown as { __resolveReporterUI: (d: ReporterCompletePayload | null) => void }
+      ctxValue.adapter as unknown as {
+        __resolveReporterUI: (d: ReporterCompletePayload | null) => void;
+      }
     ).__resolveReporterUI(payload);
     setModalOpen(false);
 
@@ -858,9 +872,9 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     } catch {
       /* swallow — DEFE-02 */
     }
-    (
-      ctxValue.adapter as unknown as { __resolveReporterUI: (d: null) => void }
-    ).__resolveReporterUI(null);
+    (ctxValue.adapter as unknown as { __resolveReporterUI: (d: null) => void }).__resolveReporterUI(
+      null,
+    );
     ctxValue.adapter.__resolveOpen({ status: 'cancelled' });
     setModalOpen(false);
   };
@@ -878,9 +892,10 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
       <CompanionBadge />
       {/* A crash-only session (`reporter.disabled`) has no on-device way to
           open the reporter, so it gets no FAB and therefore no inbox. */}
-      {ctxValue.adapter.threads && ctxValue.config.replies?.ui !== 'headless'
-        && ctxValue.config.reporter?.disabled !== true
-        && threadState.count > 0 ? (
+      {ctxValue.adapter.threads &&
+      ctxValue.config.replies?.ui !== 'headless' &&
+      ctxValue.config.reporter?.disabled !== true &&
+      threadState.count > 0 ? (
         <ReporterFab
           unreadCount={threadState.unread}
           onOpen={() => {

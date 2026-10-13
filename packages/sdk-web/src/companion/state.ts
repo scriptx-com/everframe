@@ -19,16 +19,9 @@
 // convention in `adapter.ts`.
 'use client';
 
-export type CompanionState =
-  | 'unpaired'
-  | 'paired'
-  | 'report_in_progress'
-  | 'phone_disconnected';
+export type CompanionState = 'unpaired' | 'paired' | 'report_in_progress' | 'phone_disconnected';
 
-export type CompanionStateHandler = (
-  oldVal: CompanionState,
-  newVal: CompanionState,
-) => void;
+export type CompanionStateHandler = (oldVal: CompanionState, newVal: CompanionState) => void;
 
 export type CompanionPairUrlHandler = (url: string | null) => void;
 export type CompanionCodeHandler = (code: string | null) => void;
@@ -46,9 +39,7 @@ export interface CompanionAttachChallenge {
   requestedByName: string;
   ttlMs: number;
 }
-export type CompanionAttachChallengeHandler = (
-  c: CompanionAttachChallenge | null,
-) => void;
+export type CompanionAttachChallengeHandler = (c: CompanionAttachChallenge | null) => void;
 
 export interface CompanionAPI {
   /** Current state — snapshot, never throws. */

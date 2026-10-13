@@ -9,8 +9,12 @@ import { stagingRoot } from '../src/staging.js';
 import { withEverframe } from '../src/index.js';
 
 let root: string;
-beforeEach(async () => { root = await mkdtemp(join(tmpdir(), 'everframe-wrap-')); });
-afterEach(async () => { await rm(root, { recursive: true, force: true }); });
+beforeEach(async () => {
+  root = await mkdtemp(join(tmpdir(), 'everframe-wrap-'));
+});
+afterEach(async () => {
+  await rm(root, { recursive: true, force: true });
+});
 
 /** Every file under the staging root, recursively, as paths relative to it. */
 function filesUnderStagingRoot(projectRoot: string): string[] {
@@ -111,7 +115,9 @@ describe('withEverframe', () => {
     const original = { serializer: { getPolyfills: () => ['/existing/polyfill.js'] } };
     const config = withEverframe(original, { projectRoot: root, enabled: false });
     expect(config).toBe(original);
-    await expect(readFile(join(stagingRoot(root), 'latest-android.json'), 'utf8')).rejects.toThrow();
+    await expect(
+      readFile(join(stagingRoot(root), 'latest-android.json'), 'utf8'),
+    ).rejects.toThrow();
   });
 
   it('ignores platforms that are not android or ios', () => {

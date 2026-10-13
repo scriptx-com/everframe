@@ -62,9 +62,7 @@ vi.mock('../../../sdk-web/src/reporter-ui/AnnotateScreenshot.js', () => ({
     <button
       type="button"
       data-testid="mock-add-blur-annotation"
-      onClick={() =>
-        onChange([{ id: 'a1', kind: 'blur', x: 0, y: 0, width: 10, height: 10 }])
-      }
+      onClick={() => onChange([{ id: 'a1', kind: 'blur', x: 0, y: 0, width: 10, height: 10 }])}
     >
       add blur
     </button>
@@ -144,7 +142,11 @@ async function envelopeFromIngestCall(body: unknown): Promise<Record<string, any
 }
 
 function urlOf(input: RequestInfo | URL): string {
-  return typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+  return typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.href
+      : (input as Request).url;
 }
 
 function configBody(identityEnabled: boolean): string {
@@ -208,13 +210,20 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
           config={{ sdkKey: 'txx_live_dialog_boundary', appName: 'test', appVersion: '1.0.0' }}
         >
           <div>app</div>
-          <IdentityController initial={alice} onReady={(set) => { liveSetIdentityToken = set; }} />
+          <IdentityController
+            initial={alice}
+            onReady={(set) => {
+              liveSetIdentityToken = set;
+            }}
+          />
           <OpenButton />
         </EverframeProvider>,
       );
 
       await waitFor(() => {
-        expect(fetchSpy.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config'))).toBe(true);
+        expect(
+          fetchSpy.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config')),
+        ).toBe(true);
       });
 
       const opener = await findByTestId('host-open');
@@ -241,7 +250,9 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
 
       await waitFor(
         () => {
-          const ingestCall = fetchSpy.mock.calls.find((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'));
+          const ingestCall = fetchSpy.mock.calls.find((c) =>
+            urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'),
+          );
           expect(ingestCall).toBeTruthy();
         },
         { timeout: 5000 },
@@ -308,13 +319,20 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
           config={{ sdkKey: 'txx_live_dialog_user_boundary', appName: 'test', appVersion: '1.0.0' }}
         >
           <div>app</div>
-          <UserController initial={{ id: 'alice' }} onReady={(set) => { liveSetUser = set; }} />
+          <UserController
+            initial={{ id: 'alice' }}
+            onReady={(set) => {
+              liveSetUser = set;
+            }}
+          />
           <OpenButton />
         </EverframeProvider>,
       );
 
       await waitFor(() => {
-        expect(fetchSpy.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config'))).toBe(true);
+        expect(
+          fetchSpy.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config')),
+        ).toBe(true);
       });
 
       const opener = await findByTestId('host-open');
@@ -396,7 +414,9 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
       );
 
       await waitFor(() => {
-        expect(fetchSpy.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config'))).toBe(true);
+        expect(
+          fetchSpy.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config')),
+        ).toBe(true);
       });
 
       const opener = await findByTestId('host-open');
@@ -416,9 +436,12 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
         fireEvent.click(submit);
       });
 
-      await waitFor(() => {
-        expect(ingestBody).toBeTruthy();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(ingestBody).toBeTruthy();
+        },
+        { timeout: 5000 },
+      );
 
       expect(mutated).toBe(true);
       const envelope = await envelopeFromIngestCall(ingestBody);
@@ -465,7 +488,11 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
     try {
       const { findByTestId } = render(
         <EverframeProvider
-          config={{ sdkKey: 'txx_live_dialog_user_projection', appName: 'test', appVersion: '1.0.0' }}
+          config={{
+            sdkKey: 'txx_live_dialog_user_projection',
+            appName: 'test',
+            appVersion: '1.0.0',
+          }}
         >
           <div>app</div>
           <UserController initial={hostUser} onReady={() => undefined} />
@@ -474,7 +501,9 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
       );
 
       await waitFor(() => {
-        expect(fetchSpy.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config'))).toBe(true);
+        expect(
+          fetchSpy.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config')),
+        ).toBe(true);
       });
 
       const opener = await findByTestId('host-open');
@@ -490,9 +519,12 @@ describe('ReporterDialog submit boundary (PR review round 5, Serious)', () => {
         fireEvent.click(submit);
       });
 
-      await waitFor(() => {
-        expect(ingestBody).toBeTruthy();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(ingestBody).toBeTruthy();
+        },
+        { timeout: 5000 },
+      );
 
       const envelope = await envelopeFromIngestCall(ingestBody);
       expect(envelope.reporter?.user).toEqual({

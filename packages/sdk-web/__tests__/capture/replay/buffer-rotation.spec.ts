@@ -29,7 +29,12 @@ const gzip = async (input: Uint8Array): Promise<Uint8Array> =>
 const META = 4; // EventType.Meta
 const INCR = 3; // EventType.IncrementalSnapshot
 
-function push(buf: ReturnType<typeof createRollingBuffer>, type: number, ts: number, checkout = false) {
+function push(
+  buf: ReturnType<typeof createRollingBuffer>,
+  type: number,
+  ts: number,
+  checkout = false,
+) {
   buf.push({ type, timestamp: ts, data: { n: ts } }, checkout);
 }
 
@@ -41,7 +46,11 @@ describe('cap overflow sheds the prior window instead of breaching (TV DOMs)', (
   // (drop the older window) before it kills the session.
   it('drops the prior window when both windows exceed the cap, without breaching', () => {
     const buf = createRollingBuffer({ durationSec: 30, maxBytes: 300 });
-    const fat = (ts: number, type: number) => ({ type, timestamp: ts, data: { pad: 'x'.repeat(100) } });
+    const fat = (ts: number, type: number) => ({
+      type,
+      timestamp: ts,
+      data: { pad: 'x'.repeat(100) },
+    });
     buf.push(fat(0, FULL_SNAPSHOT), true);
     buf.push(fat(1, INCR));
     // Second checkout rotates; its window alone fits, both together do not.
@@ -53,11 +62,15 @@ describe('cap overflow sheds the prior window instead of breaching (TV DOMs)', (
     expect(buf.byteSize()).toBeLessThanOrEqual(300);
   });
 
-  it('keeps the prior window\'s trailing Meta when the current window starts at the FullSnapshot', () => {
+  it("keeps the prior window's trailing Meta when the current window starts at the FullSnapshot", () => {
     // Cap sized so the first window (incl. its trailing Meta) fits, and the
     // overflow fires only once the second checkout window is retained too.
     const buf = createRollingBuffer({ durationSec: 30, maxBytes: 500 });
-    const fat = (ts: number, type: number) => ({ type, timestamp: ts, data: { pad: 'x'.repeat(100) } });
+    const fat = (ts: number, type: number) => ({
+      type,
+      timestamp: ts,
+      data: { pad: 'x'.repeat(100) },
+    });
     buf.push(fat(0, FULL_SNAPSHOT), true);
     buf.push(fat(1, INCR));
     // rrweb emits Meta un-flagged immediately before the checkout FullSnapshot:

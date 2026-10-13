@@ -28,7 +28,10 @@ describe('cli', () => {
   it('--dry-run lists tracked screens; --screens none turns them off', () => {
     const chan = mkdtempSync(path.join(tmpdir(), 'efcli-'));
     cpSync(FIX, chan, { recursive: true });
-    writeFileSync(path.join(chan, 'components/HomeView.xml'), '<?xml version="1.0" encoding="utf-8" ?>\n<component name="HomeView" extends="Group">\n  <script type="text/brightscript" uri="HomeView.brs" />\n</component>\n');
+    writeFileSync(
+      path.join(chan, 'components/HomeView.xml'),
+      '<?xml version="1.0" encoding="utf-8" ?>\n<component name="HomeView" extends="Group">\n  <script type="text/brightscript" uri="HomeView.brs" />\n</component>\n',
+    );
     writeFileSync(path.join(chan, 'components/HomeView.brs'), 'sub init()\n  print 1\nend sub\n');
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'warn').mockImplementation(() => {});

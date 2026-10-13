@@ -18,9 +18,15 @@ async function installCli(dir: string): Promise<void> {
 async function bareProject(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'evf-bare-'));
   await mkdir(join(root, 'android', 'app'), { recursive: true });
-  await writeFile(join(root, 'android', 'app', 'build.gradle'), 'apply plugin: "com.android.application"\n');
+  await writeFile(
+    join(root, 'android', 'app', 'build.gradle'),
+    'apply plugin: "com.android.application"\n',
+  );
   await mkdir(join(root, 'ios', 'App.xcodeproj'), { recursive: true });
-  await cp(join(__dirname, 'fixtures/ios/project.pbxproj'), join(root, 'ios', 'App.xcodeproj', 'project.pbxproj'));
+  await cp(
+    join(__dirname, 'fixtures/ios/project.pbxproj'),
+    join(root, 'ios', 'App.xcodeproj', 'project.pbxproj'),
+  );
   return root;
 }
 
@@ -28,8 +34,13 @@ describe('setupReactNative', () => {
   it('patches gradle and xcode and prints the metro line', async () => {
     const root = await bareProject();
     const result = await setupReactNative({ projectRoot: root, appId: APP });
-    expect(result.changed).toEqual(['android/app/build.gradle', 'ios/App.xcodeproj/project.pbxproj']);
-    expect(await readFile(join(root, 'android/app/build.gradle'), 'utf8')).toContain('everframe-build-artifacts');
+    expect(result.changed).toEqual([
+      'android/app/build.gradle',
+      'ios/App.xcodeproj/project.pbxproj',
+    ]);
+    expect(await readFile(join(root, 'android/app/build.gradle'), 'utf8')).toContain(
+      'everframe-build-artifacts',
+    );
     const pbx = await readFile(join(root, 'ios/App.xcodeproj/project.pbxproj'), 'utf8');
     expect(pbx).toContain('Upload Everframe Build Artifacts');
     expect(pbx).toContain('SOURCEMAP_FILE');
@@ -53,17 +64,27 @@ describe('setupReactNative', () => {
     await installCli(monorepo);
     const root = join(monorepo, 'apps', 'mobile');
     await mkdir(join(root, 'ios', 'App.xcodeproj'), { recursive: true });
-    await cp(join(__dirname, 'fixtures/ios/project.pbxproj'), join(root, 'ios', 'App.xcodeproj', 'project.pbxproj'));
+    await cp(
+      join(__dirname, 'fixtures/ios/project.pbxproj'),
+      join(root, 'ios', 'App.xcodeproj', 'project.pbxproj'),
+    );
     const result = await setupReactNative({ projectRoot: root, appId: APP });
-    expect(result.uploadScript).toEqual({ path: '${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh', installed: true });
+    expect(result.uploadScript).toEqual({
+      path: '${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh',
+      installed: true,
+    });
     const pbx = await readFile(join(root, 'ios/App.xcodeproj/project.pbxproj'), 'utf8');
-    expect(pbx).toContain('/bin/bash \\"${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id');
+    expect(pbx).toContain(
+      '/bin/bash \\"${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id',
+    );
   });
 
   it('warns when no installed CLI has the script, and writes the standard path', async () => {
     const root = await bareProject();
     const warnings: string[] = [];
-    const warn = vi.spyOn(console, 'warn').mockImplementation((line: string) => void warnings.push(line));
+    const warn = vi
+      .spyOn(console, 'warn')
+      .mockImplementation((line: string) => void warnings.push(line));
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     try {
       expect(await main(['setup', 'react-native', '--project', root, '--app-id', APP], {})).toBe(0);
@@ -86,10 +107,14 @@ describe('setupReactNative', () => {
     const fresh = await readFile(path, 'utf8');
     // The earlier, multi-line form of the phase, with its two inputs.
     const earlier = fresh
-      .replace(/shellScript = "\/bin\/bash \\"\$\{SRCROOT\}[^\n]*\n/, 'shellScript = "if [ \\"${CONFIGURATION:-}\\" = \\"Debug\\" ]; then exit 0; fi\\nexit 0";\n')
+      .replace(
+        /shellScript = "\/bin\/bash \\"\$\{SRCROOT\}[^\n]*\n/,
+        'shellScript = "if [ \\"${CONFIGURATION:-}\\" = \\"Debug\\" ]; then exit 0; fi\\nexit 0";\n',
+      )
       .replace(
         /inputPaths = \(\n(\t+)"\$\(DWARF_DSYM_FOLDER_PATH\)[^\n]*\n/,
-        (_m, indent: string) => `inputPaths = (\n${indent}"$(EVERFRAME_DSYM_INPUT)",\n${indent}"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",\n`,
+        (_m, indent: string) =>
+          `inputPaths = (\n${indent}"$(EVERFRAME_DSYM_INPUT)",\n${indent}"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",\n`,
       );
     expect(earlier).not.toBe(fresh);
     await writeFile(path, earlier);
@@ -126,7 +151,10 @@ describe('setupReactNative', () => {
     const root = await bareProject();
     await setupReactNative({ projectRoot: root, appId: APP });
     const result = await setupReactNative({ projectRoot: root, appId: other });
-    expect(result.changed).toEqual(['android/app/build.gradle', 'ios/App.xcodeproj/project.pbxproj']);
+    expect(result.changed).toEqual([
+      'android/app/build.gradle',
+      'ios/App.xcodeproj/project.pbxproj',
+    ]);
     const pbx = await readFile(join(root, 'ios/App.xcodeproj/project.pbxproj'), 'utf8');
     expect(pbx).toContain(other);
     expect(pbx).not.toContain(APP);
@@ -149,7 +177,9 @@ describe('setupReactNative', () => {
 
   it('fails without any native project', async () => {
     const root = await mkdtemp(join(tmpdir(), 'evf-bare-'));
-    await expect(setupReactNative({ projectRoot: root, appId: APP })).rejects.toThrow('no_native_project');
+    await expect(setupReactNative({ projectRoot: root, appId: APP })).rejects.toThrow(
+      'no_native_project',
+    );
   });
 
   it('rejects multiple xcode projects without writing anything', async () => {
@@ -158,7 +188,9 @@ describe('setupReactNative', () => {
     const gradle = join(root, 'android/app/build.gradle');
     const before = await readFile(gradle, 'utf8');
     const mtime = (await stat(gradle)).mtimeMs;
-    await expect(setupReactNative({ projectRoot: root, appId: APP })).rejects.toThrow('multiple_xcode_projects');
+    await expect(setupReactNative({ projectRoot: root, appId: APP })).rejects.toThrow(
+      'multiple_xcode_projects',
+    );
     expect(await readFile(gradle, 'utf8')).toBe(before);
     expect((await stat(gradle)).mtimeMs).toBe(mtime);
   });
@@ -175,15 +207,23 @@ describe('setupReactNative', () => {
 
   it('adds the Everframe Gradle plugin classpath to android/build.gradle', async () => {
     const root = await bareProject();
-    await writeFile(join(root, 'android', 'build.gradle'), "buildscript {\n  dependencies {\n    classpath('com.facebook.react:react-native-gradle-plugin')\n  }\n}\n");
+    await writeFile(
+      join(root, 'android', 'build.gradle'),
+      "buildscript {\n  dependencies {\n    classpath('com.facebook.react:react-native-gradle-plugin')\n  }\n}\n",
+    );
     const result = await setupReactNative({ projectRoot: root, appId: APP });
     expect(result.changed).toContain('android/build.gradle');
-    expect(await readFile(join(root, 'android/build.gradle'), 'utf8')).toContain('dev.everframe:gradle-plugin:');
+    expect(await readFile(join(root, 'android/build.gradle'), 'utf8')).toContain(
+      'dev.everframe:gradle-plugin:',
+    );
   });
 
   it('reports every file it patched, changed or not', async () => {
     const root = await bareProject();
-    await writeFile(join(root, 'android', 'build.gradle'), "buildscript {\n  dependencies {\n    classpath('com.facebook.react:react-native-gradle-plugin')\n  }\n}\n");
+    await writeFile(
+      join(root, 'android', 'build.gradle'),
+      "buildscript {\n  dependencies {\n    classpath('com.facebook.react:react-native-gradle-plugin')\n  }\n}\n",
+    );
     const first = await setupReactNative({ projectRoot: root, appId: APP });
     expect(first.files).toEqual([
       { path: 'android/app/build.gradle', changed: true },
@@ -192,9 +232,23 @@ describe('setupReactNative', () => {
     ]);
     // Only the app file differs when the app id changes; the root file is still listed.
     const lines: string[] = [];
-    const log = vi.spyOn(console, 'log').mockImplementation((line: string) => void lines.push(line));
+    const log = vi
+      .spyOn(console, 'log')
+      .mockImplementation((line: string) => void lines.push(line));
     try {
-      expect(await main(['setup', 'react-native', '--project', root, '--app-id', '11111111-1111-4111-8111-111111111111'], {})).toBe(0);
+      expect(
+        await main(
+          [
+            'setup',
+            'react-native',
+            '--project',
+            root,
+            '--app-id',
+            '11111111-1111-4111-8111-111111111111',
+          ],
+          {},
+        ),
+      ).toBe(0);
     } finally {
       log.mockRestore();
     }
@@ -204,5 +258,4 @@ describe('setupReactNative', () => {
       'Updated ios/App.xcodeproj/project.pbxproj',
     ]);
   });
-
 });

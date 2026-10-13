@@ -169,7 +169,9 @@ describe('setExtra string/object forms — unchanged by the resolver addition', 
     const big = 'x'.repeat(EXTRA_MAX_CHARS + 500);
     client.setExtra(big);
     expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy.mock.calls[0]?.[0]).toContain(`${big.length} chars exceeds the ${EXTRA_MAX_CHARS} limit`);
+    expect(warnSpy.mock.calls[0]?.[0]).toContain(
+      `${big.length} chars exceeds the ${EXTRA_MAX_CHARS} limit`,
+    );
   });
 
   it('object form under budget serializes and is read back as JSON', () => {

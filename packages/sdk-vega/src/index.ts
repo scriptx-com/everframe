@@ -12,7 +12,12 @@
 //
 // Call init() at the top of index.js, before AppRegistry.registerComponent.
 // Native crashes, Hermes VM aborts and ANRs are not captured.
-import { createVegaClient, type ErrorUtilsLike, type HermesInternalLike, type VegaStatus } from './client.js';
+import {
+  createVegaClient,
+  type ErrorUtilsLike,
+  type HermesInternalLike,
+  type VegaStatus,
+} from './client.js';
 import type { VegaBreadcrumb, VegaCaptureOptions, VegaConfig, VegaUser } from './config.js';
 import { readDevice } from './device.js';
 import type { FetchLike } from './transport.js';
@@ -46,7 +51,9 @@ const client = createVegaClient({
     return host.HermesInternal;
   },
   get fetch() {
-    return typeof host.fetch === 'function' ? (host.fetch.bind(host) as unknown as FetchLike) : undefined;
+    return typeof host.fetch === 'function'
+      ? (host.fetch.bind(host) as unknown as FetchLike)
+      : undefined;
   },
   now: () => Date.now(),
   random: () => Math.random(),

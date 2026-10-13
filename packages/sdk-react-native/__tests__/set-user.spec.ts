@@ -159,6 +159,6 @@ describe('projectUserSpec parity with web projectUserMetadata', () => {
     'matches web for %s',
     (_label, value) => {
       expect(projectUserSpec(value)).toEqual(projectUserMetadata(value) ?? undefined);
-    }
+    },
   );
 });

@@ -28,8 +28,7 @@ export interface AmbientUI {
  * (24x24 viewBox, 2px round strokes, currentColor) at `size={20}`, so the
  * rendered glyph is pixel-identical to `<MessageSquare size={20} />`.
  */
-const MESSAGE_SQUARE_PATH =
-  'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z';
+const MESSAGE_SQUARE_PATH = 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z';
 
 export function createAmbientUI(
   root: ShadowRoot | HTMLElement,

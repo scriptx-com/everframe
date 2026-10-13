@@ -29,9 +29,10 @@ export function safeWrap<T extends (...args: any[]) => any>(
      * URL-bearing fetch failure.
      */
     projectError?: (err: unknown) => unknown;
-  }
+  },
 ): SafeWrapped<T> {
-  const logged = (err: unknown): unknown => (context.projectError ? context.projectError(err) : err);
+  const logged = (err: unknown): unknown =>
+    context.projectError ? context.projectError(err) : err;
   const wrapped = function (this: unknown, ...args: Parameters<T>) {
     try {
       const result = fn.apply(this, args);

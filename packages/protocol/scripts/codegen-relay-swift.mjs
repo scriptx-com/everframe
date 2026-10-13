@@ -33,14 +33,8 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..', '..');
-const schemaPath = path.join(
-  repoRoot,
-  'packages/protocol/schemas-json/relay.v1.schema.json'
-);
-const outPath = path.join(
-  repoRoot,
-  'packages/sdk-ios/Sources/EverframeProtocol/Relay.swift'
-);
+const schemaPath = path.join(repoRoot, 'packages/protocol/schemas-json/relay.v1.schema.json');
+const outPath = path.join(repoRoot, 'packages/sdk-ios/Sources/EverframeProtocol/Relay.swift');
 
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 if (!Array.isArray(schema.oneOf)) {
@@ -63,8 +57,7 @@ const HEADER = `// SPDX-License-Identifier: MIT
 import Foundation
 `;
 
-const snake_to_camel = (s) =>
-  s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+const snake_to_camel = (s) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
 const dot_to_pascal = (s) =>
   s
@@ -73,7 +66,7 @@ const dot_to_pascal = (s) =>
     .join('');
 
 const pascal = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-const prefixed = (name) => name.startsWith('Everframe') ? name : `Everframe${name}`;
+const prefixed = (name) => (name.startsWith('Everframe') ? name : `Everframe${name}`);
 const camel = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 
 // Render a Swift type for a JSON-Schema field. For inline nested objects /
@@ -111,9 +104,7 @@ function swiftType(prop, ownerName, fieldName, extraTypes) {
     // Annotation) so the emitted type is `ReportSubmitAnnotation`, not
     // `ReportSubmitAnnotationsItem`. Falls back to appending 'Item' when the
     // field is already singular (e.g. `points`).
-    const singular = fieldName.endsWith('s')
-      ? fieldName.slice(0, -1)
-      : fieldName + 'Item';
+    const singular = fieldName.endsWith('s') ? fieldName.slice(0, -1) : fieldName + 'Item';
     const inner = swiftType(prop.items, ownerName, singular, extraTypes);
     return `[${inner}]`;
   }
@@ -128,9 +119,7 @@ function swiftType(prop, ownerName, fieldName, extraTypes) {
     emitInlineOneOf(typeName, prop, extraTypes);
     return typeName;
   }
-  throw new Error(
-    `unhandled type for ${ownerName}.${fieldName}: ${JSON.stringify(prop)}`
-  );
+  throw new Error(`unhandled type for ${ownerName}.${fieldName}: ${JSON.stringify(prop)}`);
 }
 
 function emitStruct(name, objSchema, extraTypes) {
@@ -149,9 +138,7 @@ function emitStruct(name, objSchema, extraTypes) {
     const t = swiftType(p, name, f, extraTypes) + (optional ? '?' : '');
     fieldDecls.push(`    public let ${swiftName}: ${t}`);
     codingKeys.push(
-      swiftName === f
-        ? `        case ${swiftName}`
-        : `        case ${swiftName} = "${f}"`
+      swiftName === f ? `        case ${swiftName}` : `        case ${swiftName} = "${f}"`,
     );
   }
 
@@ -203,15 +190,12 @@ function emitInlineOneOf(name, prop, extraTypes) {
   const decodeCases = branches
     .map(
       (b) =>
-        `        case "${b.kind}": self = .${camel(snake_to_camel(b.kind))}(try ${b.branchName}(from: decoder))`
+        `        case "${b.kind}": self = .${camel(snake_to_camel(b.kind))}(try ${b.branchName}(from: decoder))`,
     )
     .join('\n');
 
   const encodeCases = branches
-    .map(
-      (b) =>
-        `        case .${camel(snake_to_camel(b.kind))}(let v): try v.encode(to: encoder)`
-    )
+    .map((b) => `        case .${camel(snake_to_camel(b.kind))}(let v): try v.encode(to: encoder)`)
     .join('\n');
 
   const code = `public enum ${name}: Codable, Equatable {
@@ -246,33 +230,27 @@ ${encodeCases}
 
 const extraTypes = new Map(); // name → emitted Swift code
 
-const branches = schema.oneOf.map((b) => {
-  if (!b.$id) {
-    throw new Error('branch missing $id: ' + JSON.stringify(b).slice(0, 80));
-  }
-  const branchName = prefixed(b.$id);
-  emitStruct(branchName, b, extraTypes);
-  // Pull the const value of the `type` field as the wire discriminator.
-  const disc = b.properties.type.const;
-  return { branchName, disc, caseName: camel(dot_to_pascal(disc)) };
-}).sort((a, b) => a.branchName.localeCompare(b.branchName));
+const branches = schema.oneOf
+  .map((b) => {
+    if (!b.$id) {
+      throw new Error('branch missing $id: ' + JSON.stringify(b).slice(0, 80));
+    }
+    const branchName = prefixed(b.$id);
+    emitStruct(branchName, b, extraTypes);
+    // Pull the const value of the `type` field as the wire discriminator.
+    const disc = b.properties.type.const;
+    return { branchName, disc, caseName: camel(dot_to_pascal(disc)) };
+  })
+  .sort((a, b) => a.branchName.localeCompare(b.branchName));
 
-const enumCases = branches
-  .map((b) => `    case ${b.caseName}(${b.branchName})`)
-  .join('\n');
+const enumCases = branches.map((b) => `    case ${b.caseName}(${b.branchName})`).join('\n');
 
 const decodeCases = branches
-  .map(
-    (b) =>
-      `        case "${b.disc}": self = .${b.caseName}(try ${b.branchName}(from: decoder))`
-  )
+  .map((b) => `        case "${b.disc}": self = .${b.caseName}(try ${b.branchName}(from: decoder))`)
   .join('\n');
 
 const encodeCases = branches
-  .map(
-    (b) =>
-      `        case .${b.caseName}(let v): try v.encode(to: encoder)`
-  )
+  .map((b) => `        case .${b.caseName}(let v): try v.encode(to: encoder)`)
   .join('\n');
 
 const enumBlock = `public enum EverframeRelayMessage: Codable, Equatable {

@@ -28,7 +28,11 @@ describe('Android vitals fixture parity (TS)', () => {
   });
 
   it('fixture exercises every player event type except dropped_frames', () => {
-    const seen = new Set(fixture.chunk.entries.filter((e) => e.kind === 'player').map((e) => (e as { type: string }).type));
+    const seen = new Set(
+      fixture.chunk.entries
+        .filter((e) => e.kind === 'player')
+        .map((e) => (e as { type: string }).type),
+    );
     for (const t of VitalsPlayerEventType.options) {
       if (t === 'dropped_frames') continue; // superseded by stats; Android never emits it
       expect(seen.has(t), `missing ${t}`).toBe(true);

@@ -12,23 +12,23 @@
 // We assert over the SPEC SOURCE TEXT (mirroring spec-shape.test.ts) because RN
 // codegen types are not importable at vitest runtime — the type-only shape can't
 // be reflected, so we pin the declared surface against forbidden substrings.
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { describe, it, expect } from "vitest";
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, it, expect } from 'vitest';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const specPath = path.join(__dirname, "..", "src", "NativeEverframe.ts");
-const specSrc = readFileSync(specPath, "utf8");
+const specPath = path.join(__dirname, '..', 'src', 'NativeEverframe.ts');
+const specSrc = readFileSync(specPath, 'utf8');
 
 // Strip line/block comments so doc-comment prose mentioning a token (e.g. an
 // explanatory "do NOT add replayEnabled" note) never trips a forbidden-token
 // assertion — we only want to catch ACTUAL declarations.
 function stripComments(src: string): string {
   return src
-    .replace(/\/\*[\s\S]*?\*\//g, "") // block comments
-    .replace(/\/\/.*$/gm, ""); // line comments
+    .replace(/\/\*[\s\S]*?\*\//g, '') // block comments
+    .replace(/\/\/.*$/gm, ''); // line comments
 }
 const specCode = stripComments(specSrc);
 
@@ -38,27 +38,27 @@ function extractConfigOptsBody(code: string): string {
   const decl = code.match(/export\s+type\s+ConfigOpts\s*=\s*\{/);
   expect(
     decl,
-    "RBRIDGE-01: ConfigOpts type declaration must exist in NativeEverframe.ts",
+    'RBRIDGE-01: ConfigOpts type declaration must exist in NativeEverframe.ts',
   ).toBeTruthy();
   const start = decl!.index! + decl![0].length;
   let depth = 1;
   let i = start;
   for (; i < code.length && depth > 0; i++) {
-    if (code[i] === "{") depth++;
-    else if (code[i] === "}") depth--;
+    if (code[i] === '{') depth++;
+    else if (code[i] === '}') depth--;
   }
   return code.slice(start, i - 1);
 }
 const configOptsBody = extractConfigOptsBody(specCode);
 
-describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () => {
-  describe("Test A — TurboModule declares no replay method", () => {
+describe('RBRIDGE-01: no new JS replay/config/ingest surface on the bridge', () => {
+  describe('Test A — TurboModule declares no replay method', () => {
     const FORBIDDEN_METHODS = [
-      "configureReplay",
-      "setReplayConfig",
-      "enableReplay",
-      "startReplay",
-      "replayLifecycle",
+      'configureReplay',
+      'setReplayConfig',
+      'enableReplay',
+      'startReplay',
+      'replayLifecycle',
     ];
 
     for (const name of FORBIDDEN_METHODS) {
@@ -72,11 +72,11 @@ describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () 
       });
     }
 
-    it("declares exactly the 17 locked report methods and no other non-companion report method", () => {
+    it('declares exactly the 17 locked report methods and no other non-companion report method', () => {
       const REPORT_METHODS = [
-        "openReporter",
-        "registerSensitiveRect",
-        "setExtra",
+        'openReporter',
+        'registerSensitiveRect',
+        'setExtra',
         // Spec 2026-09-17 setExtra-resolver — the 11th D-decision, and this
         // test's whole reason to exist: two NEW report methods added
         // DELIBERATELY, not a quiet widening of `setExtra` itself. Native
@@ -84,28 +84,28 @@ describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () 
         // before draining pending attachments — mirrors the companion
         // `reportRequested`/`signalCompanionReportRequestReady` handshake
         // below. See both methods' doc comments on NativeEverframe.ts.
-        "setExtraResolverActive",
-        "signalExtraResolverReady",
+        'setExtraResolverActive',
+        'signalExtraResolverReady',
         // Plan 4 / Task 14 — the 6th report method, a deliberate D-decision:
         // a manual breadcrumb escape hatch that forwards to the native
         // singleton's existing coercion path (Tasks 5/9). See its doc
         // comment on NativeEverframe.ts's `Spec.addBreadcrumb`.
-        "addBreadcrumb",
+        'addBreadcrumb',
         // Spec 2026-07-14 — the 7th report method, the navigation screen marker:
         // records "this screen is now visible". See its doc comment on
         // NativeEverframe.ts's `Spec.recordScreen`.
-        "recordScreen",
+        'recordScreen',
         // Spec 2026-07-18 — the 8th report method and Task 11's own
         // D-decision: the ONLY sync method on this spec (non-void return
         // forces sync codegen), fed by the default-on ErrorUtils handler in
         // `src/errors.ts`. See its doc comment on `Spec.reportCrash`.
-        "reportCrash",
+        'reportCrash',
         // Explicit-capture spec 2026-09-14: distinct sync storage acknowledgement.
-        "captureHandledException",
+        'captureHandledException',
         // Additive content-free diagnostics; no replay or transport control.
-        "getReportDeliveryStatusJson",
+        'getReportDeliveryStatusJson',
         // Blocking startup, so an immediate capture cannot overtake native startup.
-        "configureSync",
+        'configureSync',
         // Spec 2026-08-12 — the 9th report method and Task 10's own
         // D-decision: the self-declared identity surface. Bridge parameter
         // is `UnsafeObject` (NOT the named `EverframeUserSpec` alias — codegen
@@ -114,16 +114,16 @@ describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () 
         // replay/ingest/remote-config surface — it's a pass-through to the
         // native singleton's `setUser`. See its doc comment on
         // NativeEverframe.ts's `Spec.setUser`.
-        "setUser",
+        'setUser',
         // Spec 2026-09-06 — Session Vitals RN bridge, five D-decisions in
         // one: the library-agnostic player bridge (trackPlayer / detachPlayer /
         // recordPlayerEvent / updatePlayerStats) and the custom log line
         // (trackVitals). All void, fire-and-forget; see NativeEverframe.ts.
-        "trackPlayer",
-        "detachPlayer",
-        "recordPlayerEvent",
-        "updatePlayerStats",
-        "trackVitals",
+        'trackPlayer',
+        'detachPlayer',
+        'recordPlayerEvent',
+        'updatePlayerStats',
+        'trackVitals',
       ];
       // Each locked report method is present.
       for (const m of REPORT_METHODS) {
@@ -135,58 +135,46 @@ describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () 
 
       // Known companion methods (Phase 06.2 — pre-existing, NOT this phase, OUT OF SCOPE).
       const COMPANION_METHODS = [
-        "startCompanion",
-        "stopCompanion",
-        "signalCompanionReportRequestReady",
-        "addListener",
-        "removeListeners",
+        'startCompanion',
+        'stopCompanion',
+        'signalCompanionReportRequestReady',
+        'addListener',
+        'removeListeners',
       ];
 
       // Collect every method-like declaration inside the `interface Spec` body.
       const specBodyMatch = specCode.match(
         /interface\s+Spec\s+extends\s+TurboModule\s*\{([\s\S]*?)\n\}/,
       );
-      expect(
-        specBodyMatch,
-        "RBRIDGE-01: the Spec interface body must be parseable.",
-      ).toBeTruthy();
+      expect(specBodyMatch, 'RBRIDGE-01: the Spec interface body must be parseable.').toBeTruthy();
       const specBody = specBodyMatch![1];
-      const declared = [
-        ...specBody.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(/gm),
-      ].map((m) => m[1]);
+      const declared = [...specBody.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(/gm)].map(
+        (m) => m[1],
+      );
 
       const known = new Set([...REPORT_METHODS, ...COMPANION_METHODS]);
       const unexpected = declared.filter((m) => !known.has(m));
       expect(
         unexpected,
-        `RBRIDGE-01: no NEW (non-companion) report method may be added to the TurboModule — adding another report method requires a phase D-decision. Unexpected: ${unexpected.join(", ")}`,
+        `RBRIDGE-01: no NEW (non-companion) report method may be added to the TurboModule — adding another report method requires a phase D-decision. Unexpected: ${unexpected.join(', ')}`,
       ).toEqual([]);
     });
   });
 
-  describe("Test B — ConfigOpts carries no replay/ingest field", () => {
+  describe('Test B — ConfigOpts carries no replay/ingest field', () => {
     const FORBIDDEN_FIELDS: Array<[token: string, why: string]> = [
+      ['replayEnabled', 'replay config is native + remote only (24-RESEARCH Pattern 3)'],
       [
-        "replayEnabled",
-        "replay config is native + remote only (24-RESEARCH Pattern 3)",
+        'replayDurationSec',
+        'replay window is driven by the native ReplayConfigProvider, not host JS',
       ],
       [
-        "replayDurationSec",
-        "replay window is driven by the native ReplayConfigProvider, not host JS",
+        'samplingRate',
+        'the sampling gate is evaluated natively from remote /api/config (CONFIG-04)',
       ],
-      [
-        "samplingRate",
-        "the sampling gate is evaluated natively from remote /api/config (CONFIG-04)",
-      ],
-      [
-        "ingestUrl",
-        "the ingest URL is build-time-baked into each native (IngestEndpoint.url)",
-      ],
-      [
-        "apiBase",
-        "apiBase is historically removed — its reappearance would re-break Pattern 3",
-      ],
-      ["replay", "no replay knob of any shape belongs on the bridge config"],
+      ['ingestUrl', 'the ingest URL is build-time-baked into each native (IngestEndpoint.url)'],
+      ['apiBase', 'apiBase is historically removed — its reappearance would re-break Pattern 3'],
+      ['replay', 'no replay knob of any shape belongs on the bridge config'],
     ];
 
     for (const [token, why] of FORBIDDEN_FIELDS) {
@@ -199,31 +187,28 @@ describe("RBRIDGE-01: no new JS replay/config/ingest surface on the bridge", () 
     }
   });
 
-  describe("Test C — no JS-side /api/config fetch in the package src", () => {
+  describe('Test C — no JS-side /api/config fetch in the package src', () => {
     const SRC_FILES = [
-      "NativeEverframe.ts",
-      "runtime.ts",
-      "index.ts",
-      "companion.ts",
-      "contextSeam.ts",
+      'NativeEverframe.ts',
+      'runtime.ts',
+      'index.ts',
+      'companion.ts',
+      'contextSeam.ts',
     ];
 
     for (const file of SRC_FILES) {
       it(`src/${file} contains no \`api/config\` reference`, () => {
         let contents: string;
         try {
-          contents = readFileSync(
-            path.join(__dirname, "..", "src", file),
-            "utf8",
-          );
+          contents = readFileSync(path.join(__dirname, '..', 'src', file), 'utf8');
         } catch {
           // File absent in this build — nothing to guard; treat as clean.
-          contents = "";
+          contents = '';
         }
         expect(
           contents,
           `RBRIDGE-01: config is native + remote only — src/${file} must NOT fetch \`/api/config\` from JS (each native ReplayConfigProvider owns that).`,
-        ).not.toContain("api/config");
+        ).not.toContain('api/config');
       });
     }
   });

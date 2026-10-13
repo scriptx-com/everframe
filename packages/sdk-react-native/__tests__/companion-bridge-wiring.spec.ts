@@ -46,8 +46,7 @@ const FACADE = 'src/companion.ts';
 const RUNTIME_FACADE = 'src/runtime.ts';
 const IOS_EMITTER = 'ios/Sources/EverframeEventEmitter.swift';
 const IOS_BRIDGE = 'ios/Sources/EverframeBridge.swift';
-const ANDROID_MODULE =
-  'android/src/main/java/dev/everframe/rn/EverframeModule.kt';
+const ANDROID_MODULE = 'android/src/main/java/dev/everframe/rn/EverframeModule.kt';
 
 const facadeSrc = read(FACADE);
 const runtimeFacadeSrc = read(RUNTIME_FACADE);
@@ -63,11 +62,9 @@ const NEW_EVENTS = [
 
 /** `const FOO_EVENT = 'everframe.companion.foo';` in the JS facade. */
 function facadeEventNames(): string[] {
-  return [
-    ...facadeSrc.matchAll(
-      /^const\s+\w+\s*=\s*'(everframe\.companion\.[^']+)';$/gm,
-    ),
-  ].map((m) => m[1]!);
+  return [...facadeSrc.matchAll(/^const\s+\w+\s*=\s*'(everframe\.companion\.[^']+)';$/gm)].map(
+    (m) => m[1]!,
+  );
 }
 
 /**
@@ -102,19 +99,15 @@ function allFacadeEventNames(): string[] {
  */
 function iosEventConstants(): Map<string, string> {
   return new Map(
-    [
-      ...iosEmitterSrc.matchAll(
-        /^\s*public static let (\w+) = "(everframe\.[^"]+)"$/gm,
-      ),
-    ].map((m) => [m[1]!, m[2]!]),
+    [...iosEmitterSrc.matchAll(/^\s*public static let (\w+) = "(everframe\.[^"]+)"$/gm)].map(
+      (m) => [m[1]!, m[2]!],
+    ),
   );
 }
 
 /** The `Self.xxx` identifiers returned from `supportedEvents()`. */
 function iosSupportedEventIdentifiers(): string[] {
-  const body = /func supportedEvents\(\) -> \[String\] \{([\s\S]*?)\n {4}\}/.exec(
-    iosEmitterSrc,
-  );
+  const body = /func supportedEvents\(\) -> \[String\] \{([\s\S]*?)\n {4}\}/.exec(iosEmitterSrc);
   if (body === null) {
     throw new Error(
       `could not locate supportedEvents() in ${IOS_EMITTER} — the parser in this spec needs updating`,
@@ -139,9 +132,7 @@ function androidEventNames(): string[] {
  */
 function allAndroidEventNames(): string[] {
   return [
-    ...androidSrc.matchAll(
-      /const val\s+\w+\s*:\s*String\s*=\s*\n?\s*"(everframe\.[^"]+)"/g,
-    ),
+    ...androidSrc.matchAll(/const val\s+\w+\s*:\s*String\s*=\s*\n?\s*"(everframe\.[^"]+)"/g),
   ].map((m) => m[1]!);
 }
 
@@ -200,7 +191,7 @@ function relayClientConstructionArgs(rawSrc: string, where: string): string {
   return constructionArgs(rawSrc, 'RelayWSClient', where);
 }
 
-describe('the comment stripper this file\'s gates depend on', () => {
+describe("the comment stripper this file's gates depend on", () => {
   // Every gate below is only as trustworthy as this helper: if it leaves prose
   // in, a gate can pass on a comment while the code it names is gone. That is
   // the exact trap that bit the first draft of the deviceLabel gate, so the
@@ -245,18 +236,14 @@ describe('iOS supportedEvents() — the silent-drop trap', () => {
 
   it('supportedEvents() references no constant that does not exist', () => {
     const declared = iosEventConstants();
-    const unknown = iosSupportedEventIdentifiers().filter(
-      (n) => !declared.has(n),
-    );
+    const unknown = iosSupportedEventIdentifiers().filter((n) => !declared.has(n));
     expect(unknown, `unknown identifiers in supportedEvents(): ${unknown.join(', ')}`).toEqual([]);
   });
 
   for (const event of NEW_EVENTS) {
     it(`supportedEvents() resolves to \`${event}\``, () => {
       const declared = iosEventConstants();
-      const resolved = iosSupportedEventIdentifiers().map((n) =>
-        declared.get(n),
-      );
+      const resolved = iosSupportedEventIdentifiers().map((n) => declared.get(n));
       expect(resolved).toContain(event);
     });
   }
@@ -274,7 +261,10 @@ describe('event names stay in lock-step across the three files', () => {
     const ios = [...iosEventConstants().values()].sort();
     const android = [...allAndroidEventNames()].sort();
 
-    expect(js.length, `no event constants parsed out of ${FACADE} / ${RUNTIME_FACADE}`).toBeGreaterThan(0);
+    expect(
+      js.length,
+      `no event constants parsed out of ${FACADE} / ${RUNTIME_FACADE}`,
+    ).toBeGreaterThan(0);
     expect(
       ios,
       `${IOS_EMITTER} drifted from ${FACADE}/${RUNTIME_FACADE} — an event known to only one side is an event that never arrives`,
@@ -317,9 +307,7 @@ describe('iOS send* methods — every declared event has a matching sender (find
 
   function iosSendFunctionNames(): Set<string> {
     return new Set(
-      [...iosEmitterSrc.matchAll(/@objc public static func (send\w+)\s*\(/g)].map(
-        (m) => m[1]!,
-      ),
+      [...iosEmitterSrc.matchAll(/@objc public static func (send\w+)\s*\(/g)].map((m) => m[1]!),
     );
   }
 
@@ -449,9 +437,7 @@ describe('Part B — each value is actually FORWARDED to the emitter', () => {
     expect(
       androidCode,
       `${ANDROID_MODULE}: nothing collects Everframe.companion.code into emitter.emit(COMPANION_CODE_EVENT, …) — the code never reaches JS`,
-    ).toMatch(
-      /Everframe\.companion\.code\.collect[\s\S]{0,300}emit\(\s*COMPANION_CODE_EVENT/,
-    );
+    ).toMatch(/Everframe\.companion\.code\.collect[\s\S]{0,300}emit\(\s*COMPANION_CODE_EVENT/);
   });
 
   it('android collects companion.attachedUserName into an emit of COMPANION_ATTACHED_USER_NAME_EVENT', () => {
@@ -531,7 +517,9 @@ describe('Part C — the built-in PIN presenter is suppressed at runtime, not ga
     expect(
       androidCode,
       `${ANDROID_MODULE}: startCompanion must set Everframe.__attachPinUiSuppressed = companionAttachPinUi != AttachPinUi.BUILTIN — otherwise a custom/off host still gets the built-in PIN dialog`,
-    ).toMatch(/Everframe\.__attachPinUiSuppressed\s*=\s*companionAttachPinUi\s*!=\s*AttachPinUi\.BUILTIN/);
+    ).toMatch(
+      /Everframe\.__attachPinUiSuppressed\s*=\s*companionAttachPinUi\s*!=\s*AttachPinUi\.BUILTIN/,
+    );
   });
 });
 
@@ -614,10 +602,7 @@ describe('a companion report is attributed to whoever asked for THAT report', ()
     // The trailing \S is load-bearing: without it \s* backtracks to zero
     // width and the (?!null) lookahead passes on the " null" teardown lines.
     const m = /CompanionCaptureBridge\.__submitProvider\s*=\s*(?!null\b)\S/.exec(src);
-    expect(
-      m,
-      `${ANDROID_MODULE} must install a __submitProvider closure`,
-    ).not.toBeNull();
+    expect(m, `${ANDROID_MODULE} must install a __submitProvider closure`).not.toBeNull();
     const open = src.indexOf('{', m!.index);
     let depth = 0;
     for (let i = open; i < src.length; i += 1) {
@@ -812,12 +797,23 @@ describe('D1 — a stale teardown must not clear a hook a newer configure() inst
     // ...and it must actually GATE the mutations, not just compute a value
     // that is never checked: the guard-else-return must appear BEFORE the
     // hook is nil'd, in the same function body.
-    const guardIndex = body.search(/guard\s+isCurrentInstallation\s+else\s*\{[\s\S]*?return[\s\S]*?\}/);
+    const guardIndex = body.search(
+      /guard\s+isCurrentInstallation\s+else\s*\{[\s\S]*?return[\s\S]*?\}/,
+    );
     const clearHookIndex = body.indexOf('__pendingExtraResolveHook = nil');
     const clearActiveIndex = body.indexOf('extraResolverActive = false');
-    expect(guardIndex, `${IOS_BRIDGE}: expected a guard-else-return gating the teardown`).toBeGreaterThan(-1);
-    expect(clearHookIndex, `${IOS_BRIDGE}: resetExtraResolverForTeardown must still nil the hook on the live path`).toBeGreaterThan(-1);
-    expect(clearActiveIndex, `${IOS_BRIDGE}: resetExtraResolverForTeardown must still clear extraResolverActive on the live path`).toBeGreaterThan(-1);
+    expect(
+      guardIndex,
+      `${IOS_BRIDGE}: expected a guard-else-return gating the teardown`,
+    ).toBeGreaterThan(-1);
+    expect(
+      clearHookIndex,
+      `${IOS_BRIDGE}: resetExtraResolverForTeardown must still nil the hook on the live path`,
+    ).toBeGreaterThan(-1);
+    expect(
+      clearActiveIndex,
+      `${IOS_BRIDGE}: resetExtraResolverForTeardown must still clear extraResolverActive on the live path`,
+    ).toBeGreaterThan(-1);
     expect(
       guardIndex,
       `${IOS_BRIDGE}: resetExtraResolverForTeardown must check identity BEFORE nil-ing the hook — a stale caller must never reach that line`,
@@ -851,7 +847,9 @@ describe('D1 — a stale teardown must not clear a hook a newer configure() inst
     expect(
       moduleCode,
       `${IOS_MODULE}: -configureSync: must capture [EverframeBridge currentExtraResolveHookGeneration] onto an instance ivar — otherwise -invalidate has no way to prove which installation it corresponds to`,
-    ).toMatch(/_extraResolveHookGeneration\s*=\s*\[EverframeBridge currentExtraResolveHookGeneration\]/);
+    ).toMatch(
+      /_extraResolveHookGeneration\s*=\s*\[EverframeBridge currentExtraResolveHookGeneration\]/,
+    );
   });
 
   it('EverframeModule.mm -invalidate hands that captured generation back, not a bare no-arg call', () => {

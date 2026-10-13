@@ -16,7 +16,10 @@ import {
   VIEWPORT_ALIGNED,
   type CanvasOffset,
 } from './pixel-mask.js';
-export { computeViewportCropRect, type ViewportCropRect } from './renderers/modern-screenshot-renderer.js';
+export {
+  computeViewportCropRect,
+  type ViewportCropRect,
+} from './renderers/modern-screenshot-renderer.js';
 import { computeCappedPixelRatio, getCaptureProfile } from './capture-profile.js';
 
 export type ScreenshotRenderer = 'snapdom' | 'modern-screenshot' | 'server' | 'none';
@@ -250,7 +253,6 @@ export async function applyMaskRectsToBlob(
   });
 }
 
-
 /**
  * Skip the SDK's own DOM (bubble, modal, toast) from the captured page so the screenshot
  * shows the customer's app underneath, not the reporter widget itself. SDK roots are
@@ -283,7 +285,6 @@ const excludedFromCapture = (el: Element): boolean => el.tagName !== 'VIDEO' && 
 export function __filterNodeForTests(node: Node): boolean {
   return filterNode(node);
 }
-
 
 /**
  * Captures never overlap. Each one mutates the LIVE page for its duration -
@@ -369,12 +370,7 @@ async function captureExclusive(
     typeof window !== 'undefined' && window.innerWidth ? window.innerWidth : rootCssWidth(root);
   const capH =
     typeof window !== 'undefined' && window.innerHeight ? window.innerHeight : rootCssHeight(root);
-  const pixelRatio = computeCappedPixelRatio(
-    requestedRatio,
-    capW,
-    capH,
-    profile.maxOutputEdgePx,
-  );
+  const pixelRatio = computeCappedPixelRatio(requestedRatio, capW, capH, profile.maxOutputEdgePx);
 
   let blob: Blob | null = null;
   let width = 0;
@@ -522,7 +518,8 @@ async function captureExclusive(
         // resolved fresh, applied right before it renders and restored right
         // after (the snapDOM path never touches the page).
         const fallbackTargets = expandMaskTargets(resolveMaskTargets());
-        const restoreDomMask = fallbackTargets.length > 0 ? applyDomMask(fallbackTargets) : (): void => undefined;
+        const restoreDomMask =
+          fallbackTargets.length > 0 ? applyDomMask(fallbackTargets) : (): void => undefined;
         let rendered: Awaited<ReturnType<typeof renderViewportWithModernScreenshot>>;
         try {
           // The renderer measures `blank` itself, before it paints maskPlan.
@@ -625,16 +622,28 @@ async function captureExclusive(
   }
 
   const sha256 = await sha256Hex(blob);
-  return { blob, width, height, sha256, ...(degradedReason !== undefined ? { degradedReason } : {}) };
+  return {
+    blob,
+    width,
+    height,
+    sha256,
+    ...(degradedReason !== undefined ? { degradedReason } : {}),
+  };
 }
 
 /** Root size in CSS px for the output-edge cap; tolerates detached/jsdom roots. */
 function rootCssWidth(root: HTMLElement): number {
-  return root.clientWidth || (typeof root.getBoundingClientRect === 'function' ? root.getBoundingClientRect().width : 0);
+  return (
+    root.clientWidth ||
+    (typeof root.getBoundingClientRect === 'function' ? root.getBoundingClientRect().width : 0)
+  );
 }
 
 function rootCssHeight(root: HTMLElement): number {
-  return root.clientHeight || (typeof root.getBoundingClientRect === 'function' ? root.getBoundingClientRect().height : 0);
+  return (
+    root.clientHeight ||
+    (typeof root.getBoundingClientRect === 'function' ? root.getBoundingClientRect().height : 0)
+  );
 }
 
 /**

@@ -50,7 +50,10 @@ describe('sampling gate is drawn once per session', () => {
   });
 
   it('keeps a sampled-out session out however often the start is retried', () => {
-    const lc = makeLifecycle(() => cfg(0.5), () => 0.9);
+    const lc = makeLifecycle(
+      () => cfg(0.5),
+      () => 0.9,
+    );
 
     lc.tryStart();
     lc.tryStart();
@@ -76,7 +79,10 @@ describe('sampling gate is drawn once per session', () => {
 
   it('does not admit a session whose draw still exceeds a widened rate', () => {
     let rate = 0.1;
-    const lc = makeLifecycle(() => cfg(rate), () => 0.7);
+    const lc = makeLifecycle(
+      () => cfg(rate),
+      () => 0.7,
+    );
 
     lc.tryStart();
     rate = 0.5; // widened, but still below the draw
@@ -86,7 +92,10 @@ describe('sampling gate is drawn once per session', () => {
   });
 
   it('still lets a sampled-in session start', () => {
-    const lc = makeLifecycle(() => cfg(0.5), () => 0.1);
+    const lc = makeLifecycle(
+      () => cfg(0.5),
+      () => 0.1,
+    );
 
     expect(lc.tryStart()).toBe(true);
   });

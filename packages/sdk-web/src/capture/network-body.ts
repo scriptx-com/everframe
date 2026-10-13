@@ -34,7 +34,10 @@ const decoder = new TextDecoder(); // default: fatal=false → lone bytes become
  * ORIGINAL UTF-8 byte length. When the cut lands mid-character we drop the
  * trailing partial char rather than emit a replacement glyph.
  */
-export function capUtf8(text: string, byteCap: number): { text: string; truncated: boolean; bytes: number } {
+export function capUtf8(
+  text: string,
+  byteCap: number,
+): { text: string; truncated: boolean; bytes: number } {
   const full = encoder.encode(text);
   if (full.length <= byteCap) return { text, truncated: false, bytes: full.length };
   // Decode the first byteCap bytes; a trailing partial char decodes to U+FFFD —

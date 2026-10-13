@@ -204,7 +204,9 @@ describe('createShotStash', () => {
 
     expect(capture).toHaveBeenCalledTimes(1);
     expect(crop).toHaveBeenCalledTimes(1);
-    expect(h.sent.filter((m) => (m as { type?: string }).type === 'shot.assembled')).toHaveLength(2);
+    expect(h.sent.filter((m) => (m as { type?: string }).type === 'shot.assembled')).toHaveLength(
+      2,
+    );
     // Crop rect arrives in PIXELS of the stashed frame, not normalized units.
     expect(crop).toHaveBeenCalledWith(expect.anything(), { x: 0, y: 0, w: 500, h: 250 });
   });
@@ -219,7 +221,12 @@ describe('createShotStash', () => {
     }));
     const stash = createShotStash({
       correlationId: 'c1',
-      capture: async () => ({ bytes: bytes('full'), mime: 'image/webp' as const, width: 1000, height: 500 }),
+      capture: async () => ({
+        bytes: bytes('full'),
+        mime: 'image/webp' as const,
+        width: 1000,
+        height: 500,
+      }),
       crop,
       send: h.send,
       sendBinary: h.sendBinary,
@@ -280,7 +287,9 @@ describe('createShotStash', () => {
     await Promise.all([a, b]);
 
     expect(capture).toHaveBeenCalledTimes(1);
-    expect(h.sent.filter((m) => (m as { type?: string }).type === 'shot.assembled')).toHaveLength(2);
+    expect(h.sent.filter((m) => (m as { type?: string }).type === 'shot.assembled')).toHaveLength(
+      2,
+    );
   });
 
   it('bounds concurrent captures by the cap, failing the overflow shots', async () => {
@@ -313,7 +322,9 @@ describe('createShotStash', () => {
     await all;
 
     expect(h.sent.filter((m) => (m as { type?: string }).type === 'shot.failed')).toHaveLength(8);
-    expect(h.sent.filter((m) => (m as { type?: string }).type === 'shot.assembled')).toHaveLength(12);
+    expect(h.sent.filter((m) => (m as { type?: string }).type === 'shot.assembled')).toHaveLength(
+      12,
+    );
   });
 
   it('makes an in-flight capture inert when cleared mid-flight', async () => {
@@ -369,12 +380,21 @@ describe('report.request cancelled mid-capture', () => {
         captureScreenshot: () =>
           new Promise((r) => {
             release = () =>
-              r({ blob: new Blob(['png'], { type: 'image/png' }), width: 8, height: 4, sha256: 'x' });
+              r({
+                blob: new Blob(['png'], { type: 'image/png' }),
+                width: 8,
+                height: 4,
+                sha256: 'x',
+              });
           }),
       },
     } as never;
 
-    const pending = handleCompanionReportRequest('c1', { send: h.send, sendBinary: h.sendBinary } as never, host);
+    const pending = handleCompanionReportRequest(
+      'c1',
+      { send: h.send, sendBinary: h.sendBinary } as never,
+      host,
+    );
     // requestStash isn't populated yet — the cancel must still own c1
     // through the in-flight request marker (review round 3, finding 1).
     handleCompanionReportCancelled(null, 'c1');

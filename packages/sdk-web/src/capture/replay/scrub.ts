@@ -130,16 +130,14 @@ export function replayRedactionConfig(base?: RedactionEngineConfig): RedactionEn
 }
 
 /** Recursively scrub an attributes record in place on a serialized node. */
-function scrubAttributes(
-  attributes: Record<string, unknown>,
-  config: RedactionEngineConfig,
-): void {
+function scrubAttributes(attributes: Record<string, unknown>, config: RedactionEngineConfig): void {
   for (const key of Object.keys(attributes)) {
     const lower = key.toLowerCase();
     if (lower === 'rr_scrollleft' || lower === 'rr_scrolltop') {
       // rrweb rebuild consumes numeric held-scroll state from full snapshots.
       // These internal layout fields must never become a string payload path.
-      if (typeof attributes[key] !== 'number' || !Number.isFinite(attributes[key])) delete attributes[key];
+      if (typeof attributes[key] !== 'number' || !Number.isFinite(attributes[key]))
+        delete attributes[key];
       continue;
     }
     if (URL_ATTRS.has(lower)) {
@@ -233,7 +231,10 @@ function maskInputEvent(event: unknown): void {
  * @param events  the emitted rrweb events (eventWithTime[])
  * @param baseConfig  optional customer redaction config (custom rules/allow props)
  */
-export function scrubReplayEvents<T>(events: readonly T[], baseConfig?: RedactionEngineConfig): T[] {
+export function scrubReplayEvents<T>(
+  events: readonly T[],
+  baseConfig?: RedactionEngineConfig,
+): T[] {
   const config = replayRedactionConfig(baseConfig);
   // Deep clone so the retained buffer is untouched (it may still be live).
   const cloned: T[] = JSON.parse(JSON.stringify(events));

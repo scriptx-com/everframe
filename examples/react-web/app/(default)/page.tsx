@@ -9,14 +9,14 @@
 //   - data-testid="cc-number" / "bearer-token" with the canonical PII strings
 //     (seeded-pii.spec.ts), plus the Sensitive block and password input
 //   - the companion section testids (CompanionQR)
-"use client";
-import Link from "next/link";
-import { useEverframe, Sensitive } from "@everframe/react";
-import { CompanionQR } from "./CompanionQR";
-import { SpecimenPlate } from "../components/SpecimenPlate";
-import { getSpecimen } from "../lib/specimens";
+'use client';
+import Link from 'next/link';
+import { useEverframe, Sensitive } from '@everframe/react';
+import { CompanionQR } from './CompanionQR';
+import { SpecimenPlate } from '../components/SpecimenPlate';
+import { getSpecimen } from '../lib/specimens';
 
-const HERO_SPECIMEN = getSpecimen("everframe-008")!; // stag beetle
+const HERO_SPECIMEN = getSpecimen('everframe-008')!; // stag beetle
 
 export default function Home() {
   const { open } = useEverframe();
@@ -28,25 +28,18 @@ export default function Home() {
           <p className="eyebrow" data-testid="home-heading">
             Everframe Web SDK Example
           </p>
-          <h1 className="display">
-            A field catalog built to be broken
-          </h1>
+          <h1 className="display">A field catalog built to be broken</h1>
           <p className="lede">
-            Elytra is a small insect field guide that exists so the Everframe
-            reporter has something real to capture: pages to navigate, lists to
-            mutate, images to screenshot, and seeded PII to redact. Wander
-            around, then file a bug about a bug — the report button floats in
+            Elytra is a small insect field guide that exists so the Everframe reporter has something
+            real to capture: pages to navigate, lists to mutate, images to screenshot, and seeded
+            PII to redact. Wander around, then file a bug about a bug — the report button floats in
             the corner of every page, or press Cmd/Ctrl+Shift+B.
           </p>
           <div className="btn-row">
             <Link href="/specimens" className="btn btn-primary">
               Browse the specimens
             </Link>
-            <button
-              className="btn"
-              data-testid="open-via-hook"
-              onClick={() => open()}
-            >
+            <button className="btn" data-testid="open-via-hook" onClick={() => open()}>
               Open reporter via useEverframe().open()
             </button>
           </div>
@@ -61,8 +54,8 @@ export default function Home() {
           <div className="card">
             <h3>Specimens</h3>
             <p>
-              An illustrated catalog with filters and detail pages — navigation
-              breadcrumbs and image capture across routes.
+              An illustrated catalog with filters and detail pages — navigation breadcrumbs and
+              image capture across routes.
             </p>
           </div>
         </Link>
@@ -70,8 +63,8 @@ export default function Home() {
           <div className="card">
             <h3>Field log</h3>
             <p>
-              An interactive observation list — add, confirm, and delete
-              entries to feed click breadcrumbs and DOM mutations into replay.
+              An interactive observation list — add, confirm, and delete entries to feed click
+              breadcrumbs and DOM mutations into replay.
             </p>
           </div>
         </Link>
@@ -79,9 +72,8 @@ export default function Home() {
           <div className="card">
             <h3>Archive</h3>
             <p>
-              A year of sighting records in one long page — deep scrolling,
-              sticky month headers, and a back-to-top jump for replay to
-              capture.
+              A year of sighting records in one long page — deep scrolling, sticky month headers,
+              and a back-to-top jump for replay to capture.
             </p>
           </div>
         </Link>
@@ -89,8 +81,8 @@ export default function Home() {
           <div className="card">
             <h3>Settings</h3>
             <p>
-              The SDK surface beyond open(): setUser, setExtra, the hotkey,
-              and the kill switch — wired to real controls.
+              The SDK surface beyond open(): setUser, setExtra, the hotkey, and the kill switch —
+              wired to real controls.
             </p>
           </div>
         </Link>
@@ -98,14 +90,12 @@ export default function Home() {
 
       <section className="card profile-card">
         <span className="fixture-note">
-          fixture · seeded PII — every value below must be redacted from the
-          report envelope
+          fixture · seeded PII — every value below must be redacted from the report envelope
         </span>
         <h2 className="section-title">Collector profile</h2>
         <p className="muted">
-          A pretend membership card. The reporter captures this page; the
-          sdk-core redaction engine must scrub these values before the
-          envelope leaves the browser.
+          A pretend membership card. The reporter captures this page; the sdk-core redaction engine
+          must scrub these values before the envelope leaves the browser.
         </p>
         <dl className="facts">
           <div>
@@ -138,9 +128,7 @@ export default function Home() {
       </section>
 
       <section className="card">
-        <span className="fixture-note">
-          fixture · phone-companion relay pairing
-        </span>
+        <span className="fixture-note">fixture · phone-companion relay pairing</span>
         <CompanionQR />
       </section>
 

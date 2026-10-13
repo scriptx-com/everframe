@@ -24,7 +24,9 @@ function cargoAvailable() {
 
 if (!cargoAvailable()) {
   console.warn('[swc-plugin] cargo not found — skipping WASM build.');
-  console.warn('[swc-plugin] JS wrapper (tsup) will still build; the WASM transform tests will skip via skipIf(!wasmAvailable).');
+  console.warn(
+    '[swc-plugin] JS wrapper (tsup) will still build; the WASM transform tests will skip via skipIf(!wasmAvailable).',
+  );
   console.warn('[swc-plugin] To produce the WASM artifact, install rustup and run:');
   console.warn('[swc-plugin]   rustup target add wasm32-wasip1');
   process.exit(0);
@@ -58,8 +60,12 @@ function wasmTargetInstalled() {
 }
 
 if (!wasmTargetInstalled()) {
-  console.warn('[swc-plugin] cargo is present but the wasm32-wasip1 target is not installed — skipping WASM build.');
-  console.warn('[swc-plugin] JS wrapper (tsup) will still build; the WASM transform tests skip via skipIf(!wasmAvailable).');
+  console.warn(
+    '[swc-plugin] cargo is present but the wasm32-wasip1 target is not installed — skipping WASM build.',
+  );
+  console.warn(
+    '[swc-plugin] JS wrapper (tsup) will still build; the WASM transform tests skip via skipIf(!wasmAvailable).',
+  );
   console.warn('[swc-plugin] To produce the WASM artifact, run:');
   console.warn('[swc-plugin]   rustup target add wasm32-wasip1');
   process.exit(0);
@@ -79,7 +85,13 @@ try {
   process.exit(1);
 }
 
-const artifact = path.join(__dirname, 'target', 'wasm32-wasip1', 'release', 'everframe_swc_plugin_displayname.wasm');
+const artifact = path.join(
+  __dirname,
+  'target',
+  'wasm32-wasip1',
+  'release',
+  'everframe_swc_plugin_displayname.wasm',
+);
 if (!existsSync(artifact)) {
   console.error(`[swc-plugin] expected artifact at ${artifact} not found`);
   process.exit(1);

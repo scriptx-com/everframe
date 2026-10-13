@@ -57,7 +57,9 @@ import { stubIngest, openReporter } from './_helpers';
 
 const STATIC_TEST_NONCE = 'STATIC_TEST_NONCE_FOR_PLAYWRIGHT';
 
-test('the SDK threads cspNonce to the reporter stylesheet it injects at mount', async ({ page }) => {
+test('the SDK threads cspNonce to the reporter stylesheet it injects at mount', async ({
+  page,
+}) => {
   page.on('pageerror', (e) => console.error('[page]', e.message));
   stubIngest(page);
 

@@ -16,22 +16,38 @@ describe('wrapFunctions', () => {
     const out = wrapFunctions(src, T({ main: { entry: 'Main (source/main.brs)', isTask: false } }));
     expect(out.code.split('\n')).toHaveLength(4);
     expect(out.code.split('\n')[0]).toBe(`sub Main() : try ${MARKER}`);
-    expect(out.code.split('\n')[2]).toBe('catch everframe_e : Everframe_OnError(everframe_e, "Main (source/main.brs)", false) : throw everframe_e : end try : end sub');
+    expect(out.code.split('\n')[2]).toBe(
+      'catch everframe_e : Everframe_OnError(everframe_e, "Main (source/main.brs)", false) : throw everframe_e : end try : end sub',
+    );
     expect(out.wrapped).toEqual(['Main']);
     expect(Parser.parse(out.code).diagnostics).toEqual([]);
   });
 
   it('matches names case-insensitively and keeps trailing comments intact', () => {
-    const src = ['Function OnKeyEvent(k as string, p as boolean) as boolean \' handle keys', '  return false', 'End Function'].join('\n');
-    const out = wrapFunctions(src, T({ onkeyevent: { entry: 'onKeyEvent (components/Home.brs)', isTask: false, crumb: 'key' } }));
+    const src = [
+      "Function OnKeyEvent(k as string, p as boolean) as boolean ' handle keys",
+      '  return false',
+      'End Function',
+    ].join('\n');
+    const out = wrapFunctions(
+      src,
+      T({ onkeyevent: { entry: 'onKeyEvent (components/Home.brs)', isTask: false, crumb: 'key' } }),
+    );
     const first = out.code.split('\n')[0]!;
-    expect(first).toBe(`Function OnKeyEvent(k as string, p as boolean) as boolean : try : Everframe_KeyCrumb(k, p) ${MARKER} ' handle keys`);
+    expect(first).toBe(
+      `Function OnKeyEvent(k as string, p as boolean) as boolean : try : Everframe_KeyCrumb(k, p) ${MARKER} ' handle keys`,
+    );
     expect(Parser.parse(out.code).diagnostics).toEqual([]);
   });
 
   it('adds the init lifecycle crumb', () => {
-    const out = wrapFunctions('sub init()\nend sub\n', T({ init: { entry: 'HomeScene', isTask: false, crumb: 'init' } }));
-    expect(out.code).toContain(`sub init() : try : Everframe_Crumb("lifecycle", "init HomeScene", invalid) ${MARKER}`);
+    const out = wrapFunctions(
+      'sub init()\nend sub\n',
+      T({ init: { entry: 'HomeScene', isTask: false, crumb: 'init' } }),
+    );
+    expect(out.code).toContain(
+      `sub init() : try : Everframe_Crumb("lifecycle", "init HomeScene", invalid) ${MARKER}`,
+    );
   });
 
   it('is idempotent', () => {
@@ -43,8 +59,21 @@ describe('wrapFunctions', () => {
   });
 
   it('skips single-line functions and code before end', () => {
-    const src = ['sub a() : end sub', 'sub b()', '  x = 1 : end sub', 'sub c() : x = 1', 'end sub'].join('\n');
-    const out = wrapFunctions(src, T({ a: { entry: 'a', isTask: false }, b: { entry: 'b', isTask: false }, c: { entry: 'c', isTask: false } }));
+    const src = [
+      'sub a() : end sub',
+      'sub b()',
+      '  x = 1 : end sub',
+      'sub c() : x = 1',
+      'end sub',
+    ].join('\n');
+    const out = wrapFunctions(
+      src,
+      T({
+        a: { entry: 'a', isTask: false },
+        b: { entry: 'b', isTask: false },
+        c: { entry: 'c', isTask: false },
+      }),
+    );
     expect(out.code).toBe(src);
     expect(out.skipped.map((s) => s.fn).sort()).toEqual(['a', 'b', 'c']);
   });
@@ -57,31 +86,50 @@ describe('wrapFunctions', () => {
   });
 
   it('preserves CRLF line endings', () => {
-    const out = wrapFunctions('sub Main()\r\n  print 1\r\nend sub\r\n', T({ main: { entry: 'Main', isTask: false } }));
+    const out = wrapFunctions(
+      'sub Main()\r\n  print 1\r\nend sub\r\n',
+      T({ main: { entry: 'Main', isTask: false } }),
+    );
     expect(out.code.split('\r\n')).toHaveLength(4);
   });
 
-  it('mixed CRLF/LF: edits land on the parser\'s lines and every terminator is kept', () => {
-    const src = "' header\r\nsub helper()\n  print 0\nend sub\r\nsub Main()\n  print 1\r\n  print 2\nend sub\r\n";
+  it("mixed CRLF/LF: edits land on the parser's lines and every terminator is kept", () => {
+    const src =
+      "' header\r\nsub helper()\n  print 0\nend sub\r\nsub Main()\n  print 1\r\n  print 2\nend sub\r\n";
     const out = wrapFunctions(src, T({ main: { entry: 'Main', isTask: false } }));
     expect(out.wrapped).toEqual(['Main']);
     expect(Parser.parse(out.code).diagnostics).toEqual([]);
     expect(out.code).toBe(
       "' header\r\nsub helper()\n  print 0\nend sub\r\n" +
-      `sub Main() : try ${MARKER}\n  print 1\r\n  print 2\n` +
-      'catch everframe_e : Everframe_OnError(everframe_e, "Main", false) : throw everframe_e : end try : end sub\r\n',
+        `sub Main() : try ${MARKER}\n  print 1\r\n  print 2\n` +
+        'catch everframe_e : Everframe_OnError(everframe_e, "Main", false) : throw everframe_e : end try : end sub\r\n',
     );
   });
 
   it('wrapped code runs: error is reported with entry, then re-thrown as a crash', async () => {
-    const src = ['sub Main()', '  Boom()', 'end sub', 'sub Boom()', '  x = invalid', '  x.go()', 'end sub', ''].join('\n');
-    const code = wrapFunctions(src, T({ main: { entry: 'Main (source/main.brs)', isTask: false } })).code;
+    const src = [
+      'sub Main()',
+      '  Boom()',
+      'end sub',
+      'sub Boom()',
+      '  x = invalid',
+      '  x.go()',
+      'end sub',
+      '',
+    ].join('\n');
+    const code = wrapFunctions(
+      src,
+      T({ main: { entry: 'Main (source/main.brs)', isTask: false } }),
+    ).code;
     const dir = mkdtempSync(path.join(tmpdir(), 'efwrap-'));
     const app = path.join(dir, 'app.brs');
     const stub = path.join(dir, 'stub.brs');
     // Rename Main so the harness's own Main drives it.
     writeFileSync(app, code.replace('sub Main()', 'sub App()'));
-    writeFileSync(stub, 'sub Everframe_OnError(e as object, entry as string, isTask as boolean)\n  print "EFTEST:" + FormatJson({ entry: entry, isTask: isTask, line: e.backtrace[e.backtrace.Count() - 1].line_number })\nend sub\n');
+    writeFileSync(
+      stub,
+      'sub Everframe_OnError(e as object, entry as string, isTask as boolean)\n  print "EFTEST:" + FormatJson({ entry: entry, isTask: isTask, line: e.backtrace[e.backtrace.Count() - 1].line_number })\nend sub\n',
+    );
     const { lines, stdout } = await runBrs([], 'App()', { extraFiles: [app, stub] });
     expect(lines[0]).toEqual({ entry: 'Main (source/main.brs)', isTask: false, line: 6 });
     expect(stdout).toContain('EXIT_BRIGHTSCRIPT_CRASH');
@@ -101,17 +149,39 @@ describe('wrapFunctions', () => {
   };
 
   it('crumb key variant runs: helper gets (key, press) on every call, reports, then crashes', async () => {
-    const src = ['function OnKey(k as string, p as boolean) as boolean', '  x = invalid', '  x.go()', '  return true', 'end function', ''].join('\n');
-    const code = wrapFunctions(src, T({ onkey: { entry: 'OnKey (c.brs)', isTask: false, crumb: 'key' } })).code;
-    const { lines, stdout } = await runWith(code, '  try : OnKey("ok", false) : catch e : print "EFTEST:" + FormatJson({ released: true }) : end try\n  OnKey("ok", true)');
+    const src = [
+      'function OnKey(k as string, p as boolean) as boolean',
+      '  x = invalid',
+      '  x.go()',
+      '  return true',
+      'end function',
+      '',
+    ].join('\n');
+    const code = wrapFunctions(
+      src,
+      T({ onkey: { entry: 'OnKey (c.brs)', isTask: false, crumb: 'key' } }),
+    ).code;
+    const { lines, stdout } = await runWith(
+      code,
+      '  try : OnKey("ok", false) : catch e : print "EFTEST:" + FormatJson({ released: true }) : end try\n  OnKey("ok", true)',
+    );
     expect(Parser.parse(code).diagnostics).toEqual([]);
-    expect(lines).toEqual([{ keyCrumb: ['ok', false] }, { onError: 'OnKey (c.brs)' }, { released: true }, { keyCrumb: ['ok', true] }, { onError: 'OnKey (c.brs)' }]);
+    expect(lines).toEqual([
+      { keyCrumb: ['ok', false] },
+      { onError: 'OnKey (c.brs)' },
+      { released: true },
+      { keyCrumb: ['ok', true] },
+      { onError: 'OnKey (c.brs)' },
+    ]);
     expect(stdout).toContain('EXIT_BRIGHTSCRIPT_CRASH');
   });
 
   it('crumb init variant runs: crumb, report, crash', async () => {
     const src = ['sub init()', '  x = invalid', '  x.go()', 'end sub', ''].join('\n');
-    const code = wrapFunctions(src, T({ init: { entry: 'HomeScene', isTask: false, crumb: 'init' } })).code;
+    const code = wrapFunctions(
+      src,
+      T({ init: { entry: 'HomeScene', isTask: false, crumb: 'init' } }),
+    ).code;
     const { lines, stdout } = await runWith(code, '  init()');
     expect(Parser.parse(code).diagnostics).toEqual([]);
     expect(lines).toEqual([{ crumb: ['lifecycle', 'init HomeScene'] }, { onError: 'HomeScene' }]);
@@ -119,47 +189,95 @@ describe('wrapFunctions', () => {
   });
 
   it('reports a key-crumb target with fewer than 2 parameters but still wraps it', () => {
-    const out = wrapFunctions('sub onKeyEvent(k as string)\n  print k\nend sub\n', T({ onkeyevent: { entry: 'K', isTask: false, crumb: 'key' } }));
+    const out = wrapFunctions(
+      'sub onKeyEvent(k as string)\n  print k\nend sub\n',
+      T({ onkeyevent: { entry: 'K', isTask: false, crumb: 'key' } }),
+    );
     expect(out.wrapped).toEqual(['onKeyEvent']);
-    expect(out.skipped).toEqual([{ fn: 'onKeyEvent', reason: 'onKeyEvent has fewer than 2 parameters; no key breadcrumb' }]);
+    expect(out.skipped).toEqual([
+      { fn: 'onKeyEvent', reason: 'onKeyEvent has fewer than 2 parameters; no key breadcrumb' },
+    ]);
     expect(out.code.split('\n')[0]).toBe(`sub onKeyEvent(k as string) : try ${MARKER}`);
     expect(Parser.parse(out.code).diagnostics).toEqual([]);
   });
 
   it('recordExit prelude: Everframe_RecordLastExit() first, on the signature line', () => {
     const src = ['sub Main(args as dynamic)', '  print 1', 'end sub', ''].join('\n');
-    const out = wrapFunctions(src, T({ main: { entry: 'Main (source/main.brs)', isTask: false, prelude: 'recordExit' } }));
+    const out = wrapFunctions(
+      src,
+      T({ main: { entry: 'Main (source/main.brs)', isTask: false, prelude: 'recordExit' } }),
+    );
     expect(out.code.split('\n')).toHaveLength(4);
-    expect(out.code.split('\n')[0]).toBe(`sub Main(args as dynamic) : try : Everframe_RecordLastExit() ${MARKER}`);
+    expect(out.code.split('\n')[0]).toBe(
+      `sub Main(args as dynamic) : try : Everframe_RecordLastExit() ${MARKER}`,
+    );
     expect(Parser.parse(out.code).diagnostics).toEqual([]);
   });
 
   it('recordExit prelude runs before any host code in the body', async () => {
     const src = ['sub App()', '  print "EFTEST:" + FormatJson("body")', 'end sub', ''].join('\n');
-    const code = wrapFunctions(src, T({ app: { entry: 'App', isTask: false, prelude: 'recordExit' } })).code;
+    const code = wrapFunctions(
+      src,
+      T({ app: { entry: 'App', isTask: false, prelude: 'recordExit' } }),
+    ).code;
     const dir = mkdtempSync(path.join(tmpdir(), 'efwrap-'));
     const app = path.join(dir, 'app.brs');
     const stub = path.join(dir, 'stub.brs');
     writeFileSync(app, code);
-    writeFileSync(stub, STUBS + 'sub Everframe_RecordLastExit()\n  print "EFTEST:" + FormatJson("recordLastExit")\nend sub\n');
+    writeFileSync(
+      stub,
+      STUBS +
+        'sub Everframe_RecordLastExit()\n  print "EFTEST:" + FormatJson("recordLastExit")\nend sub\n',
+    );
     const { lines } = await runBrs([], '  App()', { extraFiles: [app, stub] });
     expect(lines).toEqual(['recordLastExit', 'body']);
   });
   it('skips a function containing a label: BrightScript forbids labels inside try', () => {
-    const src = ['sub Main()', '  if true then goto done', '  print "skipped"', 'done:', '  print "EFTEST:" + FormatJson("done")', 'end sub', ''].join('\n');
+    const src = [
+      'sub Main()',
+      '  if true then goto done',
+      '  print "skipped"',
+      'done:',
+      '  print "EFTEST:" + FormatJson("done")',
+      'end sub',
+      '',
+    ].join('\n');
     const out = wrapFunctions(src, T({ main: { entry: 'Main', isTask: false } }));
     expect(out.code).toBe(src);
     expect(out.wrapped).toEqual([]);
-    expect(out.skipped).toEqual([{ fn: 'Main', reason: 'contains a label (labels are illegal inside try)' }]);
+    expect(out.skipped).toEqual([
+      { fn: 'Main', reason: 'contains a label (labels are illegal inside try)' },
+    ]);
     // Nested labels (inside a loop) count too; other functions in the file are still wrapped.
-    const nested = ['sub init()', '  for i = 0 to 1', 'again:', '  end for', 'end sub', 'sub other()', '  print 1', 'end sub', ''].join('\n');
-    const res = wrapFunctions(nested, T({ init: { entry: 'X', isTask: false }, other: { entry: 'Y', isTask: false } }));
+    const nested = [
+      'sub init()',
+      '  for i = 0 to 1',
+      'again:',
+      '  end for',
+      'end sub',
+      'sub other()',
+      '  print 1',
+      'end sub',
+      '',
+    ].join('\n');
+    const res = wrapFunctions(
+      nested,
+      T({ init: { entry: 'X', isTask: false }, other: { entry: 'Y', isTask: false } }),
+    );
     expect(res.wrapped).toEqual(['other']);
     expect(res.skipped.map((s) => s.fn)).toEqual(['init']);
   });
 
   it('runtime: the label function left unwrapped still compiles and runs (brs-cli rejects labels inside try)', async () => {
-    const src = ['sub App()', '  goto done', '  print "EFTEST:" + FormatJson("skipped")', 'done:', '  print "EFTEST:" + FormatJson("done")', 'end sub', ''].join('\n');
+    const src = [
+      'sub App()',
+      '  goto done',
+      '  print "EFTEST:" + FormatJson("skipped")',
+      'done:',
+      '  print "EFTEST:" + FormatJson("done")',
+      'end sub',
+      '',
+    ].join('\n');
     const dir = mkdtempSync(path.join(tmpdir(), 'efwrap-'));
     const app = path.join(dir, 'app.brs');
     writeFileSync(app, wrapFunctions(src, T({ app: { entry: 'App', isTask: false } })).code);
@@ -167,7 +285,10 @@ describe('wrapFunctions', () => {
     expect(ok.lines).toEqual(['done']);
     // What wrapping would have produced: a compile error (reported on stderr), so nothing runs.
     const bad = path.join(dir, 'bad.brs');
-    writeFileSync(bad, src.replace('sub App()', 'sub App() : try').replace('end sub', 'catch e : end try : end sub'));
+    writeFileSync(
+      bad,
+      src.replace('sub App()', 'sub App() : try').replace('end sub', 'catch e : end try : end sub'),
+    );
     const broken = await runBrs([], '  App()', { extraFiles: [bad] });
     expect(broken.lines).toEqual([]);
     expect(broken.stdout).toContain('EXIT_BRIGHTSCRIPT_CRASH');
@@ -175,31 +296,66 @@ describe('wrapFunctions', () => {
 
   it('screenIf: Everframe_ScreenIf(<expression>, "A,B") on the signature line', () => {
     const src = ['sub init()', '  print 1', 'end sub', ''].join('\n');
-    const out = wrapFunctions(src, T({ init: { entry: 'Base', isTask: false, screenIf: { expr: 'm.top.subtype()', names: ['DetailsScreen', 'OtherScreen'] } } }));
+    const out = wrapFunctions(
+      src,
+      T({
+        init: {
+          entry: 'Base',
+          isTask: false,
+          screenIf: { expr: 'm.top.subtype()', names: ['DetailsScreen', 'OtherScreen'] },
+        },
+      }),
+    );
     expect(out.code.split('\n')).toHaveLength(4);
-    expect(out.code.split('\n')[0]).toBe(`sub init() : try : Everframe_ScreenIf(m.top.subtype(), "DetailsScreen,OtherScreen") ${MARKER}`);
+    expect(out.code.split('\n')[0]).toBe(
+      `sub init() : try : Everframe_ScreenIf(m.top.subtype(), "DetailsScreen,OtherScreen") ${MARKER}`,
+    );
     expect(Parser.parse(out.code).diagnostics).toEqual([]);
   });
 
   it('screen: Everframe_Screen(<expression>) on the signature line, after the scene crumb', () => {
     const src = ['sub init()', '  print 1', 'end sub', ''].join('\n');
-    const out = wrapFunctions(src, T({ init: { entry: 'DetailsScreen', isTask: false, screen: 'm.top.subtype()' } }));
+    const out = wrapFunctions(
+      src,
+      T({ init: { entry: 'DetailsScreen', isTask: false, screen: 'm.top.subtype()' } }),
+    );
     expect(out.code.split('\n')).toHaveLength(4);
-    expect(out.code.split('\n')[0]).toBe(`sub init() : try : Everframe_Screen(m.top.subtype()) ${MARKER}`);
+    expect(out.code.split('\n')[0]).toBe(
+      `sub init() : try : Everframe_Screen(m.top.subtype()) ${MARKER}`,
+    );
     expect(Parser.parse(out.code).diagnostics).toEqual([]);
-    const both = wrapFunctions(src, T({ init: { entry: 'HomeScreen', isTask: false, crumb: 'init', screen: 'm.top.subtype()' } }));
-    expect(both.code.split('\n')[0]).toBe(`sub init() : try : Everframe_Crumb("lifecycle", "init HomeScreen", invalid) : Everframe_Screen(m.top.subtype()) ${MARKER}`);
+    const both = wrapFunctions(
+      src,
+      T({ init: { entry: 'HomeScreen', isTask: false, crumb: 'init', screen: 'm.top.subtype()' } }),
+    );
+    expect(both.code.split('\n')[0]).toBe(
+      `sub init() : try : Everframe_Crumb("lifecycle", "init HomeScreen", invalid) : Everframe_Screen(m.top.subtype()) ${MARKER}`,
+    );
     expect(Parser.parse(both.code).diagnostics).toEqual([]);
   });
 
   it('screen variant runs: screen hook first, then the body; an error is still reported and re-thrown', async () => {
-    const src = ['sub init()', '  print "EFTEST:" + FormatJson("body")', '  x = invalid', '  x.go()', 'end sub', ''].join('\n');
-    const code = wrapFunctions(src, T({ init: { entry: 'DetailsScreen', isTask: false, screen: '"DetailsScreen"' } })).code;
+    const src = [
+      'sub init()',
+      '  print "EFTEST:" + FormatJson("body")',
+      '  x = invalid',
+      '  x.go()',
+      'end sub',
+      '',
+    ].join('\n');
+    const code = wrapFunctions(
+      src,
+      T({ init: { entry: 'DetailsScreen', isTask: false, screen: '"DetailsScreen"' } }),
+    ).code;
     const dir = mkdtempSync(path.join(tmpdir(), 'efwrap-'));
     const app = path.join(dir, 'app.brs');
     const stub = path.join(dir, 'stub.brs');
     writeFileSync(app, code);
-    writeFileSync(stub, STUBS + 'sub Everframe_Screen(name as dynamic)\n  print "EFTEST:" + FormatJson({ screen: name })\nend sub\n');
+    writeFileSync(
+      stub,
+      STUBS +
+        'sub Everframe_Screen(name as dynamic)\n  print "EFTEST:" + FormatJson({ screen: name })\nend sub\n',
+    );
     const { lines, stdout } = await runBrs([], '  init()', { extraFiles: [app, stub] });
     expect(lines).toEqual([{ screen: 'DetailsScreen' }, 'body', { onError: 'DetailsScreen' }]);
     expect(stdout).toContain('EXIT_BRIGHTSCRIPT_CRASH');

@@ -4,15 +4,15 @@ name: KmpIosProbes
 options:
   bundleIdPrefix: dev.everframe.kmpprobe
   deploymentTarget:
-    iOS: "17.0"
+    iOS: '17.0'
 packages:
   Everframe:
     path: ../../packages/sdk-ios
 settings:
   base:
-    SWIFT_VERSION: "5.10"
+    SWIFT_VERSION: '5.10'
     CODE_SIGNING_ALLOWED: NO
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: ''
 targets:
   KmpNativeProbe:
     type: application

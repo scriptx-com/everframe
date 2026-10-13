@@ -56,16 +56,22 @@ afterEach(() => {
 });
 
 function stubFetch(replayEnabled: boolean): void {
-  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-    if (String(input).includes('/api/config')) {
-      return new Response(JSON.stringify({
-        replayEnabled,
-        replayDurationSec: 30,
-        samplingRate: 1,
-      }), { status: 200, headers: { 'content-type': 'application/json' } });
-    }
-    return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
-  }));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/api/config')) {
+        return new Response(
+          JSON.stringify({
+            replayEnabled,
+            replayDurationSec: 30,
+            samplingRate: 1,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+    }),
+  );
 }
 
 async function settle(): Promise<void> {
@@ -77,7 +83,10 @@ async function settle(): Promise<void> {
 function mount(reporterDisabled: boolean, strict = false): void {
   const tree = (
     <EverframeProvider
-      config={{ sdkKey: 'txx_live_test', ...(reporterDisabled ? { reporter: { disabled: true } } : {}) }}
+      config={{
+        sdkKey: 'txx_live_test',
+        ...(reporterDisabled ? { reporter: { disabled: true } } : {}),
+      }}
     >
       <Probe />
     </EverframeProvider>
@@ -87,12 +96,14 @@ function mount(reporterDisabled: boolean, strict = false): void {
 
 async function pressHotkey(): Promise<void> {
   await act(async () => {
-    window.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'B',
-      ctrlKey: true,
-      shiftKey: true,
-      bubbles: true,
-    }));
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'B',
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+      }),
+    );
     await Promise.resolve();
   });
 }

@@ -3,7 +3,10 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SENSITIVE_ATTR } from '../../src/sensitive/registry.js';
-import { createCloneMaskPlugin, expandMaskTargets } from '../../src/capture/renderers/clone-mask.js';
+import {
+  createCloneMaskPlugin,
+  expandMaskTargets,
+} from '../../src/capture/renderers/clone-mask.js';
 import { STAND_IN_ATTR } from '../../src/capture/video-frames.js';
 
 /** snapDOM-style deep clone of `src` with its clone -> source nodeMap. */
@@ -12,7 +15,8 @@ function cloneWithMap(src: Element): { clone: Element; nodeMap: Map<Node, Node> 
   const walk = (s: Element): Element => {
     const c = s.cloneNode(false) as Element;
     nodeMap.set(c, s);
-    for (const k of Array.from(s.childNodes)) c.appendChild(k.nodeType === 1 ? walk(k as Element) : k.cloneNode(true));
+    for (const k of Array.from(s.childNodes))
+      c.appendChild(k.nodeType === 1 ? walk(k as Element) : k.cloneNode(true));
     return c;
   };
   return { clone: walk(src), nodeMap };
@@ -54,10 +58,13 @@ describe('createCloneMaskPlugin', () => {
   });
 
   it('a target nested inside another target is gone with its ancestor (no double replacement)', () => {
-    document.body.innerHTML = '<main><section id="outer"><span id="inner">x</span></section></main>';
+    document.body.innerHTML =
+      '<main><section id="outer"><span id="inner">x</span></section></main>';
     const main = document.querySelector('main')!;
     const ctx = cloneWithMap(main);
-    createCloneMaskPlugin(listed(document.getElementById('outer')!, document.getElementById('inner')!)).afterClone(ctx);
+    createCloneMaskPlugin(
+      listed(document.getElementById('outer')!, document.getElementById('inner')!),
+    ).afterClone(ctx);
     expect(ctx.clone.children).toHaveLength(1);
     expect(ctx.clone.firstElementChild!.childNodes).toHaveLength(0);
   });
@@ -69,8 +76,9 @@ describe('createCloneMaskPlugin', () => {
     expect(ctx.clone.childElementCount).toBe(0);
   });
 
-  it('keeps snapDOM\'s placement of a lifted fixed element', () => {
-    document.body.innerHTML = '<main><div id="fab" style="position:fixed;right:0;bottom:0">x</div></main>';
+  it("keeps snapDOM's placement of a lifted fixed element", () => {
+    document.body.innerHTML =
+      '<main><div id="fab" style="position:fixed;right:0;bottom:0">x</div></main>';
     const ctx = cloneWithMap(document.querySelector('main')!);
     const fabClone = ctx.clone.firstElementChild as HTMLElement;
     fabClone.style.position = 'absolute'; // what snapDOM's freezeViewportPositioned does
@@ -137,7 +145,7 @@ describe('createCloneMaskPlugin', () => {
     expect(ctx.clone.textContent).not.toContain('secret');
   });
 
-  it('crosses shadow roots: a node inside a sensitive host\'s shadow tree is masked', () => {
+  it("crosses shadow roots: a node inside a sensitive host's shadow tree is masked", () => {
     document.body.innerHTML = '<main><div id="host"></div></main>';
     const host = document.getElementById('host')!;
     const shadow = host.attachShadow({ mode: 'open' });
@@ -150,13 +158,17 @@ describe('createCloneMaskPlugin', () => {
     const clone = main.cloneNode(false) as Element;
     const innerClone = inner.cloneNode(true) as Element;
     clone.appendChild(innerClone);
-    const nodeMap = new Map<Node, Node>([[clone, main], [innerClone, inner]]);
+    const nodeMap = new Map<Node, Node>([
+      [clone, main],
+      [innerClone, inner],
+    ]);
     createCloneMaskPlugin(listed(host)).afterClone({ clone, nodeMap });
     expect(clone.textContent).not.toContain('shadow secret');
   });
 
   it('follows assignedSlot: light-DOM content slotted into a sensitive <slot> is masked', () => {
-    document.body.innerHTML = '<main><div id="host"><span id="slotted">slotted secret</span></div></main>';
+    document.body.innerHTML =
+      '<main><div id="host"><span id="slotted">slotted secret</span></div></main>';
     const host = document.getElementById('host')!;
     const slotted = document.getElementById('slotted')!;
     const shadow = host.attachShadow({ mode: 'open' });
@@ -168,7 +180,10 @@ describe('createCloneMaskPlugin', () => {
     const clone = main.cloneNode(false) as Element;
     const slottedClone = slotted.cloneNode(true) as Element;
     clone.appendChild(slottedClone);
-    const nodeMap = new Map<Node, Node>([[clone, main], [slottedClone, slotted]]);
+    const nodeMap = new Map<Node, Node>([
+      [clone, main],
+      [slottedClone, slotted],
+    ]);
     // The slot itself, and (separately) a shadow-tree element around it.
     createCloneMaskPlugin(listed(slot)).afterClone({ clone, nodeMap });
     expect(clone.textContent).not.toContain('slotted secret');
@@ -176,12 +191,19 @@ describe('createCloneMaskPlugin', () => {
     const slottedClone2 = slotted.cloneNode(true) as Element;
     clone2.appendChild(slottedClone2);
     const frame = shadow.getElementById('frame')!;
-    createCloneMaskPlugin(listed(frame)).afterClone({ clone: clone2, nodeMap: new Map<Node, Node>([[clone2, main], [slottedClone2, slotted]]) });
+    createCloneMaskPlugin(listed(frame)).afterClone({
+      clone: clone2,
+      nodeMap: new Map<Node, Node>([
+        [clone2, main],
+        [slottedClone2, slotted],
+      ]),
+    });
     expect(clone2.textContent).not.toContain('slotted secret');
   });
 
   it('masks bare light-DOM text snapDOM copied (unmapped) into a host whose slot is sensitive', () => {
-    document.body.innerHTML = '<main><div id="host">SECRET 8877</div><div id="open">public</div></main>';
+    document.body.innerHTML =
+      '<main><div id="host">SECRET 8877</div><div id="open">public</div></main>';
     const host = document.getElementById('host')!;
     host.attachShadow({ mode: 'open' }).innerHTML = '<slot data-everframe-sensitive></slot>';
     const open = document.getElementById('open')!;
@@ -194,7 +216,11 @@ describe('createCloneMaskPlugin', () => {
     const openClone = open.cloneNode(false) as Element;
     openClone.appendChild(document.createTextNode('public'));
     clone.append(hostClone, openClone);
-    const nodeMap = new Map<Node, Node>([[clone, main], [hostClone, host], [openClone, open]]);
+    const nodeMap = new Map<Node, Node>([
+      [clone, main],
+      [hostClone, host],
+      [openClone, open],
+    ]);
     const isSlotAttr = (el: Element): boolean => el.hasAttribute('data-everframe-sensitive');
     createCloneMaskPlugin(isSlotAttr).afterClone({ clone, nodeMap });
     const wrap = hostClone.firstChild as HTMLElement;
@@ -215,7 +241,7 @@ describe('createCloneMaskPlugin', () => {
     expect(ctx.clone.textContent).not.toContain('alpha');
   });
 
-  it('a lifted element keeps snapDOM\'s frozen transform instead of re-applying the live one', () => {
+  it("a lifted element keeps snapDOM's frozen transform instead of re-applying the live one", () => {
     document.body.innerHTML =
       '<main><div id="modal" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:200px;height:80px">m</div></main>';
     const ctx = cloneWithMap(document.querySelector('main')!);
@@ -236,7 +262,8 @@ describe('createCloneMaskPlugin', () => {
   });
 
   it('a sensitive display:contents wrapper masks its children individually (no layout collapse)', () => {
-    document.body.innerHTML = '<main><div id="w" style="display:contents"><p id="c1">one</p><p id="c2">two</p></div></main>';
+    document.body.innerHTML =
+      '<main><div id="w" style="display:contents"><p id="c1">one</p><p id="c2">two</p></div></main>';
     const ctx = cloneWithMap(document.querySelector('main')!);
     createCloneMaskPlugin(listed(document.getElementById('w')!)).afterClone(ctx);
     const wrapper = ctx.clone.firstElementChild!;
@@ -244,7 +271,7 @@ describe('createCloneMaskPlugin', () => {
     expect(ctx.clone.textContent).not.toMatch(/one|two/);
   });
 
-  it('a source the app detached after it was copied keeps the clone\'s snapshotted geometry, blacked out', () => {
+  it("a source the app detached after it was copied keeps the clone's snapshotted geometry, blacked out", () => {
     document.body.innerHTML = '<main><div id="gone" class="snap-a">secret</div></main>';
     const ctx = cloneWithMap(document.querySelector('main')!);
     const goneClone = ctx.clone.firstElementChild as HTMLElement;
@@ -261,7 +288,8 @@ describe('createCloneMaskPlugin', () => {
   });
 
   it('a sensitive display:contents wrapper hides its DIRECT text and drops generated children', () => {
-    document.body.innerHTML = '<main><p>Account: <span id="w" style="display:contents">99887766</span> end</p></main>';
+    document.body.innerHTML =
+      '<main><p>Account: <span id="w" style="display:contents">99887766</span> end</p></main>';
     const ctx = cloneWithMap(document.querySelector('main')!);
     const wrapperClone = ctx.clone.querySelector('#w')!;
     // What snapDOM does for a ::before pseudo-element: a real, unmapped child.
@@ -284,17 +312,23 @@ describe('createCloneMaskPlugin', () => {
     expect(span.children).toHaveLength(0);
   });
 
-  it('carries the source\'s zoom so a zoomed element is covered at its zoomed size', () => {
-    document.body.innerHTML = '<main><div id="z" style="zoom:2;width:200px;height:40px">z</div></main>';
+  it("carries the source's zoom so a zoomed element is covered at its zoomed size", () => {
+    document.body.innerHTML =
+      '<main><div id="z" style="zoom:2;width:200px;height:40px">z</div></main>';
     const z = document.getElementById('z')!;
     Object.defineProperty(z, 'offsetWidth', { value: 200, configurable: true });
     Object.defineProperty(z, 'offsetHeight', { value: 40, configurable: true });
     const real = window.getComputedStyle.bind(window);
-    const spy = vi.spyOn(window, 'getComputedStyle').mockImplementation((el: Element, pseudo?: string | null) => {
-      const cs = real(el, pseudo);
-      if (el !== z) return cs;
-      return new Proxy(cs, { get: (t, k) => (k === 'zoom' ? '2' : (t as unknown as Record<string | symbol, unknown>)[k]) });
-    });
+    const spy = vi
+      .spyOn(window, 'getComputedStyle')
+      .mockImplementation((el: Element, pseudo?: string | null) => {
+        const cs = real(el, pseudo);
+        if (el !== z) return cs;
+        return new Proxy(cs, {
+          get: (t, k) =>
+            k === 'zoom' ? '2' : (t as unknown as Record<string | symbol, unknown>)[k],
+        });
+      });
     const ctx = cloneWithMap(document.querySelector('main')!);
     createCloneMaskPlugin(listed(z)).afterClone(ctx);
     spy.mockRestore();
@@ -317,7 +351,9 @@ describe('createCloneMaskPlugin', () => {
     document.body.innerHTML = '<main><div id="secret">s</div></main>';
     const ctx = cloneWithMap(document.querySelector('main')!);
     createCloneMaskPlugin(() => false).afterClone(ctx);
-    createCloneMaskPlugin(listed(document.getElementById('secret')!)).afterClone({ clone: ctx.clone });
+    createCloneMaskPlugin(listed(document.getElementById('secret')!)).afterClone({
+      clone: ctx.clone,
+    });
     expect(ctx.clone.querySelector('#secret')).not.toBeNull();
   });
 });

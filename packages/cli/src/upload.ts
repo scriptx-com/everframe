@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { createHash } from "node:crypto";
-import { constants } from "node:fs";
-import { open, realpath, unlink, lstat } from "node:fs/promises";
-import type { ReadStream } from "node:fs";
-import { finished } from "node:stream/promises";
-import { snapshotArtifactFile, verifyDsymFile } from "./upload-snapshot.js";
-import { isIP } from "node:net";
-import { isAbsolute, relative, resolve, sep } from "node:path";
-import { ELF_MAX_BYTES, type BuildUploadStatus } from "@everframe/protocol";
-import { collectBuild, hashFile, type LocalBuild } from "./manifest.js";
+import { createHash } from 'node:crypto';
+import { constants } from 'node:fs';
+import { open, realpath, unlink, lstat } from 'node:fs/promises';
+import type { ReadStream } from 'node:fs';
+import { finished } from 'node:stream/promises';
+import { snapshotArtifactFile, verifyDsymFile } from './upload-snapshot.js';
+import { isIP } from 'node:net';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { ELF_MAX_BYTES, type BuildUploadStatus } from '@everframe/protocol';
+import { collectBuild, hashFile, type LocalBuild } from './manifest.js';
 
 export interface UploadOptions {
   appId: string;
@@ -37,7 +37,7 @@ export interface UploadDependencies {
 }
 
 /** Thrown once the overall upload budget is spent. */
-export const BUDGET_EXHAUSTED = "upload_time_budget_exhausted";
+export const BUDGET_EXHAUSTED = 'upload_time_budget_exhausted';
 const REQUEST_TIMEOUT_MS = 60_000;
 const UPLOAD_TIMEOUT_MS = 6 * 60_000;
 /** Without a budget, at most this many upload_busy/rate-limit waits per request. */
@@ -68,12 +68,12 @@ async function pause(ctx: RequestContext, milliseconds: number): Promise<void> {
 
 export type CollectedBuildUploadOptions = Pick<
   UploadOptions,
-  "appId" | "root" | "apiUrl" | "token" | "deleteAfterUpload"
+  'appId' | 'root' | 'apiUrl' | 'token' | 'deleteAfterUpload'
 >;
 
 class InvalidServerResponse extends Error {
   constructor() {
-    super("invalid_server_response");
+    super('invalid_server_response');
   }
 }
 
@@ -85,23 +85,23 @@ function apiBase(input: string): string {
   try {
     url = new URL(input);
   } catch {
-    throw new Error("invalid_api_url");
+    throw new Error('invalid_api_url');
   }
   const loopback =
-    url.hostname === "localhost" ||
-    url.hostname === "[::1]" ||
-    url.hostname === "::1" ||
-    (isIP(url.hostname) === 4 && url.hostname.startsWith("127."));
+    url.hostname === 'localhost' ||
+    url.hostname === '[::1]' ||
+    url.hostname === '::1' ||
+    (isIP(url.hostname) === 4 && url.hostname.startsWith('127.'));
   if (
     url.username ||
     url.password ||
     url.hash ||
     url.search ||
-    (url.protocol !== "https:" && !(url.protocol === "http:" && loopback))
+    (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback))
   ) {
-    throw new Error("invalid_api_url");
+    throw new Error('invalid_api_url');
   }
-  return url.href.replace(/\/$/, "");
+  return url.href.replace(/\/$/, '');
 }
 
 function wait(milliseconds: number): Promise<void> {
@@ -109,35 +109,32 @@ function wait(milliseconds: number): Promise<void> {
 }
 
 function retryDelay(response: Response | undefined, attempt: number): number {
-  const retryAfter = response?.headers.get("retry-after");
+  const retryAfter = response?.headers.get('retry-after');
   if (retryAfter) {
     const seconds = Number(retryAfter);
-    if (Number.isFinite(seconds) && seconds >= 0)
-      return Math.min(seconds * 1000, MAX_WAIT_MS);
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, MAX_WAIT_MS);
     const date = Date.parse(retryAfter);
-    if (Number.isFinite(date))
-      return Math.min(Math.max(0, date - Date.now()), MAX_WAIT_MS);
+    if (Number.isFinite(date)) return Math.min(Math.max(0, date - Date.now()), MAX_WAIT_MS);
   }
   return Math.min(250 * 2 ** (attempt - 1), MAX_WAIT_MS);
 }
 
 function parseStatus(input: unknown): BuildUploadStatus {
-  if (!input || typeof input !== "object")
-    throw new Error("invalid_server_response");
+  if (!input || typeof input !== 'object') throw new Error('invalid_server_response');
   const value = input as Partial<BuildUploadStatus>;
   if (
-    typeof value.buildUuid !== "string" ||
-    (value.status !== "uploading" && value.status !== "ready") ||
+    typeof value.buildUuid !== 'string' ||
+    (value.status !== 'uploading' && value.status !== 'ready') ||
     !Array.isArray(value.artifacts) ||
     value.artifacts.some(
       (item) =>
         !item ||
-        typeof item.artifactUuid !== "string" ||
-        typeof item.url !== "string" ||
-        typeof item.available !== "boolean",
+        typeof item.artifactUuid !== 'string' ||
+        typeof item.url !== 'string' ||
+        typeof item.available !== 'boolean',
     )
   )
-    throw new Error("invalid_server_response");
+    throw new Error('invalid_server_response');
   return value as BuildUploadStatus;
 }
 
@@ -147,21 +144,14 @@ function validateStatus(status: BuildUploadStatus, urls: string[]): void {
     new Set(remoteUrls).size !== remoteUrls.length ||
     remoteUrls.length !== urls.length ||
     urls.some((url) => !remoteUrls.includes(url)) ||
-    (status.status === "ready" &&
-      status.artifacts.some((artifact) => !artifact.available))
+    (status.status === 'ready' && status.artifacts.some((artifact) => !artifact.available))
   )
-    throw new Error("invalid_server_response");
+    throw new Error('invalid_server_response');
 }
 
-function safeErrorCode(
-  body: unknown,
-  statusCode: number,
-  token: string,
-): string {
+function safeErrorCode(body: unknown, statusCode: number, token: string): string {
   const reported =
-    body &&
-    typeof body === "object" &&
-    typeof (body as { error?: unknown }).error === "string"
+    body && typeof body === 'object' && typeof (body as { error?: unknown }).error === 'string'
       ? (body as { error: string }).error
       : `http_${statusCode}`;
   return /^[a-z0-9_]{1,80}$/.test(reported) && !reported.includes(token)
@@ -193,7 +183,7 @@ async function responseBody(response: Response): Promise<unknown> {
     reader.releaseLock();
   }
   try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
+    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
   } catch {
     throw new InvalidServerResponse();
   }
@@ -214,7 +204,10 @@ async function request(
     let stream: ReadStream | undefined;
     const remaining = ctx.deadline === undefined ? Infinity : ctx.deadline - Date.now();
     if (remaining <= 0) throw new Error(BUDGET_EXHAUSTED);
-    const limit = Math.min(init.method === "PUT" ? ctx.uploadTimeoutMs : ctx.requestTimeoutMs, remaining);
+    const limit = Math.min(
+      init.method === 'PUT' ? ctx.uploadTimeoutMs : ctx.requestTimeoutMs,
+      remaining,
+    );
     const signal = AbortSignal.timeout(Math.max(1, Math.ceil(limit)));
     try {
       stream = bodyFactory?.();
@@ -223,23 +216,22 @@ async function request(
       const closed = stream && finished(stream).catch(() => undefined);
       // A stream body cannot be replayed, so fetch's HTTP authentication step
       // would turn a 401 into a network error. The token is sent explicitly.
-      const streamingBody: RequestInit & { duplex?: "half" } = stream
+      const streamingBody: RequestInit & { duplex?: 'half' } = stream
         ? {
             body: stream as unknown as BodyInit,
-            duplex: "half",
-            credentials: "omit",
+            duplex: 'half',
+            credentials: 'omit',
           }
         : {};
       try {
         response = await ctx.fetcher(url, {
           ...init,
           ...streamingBody,
-          redirect: "error",
+          redirect: 'error',
           signal,
           headers: { authorization: `Bearer ${token}`, ...init.headers },
         });
-        body =
-          response.status === 204 ? undefined : await responseBody(response);
+        body = response.status === 204 ? undefined : await responseBody(response);
       } finally {
         if (stream) {
           stream.destroy();
@@ -251,18 +243,14 @@ async function request(
       if (ctx.deadline !== undefined && Date.now() >= ctx.deadline)
         throw new Error(BUDGET_EXHAUSTED);
       if (attempt === MAX_ATTEMPTS)
-        throw new Error(signal.aborted ? "request_failed:timeout" : "request_failed:network");
+        throw new Error(signal.aborted ? 'request_failed:timeout' : 'request_failed:network');
       await pause(ctx, retryDelay(response, attempt));
       continue;
     }
-    if (response.ok || (acceptConflict && response.status === 409))
-      return { response, body };
+    if (response.ok || (acceptConflict && response.status === 409)) return { response, body };
     // upload_busy and rate limits say when to come back. Within a budget,
     // wait as told for as long as it lasts; parallel CI jobs hit this.
-    if (
-      response.status === 429 &&
-      (ctx.deadline !== undefined || busyWaits < MAX_BUSY_WAITS)
-    ) {
+    if (response.status === 429 && (ctx.deadline !== undefined || busyWaits < MAX_BUSY_WAITS)) {
       busyWaits += 1;
       attempt -= 1;
       await pause(ctx, retryDelay(response, busyWaits));
@@ -276,15 +264,15 @@ async function request(
     const code = safeErrorCode(body, response.status, token);
     throw new Error(`request_failed:${code}`);
   }
-  throw new Error("request_failed");
+  throw new Error('request_failed');
 }
 
 async function ensurePathInRoot(root: string, path: string): Promise<string> {
   const rootReal = await realpath(resolve(root));
   const pathReal = await realpath(path);
   const child = relative(rootReal, pathReal);
-  if (child === ".." || child.startsWith(`..${sep}`) || isAbsolute(child)) {
-    throw new Error("symlink_escapes_root");
+  if (child === '..' || child.startsWith(`..${sep}`) || isAbsolute(child)) {
+    throw new Error('symlink_escapes_root');
   }
   return pathReal;
 }
@@ -296,13 +284,12 @@ async function ensureCleanupPath(root: string, path: string): Promise<void> {
   const rootReal = await realpath(resolve(root));
   await ensurePathInRoot(root, path);
   const child = relative(rootReal, resolve(path));
-  if (child === ".." || child.startsWith(`..${sep}`) || isAbsolute(child))
-    throw new Error("symlink_cleanup_unsupported");
+  if (child === '..' || child.startsWith(`..${sep}`) || isAbsolute(child))
+    throw new Error('symlink_cleanup_unsupported');
   let current = rootReal;
   for (const component of child.split(sep)) {
     current = resolve(current, component);
-    if ((await lstat(current)).isSymbolicLink())
-      throw new Error("symlink_cleanup_unsupported");
+    if ((await lstat(current)).isSymbolicLink()) throw new Error('symlink_cleanup_unsupported');
   }
 }
 
@@ -316,18 +303,17 @@ async function readCheckedMapping(
 ): Promise<Buffer> {
   const expected = artifact.mapBytes;
   if (!Number.isSafeInteger(expected) || expected <= 0 || expected > maxBytes)
-    throw new Error("source_map_changed");
+    throw new Error('source_map_changed');
   const resolved = await ensurePathInRoot(root, path);
   const file = await open(
     resolved,
     constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW,
   ).catch(() => {
-    throw new Error("source_map_changed");
+    throw new Error('source_map_changed');
   });
   try {
     const metadata = await file.stat();
-    if (!metadata.isFile() || metadata.size !== expected)
-      throw new Error("source_map_changed");
+    if (!metadata.isFile() || metadata.size !== expected) throw new Error('source_map_changed');
     // One extra byte detects growth without buffering the growing file. Both
     // metadata checks and reads refer to this descriptor, never a reopened path.
     const bytes = Buffer.allocUnsafe(expected + 1);
@@ -340,29 +326,25 @@ async function readCheckedMapping(
         length,
       );
       length += bytesRead;
-      if (length > expected) throw new Error("source_map_changed");
+      if (length > expected) throw new Error('source_map_changed');
       if (bytesRead === 0) break;
     }
     if (
       length !== expected ||
       (await file.stat()).size !== expected ||
-      createHash("sha256").update(bytes.subarray(0, length)).digest("hex") !==
-        artifact.mapSha256
+      createHash('sha256').update(bytes.subarray(0, length)).digest('hex') !== artifact.mapSha256
     )
-      throw new Error("source_map_changed");
+      throw new Error('source_map_changed');
     return bytes.subarray(0, length);
   } finally {
     await file.close();
   }
 }
 
-async function verifyCollectedFiles(
-  local: LocalBuild,
-  defaultRoot: string,
-): Promise<void> {
+async function verifyCollectedFiles(local: LocalBuild, defaultRoot: string): Promise<void> {
   for (const artifact of local.manifest.artifacts) {
     const mapPath = local.mapPaths.get(artifact.url);
-    if (!mapPath) throw new Error("invalid_local_build");
+    if (!mapPath) throw new Error('invalid_local_build');
     const roots = local.fileRoots?.get(artifact.url);
     if (local.manifest.version === 4 || local.manifest.version === 3) {
       // Streamed check: neither a dSYM nor an R8 mapping is buffered.
@@ -385,10 +367,10 @@ async function verifyCollectedFiles(
     )
       continue;
     const generatedPath = local.generatedPaths?.get(artifact.url);
-    if (!generatedPath) throw new Error("invalid_local_build");
+    if (!generatedPath) throw new Error('invalid_local_build');
     await ensurePathInRoot(roots?.generatedRoot ?? defaultRoot, generatedPath);
     if ((await hashFile(generatedPath)) !== artifact.generatedSha256)
-      throw new Error("generated_file_changed");
+      throw new Error('generated_file_changed');
   }
 }
 
@@ -398,7 +380,7 @@ export async function uploadBuild(
   localBuild?: LocalBuild,
 ): Promise<BuildUploadStatus> {
   apiBase(options.apiUrl);
-  if (!options.token) throw new Error("missing_api_token");
+  if (!options.token) throw new Error('missing_api_token');
   const local = localBuild ?? (await collectBuild(options));
   return uploadCollectedBuild(local, options, dependencies);
 }
@@ -409,40 +391,35 @@ export async function uploadCollectedBuild(
   dependencies: UploadDependencies = {},
 ): Promise<BuildUploadStatus> {
   const base = apiBase(options.apiUrl);
-  if (!options.token) throw new Error("missing_api_token");
+  if (!options.token) throw new Error('missing_api_token');
   if (local.manifest.version !== 1 && options.deleteAfterUpload)
-    throw new Error("delete_after_upload_unsupported");
+    throw new Error('delete_after_upload_unsupported');
   if (options.deleteAfterUpload) {
     for (const artifact of local.manifest.artifacts) {
       const path = local.mapPaths.get(artifact.url);
-      if (!path) throw new Error("invalid_local_build");
-      await ensureCleanupPath(
-        local.fileRoots?.get(artifact.url)?.mapRoot ?? options.root,
-        path,
-      );
+      if (!path) throw new Error('invalid_local_build');
+      await ensureCleanupPath(local.fileRoots?.get(artifact.url)?.mapRoot ?? options.root, path);
     }
   }
   const ctx = context(dependencies);
   const buildsUrl = `${base}/apps/${encodeURIComponent(options.appId)}/source-map-builds`;
   const reserved = await request(ctx, options.token, buildsUrl, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify(local.manifest),
   });
   let status = parseStatus(reserved.body);
   const manifestUrls = local.manifest.artifacts.map((artifact) => artifact.url);
   validateStatus(status, manifestUrls);
-  if (status.status !== "ready") {
+  if (status.status !== 'ready') {
     const statusUrl = `${buildsUrl}/${encodeURIComponent(status.buildUuid)}`;
-    const artifactByUrl = new Map(
-      status.artifacts.map((artifact) => [artifact.url, artifact]),
-    );
+    const artifactByUrl = new Map(status.artifacts.map((artifact) => [artifact.url, artifact]));
     for (const artifact of local.manifest.artifacts) {
       const remote = artifactByUrl.get(artifact.url);
-      if (!remote) throw new Error("invalid_server_response");
+      if (!remote) throw new Error('invalid_server_response');
       if (remote.available) continue;
       const mapPath = local.mapPaths.get(artifact.url);
-      if (!mapPath) throw new Error("invalid_local_build");
+      if (!mapPath) throw new Error('invalid_local_build');
       const roots = local.fileRoots?.get(artifact.url);
       // dSYMs and R8 mappings can be hundreds of MiB: stream a private copy
       // instead of buffering. Text mappings shrink about tenfold with gzip.
@@ -451,7 +428,10 @@ export async function uploadCollectedBuild(
           ? await snapshotArtifactFile(
               await ensurePathInRoot(roots?.mapRoot ?? options.root, mapPath),
               artifact,
-              { gzip: local.manifest.version === 3 && status.uploadEncodings?.includes("gzip") === true },
+              {
+                gzip:
+                  local.manifest.version === 3 && status.uploadEncodings?.includes('gzip') === true,
+              },
             )
           : undefined;
       let uploaded: Awaited<ReturnType<typeof request>>;
@@ -465,14 +445,16 @@ export async function uploadCollectedBuild(
               local.manifest.version === 5 ? ELF_MAX_BYTES : undefined,
             );
         const uploadUrl = `${buildsUrl}/${encodeURIComponent(status.buildUuid)}/artifacts/${encodeURIComponent(remote.artifactUuid)}`;
-        uploaded = await request(ctx, options.token,
+        uploaded = await request(
+          ctx,
+          options.token,
           uploadUrl,
           {
-            method: "PUT",
+            method: 'PUT',
             headers: {
-              "content-type": "application/octet-stream",
-              ...(snapshot ? { "content-length": String(snapshot.bytes) } : {}),
-              ...(snapshot?.encoding ? { "content-encoding": snapshot.encoding } : {}),
+              'content-type': 'application/octet-stream',
+              ...(snapshot ? { 'content-length': String(snapshot.bytes) } : {}),
+              ...(snapshot?.encoding ? { 'content-encoding': snapshot.encoding } : {}),
             },
             ...(mapBytes ? { body: new Uint8Array(mapBytes) } : {}),
           },
@@ -483,37 +465,29 @@ export async function uploadCollectedBuild(
         await snapshot?.dispose();
       }
       if (uploaded.response.status === 409) {
-        const resumed = await request(ctx, options.token,
-          statusUrl,
-          { method: "GET" },
-        );
+        const resumed = await request(ctx, options.token, statusUrl, { method: 'GET' });
         const current = parseStatus(resumed.body);
         validateStatus(current, manifestUrls);
-        const currentArtifact = current.artifacts.find(
-          (item) => item.url === artifact.url,
-        );
-        if (!currentArtifact?.available)
-          throw new Error("request_failed:artifact_conflict");
+        const currentArtifact = current.artifacts.find((item) => item.url === artifact.url);
+        if (!currentArtifact?.available) throw new Error('request_failed:artifact_conflict');
         status = current;
       }
     }
-    const completed = await request(ctx, options.token,
+    const completed = await request(
+      ctx,
+      options.token,
       `${buildsUrl}/${encodeURIComponent(status.buildUuid)}/complete`,
-      { method: "POST" },
+      { method: 'POST' },
       true,
     );
     if (completed.response.status === 409) {
       const resumed = await request(ctx, options.token, statusUrl, {
-        method: "GET",
+        method: 'GET',
       });
       status = parseStatus(resumed.body);
       validateStatus(status, manifestUrls);
-      if (status.status !== "ready") {
-        const code = safeErrorCode(
-          completed.body,
-          completed.response.status,
-          options.token,
-        );
+      if (status.status !== 'ready') {
+        const code = safeErrorCode(completed.body, completed.response.status, options.token);
         throw new Error(`request_failed:${code}`);
       }
     } else {
@@ -521,7 +495,7 @@ export async function uploadCollectedBuild(
       validateStatus(status, manifestUrls);
     }
   }
-  if (status.status !== "ready") throw new Error("build_incomplete");
+  if (status.status !== 'ready') throw new Error('build_incomplete');
   await verifyCollectedFiles(local, options.root);
 
   if (options.deleteAfterUpload) {

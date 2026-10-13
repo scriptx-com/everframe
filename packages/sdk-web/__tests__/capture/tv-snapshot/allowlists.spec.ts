@@ -13,9 +13,14 @@ const ids = new Set(['g', 'play']);
 
 describe('ARIA state values', () => {
   it('enumerates the six styling-relevant states', () => {
-    expect(Object.keys(ARIA_STATE_VALUES).sort()).toEqual(
-      ['aria-checked', 'aria-current', 'aria-disabled', 'aria-expanded', 'aria-pressed', 'aria-selected'],
-    );
+    expect(Object.keys(ARIA_STATE_VALUES).sort()).toEqual([
+      'aria-checked',
+      'aria-current',
+      'aria-disabled',
+      'aria-expanded',
+      'aria-pressed',
+      'aria-selected',
+    ]);
     expect(ARIA_STATE_VALUES['aria-current']!.has('page')).toBe(true);
     expect(ARIA_STATE_VALUES['aria-current']!.has('Alice')).toBe(false);
   });
@@ -28,7 +33,15 @@ describe('ARIA state values', () => {
 });
 
 // Attribute names are page-controlled: a lookup must never reach Object.prototype (S19).
-const PROTOTYPE_KEYS = ['constructor', '__proto__', 'toString', 'valueOf', 'hasOwnProperty', 'isPrototypeOf', '__defineGetter__'];
+const PROTOTYPE_KEYS = [
+  'constructor',
+  '__proto__',
+  'toString',
+  'valueOf',
+  'hasOwnProperty',
+  'isPrototypeOf',
+  '__defineGetter__',
+];
 
 describe('prototype-named keys', () => {
   it.each(PROTOTYPE_KEYS)('isAllowedSvgAttr(%s) is false and does not throw', (name) => {
@@ -78,7 +91,15 @@ describe('isPathData', () => {
 
 describe('isCssColor', () => {
   it('accepts hex, functional, named and keyword colors only', () => {
-    for (const c of ['#abc', '#aabbccdd', 'rgb(1, 2, 3)', 'hsla(120deg 50% 50% / .5)', 'Red', 'currentColor', 'none']) {
+    for (const c of [
+      '#abc',
+      '#aabbccdd',
+      'rgb(1, 2, 3)',
+      'hsla(120deg 50% 50% / .5)',
+      'Red',
+      'currentColor',
+      'none',
+    ]) {
       expect(isCssColor(c)).toBe(true);
     }
     for (const c of ['Alice', '#ggg', 'rgb(Alice)']) expect(isCssColor(c)).toBe(false);
@@ -87,7 +108,8 @@ describe('isCssColor', () => {
 
 describe('free-text smuggling (hardening)', () => {
   it('rejects colour functions whose arguments spell words', () => {
-    for (const c of ['rgb(Dan Grant)', 'rgb(tuna)', 'hsl(1 2 3 4 5)', 'rgb()']) expect(isCssColor(c)).toBe(false);
+    for (const c of ['rgb(Dan Grant)', 'rgb(tuna)', 'hsl(1 2 3 4 5)', 'rgb()'])
+      expect(isCssColor(c)).toBe(false);
     expect(isCssColor('rgba(0,0,0,.5)')).toBe(true);
     expect(isCssColor('rgb(0 0 0 / none)')).toBe(true);
   });
@@ -119,7 +141,10 @@ describe('number grammars stay linear on long digit runs', () => {
     ['isCssColor', () => isCssColor(`rgb(${longRun} 0 0)`)],
     ['isCssColor (bare)', () => isCssColor(longRun)],
     ['numeric attr', () => isAllowedSvgAttr('cx', longRun, ids)],
-    ['numeric list, long token under the list cap', () => isAllowedSvgAttr('points', `${'1'.repeat(19_000)}x`, ids)],
+    [
+      'numeric list, long token under the list cap',
+      () => isAllowedSvgAttr('points', `${'1'.repeat(19_000)}x`, ids),
+    ],
     ['orient enum', () => isAllowedSvgAttr('orient', longRun, ids)],
     ['path data', () => isPathData(`M${longRun}`)],
   ])('%s rejects in well under a second', (_label, fn) => {
@@ -144,7 +169,8 @@ describe('local url(#id) references (S18)', () => {
       if (value.trim() === 'none') return true;
       return m !== null && ids.has(m[1]!) && (m[2] ?? '') === '';
     }
-    if (value.trim().toLowerCase().startsWith('url(')) return m !== null && ids.has(m[1]!) && ((m[2] ?? '') === '' || isCssColor(m[2]!));
+    if (value.trim().toLowerCase().startsWith('url('))
+      return m !== null && ids.has(m[1]!) && ((m[2] ?? '') === '' || isCssColor(m[2]!));
     return isCssColor(value);
   };
 
@@ -158,13 +184,35 @@ describe('local url(#id) references (S18)', () => {
 
   it('accepts exactly what the original pattern accepted', () => {
     const cases = [
-      'url(#g)', 'url( #g )', "url('#g')", 'url("#g")', 'url("#g\')', 'URL(#g) red', 'url(#g)\n red', 'url(#g) red\nx',
-      'url(#g) ', 'url(#missing)', 'url(# g)', 'url(#g', 'url(#g)red', 'url(#g) Alice', 'url(#g)) ', 'url(#play) #fff',
-      "url(\t'#g'\t)", 'url(#g"x)', 'url(#)', 'none', 'red',
+      'url(#g)',
+      'url( #g )',
+      "url('#g')",
+      'url("#g")',
+      'url("#g\')',
+      'URL(#g) red',
+      'url(#g)\n red',
+      'url(#g) red\nx',
+      'url(#g) ',
+      'url(#missing)',
+      'url(# g)',
+      'url(#g',
+      'url(#g)red',
+      'url(#g) Alice',
+      'url(#g)) ',
+      'url(#play) #fff',
+      "url(\t'#g'\t)",
+      'url(#g"x)',
+      'url(#)',
+      'none',
+      'red',
     ];
     for (const value of cases) {
-      expect(isAllowedSvgAttr('fill', value, ids), `fill ${JSON.stringify(value)}`).toBe(viaRegex('fill', value));
-      expect(isAllowedSvgAttr('filter', value, ids), `filter ${JSON.stringify(value)}`).toBe(viaRegex('filter', value));
+      expect(isAllowedSvgAttr('fill', value, ids), `fill ${JSON.stringify(value)}`).toBe(
+        viaRegex('fill', value),
+      );
+      expect(isAllowedSvgAttr('filter', value, ids), `filter ${JSON.stringify(value)}`).toBe(
+        viaRegex('filter', value),
+      );
     }
     const alphabet = ['url(', 'URL(', '#', 'g', 'play', ' ', '\n', "'", '"', ')', 'red', 'x'];
     let seed = 11;
@@ -176,8 +224,12 @@ describe('local url(#id) references (S18)', () => {
       let value = '';
       const len = 1 + rand(9);
       for (let k = 0; k < len; k++) value += alphabet[rand(alphabet.length)];
-      expect(isAllowedSvgAttr('fill', value, ids), JSON.stringify(value)).toBe(viaRegex('fill', value));
-      expect(isAllowedSvgAttr('filter', value, ids), JSON.stringify(value)).toBe(viaRegex('filter', value));
+      expect(isAllowedSvgAttr('fill', value, ids), JSON.stringify(value)).toBe(
+        viaRegex('fill', value),
+      );
+      expect(isAllowedSvgAttr('filter', value, ids), JSON.stringify(value)).toBe(
+        viaRegex('filter', value),
+      );
     }
   });
 });

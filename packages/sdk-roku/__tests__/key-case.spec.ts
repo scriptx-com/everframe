@@ -13,7 +13,13 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Parser, createVisitor, WalkMode, isAAMemberExpression, isDottedSetStatement } from 'brighterscript';
+import {
+  Parser,
+  createVisitor,
+  WalkMode,
+  isAAMemberExpression,
+  isDottedSetStatement,
+} from 'brighterscript';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkgRoot = path.resolve(here, '..');
@@ -48,13 +54,20 @@ export function findCaseLosses(file: string, code: string): string[] {
           if (!isAAMemberExpression(el)) continue;
           const text = el.keyToken.text;
           if (text.startsWith('"')) continue; // quoted -> case preserved
-          if (/[A-Z]/.test(text)) problems.push(`${rel}:${el.keyToken.range.start.line + 1}: unquoted AA key ${text}`);
+          if (/[A-Z]/.test(text))
+            problems.push(`${rel}:${el.keyToken.range.start.line + 1}: unquoted AA key ${text}`);
         }
       },
       DottedSetStatement: (st) => {
         // functionName is a SceneGraph node field (case-insensitive, never serialized).
-        if (isDottedSetStatement(st) && /[A-Z]/.test(st.name.text) && st.name.text !== 'functionName') {
-          problems.push(`${rel}:${st.name.range.start.line + 1}: dotted assignment .${st.name.text} =`);
+        if (
+          isDottedSetStatement(st) &&
+          /[A-Z]/.test(st.name.text) &&
+          st.name.text !== 'functionName'
+        ) {
+          problems.push(
+            `${rel}:${st.name.range.start.line + 1}: dotted assignment .${st.name.text} =`,
+          );
         }
       },
     }),
@@ -71,7 +84,8 @@ describe('AA key case (real Roku lowercases unquoted keys)', () => {
   });
 
   it('detector flags unquoted camelCase keys and dotted sets (self-check)', () => {
-    const bad = 'sub x()\n  a = { fooBar: 1, "okKey": 2, low: 3 }\n  a.bazQux = 1\n  a["fine"] = 1\nend sub\n';
+    const bad =
+      'sub x()\n  a = { fooBar: 1, "okKey": 2, low: 3 }\n  a.bazQux = 1\n  a["fine"] = 1\nend sub\n';
     expect(findCaseLosses('bad.brs', bad).length).toBe(2);
   });
 

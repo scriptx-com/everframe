@@ -16,8 +16,14 @@ import { useEverframe } from '../src/hook.js';
 import { useTrackPlayer } from '../src/useTrackPlayer.js';
 
 const cfg = { sdkKey: 'txx_live_test' };
-const wrapper = ({ children }: { children: ReactNode }) => <EverframeProvider config={cfg}>{children}</EverframeProvider>;
-afterEach(() => { cleanup(); trackPlayerMock.mockReset(); trackVitalsMock.mockReset(); });
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <EverframeProvider config={cfg}>{children}</EverframeProvider>
+);
+afterEach(() => {
+  cleanup();
+  trackPlayerMock.mockReset();
+  trackVitalsMock.mockReset();
+});
 
 describe('useEverframe().trackPlayer / trackVitals', () => {
   it('forward to @everframe/web', () => {
@@ -37,7 +43,10 @@ describe('useEverframe().trackPlayer / trackVitals', () => {
 describe('useTrackPlayer', () => {
   function Player({ name, hls }: { name?: string; hls?: unknown }) {
     const ref = useRef<HTMLVideoElement | null>(null);
-    useTrackPlayer(ref, { ...(name !== undefined ? { name } : {}), ...(hls !== undefined ? { hls } : {}) });
+    useTrackPlayer(ref, {
+      ...(name !== undefined ? { name } : {}),
+      ...(hls !== undefined ? { hls } : {}),
+    });
     return <video ref={ref} data-testid="v" />;
   }
   it('attaches once the ref resolves and detaches on unmount', () => {
@@ -51,7 +60,8 @@ describe('useTrackPlayer', () => {
   it('re-attaches when an option identity changes', () => {
     const detach = vi.fn();
     trackPlayerMock.mockReturnValue({ id: 'p1', track: vi.fn(), detach });
-    const hlsA = {}, hlsB = {};
+    const hlsA = {},
+      hlsB = {};
     const { rerender } = render(<Player hls={hlsA} />, { wrapper });
     rerender(<Player hls={hlsA} />);
     expect(trackPlayerMock).toHaveBeenCalledTimes(1);

@@ -11,7 +11,10 @@ const APP = '00000000-0000-4000-8000-000000000000';
 
 describe('@everframe/expo', () => {
   it('adds only the Gradle plugin and the app id to the app build.gradle', () => {
-    const out = applyAndroid({ language: 'groovy', contents: 'apply plugin: "com.android.application"\n' }, APP);
+    const out = applyAndroid(
+      { language: 'groovy', contents: 'apply plugin: "com.android.application"\n' },
+      APP,
+    );
     expect(out.contents).toBe(
       [
         'apply plugin: "com.android.application"',
@@ -36,7 +39,13 @@ describe('@everframe/expo', () => {
     const project = {
       pbxItemByComment: () => undefined,
       getFirstTarget: () => ({ uuid: 'T', firstTarget: { buildConfigurationList: 'L' } }),
-      addBuildPhase: (_f: string[], _t: string, name: string, _target: string, options: { shellScript: string; inputPaths?: string[] }) => {
+      addBuildPhase: (
+        _f: string[],
+        _t: string,
+        name: string,
+        _target: string,
+        options: { shellScript: string; inputPaths?: string[] },
+      ) => {
         phases.push({ name, ...options });
       },
       pbxXCConfigurationList: () => ({ L: { buildConfigurations: [{ value: 'C' }] } }),
@@ -62,10 +71,15 @@ describe('@everframe/expo', () => {
         name: 'Upload Everframe Build Artifacts',
         shellPath: '/bin/bash',
         shellScript: `/bin/bash "\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`,
-        inputPaths: ['"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"'],
+        inputPaths: [
+          '"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"',
+        ],
       },
     ]);
-    expect(settings).toEqual({ SOURCEMAP_FILE: SOURCEMAP_FILE_VALUE, ENABLE_USER_SCRIPT_SANDBOXING: 'NO' });
+    expect(settings).toEqual({
+      SOURCEMAP_FILE: SOURCEMAP_FILE_VALUE,
+      ENABLE_USER_SCRIPT_SANDBOXING: 'NO',
+    });
   });
 
   it('points the phase at a CLI hoisted to the monorepo root', () => {
@@ -83,7 +97,9 @@ describe('@everframe/expo', () => {
     const { project, phases } = fakeProject();
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'everframe-expo-')));
     applyIos(project, APP, join(root, 'ios'));
-    expect(phases[0]!.shellScript).toBe(`/bin/bash "\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`);
+    expect(phases[0]!.shellScript).toBe(
+      `/bin/bash "\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`,
+    );
   });
 
   it('runs the patcher from the prebuild ios folder', async () => {
@@ -98,11 +114,17 @@ describe('@everframe/expo', () => {
     const mod = config.mods?.ios?.xcodeproj;
     expect(mod).toBeTypeOf('function');
     await mod!({ modResults: project, modRequest: { platformProjectRoot: join(app, 'ios') } });
-    expect(phases[0]!.shellScript).toContain('/bin/bash "${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh"');
+    expect(phases[0]!.shellScript).toContain(
+      '/bin/bash "${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh"',
+    );
   });
 
   it('adds the Everframe Gradle plugin classpath to the project build.gradle', () => {
-    const out = applyAndroidProject({ language: 'groovy', contents: "buildscript {\n  dependencies {\n    classpath('com.facebook.react:react-native-gradle-plugin')\n  }\n}\n" });
+    const out = applyAndroidProject({
+      language: 'groovy',
+      contents:
+        "buildscript {\n  dependencies {\n    classpath('com.facebook.react:react-native-gradle-plugin')\n  }\n}\n",
+    });
     expect(out.contents).toContain('dev.everframe:gradle-plugin:');
   });
 });

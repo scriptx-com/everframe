@@ -292,9 +292,7 @@ describe('kill() landing during companion submit preparation', () => {
     const ws = await runSubmit(killed);
 
     expect(submitMock).toHaveBeenCalledTimes(1);
-    expect(ws.send).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'report.completed' }),
-    );
+    expect(ws.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'report.completed' }));
   });
 
   it('never reaches ingest when the switch is pulled after the entry gate', async () => {

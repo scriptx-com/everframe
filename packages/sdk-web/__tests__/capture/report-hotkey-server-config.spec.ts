@@ -14,18 +14,22 @@ afterEach(() => {
 });
 
 function configResponse(binding: string): Response {
-  return new Response(JSON.stringify({
-    replayEnabled: false,
-    replayDurationSec: 30,
-    samplingRate: 1,
-    reportHotkey: { binding },
-  }), { status: 200, headers: { 'content-type': 'application/json' } });
+  return new Response(
+    JSON.stringify({
+      replayEnabled: false,
+      replayDurationSec: 30,
+      samplingRate: 1,
+      reportHotkey: { binding },
+    }),
+    { status: 200, headers: { 'content-type': 'application/json' } },
+  );
 }
 
 describe('dashboard report hotkey', () => {
   it('starts with the default and publishes the dashboard binding after config resolves', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-      configResponse('Alt+R'));
+      configResponse('Alt+R'),
+    );
     vi.stubGlobal('fetch', fetchMock);
     const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
@@ -39,14 +43,18 @@ describe('dashboard report hotkey', () => {
 
     expect(bindings).toEqual(['Mod+Shift+B', 'Alt+R']);
     const request = fetchMock.mock.calls[0]?.[1];
-    expect((request?.headers as Record<string, string>)['X-Everframe-SDK-Features'])
-      .toContain('reporthotkey');
+    expect((request?.headers as Record<string, string>)['X-Everframe-SDK-Features']).toContain(
+      'reporthotkey',
+    );
     unsubscribe();
   });
 
   it('publishes a changed dashboard binding after a live config refresh', async () => {
     let binding = 'Mod+Shift+B';
-    vi.stubGlobal('fetch', vi.fn(async () => configResponse(binding)));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => configResponse(binding)),
+    );
     const adapter = createWebPlatformAdapter({ sdkKey: 'k' });
     adapters.push(adapter);
     const client = createClient(adapter);

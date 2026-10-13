@@ -414,7 +414,9 @@ export function trackPlayer(opts: TrackPlayerOptions): PlayerHandle {
     // CMS-derived title would otherwise inflate `player_attach` and, via the
     // recent ring, every enriched bug report until it expires.
     const cleanName =
-      opts.name !== undefined ? String(opts.name).trim().slice(0, MAX_CUSTOM_NAME_LENGTH) : undefined;
+      opts.name !== undefined
+        ? String(opts.name).trim().slice(0, MAX_CUSTOM_NAME_LENGTH)
+        : undefined;
     const extras = {
       ...(cleanName !== undefined ? { name: cleanName } : {}),
       ...(integration ? { integration } : {}),
@@ -500,19 +502,25 @@ export function trackPlayer(opts: TrackPlayerOptions): PlayerHandle {
   }
 }
 
-export const trackVitals = safeWrap((name: string, data?: unknown, opts?: { player?: PlayerHandle }): void => {
-  const c = _collector;
-  if (!c) return; // lossy by design: no collector, no queue
-  const cleanName = String(name ?? '').trim().slice(0, MAX_CUSTOM_NAME_LENGTH) || 'custom';
-  const bounded = boundJson(data);
-  c.recordCustom({
-    t: Date.now(),
-    name: cleanName,
-    ...(bounded.data !== undefined ? { data: bounded.data } : {}),
-    ...(bounded.truncated ? { truncated: true } : {}),
-    ...(opts?.player?.id ? { playerId: opts.player.id } : {}),
-  });
-}, { name: 'vitals.trackVitals' }) as (name: string, data?: unknown, opts?: { player?: PlayerHandle }) => void;
+export const trackVitals = safeWrap(
+  (name: string, data?: unknown, opts?: { player?: PlayerHandle }): void => {
+    const c = _collector;
+    if (!c) return; // lossy by design: no collector, no queue
+    const cleanName =
+      String(name ?? '')
+        .trim()
+        .slice(0, MAX_CUSTOM_NAME_LENGTH) || 'custom';
+    const bounded = boundJson(data);
+    c.recordCustom({
+      t: Date.now(),
+      name: cleanName,
+      ...(bounded.data !== undefined ? { data: bounded.data } : {}),
+      ...(bounded.truncated ? { truncated: true } : {}),
+      ...(opts?.player?.id ? { playerId: opts.player.id } : {}),
+    });
+  },
+  { name: 'vitals.trackVitals' },
+) as (name: string, data?: unknown, opts?: { player?: PlayerHandle }) => void;
 
 /**
  * Test seam: forget registrations + live references between specs — the

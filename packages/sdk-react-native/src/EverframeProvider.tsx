@@ -10,10 +10,7 @@
 // own buttons, hotkeys, overlays, and TV trigger handlers.
 import * as React from 'react';
 import { createRuntime, type Runtime, type EverframeProviderConfig } from './runtime.js';
-import {
-  EverframeNotMountedError,
-  type EverframeContextValue,
-} from './contextSeam.js';
+import { EverframeNotMountedError, type EverframeContextValue } from './contextSeam.js';
 
 const Ctx = React.createContext<EverframeContextValue | null>(null);
 
@@ -43,7 +40,7 @@ export function useEverframe(): EverframeContextValue {
   const ctx = React.useContext(Ctx);
   if (!ctx) {
     throw new EverframeNotMountedError(
-      'useEverframe() called outside a <EverframeProvider>. Wrap your app root.'
+      'useEverframe() called outside a <EverframeProvider>. Wrap your app root.',
     );
   }
   return ctx;

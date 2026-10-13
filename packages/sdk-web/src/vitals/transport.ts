@@ -176,10 +176,7 @@ function retryDelayForResponse(res: Response): number {
 
 export function createVitalsTransport(
   deps: VitalsTransportDeps,
-): (
-  body: VitalsChunk | SessionSummary,
-  opts: { beacon: boolean; identityToken?: string },
-) => void {
+): (body: VitalsChunk | SessionSummary, opts: { beacon: boolean; identityToken?: string }) => void {
   // Bound to globalThis, matching sdk-core's http.ts default — an unbound
   // `fetch` reference can throw "Illegal invocation" in some environments.
   const fetchFn = deps.fetchFn ?? globalThis.fetch.bind(globalThis);
@@ -342,7 +339,10 @@ export function createVitalsTransport(
   ): void {
     if (pending.length >= MAX_OUTSTANDING) return; // ceiling occupied — drop, vitals are lossy
 
-    const entry: PendingEntry = { kind: 'retry', timer: undefined as unknown as ReturnType<typeof setTimeout> };
+    const entry: PendingEntry = {
+      kind: 'retry',
+      timer: undefined as unknown as ReturnType<typeof setTimeout>,
+    };
     entry.timer = setTimeout(() => {
       // Codex round-7 item 3 — this timer callback is a bare, unguarded
       // entry point into foreign-adjacent code (it calls back into

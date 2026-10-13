@@ -174,7 +174,6 @@ describe('companion/capture-bridge', () => {
     expect(order).toEqual(['text', 'binary']);
   });
 
-
   it('freezes breadcrumbs and replay at report.request (discard-then-freeze)', async () => {
     const ws = fakeWs();
     const host = fakeHost();

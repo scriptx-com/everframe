@@ -161,7 +161,9 @@ describe('finding 1 — a reporter already open when kill() lands must not submi
     islands[0]!.opts.onComplete(payload());
 
     await vi.waitFor(() => expect(ingestCalls()).toHaveLength(1));
-    await vi.waitFor(() => expect(islands[0]!.toast).toHaveBeenCalledWith('success', 'Report sent'));
+    await vi.waitFor(() =>
+      expect(islands[0]!.toast).toHaveBeenCalledWith('success', 'Report sent'),
+    );
     expect(await settledWithin(opened)).toMatchObject({ status: 'submitted' });
   });
 

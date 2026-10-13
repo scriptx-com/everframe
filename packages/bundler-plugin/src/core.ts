@@ -34,7 +34,10 @@ function appIdError(appId: string | undefined): string {
   return `everframe: appId must be an Everframe application UUID, received ${JSON.stringify(appId)}.`;
 }
 
-export function resolveSettings(options: EverframeBundlerOptions, env: NodeJS.ProcessEnv): Settings {
+export function resolveSettings(
+  options: EverframeBundlerOptions,
+  env: NodeJS.ProcessEnv,
+): Settings {
   const appId = options.appId;
   if (appId === undefined || !APP_ID.test(appId)) throw new Error(appIdError(appId));
   return {
@@ -81,7 +84,10 @@ export async function finishBuild(
 ): Promise<void> {
   const log = deps.log ?? ((message: string) => console.warn(message));
   if (!settings.token) {
-    if (settings.ci) throw new Error('missing_api_token: set EVERFRAME_API_TOKEN to a token with the artifacts:write scope.');
+    if (settings.ci)
+      throw new Error(
+        'missing_api_token: set EVERFRAME_API_TOKEN to a token with the artifacts:write scope.',
+      );
     log('everframe: no EVERFRAME_API_TOKEN, skipping source-map upload and removing local maps');
     if (settings.deleteAfterUpload) await deleteMaps(outputDir);
     return;

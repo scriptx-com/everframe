@@ -153,7 +153,7 @@ describe('attach-PIN capability is only announced when something can render it',
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it("destroy() gives the declaration back, so a later Provider mount is not poisoned", async () => {
+  it('destroy() gives the declaration back, so a later Provider mount is not poisoned', async () => {
     handle = init({ sdkKey: 'txx_live_test' });
     handle.destroy();
     handle = null;
@@ -162,7 +162,6 @@ describe('attach-PIN capability is only announced when something can render it',
     expect(await announceBody()).toHaveProperty('supportsAttachPin', true);
   });
 });
-
 
 // Codex round-2 finding 5 (P2), the same failure one surface over.
 // `companionBadge` is documented as default-ON, but `CompanionBadge` is

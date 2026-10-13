@@ -8,7 +8,14 @@ import { runInNewContext } from 'node:vm';
 import { createHash } from 'node:crypto';
 
 async function bundle(source: string) {
-  const result = await build({ stdin: { contents: source, resolveDir: process.cwd() }, bundle: true, format: 'iife', globalName: 'sut', write: false, platform: 'browser' });
+  const result = await build({
+    stdin: { contents: source, resolveDir: process.cwd() },
+    bundle: true,
+    format: 'iife',
+    globalName: 'sut',
+    write: false,
+    platform: 'browser',
+  });
   return result.outputFiles[0]!.text;
 }
 
@@ -16,20 +23,29 @@ describe('legacy runtime dependencies', () => {
   it('hashes screenshot/report bytes correctly without BigInt', async () => {
     const source = await bundle('export { sha256 } from "@noble/hashes/sha2";');
     const context = { BigInt: undefined, Uint8Array, Uint32Array, DataView, TextEncoder };
-    const hash = runInNewContext(source + '; sut.sha256', context) as (bytes: Uint8Array) => Uint8Array;
+    const hash = runInNewContext(source + '; sut.sha256', context) as (
+      bytes: Uint8Array,
+    ) => Uint8Array;
     for (const size of [0, 3, 55, 56, 63, 64, 65, 1000, 153942]) {
       const bytes = Uint8Array.from({ length: size }, (_, i) => i % 251);
-      expect(Buffer.from(hash(bytes)).toString('hex')).toBe(createHash('sha256').update(bytes).digest('hex'));
+      expect(Buffer.from(hash(bytes)).toString('hex')).toBe(
+        createHash('sha256').update(bytes).digest('hex'),
+      );
     }
   });
 
   it('validates object schemas when eval exists but object spread is unsupported', async () => {
-    const source = await bundle('import { z } from "zod"; export const schema = z.object({ enabled: z.boolean(), count: z.number() });');
+    const source = await bundle(
+      'import { z } from "zod"; export const schema = z.object({ enabled: z.boolean(), count: z.number() });',
+    );
     const LegacyFunction = function (...args: string[]) {
-      if (args.some(arg => /\.\.\./.test(arg))) throw new SyntaxError('Object spread unsupported');
+      if (args.some((arg) => /\.\.\./.test(arg)))
+        throw new SyntaxError('Object spread unsupported');
       return Function(...args);
     };
-    const schema = runInNewContext(source + '; sut.schema', { Function: LegacyFunction }) as { safeParse: (value: unknown) => { success: boolean } };
+    const schema = runInNewContext(source + '; sut.schema', { Function: LegacyFunction }) as {
+      safeParse: (value: unknown) => { success: boolean };
+    };
     expect(schema.safeParse({ enabled: true, count: 3 }).success).toBe(true);
     expect(schema.safeParse({ enabled: 'true', count: 3 }).success).toBe(false);
   });
@@ -48,7 +64,12 @@ describe('legacy runtime dependencies', () => {
         return probe.tail;
       }
     `);
-    const padding = runInNewContext(source + '; sut.padding', { BigInt: undefined, Uint8Array, Uint32Array, DataView }) as (isLE: boolean) => number[];
+    const padding = runInNewContext(source + '; sut.padding', {
+      BigInt: undefined,
+      Uint8Array,
+      Uint32Array,
+      DataView,
+    }) as (isLE: boolean) => number[];
     expect(padding(false)).toEqual([0, 0, 0, 1, 0, 0, 0, 8]);
     expect(padding(true)).toEqual([8, 0, 0, 0, 1, 0, 0, 0]);
   });

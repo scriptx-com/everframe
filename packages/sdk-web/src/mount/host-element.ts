@@ -82,8 +82,7 @@ export function createHostElement(doc: Document = document, useShadow = true): H
     // reporter opened in between would otherwise render from outside the body
     // box. DOMContentLoaded is kept as the fallback for an environment with
     // no MutationObserver.
-    const observer =
-      typeof MutationObserver === 'function' ? new MutationObserver(relocate) : null;
+    const observer = typeof MutationObserver === 'function' ? new MutationObserver(relocate) : null;
     observer?.observe(doc.documentElement, { childList: true });
     doc.addEventListener('DOMContentLoaded', relocate);
     stopWatching = () => {

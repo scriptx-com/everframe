@@ -14,8 +14,7 @@ export const MAX_CRASH_DETAIL_LEVELS = 4;
 
 const VALID_TEXT_RE = /^(?:[^\u0000\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/u;
 
-export const ErrorSeverity = z.enum(['info', 'warning', 'error'])
-  .meta({ title: 'ErrorSeverity' });
+export const ErrorSeverity = z.enum(['info', 'warning', 'error']).meta({ title: 'ErrorSeverity' });
 export type ErrorSeverity = z.infer<typeof ErrorSeverity>;
 
 export type JsonScalar = string | number | boolean | null;
@@ -29,12 +28,11 @@ export type JsonObject = { [key: string]: JsonValue };
 // `__proto__` key while copying, even though decoded JSON may safely contain
 // one. The check retains the decoded/owned snapshot and the refinement below
 // validates every key and value without mutating its prototype.
-const CrashMetadata = z.unknown()
-  .refine((value) => (
-    typeof value === 'object'
-    && value !== null
-    && containerKind(value) === 'object'
-  ))
+const CrashMetadata = z
+  .unknown()
+  .refine(
+    (value) => typeof value === 'object' && value !== null && containerKind(value) === 'object',
+  )
   .meta({
     type: 'object',
     propertyNames: {
@@ -56,7 +54,8 @@ function metadataWithinTreeLimits(metadata: Record<string, unknown>): boolean {
     if (typeof value === 'string') {
       return value.length <= MAX_CRASH_DETAIL_STRING_UNITS && VALID_TEXT_RE.test(value);
     }
-    if (typeof value !== 'object' || containerLevel > MAX_CRASH_DETAIL_LEVELS || path.has(value)) return false;
+    if (typeof value !== 'object' || containerLevel > MAX_CRASH_DETAIL_LEVELS || path.has(value))
+      return false;
     const kind = containerKind(value);
     if (kind === undefined) return false;
     path.add(value);
@@ -64,14 +63,16 @@ function metadataWithinTreeLimits(metadata: Record<string, unknown>): boolean {
       if (kind === 'array') {
         if ((value as unknown[]).length > MAX_CRASH_DETAIL_NODES - 1) return false;
         for (const child of value as unknown[]) {
-          const childLevel = child !== null && typeof child === 'object' ? containerLevel + 1 : containerLevel;
+          const childLevel =
+            child !== null && typeof child === 'object' ? containerLevel + 1 : containerLevel;
           if (!visit(child, childLevel)) return false;
         }
         return true;
       }
       for (const [key, child] of Object.entries(value)) {
         if (key.length > MAX_CRASH_DETAIL_KEY_UNITS || !VALID_TEXT_RE.test(key)) return false;
-        const childLevel = child !== null && typeof child === 'object' ? containerLevel + 1 : containerLevel;
+        const childLevel =
+          child !== null && typeof child === 'object' ? containerLevel + 1 : containerLevel;
         if (!visit(child, childLevel)) return false;
       }
       return true;
@@ -82,17 +83,24 @@ function metadataWithinTreeLimits(metadata: Record<string, unknown>): boolean {
   return visit(metadata, 1);
 }
 
-const CrashDetailsShape = z.object({
-  severity: ErrorSeverity.optional(),
-  context: z.string().max(MAX_CRASH_CONTEXT_UNITS).regex(VALID_TEXT_RE).optional(),
-  metadata: CrashMetadata.optional(),
-  truncated: z.boolean().optional(),
-}).strict();
+const CrashDetailsShape = z
+  .object({
+    severity: ErrorSeverity.optional(),
+    context: z.string().max(MAX_CRASH_CONTEXT_UNITS).regex(VALID_TEXT_RE).optional(),
+    metadata: CrashMetadata.optional(),
+    truncated: z.boolean().optional(),
+  })
+  .strict();
 
 export const CrashDetails = CrashDetailsShape.superRefine((details, ctx) => {
-  const metadataIsValid = details.metadata === undefined || metadataWithinTreeLimits(details.metadata);
+  const metadataIsValid =
+    details.metadata === undefined || metadataWithinTreeLimits(details.metadata);
   if (!metadataIsValid) {
-    ctx.addIssue({ code: 'custom', path: ['metadata'], message: 'metadata exceeds crash detail tree limits' });
+    ctx.addIssue({
+      code: 'custom',
+      path: ['metadata'],
+      message: 'metadata exceeds crash detail tree limits',
+    });
   }
   // Invalid decoded/owned recursive input can be cyclic or otherwise
   // non-serializable. Its tree issue is sufficient, so serialization is
@@ -207,7 +215,8 @@ function containerKind(value: object): 'array' | 'object' | undefined {
     // prototypes inherit from an Object.prototype instead.
     if (Object.getPrototypeOf(prototype) !== null) return undefined;
     const constructor = Object.getOwnPropertyDescriptor(prototype, 'constructor');
-    if (!constructor || !('value' in constructor) || typeof constructor.value !== 'function') return undefined;
+    if (!constructor || !('value' in constructor) || typeof constructor.value !== 'function')
+      return undefined;
     const name = Object.getOwnPropertyDescriptor(constructor.value, 'name');
     return name && 'value' in name && name.value === 'Object' ? 'object' : undefined;
   } catch {
@@ -215,7 +224,11 @@ function containerKind(value: object): 'array' | 'object' | undefined {
   }
 }
 
-function projectConsumedValue(value: unknown, containerLevel: number, state: ProjectionState): Projected {
+function projectConsumedValue(
+  value: unknown,
+  containerLevel: number,
+  state: ProjectionState,
+): Projected {
   if (value === null || typeof value === 'boolean') return { supported: true, value };
   if (typeof value === 'number') {
     return Number.isFinite(value) ? { supported: true, value } : { supported: false };
@@ -223,7 +236,9 @@ function projectConsumedValue(value: unknown, containerLevel: number, state: Pro
   if (typeof value === 'string') {
     const projected = redactText(value, MAX_CRASH_DETAIL_STRING_UNITS, state.redact);
     if (projected.truncated) state.truncated = true;
-    return projected.supported ? { supported: true, value: projected.value! } : { supported: false };
+    return projected.supported
+      ? { supported: true, value: projected.value! }
+      : { supported: false };
   }
   if (typeof value !== 'object' || value === null) return { supported: false };
 
@@ -254,7 +269,8 @@ function projectArray(input: unknown[], containerLevel: number, state: Projectio
   let length: number;
   try {
     const descriptor = Object.getOwnPropertyDescriptor(input, 'length');
-    if (!descriptor || !('value' in descriptor) || typeof descriptor.value !== 'number') return { supported: false };
+    if (!descriptor || !('value' in descriptor) || typeof descriptor.value !== 'number')
+      return { supported: false };
     length = descriptor.value;
   } catch {
     return { supported: false };
@@ -292,7 +308,11 @@ function projectArray(input: unknown[], containerLevel: number, state: Projectio
   return { supported: true, value: output };
 }
 
-function projectObject(input: Record<string, unknown>, containerLevel: number, state: ProjectionState): Projected {
+function projectObject(
+  input: Record<string, unknown>,
+  containerLevel: number,
+  state: ProjectionState,
+): Projected {
   let keys: (string | symbol)[];
   try {
     // ECMAScript own-key discovery materializes the engine's complete key list
@@ -363,7 +383,7 @@ function cloneJsonObject(input: JsonObject): JsonObject {
 }
 
 function cloneJsonArray(input: JsonValue[]): JsonValue[] {
-  return input.map(value => {
+  return input.map((value) => {
     if (Array.isArray(value)) return cloneJsonArray(value);
     if (value !== null && typeof value === 'object') return cloneJsonObject(value);
     return value;
@@ -378,7 +398,9 @@ function lastTrimAction(value: JsonValue, remove: () => void): TrimAction {
   if (Array.isArray(value)) {
     if (value.length === 0) return { kind: 'remove', apply: remove };
     const index = value.length - 1;
-    return lastTrimAction(value[index]!, () => { value.pop(); });
+    return lastTrimAction(value[index]!, () => {
+      value.pop();
+    });
   }
   if (value !== null && typeof value === 'object') {
     const keys = Object.keys(value);
@@ -389,10 +411,14 @@ function lastTrimAction(value: JsonValue, remove: () => void): TrimAction {
       return {
         kind: 'string',
         get: () => value[key] as string,
-        set: replacement => { value[key] = replacement; },
+        set: (replacement) => {
+          value[key] = replacement;
+        },
       };
     }
-    return lastTrimAction(child, () => { delete value[key]; });
+    return lastTrimAction(child, () => {
+      delete value[key];
+    });
   }
   return { kind: 'remove', apply: remove };
 }
@@ -400,7 +426,9 @@ function lastTrimAction(value: JsonValue, remove: () => void): TrimAction {
 function fitMetadataToBytes(details: CrashDetails): void {
   const fits = (): boolean => utf8ByteLength(JSON.stringify(details)) <= MAX_CRASH_DETAILS_BYTES;
   while (details.metadata !== undefined && !fits()) {
-    const action = lastTrimAction(details.metadata as JsonObject, () => { delete details.metadata; });
+    const action = lastTrimAction(details.metadata as JsonObject, () => {
+      delete details.metadata;
+    });
     if (action.kind === 'remove') {
       action.apply();
       continue;
@@ -435,7 +463,7 @@ function projectMetadata(input: unknown, state: ProjectionState): JsonObject | u
   state.path.add(input);
   try {
     const projected = projectObject(input as Record<string, unknown>, 1, state);
-    return projected.supported ? projected.value as JsonObject : undefined;
+    return projected.supported ? (projected.value as JsonObject) : undefined;
   } finally {
     state.path.delete(input);
   }
@@ -450,7 +478,8 @@ export function normalizeCrashDetails(
   const state: ProjectionState = { nodes: 0, truncated: false, redact, path: new Set() };
   let source: object | undefined;
   if (input === undefined) source = undefined;
-  else if (typeof input === 'object' && input !== null && containerKind(input) === 'object') source = input;
+  else if (typeof input === 'object' && input !== null && containerKind(input) === 'object')
+    source = input;
   else {
     source = undefined;
     state.truncated = true;

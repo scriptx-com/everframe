@@ -139,8 +139,7 @@ export function Modal({
       if (!modalRef.current) return;
       const focusable = focusableElementsIn(modalRef.current);
       const target =
-        focusable.find((el) => el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') ??
-        focusable[0];
+        focusable.find((el) => el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') ?? focusable[0];
       target?.focus();
     });
   }, [open, deferAutoFocus]);

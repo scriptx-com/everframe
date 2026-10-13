@@ -52,13 +52,16 @@ describe('createLocalStorageOutbox', () => {
 
   it('starts a fresh queue instead of reading the old product prefix', async () => {
     const oldPrefix = ['trace', 'itx:outbox:'].join('');
-    localStorage.setItem(`${oldPrefix}legacy`, JSON.stringify({
-      reportId: 'legacy',
-      enqueuedAt: 1,
-      attempts: 0,
-      payloadB64: 'AA==',
-      metadata: {},
-    }));
+    localStorage.setItem(
+      `${oldPrefix}legacy`,
+      JSON.stringify({
+        reportId: 'legacy',
+        enqueuedAt: 1,
+        attempts: 0,
+        payloadB64: 'AA==',
+        metadata: {},
+      }),
+    );
     expect(KEY_PREFIX).toBe('everframe:outbox:');
     expect(await createLocalStorageOutbox()!.list()).toEqual([]);
   });

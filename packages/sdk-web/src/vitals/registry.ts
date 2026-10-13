@@ -47,7 +47,10 @@ export function createPlayerRegistry(): PlayerRegistry {
   return {
     idFor(el) {
       let id = ids.get(el);
-      if (!id) { id = `p${next++}`; ids.set(el, id); }
+      if (!id) {
+        id = `p${next++}`;
+        ids.set(el, id);
+      }
       return id;
     },
     register(r) {
@@ -85,9 +88,17 @@ export function createPlayerRegistry(): PlayerRegistry {
       explicit.set(r.element, merged);
       return id;
     },
-    unregister(el) { explicit.delete(el); },
-    registered() { return Array.from(explicit.values()); },
-    lookup(el) { return explicit.get(el); },
-    clear() { explicit.clear(); },
+    unregister(el) {
+      explicit.delete(el);
+    },
+    registered() {
+      return Array.from(explicit.values());
+    },
+    lookup(el) {
+      return explicit.get(el);
+    },
+    clear() {
+      explicit.clear();
+    },
   };
 }

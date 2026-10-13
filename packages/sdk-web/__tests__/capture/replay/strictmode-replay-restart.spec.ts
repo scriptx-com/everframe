@@ -65,8 +65,7 @@ const testGzip = async (input: Uint8Array): Promise<Uint8Array> =>
 const recorders: unknown[] = [];
 
 vi.mock('../../../src/capture/replay/index.js', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('../../../src/capture/replay/index.js')>();
+  const actual = await importOriginal<typeof import('../../../src/capture/replay/index.js')>();
   return {
     ...actual,
     createReplayRecorder: (deps: Record<string, unknown> = {}) => {

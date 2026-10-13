@@ -35,7 +35,18 @@ function scan(root) {
 function commitFixture(root) {
   const commit = spawnSync(
     'git',
-    ['-C', root, '-c', 'user.name=Everframe Test', '-c', 'user.email=test@everframe.dev', 'commit', '--quiet', '-m', 'fixture'],
+    [
+      '-C',
+      root,
+      '-c',
+      'user.name=Everframe Test',
+      '-c',
+      'user.email=test@everframe.dev',
+      'commit',
+      '--quiet',
+      '-m',
+      'fixture',
+    ],
     { encoding: 'utf8' },
   );
   assert.equal(commit.status, 0, commit.stderr);
@@ -104,10 +115,9 @@ test('does not include sentence punctuation in a package identity match', () => 
 
 test('accepts an exact persisted reader with a reason', () => {
   const legacy = `${former}-video-v1`;
-  const result = run(
-    { 'src/reader.ts': `export const legacy = '${legacy}';\n` },
-    [{ path: 'src/reader.ts', pattern: legacy, reason: 'Read existing stored videos' }],
-  );
+  const result = run({ 'src/reader.ts': `export const legacy = '${legacy}';\n` }, [
+    { path: 'src/reader.ts', pattern: legacy, reason: 'Read existing stored videos' },
+  ]);
   assert.equal(result.status, 0, result.stderr);
 });
 
@@ -151,10 +161,22 @@ test('a valid historical fingerprint does not exempt adjacent old identity text'
 
 for (const [name, fingerprint] of [
   ['path-only fingerprint', ({ historicalPath }) => `${historicalPath}:generic-api-key:1`],
-  ['unknown commit', ({ historicalPath }) => `${'0'.repeat(40)}:${historicalPath}:generic-api-key:1`],
-  ['missing historical path', ({ commit }) => `${commit}:legacy/${former}-missing.ts:generic-api-key:1`],
-  ['out-of-range historical line', ({ commit, historicalPath }) => `${commit}:${historicalPath}:generic-api-key:2`],
-  ['malformed rule', ({ commit, historicalPath }) => `${commit}:${historicalPath}:Generic API Key:1`],
+  [
+    'unknown commit',
+    ({ historicalPath }) => `${'0'.repeat(40)}:${historicalPath}:generic-api-key:1`,
+  ],
+  [
+    'missing historical path',
+    ({ commit }) => `${commit}:legacy/${former}-missing.ts:generic-api-key:1`,
+  ],
+  [
+    'out-of-range historical line',
+    ({ commit, historicalPath }) => `${commit}:${historicalPath}:generic-api-key:2`,
+  ],
+  [
+    'malformed rule',
+    ({ commit, historicalPath }) => `${commit}:${historicalPath}:Generic API Key:1`,
+  ],
 ]) {
   test(`rejects a ${name} containing an old identity`, () => {
     const { root } = historicalFingerprintFixture(fingerprint);
@@ -170,23 +192,22 @@ for (const [name, fingerprint] of [
 
 test('rejects stale exceptions after the old reader is removed', () => {
   const legacy = `${former}-video-v1`;
-  const result = run(
-    { 'src/reader.ts': "export const current = 'everframe-video-v1';\n" },
-    [{ path: 'src/reader.ts', pattern: legacy, reason: 'Read existing stored videos' }],
-  );
+  const result = run({ 'src/reader.ts': "export const current = 'everframe-video-v1';\n" }, [
+    { path: 'src/reader.ts', pattern: legacy, reason: 'Read existing stored videos' },
+  ]);
   assert.equal(result.status, 1, result.stderr);
-  assert.match(result.stderr, new RegExp(`src/reader\\.ts:.*${legacy}.*stale exception.*Read existing stored videos`));
+  assert.match(
+    result.stderr,
+    new RegExp(`src/reader\\.ts:.*${legacy}.*stale exception.*Read existing stored videos`),
+  );
 });
 
 test('rejects directory-wide and wildcard exceptions', () => {
   const legacy = `${former}-video-v1`;
-  const result = run(
-    { 'src/reader.ts': `export const legacy = '${legacy}';\n` },
-    [
-      { path: 'src/', pattern: legacy, reason: 'All readers' },
-      { path: 'src/reader.ts', pattern: `${former}.*`, reason: 'Every old name' },
-    ],
-  );
+  const result = run({ 'src/reader.ts': `export const legacy = '${legacy}';\n` }, [
+    { path: 'src/', pattern: legacy, reason: 'All readers' },
+    { path: 'src/reader.ts', pattern: `${former}.*`, reason: 'Every old name' },
+  ]);
   assert.equal(result.status, 1, result.stderr);
   assert.match(result.stderr, /src\/:.*invalid exception path/);
   assert.match(result.stderr, /src\/reader\.ts:.*invalid exception pattern/);
@@ -194,10 +215,9 @@ test('rejects directory-wide and wildcard exceptions', () => {
 });
 
 test('rejects generic name and empty-reason exceptions', () => {
-  const result = run(
-    { 'src/client.ts': `export const name = '${formerDisplay}';\n` },
-    [{ path: 'src/client.ts', pattern: formerDisplay, reason: '' }],
-  );
+  const result = run({ 'src/client.ts': `export const name = '${formerDisplay}';\n` }, [
+    { path: 'src/client.ts', pattern: formerDisplay, reason: '' },
+  ]);
   assert.equal(result.status, 1, result.stderr);
   assert.match(result.stderr, /invalid exception pattern/);
   assert.match(result.stderr, /missing reason/);
@@ -214,10 +234,9 @@ for (const [name, pattern] of [
   ['HTTP-header-prefix punctuation', `X-${formerDisplay}-.`],
 ]) {
   test(`rejects ${name} around a generic exception`, () => {
-    const result = run(
-      { 'docs/history.md': `${pattern}\n${pattern}\n` },
-      [{ path: 'docs/history.md', pattern, reason: 'Historical text' }],
-    );
+    const result = run({ 'docs/history.md': `${pattern}\n${pattern}\n` }, [
+      { path: 'docs/history.md', pattern, reason: 'Historical text' },
+    ]);
     assert.equal(result.status, 1, result.stderr);
     assert.match(result.stderr, /invalid exception pattern/);
     assert.match(result.stderr, /active identity in text/);

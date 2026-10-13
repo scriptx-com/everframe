@@ -62,15 +62,30 @@ const INSPECT = `async (blob, rects, neighbour, clean = []) => {
 }`;
 
 /** Capture through the real adapter; `prepare` returns the live rects and a neighbour point. */
-async function captureAdapter(page: Page, scenario: 'stroke' | 'slot' | 'backdrop' | 'shadow' | 'scroller' | 'direct'): Promise<Result> {
+async function captureAdapter(
+  page: Page,
+  scenario: 'stroke' | 'slot' | 'backdrop' | 'shadow' | 'scroller' | 'direct',
+): Promise<Result> {
   return page.evaluate(
     async ({ scenario, inspectSrc }) => {
-      const inspect = (0, eval)(inspectSrc) as (b: Blob, r: Rect[], n: [number, number], clean?: Rect[]) => Promise<Omit<Result, 'renderer' | 'rects'>>;
+      const inspect = (0, eval)(inspectSrc) as (
+        b: Blob,
+        r: Rect[],
+        n: [number, number],
+        clean?: Rect[],
+      ) => Promise<Omit<Result, 'renderer' | 'rects'>>;
       const w = window as unknown as {
-        __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
+        __everframe: {
+          __adapter: {
+            captureScreenshot(): Promise<{ blob: Blob }>;
+            __lastScreenshotRenderer?: string;
+          };
+        };
       };
       const plain = (list: ArrayLike<DOMRect>): Rect[] =>
-        Array.from(list, (r) => ({ x: r.left, y: r.top, width: r.width, height: r.height })).filter((r) => r.width > 0 && r.height > 0);
+        Array.from(list, (r) => ({ x: r.left, y: r.top, width: r.width, height: r.height })).filter(
+          (r) => r.width > 0 && r.height > 0,
+        );
       let rects: Rect[];
       let neighbourOf: Element;
       let clean: Rect[] = [];
@@ -129,7 +144,8 @@ async function captureAdapter(page: Page, scenario: 'stroke' | 'slot' | 'backdro
   );
 }
 
-const isBlue = (px: number[]): boolean => Math.abs(px[0]! - 0) <= 40 && Math.abs(px[1]! - 120) <= 40 && Math.abs(px[2]! - 255) <= 40;
+const isBlue = (px: number[]): boolean =>
+  Math.abs(px[0]! - 0) <= 40 && Math.abs(px[1]! - 120) <= 40 && Math.abs(px[2]! - 255) <= 40;
 
 function expectMasked(r: Result): void {
   expect(r.rects.length).toBeGreaterThan(0);
@@ -152,14 +168,18 @@ test('slotted private text under a sensitive <slot> ships black', async ({ page 
   expectMasked(r);
 });
 
-test('text under a backdrop-filter overlay that turns sensitive mid-capture ships black', async ({ page }) => {
+test('text under a backdrop-filter overlay that turns sensitive mid-capture ships black', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/pixel-mask.html');
   const r = await captureAdapter(page, 'backdrop');
   expect(r.renderer).toBe('snapdom');
   expectMasked(r);
 });
 
-test('slotted text under a sensitive <slot> ships no text-shadow outside the black box', async ({ page }) => {
+test('slotted text under a sensitive <slot> ships no text-shadow outside the black box', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/pixel-mask.html');
   const r = await captureAdapter(page, 'shadow');
   expect(r.renderer).toBe('snapdom');
@@ -167,7 +187,9 @@ test('slotted text under a sensitive <slot> ships no text-shadow outside the bla
   expect(r.mixed).toBe(false); // no shadow glyphs 40px below: uniformly page or mask
 });
 
-test('a sensitive scroller is black; public content below it is not blacked out by its scrolled content', async ({ page }) => {
+test('a sensitive scroller is black; public content below it is not blacked out by its scrolled content', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/pixel-mask.html');
   const r = await captureAdapter(page, 'scroller');
   expect(r.renderer).toBe('snapdom');
@@ -176,7 +198,9 @@ test('a sensitive scroller is black; public content below it is not blacked out 
   expect(r.darkest).toBeGreaterThan(150); // the green box below, untouched
 });
 
-test('bare text slotted into a sensitive <slot> ships black, its displaced text-shadow too', async ({ page }) => {
+test('bare text slotted into a sensitive <slot> ships black, its displaced text-shadow too', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/pixel-mask.html');
   const r = await captureAdapter(page, 'direct');
   expect(r.renderer).toBe('snapdom');
@@ -187,11 +211,18 @@ test('bare text slotted into a sensitive <slot> ships black, its displaced text-
   expect(r.mixed).toBe(false);
 });
 
-test('SDK chrome that is both excluded and sensitive leaves no black box over the app', async ({ page }) => {
+test('SDK chrome that is both excluded and sensitive leaves no black box over the app', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/pixel-mask.html');
   const r = await page.evaluate(async () => {
     const w = window as unknown as {
-      __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
+      __everframe: {
+        __adapter: {
+          captureScreenshot(): Promise<{ blob: Blob }>;
+          __lastScreenshotRenderer?: string;
+        };
+      };
     };
     const b = document.getElementById('badge')!.getBoundingClientRect();
     const shot = await w.__everframe.__adapter.captureScreenshot();
@@ -202,10 +233,19 @@ test('SDK chrome that is both excluded and sensitive leaves no black box over th
     const ctx = c.getContext('2d')!;
     ctx.drawImage(bmp, 0, 0);
     const scale = bmp.width / window.innerWidth;
-    const d = ctx.getImageData(Math.floor(b.left * scale), Math.floor(b.top * scale), Math.floor(b.width * scale), Math.floor(b.height * scale)).data;
+    const d = ctx.getImageData(
+      Math.floor(b.left * scale),
+      Math.floor(b.top * scale),
+      Math.floor(b.width * scale),
+      Math.floor(b.height * scale),
+    ).data;
     let dark = 0;
     for (let i = 0; i < d.length; i += 4) if (Math.max(d[i]!, d[i + 1]!, d[i + 2]!) < 40) dark++;
-    return { renderer: w.__everframe.__adapter.__lastScreenshotRenderer, dark, pixels: d.length / 4 };
+    return {
+      renderer: w.__everframe.__adapter.__lastScreenshotRenderer,
+      dark,
+      pixels: d.length / 4,
+    };
   });
   expect(r.renderer).toBe('snapdom');
   expect(r.pixels).toBeGreaterThan(1000);
@@ -234,7 +274,11 @@ test('a sensitive <img> captured as the root ships black', async ({ page }) => {
   );
   await page.goto('/e2e/fixtures/pixel-mask.html');
   const r = await page.evaluate(async (inspectSrc) => {
-    const inspect = (0, eval)(inspectSrc) as (b: Blob, r: Rect[], n: [number, number]) => Promise<Omit<Result, 'renderer' | 'rects'>>;
+    const inspect = (0, eval)(inspectSrc) as (
+      b: Blob,
+      r: Rect[],
+      n: [number, number],
+    ) => Promise<Omit<Result, 'renderer' | 'rects'>>;
     const img = document.getElementById('secret-img') as HTMLImageElement;
     await img.decode();
     const mod = (await import('/__e2e/screenshot.js' as string)) as {
@@ -270,7 +314,8 @@ test('a sensitive <img> captured as the root ships black', async ({ page }) => {
 async function breakSnapdom(page: Page): Promise<void> {
   // The built entry carries snapDOM in its own lazy chunk; the source module
   // resolves it through the import map.
-  const blocked = 'export const snapdom = () => { throw new Error("blocked"); }; export { snapdom as X };';
+  const blocked =
+    'export const snapdom = () => { throw new Error("blocked"); }; export { snapdom as X };';
   await page.route(/\/(vendor\/snapdom|dist\/snapdom-[^/]*)\.js$/, (route) =>
     route.fulfill({ contentType: 'text/javascript', body: blocked }),
   );
@@ -279,7 +324,9 @@ async function breakSnapdom(page: Page): Promise<void> {
   );
 }
 
-test('fallback, <body> root, scrolled: stroked sensitive text ships black at its live rect', async ({ page }) => {
+test('fallback, <body> root, scrolled: stroked sensitive text ships black at its live rect', async ({
+  page,
+}) => {
   await breakSnapdom(page);
   await page.goto('/e2e/fixtures/pixel-mask.html');
   await page.evaluate(() => window.scrollTo(0, 30));
@@ -288,11 +335,17 @@ test('fallback, <body> root, scrolled: stroked sensitive text ships black at its
   expectMasked(r);
 });
 
-test('fallback, custom root: stroked sensitive text ships black where the root-relative render put it', async ({ page }) => {
+test('fallback, custom root: stroked sensitive text ships black where the root-relative render put it', async ({
+  page,
+}) => {
   await breakSnapdom(page);
   await page.goto('/e2e/fixtures/pixel-mask.html');
   const r = await page.evaluate(async (inspectSrc) => {
-    const inspect = (0, eval)(inspectSrc) as (b: Blob, r: Rect[], n: [number, number]) => Promise<Omit<Result, 'renderer' | 'rects'>>;
+    const inspect = (0, eval)(inspectSrc) as (
+      b: Blob,
+      r: Rect[],
+      n: [number, number],
+    ) => Promise<Omit<Result, 'renderer' | 'rects'>>;
     const root = document.getElementById('stroke-line')!;
     const mod = (await import('/__e2e/screenshot.js' as string)) as {
       captureScreenshot(o: Record<string, unknown>): Promise<{ blob: Blob }>;
@@ -302,7 +355,12 @@ test('fallback, custom root: stroked sensitive text ships black where the root-r
     const o = root.getBoundingClientRect();
     const range = document.createRange();
     range.selectNodeContents(document.getElementById('stroke-wrap')!);
-    const rects = Array.from(range.getClientRects(), (b) => ({ x: b.left - o.left, y: b.top - o.top, width: b.width, height: b.height }));
+    const rects = Array.from(range.getClientRects(), (b) => ({
+      x: b.left - o.left,
+      y: b.top - o.top,
+      width: b.width,
+      height: b.height,
+    }));
     const last = rects[rects.length - 1]!;
     const shot = await mod.captureScreenshot({
       root,
@@ -312,7 +370,10 @@ test('fallback, custom root: stroked sensitive text ships black where the root-r
         renderer = x;
       },
     });
-    const out = await inspect(shot.blob, rects, [last.x + last.width + 8, last.y + last.height / 2]);
+    const out = await inspect(shot.blob, rects, [
+      last.x + last.width + 8,
+      last.y + last.height / 2,
+    ]);
     return { renderer, rects, ...out };
   }, INSPECT);
   expect(r.renderer).toBe('modern-screenshot');

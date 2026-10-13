@@ -18,14 +18,20 @@ describe('legacy Blob reads', () => {
       const failure = new Error('read failed');
       const input = {} as Blob;
       const read = vi.fn();
-      vi.stubGlobal('FileReader', class {
-        result = bytes;
-        error = failure;
-        onload?: () => void;
-        onerror?: () => void;
-        onabort?: () => void;
-        readAsArrayBuffer(blob: Blob) { read(blob); queueMicrotask(() => this[`on${outcome}`]?.()); }
-      });
+      vi.stubGlobal(
+        'FileReader',
+        class {
+          result = bytes;
+          error = failure;
+          onload?: () => void;
+          onerror?: () => void;
+          onabort?: () => void;
+          readAsArrayBuffer(blob: Blob) {
+            read(blob);
+            queueMicrotask(() => this[`on${outcome}`]?.());
+          }
+        },
+      );
       const result = readBlobArrayBuffer(input);
       if (outcome === 'load') expect(await result).toBe(bytes);
       else if (outcome === 'error') await expect(result).rejects.toBe(failure);

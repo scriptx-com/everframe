@@ -280,7 +280,11 @@ describe('CONFIG-02 config provider fail-closed', () => {
       seen.auth = headers.get('Authorization');
       return Response.json({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1.0 });
     }) as unknown as typeof fetch;
-    const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', sdkKey: 'sdk_abc' });
+    const cp = createConfigProvider({
+      fetchImpl,
+      configUrl: 'https://x/api/config',
+      sdkKey: 'sdk_abc',
+    });
     await cp.refresh();
     expect(seen.url).toBe('https://x/api/config');
     expect(seen.auth).toBe('Bearer sdk_abc');
@@ -294,10 +298,14 @@ describe('CONFIG-02 config provider fail-closed', () => {
   // web adapter relies on: passing 'networkbodies' actually reaches the
   // wire header.
   it('declares the networkbodies capability when the caller opts in via sdkFeatures', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(new Response(
-      JSON.stringify({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1 }),
-      { status: 200 },
-    ));
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1 }),
+          { status: 200 },
+        ),
+      );
     const cp = createConfigProvider({
       fetchImpl,
       configUrl: 'https://x/api/config',
@@ -314,10 +322,14 @@ describe('CONFIG-02 config provider fail-closed', () => {
   // splits on commas, so both tokens must ride in a single comma-joined
   // header value.
   it('declares multiple capabilities as a single comma-separated header value', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(new Response(
-      JSON.stringify({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1 }),
-      { status: 200 },
-    ));
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1 }),
+          { status: 200 },
+        ),
+      );
     const cp = createConfigProvider({
       fetchImpl,
       configUrl: 'https://x/api/config',
@@ -463,7 +475,11 @@ describe('CONFIG-02 config provider fail-closed', () => {
         }
         throw new Error('transient');
       }) as unknown as typeof fetch;
-      const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', sdkKey: 'k' });
+      const cp = createConfigProvider({
+        fetchImpl,
+        configUrl: 'https://x/api/config',
+        sdkKey: 'k',
+      });
       await cp.refresh();
       await expect(cp.refresh({ force: true })).resolves.toBe(false);
       // Last-good cache semantics unaffected by the boolean return.
@@ -500,7 +516,11 @@ describe('CONFIG-02 config provider fail-closed', () => {
         }) as unknown as typeof fetch;
       })();
 
-      const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', sdkKey: 'k' });
+      const cp = createConfigProvider({
+        fetchImpl,
+        configUrl: 'https://x/api/config',
+        sdkKey: 'k',
+      });
 
       // Start request A (ON) first.
       const refreshA = cp.refresh({ force: true });
@@ -511,7 +531,12 @@ describe('CONFIG-02 config provider fail-closed', () => {
 
       // Resolve B (the NEWER request) first.
       gateB.resolve(
-        Response.json({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1.0, networkBodies: { captureBodies: false } }),
+        Response.json({
+          replayEnabled: false,
+          replayDurationSec: 30,
+          samplingRate: 1.0,
+          networkBodies: { captureBodies: false },
+        }),
       );
       await expect(refreshB).resolves.toBe(true);
       expect(cp.get().replayEnabled).toBe(false);
@@ -519,7 +544,12 @@ describe('CONFIG-02 config provider fail-closed', () => {
       // THEN resolve A (the OLDER request) — it must NOT win despite
       // resolving last.
       gateA.resolve(
-        Response.json({ replayEnabled: true, replayDurationSec: 30, samplingRate: 1.0, networkBodies: { captureBodies: true } }),
+        Response.json({
+          replayEnabled: true,
+          replayDurationSec: 30,
+          samplingRate: 1.0,
+          networkBodies: { captureBodies: true },
+        }),
       );
       // A's own call reports it was superseded — not a fresh success — so a
       // caller like the web adapter's `bodyGateFailedClosed` never mistakes
@@ -540,7 +570,11 @@ describe('CONFIG-02 config provider fail-closed', () => {
         return calls === 1 ? gateA.promise : gateB.promise;
       }) as unknown as typeof fetch;
 
-      const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', sdkKey: 'k' });
+      const cp = createConfigProvider({
+        fetchImpl,
+        configUrl: 'https://x/api/config',
+        sdkKey: 'k',
+      });
 
       const refreshA = cp.refresh({ force: true }); // ON, started first
       const refreshB = cp.refresh({ force: true }); // OFF, started second
@@ -549,12 +583,22 @@ describe('CONFIG-02 config provider fail-closed', () => {
       // Resolve A first this time (completion order == start order) — the
       // ordinary case, must still behave correctly.
       gateA.resolve(
-        Response.json({ replayEnabled: true, replayDurationSec: 30, samplingRate: 1.0, networkBodies: { captureBodies: true } }),
+        Response.json({
+          replayEnabled: true,
+          replayDurationSec: 30,
+          samplingRate: 1.0,
+          networkBodies: { captureBodies: true },
+        }),
       );
       await refreshA;
 
       gateB.resolve(
-        Response.json({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1.0, networkBodies: { captureBodies: false } }),
+        Response.json({
+          replayEnabled: false,
+          replayDurationSec: 30,
+          samplingRate: 1.0,
+          networkBodies: { captureBodies: false },
+        }),
       );
       await expect(refreshB).resolves.toBe(true);
 
@@ -571,7 +615,11 @@ describe('CONFIG-02 config provider fail-closed', () => {
         return calls === 1 ? gateA.promise : gateB.promise;
       }) as unknown as typeof fetch;
 
-      const cp = createConfigProvider({ fetchImpl, configUrl: 'https://x/api/config', sdkKey: 'k' });
+      const cp = createConfigProvider({
+        fetchImpl,
+        configUrl: 'https://x/api/config',
+        sdkKey: 'k',
+      });
 
       const refreshA = cp.refresh({ force: true });
       const refreshB = cp.refresh({ force: true });
@@ -707,9 +755,7 @@ describe('CONFIG-02 config provider fail-closed', () => {
     // Seed a last-good ON value first.
     resolvers.length = 0;
     const seed = cp.refresh({ force: true });
-    resolvers[0]!(
-      Response.json({ replayEnabled: true, replayDurationSec: 30, samplingRate: 1.0 }),
-    );
+    resolvers[0]!(Response.json({ replayEnabled: true, replayDurationSec: 30, samplingRate: 1.0 }));
     await seed;
     expect(cp.get().replayEnabled).toBe(true);
 
@@ -769,10 +815,15 @@ describe('breadcrumbs config (spec §6)', () => {
 
   it('ReplayConfigResponse parses a body WITH a breadcrumbs block', () => {
     const body = {
-      replayEnabled: false, replayDurationSec: 30, samplingRate: 0,
+      replayEnabled: false,
+      replayDurationSec: 30,
+      samplingRate: 0,
       breadcrumbs: {
-        enabled: true, kinds: ['navigation', 'error'],
-        maxCount: 50, byteBudget: 8192, consoleEntryCap: 512,
+        enabled: true,
+        kinds: ['navigation', 'error'],
+        maxCount: 50,
+        byteBudget: 8192,
+        consoleEntryCap: 512,
       },
     };
     const parsed = ReplayConfigResponse.safeParse(body);
@@ -800,7 +851,9 @@ describe('breadcrumbs config (spec §6)', () => {
 describe('replies config (two-way replies server core)', () => {
   it('ReplayConfigResponse parses a body WITH a replies block and carries it through', () => {
     const body = {
-      replayEnabled: false, replayDurationSec: 30, samplingRate: 0,
+      replayEnabled: false,
+      replayDurationSec: 30,
+      samplingRate: 0,
       replies: { enabled: true },
     };
     const parsed = ReplayConfigResponse.safeParse(body);
@@ -821,7 +874,9 @@ describe('replies config (two-way replies server core)', () => {
 
   it('still rejects an unrelated unknown top-level key (schema stays strict)', () => {
     const body = {
-      replayEnabled: false, replayDurationSec: 30, samplingRate: 0,
+      replayEnabled: false,
+      replayDurationSec: 30,
+      samplingRate: 0,
       somethingUnexpected: true,
     };
     expect(ReplayConfigResponse.safeParse(body).success).toBe(false);
@@ -834,12 +889,18 @@ describe('sdkFeatures negotiation', () => {
   });
 
   it('carries the negotiated dashboard report hotkey through the config cache', async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      replayEnabled: false,
-      replayDurationSec: 30,
-      samplingRate: 1,
-      reportHotkey: { binding: 'Alt+R' },
-    }), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            replayEnabled: false,
+            replayDurationSec: 30,
+            samplingRate: 1,
+            reportHotkey: { binding: 'Alt+R' },
+          }),
+          { status: 200 },
+        ),
+    );
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
       configUrl: 'https://x.test/api/config',
@@ -853,32 +914,50 @@ describe('sdkFeatures negotiation', () => {
   });
 
   it('sends X-Everframe-SDK-Features when features are supplied', async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      replayEnabled: false, replayDurationSec: 30, samplingRate: 1.0,
-      replies: { enabled: true },
-    }), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            replayEnabled: false,
+            replayDurationSec: 30,
+            samplingRate: 1.0,
+            replies: { enabled: true },
+          }),
+          { status: 200 },
+        ),
+    );
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
-      configUrl: 'https://x.test/api/config', sdkKey: 'txx_live_k',
+      configUrl: 'https://x.test/api/config',
+      sdkKey: 'txx_live_k',
       sdkFeatures: ['replies'],
     });
     await provider.refresh();
-    const callArgs = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit]);
+    const callArgs = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     const headers = callArgs[1].headers as Record<string, string>;
     expect(headers[SDK_FEATURES_HEADER]).toBe('replies');
     expect(isRepliesEnabled(provider.get())).toBe(true);
   });
 
   it('omits the header when no features are supplied, and absence of the block means off', async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      replayEnabled: false, replayDurationSec: 30, samplingRate: 1.0,
-    }), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            replayEnabled: false,
+            replayDurationSec: 30,
+            samplingRate: 1.0,
+          }),
+          { status: 200 },
+        ),
+    );
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
-      configUrl: 'https://x.test/api/config', sdkKey: 'txx_live_k',
+      configUrl: 'https://x.test/api/config',
+      sdkKey: 'txx_live_k',
     });
     await provider.refresh();
-    const callArgs = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit]);
+    const callArgs = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     const headers = callArgs[1].headers as Record<string, string>;
     expect(SDK_FEATURES_HEADER in headers).toBe(false);
     expect(isRepliesEnabled(provider.get())).toBe(false);
@@ -891,29 +970,47 @@ describe('sdkFeatures negotiation', () => {
   // logs to explain why — see the task-14 brief's "Capability negotiation"
   // section.
   it('declares the identity capability and carries the enabled block through', async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      replayEnabled: false, replayDurationSec: 30, samplingRate: 1.0,
-      identity: { enabled: true },
-    }), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            replayEnabled: false,
+            replayDurationSec: 30,
+            samplingRate: 1.0,
+            identity: { enabled: true },
+          }),
+          { status: 200 },
+        ),
+    );
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
-      configUrl: 'https://x.test/api/config', sdkKey: 'txx_live_k',
+      configUrl: 'https://x.test/api/config',
+      sdkKey: 'txx_live_k',
       sdkFeatures: ['identity'],
     });
     await provider.refresh();
-    const callArgs = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit]);
+    const callArgs = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     const headers = callArgs[1].headers as Record<string, string>;
     expect(headers[SDK_FEATURES_HEADER]).toBe('identity');
     expect(isIdentityEnabled(provider.get())).toBe(true);
   });
 
   it('identity.enabled is false when the block is absent (old server or no secret configured)', async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      replayEnabled: false, replayDurationSec: 30, samplingRate: 1.0,
-    }), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            replayEnabled: false,
+            replayDurationSec: 30,
+            samplingRate: 1.0,
+          }),
+          { status: 200 },
+        ),
+    );
     const provider = createConfigProvider({
       fetchImpl: fetchImpl as unknown as typeof fetch,
-      configUrl: 'https://x.test/api/config', sdkKey: 'txx_live_k',
+      configUrl: 'https://x.test/api/config',
+      sdkKey: 'txx_live_k',
       sdkFeatures: ['identity'],
     });
     await provider.refresh();

@@ -4,7 +4,11 @@ import { captureJsBundleMetadata, type JsBundleConfig } from './js-bundle.js';
 import NativeEverframe from './NativeEverframe.js';
 import { extractFacts, renderLabel } from './error-facts.js';
 import { normalizeCrashDetails } from '@everframe/protocol';
-import { extractCrashCauseChain, redactStringContent, type CaptureExceptionOptions } from '@everframe/sdk-core';
+import {
+  extractCrashCauseChain,
+  redactStringContent,
+  type CaptureExceptionOptions,
+} from '@everframe/sdk-core';
 import {
   captureKey,
   exceedsValueShare,
@@ -14,7 +18,12 @@ import {
   type RejectionOutcome,
 } from './rejection-capture.js';
 
-import { createErrorCaptureLedger, emptyErrorCaptureStatus, type ErrorCaptureStatus, type ErrorCaptureOutcome } from './error-capture-status.js';
+import {
+  createErrorCaptureLedger,
+  emptyErrorCaptureStatus,
+  type ErrorCaptureStatus,
+  type ErrorCaptureOutcome,
+} from './error-capture-status.js';
 import { reactNativeExceptionsManager, type ExceptionsManagerLike } from './exceptions-manager.js';
 
 type ErrorHandlerCallback = (error: unknown, isFatal?: boolean) => void;
@@ -77,9 +86,13 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
   const ownsFatalTail = () => draining && (opts.isUnowned?.() ?? false);
 
   function identityFor(error: unknown): CaptureIdentity | undefined {
-    if ((typeof error !== 'object' || error === null) && typeof error !== 'function') return undefined;
+    if ((typeof error !== 'object' || error === null) && typeof error !== 'function')
+      return undefined;
     let identity = identities.get(error);
-    if (!identity) { identity = { accepted: false }; identities.set(error, identity); }
+    if (!identity) {
+      identity = { accepted: false };
+      identities.set(error, identity);
+    }
     return identity;
   }
 
@@ -91,7 +104,10 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
       // Rejected non-Error values are often responses or request configs:
       // report their type, never their headers, cookies, URLs or cause.
       let labelled = false;
-      const facts = extractFacts(reason, (value) => { labelled = true; return renderLabel(value); });
+      const facts = extractFacts(reason, (value) => {
+        labelled = true;
+        return renderLabel(value);
+      });
       if (!ownsCapture()) return undefined;
       const causeChain = labelled
         ? undefined
@@ -101,35 +117,68 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
         ...facts,
         ...(jsBundle ? { jsBundle } : {}),
         ...(causeChain ? { causeChain } : {}),
-        source: 'error', mechanism: 'unhandledrejection', handled: false, fatal: false, occurredAt,
+        source: 'error',
+        mechanism: 'unhandledrejection',
+        handled: false,
+        fatal: false,
+        occurredAt,
       });
       if (!ownsCapture()) return undefined;
-      const snapshot: PreparedRejection = { payload, key: rejectionKey(facts), ...(identity ? { identity } : {}) };
+      const snapshot: PreparedRejection = {
+        payload,
+        key: rejectionKey(facts),
+        ...(identity ? { identity } : {}),
+      };
       prepared.add(snapshot);
       return snapshot;
-    } catch { return undefined; }
-    finally { capturing = false; }
+    } catch {
+      return undefined;
+    } finally {
+      capturing = false;
+    }
   }
 
   function submitRejection(snapshot: PreparedRejection): RejectionOutcome {
     if (!ownsCapture() || !prepared.has(snapshot)) return 'inactive';
     const finish = ledger.begin('rejection');
-    if (capturing) { finish('reentrantSuppressed'); return 'capture-failed'; }
+    if (capturing) {
+      finish('reentrantSuppressed');
+      return 'capture-failed';
+    }
     capturing = true;
     let outcome: ErrorCaptureOutcome = 'captureFailed';
     try {
-      if (snapshot.identity?.accepted || automaticKeys.has(snapshot.key)) { outcome = 'duplicateSuppressed'; return 'duplicate'; }
-      if (automaticKeys.size >= 10 || exceedsValueShare(automaticKeys, snapshot.key)) { outcome = 'allowanceSuppressed'; return 'allowance'; }
+      if (snapshot.identity?.accepted || automaticKeys.has(snapshot.key)) {
+        outcome = 'duplicateSuppressed';
+        return 'duplicate';
+      }
+      if (automaticKeys.size >= 10 || exceedsValueShare(automaticKeys, snapshot.key)) {
+        outcome = 'allowanceSuppressed';
+        return 'allowance';
+      }
       const method = NativeEverframe.reportCrash;
-      if (!ownsCapture()) { outcome = 'inactiveAborted'; return 'inactive'; }
-      if (typeof method !== 'function') { outcome = 'bridgeUnavailable'; return 'native-refused'; }
-      if (applyFunction(method, NativeEverframe, [snapshot.payload]) !== true) { outcome = 'nativeRefused'; return 'native-refused'; }
+      if (!ownsCapture()) {
+        outcome = 'inactiveAborted';
+        return 'inactive';
+      }
+      if (typeof method !== 'function') {
+        outcome = 'bridgeUnavailable';
+        return 'native-refused';
+      }
+      if (applyFunction(method, NativeEverframe, [snapshot.payload]) !== true) {
+        outcome = 'nativeRefused';
+        return 'native-refused';
+      }
       automaticKeys.add(snapshot.key);
       if (snapshot.identity) snapshot.identity.accepted = true;
       outcome = 'accepted';
       return 'accepted';
-    } catch { return 'capture-failed'; }
-    finally { capturing = false; finish(outcome); }
+    } catch {
+      return 'capture-failed';
+    } finally {
+      capturing = false;
+      finish(outcome);
+    }
   }
 
   function capture(
@@ -142,32 +191,65 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
   ): void {
     if (!owns()) return;
     const finish = ledger.begin(explicit ? 'handled' : 'errorUtils');
-    if (capturing) { finish('reentrantSuppressed'); return; }
+    if (capturing) {
+      finish('reentrantSuppressed');
+      return;
+    }
     capturing = true;
     let outcome: ErrorCaptureOutcome = 'captureFailed';
     try {
-      const method = explicit ? NativeEverframe.captureHandledException : NativeEverframe.reportCrash;
+      const method = explicit
+        ? NativeEverframe.captureHandledException
+        : NativeEverframe.reportCrash;
       // Bridge property reads may themselves reenter teardown.
-      if (!owns()) { outcome = 'inactiveAborted'; return; }
-      if (typeof method !== 'function') { outcome = 'bridgeUnavailable'; return; }
+      if (!owns()) {
+        outcome = 'inactiveAborted';
+        return;
+      }
+      if (typeof method !== 'function') {
+        outcome = 'bridgeUnavailable';
+        return;
+      }
       const identity = identityFor(error);
-      if (!fatal && identity?.accepted) { outcome = 'duplicateSuppressed'; return; }
+      if (!fatal && identity?.accepted) {
+        outcome = 'duplicateSuppressed';
+        return;
+      }
       const facts = extractFacts(error);
       // Exactly how RN titles a component error, so the native layer can match
       // RN's fatal wrapper and the dashboard can fold the component stack.
       if (componentStack !== undefined) {
-        facts.message = `${facts.message}${COMPONENT_STACK_PREFIX}${componentStack}`.slice(0, MAX_MESSAGE);
+        facts.message = `${facts.message}${COMPONENT_STACK_PREFIX}${componentStack}`.slice(
+          0,
+          MAX_MESSAGE,
+        );
       }
       const keys = explicit ? handledKeys : automaticKeys;
       const key = captureKey(facts);
-      if (!owns()) { outcome = 'inactiveAborted'; return; }
-      if (!fatal && keys.has(key)) { outcome = 'duplicateSuppressed'; return; }
-      if (!fatal && keys.size >= 10) { outcome = 'allowanceSuppressed'; return; }
+      if (!owns()) {
+        outcome = 'inactiveAborted';
+        return;
+      }
+      if (!fatal && keys.has(key)) {
+        outcome = 'duplicateSuppressed';
+        return;
+      }
+      if (!fatal && keys.size >= 10) {
+        outcome = 'allowanceSuppressed';
+        return;
+      }
       const details = explicit
         ? normalizeCrashDetails(options, (value) => redactStringContent(value, {}), 'error')
         : undefined;
-      const causeChain = extractCrashCauseChain(error, (value) => redactStringContent(value, {}), owns);
-      if (!owns()) { outcome = 'inactiveAborted'; return; }
+      const causeChain = extractCrashCauseChain(
+        error,
+        (value) => redactStringContent(value, {}),
+        owns,
+      );
+      if (!owns()) {
+        outcome = 'inactiveAborted';
+        return;
+      }
       const payload = JSON.stringify({
         ...facts,
         ...(jsBundle ? { jsBundle } : {}),
@@ -179,7 +261,10 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
         fatal,
         occurredAt: new Date().toISOString(),
       });
-      if (!owns()) { outcome = 'inactiveAborted'; return; }
+      if (!owns()) {
+        outcome = 'inactiveAborted';
+        return;
+      }
       const accepted = applyFunction(method, NativeEverframe, [payload]) === true;
       outcome = accepted ? 'accepted' : 'nativeRefused';
       if (!fatal && accepted) {
@@ -213,7 +298,11 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
           // report this fatal a second time.
           if (args[1] === true) markOffered(args[0]);
           offering++;
-          try { previous?.(...args); } finally { offering--; }
+          try {
+            previous?.(...args);
+          } finally {
+            offering--;
+          }
         };
         restore = () => {
           const installation = handlerInstallations.get(eu);
@@ -235,7 +324,10 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     // React 19 reports an error no boundary caught through the root's
     // onUncaughtError, which calls ExceptionsManager.handleException(error,
     // true) and never the ErrorUtils handler above.
-    const em = opts.exceptionsManager === undefined ? reactNativeExceptionsManager() : opts.exceptionsManager ?? undefined;
+    const em =
+      opts.exceptionsManager === undefined
+        ? reactNativeExceptionsManager()
+        : (opts.exceptionsManager ?? undefined);
     const original = em?.handleException;
     if (em && typeof original === 'function' && ownsCapture()) {
       const ownsUncaught = () => ownsCapture() || ownsFatalTail();
@@ -248,7 +340,10 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
       };
       const installation = {};
       restoreExceptionsManager = () => {
-        if (em.handleException === wrapped && exceptionsManagerInstallations.get(em) === installation) {
+        if (
+          em.handleException === wrapped &&
+          exceptionsManagerInstallations.get(em) === installation
+        ) {
           em.handleException = original;
         }
       };
@@ -260,21 +355,33 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
   }
 
   function markOffered(error: unknown): void {
-    if ((typeof error === 'object' && error !== null) || typeof error === 'function') offered.add(error);
+    if ((typeof error === 'object' && error !== null) || typeof error === 'function')
+      offered.add(error);
   }
   function wasOffered(error: unknown): boolean {
-    return ((typeof error === 'object' && error !== null) || typeof error === 'function') && offered.has(error);
+    return (
+      ((typeof error === 'object' && error !== null) || typeof error === 'function') &&
+      offered.has(error)
+    );
   }
 
   return {
-    getErrorCaptureStatus() { return { ...emptyErrorCaptureStatus('active', 'none'), counters: ledger.snapshot() }; },
+    getErrorCaptureStatus() {
+      return { ...emptyErrorCaptureStatus('active', 'none'), counters: ledger.snapshot() };
+    },
     prepareRejection,
     submitRejection,
-    captureException(error, options) { capture(error, true, false, options); },
+    captureException(error, options) {
+      capture(error, true, false, options);
+    },
     dispose() {
       if (!active) return;
       active = false;
-      try { restore?.(); } catch { console.warn('[everframe] crash handler teardown threw'); }
+      try {
+        restore?.();
+      } catch {
+        console.warn('[everframe] crash handler teardown threw');
+      }
       if (!restoreExceptionsManager) return;
       // The provider's cleanup runs in React's mutation phase; the uncaught
       // error that caused it is reported later in the same commit. Keep the
@@ -282,9 +389,17 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
       draining = true;
       const finishDrain = () => {
         draining = false;
-        try { restoreExceptionsManager?.(); } catch { console.warn('[everframe] React error hook teardown threw'); }
+        try {
+          restoreExceptionsManager?.();
+        } catch {
+          console.warn('[everframe] React error hook teardown threw');
+        }
       };
-      try { setTimeout(finishDrain, 0); } catch { finishDrain(); }
+      try {
+        setTimeout(finishDrain, 0);
+      } catch {
+        finishDrain();
+      }
     },
   };
 }

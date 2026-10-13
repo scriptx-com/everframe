@@ -8,7 +8,8 @@ function toHex(digest: ArrayBuffer): string {
   // No padStart (Chrome 57+): smart-TV engines run Chrome 53.
   const bytes = new Uint8Array(digest);
   let hex = '';
-  for (let i = 0; i < bytes.length; i++) hex += (bytes[i]! < 16 ? '0' : '') + bytes[i]!.toString(16);
+  for (let i = 0; i < bytes.length; i++)
+    hex += (bytes[i]! < 16 ? '0' : '') + bytes[i]!.toString(16);
   return hex;
 }
 
@@ -27,7 +28,9 @@ export async function sha256HexOfBytes(bytes: Uint8Array): Promise<string> {
       // buffer goes as is, anything partial is copied (`slice` allocates a
       // fresh ArrayBuffer). A shared buffer rejects and takes the fallback.
       const whole = bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength;
-      return toHex(await subtle.digest('SHA-256', (whole ? bytes : bytes.slice()) as Uint8Array<ArrayBuffer>));
+      return toHex(
+        await subtle.digest('SHA-256', (whole ? bytes : bytes.slice()) as Uint8Array<ArrayBuffer>),
+      );
     } catch {
       // Fall through to the pure-JS digest.
     }

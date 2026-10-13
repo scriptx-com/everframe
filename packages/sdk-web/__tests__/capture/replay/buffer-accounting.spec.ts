@@ -88,8 +88,14 @@ describe('replay buffer accounting without serialization', () => {
     let reads = 0;
     for (let i = 0; i < 5000; i++) {
       const event: BufferEvent = {
-        get type() { reads++; return i === 0 ? 2 : 3; },
-        get timestamp() { reads++; return i; },
+        get type() {
+          reads++;
+          return i === 0 ? 2 : 3;
+        },
+        get timestamp() {
+          reads++;
+          return i;
+        },
       };
       buf.push(event);
       buf.rotate(i);
@@ -102,29 +108,42 @@ describe('replay buffer accounting without serialization', () => {
 });
 
 describe('snapshot segment retention', () => {
-  it.each(['meta', 'snapshot'] as const)('does not breach at a checkout Meta when %s carries the checkout flag', (flag) => {
-    const first = [
-      { type: 4, timestamp: 0 },
-      { type: 2, timestamp: 0, data: { text: 'x'.repeat(100) } },
-      { type: 3, timestamp: 1, data: { text: 'y'.repeat(100) } },
-    ];
-    for (const cap of [{ maxEvents: 3 }, { maxBytes: first.reduce((sum, e) => sum + Buffer.byteLength(JSON.stringify(e)), 0) }]) {
-      const buf = createRollingBuffer({ durationSec: 30, ...cap });
-      const next = [{ type: 4, timestamp: 15000 }, { type: 2, timestamp: 15000 }];
-      for (const e of [...first, ...next]) {
-        buf.push(e, e.type === (flag === 'meta' ? 4 : 2));
-        buf.rotate(e.timestamp);
-        expect(buf.capBreached()).toBe(false);
+  it.each(['meta', 'snapshot'] as const)(
+    'does not breach at a checkout Meta when %s carries the checkout flag',
+    (flag) => {
+      const first = [
+        { type: 4, timestamp: 0 },
+        { type: 2, timestamp: 0, data: { text: 'x'.repeat(100) } },
+        { type: 3, timestamp: 1, data: { text: 'y'.repeat(100) } },
+      ];
+      for (const cap of [
+        { maxEvents: 3 },
+        { maxBytes: first.reduce((sum, e) => sum + Buffer.byteLength(JSON.stringify(e)), 0) },
+      ]) {
+        const buf = createRollingBuffer({ durationSec: 30, ...cap });
+        const next = [
+          { type: 4, timestamp: 15000 },
+          { type: 2, timestamp: 15000 },
+        ];
+        for (const e of [...first, ...next]) {
+          buf.push(e, e.type === (flag === 'meta' ? 4 : 2));
+          buf.rotate(e.timestamp);
+          expect(buf.capBreached()).toBe(false);
+        }
+        expect(buf.frames()).toEqual(next);
       }
-      expect(buf.frames()).toEqual(next);
-    }
-  });
+    },
+  );
 
   it('keeps the anchor before the cutoff across three checkouts, then releases it', () => {
     const buf = createRollingBuffer({ durationSec: 30 });
     const events: BufferEvent[] = [];
     for (const timestamp of [0, 15000, 30000]) {
-      for (const event of [{ type: 4, timestamp }, { type: 2, timestamp }, { type: 3, timestamp: timestamp + 1 }]) {
+      for (const event of [
+        { type: 4, timestamp },
+        { type: 2, timestamp },
+        { type: 3, timestamp: timestamp + 1 },
+      ]) {
         events.push(event);
         buf.push(event, event.type === 4);
         buf.rotate(event.timestamp);
@@ -158,7 +177,15 @@ describe('snapshot segment retention', () => {
         expect(buf.capBreached()).toBe(false);
       }
     }
-    expect(buf.frames().slice(0, 2).map(e => [e.type, e.timestamp])).toEqual([[4, 45000], [2, 45000]]);
+    expect(
+      buf
+        .frames()
+        .slice(0, 2)
+        .map((e) => [e.type, e.timestamp]),
+    ).toEqual([
+      [4, 45000],
+      [2, 45000],
+    ]);
     expect(buf.size()).toBe(buf.frames().length);
     expect(buf.byteSize()).toBeLessThanOrEqual(500);
   });
@@ -167,27 +194,46 @@ describe('snapshot segment retention', () => {
 describe('incomplete checkouts', () => {
   it('drops an unplayable orphan prefix when cap shedding removes its previous anchor', () => {
     const buf = createRollingBuffer({ durationSec: 30, maxEvents: 6 });
-    const fresh = [{ type: 4, timestamp: 30000 }, { type: 2, timestamp: 30000 }, { type: 3, timestamp: 30001 }];
+    const fresh = [
+      { type: 4, timestamp: 30000 },
+      { type: 2, timestamp: 30000 },
+      { type: 3, timestamp: 30001 },
+    ];
     for (const event of [
-      { type: 4, timestamp: 0 }, { type: 2, timestamp: 0 },
-      { type: 4, timestamp: 15000 }, { type: 3, timestamp: 15001 },
+      { type: 4, timestamp: 0 },
+      { type: 2, timestamp: 0 },
+      { type: 4, timestamp: 15000 },
+      { type: 3, timestamp: 15001 },
       ...fresh,
-    ]) buf.push(event);
+    ])
+      buf.push(event);
     expect(buf.capBreached()).toBe(false);
     buf.rotate(65000);
     expect(buf.frames()).toEqual(fresh);
     expect(buf.size()).toBe(3);
-    expect(buf.byteSize()).toBe(fresh.reduce((n, e) => n + Buffer.byteLength(JSON.stringify(e)), 0));
+    expect(buf.byteSize()).toBe(
+      fresh.reduce((n, e) => n + Buffer.byteLength(JSON.stringify(e)), 0),
+    );
   });
 
   it('prunes past orphan Meta segments only after a complete replacement anchor is eligible', () => {
     const buf = createRollingBuffer({ durationSec: 30 });
-    const old = [{ type: 4, timestamp: 0 }, { type: 2, timestamp: 0 }];
-    const orphan = [{ type: 4, timestamp: 15000 }, { type: 3, timestamp: 15001 }];
+    const old = [
+      { type: 4, timestamp: 0 },
+      { type: 2, timestamp: 0 },
+    ];
+    const orphan = [
+      { type: 4, timestamp: 15000 },
+      { type: 3, timestamp: 15001 },
+    ];
     for (const event of [...old, ...orphan]) buf.push(event);
     buf.rotate(65000);
     expect(buf.frames()).toEqual([...old, ...orphan]);
-    const fresh = [{ type: 4, timestamp: 30000 }, { type: 2, timestamp: 30000 }, { type: 3, timestamp: 30001 }];
+    const fresh = [
+      { type: 4, timestamp: 30000 },
+      { type: 2, timestamp: 30000 },
+      { type: 3, timestamp: 30001 },
+    ];
     for (const event of fresh) buf.push(event);
     buf.rotate(59000);
     expect(buf.frames()).toEqual([...old, ...orphan, ...fresh]);
@@ -195,15 +241,20 @@ describe('incomplete checkouts', () => {
     expect(buf.frames()).toEqual(fresh);
     expect(buf.oldestTs()).toBe(30000);
     expect(buf.size()).toBe(3);
-    expect(buf.byteSize()).toBe(fresh.reduce((n, e) => n + Buffer.byteLength(JSON.stringify(e)), 0));
+    expect(buf.byteSize()).toBe(
+      fresh.reduce((n, e) => n + Buffer.byteLength(JSON.stringify(e)), 0),
+    );
   });
 
   it('retains a pending checkout after pruning earlier orphan segments', () => {
     const buf = createRollingBuffer({ durationSec: 30 });
     const events = [
-      { type: 4, timestamp: 0 }, { type: 2, timestamp: 0 },
-      { type: 4, timestamp: 15000 }, { type: 3, timestamp: 15001 },
-      { type: 4, timestamp: 30000 }, { type: 2, timestamp: 30000 },
+      { type: 4, timestamp: 0 },
+      { type: 2, timestamp: 0 },
+      { type: 4, timestamp: 15000 },
+      { type: 3, timestamp: 15001 },
+      { type: 4, timestamp: 30000 },
+      { type: 2, timestamp: 30000 },
       { type: 4, timestamp: 45000 },
     ];
     for (const event of events) buf.push(event);
@@ -211,6 +262,9 @@ describe('incomplete checkouts', () => {
     expect(buf.frames()).toEqual(events.slice(4));
     buf.push({ type: 2, timestamp: 45000 });
     buf.rotate(100000);
-    expect(buf.frames().map(e => [e.type, e.timestamp])).toEqual([[4, 45000], [2, 45000]]);
+    expect(buf.frames().map((e) => [e.type, e.timestamp])).toEqual([
+      [4, 45000],
+      [2, 45000],
+    ]);
   });
 });

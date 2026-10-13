@@ -128,7 +128,9 @@ export const REPLAY_BYTE_CAP = 8_000_000;
  * Exported (spec 2026-07-18 crash-reporting task) so adapter.ts's crash-envelope
  * builder reuses the same inference instead of hardcoding 'desktop'.
  */
-export function inferFormFactor(metadata: DeviceMetadata | null): 'phone' | 'tablet' | 'desktop' | 'tv' {
+export function inferFormFactor(
+  metadata: DeviceMetadata | null,
+): 'phone' | 'tablet' | 'desktop' | 'tv' {
   if (!metadata) return 'desktop';
   const os = metadata.os.toLowerCase();
   if (os.includes('ios')) return 'phone';
@@ -258,8 +260,7 @@ export function draftToEnvelope(
 
   // Pitfall 8 lock — a shot whose bytes were mutated by BlurBakery must ship
   // as 'annotated-screenshot' so viewers know the pixels differ from raw.
-  const hasBake =
-    (draft.redactions ?? []).length > 0 || (draft.annotations ?? []).length > 0;
+  const hasBake = (draft.redactions ?? []).length > 0 || (draft.annotations ?? []).length > 0;
   const attachments: DraftToEnvelopeOutput['attachments'] = [];
   const attachmentRefs: AttachmentRef[] = [];
   // Multi-screenshot (report-window overhaul): bundle.screenshots wins when
@@ -401,7 +402,10 @@ export function draftToEnvelope(
       name: config.appName ?? 'unknown-app',
       version: config.appVersion ?? '0.0.0',
       ...((build) => (build !== undefined ? { build } : {}))(resolveAppBuild(config.appBuild)),
-      debug: resolveDebugBuild(config.debugBuild, typeof location === 'undefined' ? null : location),
+      debug: resolveDebugBuild(
+        config.debugBuild,
+        typeof location === 'undefined' ? null : location,
+      ),
     },
     attachments: attachmentRefs,
   });

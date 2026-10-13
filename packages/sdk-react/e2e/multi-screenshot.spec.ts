@@ -52,9 +52,7 @@ test.describe('area capture pads when the source bitmap is shorter than the view
   // size (white background), not silently clamp the selection's bottom off.
   test.use({ viewport: { width: 1280, height: 2000 } });
 
-  test('drag past the rendered bitmap bottom keeps the requested dimensions', async ({
-    page,
-  }) => {
+  test('drag past the rendered bitmap bottom keeps the requested dimensions', async ({ page }) => {
     await page.goto('/');
     const dpr = await page.evaluate(() => window.devicePixelRatio);
     // Red marker inside the drag region (and inside rendered content) proves

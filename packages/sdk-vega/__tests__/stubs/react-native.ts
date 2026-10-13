@@ -7,7 +7,11 @@
 export const Platform = {
   OS: 'kepler',
   isTV: true,
-  constants: { keplerOSVariant: 'tv', uiMode: 'tv', reactNativeVersion: { major: 0, minor: 72, patch: 0 } },
+  constants: {
+    keplerOSVariant: 'tv',
+    uiMode: 'tv',
+    reactNativeVersion: { major: 0, minor: 72, patch: 0 },
+  },
 };
 
 export const Dimensions = {

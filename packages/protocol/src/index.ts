@@ -15,13 +15,29 @@ export { FocusedNode } from './focus.js';
 export { AttachmentRef, AttachmentKind, ReplayFormat } from './attachments.js';
 export { MAX_REPORT_SHOTS, MAX_INGEST_FILE_PARTS } from './limits.js';
 export {
-  DOM_SNAPSHOT_VERSION, DOM_SNAPSHOT_PART, DOM_SNAPSHOT_CONTENT_TYPE,
-  MAX_DOM_SNAPSHOT_COMPRESSED_BYTES, MAX_DOM_SNAPSHOT_DECOMPRESSED_BYTES,
-  MAX_DOM_SNAPSHOT_NODES, MAX_DOM_SNAPSHOT_DEPTH, MAX_RENDER_VIEWPORT_EDGE,
-  RenderPlatform, RenderViewport, RenderFontStatus, DomSnapshotMedia, DomSnapshotFonts,
-  DomSnapshotContext, DomSnapshotMetaEvent, DomSnapshotFullSnapshotEvent, DomSnapshotV1,
+  DOM_SNAPSHOT_VERSION,
+  DOM_SNAPSHOT_PART,
+  DOM_SNAPSHOT_CONTENT_TYPE,
+  MAX_DOM_SNAPSHOT_COMPRESSED_BYTES,
+  MAX_DOM_SNAPSHOT_DECOMPRESSED_BYTES,
+  MAX_DOM_SNAPSHOT_NODES,
+  MAX_DOM_SNAPSHOT_DEPTH,
+  MAX_RENDER_VIEWPORT_EDGE,
+  RenderPlatform,
+  RenderViewport,
+  RenderFontStatus,
+  DomSnapshotMedia,
+  DomSnapshotFonts,
+  DomSnapshotContext,
+  DomSnapshotMetaEvent,
+  DomSnapshotFullSnapshotEvent,
+  DomSnapshotV1,
   CaptureControlRender,
-  parseDomSnapshot, countDomSnapshotNodes, domSnapshotDepth, domSnapshotPartName, parseDomSnapshotPartName,
+  parseDomSnapshot,
+  countDomSnapshotNodes,
+  domSnapshotDepth,
+  domSnapshotPartName,
+  parseDomSnapshotPartName,
   readCaptureControlRender,
 } from './dom-snapshot.js';
 export type { ParseDomSnapshotResult } from './dom-snapshot.js';
@@ -37,59 +53,136 @@ export * as vtree from './vtree/index.js';
 export * from './network-body.js';
 export * from './crash.js';
 export * from './crash-causes.js';
-export { JWT_CANDIDATE_PATTERN, JWT_REPLACEMENT, MAX_JWT_FULL_DECODES, MAX_JWT_GLUE, redactJwt } from './redaction.js';
+export {
+  JWT_CANDIDATE_PATTERN,
+  JWT_REPLACEMENT,
+  MAX_JWT_FULL_DECODES,
+  MAX_JWT_GLUE,
+  redactJwt,
+} from './redaction.js';
 export * from './crash-details.js';
 export { SENSITIVE_KEY_PARTS, isSensitiveKey } from './sensitive-keys.js';
 export * from './native-crash.js';
 export * from './build-artifacts.js';
 export {
-  VitalsPlayerEventType, VitalsPlayerId, VitalsSample, VitalsPlayerEvent,
-  VitalsCustomEntry, VitalsEntry, VitalsChunk, SessionSummaryDims,
-  SessionSummary, VitalsIngestBody, VitalsIngestRequest,
-  MAX_ENVELOPE_VITALS_ENTRIES, MAX_PLAYER_ID_LENGTH, MAX_CUSTOM_DATA_BYTES,
-  MAX_CUSTOM_NAME_LENGTH, MAX_PLAYER_LIBRARY_LENGTH, MAX_PLAYER_EVENT_DATA_BYTES,
+  VitalsPlayerEventType,
+  VitalsPlayerId,
+  VitalsSample,
+  VitalsPlayerEvent,
+  VitalsCustomEntry,
+  VitalsEntry,
+  VitalsChunk,
+  SessionSummaryDims,
+  SessionSummary,
+  VitalsIngestBody,
+  VitalsIngestRequest,
+  MAX_ENVELOPE_VITALS_ENTRIES,
+  MAX_PLAYER_ID_LENGTH,
+  MAX_CUSTOM_DATA_BYTES,
+  MAX_CUSTOM_NAME_LENGTH,
+  MAX_PLAYER_LIBRARY_LENGTH,
+  MAX_PLAYER_EVENT_DATA_BYTES,
   utf8ByteLength,
 } from './vitals.js';
 export {
-  ResourceSample, MAX_RESOURCE_SAMPLES, RESOURCE_SAMPLE_INTERVAL_MS,
-  RESOURCE_WINDOW_PRESETS, DEFAULT_RESOURCE_WINDOW_SEC,
+  ResourceSample,
+  MAX_RESOURCE_SAMPLES,
+  RESOURCE_SAMPLE_INTERVAL_MS,
+  RESOURCE_WINDOW_PRESETS,
+  DEFAULT_RESOURCE_WINDOW_SEC,
 } from './resources.js';
 export type { ResourceSampleT } from './resources.js';
 export {
-  RENDER_PATH, RENDER_META_HEADER, RENDER_REQUEST_CONTENT_TYPE, RENDER_REQUEST_CONTENT_ENCODING,
-  RENDER_RESPONSE_CONTENT_TYPE, SCREENSHOT_RENDER_SDK_FEATURE,
-  RENDER_FOCUS_ATTR, RENDER_FOCUS_WITHIN_ATTR,
-  MAX_RENDER_MISSING_ASSET_URLS, MAX_RENDER_MISSING_ASSET_URL_LENGTH,
-  RenderMeta, RenderErrorCode, RenderErrorBody, parseRenderMeta,
+  RENDER_PATH,
+  RENDER_META_HEADER,
+  RENDER_REQUEST_CONTENT_TYPE,
+  RENDER_REQUEST_CONTENT_ENCODING,
+  RENDER_RESPONSE_CONTENT_TYPE,
+  SCREENSHOT_RENDER_SDK_FEATURE,
+  RENDER_FOCUS_ATTR,
+  RENDER_FOCUS_WITHIN_ATTR,
+  MAX_RENDER_MISSING_ASSET_URLS,
+  MAX_RENDER_MISSING_ASSET_URL_LENGTH,
+  RenderMeta,
+  RenderErrorCode,
+  RenderErrorBody,
+  parseRenderMeta,
 } from './render.js';
 // Zod-free, so the SDK's eager bundle can import it without pulling in schemas.
 export { RENDER_BLANK_CHECK, isNearUniform } from './blank-check.js';
 export {
-  ReleaseHealthRecordSchema, ReleaseHealthExposureSchema, NativeExposurePointerSchema, ReleaseHealthAppSchema,
-  AndroidReleaseHealthExposureSchema, IOSReleaseHealthExposureSchema, ReleaseHealthSubjectSchema,
-  RELEASE_HEALTH_MAX_AGE_MS, RELEASE_HEALTH_CLOCK_SKEW_MS, RELEASE_HEALTH_BODY_LIMIT,
-  RELEASE_HEALTH_SCHEMA_VERSION, RELEASE_HEALTH_APP_TEXT_MAX,
+  ReleaseHealthRecordSchema,
+  ReleaseHealthExposureSchema,
+  NativeExposurePointerSchema,
+  ReleaseHealthAppSchema,
+  AndroidReleaseHealthExposureSchema,
+  IOSReleaseHealthExposureSchema,
+  ReleaseHealthSubjectSchema,
+  RELEASE_HEALTH_MAX_AGE_MS,
+  RELEASE_HEALTH_CLOCK_SKEW_MS,
+  RELEASE_HEALTH_BODY_LIMIT,
+  RELEASE_HEALTH_SCHEMA_VERSION,
+  RELEASE_HEALTH_APP_TEXT_MAX,
 } from './release-health.js';
 export type {
-  ReleaseHealthRecord, ReleaseHealthExposure, AndroidReleaseHealthExposure, IOSReleaseHealthExposure,
-  NativeExposurePointer, ReleaseHealthApp, ReleaseHealthSubject,
+  ReleaseHealthRecord,
+  ReleaseHealthExposure,
+  AndroidReleaseHealthExposure,
+  IOSReleaseHealthExposure,
+  NativeExposurePointer,
+  ReleaseHealthApp,
+  ReleaseHealthSubject,
 } from './release-health.js';
 
-export { ElfBuildId, AndroidNativeFrame, AndroidNativeCrashMetadata } from './android-native-crash.js';
+export {
+  ElfBuildId,
+  AndroidNativeFrame,
+  AndroidNativeCrashMetadata,
+} from './android-native-crash.js';
 
-export { DiagnosticEvidence, DiagnosticCause, DiagnosticFrame, androidExitCause } from './diagnostic.js';
+export {
+  DiagnosticEvidence,
+  DiagnosticCause,
+  DiagnosticFrame,
+  androidExitCause,
+} from './diagnostic.js';
 
-export { AppleDiagnosticEvidence, AppleDiagnosticFrame, AppleHang, AppleExitCount } from './apple-diagnostic.js';
+export {
+  AppleDiagnosticEvidence,
+  AppleDiagnosticFrame,
+  AppleHang,
+  AppleExitCount,
+} from './apple-diagnostic.js';
 export { RecoveredStallEvidence } from './recovered-stall.js';
 export {
-  InferredTerminationEvidence, InferredTerminationCause, INFERRED_TERMINATION_MECHANISM, INFERRED_TERMINATION_STALL_MS,
-  INFERRED_TERMINATION_EXCEPTION_TYPES, INFERRED_TERMINATION_FINGERPRINTS,
+  InferredTerminationEvidence,
+  InferredTerminationCause,
+  INFERRED_TERMINATION_MECHANISM,
+  INFERRED_TERMINATION_STALL_MS,
+  INFERRED_TERMINATION_EXCEPTION_TYPES,
+  INFERRED_TERMINATION_FINGERPRINTS,
 } from './inferred-termination.js';
 export {
-  RELEASE_HEALTH_ALERT_SCHEMA_VERSION, ReleaseHealthAlertTargetSchema, ReleaseHealthThresholdEventSchema,
+  RELEASE_HEALTH_ALERT_SCHEMA_VERSION,
+  ReleaseHealthAlertTargetSchema,
+  ReleaseHealthThresholdEventSchema,
 } from './release-health-alert.js';
-export type { ReleaseHealthAlertTarget, ReleaseHealthThresholdEvent } from './release-health-alert.js';
+export type {
+  ReleaseHealthAlertTarget,
+  ReleaseHealthThresholdEvent,
+} from './release-health-alert.js';
 
 export * from './web-runtime-platform.js';
-export { NativeReleaseHealthRecordSchema, NativeReleaseHealthExposureSchema, WebReleaseHealthRecordSchema, WebReleaseHealthExposureSchema, WEB_RELEASE_HEALTH_SCHEMA_VERSION } from './release-health.js';
-export type { NativeReleaseHealthRecord, NativeReleaseHealthExposure, WebReleaseHealthRecord, WebReleaseHealthExposure } from './release-health.js';
+export {
+  NativeReleaseHealthRecordSchema,
+  NativeReleaseHealthExposureSchema,
+  WebReleaseHealthRecordSchema,
+  WebReleaseHealthExposureSchema,
+  WEB_RELEASE_HEALTH_SCHEMA_VERSION,
+} from './release-health.js';
+export type {
+  NativeReleaseHealthRecord,
+  NativeReleaseHealthExposure,
+  WebReleaseHealthRecord,
+  WebReleaseHealthExposure,
+} from './release-health.js';

@@ -24,10 +24,15 @@ let warnedTurbopack = false;
  * Client production webpack builds only. Turbopack builds are not stamped or uploaded;
  * the empty `turbopack` config keeps Next 16's default Turbopack build from rejecting the webpack hook.
  */
-export function withEverframe<T extends NextConfigLike>(nextConfig: T, options: EverframeBundlerOptions): Wrapped<T> {
+export function withEverframe<T extends NextConfigLike>(
+  nextConfig: T,
+  options: EverframeBundlerOptions,
+): Wrapped<T> {
   if (!warnedTurbopack) {
     warnedTurbopack = true;
-    console.warn('everframe: Turbopack builds are not stamped or uploaded; build with `next build --webpack` to upload source maps.');
+    console.warn(
+      'everframe: Turbopack builds are not stamped or uploaded; build with `next build --webpack` to upload source maps.',
+    );
   }
   const userHook = nextConfig.webpack;
   return {

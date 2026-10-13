@@ -5,7 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, mergeConfig } from 'vitest/config';
 import { baseConfig } from '../../vitest.base.js';
 
-const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
+const { version } = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+) as { version: string };
 
 export default mergeConfig(
   baseConfig,
@@ -20,7 +22,9 @@ export default mergeConfig(
       // `react-native` is a peer and is not installed in this workspace; the
       // stub answers the three reads device.ts makes.
       alias: {
-        'react-native': fileURLToPath(new URL('./__tests__/stubs/react-native.ts', import.meta.url)),
+        'react-native': fileURLToPath(
+          new URL('./__tests__/stubs/react-native.ts', import.meta.url),
+        ),
       },
     },
   }),

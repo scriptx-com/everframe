@@ -175,8 +175,20 @@ describe('computeCappedPixelRatio', () => {
 
 describe('isTvUserAgent', () => {
   it('matches webOS and Tizen webviews and nothing else', () => {
-    expect(isTvUserAgent('Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 Chrome/79.0.3945.79 Safari/537.36 WebAppManager')).toBe(true);
-    expect(isTvUserAgent('Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 Chrome/76.0 TV Safari/537.36')).toBe(true);
-    expect(isTvUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 Chrome/140.0 Safari/537.36')).toBe(false);
+    expect(
+      isTvUserAgent(
+        'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 Chrome/79.0.3945.79 Safari/537.36 WebAppManager',
+      ),
+    ).toBe(true);
+    expect(
+      isTvUserAgent(
+        'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 Chrome/76.0 TV Safari/537.36',
+      ),
+    ).toBe(true);
+    expect(
+      isTvUserAgent(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 Chrome/140.0 Safari/537.36',
+      ),
+    ).toBe(false);
   });
 });

@@ -169,11 +169,16 @@ let current: InternalHandle | null = null;
 
 export function init(config: WebEverframeConfig): Everframe {
   assertBrowser();
-  if (config.sdkName !== undefined &&
-      (!['everframe-flutter', 'everframe-kmp'].includes(config.sdkName) ||
-       typeof config.visualCapture?.captureScreenshot !== 'function' ||
-       typeof config.sdkVersion !== 'string' || config.sdkVersion.length === 0)) {
-    throw new Error('Everframe: renderer web identity requires a renderer capture provider and SDK version.');
+  if (
+    config.sdkName !== undefined &&
+    (!['everframe-flutter', 'everframe-kmp'].includes(config.sdkName) ||
+      typeof config.visualCapture?.captureScreenshot !== 'function' ||
+      typeof config.sdkVersion !== 'string' ||
+      config.sdkVersion.length === 0)
+  ) {
+    throw new Error(
+      'Everframe: renderer web identity requires a renderer capture provider and SDK version.',
+    );
   }
   const sdkName = config.sdkName ?? VANILLA_SDK_NAME;
   const sdkVersion = config.sdkName ? config.sdkVersion! : PKG_VERSION;
@@ -881,32 +886,34 @@ export function init(config: WebEverframeConfig): Everframe {
     // Provider's single threads effect.
     unsubscribeThreads = threads.subscribe(applyThreadState);
     document.addEventListener('visibilitychange', onVisibility);
-    void settled.then(() => {
-      // A page initialised while ALREADY hidden (background tab, prerender,
-      // restored session) never gets a visibilitychange transition to stop a
-      // poller that started unconditionally, so the initial arm is gated on
-      // current visibility too. An undefined `visibilityState` counts as
-      // visible so non-browser-ish environments do not regress. `disposed`
-      // guards a destroy() that lands while config was still in flight.
-      //
-      // Codex round-4 finding 3 (P2) — `disposed` FIRST, which is what that
-      // sentence claims and the old ordering did not do: a torn-down instance
-      // reached into `document` for a value it was about to discard. Harmless
-      // today (`destroy()` leaves the document alone), but the whole point of
-      // the flag is that nothing after teardown touches the outside world, and
-      // a guard that runs second is not that guard.
-      if (disposed) return;
-      const visible =
-        document.visibilityState === undefined || document.visibilityState === 'visible';
-      if (visible) threads.startPolling();
-      // DEFE-02 — the ONE `settled` consumer that had no rejection handler
-      // (the drain's race at `waitForConfig` already carries `.catch`).
-      // `settled` is `__initReplay().then(__applyBreadcrumbsConfig)` and both
-      // swallow internally today, so this is not a live bug — codex round 4's
-      // claim that it fails the unit suite does not reproduce (102 files, 852
-      // tests, exit 0). It is here because `void p.then(cb)` turns ANY future
-      // throw on that chain into an unhandled rejection on the host's page.
-    }).catch(() => undefined);
+    void settled
+      .then(() => {
+        // A page initialised while ALREADY hidden (background tab, prerender,
+        // restored session) never gets a visibilitychange transition to stop a
+        // poller that started unconditionally, so the initial arm is gated on
+        // current visibility too. An undefined `visibilityState` counts as
+        // visible so non-browser-ish environments do not regress. `disposed`
+        // guards a destroy() that lands while config was still in flight.
+        //
+        // Codex round-4 finding 3 (P2) — `disposed` FIRST, which is what that
+        // sentence claims and the old ordering did not do: a torn-down instance
+        // reached into `document` for a value it was about to discard. Harmless
+        // today (`destroy()` leaves the document alone), but the whole point of
+        // the flag is that nothing after teardown touches the outside world, and
+        // a guard that runs second is not that guard.
+        if (disposed) return;
+        const visible =
+          document.visibilityState === undefined || document.visibilityState === 'visible';
+        if (visible) threads.startPolling();
+        // DEFE-02 — the ONE `settled` consumer that had no rejection handler
+        // (the drain's race at `waitForConfig` already carries `.catch`).
+        // `settled` is `__initReplay().then(__applyBreadcrumbsConfig)` and both
+        // swallow internally today, so this is not a live bug — codex round 4's
+        // claim that it fails the unit suite does not reproduce (102 files, 852
+        // tests, exit 0). It is here because `void p.then(cb)` turns ANY future
+        // throw on that chain into an unhandled rejection on the host's page.
+      })
+      .catch(() => undefined);
   }
 
   // Outbox drain — the adapter's own 'online' listener calls this trigger on
@@ -990,9 +997,7 @@ export function init(config: WebEverframeConfig): Everframe {
       // with the error the React SDK already raises when nothing is mounted.
       if (disposed) {
         return Promise.reject(
-          new EverframeNotMountedError(
-            'Everframe was destroyed; call init() again before open().',
-          ),
+          new EverframeNotMountedError('Everframe was destroyed; call init() again before open().'),
         );
       }
       if (!showModal) {

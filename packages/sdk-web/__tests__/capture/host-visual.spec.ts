@@ -26,7 +26,9 @@ describe('host visual screenshot', () => {
 
   it('rejects unavailable, invalid, and oversized frames without DOM fallback', async () => {
     await expect(captureHostScreenshot(async () => null)).rejects.toThrow();
-    await expect(captureHostScreenshot(async () => new Blob(['secret'], { type: 'image/png' }))).rejects.toThrow();
+    await expect(
+      captureHostScreenshot(async () => new Blob(['secret'], { type: 'image/png' })),
+    ).rejects.toThrow();
     await expect(captureHostScreenshot(async () => png(0, 720))).rejects.toThrow();
     await expect(captureHostScreenshot(async () => png(4096, 720))).rejects.toThrow();
   });
@@ -39,20 +41,24 @@ describe('host visual screenshot', () => {
       visualCapture: { captureScreenshot: async () => null },
     });
     try {
-      await expect(adapter.captureScreenshot()).rejects.toThrow('safe renderer frame is unavailable');
+      await expect(adapter.captureScreenshot()).rejects.toThrow(
+        'safe renderer frame is unavailable',
+      );
     } finally {
       adapter.__testCleanup();
     }
   });
 
   it('refuses Flutter attribution without a renderer provider', () => {
-    expect(() => init({ sdkKey: 'pk_probe', appVersion: '0.0.0', sdkName: 'everframe-flutter' }))
-      .toThrow('requires a renderer capture provider and SDK version');
+    expect(() =>
+      init({ sdkKey: 'pk_probe', appVersion: '0.0.0', sdkName: 'everframe-flutter' }),
+    ).toThrow('requires a renderer capture provider and SDK version');
   });
 
   it('refuses KMP attribution without a renderer provider', () => {
-    expect(() => init({ sdkKey: 'pk_probe', appVersion: '0.0.0', sdkName: 'everframe-kmp' }))
-      .toThrow('requires a renderer capture provider and SDK version');
+    expect(() =>
+      init({ sdkKey: 'pk_probe', appVersion: '0.0.0', sdkName: 'everframe-kmp' }),
+    ).toThrow('requires a renderer capture provider and SDK version');
   });
 
   it('accepts KMP attribution with a renderer provider and version', () => {

@@ -10,7 +10,10 @@ import { runBrs } from './brs-harness.js';
 describe('EF_VERSION', () => {
   it('matches package.json version', async () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-    const { lines } = await runBrs(['ef_version.brs'], `print "EFTEST:" + FormatJson(EF_VERSION())`);
+    const { lines } = await runBrs(
+      ['ef_version.brs'],
+      `print "EFTEST:" + FormatJson(EF_VERSION())`,
+    );
     expect(lines[0]).toBe(pkg.version);
   });
 
@@ -27,12 +30,21 @@ describe('EF_VERSION', () => {
     const tmp = mkdtempSync(path.join(tmpdir(), 'efver-'));
     mkdirSync(path.join(tmp, 'scripts'));
     mkdirSync(path.join(tmp, 'library/components/Everframe/lib'), { recursive: true });
-    cpSync(new URL('../scripts/sync-version.mjs', import.meta.url), path.join(tmp, 'scripts/sync-version.mjs'));
+    cpSync(
+      new URL('../scripts/sync-version.mjs', import.meta.url),
+      path.join(tmp, 'scripts/sync-version.mjs'),
+    );
     cpSync(new URL('../library/manifest', import.meta.url), path.join(tmp, 'library/manifest'));
-    cpSync(new URL('../library/components/Everframe/lib/ef_version.brs', import.meta.url), path.join(tmp, 'library/components/Everframe/lib/ef_version.brs'));
+    cpSync(
+      new URL('../library/components/Everframe/lib/ef_version.brs', import.meta.url),
+      path.join(tmp, 'library/components/Everframe/lib/ef_version.brs'),
+    );
     writeFileSync(path.join(tmp, 'package.json'), JSON.stringify({ version: '2.13.7-beta.1' }));
     execFileSync(process.execPath, [path.join(tmp, 'scripts/sync-version.mjs')]);
-    const brs = readFileSync(path.join(tmp, 'library/components/Everframe/lib/ef_version.brs'), 'utf8');
+    const brs = readFileSync(
+      path.join(tmp, 'library/components/Everframe/lib/ef_version.brs'),
+      'utf8',
+    );
     const manifest = readFileSync(path.join(tmp, 'library/manifest'), 'utf8');
     expect(brs).toContain('return "2.13.7-beta.1"');
     expect(brs).toMatch(/^' SPDX-License-Identifier: MIT$/m);

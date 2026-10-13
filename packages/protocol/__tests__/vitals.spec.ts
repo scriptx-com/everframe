@@ -3,8 +3,13 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  VitalsChunk, SessionSummary, VitalsIngestRequest,
-  VitalsEntry, VitalsCustomEntry, MAX_CUSTOM_DATA_BYTES, utf8ByteLength,
+  VitalsChunk,
+  SessionSummary,
+  VitalsIngestRequest,
+  VitalsEntry,
+  VitalsCustomEntry,
+  MAX_CUSTOM_DATA_BYTES,
+  utf8ByteLength,
 } from '../src/index.js';
 
 const SID = '3b2e2f9a-1111-4222-8333-944444444444';
@@ -12,9 +17,16 @@ const SID = '3b2e2f9a-1111-4222-8333-944444444444';
 describe('vitals wire shapes', () => {
   it('round-trips a chunk with both entry kinds', () => {
     const chunk = {
-      kind: 'chunk', sessionId: SID, seq: 0,
+      kind: 'chunk',
+      sessionId: SID,
+      seq: 0,
       entries: [
-        { kind: 'sample', t: 1756700000000, mem: 52428800, extras: { longTaskMs: 12, loopLagMs: 3 } },
+        {
+          kind: 'sample',
+          t: 1756700000000,
+          mem: 52428800,
+          extras: { longTaskMs: 12, loopLagMs: 3 },
+        },
         { kind: 'player', t: 1756700000500, type: 'buffer_start' },
         { kind: 'player', t: 1756700002500, type: 'buffer_end', data: { durationMs: 2000 } },
       ],
@@ -23,10 +35,14 @@ describe('vitals wire shapes', () => {
   });
 
   it('rejects an unknown player event type', () => {
-    expect(() => VitalsChunk.parse({
-      kind: 'chunk', sessionId: SID, seq: 1,
-      entries: [{ kind: 'player', t: 1, type: 'explode' }],
-    })).toThrow();
+    expect(() =>
+      VitalsChunk.parse({
+        kind: 'chunk',
+        sessionId: SID,
+        seq: 1,
+        entries: [{ kind: 'player', t: 1, type: 'explode' }],
+      }),
+    ).toThrow();
   });
 
   // Codex round-2 finding R4 — `seq` is capped at 1,000,000 (24h at the
@@ -36,22 +52,39 @@ describe('vitals wire shapes', () => {
   // Number.MAX_SAFE_INTEGER must 400 at the schema boundary, never reach the
   // blob store.
   it('rejects a seq above the 1,000,000 cap', () => {
-    expect(() => VitalsChunk.parse({
-      kind: 'chunk', sessionId: SID, seq: 1_000_001,
-      entries: [{ kind: 'sample', t: 1, mem: 0 }],
-    })).toThrow();
-    expect(VitalsChunk.parse({
-      kind: 'chunk', sessionId: SID, seq: 1_000_000,
-      entries: [{ kind: 'sample', t: 1, mem: 0 }],
-    }).seq).toBe(1_000_000);
+    expect(() =>
+      VitalsChunk.parse({
+        kind: 'chunk',
+        sessionId: SID,
+        seq: 1_000_001,
+        entries: [{ kind: 'sample', t: 1, mem: 0 }],
+      }),
+    ).toThrow();
+    expect(
+      VitalsChunk.parse({
+        kind: 'chunk',
+        sessionId: SID,
+        seq: 1_000_000,
+        entries: [{ kind: 'sample', t: 1, mem: 0 }],
+      }).seq,
+    ).toBe(1_000_000);
   });
 
   it('round-trips a summary and enforces dims', () => {
     const summary = {
-      kind: 'summary', sessionId: SID, final: true, startedAt: 1756700000000,
-      durationMs: 60000, playtimeMs: 48000, startupTimeMs: 850,
-      rebufferCount: 2, rebufferDurationMs: 3200, bitrateMean: 4800000,
-      errorCount: 0, memPeak: 94371840, memAvg: 61000000,
+      kind: 'summary',
+      sessionId: SID,
+      final: true,
+      startedAt: 1756700000000,
+      durationMs: 60000,
+      playtimeMs: 48000,
+      startupTimeMs: 850,
+      rebufferCount: 2,
+      rebufferDurationMs: 3200,
+      bitrateMean: 4800000,
+      errorCount: 0,
+      memPeak: 94371840,
+      memAvg: 61000000,
       dims: { platform: 'web', appVersion: '2.4.0', sdkVersion: '0.6.6' },
     };
     expect(SessionSummary.parse(summary)).toEqual(summary);
@@ -66,16 +99,29 @@ describe('vitals wire shapes', () => {
   // silently overflow the write.
   it('rejects a summary field above its DB-backed bound', () => {
     const base = {
-      kind: 'summary' as const, sessionId: SID, final: true, startedAt: 1,
-      durationMs: 0, playtimeMs: 0, startupTimeMs: null,
-      rebufferCount: 0, rebufferDurationMs: 0, bitrateMean: null,
-      errorCount: 0, memPeak: 0, memAvg: 0,
+      kind: 'summary' as const,
+      sessionId: SID,
+      final: true,
+      startedAt: 1,
+      durationMs: 0,
+      playtimeMs: 0,
+      startupTimeMs: null,
+      rebufferCount: 0,
+      rebufferDurationMs: 0,
+      bitrateMean: null,
+      errorCount: 0,
+      memPeak: 0,
+      memAvg: 0,
       dims: { platform: 'web' as const, appVersion: '1', sdkVersion: '1' },
     };
     const OVER_INT32 = 2_147_483_648;
     for (const field of [
-      'durationMs', 'playtimeMs', 'startupTimeMs', 'rebufferCount',
-      'rebufferDurationMs', 'errorCount',
+      'durationMs',
+      'playtimeMs',
+      'startupTimeMs',
+      'rebufferCount',
+      'rebufferDurationMs',
+      'errorCount',
     ] as const) {
       expect(() => SessionSummary.parse({ ...base, [field]: OVER_INT32 })).toThrow();
     }
@@ -94,10 +140,19 @@ describe('vitals wire shapes', () => {
   // schema indicates something upstream did NOT round.
   it('rejects a fractional value on the newly-.int() fields', () => {
     const base = {
-      kind: 'summary' as const, sessionId: SID, final: true, startedAt: 1,
-      durationMs: 0, playtimeMs: 0, startupTimeMs: null,
-      rebufferCount: 0, rebufferDurationMs: 0, bitrateMean: null,
-      errorCount: 0, memPeak: 0, memAvg: 0,
+      kind: 'summary' as const,
+      sessionId: SID,
+      final: true,
+      startedAt: 1,
+      durationMs: 0,
+      playtimeMs: 0,
+      startupTimeMs: null,
+      rebufferCount: 0,
+      rebufferDurationMs: 0,
+      bitrateMean: null,
+      errorCount: 0,
+      memPeak: 0,
+      memAvg: 0,
       dims: { platform: 'web' as const, appVersion: '1', sdkVersion: '1' },
     };
     for (const field of ['durationMs', 'playtimeMs', 'rebufferDurationMs'] as const) {
@@ -107,7 +162,25 @@ describe('vitals wire shapes', () => {
   });
 
   it('discriminates the ingest request wrapper on payload.kind', () => {
-    const req = { apiKey: 'txx_live_x', payload: { kind: 'summary', sessionId: SID, final: false, startedAt: 1, durationMs: 0, playtimeMs: 0, startupTimeMs: null, rebufferCount: 0, rebufferDurationMs: 0, bitrateMean: null, errorCount: 0, memPeak: 0, memAvg: 0, dims: { platform: 'web', appVersion: '1', sdkVersion: '1' } } };
+    const req = {
+      apiKey: 'txx_live_x',
+      payload: {
+        kind: 'summary',
+        sessionId: SID,
+        final: false,
+        startedAt: 1,
+        durationMs: 0,
+        playtimeMs: 0,
+        startupTimeMs: null,
+        rebufferCount: 0,
+        rebufferDurationMs: 0,
+        bitrateMean: null,
+        errorCount: 0,
+        memPeak: 0,
+        memAvg: 0,
+        dims: { platform: 'web', appVersion: '1', sdkVersion: '1' },
+      },
+    };
     expect(VitalsIngestRequest.parse(req).payload.kind).toBe('summary');
   });
 });
@@ -115,12 +188,38 @@ describe('vitals wire shapes', () => {
 describe('phase 4 — player identity, new event types, custom entries', () => {
   it('accepts playerId and the five new player event types', () => {
     const chunk = {
-      kind: 'chunk', sessionId: SID, seq: 2,
+      kind: 'chunk',
+      sessionId: SID,
+      seq: 2,
       entries: [
-        { kind: 'player', t: 1, type: 'player_attach', playerId: 'p1', data: { tag: 'video', library: 'hls.js', libraryVersion: '1.5.0', name: 'main' } },
-        { kind: 'player', t: 2, type: 'drm', playerId: 'p1', data: { keySystem: 'com.widevine.alpha', licenseMs: 120 } },
-        { kind: 'player', t: 3, type: 'quality_change', playerId: 'p1', data: { width: 1280, height: 720 } },
-        { kind: 'player', t: 4, type: 'stats', playerId: 'p1', data: { bufferAheadMs: 12000, droppedFrames: 0, bitrate: 3_000_000 } },
+        {
+          kind: 'player',
+          t: 1,
+          type: 'player_attach',
+          playerId: 'p1',
+          data: { tag: 'video', library: 'hls.js', libraryVersion: '1.5.0', name: 'main' },
+        },
+        {
+          kind: 'player',
+          t: 2,
+          type: 'drm',
+          playerId: 'p1',
+          data: { keySystem: 'com.widevine.alpha', licenseMs: 120 },
+        },
+        {
+          kind: 'player',
+          t: 3,
+          type: 'quality_change',
+          playerId: 'p1',
+          data: { width: 1280, height: 720 },
+        },
+        {
+          kind: 'player',
+          t: 4,
+          type: 'stats',
+          playerId: 'p1',
+          data: { bufferAheadMs: 12000, droppedFrames: 0, bitrate: 3_000_000 },
+        },
         { kind: 'player', t: 5, type: 'player_detach', playerId: 'p1' },
       ],
     };
@@ -128,12 +227,20 @@ describe('phase 4 — player identity, new event types, custom entries', () => {
   });
 
   it('rejects a playerId over 32 chars or empty', () => {
-    expect(() => VitalsEntry.parse({ kind: 'player', t: 1, type: 'play', playerId: 'x'.repeat(33) })).toThrow();
+    expect(() =>
+      VitalsEntry.parse({ kind: 'player', t: 1, type: 'play', playerId: 'x'.repeat(33) }),
+    ).toThrow();
     expect(() => VitalsEntry.parse({ kind: 'player', t: 1, type: 'play', playerId: '' })).toThrow();
   });
 
   it('accepts a custom entry with data under the cap, with and without playerId', () => {
-    const a = { kind: 'custom', t: 10, name: 'cdn.switch', data: { from: 'edge-a', to: 'edge-b' }, playerId: 'p2' };
+    const a = {
+      kind: 'custom',
+      t: 10,
+      name: 'cdn.switch',
+      data: { from: 'edge-a', to: 'edge-b' },
+      playerId: 'p2',
+    };
     const b = { kind: 'custom', t: 11, name: 'login' };
     expect(VitalsEntry.parse(a)).toEqual(a);
     expect(VitalsEntry.parse(b)).toEqual(b);
@@ -142,7 +249,12 @@ describe('phase 4 — player identity, new event types, custom entries', () => {
   it('rejects custom data whose serialised size is over MAX_CUSTOM_DATA_BYTES, measured in UTF-8 bytes', () => {
     const ok = { kind: 'custom', t: 1, name: 'n', data: 'x'.repeat(MAX_CUSTOM_DATA_BYTES - 2) }; // 2 quote bytes
     const over = { kind: 'custom', t: 1, name: 'n', data: 'x'.repeat(MAX_CUSTOM_DATA_BYTES - 1) };
-    const multibyte = { kind: 'custom', t: 1, name: 'n', data: 'é'.repeat(MAX_CUSTOM_DATA_BYTES / 2) }; // 2 bytes each + quotes → over
+    const multibyte = {
+      kind: 'custom',
+      t: 1,
+      name: 'n',
+      data: 'é'.repeat(MAX_CUSTOM_DATA_BYTES / 2),
+    }; // 2 bytes each + quotes → over
     expect(VitalsCustomEntry.parse(ok)).toEqual(ok);
     expect(() => VitalsCustomEntry.parse(over)).toThrow();
     expect(() => VitalsCustomEntry.parse(multibyte)).toThrow();
@@ -155,7 +267,9 @@ describe('phase 4 — player identity, new event types, custom entries', () => {
 
   it('still parses a phase-3 chunk: no playerId, no custom entries, and a summary without playerCount', () => {
     const chunk = {
-      kind: 'chunk', sessionId: SID, seq: 0,
+      kind: 'chunk',
+      sessionId: SID,
+      seq: 0,
       entries: [
         { kind: 'sample', t: 1, mem: 1 },
         { kind: 'player', t: 2, type: 'source_change' },
@@ -164,9 +278,20 @@ describe('phase 4 — player identity, new event types, custom entries', () => {
     };
     expect(VitalsChunk.parse(chunk)).toEqual(chunk);
     const summary = {
-      kind: 'summary', sessionId: SID, final: false, startedAt: 1, durationMs: 1, playtimeMs: 0,
-      startupTimeMs: null, rebufferCount: 0, rebufferDurationMs: 0, bitrateMean: null, errorCount: 0,
-      memPeak: 0, memAvg: 0, dims: { platform: 'web', appVersion: '1', sdkVersion: '1' },
+      kind: 'summary',
+      sessionId: SID,
+      final: false,
+      startedAt: 1,
+      durationMs: 1,
+      playtimeMs: 0,
+      startupTimeMs: null,
+      rebufferCount: 0,
+      rebufferDurationMs: 0,
+      bitrateMean: null,
+      errorCount: 0,
+      memPeak: 0,
+      memAvg: 0,
+      dims: { platform: 'web', appVersion: '1', sdkVersion: '1' },
     };
     expect(SessionSummary.parse(summary)).toEqual(summary);
     expect(SessionSummary.parse({ ...summary, playerCount: 2 }).playerCount).toBe(2);
@@ -368,14 +493,19 @@ describe('VitalsIngestRequest.identityToken', () => {
     ['an object', { token: 'x' }],
     ['a number', 42],
     ['a boolean', true],
-  ])('degrades %s identityToken to a PRESENTED-but-empty token, keeping the payload', (_label, value) => {
-    const r = VitalsIngestRequest.safeParse({ payload: summaryFixture, identityToken: value });
-    expect(r.success).toBe(true);
-    expect(r.success && r.data.identityToken).toBe('');
-    expect(r.success && r.data.payload.kind).toBe('summary');
-    // And the metrics are intact — invariant 2.
-    expect(r.success && r.data.payload.kind === 'summary' && r.data.payload.durationMs).toBe(1000);
-  });
+  ])(
+    'degrades %s identityToken to a PRESENTED-but-empty token, keeping the payload',
+    (_label, value) => {
+      const r = VitalsIngestRequest.safeParse({ payload: summaryFixture, identityToken: value });
+      expect(r.success).toBe(true);
+      expect(r.success && r.data.identityToken).toBe('');
+      expect(r.success && r.data.payload.kind).toBe('summary');
+      // And the metrics are intact — invariant 2.
+      expect(r.success && r.data.payload.kind === 'summary' && r.data.payload.durationMs).toBe(
+        1000,
+      );
+    },
+  );
 
   // The other half of the same distinction: an ABSENT field must still parse
   // as `undefined` (the self-declared block stays reachable for the hosts that

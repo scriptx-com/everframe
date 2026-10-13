@@ -44,7 +44,8 @@ export function blackBoxCss(src: Element, clone: HTMLElement | null): string | n
   // snapDOM already re-placed fixed/sticky elements at their live rect as
   // absolute boxes (its freezeViewportPositioned pass): keep that placement.
   const lifted =
-    clone?.style.position === 'absolute' && (cs.position === 'fixed' || cs.position.endsWith('sticky'));
+    clone?.style.position === 'absolute' &&
+    (cs.position === 'fixed' || cs.position.endsWith('sticky'));
   const individual = cs as unknown as Record<'translate' | 'rotate' | 'scale', string | undefined>;
   const decl: Array<[string, string]> = [
     ['display', display],
@@ -83,7 +84,10 @@ export function blackBoxCss(src: Element, clone: HTMLElement | null): string | n
     // baked in (translation into left/top, the rest in its inline
     // transform): reapplying the live transform would move the box twice.
     ['transform', lifted ? clone!.style.transform || 'none' : cs.transform],
-    ['transform-origin', lifted ? clone!.style.transformOrigin || cs.transformOrigin : cs.transformOrigin],
+    [
+      'transform-origin',
+      lifted ? clone!.style.transformOrigin || cs.transformOrigin : cs.transformOrigin,
+    ],
     ['translate', lifted ? 'none' : (individual.translate ?? '')],
     ['rotate', lifted ? 'none' : (individual.rotate ?? '')],
     ['scale', lifted ? 'none' : (individual.scale ?? '')],

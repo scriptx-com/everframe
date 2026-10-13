@@ -31,27 +31,46 @@ describe('crash lab channel source', () => {
       const doc = xml.parse(readFileSync(f, 'utf8'));
       for (const s of [doc.component.script].flat().filter(Boolean)) {
         if (s.uri === 'pkg:/components/generated/ef_config.brs') continue;
-        expect(statSync(path.join(ROOT, s.uri.replace('pkg:/', ''))).isFile(), `${f} -> ${s.uri}`).toBe(true);
+        expect(
+          statSync(path.join(ROOT, s.uri.replace('pkg:/', ''))).isFile(),
+          `${f} -> ${s.uri}`,
+        ).toBe(true);
       }
     }
   });
 
   it('never calls GetLastExitInfo itself (not allowed on the render thread; the instrumented Main records it for the SDK)', () => {
     for (const f of files.filter((x) => x.endsWith('.brs'))) {
-      expect(readFileSync(f, 'utf8'), f).not.toMatch(/\.GetLastExitInfo\(|CreateObject\("roAppManager"\)/);
+      expect(readFileSync(f, 'utf8'), f).not.toMatch(
+        /\.GetLastExitInfo\(|CreateObject\("roAppManager"\)/,
+      );
     }
-    expect(readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8')).toMatch(/sec\.Read\("lastExitTs"\)/);
-    expect(readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8')).toMatch(/sec\.Exists\("pendingExit"\)/);
+    expect(readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8')).toMatch(
+      /sec\.Read\("lastExitTs"\)/,
+    );
+    expect(readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8')).toMatch(
+      /sec\.Exists\("pendingExit"\)/,
+    );
   });
 
   it('lists all ten scenarios in order', () => {
     const brs = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
     const ids = [...brs.matchAll(/\{ id: "([a-z_]+)", title:/g)].map((m) => m[1]);
     expect(ids).toEqual([
-      'crash_select', 'crash_key', 'crash_task', 'crash_main', 'handled',
-      'crash_excluded', 'oom', 'crash_loop', 'user_crumbs', 'details',
+      'crash_select',
+      'crash_key',
+      'crash_task',
+      'crash_main',
+      'handled',
+      'crash_excluded',
+      'oom',
+      'crash_loop',
+      'user_crumbs',
+      'details',
     ]);
-    expect(readFileSync(path.join(ROOT, 'components/LabScene.xml'), 'utf8')).toMatch(/numRows="10"/);
+    expect(readFileSync(path.join(ROOT, 'components/LabScene.xml'), 'utf8')).toMatch(
+      /numRows="10"/,
+    );
   });
 
   it('keeps the excluded crash in Excluded.brs as a Timer callback', () => {
@@ -91,25 +110,39 @@ describe('crash lab channel source', () => {
   it('tracks screens both ways: setScreen("Lab") after start(), DetailsScreen by name (instrumented)', () => {
     const scene = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
     const onLib = scene.match(/sub onLibraryStatus\(\)([\s\S]*?)end sub/)?.[1] ?? '';
-    expect(onLib.indexOf('callFunc("setScreen", "Lab")')).toBeGreaterThan(onLib.indexOf('callFunc("start", cfg)'));
+    expect(onLib.indexOf('callFunc("setScreen", "Lab")')).toBeGreaterThan(
+      onLib.indexOf('callFunc("start", cfg)'),
+    );
     // Back from the details screen sets "Lab" again by hand.
     const close = scene.match(/sub LabCloseDetails\(\)([\s\S]*?)end sub/)?.[1] ?? '';
     expect(close).toMatch(/callFunc\("setScreen", "Lab"\)/);
     expect(scene).toMatch(/createChild\("DetailsScreen"\)/);
     expect(scene).toMatch(/"Screen: "/);
     const xml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
-    const details = xml.parse(readFileSync(path.join(ROOT, 'components/DetailsScreen.xml'), 'utf8'));
+    const details = xml.parse(
+      readFileSync(path.join(ROOT, 'components/DetailsScreen.xml'), 'utf8'),
+    );
     expect(details.component.name).toBe('DetailsScreen');
     // Auto-tracked: the source itself never calls setScreen.
-    expect(readFileSync(path.join(ROOT, 'components/DetailsScreen.brs'), 'utf8')).not.toMatch(/setScreen|Everframe_Screen/);
+    expect(readFileSync(path.join(ROOT, 'components/DetailsScreen.brs'), 'utf8')).not.toMatch(
+      /setScreen|Everframe_Screen/,
+    );
   });
 
   it('LabScene loads the library last: its synchronous ready callback uses the loop timer and clock', () => {
     const src = readFileSync(path.join(ROOT, 'components/LabScene.brs'), 'utf8');
-    const init = src.slice(src.indexOf('sub init()'), src.indexOf('end sub', src.indexOf('sub init()')));
+    const init = src.slice(
+      src.indexOf('sub init()'),
+      src.indexOf('end sub', src.indexOf('sub init()')),
+    );
     const uri = init.indexOf('m.lib.uri =');
     expect(uri).toBeGreaterThan(0);
-    for (const dep of ['m["loopTimer"] =', 'm["loopClock"] =', 'm["excludedTimer"] =', 'm["statusTimer"] =']) {
+    for (const dep of [
+      'm["loopTimer"] =',
+      'm["loopClock"] =',
+      'm["excludedTimer"] =',
+      'm["statusTimer"] =',
+    ]) {
       expect(init.indexOf(dep), dep).toBeGreaterThan(-1);
       expect(init.indexOf(dep), dep).toBeLessThan(uri);
     }

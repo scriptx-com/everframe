@@ -40,9 +40,10 @@ export function boundWait<T>(work: Promise<T>, ms: number): Promise<T> {
 }
 
 export function timeoutSignal(ms: number): AbortSignal | null {
-  const AS = typeof AbortSignal !== 'undefined'
-    ? (AbortSignal as { timeout?: (ms: number) => AbortSignal })
-    : undefined;
+  const AS =
+    typeof AbortSignal !== 'undefined'
+      ? (AbortSignal as { timeout?: (ms: number) => AbortSignal })
+      : undefined;
   if (AS && typeof AS.timeout === 'function') {
     return AS.timeout(ms);
   }

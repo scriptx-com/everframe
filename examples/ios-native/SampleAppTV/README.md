@@ -11,10 +11,10 @@ see idiomatic host wiring.
 
 The SDK exposes two read-only properties on `Everframe.shared.companion`:
 
-| Property | Type                     | Description                                                                  |
-| -------- | ------------------------ | ---------------------------------------------------------------------------- |
-| `state`  | `CompanionState`         | `.unpaired \| .paired \| .reportInProgress \| .phoneDisconnected`            |
-| `pairUrl`| `String?`                | URL the phone scans (e.g. `https://relay.example/r/<token>`); `nil` until the relay issues it |
+| Property  | Type             | Description                                                                                   |
+| --------- | ---------------- | --------------------------------------------------------------------------------------------- |
+| `state`   | `CompanionState` | `.unpaired \| .paired \| .reportInProgress \| .phoneDisconnected`                             |
+| `pairUrl` | `String?`        | URL the phone scans (e.g. `https://relay.example/r/<token>`); `nil` until the relay issues it |
 
 Hosts render whatever chrome they want from those values. **The SDK ships zero
 QR-rendering or indicator chrome** (Phase 05.1 precedent for host-rendered
@@ -41,8 +41,8 @@ focused demo of the QR-rendering API surface); the orchestration plan
 
 ## Existing demos (Phase 05.1)
 
-* Focused button → `Everframe.shared.report.open()`.
-* PressForwarder × 3 play/pause within 1.5 s → trigger combo.
-* `markSensitive` demo on the Payment mock screen.
+- Focused button → `Everframe.shared.report.open()`.
+- PressForwarder × 3 play/pause within 1.5 s → trigger combo.
+- `markSensitive` demo on the Payment mock screen.
 
 These are unchanged.

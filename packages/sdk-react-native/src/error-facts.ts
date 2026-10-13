@@ -11,7 +11,11 @@ const MAX_VALUE_DEPTH = 4;
 let bigintRenderLimit: bigint | undefined;
 
 function read(value: object, key: PropertyKey): unknown {
-  try { return Reflect.get(value, key); } catch { return undefined; }
+  try {
+    return Reflect.get(value, key);
+  } catch {
+    return undefined;
+  }
 }
 
 /** Incremental, bounded rendering; never invokes toJSON or object coercion hooks. */
@@ -19,13 +23,21 @@ function renderValue(value: unknown): string {
   let output = '';
   let nodes = 0;
   const seen = new WeakSet<object>();
-  const append = (text: string) => { output += text.slice(0, MAX_MESSAGE - output.length); };
+  const append = (text: string) => {
+    output += text.slice(0, MAX_MESSAGE - output.length);
+  };
   const quote = (text: string) => JSON.stringify(text.slice(0, MAX_MESSAGE));
   function visit(item: unknown, depth: number, nested: boolean): void {
     if (output.length >= MAX_MESSAGE) return;
-    if (++nodes > MAX_VALUE_NODES || depth > MAX_VALUE_DEPTH) { append('"[Truncated]"'); return; }
+    if (++nodes > MAX_VALUE_NODES || depth > MAX_VALUE_DEPTH) {
+      append('"[Truncated]"');
+      return;
+    }
     if (item === null || typeof item !== 'object') {
-      if (typeof item === 'function') { append('[Function]'); return; }
+      if (typeof item === 'function') {
+        append('[Function]');
+        return;
+      }
       if (typeof item === 'symbol') {
         append(`Symbol(${(item.description ?? '').slice(0, MAX_MESSAGE - 8)})`);
         return;
@@ -43,7 +55,10 @@ function renderValue(value: unknown): string {
       append(nested && typeof item === 'string' ? quote(text) : text);
       return;
     }
-    if (seen.has(item)) { append('"[Circular]"'); return; }
+    if (seen.has(item)) {
+      append('"[Circular]"');
+      return;
+    }
     seen.add(item);
     try {
       let first = true;
@@ -64,11 +79,17 @@ function renderValue(value: unknown): string {
         // for inherited fields. Host proxy ownKeys/getters themselves can do
         // arbitrary work; JS cannot impose a time bound on host code.
         for (const key in item) {
-          if (++enumerated > MAX_VALUE_NODES || nodes >= MAX_VALUE_NODES || output.length >= MAX_MESSAGE) break;
+          if (
+            ++enumerated > MAX_VALUE_NODES ||
+            nodes >= MAX_VALUE_NODES ||
+            output.length >= MAX_MESSAGE
+          )
+            break;
           if (!Object.prototype.hasOwnProperty.call(item, key)) continue;
           if (!first) append(',');
           first = false;
-          append(quote(key)); append(':');
+          append(quote(key));
+          append(':');
           visit(read(item, key), depth + 1, true);
         }
         append('}');
@@ -77,7 +98,11 @@ function renderValue(value: unknown): string {
       append('[Unrenderable]');
     }
   }
-  try { visit(value, 0, false); } catch { append('[Unrenderable]'); }
+  try {
+    visit(value, 0, false);
+  } catch {
+    append('[Unrenderable]');
+  }
   return output;
 }
 
@@ -86,14 +111,22 @@ const numberToString = Number.prototype.toString;
 export function renderLabel(value: unknown): string {
   if (value === null) return 'null';
   switch (typeof value) {
-    case 'undefined': return 'undefined';
-    case 'string': return value.slice(0, MAX_MESSAGE);
-    case 'boolean': return value ? 'true' : 'false';
-    case 'number': return numberToString.call(value);
-    case 'bigint': return '[bigint]';
-    case 'symbol': return '[symbol]';
-    case 'function': return '[function]';
-    default: return '[object]';
+    case 'undefined':
+      return 'undefined';
+    case 'string':
+      return value.slice(0, MAX_MESSAGE);
+    case 'boolean':
+      return value ? 'true' : 'false';
+    case 'number':
+      return numberToString.call(value);
+    case 'bigint':
+      return '[bigint]';
+    case 'symbol':
+      return '[symbol]';
+    case 'function':
+      return '[function]';
+    default:
+      return '[object]';
   }
 }
 
@@ -102,8 +135,13 @@ export function extractFacts(
   renderOther: (value: unknown) => string = renderValue,
 ): { exceptionType: string; message: string; framesRaw: string[] } {
   let isError = false;
-  try { isError = value instanceof Error; } catch { /* hostile proxy */ }
-  if (!isError) return { exceptionType: 'UnhandledValue', message: renderOther(value), framesRaw: [] };
+  try {
+    isError = value instanceof Error;
+  } catch {
+    /* hostile proxy */
+  }
+  if (!isError)
+    return { exceptionType: 'UnhandledValue', message: renderOther(value), framesRaw: [] };
   const error = value as object;
   const name = read(error, 'name');
   const exceptionType = typeof name === 'string' && name ? name.slice(0, MAX_TYPE) : 'Error';
@@ -121,8 +159,11 @@ export function extractFacts(
     const line = stack.slice(offset, Math.min(end, offset + MAX_RAW)).trim();
     offset = end + 1;
     if (!line) continue;
-    const header = first && (line === exceptionType || line.startsWith(`${exceptionType}:`) ||
-      (exceptionType.length === MAX_TYPE && line.startsWith(exceptionType)));
+    const header =
+      first &&
+      (line === exceptionType ||
+        line.startsWith(`${exceptionType}:`) ||
+        (exceptionType.length === MAX_TYPE && line.startsWith(exceptionType)));
     first = false;
     if (!header) framesRaw.push(line);
   }

@@ -27,9 +27,7 @@ describe('buildMultipart — screenshot-N part naming', () => {
     const finalEnvelope = JSON.parse(new TextDecoder().decode(envelopeBytes)) as {
       attachments: Array<{ partName: string; kind: string }>;
     };
-    const kinds = Object.fromEntries(
-      finalEnvelope.attachments.map((a) => [a.partName, a.kind]),
-    );
+    const kinds = Object.fromEntries(finalEnvelope.attachments.map((a) => [a.partName, a.kind]));
     expect(kinds['screenshot']).toBe('screenshot');
     expect(kinds['screenshot-2']).toBe('screenshot');
     expect(kinds['annotated-screenshot-3']).toBe('annotated-screenshot');

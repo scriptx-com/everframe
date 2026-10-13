@@ -10,6 +10,15 @@
   "homepage": "https://everframe.dev/docs/mcp/",
   "repository": "https://github.com/scriptx-com/everframe",
   "license": "MIT",
-  "keywords": ["everframe", "bug-reporting", "crash-reporting", "debugging", "qa", "mcp", "mobile", "smart-tv"],
+  "keywords": [
+    "everframe",
+    "bug-reporting",
+    "crash-reporting",
+    "debugging",
+    "qa",
+    "mcp",
+    "mobile",
+    "smart-tv"
+  ],
   "logo": "assets/logo.png"
 }

@@ -41,7 +41,8 @@ export async function sendReport(
   sdkKey: string,
   body: string,
 ): Promise<SendResult> {
-  const Abort = (globalThis as { AbortController?: new () => { signal: unknown; abort(): void } }).AbortController;
+  const Abort = (globalThis as { AbortController?: new () => { signal: unknown; abort(): void } })
+    .AbortController;
   let controller: { signal: unknown; abort(): void } | undefined;
   try {
     controller = Abort ? new Abort() : undefined;

@@ -40,7 +40,10 @@ describe('capUtf8', () => {
 
 describe('redactBodyText', () => {
   it('masks JWT and Luhn CC inside a JSON body via the shared engine', () => {
-    const body = JSON.stringify({ token: 'eyJhbGci.eyJzdWIi.SflKxwRJ', card: '4242 4242 4242 4242' });
+    const body = JSON.stringify({
+      token: 'eyJhbGci.eyJzdWIi.SflKxwRJ',
+      card: '4242 4242 4242 4242',
+    });
     const out = redactBodyText(body, {});
     expect(out).toContain('[REDACTED:JWT]');
     expect(out).toContain('[REDACTED:CC]');

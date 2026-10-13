@@ -13,14 +13,19 @@ const read = (...parts: string[]) => readFileSync(path.join(root, ...parts), 'ut
 describe('crashReportingDisabled native wiring', () => {
   it('the iOS module reads the flat flag and forwards it', () => {
     const mm = read('ios', 'Sources', 'EverframeModule.mm');
-    expect(mm).toMatch(/BOOL crashReportingDisabled = opts\.crashReportingDisabled\(\)\.value_or\(false\);/);
+    expect(mm).toMatch(
+      /BOOL crashReportingDisabled = opts\.crashReportingDisabled\(\)\.value_or\(false\);/,
+    );
     expect(mm).toMatch(/crashReportingDisabled:crashReportingDisabled/);
   });
   it('the iOS bridge flips polarity exactly once into capture.crash', () => {
-    expect(read('ios', 'Sources', 'EverframeBridge.swift')).toMatch(/cfg\.capture\.crash\s*=\s*!crashReportingDisabled\b/);
+    expect(read('ios', 'Sources', 'EverframeBridge.swift')).toMatch(
+      /cfg\.capture\.crash\s*=\s*!crashReportingDisabled\b/,
+    );
   });
   it('the Android module flips polarity exactly once into capture.crash', () => {
-    expect(read('android', 'src', 'main', 'java', 'dev', 'everframe', 'rn', 'EverframeModule.kt'))
-      .toMatch(/crash\s*=\s*!crashReportingDisabled\b/);
+    expect(
+      read('android', 'src', 'main', 'java', 'dev', 'everframe', 'rn', 'EverframeModule.kt'),
+    ).toMatch(/crash\s*=\s*!crashReportingDisabled\b/);
   });
 });

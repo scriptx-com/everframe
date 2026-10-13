@@ -72,7 +72,10 @@ function drmExtra(keySystem: string | undefined): { keySystem?: string } | undef
   return keySystem !== undefined ? { keySystem } : undefined;
 }
 
-export function attachVideoPlayerVitals(player: VideoPlayerLike, opts: VideoPlayerVitalsOptions = {}): () => void {
+export function attachVideoPlayerVitals(
+  player: VideoPlayerLike,
+  opts: VideoPlayerVitalsOptions = {},
+): () => void {
   // Seed reads come FIRST (see header): these three getters are the ones that
   // throw 'player/released', and they must not do so from inside React.
   let seedUri: string | undefined;
@@ -96,7 +99,9 @@ export function attachVideoPlayerVitals(player: VideoPlayerLike, opts: VideoPlay
   }
 
   const subs: Array<{ remove(): void }> = [];
-  const on = (event: string, cb: (...a: any[]) => void) => { subs.push(player.addEventListener(event, cb)); };
+  const on = (event: string, cb: (...a: any[]) => void) => {
+    subs.push(player.addEventListener(event, cb));
+  };
 
   const trackOpts: TrackPlayerOptions = { library: LIBRARY };
   if (opts.libraryVersion !== undefined) trackOpts.libraryVersion = opts.libraryVersion;
@@ -107,8 +112,10 @@ export function attachVideoPlayerVitals(player: VideoPlayerLike, opts: VideoPlay
   // `indicatedBitrate`). Android: it is ExoPlayer's `bitrateEstimate`, i.e.
   // available network bandwidth — a different quantity that must never be
   // reported as the stream's bitrate.
-  let bitrate: number | undefined; let bandwidthEstimate: number | undefined;
-  let width: number | undefined; let height: number | undefined;
+  let bitrate: number | undefined;
+  let bandwidthEstimate: number | undefined;
+  let width: number | undefined;
+  let height: number | undefined;
   // Codex round-8, J4 — ONE fatal-error episode per source (cleared by `onLoadStart`).
   // react-native-video reports a fatal failure through both `onError` and
   // `onStatusChange('error')`, in EITHER order, and the previous latch was only set by
@@ -122,7 +129,12 @@ export function attachVideoPlayerVitals(player: VideoPlayerLike, opts: VideoPlay
   // carry the previous source's bitrate/size, and the iOS bitrate de-dup
   // below would swallow the new source's first `bitrate_change` whenever the
   // two renditions happen to share a bitrate.
-  const resetSourceCache = () => { bitrate = undefined; bandwidthEstimate = undefined; width = undefined; height = undefined; };
+  const resetSourceCache = () => {
+    bitrate = undefined;
+    bandwidthEstimate = undefined;
+    width = undefined;
+    height = undefined;
+  };
 
   // Codex round-2, D3 — the resolution is INDEPENDENT of the rate figure. On iOS
   // `onBandwidthUpdate` carries no `width`/`height` (only Android's does), so nesting the
@@ -133,7 +145,8 @@ export function attachVideoPlayerVitals(player: VideoPlayerLike, opts: VideoPlay
     const s: Record<string, number> = { bufferAheadMs };
     const primary = platform === 'android' ? bandwidthEstimate : bitrate;
     if (primary !== undefined) {
-      if (platform === 'android') s.bandwidthEstimate = primary; else s.bitrate = primary;
+      if (platform === 'android') s.bandwidthEstimate = primary;
+      else s.bitrate = primary;
     }
     if (width !== undefined) s.width = width;
     if (height !== undefined) s.height = height;
@@ -141,15 +154,27 @@ export function attachVideoPlayerVitals(player: VideoPlayerLike, opts: VideoPlay
   };
 
   try {
-    on('onLoadStart', tr.wrap((e: { source?: { uri?: string; config?: { drm?: { type?: string } } } }) => {
-      errorEpisode = false; resetSourceCache(); tr.loadStart(e?.source?.uri, drmExtra(e?.source?.config?.drm?.type));
-    }));
+    on(
+      'onLoadStart',
+      tr.wrap((e: { source?: { uri?: string; config?: { drm?: { type?: string } } } }) => {
+        errorEpisode = false;
+        resetSourceCache();
+        tr.loadStart(e?.source?.uri, drmExtra(e?.source?.config?.drm?.type));
+      }),
+    );
     // `onLoad` carries the source's declared resolution, and on iOS it is the ONLY event
     // that ever does — `onBandwidthUpdate` reports `width`/`height` on Android only (codex
     // round-2, D3). Caching it here is what puts a resolution on iOS stats pushes at all.
-    on('onLoad', tr.wrap((e: { width?: number; height?: number }) => {
-      if (e?.width && e?.height) { width = e.width; height = e.height; tr.sizeChanged(e.width, e.height); }
-    }));
+    on(
+      'onLoad',
+      tr.wrap((e: { width?: number; height?: number }) => {
+        if (e?.width && e?.height) {
+          width = e.width;
+          height = e.height;
+          tr.sizeChanged(e.width, e.height);
+        }
+      }),
+    );
     // Codex round-2, D2 — `isBuffering` decides whether a non-playing state is a PAUSE.
     // react-native-video 7.0.0-beta.11 on Android reports a stall as
     // `{isPlaying:false, isBuffering:true}`, then `onBuffer(true)`, then the SAME state event
@@ -157,69 +182,110 @@ export function attachVideoPlayerVitals(player: VideoPlayerLike, opts: VideoPlay
     // just opened, with `durationMs: 0`, and every real rebuffer was reported as
     // instantaneous. `bufferingChanged` is idempotent, so the repeat is a no-op; the pause is
     // reported only when the player is stopped and NOT stalled.
-    on('onPlaybackStateChange', tr.wrap((e: { isPlaying?: boolean; isBuffering?: boolean }) => {
-      if (e?.isPlaying) { tr.playing(); return; }
-      if (e?.isBuffering) { tr.bufferingChanged(true); return; }
-      tr.paused();
-    }));
-    on('onBuffer', tr.wrap((b: boolean) => tr.bufferingChanged(!!b)));
+    on(
+      'onPlaybackStateChange',
+      tr.wrap((e: { isPlaying?: boolean; isBuffering?: boolean }) => {
+        if (e?.isPlaying) {
+          tr.playing();
+          return;
+        }
+        if (e?.isBuffering) {
+          tr.bufferingChanged(true);
+          return;
+        }
+        tr.paused();
+      }),
+    );
+    on(
+      'onBuffer',
+      tr.wrap((b: boolean) => tr.bufferingChanged(!!b)),
+    );
     // `bufferDuration` is NOT the same quantity on both platforms. iOS
     // (AVPlayerItem+getBufferedDurration.swift) reports the buffered range's
     // ABSOLUTE END position, so the buffer AHEAD of the playhead is
     // `bufferDuration - currentTime`; Android (HybridVideoPlayer.kt) already
     // reports the time buffered ahead. Using the iOS number raw would fold
     // the playhead position into the stat and drift upward all session.
-    on('onProgress', tr.wrap((e: { currentTime?: number; bufferDuration?: number }) => {
-      if (typeof e?.bufferDuration !== 'number') return;
-      const ahead = platform === 'android'
-        ? e.bufferDuration
-        : e.bufferDuration - (typeof e.currentTime === 'number' ? e.currentTime : 0);
-      push(Math.round(Math.max(0, ahead) * 1000));
-    }));
-    on('onBandwidthUpdate', tr.wrap((e: { bitrate?: number; width?: number; height?: number }) => {
-      if (typeof e?.bitrate !== 'number') return;
-      // Round-2, D3 — KEEP the cached dimensions when this update omits them. Overwriting
-      // with `undefined` erased the resolution `onLoad` established, which on iOS (where
-      // this event never carries dimensions) meant every stats push after the first
-      // bandwidth update lost the size for good.
-      if (e.width !== undefined) width = e.width;
-      if (e.height !== undefined) height = e.height;
-      if (platform === 'android') {
-        bandwidthEstimate = e.bitrate;
-        // A bandwidth estimate is not a bitrate change; only the rendition
-        // size is real information here (the translator de-dups it).
-        if (e.width !== undefined && e.height !== undefined) tr.sizeChanged(e.width, e.height);
-        return;
-      }
-      // Adapter-level de-dup: the access log repeats the same indicated
-      // bitrate on every sample and the translator does not de-dup bitrate.
-      if (e.bitrate === bitrate) return;
-      bitrate = e.bitrate; tr.bitrateChanged(e.bitrate, e.width, e.height);
-    }));
-    on('onPlaybackRateChange', tr.wrap((rate: number) => tr.rateChanged(rate)));
-    on('onSeek', tr.wrap(() => tr.seek()));
-    on('onEnd', tr.wrap(() => tr.ended()));
+    on(
+      'onProgress',
+      tr.wrap((e: { currentTime?: number; bufferDuration?: number }) => {
+        if (typeof e?.bufferDuration !== 'number') return;
+        const ahead =
+          platform === 'android'
+            ? e.bufferDuration
+            : e.bufferDuration - (typeof e.currentTime === 'number' ? e.currentTime : 0);
+        push(Math.round(Math.max(0, ahead) * 1000));
+      }),
+    );
+    on(
+      'onBandwidthUpdate',
+      tr.wrap((e: { bitrate?: number; width?: number; height?: number }) => {
+        if (typeof e?.bitrate !== 'number') return;
+        // Round-2, D3 — KEEP the cached dimensions when this update omits them. Overwriting
+        // with `undefined` erased the resolution `onLoad` established, which on iOS (where
+        // this event never carries dimensions) meant every stats push after the first
+        // bandwidth update lost the size for good.
+        if (e.width !== undefined) width = e.width;
+        if (e.height !== undefined) height = e.height;
+        if (platform === 'android') {
+          bandwidthEstimate = e.bitrate;
+          // A bandwidth estimate is not a bitrate change; only the rendition
+          // size is real information here (the translator de-dups it).
+          if (e.width !== undefined && e.height !== undefined) tr.sizeChanged(e.width, e.height);
+          return;
+        }
+        // Adapter-level de-dup: the access log repeats the same indicated
+        // bitrate on every sample and the translator does not de-dup bitrate.
+        if (e.bitrate === bitrate) return;
+        bitrate = e.bitrate;
+        tr.bitrateChanged(e.bitrate, e.width, e.height);
+      }),
+    );
+    on(
+      'onPlaybackRateChange',
+      tr.wrap((rate: number) => tr.rateChanged(rate)),
+    );
+    on(
+      'onSeek',
+      tr.wrap(() => tr.seek()),
+    );
+    on(
+      'onEnd',
+      tr.wrap(() => tr.ended()),
+    );
     if (opts.captureErrors) {
       // Only a FATAL captured error consults the episode latch — and a fatal one that finds
       // it already set is dropped, because the generic status error reported the same
       // failure moments earlier. Non-fatal errors are always forwarded (subject to the
       // translator's rolling budget) and never latch.
-      on('onError', tr.wrap((err: { code?: string; message?: string }) => {
-        const fatal = isFatal(err?.code);
-        if (fatal) {
-          if (errorEpisode) return;
-          errorEpisode = true;
-        }
-        tr.error(String(err?.message ?? 'error'), err?.code, fatal);
-      }));
+      on(
+        'onError',
+        tr.wrap((err: { code?: string; message?: string }) => {
+          const fatal = isFatal(err?.code);
+          if (fatal) {
+            if (errorEpisode) return;
+            errorEpisode = true;
+          }
+          tr.error(String(err?.message ?? 'error'), err?.code, fatal);
+        }),
+      );
     }
-    on('onStatusChange', tr.wrap((status: string) => {
-      if (status !== 'error' || errorEpisode) return;
-      errorEpisode = true;
-      tr.error('player status error', undefined, true);
-    }));
+    on(
+      'onStatusChange',
+      tr.wrap((status: string) => {
+        if (status !== 'error' || errorEpisode) return;
+        errorEpisode = true;
+        tr.error('player status error', undefined, true);
+      }),
+    );
   } catch {
-    subs.forEach((s) => { try { s.remove(); } catch { /* released */ } });
+    subs.forEach((s) => {
+      try {
+        s.remove();
+      } catch {
+        /* released */
+      }
+    });
     tr.close();
     return () => {};
   }
@@ -238,14 +304,24 @@ export function attachVideoPlayerVitals(player: VideoPlayerLike, opts: VideoPlay
 
   let done = false;
   return () => {
-    if (done) return; done = true;
-    subs.forEach((s) => { try { s.remove(); } catch { /* released */ } });
+    if (done) return;
+    done = true;
+    subs.forEach((s) => {
+      try {
+        s.remove();
+      } catch {
+        /* released */
+      }
+    });
     tr.close();
   };
 }
 
 /** Effect-bound form: attaches per player INSTANCE, detaches on unmount or change. */
-export function useVideoPlayerVitals(player: VideoPlayerLike | null | undefined, opts: VideoPlayerVitalsOptions = {}): void {
+export function useVideoPlayerVitals(
+  player: VideoPlayerLike | null | undefined,
+  opts: VideoPlayerVitalsOptions = {},
+): void {
   const { name, libraryVersion, captureErrors, platform } = opts;
   useEffect(() => {
     if (!player) return;

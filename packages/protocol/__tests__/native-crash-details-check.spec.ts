@@ -12,11 +12,9 @@ it('checks native export shape, required cases, limits and decoded semantics', (
   const file = path.join(dir, 'cases.json');
   const run = (input: unknown) => {
     writeFileSync(file, JSON.stringify(input));
-    return spawnSync(
-      process.execPath,
-      ['scripts/check-native-crash-details.mjs', file],
-      { encoding: 'utf8' },
-    );
+    return spawnSync(process.execPath, ['scripts/check-native-crash-details.mjs', file], {
+      encoding: 'utf8',
+    });
   };
   const cases = [
     'normal',
@@ -27,9 +25,10 @@ it('checks native export shape, required cases, limits and decoded semantics', (
     'numeric-boundary',
   ].map((name) => ({
     name,
-    detailsJson: name === 'numeric-boundary'
-      ? '{"severity":"warning","metadata":{"number":1e+20},"truncated":true}'
-      : '{"severity":"warning","metadata":{"__proto__":{"ok":true},"sibling":2}}',
+    detailsJson:
+      name === 'numeric-boundary'
+        ? '{"severity":"warning","metadata":{"number":1e+20},"truncated":true}'
+        : '{"severity":"warning","metadata":{"__proto__":{"ok":true},"sibling":2}}',
   }));
   try {
     expect(run({ schemaVersion: 1, cases }).status).toBe(0);
@@ -53,10 +52,18 @@ it('checks native export shape, required cases, limits and decoded semantics', (
       },
       {
         schemaVersion: 1,
-        cases: cases.map(c => c.name === 'numeric-boundary' ? {
-          ...c,
-          detailsJson: `{"severity":"error","metadata":{"a":[${Array(100).fill('1e+20').join(',')}],"z":[${Array(7).fill(`"${'x'.repeat(1024)}"`).join(',')}]}}`,
-        } : c),
+        cases: cases.map((c) =>
+          c.name === 'numeric-boundary'
+            ? {
+                ...c,
+                detailsJson: `{"severity":"error","metadata":{"a":[${Array(100).fill('1e+20').join(',')}],"z":[${Array(
+                  7,
+                )
+                  .fill(`"${'x'.repeat(1024)}"`)
+                  .join(',')}]}}`,
+              }
+            : c,
+        ),
       },
     ])
       expect(run(input).status).not.toBe(0);
@@ -66,10 +73,9 @@ it('checks native export shape, required cases, limits and decoded semantics', (
         path.join(dir, 'absent'),
       ]).status,
     ).not.toBe(0);
-    expect(
-      spawnSync(process.execPath, ['scripts/check-native-crash-details.mjs'])
-        .status,
-    ).not.toBe(0);
+    expect(spawnSync(process.execPath, ['scripts/check-native-crash-details.mjs']).status).not.toBe(
+      0,
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

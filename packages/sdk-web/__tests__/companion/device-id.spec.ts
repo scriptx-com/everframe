@@ -27,8 +27,8 @@ describe('resolveCompanionDeviceId', () => {
     __resetDeviceIdForTests();
     const b = await resolveCompanionDeviceId({ explicit: 'MDM-SERIAL-001' });
     expect(a).toMatch(UUID_RE);
-    expect(a).toBe(b);                        // stable across resolutions
-    expect(a).not.toContain('MDM');           // raw value never leaks through
+    expect(a).toBe(b); // stable across resolutions
+    expect(a).not.toContain('MDM'); // raw value never leaks through
     __resetDeviceIdForTests();
     const c = await resolveCompanionDeviceId({ explicit: 'MDM-SERIAL-002' });
     expect(c).not.toBe(a);
@@ -102,10 +102,14 @@ describe('resolveCompanionDeviceId', () => {
 
   it('a throwing platform API falls through to the next source, never throws out', async () => {
     (window as { webapis?: unknown }).webapis = {
-      productinfo: { getDuid: () => { throw new Error('denied'); } },
+      productinfo: {
+        getDuid: () => {
+          throw new Error('denied');
+        },
+      },
     };
     const id = await resolveCompanionDeviceId();
-    expect(id).toMatch(UUID_RE);              // localStorage fallback won
+    expect(id).toMatch(UUID_RE); // localStorage fallback won
     expect(localStorage.getItem('everframe.companionDeviceId')).toBe(id);
   });
 
@@ -150,10 +154,7 @@ describe('resolveCompanionDeviceId', () => {
   it('a Luna onFailure callback falls through to localStorage, never throws', async () => {
     (window as { webOS?: unknown }).webOS = {
       service: {
-        request: (
-          _uri: string,
-          params: { onFailure: (e: unknown) => void },
-        ) => {
+        request: (_uri: string, params: { onFailure: (e: unknown) => void }) => {
           params.onFailure(new Error('LGUDID denied'));
         },
       },
@@ -167,12 +168,12 @@ describe('resolveCompanionDeviceId', () => {
   // source is exhausted — the module must resolve null, never throw.
   it('resolves null when no source is usable (no crypto, no storage)', async () => {
     vi.stubGlobal('crypto', undefined);
-    const getItemSpy = vi
-      .spyOn(Storage.prototype, 'getItem')
-      .mockImplementation(() => { throw new Error('opaque origin'); });
-    const setItemSpy = vi
-      .spyOn(Storage.prototype, 'setItem')
-      .mockImplementation(() => { throw new Error('opaque origin'); });
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('opaque origin');
+    });
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('opaque origin');
+    });
     try {
       const id = await resolveCompanionDeviceId();
       expect(id).toBeNull();
@@ -231,10 +232,7 @@ describe('resolveCompanionDeviceId', () => {
   it('a malformed Luna onSuccess payload falls through to localStorage without an unhandled rejection', async () => {
     (window as { webOS?: unknown }).webOS = {
       service: {
-        request: (
-          _uri: string,
-          params: { onSuccess: (r: unknown) => void },
-        ) => {
+        request: (_uri: string, params: { onSuccess: (r: unknown) => void }) => {
           // Malformed: no idList at all — reading `.idList.find` (or similar)
           // inside onSuccess would throw if not defensively guarded.
           params.onSuccess(undefined);

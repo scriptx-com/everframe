@@ -119,10 +119,22 @@ export function createShotStash(opts: ShotStashOptions): ShotStash {
           req.rect === undefined
             ? source
             : await (() => {
-                const x = Math.min(Math.max(0, Math.round(req.rect!.x * source.width)), source.width - 1);
-                const y = Math.min(Math.max(0, Math.round(req.rect!.y * source.height)), source.height - 1);
-                const w = Math.max(1, Math.min(Math.round(req.rect!.w * source.width), source.width - x));
-                const h = Math.max(1, Math.min(Math.round(req.rect!.h * source.height), source.height - y));
+                const x = Math.min(
+                  Math.max(0, Math.round(req.rect!.x * source.width)),
+                  source.width - 1,
+                );
+                const y = Math.min(
+                  Math.max(0, Math.round(req.rect!.y * source.height)),
+                  source.height - 1,
+                );
+                const w = Math.max(
+                  1,
+                  Math.min(Math.round(req.rect!.w * source.width), source.width - x),
+                );
+                const h = Math.max(
+                  1,
+                  Math.min(Math.round(req.rect!.h * source.height), source.height - y),
+                );
                 return opts.crop(source, { x, y, w, h });
               })();
         if (cleared) return;

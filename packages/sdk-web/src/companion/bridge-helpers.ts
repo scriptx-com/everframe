@@ -53,8 +53,14 @@ export function sniffImageMime(bytes: ArrayBuffer): string {
   const u = new Uint8Array(bytes.slice(0, 12));
   if (u[0] === 0x89 && u[1] === 0x50 && u[2] === 0x4e && u[3] === 0x47) return 'image/png';
   if (
-    u[0] === 0x52 && u[1] === 0x49 && u[2] === 0x46 && u[3] === 0x46 && // RIFF
-    u[8] === 0x57 && u[9] === 0x45 && u[10] === 0x42 && u[11] === 0x50 // WEBP
+    u[0] === 0x52 &&
+    u[1] === 0x49 &&
+    u[2] === 0x46 &&
+    u[3] === 0x46 && // RIFF
+    u[8] === 0x57 &&
+    u[9] === 0x45 &&
+    u[10] === 0x42 &&
+    u[11] === 0x50 // WEBP
   ) {
     return 'image/webp';
   }

@@ -24,7 +24,11 @@ function validSnapshot(): Record<string, any> {
   return {
     v: 1,
     events: [
-      { type: 4, timestamp: 1_760_000_000_000, data: { href: 'https://tv.example/home', width: 960, height: 540 } },
+      {
+        type: 4,
+        timestamp: 1_760_000_000_000,
+        data: { href: 'https://tv.example/home', width: 960, height: 540 },
+      },
       {
         type: 2,
         timestamp: 1_760_000_000_000,
@@ -44,7 +48,11 @@ function validSnapshot(): Record<string, any> {
       userAgent: 'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 Chrome/79.0',
       fonts: { status: 'loaded', loaded: ['Museo Sans'], failed: [] },
       focusedId: 2,
-      media: { prefersColorScheme: 'dark', prefersReducedMotion: 'no-preference', forcedColors: 'none' },
+      media: {
+        prefersColorScheme: 'dark',
+        prefersReducedMotion: 'no-preference',
+        forcedColors: 'none',
+      },
       viewport: { width: 960, height: 540 },
     },
   };
@@ -141,7 +149,13 @@ function nestedSnapshot(levels: number): DomSnapshotV1 {
   let leaf = { type: 2, id: 2, tagName: 'html', attributes: {}, childNodes: [] as unknown[] };
   snap.events[1].data.node.childNodes = [leaf];
   for (let i = 1; i < levels; i++) {
-    const child = { type: 2, id: 10 + i, tagName: 'div', attributes: {}, childNodes: [] as unknown[] };
+    const child = {
+      type: 2,
+      id: 10 + i,
+      tagName: 'div',
+      attributes: {},
+      childNodes: [] as unknown[],
+    };
     leaf.childNodes.push({ type: 3, id: -i, textContent: 'x' }, child);
     leaf = child;
   }
@@ -157,10 +171,12 @@ describe('domSnapshotDepth', () => {
   });
 
   it('accepts exactly the limit and reports limit + 1 past it', () => {
-    expect(domSnapshotDepth(nestedSnapshot(MAX_DOM_SNAPSHOT_DEPTH), MAX_DOM_SNAPSHOT_DEPTH)).toBe(MAX_DOM_SNAPSHOT_DEPTH);
-    expect(domSnapshotDepth(nestedSnapshot(MAX_DOM_SNAPSHOT_DEPTH + 1), MAX_DOM_SNAPSHOT_DEPTH)).toBe(
-      MAX_DOM_SNAPSHOT_DEPTH + 1,
+    expect(domSnapshotDepth(nestedSnapshot(MAX_DOM_SNAPSHOT_DEPTH), MAX_DOM_SNAPSHOT_DEPTH)).toBe(
+      MAX_DOM_SNAPSHOT_DEPTH,
     );
+    expect(
+      domSnapshotDepth(nestedSnapshot(MAX_DOM_SNAPSHOT_DEPTH + 1), MAX_DOM_SNAPSHOT_DEPTH),
+    ).toBe(MAX_DOM_SNAPSHOT_DEPTH + 1);
   });
 
   it('walks a very deep tree iteratively, without overflowing the stack', () => {
@@ -187,7 +203,13 @@ describe('dom-snapshot constants and part names', () => {
     expect(parseDomSnapshotPartName('dom-snapshot')).toBe(1);
     expect(parseDomSnapshotPartName('dom-snapshot-3')).toBe(3);
     expect(parseDomSnapshotPartName('dom-snapshot-x')).toBeNull();
-    for (const bad of ['dom-snapshot-0', 'dom-snapshot-1', 'dom-snapshot-01', 'dom-snapshot-02', 'dom-snapshot-']) {
+    for (const bad of [
+      'dom-snapshot-0',
+      'dom-snapshot-1',
+      'dom-snapshot-01',
+      'dom-snapshot-02',
+      'dom-snapshot-',
+    ]) {
       expect(parseDomSnapshotPartName(bad)).toBeNull();
     }
     expect(parseDomSnapshotPartName('dom-snapshot-12')).toBe(12);

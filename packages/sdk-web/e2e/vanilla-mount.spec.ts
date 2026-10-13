@@ -82,9 +82,7 @@ test('React is not fetched until the reporter opens', async ({ page }) => {
 
   const added = [...scripts].filter((u) => !eager.includes(u));
   expect(added.length, 'opening the reporter fetched no new script').toBeGreaterThan(0);
-  const bodies = await Promise.all(
-    added.map(async (u) => (await page.request.get(u)).text()),
-  );
+  const bodies = await Promise.all(added.map(async (u) => (await page.request.get(u)).text()));
   expect(
     bodies.some((b) => REACT_MARKER.test(b)),
     'no script fetched after opening the reporter contains React',
@@ -129,10 +127,7 @@ test('a capture taken with the dialog open excludes the reporter chrome', async 
   await expectCaptureExcludesReporterChrome(page);
 });
 
-test('Tab stays trapped inside the modal (shadow-DOM focus fix)', async ({
-  page,
-  browserName,
-}) => {
+test('Tab stays trapped inside the modal (shadow-DOM focus fix)', async ({ page, browserName }) => {
   // Task 1's fix: `document.activeElement` reports the shadow HOST for
   // anything focused inside a shadow tree, so a focus trap comparing against
   // it never matches and silently stops wrapping — Tab walks straight out into
@@ -221,9 +216,10 @@ test('Tab stays trapped inside the modal (shadow-DOM focus fix)', async ({
     const wrapped = trail.some(
       (s, i) => s.index === s.last && s.last > 0 && trail[i + 1]?.index === 0,
     );
-    expect(wrapped, `Tab never wrapped last -> first: ${trail.map((s) => s.where).join(' | ')}`).toBe(
-      true,
-    );
+    expect(
+      wrapped,
+      `Tab never wrapped last -> first: ${trail.map((s) => s.where).join(' | ')}`,
+    ).toBe(true);
   } else {
     // WebKit still has to keep coming back into the modal rather than walking
     // off down the page.

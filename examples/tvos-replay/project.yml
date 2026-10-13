@@ -4,14 +4,14 @@
 name: ReplayTV
 options:
   deploymentTarget:
-    tvOS: "16.0"
-    iOS: "16.0"
+    tvOS: '16.0'
+    iOS: '16.0'
 packages:
   Everframe:
     path: ../../packages/sdk-ios
 settings:
   base:
-    SWIFT_VERSION: "5.10"
+    SWIFT_VERSION: '5.10'
     CODE_SIGNING_ALLOWED: NO
 targets:
   ReplayTV:
@@ -24,7 +24,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: NO
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) DEBUG"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited) DEBUG'
     info:
       path: build/Info.plist
       properties:
@@ -46,11 +46,11 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.everframe.replaytv.phone
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: '1'
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: NO
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) DEBUG"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited) DEBUG'
     info:
       path: build/Info-Phone.plist
       properties:

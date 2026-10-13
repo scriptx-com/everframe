@@ -84,7 +84,10 @@ describe('C1: thread poller arms after the config gate settles, not before', () 
   it('fires a poll and populates threads once isEnabled() resolves true after mount', async () => {
     // A device token must already be present or pollOnce() idles on the
     // (unrelated) missing-token path before ever reaching isEnabled().
-    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(
+      scopedReporterTokenStorageKey('txx_live_test'),
+      'evr_test0000000000000000000000000000000000',
+    );
     const cfgDeferred = deferred<Response>();
     const { calls } = stubFetch(cfgDeferred);
 
@@ -127,7 +130,10 @@ describe('C1: thread poller arms after the config gate settles, not before', () 
   });
 
   it('a permanently-disabled app ends with no armed timer once the gate is known off', async () => {
-    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(
+      scopedReporterTokenStorageKey('txx_live_test'),
+      'evr_test0000000000000000000000000000000000',
+    );
     const cfgDeferred = deferred<Response>();
     const { calls } = stubFetch(cfgDeferred);
 

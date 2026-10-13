@@ -77,9 +77,9 @@ export async function expectCaptureExcludesReporterChrome(page: Page): Promise<v
   await page.click('#report');
   await page.waitForFunction(
     () =>
-      (document.getElementById('everframe-host')?.shadowRoot?.querySelectorAll(
-        'img.everframe-shot-thumb-img',
-      ).length ?? 0) > 0,
+      (document
+        .getElementById('everframe-host')
+        ?.shadowRoot?.querySelectorAll('img.everframe-shot-thumb-img').length ?? 0) > 0,
     null,
     { timeout: 30_000 },
   );
@@ -128,7 +128,7 @@ export async function expectCaptureExcludesReporterChrome(page: Page): Promise<v
       );
     };
 
-    const waitFor = <T,>(probe: () => T | null, ms: number, what: string): Promise<T> =>
+    const waitFor = <T>(probe: () => T | null, ms: number, what: string): Promise<T> =>
       new Promise<T>((resolve, reject) => {
         const started = Date.now();
         const t = setInterval(() => {
@@ -159,7 +159,9 @@ export async function expectCaptureExcludesReporterChrome(page: Page): Promise<v
     full.click();
     await waitFor(
       () =>
-        sr.querySelectorAll('img.everframe-shot-thumb-img').length > shotsBefore.length ? true : null,
+        sr.querySelectorAll('img.everframe-shot-thumb-img').length > shotsBefore.length
+          ? true
+          : null,
       25_000,
       'the second screenshot',
     );

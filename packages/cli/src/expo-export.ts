@@ -55,7 +55,12 @@ export async function uploadExpoExport(
       throw new Error(`expo_export_ambiguous:${platform}`);
     const bundlePath = join(dir, bundles[0]!);
     try {
-      await collectStagedBuild({ stagingDir: options.stagingDir, platform, bundlePath, mapPath: `${bundlePath}.map` });
+      await collectStagedBuild({
+        stagingDir: options.stagingDir,
+        platform,
+        bundlePath,
+        mapPath: `${bundlePath}.map`,
+      });
     } catch (error) {
       throw new Error(adviceFor(error instanceof Error ? error.message : 'collect_failed'));
     }

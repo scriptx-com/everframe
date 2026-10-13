@@ -72,9 +72,17 @@ describe('sha256Hex — pure-JS fallback when crypto.subtle is missing', () => {
   });
 
   it('falls back when crypto.subtle.digest throws or rejects', async () => {
-    vi.stubGlobal('crypto', { subtle: { digest: () => { throw new Error('SecurityError'); } } });
+    vi.stubGlobal('crypto', {
+      subtle: {
+        digest: () => {
+          throw new Error('SecurityError');
+        },
+      },
+    });
     expect(await sha256HexOfBytes(ascii('abc'))).toBe(ABC);
-    vi.stubGlobal('crypto', { subtle: { digest: () => Promise.reject(new Error('NotSupportedError')) } });
+    vi.stubGlobal('crypto', {
+      subtle: { digest: () => Promise.reject(new Error('NotSupportedError')) },
+    });
     expect(await sha256HexOfBytes(ascii('abc'))).toBe(ABC);
   });
 
@@ -88,7 +96,8 @@ describe('sha256Hex — pure-JS fallback when crypto.subtle is missing', () => {
     const sizes = [1, 31, 55, 56, 63, 64, 65, 119, 120, 127, 128, 129, 1000, 4096, 70_001];
     const inputs = sizes.map((n) => {
       const b = new Uint8Array(n);
-      for (let i = 0; i < n; i += 65536) webcrypto.getRandomValues(b.subarray(i, Math.min(n, i + 65536)));
+      for (let i = 0; i < n; i += 65536)
+        webcrypto.getRandomValues(b.subarray(i, Math.min(n, i + 65536)));
       return b;
     });
     const expected = await Promise.all(inputs.map(webCryptoHex));

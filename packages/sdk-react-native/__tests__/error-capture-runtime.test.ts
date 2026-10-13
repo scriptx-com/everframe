@@ -6,21 +6,59 @@ import { getErrorCaptureStatus, __setCurrentContext } from '../src/contextSeam.j
 import NativeEverframe from '../src/NativeEverframe.js';
 import { captureReactError } from '../src/integrations/react.js';
 const owners: Runtime[] = [];
-function mount() { const r = createRuntime({ sdkKey: 'txx_test_key' }); owners.push(r); r.mount(); return r; }
-afterEach(() => { owners.splice(0).forEach(r => r.unmount()); __setCurrentContext(null); vi.restoreAllMocks(); });
-it('neutral snapshots and throwing contexts stay safe', () => {
-  expect(getErrorCaptureStatus()).toMatchObject({ status: 'not-mounted', reason: 'no-mount', scope: 'mounted-js-admission', counters: { handled: { attempted: 0 } } });
+function mount() {
   const r = createRuntime({ sdkKey: 'txx_test_key' });
-  __setCurrentContext({ ...r, getErrorCaptureStatus() { throw new Error('host'); }, captureException() { throw new Error('host'); } });
-  expect(() => captureReactError(new Error())).not.toThrow(); expect(() => getErrorCaptureStatus()).not.toThrow();
+  owners.push(r);
+  r.mount();
+  return r;
+}
+afterEach(() => {
+  owners.splice(0).forEach((r) => r.unmount());
+  __setCurrentContext(null);
+  vi.restoreAllMocks();
+});
+it('neutral snapshots and throwing contexts stay safe', () => {
+  expect(getErrorCaptureStatus()).toMatchObject({
+    status: 'not-mounted',
+    reason: 'no-mount',
+    scope: 'mounted-js-admission',
+    counters: { handled: { attempted: 0 } },
+  });
+  const r = createRuntime({ sdkKey: 'txx_test_key' });
+  __setCurrentContext({
+    ...r,
+    getErrorCaptureStatus() {
+      throw new Error('host');
+    },
+    captureException() {
+      throw new Error('host');
+    },
+  });
+  expect(() => captureReactError(new Error())).not.toThrow();
+  expect(() => getErrorCaptureStatus()).not.toThrow();
 });
 it('statusNeverTouchesBridge', () => {
-  const r = mount(); const getter = vi.fn(() => { throw new Error('bridge read'); });
+  const r = mount();
+  const getter = vi.fn(() => {
+    throw new Error('bridge read');
+  });
   const saved = Object.getOwnPropertyDescriptor(NativeEverframe, 'captureHandledException')!;
-  Object.defineProperty(NativeEverframe, 'captureHandledException', { configurable: true, get: getter });
+  Object.defineProperty(NativeEverframe, 'captureHandledException', {
+    configurable: true,
+    get: getter,
+  });
   try {
-    const snapshot = getErrorCaptureStatus(); snapshot.counters.handled.accepted = 100; snapshot.limits.handled = 99 as 10;
-    expect(getErrorCaptureStatus()).toMatchObject({ status: 'active', limits: { handled: 10 }, counters: { handled: { accepted: 0 } } });
-    expect(r.getErrorCaptureStatus().status).toBe('active'); expect(getter).not.toHaveBeenCalled();
-  } finally { Object.defineProperty(NativeEverframe, 'captureHandledException', saved); }
+    const snapshot = getErrorCaptureStatus();
+    snapshot.counters.handled.accepted = 100;
+    snapshot.limits.handled = 99 as 10;
+    expect(getErrorCaptureStatus()).toMatchObject({
+      status: 'active',
+      limits: { handled: 10 },
+      counters: { handled: { accepted: 0 } },
+    });
+    expect(r.getErrorCaptureStatus().status).toBe('active');
+    expect(getter).not.toHaveBeenCalled();
+  } finally {
+    Object.defineProperty(NativeEverframe, 'captureHandledException', saved);
+  }
 });

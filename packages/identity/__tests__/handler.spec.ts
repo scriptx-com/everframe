@@ -9,8 +9,9 @@ const SECRET = 'a'.repeat(64);
 const PROJECT_ID = 'proj_01HZY000000000000000000000';
 const ALICE: IdentityUser = { id: 'u_alice', email: 'alice@example.com', name: 'Alice' };
 
-const handlerFor = (resolveUser: (req: Request) => IdentityUser | null | Promise<IdentityUser | null>) =>
-  createIdentityHandler({ secret: SECRET, projectId: PROJECT_ID, resolveUser });
+const handlerFor = (
+  resolveUser: (req: Request) => IdentityUser | null | Promise<IdentityUser | null>,
+) => createIdentityHandler({ secret: SECRET, projectId: PROJECT_ID, resolveUser });
 
 const GET = () => new Request('https://app.example.com/api/everframe-identity');
 
@@ -22,61 +23,82 @@ describe('createIdentityHandler — construction', () => {
   });
 
   it('throws on a missing projectId', () => {
-    expect(() => createIdentityHandler({ secret: SECRET, projectId: '', resolveUser: () => ALICE }))
-      .toThrow(/projectId/);
+    expect(() =>
+      createIdentityHandler({ secret: SECRET, projectId: '', resolveUser: () => ALICE }),
+    ).toThrow(/projectId/);
   });
 
   it('throws above the TTL ceiling', () => {
-    expect(() => createIdentityHandler({ ...base, secret: SECRET, ttlSeconds: 601 })).toThrow(/ttlSeconds/);
+    expect(() => createIdentityHandler({ ...base, secret: SECRET, ttlSeconds: 601 })).toThrow(
+      /ttlSeconds/,
+    );
   });
 
   it("throws on a '*' origin rather than silently downgrading", () => {
     // A wildcard with credentials is the credential-theft path AND the browser
     // rejects the combination, so a boot error beats a mystery.
-    expect(() => createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['*'] }))
-      .toThrow(/\*/);
+    expect(() => createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['*'] })).toThrow(
+      /\*/,
+    );
   });
 
   it("throws on the literal string 'null' — the opaque-origin placeholder", () => {
     // Sandboxed iframes, data:/file: pages, and some redirect flows all send
     // Origin: null. It is not one origin, it is a shared placeholder — never
     // allowlist-able, credentials or not.
-    expect(() => createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['null'] }))
-      .toThrow(/null/i);
+    expect(() =>
+      createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['null'] }),
+    ).toThrow(/null/i);
   });
 
   it("throws on 'NULL' and padded ' null ' too", () => {
-    expect(() => createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['NULL'] }))
-      .toThrow(/null/i);
-    expect(() => createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: [' null '] }))
-      .toThrow(/null/i);
+    expect(() =>
+      createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['NULL'] }),
+    ).toThrow(/null/i);
+    expect(() =>
+      createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: [' null '] }),
+    ).toThrow(/null/i);
   });
 
   it('throws on an origin with a trailing slash', () => {
     expect(() =>
-      createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['https://app.example.com/'] }),
+      createIdentityHandler({
+        ...base,
+        secret: SECRET,
+        allowedOrigins: ['https://app.example.com/'],
+      }),
     ).toThrow(/app\.example\.com/);
   });
 
   it('throws on an origin with a path', () => {
     expect(() =>
-      createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['https://app.example.com/path'] }),
+      createIdentityHandler({
+        ...base,
+        secret: SECRET,
+        allowedOrigins: ['https://app.example.com/path'],
+      }),
     ).toThrow(/app\.example\.com/);
   });
 
   it('throws on an origin with no scheme', () => {
-    expect(() => createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['app.example.com'] }))
-      .toThrow(/app\.example\.com/);
+    expect(() =>
+      createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['app.example.com'] }),
+    ).toThrow(/app\.example\.com/);
   });
 
   it('throws on a non-http(s) scheme', () => {
-    expect(() => createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['ftp://x.example.com'] }))
-      .toThrow(/x\.example\.com/);
+    expect(() =>
+      createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['ftp://x.example.com'] }),
+    ).toThrow(/x\.example\.com/);
   });
 
   it('accepts syntactically valid http/https origins', () => {
     expect(() =>
-      createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['https://app.example.com'] }),
+      createIdentityHandler({
+        ...base,
+        secret: SECRET,
+        allowedOrigins: ['https://app.example.com'],
+      }),
     ).not.toThrow();
     expect(() =>
       createIdentityHandler({ ...base, secret: SECRET, allowedOrigins: ['http://localhost:3000'] }),
@@ -98,7 +120,7 @@ describe('createIdentityHandler — responses', () => {
 
   it('awaits an async resolveUser', async () => {
     const res = await handlerFor(async () => ALICE)(GET());
-    expect((await res.json() as { token: string }).token).toBeTypeOf('string');
+    expect(((await res.json()) as { token: string }).token).toBeTypeOf('string');
   });
 
   it('passes the Request to resolveUser so header auth works', async () => {
@@ -108,10 +130,10 @@ describe('createIdentityHandler — responses', () => {
     const authed = await handler(
       new Request('https://app.example.com/i', { headers: { authorization: 'Bearer good' } }),
     );
-    expect((await authed.json() as { token: string | null }).token).toBeTypeOf('string');
+    expect(((await authed.json()) as { token: string | null }).token).toBeTypeOf('string');
 
     const anon = await handler(GET());
-    expect((await anon.json() as { token: string | null }).token).toBeNull();
+    expect(((await anon.json()) as { token: string | null }).token).toBeNull();
   });
 
   it('returns 200 { token: null } when nobody is signed in', async () => {
@@ -134,13 +156,17 @@ describe('createIdentityHandler — responses', () => {
   });
 
   it('returns 500 with an empty body when resolveUser throws', async () => {
-    const res = await handlerFor(() => { throw new Error('db down'); })(GET());
+    const res = await handlerFor(() => {
+      throw new Error('db down');
+    })(GET());
     expect(res.status).toBe(500);
     expect(await res.text()).toBe('');
   });
 
   it('returns 500 when resolveUser rejects', async () => {
-    const res = await handlerFor(async () => { throw new Error('db down'); })(GET());
+    const res = await handlerFor(async () => {
+      throw new Error('db down');
+    })(GET());
     expect(res.status).toBe(500);
   });
 
@@ -165,7 +191,9 @@ describe('createIdentityHandler — responses', () => {
       handlerFor(() => ALICE)(GET()),
       handlerFor(() => null)(GET()),
       handlerFor(() => ({ id: '' }))(GET()),
-      handlerFor(() => { throw new Error('x'); })(GET()),
+      handlerFor(() => {
+        throw new Error('x');
+      })(GET()),
       handlerFor(() => ALICE)(new Request('https://app.example.com/i', { method: 'DELETE' })),
     ]);
     for (const res of responses) {
@@ -174,7 +202,9 @@ describe('createIdentityHandler — responses', () => {
   });
 
   it('never leaks the resolveUser error message', async () => {
-    const res = await handlerFor(() => { throw new Error('postgres://user:pw@host'); })(GET());
+    const res = await handlerFor(() => {
+      throw new Error('postgres://user:pw@host');
+    })(GET());
     expect(await res.text()).not.toContain('postgres');
   });
 });

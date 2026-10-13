@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { emptyReportDeliveryStatus, parseReportDeliveryStatus, type ReportDeliveryStatus } from "./report-delivery-status.js";
+import {
+  emptyReportDeliveryStatus,
+  parseReportDeliveryStatus,
+  type ReportDeliveryStatus,
+} from './report-delivery-status.js';
 import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-capture-status.js';
 //
 // Pure orchestration runtime for the RN bridge. After the D-05/D-07 flip
@@ -19,28 +23,31 @@ import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-captur
 // Local copy of the RN fiber walker (was imported from @everframe/react).
 // Inlining avoids pulling sdk-react's web-only deps (react-konva, html-to-image)
 // into the RN bundle. Dedupe to sdk-core post-v0.1.0.
-import NativeEverframe from "./NativeEverframe.js";
-import type { ConfigOpts, Rect } from "./NativeEverframe.js";
-import { budgetExtra, EXTRA_MAX_CHARS } from "@everframe/sdk-core";
-import type { ExtraResolver } from "@everframe/sdk-core";
-import { getEmitter } from "./events.js";
-import { captureJsBundleMetadata, type JsBundleConfig } from "./js-bundle.js";
-import { createCaptureController, type CaptureController } from "./errors.js";
+import NativeEverframe from './NativeEverframe.js';
+import type { ConfigOpts, Rect } from './NativeEverframe.js';
+import { budgetExtra, EXTRA_MAX_CHARS } from '@everframe/sdk-core';
+import type { ExtraResolver } from '@everframe/sdk-core';
+import { getEmitter } from './events.js';
+import { captureJsBundleMetadata, type JsBundleConfig } from './js-bundle.js';
+import { createCaptureController, type CaptureController } from './errors.js';
 import { createPromiseRejectionObserver, type RejectionObserver } from './promise-rejections.js';
-import { emptyPromiseRejectionStatus, type PromiseRejectionStatus } from './promise-rejection-types.js';
+import {
+  emptyPromiseRejectionStatus,
+  type PromiseRejectionStatus,
+} from './promise-rejection-types.js';
 import {
   __setCurrentContext,
   __getCurrentContext,
   EverframeNotMountedError,
   type EverframeContextValue,
-} from "./contextSeam.js";
+} from './contextSeam.js';
 import {
   EverframeReporterDisabledError,
   REPORTER_DISABLED_CODE,
   type ReporterResult,
-} from "./reporter/types.js";
-import { projectUserSpec } from "./user-projection.js";
-import type { EverframeIntegration } from "./integrations/types.js";
+} from './reporter/types.js';
+import { projectUserSpec } from './user-projection.js';
+import type { EverframeIntegration } from './integrations/types.js';
 
 const applyDeliveryMethod = Reflect.apply;
 
@@ -75,36 +82,36 @@ export interface RuntimeConfig
   // formatter to wrap its generic arguments (NN4 lock).
   extends Omit<
     ConfigOpts,
-    | "sdkVersion"
-    | "installIdentifierDisabled"
-    | "crashReportingDisabled"
-    | "companionBadgeEnabled"
-    | "companionBadgePosition"
-    | "shakeToReportEnabled"
+    | 'sdkVersion'
+    | 'installIdentifierDisabled'
+    | 'crashReportingDisabled'
+    | 'companionBadgeEnabled'
+    | 'companionBadgePosition'
+    | 'shakeToReportEnabled'
     // Crash-only sessions (spec 2026-10-12) — same NN4 rationale: the nested
     // `reporter` below is the ONLY public surface.
-    | "reporterDisabled"
+    | 'reporterDisabled'
     // The 8 flat theme wire fields (reporter branding spec 2026-08-25, RN
     // slice) — same NN4 rationale as the companionBadge pair above: the
     // nested `theme` below is the ONLY public surface; without these Omits a
     // host passing `{ themeAccent: … }` would type-check and silently no-op.
-    | "themeBackground"
-    | "themeSurface"
-    | "themeBorder"
-    | "themeText"
-    | "themeTextMuted"
-    | "themeAccent"
-    | "themeAccentForeground"
-    | "themeDestructive"
+    | 'themeBackground'
+    | 'themeSurface'
+    | 'themeBorder'
+    | 'themeText'
+    | 'themeTextMuted'
+    | 'themeAccent'
+    | 'themeAccentForeground'
+    | 'themeDestructive'
     // Session Vitals (spec 2026-09-06) — same NN4 rationale: the nested
     // `vitals` below is the ONLY public surface.
-    | "vitalsEnabled"
-    | "vitalsSampleRate"
-    | "vitalsCaptureSourceQuery"
-    | "releaseHealthEnabled"
-    | "releaseHealthLoadedBuildId"
-    | "releaseHealthUserId"
-    | "releaseHealthIncludeDebugBuilds"
+    | 'vitalsEnabled'
+    | 'vitalsSampleRate'
+    | 'vitalsCaptureSourceQuery'
+    | 'releaseHealthEnabled'
+    | 'releaseHealthLoadedBuildId'
+    | 'releaseHealthUserId'
+    | 'releaseHealthIncludeDebugBuilds'
   > {
   /**
    * Per-app SDK key (publishable, not secret). Required on the host-facing
@@ -196,7 +203,7 @@ export interface RuntimeConfig
    * it through unchanged — the union is a subtype of `string`, so no
    * conversion is needed, same as `captureScreenshot` above.
    */
-  attachPinUi?: "builtin" | "custom" | "off";
+  attachPinUi?: 'builtin' | 'custom' | 'off';
   /**
    * Companion on-screen name-badge visibility/position (naming spec
    * 2026-08-24, controller ruling / Task 6b) — lets a host that finds the
@@ -211,7 +218,7 @@ export interface RuntimeConfig
    */
   companionBadge?: {
     enabled?: boolean;
-    position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
+    position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
   };
   /**
    * Native mobile shake gesture. Enabled by default; the dashboard remains
@@ -299,7 +306,7 @@ export interface Runtime extends EverframeContextValue {
 // `companion-code.spec.ts`, override the package-wide `react-native` mock to
 // add it), so an unconditional install here would break every other test
 // that mounts a runtime.
-const EXTRA_RESOLVE_REQUESTED_EVENT = "everframe.extra.resolveRequested";
+const EXTRA_RESOLVE_REQUESTED_EVENT = 'everframe.extra.resolveRequested';
 
 let _currentExtraResolver: ExtraResolver | null = null;
 let _extraResolveSub: { remove: () => void } | null = null;
@@ -314,13 +321,13 @@ let _extraResolveSub: { remove: () => void } | null = null;
  */
 function resolveExtraForBridge(resolver: ExtraResolver): string {
   const result = resolver();
-  if (typeof result === "string") {
+  if (typeof result === 'string') {
     if (result.length > EXTRA_MAX_CHARS) {
       console.warn(
         `[everframe] setExtra (resolver): ${result.length} chars exceeds the ${EXTRA_MAX_CHARS} limit; ` +
-          "extra will be omitted from this report.",
+          'extra will be omitted from this report.',
       );
-      return "";
+      return '';
     }
     return result;
   }
@@ -328,9 +335,9 @@ function resolveExtraForBridge(resolver: ExtraResolver): string {
   if (budgeted === null) {
     console.warn(
       `[everframe] setExtra (resolver): serialized value exceeds the ${EXTRA_MAX_CHARS}-char limit; ` +
-        "extra will be omitted.",
+        'extra will be omitted.',
     );
-    return "";
+    return '';
   }
   return budgeted;
 }
@@ -355,12 +362,12 @@ async function handleExtraResolveRequested(correlationId: string): Promise<void>
   } catch (e) {
     const msg = (e as { message?: string })?.message ?? String(e);
     console.warn(
-      "[everframe] setExtra: the resolver function threw while building a report; " +
-        "extra will be omitted from this report.",
+      '[everframe] setExtra: the resolver function threw while building a report; ' +
+        'extra will be omitted from this report.',
       msg,
     );
     try {
-      NativeEverframe.setExtra("");
+      NativeEverframe.setExtra('');
     } catch {
       // Bridge unavailable — nothing more we can do; still ack below so
       // native's wait releases instead of idling out its full timeout.
@@ -450,7 +457,11 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
     open,
     getReportDeliveryStatus() {
       const owner = mounted;
-      const owned = () => owner !== null && owner !== undefined && mounted === owner && __getCurrentContext() === runtime;
+      const owned = () =>
+        owner !== null &&
+        owner !== undefined &&
+        mounted === owner &&
+        __getCurrentContext() === runtime;
       if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
       try {
         const method = NativeEverframe.getReportDeliveryStatusJson;
@@ -461,12 +472,19 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
         if (!owned()) return emptyReportDeliveryStatus('not-mounted', 'no-mount');
         return snapshot ?? emptyReportDeliveryStatus('unavailable', 'invalid-native-snapshot');
       } catch {
-        return emptyReportDeliveryStatus(owned() ? 'unavailable' : 'not-mounted', owned() ? 'native-call-failed' : 'no-mount');
+        return emptyReportDeliveryStatus(
+          owned() ? 'unavailable' : 'not-mounted',
+          owned() ? 'native-call-failed' : 'no-mount',
+        );
       }
     },
     getErrorCaptureStatus() {
-      if (!mounted || __getCurrentContext() !== runtime) return emptyErrorCaptureStatus('not-mounted', 'no-mount');
-      return mounted.controller?.getErrorCaptureStatus() ?? emptyErrorCaptureStatus('disabled', 'crash-reporting-disabled');
+      if (!mounted || __getCurrentContext() !== runtime)
+        return emptyErrorCaptureStatus('not-mounted', 'no-mount');
+      return (
+        mounted.controller?.getErrorCaptureStatus() ??
+        emptyErrorCaptureStatus('disabled', 'crash-reporting-disabled')
+      );
     },
     getPromiseRejectionStatus() {
       if (!mounted || __getCurrentContext() !== runtime)
@@ -475,8 +493,7 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       return { ...status, counters: { ...status.counters } };
     },
     captureException(error, options) {
-      if (__getCurrentContext() === runtime)
-        mounted?.controller?.captureException(error, options);
+      if (__getCurrentContext() === runtime) mounted?.controller?.captureException(error, options);
     },
     sensitive: {
       register(tag, rect) {
@@ -488,7 +505,7 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       },
     },
     setExtra(value: string | Record<string, unknown> | ExtraResolver) {
-      if (typeof value === "function") {
+      if (typeof value === 'function') {
         // KEY DESIGN POINT (mirrors @everframe/sdk-core's client.ts): do NOT
         // call `value()` here. Store it; native asks for it (bounded round
         // trip via installExtraResolveHandler) at report-assembly time.
@@ -516,12 +533,12 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
             // open exactly like `handleExtraResolveRequested`'s own catch.
             const msg = (e as { message?: string })?.message ?? String(e);
             console.warn(
-              "[everframe] setExtra: the resolver function threw while building a report; " +
-                "extra will be omitted from this report.",
+              '[everframe] setExtra: the resolver function threw while building a report; ' +
+                'extra will be omitted from this report.',
               msg,
             );
             try {
-              NativeEverframe.setExtra("");
+              NativeEverframe.setExtra('');
             } catch {
               // Bridge unavailable — nothing more we can do.
             }
@@ -551,7 +568,7 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
           // See above.
         }
       }
-      if (typeof value === "string") {
+      if (typeof value === 'string') {
         if (value.length > EXTRA_MAX_CHARS) {
           // Warn HERE, at the call site, where the host can still act — the
           // native side truncates at EXTRA_MAX_CHARS with a raw character
@@ -559,8 +576,8 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
           // exists to avoid. Mirrors @everframe/sdk-core's client.ts.
           console.warn(
             `[everframe] setExtra: ${value.length} chars exceeds the ${EXTRA_MAX_CHARS} limit. ` +
-              "It will be truncated by the native side and may not parse. Pass an object " +
-              "instead so the SDK can budget it before it crosses the bridge.",
+              'It will be truncated by the native side and may not parse. Pass an object ' +
+              'instead so the SDK can budget it before it crosses the bridge.',
           );
         }
         NativeEverframe.setExtra(value);
@@ -570,9 +587,9 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       if (budgeted === null) {
         console.warn(
           `[everframe] setExtra: serialized value exceeds the ${EXTRA_MAX_CHARS}-char limit; ` +
-            "extra will be omitted.",
+            'extra will be omitted.',
         );
-        NativeEverframe.setExtra("");
+        NativeEverframe.setExtra('');
         return;
       }
       NativeEverframe.setExtra(budgeted);
@@ -600,12 +617,7 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       // This is the ONLY place the object→positional conversion happens; no
       // validation/coercion is added here — the native singleton (Tasks 5/9)
       // owns that.
-      NativeEverframe.addBreadcrumb(
-        input.message,
-        input.kind,
-        input.level,
-        input.data,
-      );
+      NativeEverframe.addBreadcrumb(input.message, input.kind, input.level, input.data);
     },
     recordScreen(name, data) {
       // Positional forward; the native singleton owns from→to derivation,
@@ -615,7 +627,7 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
     mount() {
       if (__getCurrentContext()) {
         throw new EverframeNotMountedError(
-          "EverframeProvider already mounted — single-instance enforcement (T-06-05-04)",
+          'EverframeProvider already mounted — single-instance enforcement (T-06-05-04)',
         );
       }
       try {
@@ -629,16 +641,19 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
         const msg = (e as { message?: string })?.message ?? String(e);
         console.warn(`[everframe] configure threw: ${msg}`);
       }
-      const owner: Mount = { teardowns: [], rejectionStatus: emptyPromiseRejectionStatus(
-        'disabled', config.crashReporting?.disabled === true ? 'crash-reporting-disabled' : 'opt-in-required',
-      ) };
+      const owner: Mount = {
+        teardowns: [],
+        rejectionStatus: emptyPromiseRejectionStatus(
+          'disabled',
+          config.crashReporting?.disabled === true ? 'crash-reporting-disabled' : 'opt-in-required',
+        ),
+      };
       mounted = owner;
       __setCurrentContext(runtime);
       if (config.crashReporting?.disabled !== true) {
         owner.controller = createCaptureController({
           jsBundle: config.jsBundle,
-          isActive: () =>
-            mounted === owner && __getCurrentContext() === runtime,
+          isActive: () => mounted === owner && __getCurrentContext() === runtime,
           isUnowned: () => __getCurrentContext() === null,
         });
         if (mounted !== owner) {
@@ -662,15 +677,12 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
         try {
           const teardown = integration.setup();
           if (teardown) {
-            if (mounted === owner)
-              owner.teardowns.push({ name: integration.name, teardown });
+            if (mounted === owner) owner.teardowns.push({ name: integration.name, teardown });
             else teardown();
           }
         } catch (e) {
           const msg = (e as { message?: string })?.message ?? String(e);
-          console.warn(
-            `[everframe] integration '${integration.name}' setup threw: ${msg}`,
-          );
+          console.warn(`[everframe] integration '${integration.name}' setup threw: ${msg}`);
         }
       }
     },
@@ -703,9 +715,7 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
           teardown();
         } catch (e) {
           const msg = (e as { message?: string })?.message ?? String(e);
-          console.warn(
-            `[everframe] integration '${name}' teardown threw: ${msg}`,
-          );
+          console.warn(`[everframe] integration '${name}' teardown threw: ${msg}`);
         }
       }
     },
@@ -719,8 +729,7 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   if (config.sdkKey !== undefined) bridge.sdkKey = config.sdkKey;
   // `sdkVersion` is NOT forwarded — the SDK version is owned by the SDK itself
   // (the native side stamps its own `Everframe.SDK_VERSION`), never the host.
-  if (config.captureScreenshot !== undefined)
-    bridge.captureScreenshot = config.captureScreenshot;
+  if (config.captureScreenshot !== undefined) bridge.captureScreenshot = config.captureScreenshot;
   // Flatten the nested host-facing veto for the codegen boundary. Polarity is
   // preserved here and flipped exactly once, natively: JS names the veto
   // (`disabled`), native names the permission (`networkBodies`).
@@ -779,8 +788,7 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   // revalidate per-field and ignore invalid values.
   const theme = config.theme;
   if (theme !== undefined) {
-    if (theme.background !== undefined)
-      bridge.themeBackground = theme.background;
+    if (theme.background !== undefined) bridge.themeBackground = theme.background;
     if (theme.surface !== undefined) bridge.themeSurface = theme.surface;
     if (theme.border !== undefined) bridge.themeBorder = theme.border;
     if (theme.text !== undefined) bridge.themeText = theme.text;
@@ -789,12 +797,10 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
     if (theme.accentForeground !== undefined) {
       bridge.themeAccentForeground = theme.accentForeground;
     }
-    if (theme.destructive !== undefined)
-      bridge.themeDestructive = theme.destructive;
+    if (theme.destructive !== undefined) bridge.themeDestructive = theme.destructive;
   }
   // Session Vitals (spec 2026-09-06): nested → flat, present fields only.
-  if (config.vitals?.enabled !== undefined)
-    bridge.vitalsEnabled = config.vitals.enabled;
+  if (config.vitals?.enabled !== undefined) bridge.vitalsEnabled = config.vitals.enabled;
   // An out-of-range sampleRate is dropped rather than forwarded: the natives
   // treat it as a hard config error and refuse to start, so a typo'd `50`
   // (meant as a percentage) would take Session Vitals down for the whole app.
@@ -802,16 +808,14 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   const sampleRate = config.vitals?.sampleRate;
   if (sampleRate !== undefined) {
     if (
-      typeof sampleRate === "number" &&
+      typeof sampleRate === 'number' &&
       Number.isFinite(sampleRate) &&
       sampleRate >= 0 &&
       sampleRate <= 1
     ) {
       bridge.vitalsSampleRate = sampleRate;
-    } else if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.warn(
-        `[everframe] vitals.sampleRate must be within 0..1; ignoring ${sampleRate}`,
-      );
+    } else if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.warn(`[everframe] vitals.sampleRate must be within 0..1; ignoring ${sampleRate}`);
     }
   }
   if (config.vitals?.captureSourceQuery !== undefined) {
@@ -819,7 +823,10 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   }
   // Always sent, so the native SDK uses React Native's answer rather than its own guess. A Metro
   // development bundle can run inside a release-signed native app, and `__DEV__` is the truth.
-  bridge.debugBuild = typeof config.debugBuild === "boolean" ? config.debugBuild : typeof __DEV__ !== "undefined" && __DEV__;
+  bridge.debugBuild =
+    typeof config.debugBuild === 'boolean'
+      ? config.debugBuild
+      : typeof __DEV__ !== 'undefined' && __DEV__;
   // Release health is on unless `enabled` is explicitly false. Every off path below sends
   // `releaseHealthEnabled: false`, because both bridges read a missing field as on. An untyped `null`
   // option is off too, matching `releaseHealth = null` on the native SDKs.
@@ -830,24 +837,27 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   } else {
     const bundle = captureJsBundleMetadata(config.jsBundle);
     const rejected: string[] = [];
-    if (!bundle || !validReleaseHealthText(bundle.buildId, 200)) rejected.push("jsBundle (no valid Hermes bundle identity)");
+    if (!bundle || !validReleaseHealthText(bundle.buildId, 200))
+      rejected.push('jsBundle (no valid Hermes bundle identity)');
     // A null user ID is anonymous, as on the native SDKs.
-    if (health?.userId != null && !validReleaseHealthText(health.userId, 128)) rejected.push("releaseHealth.userId");
+    if (health?.userId != null && !validReleaseHealthText(health.userId, 128))
+      rejected.push('releaseHealth.userId');
     if (bundle && rejected.length === 0) {
       bridge.releaseHealthEnabled = true;
       bridge.releaseHealthLoadedBuildId = bundle.buildId;
-      if (typeof health?.userId === "string") bridge.releaseHealthUserId = health.userId;
-      if (typeof health?.includeDebugBuilds === "boolean") bridge.releaseHealthIncludeDebugBuilds = health.includeDebugBuilds;
+      if (typeof health?.userId === 'string') bridge.releaseHealthUserId = health.userId;
+      if (typeof health?.includeDebugBuilds === 'boolean')
+        bridge.releaseHealthIncludeDebugBuilds = health.includeDebugBuilds;
     } else {
       bridge.releaseHealthEnabled = false;
       // A rejected explicit option also revokes monitoring and erases queued records in release builds,
       // so it warns in every build. An option the app never set only warns in development: a release
       // app without the Metro build identity just has release health off. Name the fields only;
       // identifiers are never logged.
-      if (healthSetExplicitly || (typeof __DEV__ !== "undefined" && __DEV__)) {
+      if (healthSetExplicitly || (typeof __DEV__ !== 'undefined' && __DEV__)) {
         console.warn(
-          `[everframe] releaseHealth rejected: invalid ${rejected.join(", ")}. Foreground-session ` +
-            "monitoring is off for this configuration; turning it off erases undelivered health records on this device.",
+          `[everframe] releaseHealth rejected: invalid ${rejected.join(', ')}. Foreground-session ` +
+            'monitoring is off for this configuration; turning it off erases undelivered health records on this device.',
         );
       }
     }
@@ -856,8 +866,12 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
 }
 
 function validReleaseHealthText(value: unknown, maxLength: number): value is string {
-  return typeof value === "string" && value.length <= maxLength && value.trim().length > 0 &&
-    !/[\u0000-\u001f\ud800-\udfff]/u.test(value);
+  return (
+    typeof value === 'string' &&
+    value.length <= maxLength &&
+    value.trim().length > 0 &&
+    !/[\u0000-\u001f\ud800-\udfff]/u.test(value)
+  );
 }
 
 /** Test seam — the flattening rule is the one place JS and native shapes meet. */

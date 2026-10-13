@@ -44,11 +44,16 @@ export interface PlayerHandle {
 }
 
 let tokenCounter = 0;
-export function __resetPlayerTokenCounterForTests(): void { tokenCounter = 0; }
+export function __resetPlayerTokenCounterForTests(): void {
+  tokenCounter = 0;
+}
 
 function guarded(fn: () => void): void {
-  try { fn(); } catch (e) {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[everframe] vitals bridge call failed', e);
+  try {
+    fn();
+  } catch (e) {
+    if (typeof __DEV__ !== 'undefined' && __DEV__)
+      console.warn('[everframe] vitals bridge call failed', e);
   }
 }
 
@@ -59,7 +64,8 @@ export function serializeVitalsData(data: unknown): string | undefined {
     const s = JSON.stringify(data);
     return s === undefined ? undefined : s;
   } catch (e) {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[everframe] trackVitals data is not JSON-serialisable; sent without data', e);
+    if (typeof __DEV__ !== 'undefined' && __DEV__)
+      console.warn('[everframe] trackVitals data is not JSON-serialisable; sent without data', e);
     return undefined;
   }
 }
@@ -70,7 +76,9 @@ export function trackPlayer(opts: TrackPlayerOptions): PlayerHandle {
   guarded(() => NativeEverframe.trackPlayer(token, opts.library, opts.name, opts.libraryVersion));
   return {
     token,
-    get detached() { return detached; },
+    get detached() {
+      return detached;
+    },
     emit(type, data, t) {
       if (detached) return;
       const at = t ?? Date.now();
@@ -78,7 +86,9 @@ export function trackPlayer(opts: TrackPlayerOptions): PlayerHandle {
     },
     updateStats(stats) {
       if (detached) return;
-      guarded(() => NativeEverframe.updatePlayerStats(token, stats as unknown as Record<string, unknown>));
+      guarded(() =>
+        NativeEverframe.updatePlayerStats(token, stats as unknown as Record<string, unknown>),
+      );
     },
     track(name, data) {
       if (detached) return;
@@ -93,7 +103,10 @@ export function trackPlayer(opts: TrackPlayerOptions): PlayerHandle {
 }
 
 export function trackVitals(name: string, data?: unknown, player?: PlayerHandle): void {
-  if (player) { player.track(name, data); return; }
+  if (player) {
+    player.track(name, data);
+    return;
+  }
   guarded(() => NativeEverframe.trackVitals(name, serializeVitalsData(data), undefined));
 }
 
@@ -110,16 +123,26 @@ export function useTrackPlayer(opts: TrackPlayerOptions): PlayerHandle {
   useEffect(() => {
     const h = trackPlayer(opts);
     inner.current = h;
-    return () => { h.detach(); if (inner.current === h) inner.current = null; };
+    return () => {
+      h.detach();
+      if (inner.current === h) inner.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `opts` is re-read through its
     // destructured fields, which ARE the deps; the object identity changes every render.
   }, [library, libraryVersion, name]);
-  return useMemo<PlayerHandle>(() => ({
-    get token() { return inner.current?.token ?? ''; },
-    get detached() { return inner.current?.detached ?? true; },
-    emit: (type, data, t) => inner.current?.emit(type, data, t),
-    updateStats: (s) => inner.current?.updateStats(s),
-    track: (n, d) => inner.current?.track(n, d),
-    detach: () => inner.current?.detach(),
-  }), []);
+  return useMemo<PlayerHandle>(
+    () => ({
+      get token() {
+        return inner.current?.token ?? '';
+      },
+      get detached() {
+        return inner.current?.detached ?? true;
+      },
+      emit: (type, data, t) => inner.current?.emit(type, data, t),
+      updateStats: (s) => inner.current?.updateStats(s),
+      track: (n, d) => inner.current?.track(n, d),
+      detach: () => inner.current?.detach(),
+    }),
+    [],
+  );
 }

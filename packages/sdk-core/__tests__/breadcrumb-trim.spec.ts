@@ -15,7 +15,10 @@ import {
 import type { Breadcrumb } from '@everframe/protocol';
 
 const mk = (over: Partial<Breadcrumb> & { kind: Breadcrumb['kind'] }): Breadcrumb => ({
-  t: 1, seq: 0, message: 'm', ...over,
+  t: 1,
+  seq: 0,
+  message: 'm',
+  ...over,
 });
 
 describe('constants', () => {
@@ -67,7 +70,8 @@ describe('crumbCost', () => {
 
   it('costs data recursively: string=length, number/bool=8, null=4, +2 per entry, +2 per container', () => {
     const crumb = mk({
-      kind: 'network', message: '', // 0
+      kind: 'network',
+      message: '', // 0
       data: { method: 'GET', status: 500 }, // 2 + (6+3+2) + (6+8+2) = 29
     });
     expect(crumbCost(crumb)).toBe(ENTRY_OVERHEAD + 0 + 29);
@@ -102,13 +106,18 @@ describe('trimBreadcrumbs', () => {
   it('evicts oldest bulky first and emits a count marker at the dropped position', () => {
     // costs: 75 + 104 + 104 = 283 > budget 250 → evict console(t=2) only.
     const out = trimBreadcrumbs([nav(1, 0), con(2, 1), con(3, 2)], {
-      byteBudget: 250, consoleEntryCap: 100,
+      byteBudget: 250,
+      consoleEntryCap: 100,
     });
     expect(out).toHaveLength(3);
     expect(out[0]).toEqual(nav(1, 0));
     expect(out[1]).toMatchObject({
-      t: 2, seq: 1, kind: 'console', level: 'info',
-      message: '+1 console hidden', data: { droppedCount: 1 },
+      t: 2,
+      seq: 1,
+      kind: 'console',
+      level: 'info',
+      message: '+1 console hidden',
+      data: { droppedCount: 1 },
     });
     expect(out[2]).toEqual(con(3, 2));
   });
@@ -120,7 +129,11 @@ describe('trimBreadcrumbs', () => {
       mk({ kind: 'tap', t, seq, message: 'tap-btn-x' });
     const out = trimBreadcrumbs([tap(1, 0), tap(2, 1), tap(3, 2)], { byteBudget: 100 });
     expect(out).toHaveLength(2);
-    expect(out[0]).toMatchObject({ kind: 'tap', message: '+2 tap hidden', data: { droppedCount: 2 } });
+    expect(out[0]).toMatchObject({
+      kind: 'tap',
+      message: '+2 tap hidden',
+      data: { droppedCount: 2 },
+    });
     expect(out[0]!.t).toBe(2); // stamped as the newest dropped, sorts before the kept tap
     expect(out[1]).toEqual(tap(3, 2));
   });
@@ -146,7 +159,11 @@ describe('trimBreadcrumbs', () => {
 
   it('sorts output by (t, seq)', () => {
     const out = trimBreadcrumbs([con(5, 1), nav(5, 0), nav(2, 2)]);
-    expect(out.map((c) => [c.t, c.seq])).toEqual([[2, 2], [5, 0], [5, 1]]);
+    expect(out.map((c) => [c.t, c.seq])).toEqual([
+      [2, 2],
+      [5, 0],
+      [5, 1],
+    ]);
   });
 
   it('locks MAX_TRIMMED_ENTRIES = 121 (128 protocol maxItems − 7 worst-case markers)', () => {
@@ -157,7 +174,7 @@ describe('trimBreadcrumbs', () => {
     // 200 cheap same-kind crumbs, effectively unlimited byte budget: the byte
     // pass evicts nothing, so the count pass must bring kept down to 121.
     const taps = Array.from({ length: 200 }, (_, i) =>
-      mk({ kind: 'tap', t: i + 1, seq: i, message: 'tap-btn-x' })
+      mk({ kind: 'tap', t: i + 1, seq: i, message: 'tap-btn-x' }),
     );
     const out = trimBreadcrumbs(taps, { byteBudget: 10_000_000 });
     expect(out.length).toBeLessThanOrEqual(128);
@@ -166,7 +183,9 @@ describe('trimBreadcrumbs', () => {
     const kept = out.filter((c) => !isTrimMarker(c));
     expect(markers).toHaveLength(1);
     expect(markers[0]).toMatchObject({
-      kind: 'tap', message: '+79 tap hidden', data: { droppedCount: 79 },
+      kind: 'tap',
+      message: '+79 tap hidden',
+      data: { droppedCount: 79 },
     });
     // Kept entries are exactly the NEWEST 121 (t=80..200).
     expect(kept).toHaveLength(MAX_TRIMMED_ENTRIES);
@@ -189,10 +208,10 @@ describe('trimBreadcrumbs', () => {
     // below are hard-coded from the actual TS run (see fixture __semantics);
     // Swift/Kotlin port these same numbers as a cross-language lock-in.
     const taps = Array.from({ length: 130 }, (_, i) =>
-      mk({ kind: 'tap', t: i + 1, seq: i, message: 'tap-btn' })
+      mk({ kind: 'tap', t: i + 1, seq: i, message: 'tap-btn' }),
     );
     const consoles = Array.from({ length: 5 }, (_, i) =>
-      mk({ kind: 'console', t: 200 + i, seq: 200 + i, message: 'c'.repeat(1500) })
+      mk({ kind: 'console', t: 200 + i, seq: 200 + i, message: 'c'.repeat(1500) }),
     );
     const input = [...taps, ...consoles];
     const out = trimBreadcrumbs(input, { byteBudget: 12000, consoleEntryCap: 1024 });
@@ -222,10 +241,16 @@ describe('trimBreadcrumbs', () => {
     expect(consoleDropped).toBe(4);
     expect(tapDropped).toBe(10);
     expect(consoleMarker).toMatchObject({
-      t: 203, seq: 203, kind: 'console', data: { droppedCount: 4 },
+      t: 203,
+      seq: 203,
+      kind: 'console',
+      data: { droppedCount: 4 },
     });
     expect(tapMarker).toMatchObject({
-      t: 10, seq: 9, kind: 'tap', data: { droppedCount: 10 },
+      t: 10,
+      seq: 9,
+      kind: 'tap',
+      data: { droppedCount: 10 },
     });
 
     // Must-keep: the newest tap (t=130) survives even though its kind lost entries.
@@ -245,7 +270,10 @@ describe('trimBreadcrumbs', () => {
     const markersHugeBudget = outHugeBudget.filter(isTrimMarker);
     const consoleMarkerHugeBudget = markersHugeBudget.find((m) => m.kind === 'console');
     expect(consoleMarkerHugeBudget).toMatchObject({
-      t: 203, seq: 203, kind: 'console', data: { droppedCount: 4 },
+      t: 203,
+      seq: 203,
+      kind: 'console',
+      data: { droppedCount: 4 },
     });
   });
 
@@ -257,10 +285,10 @@ describe('trimBreadcrumbs', () => {
     // byte-eviction code path is real and budget-driven (the combined test
     // above cannot show this in isolation — see the NOTE there).
     const taps = Array.from({ length: 3 }, (_, i) =>
-      mk({ kind: 'tap', t: i + 1, seq: i, message: 'tap-btn' })
+      mk({ kind: 'tap', t: i + 1, seq: i, message: 'tap-btn' }),
     );
     const consoles = Array.from({ length: 3 }, (_, i) =>
-      mk({ kind: 'console', t: 200 + i, seq: 200 + i, message: 'c'.repeat(1500) })
+      mk({ kind: 'console', t: 200 + i, seq: 200 + i, message: 'c'.repeat(1500) }),
     );
     const input = [...taps, ...consoles];
 
@@ -268,7 +296,10 @@ describe('trimBreadcrumbs', () => {
     const tightMarkers = tight.filter(isTrimMarker);
     expect(tightMarkers).toHaveLength(1);
     expect(tightMarkers[0]).toMatchObject({
-      t: 201, seq: 201, kind: 'console', data: { droppedCount: 2 },
+      t: 201,
+      seq: 201,
+      kind: 'console',
+      data: { droppedCount: 2 },
     });
 
     const huge = trimBreadcrumbs(input, { byteBudget: 10_000_000, consoleEntryCap: 1024 });

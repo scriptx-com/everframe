@@ -73,22 +73,19 @@ export async function announce(opts: {
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
   try {
-    const res = await doFetch(
-      `${opts.endpoint.replace(/\/$/, '')}/api/companion/announce`,
-      {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${opts.sdkKey}`,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...(opts.label !== undefined ? { label: opts.label } : {}),
-          ...(opts.supportsAttachPin ? { supportsAttachPin: true } : {}),
-          ...(opts.device !== undefined ? { device: toWireDevice(opts.device) } : {}),
-        }),
-        signal: controller.signal,
+    const res = await doFetch(`${opts.endpoint.replace(/\/$/, '')}/api/companion/announce`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${opts.sdkKey}`,
+        'content-type': 'application/json',
       },
-    );
+      body: JSON.stringify({
+        ...(opts.label !== undefined ? { label: opts.label } : {}),
+        ...(opts.supportsAttachPin ? { supportsAttachPin: true } : {}),
+        ...(opts.device !== undefined ? { device: toWireDevice(opts.device) } : {}),
+      }),
+      signal: controller.signal,
+    });
     if (!res.ok) return null;
     const body = (await res.json()) as Partial<AnnounceResult>;
     if (typeof body.ticket !== 'string' || typeof body.code !== 'string') return null;

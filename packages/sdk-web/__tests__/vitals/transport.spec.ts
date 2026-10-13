@@ -168,7 +168,9 @@ describe('createVitalsTransport', () => {
     });
 
     it('falls back to the normal 5s when Retry-After is unparseable', async () => {
-      const fetchFn = vi.fn().mockResolvedValue(fetchResponse(429, { 'Retry-After': 'not-a-number' }));
+      const fetchFn = vi
+        .fn()
+        .mockResolvedValue(fetchResponse(429, { 'Retry-After': 'not-a-number' }));
       const send = createVitalsTransport({
         endpoint: ENDPOINT,
         sdkKey: API_KEY,
@@ -624,7 +626,7 @@ describe('createVitalsTransport', () => {
   // call, so a throw from `untrackPending`'s own bookkeeping escaped the
   // timer callback the same way.
   describe('verification-pass: scheduleRetry() (outer catch) and untrackPending() (retry timer) guarded', () => {
-    it('fetchFn throws synchronously AND setTimeout itself throws — the outer catch\'s scheduleRetry() call never escapes send()', () => {
+    it("fetchFn throws synchronously AND setTimeout itself throws — the outer catch's scheduleRetry() call never escapes send()", () => {
       const fetchFn = vi.fn().mockImplementation(() => {
         throw new Error('breaker open');
       });
@@ -673,7 +675,10 @@ describe('createVitalsTransport', () => {
       // SYNCHRONOUS `advanceTimersByTime` (not the async variant) so nothing
       // else can interleave on the microtask/task queue while it's active.
       const realIndexOf = Array.prototype.indexOf;
-      Array.prototype.indexOf = function (this: unknown[], ...args: Parameters<typeof realIndexOf>) {
+      Array.prototype.indexOf = function (
+        this: unknown[],
+        ...args: Parameters<typeof realIndexOf>
+      ) {
         Array.prototype.indexOf = realIndexOf;
         throw new Error('indexOf broken');
       };
@@ -776,9 +781,7 @@ describe('createVitalsTransport', () => {
     const beaconFn = vi.fn();
     const unserializable = {
       ...CHUNK,
-      entries: [
-        { kind: 'player' as const, t: 1_000, type: 'error' as const, data: { code: 1n } },
-      ],
+      entries: [{ kind: 'player' as const, t: 1_000, type: 'error' as const, data: { code: 1n } }],
     } as unknown as VitalsChunk;
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
@@ -800,9 +803,7 @@ describe('createVitalsTransport', () => {
     circular['self'] = circular;
     const unserializable = {
       ...CHUNK,
-      entries: [
-        { kind: 'player' as const, t: 1_000, type: 'error' as const, data: circular },
-      ],
+      entries: [{ kind: 'player' as const, t: 1_000, type: 'error' as const, data: circular }],
     } as unknown as VitalsChunk;
     const send = createVitalsTransport({
       endpoint: ENDPOINT,
@@ -1023,9 +1024,7 @@ describe('createVitalsTransport', () => {
       expect(fetchFn).toHaveBeenCalledTimes(3);
 
       const [, retryInit] = fetchFn.mock.calls[2] as [string, RequestInit];
-      expect((retryInit.headers as Record<string, string>)[IDENTITY_TOKEN_HEADER]).toBe(
-        TOK_ALICE,
-      );
+      expect((retryInit.headers as Record<string, string>)[IDENTITY_TOKEN_HEADER]).toBe(TOK_ALICE);
     });
 
     // The provider can no longer throw INTO this module — it is not called
@@ -1041,9 +1040,7 @@ describe('createVitalsTransport', () => {
         fetchFn,
       });
 
-      expect(() =>
-        send(SUMMARY, { beacon: false, identityToken: 'not-a-jwt' }),
-      ).not.toThrow();
+      expect(() => send(SUMMARY, { beacon: false, identityToken: 'not-a-jwt' })).not.toThrow();
       await vi.waitFor(() => expect(fetchFn).toHaveBeenCalledTimes(1));
       const [, init] = fetchFn.mock.calls[0] as [string, RequestInit];
       expect(init.headers).toEqual({
@@ -1105,7 +1102,6 @@ describe('createVitalsTransport', () => {
         });
         expect(JSON.parse(init.body as string)).toEqual({ payload: SUMMARY });
       });
-
     });
 
     // ROUND-3 FINDING 3 — reproduced against native Request validation: a

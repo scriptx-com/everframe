@@ -23,13 +23,10 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..', '..');
-const schemaPath = path.join(
-  repoRoot,
-  'packages/protocol/schemas-json/relay.v1.schema.json'
-);
+const schemaPath = path.join(repoRoot, 'packages/protocol/schemas-json/relay.v1.schema.json');
 const outPath = path.join(
   repoRoot,
-  'packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Relay.kt'
+  'packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Relay.kt',
 );
 
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
@@ -54,8 +51,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonClassDiscriminator
 `;
 
-const snake_to_camel = (s) =>
-  s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+const snake_to_camel = (s) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
 const pascal = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -79,17 +75,10 @@ function kotlinType(prop, ownerName, fieldName, extraTypes) {
   if (prop.enum) return 'String';
   if (prop.type === 'array') {
     if (Array.isArray(prop.prefixItems)) {
-      const inner = kotlinType(
-        prop.prefixItems[0],
-        ownerName,
-        fieldName,
-        extraTypes
-      );
+      const inner = kotlinType(prop.prefixItems[0], ownerName, fieldName, extraTypes);
       return `List<${inner}>`;
     }
-    const singular = fieldName.endsWith('s')
-      ? fieldName.slice(0, -1)
-      : fieldName + 'Item';
+    const singular = fieldName.endsWith('s') ? fieldName.slice(0, -1) : fieldName + 'Item';
     const inner = kotlinType(prop.items, ownerName, singular, extraTypes);
     return `List<${inner}>`;
   }
@@ -103,9 +92,7 @@ function kotlinType(prop, ownerName, fieldName, extraTypes) {
     emitInlineSealed(typeName, prop, extraTypes);
     return typeName;
   }
-  throw new Error(
-    `unhandled type for ${ownerName}.${fieldName}: ${JSON.stringify(prop)}`
-  );
+  throw new Error(`unhandled type for ${ownerName}.${fieldName}: ${JSON.stringify(prop)}`);
 }
 
 function emitDataClass(name, objSchema, extraTypes, skipTypeField = false) {
@@ -127,11 +114,7 @@ function emitDataClass(name, objSchema, extraTypes, skipTypeField = false) {
       return `    ${decl}`;
     });
 
-  const code =
-    `@Serializable\n` +
-    `data class ${name}(\n` +
-    params.join(',\n') +
-    `\n)\n`;
+  const code = `@Serializable\n` + `data class ${name}(\n` + params.join(',\n') + `\n)\n`;
 
   extraTypes.set(name, code);
 }
@@ -150,21 +133,12 @@ function emitInlineSealed(name, prop, extraTypes) {
     `@Serializable\n` +
     `@JsonClassDiscriminator("kind")\n` +
     `sealed class ${name}\n` +
-    branches
-      .map((b) => `// branch ${b.kind} → ${b.branchName}`)
-      .join('\n') +
+    branches.map((b) => `// branch ${b.kind} → ${b.branchName}`).join('\n') +
     '\n';
   extraTypes.set(name, code);
 }
 
-function emitDataClassSubclass(
-  name,
-  objSchema,
-  parentName,
-  discField,
-  discValue,
-  extraTypes
-) {
+function emitDataClassSubclass(name, objSchema, parentName, discField, discValue, extraTypes) {
   if (extraTypes.has(name)) return;
   extraTypes.set(name, '');
   const required = new Set(objSchema.required || []);
@@ -207,16 +181,14 @@ const branches = schema.oneOf
       'RelayMessage',
       'type',
       b.properties.type.const,
-      extraTypes
+      extraTypes,
     );
     return { branchName, disc: b.properties.type.const };
   })
   .sort((a, b) => a.branchName.localeCompare(b.branchName));
 
 const sealedBlock =
-  `@Serializable\n` +
-  `@JsonClassDiscriminator("type")\n` +
-  `sealed class RelayMessage\n`;
+  `@Serializable\n` + `@JsonClassDiscriminator("type")\n` + `sealed class RelayMessage\n`;
 
 const sortedExtras = [...extraTypes.entries()]
   .sort(([a], [b]) => a.localeCompare(b))

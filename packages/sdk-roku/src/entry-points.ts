@@ -16,13 +16,19 @@ export const DEFAULT_SCREENS = ['*Screen', '*View', '*Page'];
 export function parseScreens(value: string | undefined): string[] {
   if (value === undefined) return [...DEFAULT_SCREENS];
   if (value.trim().toLowerCase() === 'none') return [];
-  return value.split(',').map((p) => p.trim()).filter(Boolean);
+  return value
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
 }
 
 /** Whole-name, case-insensitive glob match: `*` any run, `?` one character. */
 export function matchesScreen(name: string, patterns: string[]): boolean {
   return patterns.some((p) => {
-    const re = p.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
+    const re = p
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*/g, '.*')
+      .replace(/\?/g, '.');
     return new RegExp(`^${re}$`, 'i').test(name);
   });
 }
@@ -35,7 +41,11 @@ export const SCREEN_EXPR = 'm.top.subtype()';
  * pattern. `parents` maps lower-cased component name -> extends. Cycles and
  * unknown parents end the walk (a missing parent is a leaf).
  */
-export function screenVia(name: string, parents: Map<string, string>, patterns: string[]): string | undefined {
+export function screenVia(
+  name: string,
+  parents: Map<string, string>,
+  patterns: string[],
+): string | undefined {
   const seen = new Set<string>();
   let cur: string | undefined = name;
   while (cur && !seen.has(cur.toLowerCase())) {
@@ -49,7 +59,13 @@ export function screenVia(name: string, parents: Map<string, string>, patterns: 
 export interface EntryPlan {
   files: Map<string, Map<string, WrapTarget>>;
   /** Every component, excluded ones too (`excluded`: no targets of its own, but it still needs the hook imports when a script it shares is wrapped). */
-  components: Array<{ xml: string; name: string; extends?: string; scripts: string[]; excluded: boolean }>;
+  components: Array<{
+    xml: string;
+    name: string;
+    extends?: string;
+    scripts: string[];
+    excluded: boolean;
+  }>;
   /** Every component whose own name or an ancestor's matched --screens, and the matched name. */
   screens: Array<{ component: string; via: string }>;
 }
@@ -78,7 +94,10 @@ function add(plan: EntryPlan, file: string, fn: string, target: WrapTarget) {
   if (!m) plan.files.set(file, (m = new Map()));
   const key = fn.toLowerCase();
   const prev = m.get(key);
-  if (!prev) { m.set(key, target); return; }
+  if (!prev) {
+    m.set(key, target);
+    return;
+  }
   // A script shared by several components: the first target wins, but an
   // init whose components disagree on the screen gets no automatic screen.
   if (prev.screen !== target.screen || prev.screenConflict) {
@@ -100,9 +119,12 @@ export function discoverEntryPoints(
   const on = (m: Mechanism) => opts.mechanisms.has(m);
 
   if (on('main')) {
-    for (const rel of all.filter((f) => f.startsWith('source/') && !f.startsWith('source/everframe/') && f.endsWith('.brs'))) {
+    for (const rel of all.filter(
+      (f) => f.startsWith('source/') && !f.startsWith('source/everframe/') && f.endsWith('.brs'),
+    )) {
       if (excluded(rel, opts.exclude)) continue;
-      for (const fn of ['main', 'runuserinterface']) add(plan, rel, fn, { entry: `Main (${rel})`, isTask: false, prelude: 'recordExit' });
+      for (const fn of ['main', 'runuserinterface'])
+        add(plan, rel, fn, { entry: `Main (${rel})`, isTask: false, prelude: 'recordExit' });
     }
   }
 
@@ -113,17 +135,27 @@ export function discoverEntryPoints(
   const byName = new Map<string, { rel: string; comp: any }>();
   for (const rel of all.filter((f) => f.startsWith('components/') && f.endsWith('.xml'))) {
     let comp: any;
-    try { comp = xml.parse(readFileSync(path.join(root, rel), 'utf8'))?.component; } catch { continue; }
+    try {
+      comp = xml.parse(readFileSync(path.join(root, rel), 'utf8'))?.component;
+    } catch {
+      continue;
+    }
     if (!comp?.name) continue;
     if (comp.extends) parents.set(String(comp.name).toLowerCase(), String(comp.extends));
     parsed.push({ rel, comp });
-    if (!byName.has(String(comp.name).toLowerCase())) byName.set(String(comp.name).toLowerCase(), { rel, comp });
+    if (!byName.has(String(comp.name).toLowerCase()))
+      byName.set(String(comp.name).toLowerCase(), { rel, comp });
   }
-  const scriptsOf = (rel: string, comp: any): string[] => [comp.script].flat().filter(Boolean)
-    .map((s: { uri?: string }) => s.uri ?? '')
-    .filter((u: string) => u.endsWith('.brs'))
-    .map((u: string) => (u.startsWith('pkg:/') ? u.slice(5) : path.posix.join(path.posix.dirname(rel), u)))
-    .filter((s: string) => !s.startsWith('components/everframe_hook/'));
+  const scriptsOf = (rel: string, comp: any): string[] =>
+    [comp.script]
+      .flat()
+      .filter(Boolean)
+      .map((s: { uri?: string }) => s.uri ?? '')
+      .filter((u: string) => u.endsWith('.brs'))
+      .map((u: string) =>
+        u.startsWith('pkg:/') ? u.slice(5) : path.posix.join(path.posix.dirname(rel), u),
+      )
+      .filter((s: string) => !s.startsWith('components/everframe_hook/'));
   // Callbacks a component declares (interface onChange / functions) or wires up in its scripts (observeField, functionName).
   const callbacks = (rel: string, comp: any): Array<[string, WrapTarget, Mechanism]> => {
     const out: Array<[string, WrapTarget, Mechanism]> = [];
@@ -136,9 +168,15 @@ export function discoverEntryPoints(
     }
     for (const s of scriptsOf(rel, comp)) {
       let text = '';
-      try { text = readFileSync(path.join(root, s), 'utf8'); } catch { continue; }
-      for (const m of text.matchAll(OBSERVE_RE)) out.push([m[1]!, { entry: '', isTask: false }, 'observer']);
-      for (const m of text.matchAll(TASK_RE)) out.push([m[1]!, { entry: '', isTask: true }, 'task']);
+      try {
+        text = readFileSync(path.join(root, s), 'utf8');
+      } catch {
+        continue;
+      }
+      for (const m of text.matchAll(OBSERVE_RE))
+        out.push([m[1]!, { entry: '', isTask: false }, 'observer']);
+      for (const m of text.matchAll(TASK_RE))
+        out.push([m[1]!, { entry: '', isTask: true }, 'task']);
     }
     return out;
   };
@@ -148,8 +186,14 @@ export function discoverEntryPoints(
     let v = initCache.get(file);
     if (v === undefined) {
       let text = '';
-      try { text = readFileSync(path.join(root, file), 'utf8'); } catch { /* missing script: no init */ }
-      v = Parser.parse(text).ast.statements.some((st) => isFunctionStatement(st) && st.name.text.toLowerCase() === 'init');
+      try {
+        text = readFileSync(path.join(root, file), 'utf8');
+      } catch {
+        /* missing script: no init */
+      }
+      v = Parser.parse(text).ast.statements.some(
+        (st) => isFunctionStatement(st) && st.name.text.toLowerCase() === 'init',
+      );
       initCache.set(file, v);
     }
     return v;
@@ -162,7 +206,13 @@ export function discoverEntryPoints(
   for (const { rel, comp } of parsed) {
     const skip = excluded(rel, opts.exclude);
     const scripts = scriptsOf(rel, comp).filter((s) => !excluded(s, opts.exclude));
-    plan.components.push({ xml: rel, name: comp.name, ...(comp.extends ? { extends: String(comp.extends) } : {}), scripts, excluded: skip });
+    plan.components.push({
+      xml: rel,
+      name: comp.name,
+      ...(comp.extends ? { extends: String(comp.extends) } : {}),
+      scripts,
+      excluded: skip,
+    });
     if (skip) continue;
 
     // Lifecycle crumbs only for the scene: every component's init would flood the ring.
@@ -174,11 +224,17 @@ export function discoverEntryPoints(
       if (!scriptsOf(rel, comp).some(definesInit)) inheritsInit.push({ name: String(comp.name) });
     }
     const targets: Array<[string, WrapTarget, Mechanism]> = [
-      ['init', {
-        entry: comp.name, isTask: false, screenOwner: String(comp.name),
-        ...(isScene ? { crumb: 'init' as const } : {}),
-        ...(isScreen ? { screen: SCREEN_EXPR, screenVia: via } : {}),
-      }, 'init'],
+      [
+        'init',
+        {
+          entry: comp.name,
+          isTask: false,
+          screenOwner: String(comp.name),
+          ...(isScene ? { crumb: 'init' as const } : {}),
+          ...(isScreen ? { screen: SCREEN_EXPR, screenVia: via } : {}),
+        },
+        'init',
+      ],
       ['onKeyEvent', { entry: '', isTask: false, crumb: 'key' }, 'key'],
     ];
     const own = callbacks(rel, comp);
@@ -192,12 +248,13 @@ export function discoverEntryPoints(
     // targets onKeyEvent in its own scripts.)
     const upScripts: string[] = [];
     const seen = new Set([String(comp.name).toLowerCase()]);
-    for (let p = parents.get(String(comp.name).toLowerCase()); p && !seen.has(p.toLowerCase());) {
+    for (let p = parents.get(String(comp.name).toLowerCase()); p && !seen.has(p.toLowerCase()); ) {
       seen.add(p.toLowerCase());
       const anc = byName.get(p.toLowerCase());
       if (!anc) break;
       targets.push(...callbacks(anc.rel, anc.comp));
-      if (!excluded(anc.rel, opts.exclude)) upScripts.push(...scriptsOf(anc.rel, anc.comp).filter((s) => !excluded(s, opts.exclude)));
+      if (!excluded(anc.rel, opts.exclude))
+        upScripts.push(...scriptsOf(anc.rel, anc.comp).filter((s) => !excluded(s, opts.exclude)));
       p = parents.get(p.toLowerCase());
     }
     const addAll = (files: string[], list: Array<[string, WrapTarget, Mechanism]>) => {
@@ -222,17 +279,30 @@ export function discoverEntryPoints(
     const taskNames = new Set<string>();
     const scan = (file: string) => {
       let text = '';
-      try { text = readFileSync(path.join(root, file), 'utf8'); } catch { return; }
+      try {
+        text = readFileSync(path.join(root, file), 'utf8');
+      } catch {
+        return;
+      }
       for (const m of text.matchAll(TASK_RE)) taskNames.add(m[1]!);
     };
     // Main's scripts and included components' scripts (an excluded component's code is not ours to wrap for).
-    const sources = all.filter((x) => x.startsWith('source/') && !x.startsWith('source/everframe/') && x.endsWith('.brs'));
-    for (const f of new Set([...sources, ...plan.components.filter((c) => !c.excluded).flatMap((c) => c.scripts)])) {
+    const sources = all.filter(
+      (x) => x.startsWith('source/') && !x.startsWith('source/everframe/') && x.endsWith('.brs'),
+    );
+    for (const f of new Set([
+      ...sources,
+      ...plan.components.filter((c) => !c.excluded).flatMap((c) => c.scripts),
+    ])) {
       if (!excluded(f, opts.exclude)) scan(f);
     }
     const isTaskComponent = (name: string): boolean => {
       const seen = new Set<string>();
-      for (let c: string | undefined = name; c && !seen.has(c.toLowerCase()); c = parents.get(c.toLowerCase())) {
+      for (
+        let c: string | undefined = name;
+        c && !seen.has(c.toLowerCase());
+        c = parents.get(c.toLowerCase())
+      ) {
         if (c.toLowerCase() === 'task') return true;
         seen.add(c.toLowerCase());
       }
@@ -254,7 +324,11 @@ export function discoverEntryPoints(
   const guarded = new Map<string, Set<string>>();
   for (const { name } of inheritsInit) {
     const seen = new Set([name.toLowerCase()]);
-    for (let p = parents.get(name.toLowerCase()); p && !seen.has(p.toLowerCase()); p = parents.get(p.toLowerCase())) {
+    for (
+      let p = parents.get(name.toLowerCase());
+      p && !seen.has(p.toLowerCase());
+      p = parents.get(p.toLowerCase())
+    ) {
       seen.add(p.toLowerCase());
       const anc = byName.get(p.toLowerCase());
       if (!anc) break;

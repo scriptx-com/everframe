@@ -5,15 +5,15 @@
 // The reporter UI is native; this suite exercises the slim JS bridge that
 // remains: configure on mount, delegate open() to native openReporter,
 // and the sensitive-rect registry passthrough.
-import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 
-import NativeEverframe from "../src/NativeEverframe.js";
-import { createRuntime, type EverframeProviderConfig } from "../src/runtime.js";
+import NativeEverframe from '../src/NativeEverframe.js';
+import { createRuntime, type EverframeProviderConfig } from '../src/runtime.js';
 import {
   __setCurrentContext,
   addBreadcrumb as topLevelAddBreadcrumb,
   captureException as topLevelCaptureException,
-} from "../src/contextSeam.js";
+} from '../src/contextSeam.js';
 
 interface MockedNative {
   configureSync: ReturnType<typeof vi.fn>;
@@ -24,7 +24,7 @@ interface MockedNative {
 }
 const nativeMock = NativeEverframe as unknown as MockedNative;
 
-describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
+describe('EverframeProvider — slim runtime (D-05/D-07 flip)', () => {
   beforeEach(() => {
     nativeMock.configureSync.mockReset();
     nativeMock.captureHandledException.mockReset().mockReturnValue(true);
@@ -40,87 +40,81 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
     __setCurrentContext(null);
   });
 
-  it("mount() synchronously configures native before publishing the runtime", () => {
-    const before = new Error("before native configuration completed");
+  it('mount() synchronously configures native before publishing the runtime', () => {
+    const before = new Error('before native configuration completed');
     nativeMock.configureSync.mockImplementation(() => {
       topLevelCaptureException(before);
       expect(nativeMock.captureHandledException).not.toHaveBeenCalled();
       return true;
     });
     const rt = createRuntime({
-      sdkKey: "k",
+      sdkKey: 'k',
 
-      appName: "host",
+      appName: 'host',
     });
     rt.mount();
     expect(nativeMock.configureSync).toHaveBeenCalledTimes(1);
-    const opts = nativeMock.configureSync.mock.calls[0]![0] as Record<
-      string,
-      unknown
-    >;
-    expect(opts.sdkKey).toBe("k");
-    expect(opts).not.toHaveProperty("apiBase");
-    expect(opts).not.toHaveProperty("appName");
-    expect(opts).not.toHaveProperty("appVersion");
-    const after = new Error("after native configuration completed");
+    const opts = nativeMock.configureSync.mock.calls[0]![0] as Record<string, unknown>;
+    expect(opts.sdkKey).toBe('k');
+    expect(opts).not.toHaveProperty('apiBase');
+    expect(opts).not.toHaveProperty('appName');
+    expect(opts).not.toHaveProperty('appVersion');
+    const after = new Error('after native configuration completed');
     topLevelCaptureException(after);
     expect(nativeMock.captureHandledException).toHaveBeenCalledTimes(1);
-    expect(nativeMock.captureHandledException.mock.calls[0]?.[0]).toContain(
-      after.message,
+    expect(nativeMock.captureHandledException.mock.calls[0]?.[0]).toContain(after.message);
+    rt.unmount();
+  });
+
+  it.each(['false', 'throw'])('calls configureSync once when it returns %s', (outcome) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    nativeMock.configureSync.mockImplementation(() => {
+      if (outcome === 'throw') throw new Error('sync configuration failed');
+      return false;
+    });
+    const rt = createRuntime({ sdkKey: 'current-key' });
+    rt.mount();
+    expect(nativeMock.configureSync).toHaveBeenCalledTimes(1);
+    rt.unmount();
+    warn.mockRestore();
+  });
+
+  it('sends the SDK key to native as sdkKey', () => {
+    nativeMock.configureSync.mockReturnValue(true);
+    const rt = createRuntime({ sdkKey: 'the-key' });
+    rt.mount();
+    expect((nativeMock.configureSync.mock.calls[0]![0] as Record<string, unknown>).sdkKey).toBe(
+      'the-key',
     );
     rt.unmount();
   });
 
-  it.each(["false", "throw"])(
-    "calls configureSync once when it returns %s",
-    (outcome) => {
-      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-      nativeMock.configureSync.mockImplementation(() => {
-        if (outcome === "throw") throw new Error("sync configuration failed");
-        return false;
-      });
-      const rt = createRuntime({ sdkKey: "current-key" });
-      rt.mount();
-      expect(nativeMock.configureSync).toHaveBeenCalledTimes(1);
-      rt.unmount();
-      warn.mockRestore();
-    },
-  );
-
-  it("sends the SDK key to native as sdkKey", () => {
-    nativeMock.configureSync.mockReturnValue(true);
-    const rt = createRuntime({ sdkKey: "the-key" });
-    rt.mount();
-    expect((nativeMock.configureSync.mock.calls[0]![0] as Record<string, unknown>).sdkKey).toBe("the-key");
-    rt.unmount();
-  });
-
-  it("open() delegates to NativeEverframe.openReporter and returns its result", async () => {
+  it('open() delegates to NativeEverframe.openReporter and returns its result', async () => {
     nativeMock.openReporter.mockResolvedValue({
-      status: "submitted",
-      reportId: "r-1",
+      status: 'submitted',
+      reportId: 'r-1',
     });
-    const rt = createRuntime({ sdkKey: "k" });
+    const rt = createRuntime({ sdkKey: 'k' });
     rt.mount();
     const result = await rt.open();
     expect(nativeMock.openReporter).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ status: "submitted", reportId: "r-1" });
+    expect(result).toEqual({ status: 'submitted', reportId: 'r-1' });
     rt.unmount();
   });
 
-  it("open() surfaces a cancelled result", async () => {
+  it('open() surfaces a cancelled result', async () => {
     nativeMock.openReporter.mockResolvedValue({
-      status: "cancelled",
-      reason: "user_back",
+      status: 'cancelled',
+      reason: 'user_back',
     });
-    const rt = createRuntime({ sdkKey: "k" });
+    const rt = createRuntime({ sdkKey: 'k' });
     rt.mount();
-    await expect(rt.open()).resolves.toMatchObject({ status: "cancelled" });
+    await expect(rt.open()).resolves.toMatchObject({ status: 'cancelled' });
     rt.unmount();
   });
 
-  it("sensitive.register forwards to NativeEverframe.registerSensitiveRect", () => {
-    const rt = createRuntime({ sdkKey: "k" });
+  it('sensitive.register forwards to NativeEverframe.registerSensitiveRect', () => {
+    const rt = createRuntime({ sdkKey: 'k' });
     rt.mount();
     rt.sensitive.register(42, { x: 0, y: 0, width: 100, height: 50 });
     expect(nativeMock.registerSensitiveRect).toHaveBeenCalledWith(42, {
@@ -132,24 +126,24 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
     rt.unmount();
   });
 
-  it("open() never walks or attaches a React tree", async () => {
+  it('open() never walks or attaches a React tree', async () => {
     // UI-tree capture was removed: `open()` used to walk the RN fiber tree and
     // push the result through `attachReactTree` before showing the reporter.
     // Nothing walks now, and the spec method itself is gone — the runtime
     // must not have grown a replacement.
-    nativeMock.openReporter.mockResolvedValue({ status: "cancelled" });
-    const rt = createRuntime({ sdkKey: "k" });
+    nativeMock.openReporter.mockResolvedValue({ status: 'cancelled' });
+    const rt = createRuntime({ sdkKey: 'k' });
     rt.mount();
     await rt.open();
-    expect(nativeMock).not.toHaveProperty("attachReactTree");
+    expect(nativeMock).not.toHaveProperty('attachReactTree');
     expect(nativeMock.openReporter).toHaveBeenCalledTimes(1);
     rt.unmount();
   });
 
-  it("double-mount throws EverframeNotMountedError (single-instance enforcement)", () => {
-    const rt1 = createRuntime({ sdkKey: "k" });
+  it('double-mount throws EverframeNotMountedError (single-instance enforcement)', () => {
+    const rt1 = createRuntime({ sdkKey: 'k' });
     rt1.mount();
-    const rt2 = createRuntime({ sdkKey: "k" });
+    const rt2 = createRuntime({ sdkKey: 'k' });
     expect(() => rt2.mount()).toThrow(/already mounted/);
     rt1.unmount();
   });
@@ -158,7 +152,7 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
   // call. NO validation/coercion happens in this package; the native
   // singleton (Tasks 5/9) owns that — these tests only pin the forwarding
   // shape and the no-op-when-unmounted guard.
-  describe("addBreadcrumb (Task 14)", () => {
+  describe('addBreadcrumb (Task 14)', () => {
     // Isolate this block from module-level `__currentContext` leakage: an
     // unrelated pre-existing failure earlier in this file ("open() walks the
     // RN fiber tree...", confirmed broken on this branch before Task 14 via
@@ -170,31 +164,28 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
       __setCurrentContext(null);
     });
 
-    it("rt.addBreadcrumb forwards to NativeEverframe.addBreadcrumb with positional args in order", () => {
-      const rt = createRuntime({ sdkKey: "k" });
+    it('rt.addBreadcrumb forwards to NativeEverframe.addBreadcrumb with positional args in order', () => {
+      const rt = createRuntime({ sdkKey: 'k' });
       rt.mount();
       rt.addBreadcrumb({
-        message: "tapped checkout",
-        kind: "tap",
-        level: "info",
-        data: { screen: "cart" },
+        message: 'tapped checkout',
+        kind: 'tap',
+        level: 'info',
+        data: { screen: 'cart' },
       });
       expect(nativeMock.addBreadcrumb).toHaveBeenCalledTimes(1);
-      expect(nativeMock.addBreadcrumb).toHaveBeenCalledWith(
-        "tapped checkout",
-        "tap",
-        "info",
-        { screen: "cart" },
-      );
+      expect(nativeMock.addBreadcrumb).toHaveBeenCalledWith('tapped checkout', 'tap', 'info', {
+        screen: 'cart',
+      });
       rt.unmount();
     });
 
-    it("rt.addBreadcrumb forwards undefined kind/level/data positionally when omitted", () => {
-      const rt = createRuntime({ sdkKey: "k" });
+    it('rt.addBreadcrumb forwards undefined kind/level/data positionally when omitted', () => {
+      const rt = createRuntime({ sdkKey: 'k' });
       rt.mount();
-      rt.addBreadcrumb({ message: "bare crumb" });
+      rt.addBreadcrumb({ message: 'bare crumb' });
       expect(nativeMock.addBreadcrumb).toHaveBeenCalledWith(
-        "bare crumb",
+        'bare crumb',
         undefined,
         undefined,
         undefined,
@@ -202,21 +193,19 @@ describe("EverframeProvider — slim runtime (D-05/D-07 flip)", () => {
       rt.unmount();
     });
 
-    it("top-level addBreadcrumb() no-ops when no provider is mounted", () => {
+    it('top-level addBreadcrumb() no-ops when no provider is mounted', () => {
       __setCurrentContext(null);
-      expect(() =>
-        topLevelAddBreadcrumb({ message: "should not land" }),
-      ).not.toThrow();
+      expect(() => topLevelAddBreadcrumb({ message: 'should not land' })).not.toThrow();
       expect(nativeMock.addBreadcrumb).not.toHaveBeenCalled();
     });
 
-    it("top-level addBreadcrumb() forwards to the mounted runtime", () => {
-      const rt = createRuntime({ sdkKey: "k" });
+    it('top-level addBreadcrumb() forwards to the mounted runtime', () => {
+      const rt = createRuntime({ sdkKey: 'k' });
       rt.mount();
-      topLevelAddBreadcrumb({ message: "via top-level", kind: "custom" });
+      topLevelAddBreadcrumb({ message: 'via top-level', kind: 'custom' });
       expect(nativeMock.addBreadcrumb).toHaveBeenCalledWith(
-        "via top-level",
-        "custom",
+        'via top-level',
+        'custom',
         undefined,
         undefined,
       );

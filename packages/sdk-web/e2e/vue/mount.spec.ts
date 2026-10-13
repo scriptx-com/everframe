@@ -22,7 +22,9 @@ test('a Vue host mounts exactly one ambient SDK host', async ({ page }) => {
 test('init() ran from onMounted, so the handle exists after paint', async ({ page }) => {
   await page.goto('/');
   await expect
-    .poll(() => page.evaluate(() => typeof (window as never as Record<string, unknown>)['__everframe']))
+    .poll(() =>
+      page.evaluate(() => typeof (window as never as Record<string, unknown>)['__everframe']),
+    )
     .toBe('object');
 });
 

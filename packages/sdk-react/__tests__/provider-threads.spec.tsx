@@ -39,7 +39,11 @@ describe('provider thread wiring', () => {
     const seen: AdapterThreads[] = [];
     render(
       <EverframeProvider config={config}>
-        <AdapterProbe onAdapter={(threads) => { if (threads) seen.push(threads); }} />
+        <AdapterProbe
+          onAdapter={(threads) => {
+            if (threads) seen.push(threads);
+          }}
+        />
       </EverframeProvider>,
     );
     const threads = seen[0];

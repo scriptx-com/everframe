@@ -13,12 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { createCompanion, createRelayWSClient } from '@everframe/web';
 import { CompanionPinCard } from '@everframe/web/ui';
-import {
-  start,
-  stop,
-  __getCompanionApi,
-  __getAttachPinUiMode,
-} from '@everframe/web';
+import { start, stop, __getCompanionApi, __getAttachPinUiMode } from '@everframe/web';
 
 interface FakeWS {
   url: string;
@@ -129,9 +124,7 @@ describe('companion/ws-client — attach-PIN frames', () => {
       ttlMs: 60_000,
     });
 
-    lastWS!._message(
-      JSON.stringify({ type: 'attach.challenge.cleared', reason: 'attached' }),
-    );
+    lastWS!._message(JSON.stringify({ type: 'attach.challenge.cleared', reason: 'attached' }));
 
     expect(companion.getAttachChallenge()).toBeNull();
   });
@@ -165,9 +158,7 @@ describe('companion/ws-client — attach-PIN frames', () => {
       ttlMs: 30_000,
     });
 
-    lastWS!._message(
-      JSON.stringify({ type: 'attach.challenge.cleared', reason: 'expired' }),
-    );
+    lastWS!._message(JSON.stringify({ type: 'attach.challenge.cleared', reason: 'expired' }));
     expect(handler).toHaveBeenNthCalledWith(2, null);
   });
 

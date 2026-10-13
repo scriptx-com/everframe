@@ -31,18 +31,23 @@ try {
   symlinkSync(WEB_ROOT, join(scope, 'web'), 'dir');
   symlinkSync(REACT_ROOT, join(scope, 'react'), 'dir');
   writeFileSync(join(consumer, 'package.json'), JSON.stringify({ type: 'module' }));
-  writeFileSync(join(consumer, 'tsconfig.json'), JSON.stringify({
-    compilerOptions: {
-      module: 'NodeNext',
-      moduleResolution: 'NodeNext',
-      target: 'ES2022',
-      strict: true,
-      noEmit: true,
-      skipLibCheck: false,
-    },
-    files: ['consumer.ts'],
-  }));
-  writeFileSync(join(consumer, 'consumer.ts'), `
+  writeFileSync(
+    join(consumer, 'tsconfig.json'),
+    JSON.stringify({
+      compilerOptions: {
+        module: 'NodeNext',
+        moduleResolution: 'NodeNext',
+        target: 'ES2022',
+        strict: true,
+        noEmit: true,
+        skipLibCheck: false,
+      },
+      files: ['consumer.ts'],
+    }),
+  );
+  writeFileSync(
+    join(consumer, 'consumer.ts'),
+    `
 import type { ErrorSeverity as WebErrorSeverity } from '@everframe/web';
 import type { ErrorSeverity as ReactErrorSeverity } from '@everframe/react';
 import * as web from '@everframe/web';
@@ -56,12 +61,17 @@ void reactSeverity;
 void web.ErrorSeverity;
 // @ts-expect-error ErrorSeverity is a type-only React export.
 void react.ErrorSeverity;
-`);
+`,
+  );
 
-  const checked = spawnSync(process.execPath, [TSC_BIN, '--project', join(consumer, 'tsconfig.json')], {
-    cwd: consumer,
-    encoding: 'utf8',
-  });
+  const checked = spawnSync(
+    process.execPath,
+    [TSC_BIN, '--project', join(consumer, 'tsconfig.json')],
+    {
+      cwd: consumer,
+      encoding: 'utf8',
+    },
+  );
   if (checked.error) throw checked.error;
   assert.equal(checked.stderr + checked.stdout, '');
   assert.equal(checked.status, 0);

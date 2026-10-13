@@ -4,8 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { ReportEnvelope } from '../src/envelope.js';
 import minimal from './fixtures/v1-minimal.json' with { type: 'json' };
 
-const withApp = (extra: Record<string, unknown>) =>
-  ({ ...minimal, context: { ...minimal.context, app: { ...minimal.context.app, ...extra } } });
+const withApp = (extra: Record<string, unknown>) => ({
+  ...minimal,
+  context: { ...minimal.context, app: { ...minimal.context.app, ...extra } },
+});
 
 describe('context.app.debug', () => {
   it('accepts a boolean and keeps it typed', () => {

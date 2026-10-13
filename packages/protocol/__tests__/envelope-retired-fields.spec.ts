@@ -5,9 +5,12 @@ import { ReportEnvelope } from '../src/index.js';
 import minimal from './fixtures/v1-minimal.json';
 
 describe('retired envelope payload fields', () => {
-  it.each(['uiTree', 'reactTree', 'reportTarget'])('%s is no longer a supported payload field', (field) => {
-    expect(ReportEnvelope.shape.payload.keyof().options).not.toContain(field);
-  });
+  it.each(['uiTree', 'reactTree', 'reportTarget'])(
+    '%s is no longer a supported payload field',
+    (field) => {
+      expect(ReportEnvelope.shape.payload.keyof().options).not.toContain(field);
+    },
+  );
 
   it('treats retired fields as opaque extensions when reading historical reports', () => {
     const payload = {

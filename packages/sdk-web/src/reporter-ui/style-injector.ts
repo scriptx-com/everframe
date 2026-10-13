@@ -20,7 +20,8 @@ export function injectReporterStyles(target: Document | ShadowRoot, nonce?: stri
   const ownerDocument: Document =
     target instanceof Document
       ? target
-      : (target.ownerDocument ?? (typeof document !== 'undefined' ? document : (null as unknown as Document)));
+      : (target.ownerDocument ??
+        (typeof document !== 'undefined' ? document : (null as unknown as Document)));
   if (!ownerDocument || typeof ownerDocument.createElement !== 'function') return;
   const styleEl = ownerDocument.createElement('style');
   styleEl.dataset['everframeStyles'] = 'reporter';

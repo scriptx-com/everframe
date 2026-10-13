@@ -41,16 +41,26 @@ const tvPathOnly: Plugin = {
   setup(b) {
     b.onResolve({ filter: /.*/ }, async (args) => {
       if (args.kind === 'entry-point' || args.pluginData === 'inner') return undefined;
-      const resolved = await b.resolve(args.path, { resolveDir: args.resolveDir, kind: args.kind, importer: args.importer, pluginData: 'inner' });
+      const resolved = await b.resolve(args.path, {
+        resolveDir: args.resolveDir,
+        kind: args.kind,
+        importer: args.importer,
+        pluginData: 'inner',
+      });
       if (resolved.errors.length > 0) return { path: args.path, external: true };
-      return TV_PATH.some((p) => resolved.path.startsWith(p) || resolved.path.includes(p)) ? { path: resolved.path } : { path: args.path, external: true };
+      return TV_PATH.some((p) => resolved.path.startsWith(p) || resolved.path.includes(p))
+        ? { path: resolved.path }
+        : { path: args.path, external: true };
     });
   },
 };
 
 async function tvPathCode(): Promise<string> {
   const result = await build({
-    entryPoints: [path.join(SRC, 'capture/tv-snapshot/tv-snapshot.ts'), path.join(SRC, 'companion/companion-submit.ts')],
+    entryPoints: [
+      path.join(SRC, 'capture/tv-snapshot/tv-snapshot.ts'),
+      path.join(SRC, 'companion/companion-submit.ts'),
+    ],
     bundle: true,
     write: false,
     outdir: '/tmp/tv-path-builtins',
@@ -63,7 +73,9 @@ async function tvPathCode(): Promise<string> {
     plugins: [tvPathOnly],
   });
   // Comments stripped so prose ("…trimEnd() is Chrome 66+…") cannot trip it.
-  return result.outputFiles.map((f) => f.text.replace(/\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm, '')).join('\n');
+  return result.outputFiles
+    .map((f) => f.text.replace(/\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm, ''))
+    .join('\n');
 }
 
 describe('smart-TV path uses no post-Chrome-53 runtime built-ins', () => {
@@ -85,7 +97,10 @@ describe('smart-TV path uses no post-Chrome-53 runtime built-ins', () => {
   });
 
   it('sdk-core gzipBytes (the snapshot compressor) never reads bare globalThis', () => {
-    const src = readFileSync(path.join(PKG, '../sdk-core/src/transport/compression.ts'), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+    const src = readFileSync(
+      path.join(PKG, '../sdk-core/src/transport/compression.ts'),
+      'utf8',
+    ).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
     expect(src.match(FORBIDDEN) ?? []).toEqual([]);
   });
 });
@@ -145,10 +160,14 @@ async function eagerCode(supported: BuildOptions['supported']): Promise<string> 
     const next = queue.pop()!;
     if (eager.has(next)) continue;
     eager.add(next);
-    for (const imp of outputs[next]!.imports) if (imp.kind === 'import-statement') queue.push(imp.path);
+    for (const imp of outputs[next]!.imports)
+      if (imp.kind === 'import-statement') queue.push(imp.path);
   }
   const wanted = new Set([...eager].map((k) => path.resolve(PKG, k)));
-  return result.outputFiles.filter((f) => wanted.has(f.path)).map((f) => f.text).join('\n');
+  return result.outputFiles
+    .filter((f) => wanted.has(f.path))
+    .map((f) => f.text)
+    .join('\n');
 }
 
 const regexCtorCount = (code: string): number => code.split('new RegExp(').length - 1;
@@ -161,12 +180,24 @@ describe('no regex literal an old TV engine cannot parse', () => {
 
   it('the TV-path bundle has none', async () => {
     const base = {
-      entryPoints: [path.join(SRC, 'capture/tv-snapshot/tv-snapshot.ts'), path.join(SRC, 'companion/companion-submit.ts')],
-      bundle: true, write: false, outdir: '/tmp/tv-path-regex', format: 'esm' as const, platform: 'browser' as const,
-      target: 'es2022', logLevel: 'silent' as const, define: { __EVERFRAME_INGEST_URL__: '""' }, plugins: [tvPathOnly],
+      entryPoints: [
+        path.join(SRC, 'capture/tv-snapshot/tv-snapshot.ts'),
+        path.join(SRC, 'companion/companion-submit.ts'),
+      ],
+      bundle: true,
+      write: false,
+      outdir: '/tmp/tv-path-regex',
+      format: 'esm' as const,
+      platform: 'browser' as const,
+      target: 'es2022',
+      logLevel: 'silent' as const,
+      define: { __EVERFRAME_INGEST_URL__: '""' },
+      plugins: [tvPathOnly],
     };
     const text = async (supported?: BuildOptions['supported']) =>
-      (await build({ ...base, ...(supported !== undefined ? { supported } : {}) })).outputFiles!.map((f) => f.text).join('\n');
+      (await build({ ...base, ...(supported !== undefined ? { supported } : {}) }))
+        .outputFiles!.map((f) => f.text)
+        .join('\n');
     expect(regexCtorCount(await text(OLD_REGEX)) - regexCtorCount(await text())).toBe(0);
   }, 60_000);
 
@@ -177,14 +208,16 @@ describe('no regex literal an old TV engine cannot parse', () => {
         const full = path.join(dir, name);
         if (statSync(full).isDirectory()) walk(full);
         else if (/\.tsx?$/.test(name)) {
-          readFileSync(full, 'utf8').split('\n').forEach((line, i) => {
-            const t = line.trim();
-            if (t.startsWith('//') || t.startsWith('/*') || t.startsWith('*')) return;
-            if (!/\(\?<[=!A-Za-z]|\\[pP]\{/.test(line)) return;
-            // Inside a string handed to `new RegExp` (runtime-compiled, try/catch-guarded) is fine.
-            if (/new RegExp\(\s*['"`]/.test(line)) return;
-            offenders.push(`${path.relative(PKG, full)}:${i + 1}: ${t}`);
-          });
+          readFileSync(full, 'utf8')
+            .split('\n')
+            .forEach((line, i) => {
+              const t = line.trim();
+              if (t.startsWith('//') || t.startsWith('/*') || t.startsWith('*')) return;
+              if (!/\(\?<[=!A-Za-z]|\\[pP]\{/.test(line)) return;
+              // Inside a string handed to `new RegExp` (runtime-compiled, try/catch-guarded) is fine.
+              if (/new RegExp\(\s*['"`]/.test(line)) return;
+              offenders.push(`${path.relative(PKG, full)}:${i + 1}: ${t}`);
+            });
         }
       }
     };
@@ -192,4 +225,3 @@ describe('no regex literal an old TV engine cannot parse', () => {
     expect(offenders).toEqual([]);
   });
 });
-

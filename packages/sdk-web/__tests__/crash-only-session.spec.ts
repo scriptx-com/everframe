@@ -44,7 +44,10 @@ function wire(configBody: Record<string, unknown>, reporterDisabled: boolean) {
         headers: { 'content-type': 'application/json' },
       });
     }
-    return new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } });
+    return new Response('{"ok":true}', {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
   });
   vi.stubGlobal('fetch', fetchMock);
   const config = { sdkKey: 'k', ...(reporterDisabled ? { reporter: { disabled: true } } : {}) };
@@ -137,7 +140,10 @@ describe('crash-only sessions: replay coverage', () => {
   });
 
   it('sessionReplay.disabled still wins after an upgrade', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(replayOn()), { status: 200 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(replayOn()), { status: 200 })),
+    );
     const adapter = createWebPlatformAdapter({
       sdkKey: 'k',
       reporter: { disabled: true },
@@ -200,7 +206,9 @@ describe('crash-only sessions: entry points', () => {
     adapter.__registerShowModal(show);
     const result = adapter.__openReporter();
     await expect(result).rejects.toBeInstanceOf(EverframeReporterDisabledError);
-    await expect(adapter.__openReporter()).rejects.toMatchObject({ name: 'EverframeReporterDisabledError' });
+    await expect(adapter.__openReporter()).rejects.toMatchObject({
+      name: 'EverframeReporterDisabledError',
+    });
     expect(show).not.toHaveBeenCalled();
     expect(PublicError).toBe(EverframeReporterDisabledError);
   });

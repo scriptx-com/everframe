@@ -77,7 +77,11 @@ const mkJwt = (expSec: number): string => {
 };
 
 function urlOf(input: RequestInfo | URL): string {
-  return typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+  return typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.href
+      : (input as Request).url;
 }
 
 /** `GET /api/config` response body — `identity` block present only when `identityEnabled` is passed. */
@@ -148,11 +152,7 @@ describe('Provider end-to-end (jsdom)', () => {
           const ingestCall = fetchSpy.mock.calls.find((c) => {
             const arg = c[0];
             const url =
-              typeof arg === 'string'
-                ? arg
-                : arg instanceof URL
-                  ? arg.href
-                  : (arg as Request).url;
+              typeof arg === 'string' ? arg : arg instanceof URL ? arg.href : (arg as Request).url;
             return url.includes('/api/ingest');
           });
           expect(ingestCall).toBeTruthy();
@@ -170,7 +170,9 @@ describe('Provider end-to-end (jsdom)', () => {
    * ingest response; the two cases below only differ in whether it includes
    * a `thread` block.
    */
-  async function renderOpenAndSubmit(ingestResponseBody: string): Promise<ReturnType<typeof render>> {
+  async function renderOpenAndSubmit(
+    ingestResponseBody: string,
+  ): Promise<ReturnType<typeof render>> {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
       const url =
         typeof input === 'string'
@@ -263,7 +265,9 @@ describe('Provider end-to-end (jsdom)', () => {
         // Assert the header at the point of the real network call, not on a mock.
         const headers = init?.headers as Record<string, string> | Headers | undefined;
         const tokenHeader =
-          headers instanceof Headers ? headers.get('X-Everframe-Device-Token') : headers?.['X-Everframe-Device-Token'];
+          headers instanceof Headers
+            ? headers.get('X-Everframe-Device-Token')
+            : headers?.['X-Everframe-Device-Token'];
         expect(tokenHeader).toBeFalsy();
         return new Response('{}', { status: 200 });
       }
@@ -305,11 +309,7 @@ describe('Provider end-to-end (jsdom)', () => {
           const ingestCall = fetchSpy.mock.calls.find((c) => {
             const arg = c[0];
             const url =
-              typeof arg === 'string'
-                ? arg
-                : arg instanceof URL
-                  ? arg.href
-                  : (arg as Request).url;
+              typeof arg === 'string' ? arg : arg instanceof URL ? arg.href : (arg as Request).url;
             return url.includes('/api/ingest');
           });
           expect(ingestCall).toBeTruthy();
@@ -458,7 +458,11 @@ describe('Provider end-to-end (jsdom)', () => {
         // Let the mount-time /api/config fetch (which carries identity.enabled)
         // resolve before submitting, so the gate reads the live value.
         await waitFor(() => {
-          expect(fetchSpy.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config'))).toBe(true);
+          expect(
+            fetchSpy.mock.calls.some((c) =>
+              urlOf(c[0] as RequestInfo | URL).includes('/api/config'),
+            ),
+          ).toBe(true);
         });
 
         const opener = await findByTestId('host-open');
@@ -478,7 +482,9 @@ describe('Provider end-to-end (jsdom)', () => {
 
         await waitFor(
           () => {
-            const ingestCall = fetchSpy.mock.calls.find((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'));
+            const ingestCall = fetchSpy.mock.calls.find((c) =>
+              urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'),
+            );
             expect(ingestCall).toBeTruthy();
           },
           { timeout: 5000 },
@@ -521,7 +527,11 @@ describe('Provider end-to-end (jsdom)', () => {
         );
 
         await waitFor(() => {
-          expect(fetchSpy.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config'))).toBe(true);
+          expect(
+            fetchSpy.mock.calls.some((c) =>
+              urlOf(c[0] as RequestInfo | URL).includes('/api/config'),
+            ),
+          ).toBe(true);
         });
 
         const opener = await findByTestId('host-open');
@@ -539,7 +549,9 @@ describe('Provider end-to-end (jsdom)', () => {
 
         await waitFor(
           () => {
-            const ingestCall = fetchSpy.mock.calls.find((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'));
+            const ingestCall = fetchSpy.mock.calls.find((c) =>
+              urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'),
+            );
             expect(ingestCall).toBeTruthy();
           },
           { timeout: 5000 },
@@ -586,7 +598,11 @@ describe('Provider end-to-end (jsdom)', () => {
         );
 
         await waitFor(() => {
-          expect(fetchSpy.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config'))).toBe(true);
+          expect(
+            fetchSpy.mock.calls.some((c) =>
+              urlOf(c[0] as RequestInfo | URL).includes('/api/config'),
+            ),
+          ).toBe(true);
         });
 
         const opener = await findByTestId('host-open');
@@ -604,7 +620,9 @@ describe('Provider end-to-end (jsdom)', () => {
 
         await waitFor(
           () => {
-            const ingestCall = fetchSpy.mock.calls.find((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'));
+            const ingestCall = fetchSpy.mock.calls.find((c) =>
+              urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'),
+            );
             expect(ingestCall).toBeTruthy();
           },
           { timeout: 5000 },
@@ -679,9 +697,17 @@ describe('Provider end-to-end (jsdom)', () => {
       // jsdom cannot rasterize the DOM. Supply a renderer-owned PNG so this
       // test always reads a screenshot during multipart preparation, rather
       // than depending on a background DOM-capture attempt's timing.
-      const screenshot = new Blob([Uint8Array.from(atob(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jE9sAAAAASUVORK5CYII=',
-      ), (c) => c.charCodeAt(0))], { type: 'image/png' });
+      const screenshot = new Blob(
+        [
+          Uint8Array.from(
+            atob(
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jE9sAAAAASUVORK5CYII=',
+            ),
+            (c) => c.charCodeAt(0),
+          ),
+        ],
+        { type: 'image/png' },
+      );
       const arrayBufferSpy = vi
         .spyOn(Blob.prototype, 'arrayBuffer')
         .mockImplementation(async function (this: Blob): Promise<ArrayBuffer> {
@@ -696,21 +722,29 @@ describe('Provider end-to-end (jsdom)', () => {
         const { findByTestId } = render(
           <EverframeProvider
             config={{
-              sdkKey: 'txx_live_identity_boundary', appName: 'test', appVersion: '1.0.0',
+              sdkKey: 'txx_live_identity_boundary',
+              appName: 'test',
+              appVersion: '1.0.0',
               visualCapture: { captureScreenshot: async () => screenshot },
             }}
           >
             <div>app</div>
             <IdentityController
               initial={alice}
-              onReady={(set) => { liveSetIdentityToken = set; }}
+              onReady={(set) => {
+                liveSetIdentityToken = set;
+              }}
             />
             <OpenButton />
           </EverframeProvider>,
         );
 
         await waitFor(() => {
-          expect(fetchSpy.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config'))).toBe(true);
+          expect(
+            fetchSpy.mock.calls.some((c) =>
+              urlOf(c[0] as RequestInfo | URL).includes('/api/config'),
+            ),
+          ).toBe(true);
         });
 
         const opener = await findByTestId('host-open');
@@ -732,7 +766,9 @@ describe('Provider end-to-end (jsdom)', () => {
 
         await waitFor(
           () => {
-            const ingestCall = fetchSpy.mock.calls.find((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'));
+            const ingestCall = fetchSpy.mock.calls.find((c) =>
+              urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'),
+            );
             expect(ingestCall).toBeTruthy();
           },
           { timeout: 5000 },

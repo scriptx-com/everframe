@@ -244,7 +244,7 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
   // pause-epoch machinery otherwise enforces. Recovery now happens
   // exclusively on the foreground path, in wake().
   let readCooldownWakeHandle: unknown = null;
-  let active = false;          // polling loop armed
+  let active = false; // polling loop armed
   // Bumped by every stopPolling() call (round-5 re-review, finding 1
   // follow-up). wake()'s async refreshGate continuation captures this
   // BEFORE awaiting the gate; if it has moved by the time the gate
@@ -254,7 +254,7 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
   // genuine wake() call captures a fresh value, so this never permanently
   // blocks future wakes.
   let pauseEpoch = 0;
-  let inFlight = false;        // a pollOnce is running
+  let inFlight = false; // a pollOnce is running
   let timerHandle: unknown = null;
   let localSeq = 0;
   // Per-message send lock: localIds with a postMessage() currently in flight.
@@ -277,7 +277,14 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
       // Forced empty/disabled regardless of deps.isEnabled() or any state
       // left over from before shutdown — the UI (FAB, inbox) must read this
       // as "nothing here" so it drops away.
-      return { enabled: false, readOnly: false, threads: [], unreadCount: 0, pending: [], cooldownUntilMs: null };
+      return {
+        enabled: false,
+        readOnly: false,
+        threads: [],
+        unreadCount: 0,
+        pending: [],
+        cooldownUntilMs: null,
+      };
     }
     return {
       enabled: deps.isEnabled(),
@@ -360,7 +367,9 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
       // and the thread list intact (just closed/read-only), so the
       // reporter's attempted text should stay visible as 'failed' rather
       // than vanish.
-      pending = pending.map((p) => (p.state === 'sending' ? { ...p, state: 'failed' as const } : p));
+      pending = pending.map((p) =>
+        p.state === 'sending' ? { ...p, state: 'failed' as const } : p,
+      );
       // The cached ETag hashes the server's list JSON, which disabling
       // replies does NOT change — so it stays valid against the server even
       // though our local copy is now wrong (all statuses forced closed).
@@ -517,7 +526,11 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
    * back in as if it were the newest message) and append any still-
    * unconfirmed local sends not already present in the window.
    */
-  function mergeSentBuffer(threadId: string, windowMessages: ThreadMessage[], observedIds: Set<string>): ThreadMessage[] {
+  function mergeSentBuffer(
+    threadId: string,
+    windowMessages: ThreadMessage[],
+    observedIds: Set<string>,
+  ): ThreadMessage[] {
     const buffered = sentBuffer.get(threadId);
     if (buffered) {
       const stillPending = buffered.filter((m) => !observedIds.has(m.id));
@@ -544,7 +557,13 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
       const { id } = await deps.api.postMessage(token, msg.threadId, msg.body);
       pending = pending.filter((p) => p.localId !== msg.localId);
       const buf = sentBuffer.get(msg.threadId) ?? [];
-      buf.push({ id, authorKind: 'reporter', authorName: null, body: msg.body, createdAt: new Date(now()).toISOString() });
+      buf.push({
+        id,
+        authorKind: 'reporter',
+        authorName: null,
+        body: msg.body,
+        createdAt: new Date(now()).toISOString(),
+      });
       sentBuffer.set(msg.threadId, buf);
       // Finding 1 (round 10, PR review): the in-flight send lock
       // (sendingInFlight) is per-localId, so two DIFFERENT pending
@@ -579,7 +598,9 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
         if (err.code === 'thread_closed' || err.code === 'thread_not_found') {
           if (err.code === 'thread_closed') markThreadClosed(msg.threadId);
           else dropThreadLocal(msg.threadId);
-          pending = pending.map((p) => (p.localId === msg.localId ? { ...p, state: 'failed' as const } : p));
+          pending = pending.map((p) =>
+            p.localId === msg.localId ? { ...p, state: 'failed' as const } : p,
+          );
           notify();
           return;
         }
@@ -592,7 +613,9 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
           // retrying the identical body changes nothing, so this must fail
           // immediately like thread_closed/thread_not_found above — no
           // attempt accounting, no further POSTs.
-          pending = pending.map((p) => (p.localId === msg.localId ? { ...p, state: 'failed' as const } : p));
+          pending = pending.map((p) =>
+            p.localId === msg.localId ? { ...p, state: 'failed' as const } : p,
+          );
           notify();
           return;
         }
@@ -611,7 +634,11 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
       pending = pending.map((p) => {
         if (p.localId !== msg.localId) return p;
         const attempts = p.attempts + 1;
-        return { ...p, attempts, state: attempts >= MAX_SEND_ATTEMPTS ? 'failed' as const : 'sending' as const };
+        return {
+          ...p,
+          attempts,
+          state: attempts >= MAX_SEND_ATTEMPTS ? ('failed' as const) : ('sending' as const),
+        };
       });
       notify();
     } finally {
@@ -712,7 +739,7 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
     }
     if (!active) return;
     if (nextDelayMs === null) {
-      active = false;            // idle-to-zero; wake() re-arms
+      active = false; // idle-to-zero; wake() re-arms
       return;
     }
     armTimer(nextDelayMs);
@@ -776,7 +803,7 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
       // acts when !active) can never recover it.
       if (timerHandle !== null) return;
       if (nextDelayMs === null) {
-        active = false;          // idle-to-zero, same outcome as a normal tick
+        active = false; // idle-to-zero, same outcome as a normal tick
         return;
       }
       armTimer(nextDelayMs);
@@ -973,7 +1000,14 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
         // the NEXT get() resumes instead of restarting at cursor zero
         // (finding 2-SDK). Cleared the moment the walk genuinely finishes.
         if (truncation === 'incomplete') {
-          walkCheckpoints.set(threadId, { cursor, messages, windowTrimmed, pagesConsumed, observedIds: Array.from(observedIds), status });
+          walkCheckpoints.set(threadId, {
+            cursor,
+            messages,
+            windowTrimmed,
+            pagesConsumed,
+            observedIds: Array.from(observedIds),
+            status,
+          });
         } else {
           walkCheckpoints.delete(threadId);
         }
@@ -1024,7 +1058,14 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
         // view we choose to display below; resumption must track the
         // walk's true progress, not the display decision.
         if (pagesConsumed > 0) {
-          walkCheckpoints.set(threadId, { cursor, messages, windowTrimmed, pagesConsumed, observedIds: Array.from(observedIds), status });
+          walkCheckpoints.set(threadId, {
+            cursor,
+            messages,
+            windowTrimmed,
+            pagesConsumed,
+            observedIds: Array.from(observedIds),
+            status,
+          });
           // Round-1 finding 6 residual (round-4 re-review): don't erase
           // already-visible history. A cached, complete detail already
           // fetched earlier is strictly better to show than an in-progress
@@ -1093,11 +1134,13 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
       // now-empty array, so a reply attempted around a full auth reset does
       // not resurrect a wiped list.
       if (!token) {
-        pending = pending.map((p) => (p.localId === msg.localId ? { ...p, state: 'failed' as const } : p));
+        pending = pending.map((p) =>
+          p.localId === msg.localId ? { ...p, state: 'failed' as const } : p,
+        );
         notify();
         return;
       }
-      if (cooldownUntilMs !== null && now() < cooldownUntilMs) return;  // queued for the next tick
+      if (cooldownUntilMs !== null && now() < cooldownUntilMs) return; // queued for the next tick
       await attemptSend(token, msg);
     },
 
@@ -1121,7 +1164,9 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
       if (threads.find((t) => t.id === msg.threadId)?.status === 'closed') return;
       const token = await loadToken();
       if (!token) return;
-      pending = pending.map((p) => (p.localId === localId ? { ...p, state: 'sending' as const, attempts: 0 } : p));
+      pending = pending.map((p) =>
+        p.localId === localId ? { ...p, state: 'sending' as const, attempts: 0 } : p,
+      );
       notify();
       // Finding 2 (round 9, PR review): unlike reply()/retryPendingSends(),
       // a manual Retry used to call attemptSend() unconditionally — so a
@@ -1147,7 +1192,10 @@ export function createThreadClient(deps: ThreadClientDeps): ThreadClient {
         if (err instanceof ReporterApiError && err.code === 'thread_not_found') {
           dropThreadLocal(threadId);
           notify();
-        } else if (err instanceof ReporterApiError && (err.code === 'invalid_device_token' || err.code === 'replies_disabled')) {
+        } else if (
+          err instanceof ReporterApiError &&
+          (err.code === 'invalid_device_token' || err.code === 'replies_disabled')
+        ) {
           handleAuthFailure(err);
         }
         // Anything else: unread stays; next poll reconciles.

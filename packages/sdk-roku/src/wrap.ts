@@ -7,7 +7,13 @@
 //   catch everframe_e : Everframe_OnError(...) : throw everframe_e : end try : end sub
 // Keeping every original statement on its original line means a crash
 // backtrace still points at the developer's source line numbers.
-import { Parser, WalkMode, createVisitor, isFunctionStatement, type FunctionExpression } from 'brighterscript';
+import {
+  Parser,
+  WalkMode,
+  createVisitor,
+  isFunctionStatement,
+  type FunctionExpression,
+} from 'brighterscript';
 
 export const MARKER = "' everframe:instrumented";
 
@@ -39,14 +45,25 @@ export interface WrapResult {
   skipped: Array<{ fn: string; reason: string }>;
 }
 
-interface Edit { line: number; col: number; text: string }
+interface Edit {
+  line: number;
+  col: number;
+  text: string;
+}
 
 const brsQuote = (s: string) => '"' + s.replace(/"/g, '""') + '"';
 
 /** Any label statement in the body, nested blocks included: BrightScript rejects labels inside a TRY clause. */
 function hasLabel(func: FunctionExpression): boolean {
   let found = false;
-  func.body.walk(createVisitor({ LabelStatement: () => { found = true; } }), { walkMode: WalkMode.visitStatementsRecursive });
+  func.body.walk(
+    createVisitor({
+      LabelStatement: () => {
+        found = true;
+      },
+    }),
+    { walkMode: WalkMode.visitStatementsRecursive },
+  );
   return found;
 }
 
@@ -57,7 +74,11 @@ export function wrapFunctions(source: string, targets: Map<string, WrapTarget>):
   const lines = parts.filter((_, i) => i % 2 === 0);
   const parsed = Parser.parse(source);
   if (parsed.diagnostics.length > 0) {
-    return { code: source, wrapped: [], skipped: [{ fn: '*', reason: `parse error: ${parsed.diagnostics[0]!.message}` }] };
+    return {
+      code: source,
+      wrapped: [],
+      skipped: [{ fn: '*', reason: `parse error: ${parsed.diagnostics[0]!.message}` }],
+    };
   }
 
   const edits: Edit[] = [];
@@ -79,15 +100,24 @@ export function wrapFunctions(source: string, targets: Map<string, WrapTarget>):
     const endText = lines[endLine] ?? '';
 
     if (sigText.includes(MARKER)) continue;
-    if (sigLine === endLine) { skipped.push({ fn: name, reason: 'single-line function' }); continue; }
-    if (endText.slice(0, endCol).trim() !== '') { skipped.push({ fn: name, reason: 'code before end on the same line' }); continue; }
+    if (sigLine === endLine) {
+      skipped.push({ fn: name, reason: 'single-line function' });
+      continue;
+    }
+    if (endText.slice(0, endCol).trim() !== '') {
+      skipped.push({ fn: name, reason: 'code before end on the same line' });
+      continue;
+    }
     const afterSig = sigText.slice(sigCol).trim();
     if (afterSig !== '' && !afterSig.startsWith("'") && !/^rem\b/i.test(afterSig)) {
       skipped.push({ fn: name, reason: 'code after the signature on the same line' });
       continue;
     }
     // Labels in a nested function expression are counted too: conservative, never a compile error.
-    if (hasLabel(func)) { skipped.push({ fn: name, reason: 'contains a label (labels are illegal inside try)' }); continue; }
+    if (hasLabel(func)) {
+      skipped.push({ fn: name, reason: 'contains a label (labels are illegal inside try)' });
+      continue;
+    }
 
     let open = ' : try';
     if (target.prelude === 'recordExit') open += ' : Everframe_RecordLastExit()';
@@ -97,14 +127,20 @@ export function wrapFunctions(source: string, targets: Map<string, WrapTarget>):
         const press = func.parameters[1]!.name.text;
         open += ` : Everframe_KeyCrumb(${key}, ${press})`;
       } else {
-        skipped.push({ fn: name, reason: 'onKeyEvent has fewer than 2 parameters; no key breadcrumb' });
+        skipped.push({
+          fn: name,
+          reason: 'onKeyEvent has fewer than 2 parameters; no key breadcrumb',
+        });
       }
     } else if (target.crumb === 'init') {
       open += ` : Everframe_Crumb("lifecycle", ${brsQuote('init ' + target.entry)}, invalid)`;
     }
     if (target.screen) open += ` : Everframe_Screen(${target.screen})`;
     else if (target.screenConflict) {
-      skipped.push({ fn: name, reason: `shared by components ${target.screenConflict.join(', ')}; no automatic screen` });
+      skipped.push({
+        fn: name,
+        reason: `shared by components ${target.screenConflict.join(', ')}; no automatic screen`,
+      });
     } else if (target.screenIf && target.screenIf.names.length > 0) {
       open += ` : Everframe_ScreenIf(${target.screenIf.expr}, ${brsQuote(target.screenIf.names.join(','))})`;
     }

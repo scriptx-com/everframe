@@ -32,7 +32,9 @@ export interface ShotCapture {
 }
 
 export function imageShot(image: ScreenshotResult): ShotCapture {
-  return image.degradedReason !== undefined ? { image, degradedReason: image.degradedReason } : { image };
+  return image.degradedReason !== undefined
+    ? { image, degradedReason: image.degradedReason }
+    : { image };
 }
 
 /** Above this many elements the on-device snapDOM fallback is too slow for a TV. */
@@ -54,13 +56,23 @@ export function countElementsUpTo(doc: Document, limit: number): number {
   let el: Element | null = doc.documentElement;
   while (el !== null) {
     if (++count > limit) return count;
-    const shadow: ShadowRoot | null | undefined = (el as Element & { shadowRoot?: ShadowRoot | null }).shadowRoot;
-    const shadowFirst: Element | null = shadow !== null && shadow !== undefined ? shadow.firstElementChild : null;
+    const shadow: ShadowRoot | null | undefined = (
+      el as Element & { shadowRoot?: ShadowRoot | null }
+    ).shadowRoot;
+    const shadowFirst: Element | null =
+      shadow !== null && shadow !== undefined ? shadow.firstElementChild : null;
     const lightFirst: Element | null = el.firstElementChild;
     const next: Element | null = el.nextElementSibling;
     if (next !== null) resume.push(next);
     if (shadowFirst !== null && lightFirst !== null) resume.push(lightFirst);
-    el = shadowFirst !== null ? shadowFirst : lightFirst !== null ? lightFirst : resume.length > 0 ? (resume.pop() as Element) : null;
+    el =
+      shadowFirst !== null
+        ? shadowFirst
+        : lightFirst !== null
+          ? lightFirst
+          : resume.length > 0
+            ? (resume.pop() as Element)
+            : null;
   }
   return count;
 }
@@ -83,10 +95,13 @@ export async function boundedTvFallbackShot(
 ): Promise<ShotCapture> {
   const unavailable: ShotCapture = { degradedReason: DEGRADED_REASONS.screenshot_unavailable };
   if (isWeakTvProfile(userAgent)) return unavailable;
-  if (countElementsUpTo(doc, SNAPDOM_FALLBACK_MAX_ELEMENTS) > SNAPDOM_FALLBACK_MAX_ELEMENTS) return unavailable;
+  if (countElementsUpTo(doc, SNAPDOM_FALLBACK_MAX_ELEMENTS) > SNAPDOM_FALLBACK_MAX_ELEMENTS)
+    return unavailable;
   try {
     const image = await capture();
-    return image.degradedReason === DEGRADED_REASONS.screenshot_failed ? unavailable : imageShot(image);
+    return image.degradedReason === DEGRADED_REASONS.screenshot_failed
+      ? unavailable
+      : imageShot(image);
   } catch {
     return unavailable;
   }
@@ -115,7 +130,8 @@ export function captureShotVia(
   adapter: ShotCapableAdapter,
   options?: ShotCaptureOptions,
 ): Promise<ShotCapture> {
-  if (typeof adapter.__captureShot !== 'function') return adapter.captureScreenshot().then(imageShot);
+  if (typeof adapter.__captureShot !== 'function')
+    return adapter.captureScreenshot().then(imageShot);
   return options === undefined ? adapter.__captureShot() : adapter.__captureShot(options);
 }
 

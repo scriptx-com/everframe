@@ -42,15 +42,19 @@ function escapedDetails(byteCount: 8192 | 8193): { metadata: Record<string, stri
 
 describe('CrashDetails', () => {
   it('normalizes a healthy details object and redacts sensitive metadata keys', () => {
-    const details = normalizeCrashDetails({
-      severity: 'warning',
-      context: 'checkout',
-      metadata: {
-        retry: 2,
-        flags: [true, null],
-        request: { accessToken: 'synthetic' },
+    const details = normalizeCrashDetails(
+      {
+        severity: 'warning',
+        context: 'checkout',
+        metadata: {
+          retry: 2,
+          flags: [true, null],
+          request: { accessToken: 'synthetic' },
+        },
       },
-    }, identity, 'error');
+      identity,
+      'error',
+    );
 
     expect(details).toEqual({
       severity: 'warning',
@@ -70,7 +74,9 @@ describe('CrashDetails', () => {
   });
 
   it('uses the explicit severity, otherwise the caller default, without accepting invalid values', () => {
-    expect(normalizeCrashDetails({ severity: 'info' }, identity, 'error')).toEqual({ severity: 'info' });
+    expect(normalizeCrashDetails({ severity: 'info' }, identity, 'error')).toEqual({
+      severity: 'info',
+    });
     expect(normalizeCrashDetails({}, identity, 'warning')).toEqual({ severity: 'warning' });
     expect(normalizeCrashDetails({ severity: 'fatal' }, identity, 'error')).toEqual({
       severity: 'error',
@@ -80,16 +86,19 @@ describe('CrashDetails', () => {
 
   it('normalizes unsafe text, scans and caps by UTF-16 units without splitting pairs', () => {
     const seen: string[] = [];
-    const result = normalizeCrashDetails({
-      context: `${'c'.repeat(MAX_CRASH_CONTEXT_UNITS - 1)}😀tail`,
-      metadata: {
-        unsafe: 'left\0\ud800😀\udc00right',
-        huge: `${'x'.repeat(MAX_CRASH_DETAIL_SCAN_UNITS - 1)}😀unscanned`,
+    const result = normalizeCrashDetails(
+      {
+        context: `${'c'.repeat(MAX_CRASH_CONTEXT_UNITS - 1)}😀tail`,
+        metadata: {
+          unsafe: 'left\0\ud800😀\udc00right',
+          huge: `${'x'.repeat(MAX_CRASH_DETAIL_SCAN_UNITS - 1)}😀unscanned`,
+        },
       },
-    }, value => {
-      seen.push(value);
-      return value;
-    });
+      (value) => {
+        seen.push(value);
+        return value;
+      },
+    );
 
     expect(result?.context).toBe('c'.repeat(MAX_CRASH_CONTEXT_UNITS - 1));
     expect(result?.metadata?.unsafe).toBe('left��😀�right');
@@ -100,17 +109,20 @@ describe('CrashDetails', () => {
   });
 
   it('rechecks string and key caps after redaction expansion and keeps the first collided key', () => {
-    const result = normalizeCrashDetails({
-      metadata: {
-        first: 'expand-value',
-        one: 1,
-        two: 2,
+    const result = normalizeCrashDetails(
+      {
+        metadata: {
+          first: 'expand-value',
+          one: 1,
+          two: 2,
+        },
       },
-    }, value => {
-      if (value === 'expand-value') return 'v'.repeat(MAX_CRASH_DETAIL_STRING_UNITS + 10);
-      if (value === 'one' || value === 'two') return 'k'.repeat(MAX_CRASH_DETAIL_KEY_UNITS + 10);
-      return value;
-    });
+      (value) => {
+        if (value === 'expand-value') return 'v'.repeat(MAX_CRASH_DETAIL_STRING_UNITS + 10);
+        if (value === 'one' || value === 'two') return 'k'.repeat(MAX_CRASH_DETAIL_KEY_UNITS + 10);
+        return value;
+      },
+    );
 
     const keys = Object.keys(result?.metadata ?? {});
     expect(result?.metadata?.first).toBe('v'.repeat(MAX_CRASH_DETAIL_STRING_UNITS));
@@ -135,7 +147,9 @@ describe('CrashDetails', () => {
   });
 
   it('accepts 128 metadata nodes and stops before inspecting node 129', () => {
-    const atLimit = Object.fromEntries(Array.from({ length: MAX_CRASH_DETAIL_NODES - 1 }, (_, i) => [`k${i}`, i]));
+    const atLimit = Object.fromEntries(
+      Array.from({ length: MAX_CRASH_DETAIL_NODES - 1 }, (_, i) => [`k${i}`, i]),
+    );
     const overLimit = { ...atLimit, overflow: 'never' };
     const normalized = normalizeCrashDetails({ metadata: overLimit }, identity)!;
 
@@ -200,7 +214,12 @@ describe('CrashDetails', () => {
       ownKeys: () => keys,
       getOwnPropertyDescriptor: (_target, property) => {
         descriptorReads += 1;
-        return { configurable: true, enumerable: true, value: typeof property === 'string' ? property : '', writable: true };
+        return {
+          configurable: true,
+          enumerable: true,
+          value: typeof property === 'string' ? property : '',
+          writable: true,
+        };
       },
     });
     const normalized = normalizeCrashDetails({ metadata }, identity)!;
@@ -220,10 +239,17 @@ describe('CrashDetails', () => {
     revokedNested.revoke();
 
     expect(normalizeCrashDetails(revokedDetails.proxy, identity)).toEqual({ truncated: true });
-    expect(normalizeCrashDetails({ metadata: revokedMetadata.proxy }, identity)).toEqual({ truncated: true });
-    expect(normalizeCrashDetails({
-      metadata: { before: 1, revoked: revokedNested.proxy, after: 2 },
-    }, identity)).toEqual({
+    expect(normalizeCrashDetails({ metadata: revokedMetadata.proxy }, identity)).toEqual({
+      truncated: true,
+    });
+    expect(
+      normalizeCrashDetails(
+        {
+          metadata: { before: 1, revoked: revokedNested.proxy, after: 2 },
+        },
+        identity,
+      ),
+    ).toEqual({
       metadata: { before: 1, after: 2 },
       truncated: true,
     });
@@ -233,7 +259,9 @@ describe('CrashDetails', () => {
     const throwingDetails: Record<string, unknown> = { metadata: { kept: true } };
     Object.defineProperty(throwingDetails, 'context', {
       enumerable: true,
-      get: () => { throw new Error('host getter must stay contained'); },
+      get: () => {
+        throw new Error('host getter must stay contained');
+      },
     });
     const revokedDetails = Proxy.revocable({}, {});
     revokedDetails.revoke();
@@ -251,18 +279,29 @@ describe('CrashDetails', () => {
       context: 'foreign',
       metadata: { nested: { value: 7 }, list: [true, null] },
     })`) as unknown;
-    const foreignClass = runInNewContext('new (class ForeignClass { constructor() { this.value = 8; } })()') as unknown;
-    class LocalClass { value = 9; }
+    const foreignClass = runInNewContext(
+      'new (class ForeignClass { constructor() { this.value = 8; } })()',
+    ) as unknown;
+    class LocalClass {
+      value = 9;
+    }
 
     expect(normalizeCrashDetails(foreignDetails, identity)).toEqual({
       context: 'foreign',
       metadata: { nested: { value: 7 }, list: [true, null] },
     });
-    expect(normalizeCrashDetails({ metadata: {
-      foreignClass,
-      localClass: new LocalClass(),
-      after: 'kept',
-    } }, identity)).toEqual({
+    expect(
+      normalizeCrashDetails(
+        {
+          metadata: {
+            foreignClass,
+            localClass: new LocalClass(),
+            after: 'kept',
+          },
+        },
+        identity,
+      ),
+    ).toEqual({
       metadata: {
         after: 'kept',
       },
@@ -272,12 +311,15 @@ describe('CrashDetails', () => {
 
   it('drops keys beyond the input scan bound without traversing their values', () => {
     let nestedReads = 0;
-    const nested = new Proxy({ exposed: 'no' }, {
-      ownKeys(target) {
-        nestedReads += 1;
-        return Reflect.ownKeys(target);
+    const nested = new Proxy(
+      { exposed: 'no' },
+      {
+        ownKeys(target) {
+          nestedReads += 1;
+          return Reflect.ownKeys(target);
+        },
       },
-    });
+    );
     const metadata = Object.create(null) as Record<string, unknown>;
     metadata['k'.repeat(MAX_CRASH_DETAIL_SCAN_UNITS + 1)] = nested;
 
@@ -289,16 +331,19 @@ describe('CrashDetails', () => {
   });
 
   it('omits unsupported data while retaining siblings and preserving array indexes', () => {
-    const result = normalizeCrashDetails({
-      metadata: {
-        ok: 3,
-        badNumber: Number.POSITIVE_INFINITY,
-        fn: () => undefined,
-        bigint: 1n,
-        symbol: Symbol('no'),
-        array: [1, undefined, () => undefined, 4],
+    const result = normalizeCrashDetails(
+      {
+        metadata: {
+          ok: 3,
+          badNumber: Number.POSITIVE_INFINITY,
+          fn: () => undefined,
+          bigint: 1n,
+          symbol: Symbol('no'),
+          array: [1, undefined, () => undefined, 4],
+        },
       },
-    }, identity);
+      identity,
+    );
 
     expect(result).toEqual({
       metadata: { ok: 3, array: [1, null, null, 4] },
@@ -317,16 +362,19 @@ describe('CrashDetails', () => {
         throw new Error('must not run');
       },
     });
-    metadata.classValue = new class {
+    metadata.classValue = new (class {
       toJSON(): string {
         toJSONCalls += 1;
         return 'coerced';
       }
-    }();
-    metadata.plainToJSON = { kept: 'yes', toJSON: () => {
-      toJSONCalls += 1;
-      return 'coerced';
-    } };
+    })();
+    metadata.plainToJSON = {
+      kept: 'yes',
+      toJSON: () => {
+        toJSONCalls += 1;
+        return 'coerced';
+      },
+    };
 
     expect(normalizeCrashDetails({ metadata }, identity)).toEqual({
       metadata: { before: true, after: true, plainToJSON: { kept: 'yes' } },
@@ -340,7 +388,10 @@ describe('CrashDetails', () => {
     const shared = { value: 7 };
     const cyclic: Record<string, unknown> = { sibling: 'kept' };
     cyclic.self = cyclic;
-    const result = normalizeCrashDetails({ metadata: { first: shared, second: shared, cyclic } }, identity);
+    const result = normalizeCrashDetails(
+      { metadata: { first: shared, second: shared, cyclic } },
+      identity,
+    );
 
     expect(result).toEqual({
       metadata: {
@@ -363,15 +414,18 @@ describe('CrashDetails', () => {
         return 'exposed';
       },
     });
-    const result = normalizeCrashDetails({
-      metadata: {
-        request: {
-          accessToken: secretValue,
-          'API-key': { deeply: { nested: { beyond: { limits: true } } } },
-          COOKIE_value: 'cookie',
+    const result = normalizeCrashDetails(
+      {
+        metadata: {
+          request: {
+            accessToken: secretValue,
+            'API-key': { deeply: { nested: { beyond: { limits: true } } } },
+            COOKIE_value: 'cookie',
+          },
         },
       },
-    }, identity);
+      identity,
+    );
 
     expect(result).toEqual({
       metadata: {
@@ -389,7 +443,11 @@ describe('CrashDetails', () => {
     const metadata = Object.create(null) as Record<string, unknown>;
     metadata['a\0'] = 1;
     metadata['a\ud800'] = 2;
-    Object.defineProperty(metadata, '__proto__', { enumerable: true, configurable: true, value: 'kept' });
+    Object.defineProperty(metadata, '__proto__', {
+      enumerable: true,
+      configurable: true,
+      value: 'kept',
+    });
     metadata['constructor'] = 'constructor';
     metadata['prototype'] = 'prototype';
     const result = normalizeCrashDetails({ metadata }, identity)!;
@@ -403,11 +461,25 @@ describe('CrashDetails', () => {
 
   it('contains throwing redactors and known-option accessors to the affected optional fields', () => {
     let extraGetterCalls = 0;
-    const input: Record<string, unknown> = { context: 'bad', metadata: { safe: 'good', bad: 'bad' } };
-    Object.defineProperty(input, 'severity', { enumerable: true, get: () => { throw new Error('no'); } });
-    Object.defineProperty(input, 'extra', { enumerable: true, get: () => { extraGetterCalls += 1; return 'ignored'; } });
+    const input: Record<string, unknown> = {
+      context: 'bad',
+      metadata: { safe: 'good', bad: 'bad' },
+    };
+    Object.defineProperty(input, 'severity', {
+      enumerable: true,
+      get: () => {
+        throw new Error('no');
+      },
+    });
+    Object.defineProperty(input, 'extra', {
+      enumerable: true,
+      get: () => {
+        extraGetterCalls += 1;
+        return 'ignored';
+      },
+    });
 
-    const result = normalizeCrashDetails(input, value => {
+    const result = normalizeCrashDetails(input, (value) => {
       if (value === 'bad') throw new Error('redactor failed');
       return value;
     });
@@ -416,11 +488,18 @@ describe('CrashDetails', () => {
   });
 
   it('omits fields when a redactor returns a non-string value', () => {
-    const nonStringRedactor = ((value: string): unknown => value === 'drop' ? 7 : value) as (value: string) => string;
-    expect(normalizeCrashDetails({
-      context: 'drop',
-      metadata: { kept: 'yes', dropped: 'drop' },
-    }, nonStringRedactor)).toEqual({
+    const nonStringRedactor = ((value: string): unknown => (value === 'drop' ? 7 : value)) as (
+      value: string,
+    ) => string;
+    expect(
+      normalizeCrashDetails(
+        {
+          context: 'drop',
+          metadata: { kept: 'yes', dropped: 'drop' },
+        },
+        nonStringRedactor,
+      ),
+    ).toEqual({
       metadata: { kept: 'yes' },
       truncated: true,
     });
@@ -434,7 +513,10 @@ describe('CrashDetails', () => {
     source.metadata.list.push(3);
     source.context = 'changed';
 
-    expect(result).toEqual({ context: 'context', metadata: { child: { value: 'before' }, list: [1, 2] } });
+    expect(result).toEqual({
+      context: 'context',
+      metadata: { child: { value: 'before' }, list: [1, 2] },
+    });
     expect(result.metadata).not.toBe(source.metadata);
   });
 
@@ -453,7 +535,11 @@ describe('CrashDetails', () => {
       { metadata: { value: Number.NaN } },
       { metadata: cyclic },
       { metadata: fiveLevels() },
-      { metadata: Object.fromEntries(Array.from({ length: MAX_CRASH_DETAIL_NODES }, (_, i) => [`k${i}`, i])) },
+      {
+        metadata: Object.fromEntries(
+          Array.from({ length: MAX_CRASH_DETAIL_NODES }, (_, i) => [`k${i}`, i]),
+        ),
+      },
       escapedDetails(8193),
       { extra: true },
     ];

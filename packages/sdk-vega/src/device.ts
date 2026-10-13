@@ -22,20 +22,35 @@ const finite = (value: unknown, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
 
 export function readDevice(overrides: { model?: string; osVersion?: string } = {}): DeviceMetadata {
-  const screen = attempt(() => Dimensions.get('screen') as { width?: unknown; height?: unknown }, {});
-  const resolved = attempt(() => Intl.DateTimeFormat().resolvedOptions(), {} as Partial<Intl.ResolvedDateTimeFormatOptions>);
+  const screen = attempt(
+    () => Dimensions.get('screen') as { width?: unknown; height?: unknown },
+    {},
+  );
+  const resolved = attempt(
+    () => Intl.DateTimeFormat().resolvedOptions(),
+    {} as Partial<Intl.ResolvedDateTimeFormatOptions>,
+  );
   const platformVersion = attempt(() => (Platform as { Version?: unknown }).Version, undefined);
   const osVersion =
     overrides.osVersion ??
-    (typeof platformVersion === 'string' || typeof platformVersion === 'number' ? String(platformVersion) : '');
+    (typeof platformVersion === 'string' || typeof platformVersion === 'number'
+      ? String(platformVersion)
+      : '');
   return {
     os: VEGA_OS_NAME,
     osVersion,
     ...(overrides.model ? { model: overrides.model } : {}),
-    screenSize: { width: Math.round(finite(screen.width, 0)), height: Math.round(finite(screen.height, 0)) },
-    pixelRatio: finite(attempt(() => PixelRatio.get(), 1), 1),
+    screenSize: {
+      width: Math.round(finite(screen.width, 0)),
+      height: Math.round(finite(screen.height, 0)),
+    },
+    pixelRatio: finite(
+      attempt(() => PixelRatio.get(), 1),
+      1,
+    ),
     locale: typeof resolved.locale === 'string' && resolved.locale ? resolved.locale : 'und',
-    timezone: typeof resolved.timeZone === 'string' && resolved.timeZone ? resolved.timeZone : 'UTC',
+    timezone:
+      typeof resolved.timeZone === 'string' && resolved.timeZone ? resolved.timeZone : 'UTC',
   };
 }
 

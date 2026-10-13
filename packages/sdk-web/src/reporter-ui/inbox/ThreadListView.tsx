@@ -17,7 +17,11 @@ export interface ThreadListViewProps {
  * subscribes for liveness; unmount unsubscribes. Rows render in the order
  * the facade serves them (newest first) — never re-sorted here.
  */
-export function ThreadListView({ threads, onOpenThread, onNewReport }: ThreadListViewProps): JSX.Element {
+export function ThreadListView({
+  threads,
+  onOpenThread,
+  onNewReport,
+}: ThreadListViewProps): JSX.Element {
   const [state, setState] = useState(() => threads.getState());
   useEffect(() => threads.subscribe(setState), [threads]);
 
@@ -28,7 +32,11 @@ export function ThreadListView({ threads, onOpenThread, onNewReport }: ThreadLis
       <div className="everframe-inbox-empty">
         <p>No reports yet.</p>
         {onNewReport ? (
-          <button type="button" className="everframe-btn everframe-btn-primary" onClick={onNewReport}>
+          <button
+            type="button"
+            className="everframe-btn everframe-btn-primary"
+            onClick={onNewReport}
+          >
             New report
           </button>
         ) : null}
@@ -50,7 +58,11 @@ export function ThreadListView({ threads, onOpenThread, onNewReport }: ThreadLis
       <ul className="everframe-inbox-list">
         {rows.map((t) => (
           <li key={t.id}>
-            <button type="button" className="everframe-inbox-row" onClick={() => onOpenThread(t.id)}>
+            <button
+              type="button"
+              className="everframe-inbox-row"
+              onClick={() => onOpenThread(t.id)}
+            >
               <span className="everframe-inbox-row-title">
                 {t.reportTitle ?? `Report from ${new Date(t.createdAt).toLocaleDateString()}`}
               </span>
@@ -60,7 +72,10 @@ export function ThreadListView({ threads, onOpenThread, onNewReport }: ThreadLis
                 {t.status === 'open' ? 'Open' : 'Closed'}
               </span>
               {t.unreadCount > 0 ? (
-                <span className="everframe-inbox-unread-dot" aria-label={`${t.unreadCount} unread`} />
+                <span
+                  className="everframe-inbox-unread-dot"
+                  aria-label={`${t.unreadCount} unread`}
+                />
               ) : null}
             </button>
           </li>

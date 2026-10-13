@@ -17,19 +17,35 @@ describe('Phase 1 success criterion #2: round-trip envelope-build → redact →
         sdk: { name: 'everframe-web', version: '0.9.0', platform: 'web', formFactor: 'desktop' },
         reporter: { title: 'Video', description: 'Compatibility' },
         draft: {
-          title: 'Video', description: 'Compatibility', excludedArtifacts: [],
-          annotations: [], redactions: [],
+          title: 'Video',
+          description: 'Compatibility',
+          excludedArtifacts: [],
+          annotations: [],
+          redactions: [],
         },
         device: {
-          os: 'macOS', osVersion: '14', screenSize: { width: 1, height: 1 },
-          pixelRatio: 1, locale: 'en-US', timezone: 'UTC',
+          os: 'macOS',
+          osVersion: '14',
+          screenSize: { width: 1, height: 1 },
+          pixelRatio: 1,
+          locale: 'en-US',
+          timezone: 'UTC',
         },
         app: { name: 'video-app', version: '1.0.0' },
-        attachments: [{
-          partName: 'replay', kind: 'session-replay', format,
-          contentType: 'video/mp4', byteLength: 100, sha256: 'a'.repeat(64),
-          width: 394, height: 854, durationMs: 10_000, replayStartEpochMs: 1_000,
-        }],
+        attachments: [
+          {
+            partName: 'replay',
+            kind: 'session-replay',
+            format,
+            contentType: 'video/mp4',
+            byteLength: 100,
+            sha256: 'a'.repeat(64),
+            width: 394,
+            height: 854,
+            durationMs: 10_000,
+            replayStartEpochMs: 1_000,
+          },
+        ],
       });
 
       expect(envelope.attachments[0]?.format).toBe('everframe-video-v1');
@@ -40,9 +56,7 @@ describe('Phase 1 success criterion #2: round-trip envelope-build → redact →
   it('hand-crafted envelope survives the full pipeline with reportId preserved', async () => {
     const adapter = createFakePlatformAdapter();
     // Drive the adapter with non-trivial data so each pipeline stage has something to do.
-    adapter.__setLogs([
-      { level: 'info', message: 'roundtrip log entry', timestamp: 1000 },
-    ]);
+    adapter.__setLogs([{ level: 'info', message: 'roundtrip log entry', timestamp: 1000 }]);
     adapter.__setNetwork([
       {
         method: 'GET',
@@ -107,7 +121,12 @@ describe('Phase 1 success criterion #2: round-trip envelope-build → redact →
     const base = {
       reportId: '01939c34-7b8f-7000-8000-000000000456',
       submittedAt: '2026-04-29T16:00:00.000Z',
-      sdk: { name: 'everframe-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' } as const,
+      sdk: {
+        name: 'everframe-react',
+        version: '0.0.0',
+        platform: 'web',
+        formFactor: 'desktop',
+      } as const,
       device: {
         os: 'macOS',
         osVersion: '14',
@@ -119,7 +138,13 @@ describe('Phase 1 success criterion #2: round-trip envelope-build → redact →
       app: { name: 'extra-app', version: '1.0.0' },
       attachments: [],
     };
-    const draftBase = { title: 't', description: 'd', excludedArtifacts: [], annotations: [], redactions: [] };
+    const draftBase = {
+      title: 't',
+      description: 'd',
+      excludedArtifacts: [],
+      annotations: [],
+      redactions: [],
+    };
 
     // Present → copied through verbatim.
     const withExtra = buildEnvelope({

@@ -8,12 +8,15 @@ import addFormats from 'ajv-formats';
 import { ReportEnvelope } from '../src/index.js';
 import { baseEnvelope } from './helpers/base-envelope.js';
 
-const schema = JSON.parse(readFileSync(
-  fileURLToPath(new URL('../schemas-json/envelope.v1.schema.json', import.meta.url)),
-  'utf8',
-));
+const schema = JSON.parse(
+  readFileSync(
+    fileURLToPath(new URL('../schemas-json/envelope.v1.schema.json', import.meta.url)),
+    'utf8',
+  ),
+);
 const AjvCtor = (Ajv as unknown as { default: typeof Ajv }).default ?? Ajv;
-const addFormatsFn = (addFormats as unknown as { default: typeof addFormats }).default ?? addFormats;
+const addFormatsFn =
+  (addFormats as unknown as { default: typeof addFormats }).default ?? addFormats;
 const ajv = new AjvCtor({ strict: false, allErrors: true });
 addFormatsFn(ajv);
 const validate = ajv.compile(schema);
@@ -31,9 +34,7 @@ describe('Flutter and Kotlin Multiplatform host identity', () => {
     envelope.sdk = { name, platform, formFactor: 'phone', version: '0.0.0' };
     const parsed = ReportEnvelope.parse(envelope);
     expect(validate(envelope), JSON.stringify(validate.errors)).toBe(true);
-    expect(ReportEnvelope.parse(JSON.parse(JSON.stringify(parsed))).sdk).toEqual(
-      envelope.sdk,
-    );
+    expect(ReportEnvelope.parse(JSON.parse(JSON.stringify(parsed))).sdk).toEqual(envelope.sdk);
   });
 
   it.each([

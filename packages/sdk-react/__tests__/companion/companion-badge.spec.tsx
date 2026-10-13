@@ -9,12 +9,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { CompanionBadge } from '@everframe/web/ui';
-import {
-  start,
-  stop,
-  __getCompanionApi,
-  __setCompanionBadgeServerConfig,
-} from '@everframe/web';
+import { start, stop, __getCompanionApi, __setCompanionBadgeServerConfig } from '@everframe/web';
 
 function attachSession(): void {
   act(() => {
@@ -61,7 +56,9 @@ describe('CompanionBadge', () => {
     const badge = screen.getByTestId('everframe-companion-badge');
     expect(badge.textContent).toContain('Pixel 7 · Android 14 · Emulator');
     expect(badge.textContent).toContain('7K2Q');
-    act(() => { __getCompanionApi().__setAttachedUserName(null); });
+    act(() => {
+      __getCompanionApi().__setAttachedUserName(null);
+    });
     expect(screen.queryByTestId('everframe-companion-badge')).toBeNull();
   });
 
@@ -81,8 +78,8 @@ describe('CompanionBadge', () => {
     attachSession();
     const badge = screen.getByTestId('everframe-companion-badge');
     expect(badge.getAttribute('data-everframe-skip-capture')).toBe('true'); // screenshot filter + uiTree walks
-    expect(badge.hasAttribute('data-everframe-sensitive')).toBe(true);      // registry masking
-    expect(badge.className).toContain('rr-block');                          // rrweb blockClass (late-mount safe)
+    expect(badge.hasAttribute('data-everframe-sensitive')).toBe(true); // registry masking
+    expect(badge.className).toContain('rr-block'); // rrweb blockClass (late-mount safe)
   });
 
   it('the screenshot filter actually drops it', async () => {

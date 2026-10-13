@@ -45,7 +45,6 @@
   <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
   Builds can upload their native symbols automatically, and a symbol problem never breaks a build by default.
-
   - `everframe dsym upload-build` finds the binaries and dSYMs itself: `--xcode` inside a Run Script phase, `--archive` for an `.xcarchive` (fastlane, Xcode Cloud, CI) and `--app` for any other layout. App and extension executables are required. Embedded frameworks are optional and warn when they have no dSYM. dSYM folders are searched recursively. iOS, tvOS and their simulators are supported.
   - `everframe setup xcode` adds an "Upload Everframe Symbols" phase to every application target, and `--print-script` prints it for XcodeGen. The phase turns off user script sandboxing on those targets and declares a dSYM input only for `dwarf-with-dsym` builds.
   - The React Native and Expo build phase also uploads iOS dSYMs, skips Debug builds, reads flavored Android variants such as `tvRelease`, and turns off user script sandboxing.
@@ -72,7 +71,6 @@
   <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
   Build integrations keep uploading past a single symbol problem instead of stopping at it.
-
   - `everframe elf upload-build --binaries-dir` uploads every library even when the service rejects one, then prints `warning: everframe: upload failed for <path>: …` for each rejection, also with `--summary`. `--strict`, `EVERFRAME_SYMBOLS_STRICT=1` and `--binary` still fail at the first rejection.
   - `everframe dsym upload-build` searches each `--dsym-dir` folder on its own in lenient mode: a missing or unreadable folder prints `warning: everframe: skipped <folder>: <code>` and the others are still searched. Strict mode still fails.
   - `everframe dsym upload-build --xcode` no longer gives up on the whole upload, including the app's own dSYM, when a symlink loop or a folder it may not read sits in the build products. It skips that entry with a warning and keeps the frameworks it did find. It also warns when the build products search stops at its 16384-entry limit. Strict mode still fails on an unreadable folder.

@@ -68,7 +68,11 @@ function IdentitySetter({ token }: { token: string }) {
 }
 
 function urlOf(input: RequestInfo | URL): string {
-  return typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+  return typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.href
+      : (input as Request).url;
 }
 
 async function seedOutboxItem(reportId: string, sdkKey: string): Promise<void> {
@@ -95,7 +99,9 @@ async function flush(ms = 20): Promise<void> {
 function stubDeferredConfigFetch(): { ingestCalls: number[]; resolveConfig: () => void } {
   const ingestCalls: number[] = [];
   let resolveConfig!: () => void;
-  const configGate = new Promise<void>((resolve) => { resolveConfig = resolve; });
+  const configGate = new Promise<void>((resolve) => {
+    resolveConfig = resolve;
+  });
   const impl = vi.fn(async (input: RequestInfo | URL) => {
     const url = urlOf(input);
     if (url.includes('/api/ingest')) {

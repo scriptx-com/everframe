@@ -11,7 +11,9 @@ const android = () => source('android/src/main/java/dev/everframe/rn/EverframeMo
 describe('reporterDisabled Android wiring', () => {
   it('reads the flat bridge field the facade sends', () => {
     expect(source('src/NativeEverframe.ts')).toMatch(/\breporterDisabled\?: boolean;/);
-    expect(android()).toContain('val reporterDisabled = opts.takeIfHasBoolean("reporterDisabled") ?: false');
+    expect(android()).toContain(
+      'val reporterDisabled = opts.takeIfHasBoolean("reporterDisabled") ?: false',
+    );
   });
   it('flips polarity exactly once into reporterEnabled', () => {
     expect(android()).toMatch(/reporterEnabled\s*=\s*!reporterDisabled\b/);

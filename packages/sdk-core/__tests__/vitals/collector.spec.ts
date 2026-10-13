@@ -20,7 +20,14 @@ function make(over: Record<string, unknown> = {}) {
     send: (body, opts) => sent.push({ body, beacon: opts.beacon, token: opts.identityToken }),
     ...over,
   });
-  return { c, sent, tick: (ms: number) => { clock += ms; vi.advanceTimersByTime(ms); } };
+  return {
+    c,
+    sent,
+    tick: (ms: number) => {
+      clock += ms;
+      vi.advanceTimersByTime(ms);
+    },
+  };
 }
 
 /**
@@ -128,7 +135,7 @@ describe('createVitalsCollector', () => {
     expect(chunk!.body.entries.length).toBeLessThan(20);
     const totalBytes = chunk!.body.entries.reduce(
       (sum: number, e: unknown) => sum + JSON.stringify(e).length,
-      0
+      0,
     );
     expect(totalBytes).toBeLessThanOrEqual(500);
   });
@@ -289,13 +296,14 @@ describe('createVitalsCollector', () => {
     expect(finalSummaries[0]!.body.sessionId).toBe(firstSessionId);
 
     const initialSummaries = sent.filter(
-      (s) => s.body.kind === 'summary' && s.body.final === false && s.body.sessionId === c.sessionId
+      (s) =>
+        s.body.kind === 'summary' && s.body.final === false && s.body.sessionId === c.sessionId,
     );
     expect(initialSummaries).toHaveLength(1);
 
     // The triggering entry landed in the NEW session, not the old one.
     const chunksOldSession = sent.filter(
-      (s) => s.body.kind === 'chunk' && s.body.sessionId === firstSessionId
+      (s) => s.body.kind === 'chunk' && s.body.sessionId === firstSessionId,
     );
     expect(chunksOldSession).toHaveLength(1);
     expect(chunksOldSession[0]!.body.entries).toHaveLength(1);
@@ -383,7 +391,8 @@ describe('createVitalsCollector', () => {
     // pin the periodic cadence rather than the reset this test is about — the
     // new session keeps living (and summarizing) for the rest of the loop.
     const initialSummaries = sent.filter(
-      (s) => s.body.kind === 'summary' && s.body.final === false && s.body.sessionId === c.sessionId
+      (s) =>
+        s.body.kind === 'summary' && s.body.final === false && s.body.sessionId === c.sessionId,
     );
     expect(initialSummaries.length).toBeGreaterThanOrEqual(1);
     expect(initialSummaries[0]!.body.seq).toBe(0);
@@ -391,7 +400,7 @@ describe('createVitalsCollector', () => {
     // The triggering entry (the one that crossed the age threshold) landed
     // in the NEW session at seq 0, not appended to the old one.
     const chunksNewSession = sent.filter(
-      (s) => s.body.kind === 'chunk' && s.body.sessionId === c.sessionId
+      (s) => s.body.kind === 'chunk' && s.body.sessionId === c.sessionId,
     );
     expect(chunksNewSession.length).toBeGreaterThan(0);
     expect(chunksNewSession[0]!.body.seq).toBe(0);
@@ -414,7 +423,8 @@ describe('createVitalsCollector', () => {
     c.recordPlayerEvent({ t: 1_000_000 + 10_800_000, type: 'play' });
 
     const finalSummaries = sent.filter(
-      (s) => s.body.kind === 'summary' && s.body.final === true && s.body.sessionId === firstSessionId
+      (s) =>
+        s.body.kind === 'summary' && s.body.final === true && s.body.sessionId === firstSessionId,
     );
     expect(finalSummaries).toHaveLength(1);
     // Bug behavior would be 10_800_000 (the gap) or more; fixed behavior is
@@ -442,7 +452,8 @@ describe('createVitalsCollector', () => {
     }
 
     const finalSummaries = sent.filter(
-      (s) => s.body.kind === 'summary' && s.body.final === true && s.body.sessionId === firstSessionId
+      (s) =>
+        s.body.kind === 'summary' && s.body.final === true && s.body.sessionId === firstSessionId,
     );
     expect(finalSummaries).toHaveLength(1);
     // Bug behavior would overshoot by up to one stepMs (the crossing entry's
@@ -613,7 +624,11 @@ describe('createVitalsCollector', () => {
   it('bounds an oversized player event payload before it reaches transport or the recent ring', () => {
     const { c, sent, tick } = make();
     const huge = 'x'.repeat(6_000_000); // 6 MB — the finding's concrete scenario
-    c.recordPlayerEvent({ t: 1_000_000, type: 'error', data: { message: huge, code: 3, fatal: true } });
+    c.recordPlayerEvent({
+      t: 1_000_000,
+      type: 'error',
+      data: { message: huge, code: 3, fatal: true },
+    });
     tick(30_000);
 
     const chunk = sent.find((s) => s.body.kind === 'chunk');
@@ -677,7 +692,9 @@ describe('createVitalsCollector', () => {
 
     const chunk = sent.find((s) => s.body.kind === 'chunk');
     const sentEntry = chunk!.body.entries[0];
-    expect(utf8ByteLength(JSON.stringify(sentEntry.data))).toBeLessThanOrEqual(MAX_PLAYER_EVENT_DATA_BYTES);
+    expect(utf8ByteLength(JSON.stringify(sentEntry.data))).toBeLessThanOrEqual(
+      MAX_PLAYER_EVENT_DATA_BYTES,
+    );
     expect(sentEntry.data?.code).toBe(4);
     expect(sentEntry.data?.fatal).toBe(true);
     expect(sentEntry.truncated).toBe(true);
@@ -797,7 +814,13 @@ describe('phase 4 — recordCustom', () => {
     c.recordCustom({ t: 1_000_000, name: 'cdn.switch', data: { to: 'edge-b' }, playerId: 'p1' });
     c.flushNow();
     const chunk = sent.map((s) => s.body).find((b) => b.kind === 'chunk');
-    expect(chunk.entries).toContainEqual({ kind: 'custom', t: 1_000_000, name: 'cdn.switch', data: { to: 'edge-b' }, playerId: 'p1' });
+    expect(chunk.entries).toContainEqual({
+      kind: 'custom',
+      t: 1_000_000,
+      name: 'cdn.switch',
+      data: { to: 'edge-b' },
+      playerId: 'p1',
+    });
   });
   it('is a no-op after stop()', () => {
     const { c, sent } = make();

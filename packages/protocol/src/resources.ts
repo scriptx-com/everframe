@@ -50,25 +50,27 @@ export const DEFAULT_RESOURCE_WINDOW_SEC = 60;
  */
 const MAX_CPU_CORES = 1024;
 
-export const ResourceSample = z.object({
-  /** Epoch ms — same shared clock as breadcrumbs. */
-  t: z.number(),
-  /**
-   * Fraction of ONE core (0–n; >1 legal on multicore).
-   *
-   * ABSENT ON WEB, permanently — no browser CPU API exists. Web sessions
-   * carry `extras.longTaskMs` / `extras.loopLagMs` as responsiveness proxies
-   * instead. Every consumer must render correctly without this field.
-   */
-  cpu: z.number().min(0).max(MAX_CPU_CORES).optional(),
-  /**
-   * Bytes. iOS: `task_vm_info.phys_footprint`. Android: `Debug.MemoryInfo`
-   * total PSS. Web: `performance.memory.usedJSHeapSize`, 0 when unavailable
-   * (Chrome-only API).
-   */
-  mem: z.number().nonnegative(),
-  /** Platform extras — web sends `{ longTaskMs, loopLagMs }`. */
-  extras: z.record(z.string(), z.number()).optional(),
-}).meta({ $id: 'ResourceSample' });
+export const ResourceSample = z
+  .object({
+    /** Epoch ms — same shared clock as breadcrumbs. */
+    t: z.number(),
+    /**
+     * Fraction of ONE core (0–n; >1 legal on multicore).
+     *
+     * ABSENT ON WEB, permanently — no browser CPU API exists. Web sessions
+     * carry `extras.longTaskMs` / `extras.loopLagMs` as responsiveness proxies
+     * instead. Every consumer must render correctly without this field.
+     */
+    cpu: z.number().min(0).max(MAX_CPU_CORES).optional(),
+    /**
+     * Bytes. iOS: `task_vm_info.phys_footprint`. Android: `Debug.MemoryInfo`
+     * total PSS. Web: `performance.memory.usedJSHeapSize`, 0 when unavailable
+     * (Chrome-only API).
+     */
+    mem: z.number().nonnegative(),
+    /** Platform extras — web sends `{ longTaskMs, loopLagMs }`. */
+    extras: z.record(z.string(), z.number()).optional(),
+  })
+  .meta({ $id: 'ResourceSample' });
 
 export type ResourceSampleT = z.infer<typeof ResourceSample>;

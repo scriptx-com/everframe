@@ -2,10 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  MAX_CRASH_CAUSE_BYTES,
-  MAX_CRASH_CAUSE_STACK_SCAN_UNITS,
-} from '@everframe/protocol';
+import { MAX_CRASH_CAUSE_BYTES, MAX_CRASH_CAUSE_STACK_SCAN_UNITS } from '@everframe/protocol';
 import { extractCrashCauseChain } from '../src/crash/index.js';
 import { redactJwt } from '@everframe/protocol';
 
@@ -71,7 +68,9 @@ describe('extractCrashCauseChain', () => {
       message: 'inner',
       framesTruncated: false,
     });
-    expect(chain?.causes[0]?.frames.some(frame => frame.raw.includes('nativeTypeCause'))).toBe(true);
+    expect(chain?.causes[0]?.frames.some((frame) => frame.raw.includes('nativeTypeCause'))).toBe(
+      true,
+    );
     expect(chain?.truncated).toBe(false);
   });
 
@@ -86,14 +85,20 @@ describe('extractCrashCauseChain', () => {
     ];
 
     for (const fixture of fixtures) {
-      const chain = extractCrashCauseChain(errorWithCause('outer', fixture.value), identity, () => true);
+      const chain = extractCrashCauseChain(
+        errorWithCause('outer', fixture.value),
+        identity,
+        () => true,
+      );
       expect(chain?.causes[0]).toMatchObject({
         exceptionType: fixture.type,
         message: fixture.message,
         framesTruncated: false,
       });
       expect(chain?.causes[0]?.frames.length).toBeGreaterThan(0);
-      expect(chain?.causes[0]?.frames.some(frame => frame.raw.includes('crash-causes.spec.ts'))).toBe(true);
+      expect(
+        chain?.causes[0]?.frames.some((frame) => frame.raw.includes('crash-causes.spec.ts')),
+      ).toBe(true);
     }
   });
 
@@ -123,7 +128,9 @@ describe('extractCrashCauseChain', () => {
     const conversion = vi.fn(() => 'forbidden');
     const nonString = { toString: conversion, [Symbol.toPrimitive]: conversion };
     const formatters = [
-      vi.fn(() => { throw new Error('formatter failed'); }),
+      vi.fn(() => {
+        throw new Error('formatter failed');
+      }),
       vi.fn(() => nonString),
     ];
 
@@ -132,10 +139,10 @@ describe('extractCrashCauseChain', () => {
       const deepest = new RangeError('deepest');
       dataStack(deepest, 'RangeError: deepest\n    at deepest (deep.js:1:1)');
       dataCause(inner, deepest);
-      const chain = withPrepareStackTrace(formatter, () => (
-        extractCrashCauseChain(errorWithCause('outer', inner), identity, () => true)
-      ));
-      expect(chain?.causes.map(cause => cause.message)).toEqual(['inner', 'deepest']);
+      const chain = withPrepareStackTrace(formatter, () =>
+        extractCrashCauseChain(errorWithCause('outer', inner), identity, () => true),
+      );
+      expect(chain?.causes.map((cause) => cause.message)).toEqual(['inner', 'deepest']);
       expect(chain?.causes[0]?.frames).toEqual([]);
       expect(chain?.causes[0]?.framesTruncated).toBe(true);
       expect(formatter).toHaveBeenCalledTimes(1);
@@ -149,11 +156,14 @@ describe('extractCrashCauseChain', () => {
     const inner = new Error('inner');
     dataCause(inner, new RangeError('must not be read'));
 
-    const chain = withPrepareStackTrace(() => {
-      formatterCalls += 1;
-      owned = false;
-      return 'Error: inner\n    at stale (stale.js:1:1)';
-    }, () => extractCrashCauseChain(errorWithCause('outer', inner), identity, () => owned));
+    const chain = withPrepareStackTrace(
+      () => {
+        formatterCalls += 1;
+        owned = false;
+        return 'Error: inner\n    at stale (stale.js:1:1)';
+      },
+      () => extractCrashCauseChain(errorWithCause('outer', inner), identity, () => owned),
+    );
 
     expect(formatterCalls).toBe(1);
     expect(chain).toBeUndefined();
@@ -188,12 +198,14 @@ describe('extractCrashCauseChain', () => {
   ])('captures a present terminal non-Error cause %p', (cause, message) => {
     const chain = extractCrashCauseChain(errorWithCause('outer', cause), identity, () => true);
     expect(chain).toEqual({
-      causes: [{
-        exceptionType: 'UnhandledValue',
-        message,
-        frames: [],
-        framesTruncated: false,
-      }],
+      causes: [
+        {
+          exceptionType: 'UnhandledValue',
+          message,
+          frames: [],
+          framesTruncated: false,
+        },
+      ],
       truncated: false,
     });
   });
@@ -215,12 +227,14 @@ describe('extractCrashCauseChain', () => {
     const cause = { toJSON, toString, [Symbol.toPrimitive]: primitive };
 
     expect(extractCrashCauseChain(errorWithCause('outer', cause), identity, () => true)).toEqual({
-      causes: [{
-        exceptionType: 'UnhandledValue',
-        message: '[object]',
-        frames: [],
-        framesTruncated: false,
-      }],
+      causes: [
+        {
+          exceptionType: 'UnhandledValue',
+          message: '[object]',
+          frames: [],
+          framesTruncated: false,
+        },
+      ],
       truncated: true,
     });
     expect(toJSON).not.toHaveBeenCalled();
@@ -238,15 +252,18 @@ describe('extractCrashCauseChain', () => {
       return error;
     })()`);
 
-    expect(extractCrashCauseChain(errorWithCause('outer', inner), identity, () => true))
-      .toMatchObject({
-        causes: [{
+    expect(
+      extractCrashCauseChain(errorWithCause('outer', inner), identity, () => true),
+    ).toMatchObject({
+      causes: [
+        {
           exceptionType: 'RangeError',
           message: 'foreign',
           frames: [{ raw: 'at foreign (realm.js:2:7)' }],
-        }],
-        truncated: false,
-      });
+        },
+      ],
+      truncated: false,
+    });
   });
 
   it('keeps a foreign native-accessor header with explicit frame loss', () => {
@@ -287,12 +304,14 @@ describe('extractCrashCauseChain', () => {
     expect(messageAccesses).toBe(0);
     expect(prototypeReads).toBeLessThanOrEqual(4);
     expect(chain).toEqual({
-      causes: [{
-        exceptionType: 'ForeignFailure',
-        message: '',
-        frames: [{ raw: 'at safe (foreign.js:1:1)' }],
-        framesTruncated: false,
-      }],
+      causes: [
+        {
+          exceptionType: 'ForeignFailure',
+          message: '',
+          frames: [{ raw: 'at safe (foreign.js:1:1)' }],
+          framesTruncated: false,
+        },
+      ],
       truncated: true,
     });
   });
@@ -337,7 +356,7 @@ describe('extractCrashCauseChain', () => {
     dataCause(outer, inner);
     dataCause(inner, outer);
     const chain = extractCrashCauseChain(outer, identity, () => true);
-    expect(chain?.causes.map(cause => cause.message)).toEqual(['inner']);
+    expect(chain?.causes.map((cause) => cause.message)).toEqual(['inner']);
     expect(chain?.truncated).toBe(true);
   });
 
@@ -348,7 +367,7 @@ describe('extractCrashCauseChain', () => {
     const outer = errorWithCause('outer', clipped);
 
     const chain = extractCrashCauseChain(outer, identity, () => true);
-    expect(chain?.causes.map(cause => cause.exceptionType)).toEqual(['Error', 'RangeError']);
+    expect(chain?.causes.map((cause) => cause.exceptionType)).toEqual(['Error', 'RangeError']);
     expect(chain?.causes[0]?.message).toHaveLength(4_096);
     expect(chain?.truncated).toBe(true);
   });
@@ -357,33 +376,43 @@ describe('extractCrashCauseChain', () => {
     const deepest = new RangeError('deepest');
     const expanded = new Error('expand-me');
     dataCause(expanded, deepest);
-    const chain = extractCrashCauseChain(errorWithCause('outer', expanded), value => (
-      value === 'expand-me' ? `${'a'.repeat(4_095)}😀` : value
-    ), () => true);
+    const chain = extractCrashCauseChain(
+      errorWithCause('outer', expanded),
+      (value) => (value === 'expand-me' ? `${'a'.repeat(4_095)}😀` : value),
+      () => true,
+    );
 
-    expect(chain?.causes.map(cause => cause.exceptionType)).toEqual(['Error', 'RangeError']);
+    expect(chain?.causes.map((cause) => cause.exceptionType)).toEqual(['Error', 'RangeError']);
     expect(chain?.causes[0]?.message).toBe('a'.repeat(4_095));
     expect(chain?.truncated).toBe(true);
   });
 
   it('omits the optional chain when redaction throws or returns a non-string', () => {
     const outer = errorWithCause('outer', new TypeError('inner'));
-    expect(extractCrashCauseChain(outer, () => { throw new Error('redactor failed'); }, () => true))
-      .toBeUndefined();
-    expect(extractCrashCauseChain(
-      outer,
-      (() => 7) as unknown as (value: string) => string,
-      () => true,
-    )).toBeUndefined();
+    expect(
+      extractCrashCauseChain(
+        outer,
+        () => {
+          throw new Error('redactor failed');
+        },
+        () => true,
+      ),
+    ).toBeUndefined();
+    expect(
+      extractCrashCauseChain(outer, (() => 7) as unknown as (value: string) => string, () => true),
+    ).toBeUndefined();
   });
 
   it('treats frame truncation as loss evidence and still admits the next cause', () => {
     const deepest = new RangeError('deepest');
     const framed = new Error('framed');
-    dataStack(framed, [
-      'Error: framed',
-      ...Array.from({ length: 33 }, (_, index) => `at frame${index} (file.js:${index + 1}:1)`),
-    ].join('\n'));
+    dataStack(
+      framed,
+      [
+        'Error: framed',
+        ...Array.from({ length: 33 }, (_, index) => `at frame${index} (file.js:${index + 1}:1)`),
+      ].join('\n'),
+    );
     dataCause(framed, deepest);
 
     const chain = extractCrashCauseChain(errorWithCause('outer', framed), identity, () => true);
@@ -396,7 +425,10 @@ describe('extractCrashCauseChain', () => {
 
   it('repairs Unicode, bounds stack scanning, and marks frame loss', () => {
     const inner = new Error(`broken-\uD800-${'m '.repeat(4_500)}`);
-    dataStack(inner, `Error: ignored\n${'s '.repeat((MAX_CRASH_CAUSE_STACK_SCAN_UNITS + 2_000) / 2)}`);
+    dataStack(
+      inner,
+      `Error: ignored\n${'s '.repeat((MAX_CRASH_CAUSE_STACK_SCAN_UNITS + 2_000) / 2)}`,
+    );
     const chain = extractCrashCauseChain(errorWithCause('outer', inner), identity, () => true);
 
     expect(chain?.causes[0]?.message).toContain('\uFFFD');
@@ -410,8 +442,15 @@ describe('extractCrashCauseChain', () => {
   it('drops a secret cut by the stack scan limit instead of keeping its unmatched prefix', () => {
     const inner = new Error('inner');
     const filler = Array.from({ length: 31 }, () => 'y'.repeat(1_000)).join('\n');
-    dataStack(inner, `Error: inner\n${filler}\ntoken eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(3_000)}.${'S'.repeat(43)}`);
-    const chain = extractCrashCauseChain(errorWithCause('outer', inner), value => redactJwt(value), () => true);
+    dataStack(
+      inner,
+      `Error: inner\n${filler}\ntoken eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(3_000)}.${'S'.repeat(43)}`,
+    );
+    const chain = extractCrashCauseChain(
+      errorWithCause('outer', inner),
+      (value) => redactJwt(value),
+      () => true,
+    );
 
     expect(chain?.causes[0]?.frames).toHaveLength(32);
     expect(chain?.causes[0]?.frames[31]?.raw).toBe('token');
@@ -423,7 +462,11 @@ describe('extractCrashCauseChain', () => {
     const inner = new Error('inner');
     const filler = Array.from({ length: 31 }, () => 'y'.repeat(1_000)).join('\n');
     dataStack(inner, `Error: inner\n${filler}\nmail john.doe@${'d'.repeat(3_000)}.com`);
-    const chain = extractCrashCauseChain(errorWithCause('outer', inner), value => value.replace(email, '[REDACTED:EMAIL]'), () => true);
+    const chain = extractCrashCauseChain(
+      errorWithCause('outer', inner),
+      (value) => value.replace(email, '[REDACTED:EMAIL]'),
+      () => true,
+    );
 
     expect(chain?.causes[0]?.frames).toHaveLength(32);
     expect(chain?.causes[0]?.frames[31]?.raw).toBe('mail');
@@ -439,47 +482,59 @@ describe('extractCrashCauseChain', () => {
       },
     });
     const exhausting = new Error('large');
-    dataStack(exhausting, [
-      'Error: large',
-      ...Array.from({ length: 32 }, (_, index) => `${index}:${'\\'.repeat(1_020)}`),
-      'late-marker',
-    ].join('\n'));
+    dataStack(
+      exhausting,
+      [
+        'Error: large',
+        ...Array.from({ length: 32 }, (_, index) => `${index}:${'\\'.repeat(1_020)}`),
+        'late-marker',
+      ].join('\n'),
+    );
     dataCause(exhausting, next);
     const seenByRedactor: string[] = [];
     const outer = errorWithCause('outer', exhausting);
 
-    const chain = extractCrashCauseChain(outer, value => {
-      seenByRedactor.push(value);
-      return value;
-    }, () => true);
+    const chain = extractCrashCauseChain(
+      outer,
+      (value) => {
+        seenByRedactor.push(value);
+        return value;
+      },
+      () => true,
+    );
 
     const serializedBytes = new TextEncoder().encode(JSON.stringify(chain)).byteLength;
     expect(serializedBytes).toBeLessThanOrEqual(MAX_CRASH_CAUSE_BYTES);
     expect(chain?.truncated).toBe(true);
     expect(chain?.causes[0]?.framesTruncated).toBe(true);
-    expect(seenByRedactor.some(value => value.includes('late-marker'))).toBe(false);
+    expect(seenByRedactor.some((value) => value.includes('late-marker'))).toBe(false);
     expect(nextCauseDescriptorReads).toBe(0);
     if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
-      console.log(`TASK3_BYTE_FIT_RECEIPT ${JSON.stringify({
-        serializedBytes,
-        byteLimit: MAX_CRASH_CAUSE_BYTES,
-        retainedCauses: chain?.causes.length,
-        retainedFrames: chain?.causes[0]?.frames.length,
-        framesTruncated: chain?.causes[0]?.framesTruncated,
-        chainTruncated: chain?.truncated,
-        lateMarkerRedactions: seenByRedactor.filter(value => value.includes('late-marker')).length,
-        nextCauseDescriptorReads,
-      })}`);
+      console.log(
+        `TASK3_BYTE_FIT_RECEIPT ${JSON.stringify({
+          serializedBytes,
+          byteLimit: MAX_CRASH_CAUSE_BYTES,
+          retainedCauses: chain?.causes.length,
+          retainedFrames: chain?.causes[0]?.frames.length,
+          framesTruncated: chain?.causes[0]?.framesTruncated,
+          chainTruncated: chain?.truncated,
+          lateMarkerRedactions: seenByRedactor.filter((value) => value.includes('late-marker'))
+            .length,
+          nextCauseDescriptorReads,
+        })}`,
+      );
     }
   });
 
   it('never normalizes a ninth cause and only checks whether the eighth has a next link', () => {
     const nodes = Array.from({ length: 9 }, (_, index) => new Error(`cause-${index}`));
-    for (let index = 0; index < nodes.length - 1; index++) dataCause(nodes[index]!, nodes[index + 1]);
+    for (let index = 0; index < nodes.length - 1; index++)
+      dataCause(nodes[index]!, nodes[index + 1]);
     let ninthFactReads = 0;
     const ninth = new Proxy(nodes[8]!, {
       getOwnPropertyDescriptor(target, property) {
-        if (property === 'message' || property === 'stack' || property === 'name') ninthFactReads += 1;
+        if (property === 'message' || property === 'stack' || property === 'name')
+          ninthFactReads += 1;
         return Reflect.getOwnPropertyDescriptor(target, property);
       },
     });
@@ -496,15 +551,15 @@ describe('extractCrashCauseChain', () => {
     const formatter = vi.fn(() => 'Error: rejected\n    at forbidden (forbidden.js:1:1)');
     const rejected = new Error('\\'.repeat(4_096));
     const retained = new Error('retained');
-    dataStack(retained, [
-      'Error: retained',
-      ...Array.from({ length: 28 }, () => '\\'.repeat(1_024)),
-    ].join('\n'));
+    dataStack(
+      retained,
+      ['Error: retained', ...Array.from({ length: 28 }, () => '\\'.repeat(1_024))].join('\n'),
+    );
     dataCause(retained, rejected);
 
-    const chain = withPrepareStackTrace(formatter, () => (
-      extractCrashCauseChain(errorWithCause('outer', retained), identity, () => true)
-    ));
+    const chain = withPrepareStackTrace(formatter, () =>
+      extractCrashCauseChain(errorWithCause('outer', retained), identity, () => true),
+    );
 
     expect(chain?.causes).toHaveLength(1);
     expect(chain?.truncated).toBe(true);
@@ -515,12 +570,13 @@ describe('extractCrashCauseChain', () => {
     const formatter = vi.fn(() => 'Error: ninth\n    at forbidden (forbidden.js:1:1)');
     const nodes = Array.from({ length: 8 }, (_, index) => new Error(`cause-${index}`));
     for (const node of nodes) dataStack(node, `Error: ${node.message}`);
-    for (let index = 0; index < nodes.length - 1; index++) dataCause(nodes[index]!, nodes[index + 1]);
+    for (let index = 0; index < nodes.length - 1; index++)
+      dataCause(nodes[index]!, nodes[index + 1]);
     dataCause(nodes[7]!, new Error('ninth'));
 
-    const chain = withPrepareStackTrace(formatter, () => (
-      extractCrashCauseChain(errorWithCause('outer', nodes[0]), identity, () => true)
-    ));
+    const chain = withPrepareStackTrace(formatter, () =>
+      extractCrashCauseChain(errorWithCause('outer', nodes[0]), identity, () => true),
+    );
 
     expect(chain?.causes).toHaveLength(8);
     expect(chain?.truncated).toBe(true);
@@ -529,7 +585,8 @@ describe('extractCrashCauseChain', () => {
 
   it('keeps an exactly eight-node complete chain untruncated', () => {
     const nodes = Array.from({ length: 8 }, (_, index) => new Error(`cause-${index}`));
-    for (let index = 0; index < nodes.length - 1; index++) dataCause(nodes[index]!, nodes[index + 1]);
+    for (let index = 0; index < nodes.length - 1; index++)
+      dataCause(nodes[index]!, nodes[index + 1]);
 
     const chain = extractCrashCauseChain(errorWithCause('outer', nodes[0]), identity, () => true);
     expect(chain?.causes).toHaveLength(8);
@@ -559,11 +616,14 @@ describe('extractCrashCauseChain', () => {
   it('preserves data stacks and explicit accessor loss when the bootstrap probe fails', async () => {
     const originalError = globalThis.Error;
     let withoutNativeProbe: typeof import('../src/crash/causes.js');
-    vi.stubGlobal('Error', class ProbeFailure {
-      constructor() {
-        throw new originalError('probe failed');
-      }
-    });
+    vi.stubGlobal(
+      'Error',
+      class ProbeFailure {
+        constructor() {
+          throw new originalError('probe failed');
+        }
+      },
+    );
     try {
       vi.resetModules();
       withoutNativeProbe = await import('../src/crash/causes.js');
@@ -578,58 +638,89 @@ describe('extractCrashCauseChain', () => {
     });
     const dataRoot = Object.create(null) as object;
     dataCause(dataRoot, dataInner);
-    expect(withoutNativeProbe!.extractCrashCauseChain(dataRoot, identity, () => true))
-      .toMatchObject({
-        causes: [{
+    expect(
+      withoutNativeProbe!.extractCrashCauseChain(dataRoot, identity, () => true),
+    ).toMatchObject({
+      causes: [
+        {
           message: 'data inner',
           frames: [{ raw: 'at dataFrame (data.js:1:1)' }],
           framesTruncated: false,
-        }],
-      });
+        },
+      ],
+    });
 
     const nativeInner = new Error('native after failed probe');
     const nativeRoot = errorWithCause('outer', nativeInner);
-    expect(withoutNativeProbe!.extractCrashCauseChain(nativeRoot, identity, () => true))
-      .toMatchObject({
-        causes: [{
+    expect(
+      withoutNativeProbe!.extractCrashCauseChain(nativeRoot, identity, () => true),
+    ).toMatchObject({
+      causes: [
+        {
           message: 'native after failed probe',
           frames: [],
           framesTruncated: true,
-        }],
-      });
+        },
+      ],
+    });
   });
 });
 
 it('reads the captured Hermes prototype stack intrinsic without invoking replacement getters', async () => {
   const NativeError = Error;
   const stacks = new WeakMap<object, string>();
-  const getter = vi.fn(function(this: object) { return stacks.get(this); });
+  const getter = vi.fn(function (this: object) {
+    return stacks.get(this);
+  });
   class HermesError extends NativeError {
     constructor(message = '') {
       super(message);
       delete this.stack;
-      stacks.set(this, `Error: ${message}\n    at hermesCause (address at index.android.bundle:1:42)`);
+      stacks.set(
+        this,
+        `Error: ${message}\n    at hermesCause (address at index.android.bundle:1:42)`,
+      );
     }
   }
   Object.defineProperty(HermesError.prototype, 'stack', { configurable: true, get: getter });
   let hermes: typeof import('../src/crash/causes.js');
   vi.stubGlobal('Error', HermesError);
-  try { vi.resetModules(); hermes = await import('../src/crash/causes.js'); }
-  finally { vi.unstubAllGlobals(); }
+  try {
+    vi.resetModules();
+    hermes = await import('../src/crash/causes.js');
+  } finally {
+    vi.unstubAllGlobals();
+  }
   const inner = new HermesError('inner');
   const outer = errorWithCause('outer', inner);
   expect(hermes!.extractCrashCauseChain(outer, identity, () => true)).toMatchObject({
-    causes: [{ message: 'inner', frames: [{raw: 'at hermesCause (address at index.android.bundle:1:42)'}], framesTruncated: false }], truncated: false,
+    causes: [
+      {
+        message: 'inner',
+        frames: [{ raw: 'at hermesCause (address at index.android.bundle:1:42)' }],
+        framesTruncated: false,
+      },
+    ],
+    truncated: false,
   });
   expect(getter).toHaveBeenCalledTimes(1);
   let owned = true;
-  const proxy = new Proxy(inner, { getPrototypeOf(target) { owned = false; return Reflect.getPrototypeOf(target); } });
-  expect(hermes!.extractCrashCauseChain(errorWithCause('outer', proxy), identity, () => owned)).toBeUndefined();
+  const proxy = new Proxy(inner, {
+    getPrototypeOf(target) {
+      owned = false;
+      return Reflect.getPrototypeOf(target);
+    },
+  });
+  expect(
+    hermes!.extractCrashCauseChain(errorWithCause('outer', proxy), identity, () => owned),
+  ).toBeUndefined();
   expect(getter).toHaveBeenCalledTimes(1);
   let deep: object = HermesError.prototype;
   for (let level = 0; level < 20; level += 1) deep = Object.create(deep);
   Object.defineProperty(deep, 'message', { value: 'deep' });
-  expect(hermes!.extractCrashCauseChain(errorWithCause('outer', deep), identity, () => true)).toMatchObject({
+  expect(
+    hermes!.extractCrashCauseChain(errorWithCause('outer', deep), identity, () => true),
+  ).toMatchObject({
     causes: [{ frames: [], framesTruncated: true }],
   });
   expect(getter).toHaveBeenCalledTimes(1);
@@ -638,8 +729,17 @@ it('reads the captured Hermes prototype stack intrinsic without invoking replace
   const compiled = new HermesError('compiled');
   const wrapper = Object.create(HermesError.prototype);
   Object.setPrototypeOf(compiled, Object.create(Object.create(Object.create(wrapper))));
-  expect(hermes!.extractCrashCauseChain(errorWithCause('outer', compiled), identity, () => true)).toMatchObject({
-    causes: [{ message: 'compiled', frames: [{raw: 'at hermesCause (address at index.android.bundle:1:42)'}], framesTruncated: false }], truncated: false,
+  expect(
+    hermes!.extractCrashCauseChain(errorWithCause('outer', compiled), identity, () => true),
+  ).toMatchObject({
+    causes: [
+      {
+        message: 'compiled',
+        frames: [{ raw: 'at hermesCause (address at index.android.bundle:1:42)' }],
+        framesTruncated: false,
+      },
+    ],
+    truncated: false,
   });
   expect(getter).toHaveBeenCalledTimes(2);
   const replacement = vi.fn(() => 'unsafe');

@@ -59,13 +59,22 @@ function makeAdapter(capture: ReplayCapture | null = null) {
 
 describe('REPLAY-02 session-replay lifecycle state machine', () => {
   it('starts IDLE', () => {
-    const lc = createReplayLifecycle({ adapter: makeAdapter(), getConfig: () => ON, locallyDisabled: false });
+    const lc = createReplayLifecycle({
+      adapter: makeAdapter(),
+      getConfig: () => ON,
+      locallyDisabled: false,
+    });
     expect(lc.state).toBe('IDLE');
   });
 
   it('tryStart with config ON + sampling pass → BUFFERING and calls adapter.start(durationSec)', () => {
     const a = makeAdapter();
-    const lc = createReplayLifecycle({ adapter: a, getConfig: () => ON, locallyDisabled: false, random: () => 0 });
+    const lc = createReplayLifecycle({
+      adapter: a,
+      getConfig: () => ON,
+      locallyDisabled: false,
+      random: () => 0,
+    });
     const ok = lc.tryStart();
     expect(ok).toBe(true);
     expect(lc.state).toBe('BUFFERING');
@@ -74,7 +83,12 @@ describe('REPLAY-02 session-replay lifecycle state machine', () => {
 
   it('tryStart with config OFF stays IDLE (no buffer)', () => {
     const a = makeAdapter();
-    const lc = createReplayLifecycle({ adapter: a, getConfig: () => OFF, locallyDisabled: false, random: () => 0 });
+    const lc = createReplayLifecycle({
+      adapter: a,
+      getConfig: () => OFF,
+      locallyDisabled: false,
+      random: () => 0,
+    });
     expect(lc.tryStart()).toBe(false);
     expect(lc.state).toBe('IDLE');
     expect(a.started).toBe(0);
@@ -82,7 +96,12 @@ describe('REPLAY-02 session-replay lifecycle state machine', () => {
 
   it('tryStart with locallyDisabled (client veto) stays IDLE even when server is ON', () => {
     const a = makeAdapter();
-    const lc = createReplayLifecycle({ adapter: a, getConfig: () => ON, locallyDisabled: true, random: () => 0 });
+    const lc = createReplayLifecycle({
+      adapter: a,
+      getConfig: () => ON,
+      locallyDisabled: true,
+      random: () => 0,
+    });
     expect(lc.tryStart()).toBe(false);
     expect(lc.state).toBe('IDLE');
     expect(a.started).toBe(0);
@@ -92,7 +111,12 @@ describe('REPLAY-02 session-replay lifecycle state machine', () => {
     const a = makeAdapter();
     const cfg: ReplayConfig = { replayEnabled: true, replayDurationSec: 30, samplingRate: 0.5 };
     // random() returns 0.9, NOT < 0.5 ⇒ gate fails
-    const lc = createReplayLifecycle({ adapter: a, getConfig: () => cfg, locallyDisabled: false, random: () => 0.9 });
+    const lc = createReplayLifecycle({
+      adapter: a,
+      getConfig: () => cfg,
+      locallyDisabled: false,
+      random: () => 0.9,
+    });
     expect(lc.tryStart()).toBe(false);
     expect(lc.state).toBe('IDLE');
     expect(a.started).toBe(0);
@@ -133,7 +157,12 @@ describe('REPLAY-02 session-replay lifecycle state machine', () => {
 
   it('freeze() BUFFERING→FROZEN and calls adapter.freeze()', () => {
     const a = makeAdapter();
-    const lc = createReplayLifecycle({ adapter: a, getConfig: () => ON, locallyDisabled: false, random: () => 0 });
+    const lc = createReplayLifecycle({
+      adapter: a,
+      getConfig: () => ON,
+      locallyDisabled: false,
+      random: () => 0,
+    });
     lc.tryStart();
     lc.freeze();
     expect(lc.state).toBe('FROZEN');
@@ -142,7 +171,12 @@ describe('REPLAY-02 session-replay lifecycle state machine', () => {
 
   it('open while FROZEN is a no-op (idempotent — never a second freeze/buffer)', () => {
     const a = makeAdapter();
-    const lc = createReplayLifecycle({ adapter: a, getConfig: () => ON, locallyDisabled: false, random: () => 0 });
+    const lc = createReplayLifecycle({
+      adapter: a,
+      getConfig: () => ON,
+      locallyDisabled: false,
+      random: () => 0,
+    });
     lc.tryStart();
     lc.freeze();
     lc.freeze(); // second open while FROZEN
@@ -160,7 +194,12 @@ describe('REPLAY-02 session-replay lifecycle state machine', () => {
       contentType: 'application/json',
     };
     const a = makeAdapter(capture);
-    const lc = createReplayLifecycle({ adapter: a, getConfig: () => ON, locallyDisabled: false, random: () => 0 });
+    const lc = createReplayLifecycle({
+      adapter: a,
+      getConfig: () => ON,
+      locallyDisabled: false,
+      random: () => 0,
+    });
     lc.tryStart();
     lc.freeze();
     const out = await lc.complete();
@@ -177,7 +216,12 @@ describe('REPLAY-02 session-replay lifecycle state machine', () => {
       durationMs: 1000,
       contentType: 'application/octet-stream',
     };
-    const lc = createReplayLifecycle({ adapter: makeAdapter(capture), getConfig: () => ON, locallyDisabled: false, random: () => 0 });
+    const lc = createReplayLifecycle({
+      adapter: makeAdapter(capture),
+      getConfig: () => ON,
+      locallyDisabled: false,
+      random: () => 0,
+    });
     lc.tryStart();
     lc.freeze();
     expect(await lc.complete()).toEqual(capture);
@@ -185,7 +229,12 @@ describe('REPLAY-02 session-replay lifecycle state machine', () => {
 
   it('cancel(): FROZEN→DISCARDED→resume BUFFERING (zeroize) via discardAndResume', () => {
     const a = makeAdapter();
-    const lc = createReplayLifecycle({ adapter: a, getConfig: () => ON, locallyDisabled: false, random: () => 0 });
+    const lc = createReplayLifecycle({
+      adapter: a,
+      getConfig: () => ON,
+      locallyDisabled: false,
+      random: () => 0,
+    });
     lc.tryStart();
     lc.freeze();
     lc.cancel();
@@ -201,7 +250,12 @@ describe('REPLAY-02 session-replay lifecycle state machine', () => {
       contentType: 'application/json',
     };
     const a = makeAdapter(capture);
-    const lc = createReplayLifecycle({ adapter: a, getConfig: () => ON, locallyDisabled: false, random: () => 0 });
+    const lc = createReplayLifecycle({
+      adapter: a,
+      getConfig: () => ON,
+      locallyDisabled: false,
+      random: () => 0,
+    });
     lc.tryStart(); // BUFFERING
     lc.freeze(); // FROZEN
     lc.cancel(); // DISCARDED → BUFFERING (zeroized)
@@ -214,7 +268,12 @@ describe('REPLAY-02 session-replay lifecycle state machine', () => {
 
   it('forceDiscard() from ANY state → DISCARDED then IDLE (logout/identity change), zeroizing', () => {
     const a = makeAdapter();
-    const lc = createReplayLifecycle({ adapter: a, getConfig: () => ON, locallyDisabled: false, random: () => 0 });
+    const lc = createReplayLifecycle({
+      adapter: a,
+      getConfig: () => ON,
+      locallyDisabled: false,
+      random: () => 0,
+    });
     lc.tryStart();
     lc.freeze();
     lc.forceDiscard();
@@ -224,7 +283,12 @@ describe('REPLAY-02 session-replay lifecycle state machine', () => {
 
   it('forceDiscard() from BUFFERING also returns to IDLE', () => {
     const a = makeAdapter();
-    const lc = createReplayLifecycle({ adapter: a, getConfig: () => ON, locallyDisabled: false, random: () => 0 });
+    const lc = createReplayLifecycle({
+      adapter: a,
+      getConfig: () => ON,
+      locallyDisabled: false,
+      random: () => 0,
+    });
     lc.tryStart();
     lc.forceDiscard();
     expect(lc.state).toBe('IDLE');

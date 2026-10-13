@@ -38,7 +38,11 @@ describe('computeCrashFingerprint (spec rule — parity-locked)', () => {
         join(__dirname, '..', '..', 'protocol', '__tests__', 'fixtures', 'crash-fingerprint.json'),
         'utf8',
       ),
-    ) as Array<{ exceptionType: string; frames: Array<{ raw: string; function?: string; file?: string }>; expected: string }>;
+    ) as Array<{
+      exceptionType: string;
+      frames: Array<{ raw: string; function?: string; file?: string }>;
+      expected: string;
+    }>;
     expect(cases.length).toBeGreaterThanOrEqual(4);
     for (const c of cases) {
       expect(computeCrashFingerprint(c.exceptionType, c.frames)).toBe(c.expected);

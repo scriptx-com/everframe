@@ -88,12 +88,12 @@ app.options('/api/everframe-identity', nodeHandler);
 
 ## Responses
 
-| Case | Response |
-|---|---|
-| User resolves | `200 { token, expiresAt }` (`expiresAt` is ms epoch) |
-| Nobody signed in | `200 { token: null }` |
-| `user.id` empty or >255 chars | `200 { token: null, reason: 'subject_too_long' }` |
-| `resolveUser` throws | `500`, empty body |
+| Case                          | Response                                             |
+| ----------------------------- | ---------------------------------------------------- |
+| User resolves                 | `200 { token, expiresAt }` (`expiresAt` is ms epoch) |
+| Nobody signed in              | `200 { token: null }`                                |
+| `user.id` empty or >255 chars | `200 { token: null, reason: 'subject_too_long' }`    |
+| `resolveUser` throws          | `500`, empty body                                    |
 
 Every response carries `Cache-Control: no-store`. A signed-out user is a normal
 state, not an error — all `token: null` cases read as "anonymous" to the SDK.

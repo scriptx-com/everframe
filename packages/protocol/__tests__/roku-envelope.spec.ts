@@ -11,7 +11,8 @@ import roku from './fixtures/roku-crash-envelope.json';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const AjvCtor = (Ajv as unknown as { default: typeof Ajv }).default ?? Ajv;
-const addFormatsFn = (addFormats as unknown as { default: typeof addFormats }).default ?? addFormats;
+const addFormatsFn =
+  (addFormats as unknown as { default: typeof addFormats }).default ?? addFormats;
 
 describe('Roku envelope', () => {
   it('parses with the zod schema', () => {
@@ -20,7 +21,9 @@ describe('Roku envelope', () => {
   });
 
   it('validates against the generated JSON schema', () => {
-    const schema = JSON.parse(readFileSync(path.resolve(__dirname, '../schemas-json/envelope.v1.schema.json'), 'utf8'));
+    const schema = JSON.parse(
+      readFileSync(path.resolve(__dirname, '../schemas-json/envelope.v1.schema.json'), 'utf8'),
+    );
     const ajv = new AjvCtor({ strict: false, allErrors: true });
     addFormatsFn(ajv);
     const validate = ajv.compile(schema);

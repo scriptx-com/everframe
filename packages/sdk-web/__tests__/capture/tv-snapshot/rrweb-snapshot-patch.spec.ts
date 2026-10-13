@@ -20,7 +20,8 @@ function original(css: string): string {
     const filePath: string = p1 || p2 || p3;
     const quote: string = q1 || q2 || '';
     if (!filePath) return origin;
-    if (/^(?:[a-z+]+:)?\/\//i.test(filePath) || /^www\..*/i.test(filePath)) return `url(${quote}${filePath}${quote})`;
+    if (/^(?:[a-z+]+:)?\/\//i.test(filePath) || /^www\..*/i.test(filePath))
+      return `url(${quote}${filePath}${quote})`;
     if (/^(data:)([^,]*),(.*)/i.test(filePath)) return `url(${quote}${filePath}${quote})`;
     if (filePath[0] === '/') return `url(${quote}https://app.example.test${filePath}${quote})`;
     const noHash = filePath.split('#')[0]!;
@@ -40,7 +41,7 @@ describe('patched rrweb-snapshot absolutifyURLs', () => {
   it('matches the original regex on hand-picked inputs', () => {
     const cases = [
       'a{background:url(img/a.png)}',
-      "url('x.png') url(\"y.png\") url(z.png)",
+      'url(\'x.png\') url("y.png") url(z.png)',
       "url('a)b') url('unclosed",
       'url("a\nb") url("c")',
       'url("a"b")',
@@ -54,7 +55,22 @@ describe('patched rrweb-snapshot absolutifyURLs', () => {
   });
 
   it('matches the original regex on random CSS-ish strings', () => {
-    const alphabet = ['url(', 'url(', ')', "'", '"', '\n', 'a', '/', '.', '#', ' ', '..', 'data:', '//'];
+    const alphabet = [
+      'url(',
+      'url(',
+      ')',
+      "'",
+      '"',
+      '\n',
+      'a',
+      '/',
+      '.',
+      '#',
+      ' ',
+      '..',
+      'data:',
+      '//',
+    ];
     let seed = 7;
     const rand = (n: number): number => {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
@@ -69,7 +85,12 @@ describe('patched rrweb-snapshot absolutifyURLs', () => {
   });
 
   it('stays linear on unclosed url( runs (S18)', () => {
-    for (const css of ['background:' + 'url('.repeat(64_000), 'url("'.repeat(40_000) + '\n', "url('".repeat(40_000), 'url(a)'.repeat(40_000)]) {
+    for (const css of [
+      'background:' + 'url('.repeat(64_000),
+      'url("'.repeat(40_000) + '\n',
+      "url('".repeat(40_000),
+      'url(a)'.repeat(40_000),
+    ]) {
       const started = performance.now();
       absolutize(css);
       expect(performance.now() - started).toBeLessThan(1000);

@@ -12,4 +12,3 @@ export const baseConfig = defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**', '**/target/**'],
   },
 });
-

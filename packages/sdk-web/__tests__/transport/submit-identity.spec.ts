@@ -72,16 +72,25 @@ function makeMutableIdentityReader(initial: string | null): {
 } {
   let current = initial;
   return {
-    reader: { async get(): Promise<string | null> { return current; } },
-    setToken: (t: string | null) => { current = t; },
+    reader: {
+      async get(): Promise<string | null> {
+        return current;
+      },
+    },
+    setToken: (t: string | null) => {
+      current = t;
+    },
   };
 }
 
 function makeFetch(status: number): typeof globalThis.fetch {
-  return vi.fn(async () => new Response('{}', {
-    status,
-    headers: { 'content-type': 'application/json' },
-  })) as unknown as typeof globalThis.fetch;
+  return vi.fn(
+    async () =>
+      new Response('{}', {
+        status,
+        headers: { 'content-type': 'application/json' },
+      }),
+  ) as unknown as typeof globalThis.fetch;
 }
 
 describe('PR review Finding 2 — outbox drain never misattributes across an identity switch', () => {
@@ -337,7 +346,11 @@ describe('PR review Finding 2 — outbox drain never misattributes across an ide
 
   it('an entry queued anonymously stays anonymous even when a VALID (but subject-less) identity token is active at drain time', async () => {
     const outbox: OutboxAdapter = createInMemoryOutbox();
-    const noOneSignedIn: IdentityTokenReader = { async get(): Promise<string | null> { return null; } };
+    const noOneSignedIn: IdentityTokenReader = {
+      async get(): Promise<string | null> {
+        return null;
+      },
+    };
 
     const enqueueFetch = makeFetch(503);
     await submitReportFromDraft({

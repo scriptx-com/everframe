@@ -202,9 +202,7 @@ export function AnnotateCanvas({
       else nodeRefs.current.delete(id);
     };
 
-  const selectedShape = selectedId
-    ? (annotations.find((a) => a.id === selectedId) ?? null)
-    : null;
+  const selectedShape = selectedId ? (annotations.find((a) => a.id === selectedId) ?? null) : null;
 
   useEffect(() => {
     const tr = trRef.current;
@@ -404,8 +402,7 @@ export function AnnotateCanvas({
     const onKey = (e: KeyboardEvent): void => {
       const t = e.target as HTMLElement | null;
       const typing =
-        t !== null &&
-        (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+        t !== null && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
       if (!typing && (e.key === 'Delete' || e.key === 'Backspace')) {
         if (selectedId) {
           e.preventDefault();
@@ -528,10 +525,7 @@ export function AnnotateCanvas({
         return [...prev.slice(0, -1), { ...last, to: [pos.x, pos.y] as [number, number] }];
       }
       if (last.kind === 'rect' || last.kind === 'ellipse' || last.kind === 'blur') {
-        return [
-          ...prev.slice(0, -1),
-          { ...last, width: pos.x - last.x, height: pos.y - last.y },
-        ];
+        return [...prev.slice(0, -1), { ...last, width: pos.x - last.x, height: pos.y - last.y }];
       }
       return prev;
     });
@@ -765,214 +759,252 @@ export function AnnotateCanvas({
         className="everframe-annotate-canvas-frame"
         style={{ width: dispW, maxWidth: '100%', position: 'relative' }}
       >
-      <Stage
-        width={dispW}
-        height={dispH}
-        scaleX={scale}
-        scaleY={scale}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-      >
-        <Layer>
-          {imgEl ? (
-            <KImage
-              image={imgEl}
-              x={0}
-              y={0}
-              width={imgDims.w}
-              height={imgDims.h}
-              listening={false}
-              data-testid="annotate-canvas-image"
-            />
-          ) : null}
-        </Layer>
-        <Layer>
-          {annotations.map(renderAnnotation)}
-          {selectedShape && RESIZABLE_KINDS.has(selectedShape.kind) ? (
-            <KTransformer
-              ref={trRef}
-              rotateEnabled={false}
-              flipEnabled={false}
-              keepRatio={false}
-              enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
-              data-testid="konva-transformer"
-            />
-          ) : null}
-          {selectedShape?.kind === 'arrow' ? (
-            <>
-              <KCircle
-                x={selectedShape.from[0]}
-                y={selectedShape.from[1]}
-                radius={Math.max(8, selectedShape.thickness * 2)}
-                fill="#ffffff"
-                stroke="#2563eb"
-                strokeWidth={2}
-                draggable
-                onPointerDown={(e: KonvaPointerEvt) => {
-                  // Konva drag does NOT stop the pointerdown bubbling; without
-                  // this the Stage handler deselects (pointer tool) or starts
-                  // a stray draw gesture (arrow tool) mid-handle-drag.
-                  e.cancelBubble = true;
-                }}
-                onMouseEnter={(e: KonvaPointerEvt) => {
-                  e.target.getStage().container().style.cursor = 'pointer';
-                }}
-                onMouseLeave={(e: KonvaPointerEvt) => {
-                  e.target.getStage().container().style.cursor = '';
-                }}
-                onDragStart={() => beginGesture()}
-                onDragMove={(e: KonvaNodeEvt) =>
-                  patchAnnotation(selectedShape.id, {
-                    from: [e.target.x(), e.target.y()] as [number, number],
-                  })
-                }
-                data-testid="arrow-handle-from"
+        <Stage
+          width={dispW}
+          height={dispH}
+          scaleX={scale}
+          scaleY={scale}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+        >
+          <Layer>
+            {imgEl ? (
+              <KImage
+                image={imgEl}
+                x={0}
+                y={0}
+                width={imgDims.w}
+                height={imgDims.h}
+                listening={false}
+                data-testid="annotate-canvas-image"
               />
-              <KCircle
-                x={selectedShape.to[0]}
-                y={selectedShape.to[1]}
-                radius={Math.max(8, selectedShape.thickness * 2)}
-                fill="#ffffff"
-                stroke="#2563eb"
-                strokeWidth={2}
-                draggable
-                onPointerDown={(e: KonvaPointerEvt) => {
-                  e.cancelBubble = true;
-                }}
-                onMouseEnter={(e: KonvaPointerEvt) => {
-                  e.target.getStage().container().style.cursor = 'pointer';
-                }}
-                onMouseLeave={(e: KonvaPointerEvt) => {
-                  e.target.getStage().container().style.cursor = '';
-                }}
-                onDragStart={() => beginGesture()}
-                onDragMove={(e: KonvaNodeEvt) =>
-                  patchAnnotation(selectedShape.id, {
-                    to: [e.target.x(), e.target.y()] as [number, number],
-                  })
-                }
-                data-testid="arrow-handle-to"
+            ) : null}
+          </Layer>
+          <Layer>
+            {annotations.map(renderAnnotation)}
+            {selectedShape && RESIZABLE_KINDS.has(selectedShape.kind) ? (
+              <KTransformer
+                ref={trRef}
+                rotateEnabled={false}
+                flipEnabled={false}
+                keepRatio={false}
+                enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+                data-testid="konva-transformer"
               />
-            </>
-          ) : null}
-        </Layer>
-      </Stage>
-      {(() => {
-        const editing = editingId
-          ? annotations.find((a): a is TextShape => a.id === editingId && a.kind === 'text')
-          : undefined;
-        if (!editing) return null;
-        return (
-          <textarea
-            key={editing.id}
-            ref={textEditRef}
-            data-testid="text-editor"
-            className="everframe-text-editor"
-            defaultValue={editing.text}
-            style={{
-              left: editing.x * scale,
-              top: editing.y * scale,
-              fontSize: editing.fontSize * scale,
-              lineHeight: TEXT_LINE_HEIGHT,
-              color: editing.color,
-              fontFamily: TEXT_FONT_FAMILY,
-            }}
-            // Escape is handled via the pushEscapeHandler effect above — a
-            // React onKeyDown here can never run before escapeStack's
-            // window capture-phase listener. After the escape handler
-            // commits, the focus-loss blur re-enters commitTextEdit with
-            // editingId already null and early-returns harmlessly.
-            onBlur={(e) => commitTextEdit(e.currentTarget.value)}
-            onInput={(e) => autosizeTextarea(e.currentTarget)}
-            onKeyDown={(e) => {
-              // Enter commits (modern-editor convention); Shift+Enter still
-              // inserts a newline. Without this, Enter's default browser
-              // action (insert \n) grows the content past the editor's fixed
-              // height, and native textarea auto-scroll pushes the
-              // already-typed lines out of the clipped viewport — the text
-              // is still THERE (in `value`) but looks like it vanished.
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                commitTextEdit(e.currentTarget.value);
-              }
-            }}
-          />
-        );
-      })()}
+            ) : null}
+            {selectedShape?.kind === 'arrow' ? (
+              <>
+                <KCircle
+                  x={selectedShape.from[0]}
+                  y={selectedShape.from[1]}
+                  radius={Math.max(8, selectedShape.thickness * 2)}
+                  fill="#ffffff"
+                  stroke="#2563eb"
+                  strokeWidth={2}
+                  draggable
+                  onPointerDown={(e: KonvaPointerEvt) => {
+                    // Konva drag does NOT stop the pointerdown bubbling; without
+                    // this the Stage handler deselects (pointer tool) or starts
+                    // a stray draw gesture (arrow tool) mid-handle-drag.
+                    e.cancelBubble = true;
+                  }}
+                  onMouseEnter={(e: KonvaPointerEvt) => {
+                    e.target.getStage().container().style.cursor = 'pointer';
+                  }}
+                  onMouseLeave={(e: KonvaPointerEvt) => {
+                    e.target.getStage().container().style.cursor = '';
+                  }}
+                  onDragStart={() => beginGesture()}
+                  onDragMove={(e: KonvaNodeEvt) =>
+                    patchAnnotation(selectedShape.id, {
+                      from: [e.target.x(), e.target.y()] as [number, number],
+                    })
+                  }
+                  data-testid="arrow-handle-from"
+                />
+                <KCircle
+                  x={selectedShape.to[0]}
+                  y={selectedShape.to[1]}
+                  radius={Math.max(8, selectedShape.thickness * 2)}
+                  fill="#ffffff"
+                  stroke="#2563eb"
+                  strokeWidth={2}
+                  draggable
+                  onPointerDown={(e: KonvaPointerEvt) => {
+                    e.cancelBubble = true;
+                  }}
+                  onMouseEnter={(e: KonvaPointerEvt) => {
+                    e.target.getStage().container().style.cursor = 'pointer';
+                  }}
+                  onMouseLeave={(e: KonvaPointerEvt) => {
+                    e.target.getStage().container().style.cursor = '';
+                  }}
+                  onDragStart={() => beginGesture()}
+                  onDragMove={(e: KonvaNodeEvt) =>
+                    patchAnnotation(selectedShape.id, {
+                      to: [e.target.x(), e.target.y()] as [number, number],
+                    })
+                  }
+                  data-testid="arrow-handle-to"
+                />
+              </>
+            ) : null}
+          </Layer>
+        </Stage>
+        {(() => {
+          const editing = editingId
+            ? annotations.find((a): a is TextShape => a.id === editingId && a.kind === 'text')
+            : undefined;
+          if (!editing) return null;
+          return (
+            <textarea
+              key={editing.id}
+              ref={textEditRef}
+              data-testid="text-editor"
+              className="everframe-text-editor"
+              defaultValue={editing.text}
+              style={{
+                left: editing.x * scale,
+                top: editing.y * scale,
+                fontSize: editing.fontSize * scale,
+                lineHeight: TEXT_LINE_HEIGHT,
+                color: editing.color,
+                fontFamily: TEXT_FONT_FAMILY,
+              }}
+              // Escape is handled via the pushEscapeHandler effect above — a
+              // React onKeyDown here can never run before escapeStack's
+              // window capture-phase listener. After the escape handler
+              // commits, the focus-loss blur re-enters commitTextEdit with
+              // editingId already null and early-returns harmlessly.
+              onBlur={(e) => commitTextEdit(e.currentTarget.value)}
+              onInput={(e) => autosizeTextarea(e.currentTarget)}
+              onKeyDown={(e) => {
+                // Enter commits (modern-editor convention); Shift+Enter still
+                // inserts a newline. Without this, Enter's default browser
+                // action (insert \n) grows the content past the editor's fixed
+                // height, and native textarea auto-scroll pushes the
+                // already-typed lines out of the clipped viewport — the text
+                // is still THERE (in `value`) but looks like it vanished.
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  commitTextEdit(e.currentTarget.value);
+                }
+              }}
+            />
+          );
+        })()}
       </div>
       <div className="everframe-annotation-toolbar" role="toolbar" aria-label="Annotation tools">
         <button
           type="button"
           aria-label="Select and move annotations"
           onClick={() => setToolState('pointer')}
-          className={tool === 'pointer' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
+          className={
+            tool === 'pointer'
+              ? 'everframe-tool-btn everframe-tool-btn-active'
+              : 'everframe-tool-btn'
+          }
           data-testid="tool-pointer"
         >
-          <span aria-hidden="true" className="everframe-tool-glyph">➤</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">
+            ➤
+          </span>
         </button>
         <button
           type="button"
           aria-label="Draw freehand on screenshot"
           onClick={() => setTool('pen')}
-          className={tool === 'pen' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
+          className={
+            tool === 'pen' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'
+          }
           data-testid="tool-pen"
         >
-          <span aria-hidden="true" className="everframe-tool-glyph">✎</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">
+            ✎
+          </span>
         </button>
         <button
           type="button"
           aria-label="Highlight a region of the screenshot"
           onClick={() => setTool('highlighter')}
-          className={tool === 'highlighter' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
+          className={
+            tool === 'highlighter'
+              ? 'everframe-tool-btn everframe-tool-btn-active'
+              : 'everframe-tool-btn'
+          }
           data-testid="tool-highlighter"
         >
-          <span aria-hidden="true" className="everframe-tool-glyph">▰</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">
+            ▰
+          </span>
         </button>
         <button
           type="button"
           aria-label="Draw a rectangle outline"
           onClick={() => setTool('rect')}
-          className={tool === 'rect' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
+          className={
+            tool === 'rect' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'
+          }
           data-testid="tool-rect"
         >
-          <span aria-hidden="true" className="everframe-tool-glyph">□</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">
+            □
+          </span>
         </button>
         <button
           type="button"
           aria-label="Draw an ellipse outline"
           onClick={() => setTool('ellipse')}
-          className={tool === 'ellipse' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
+          className={
+            tool === 'ellipse'
+              ? 'everframe-tool-btn everframe-tool-btn-active'
+              : 'everframe-tool-btn'
+          }
           data-testid="tool-ellipse"
         >
-          <span aria-hidden="true" className="everframe-tool-glyph">○</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">
+            ○
+          </span>
         </button>
         <button
           type="button"
           aria-label="Draw an arrow on the screenshot"
           onClick={() => setTool('arrow')}
-          className={tool === 'arrow' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
+          className={
+            tool === 'arrow' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'
+          }
           data-testid="tool-arrow"
         >
-          <span aria-hidden="true" className="everframe-tool-glyph">→</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">
+            →
+          </span>
         </button>
         <button
           type="button"
           aria-label="Add text to screenshot"
           onClick={() => setTool('text')}
-          className={tool === 'text' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
+          className={
+            tool === 'text' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'
+          }
           data-testid="tool-text"
         >
-          <span aria-hidden="true" className="everframe-tool-glyph">T</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">
+            T
+          </span>
         </button>
         <button
           type="button"
           aria-label="Redact a region of the screenshot"
           onClick={() => setTool('blur')}
-          className={tool === 'blur' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'}
+          className={
+            tool === 'blur' ? 'everframe-tool-btn everframe-tool-btn-active' : 'everframe-tool-btn'
+          }
           data-testid="tool-blur"
         >
-          <span aria-hidden="true" className="everframe-tool-glyph">▭</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">
+            ▭
+          </span>
         </button>
         <span className="everframe-palette-sep" aria-hidden="true" />
         <button
@@ -983,7 +1015,9 @@ export function AnnotateCanvas({
           className="everframe-tool-btn"
           data-testid="tool-undo"
         >
-          <span aria-hidden="true" className="everframe-tool-glyph">↶</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">
+            ↶
+          </span>
         </button>
         <button
           type="button"
@@ -993,7 +1027,9 @@ export function AnnotateCanvas({
           className="everframe-tool-btn"
           data-testid="tool-redo"
         >
-          <span aria-hidden="true" className="everframe-tool-glyph">↷</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">
+            ↷
+          </span>
         </button>
         <button
           type="button"
@@ -1003,7 +1039,9 @@ export function AnnotateCanvas({
           className="everframe-tool-btn"
           data-testid="tool-delete"
         >
-          <span aria-hidden="true" className="everframe-tool-glyph">⌫</span>
+          <span aria-hidden="true" className="everframe-tool-glyph">
+            ⌫
+          </span>
         </button>
       </div>
       {(STROKE_TOOLS.includes(tool) ||

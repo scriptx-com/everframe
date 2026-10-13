@@ -13,16 +13,16 @@ and captured errors.
 
 ## Choose an SDK
 
-| Platform | SDK | Documentation | Examples |
-| --- | --- | --- | --- |
-| Web and framework-agnostic JavaScript | [`@everframe/web`](https://www.npmjs.com/package/@everframe/web) | [Web SDK](packages/sdk-web/README.md) | [Vue](examples/vue-web), [Smart TV](examples/smarttv-tester) |
-| React | [`@everframe/react`](https://www.npmjs.com/package/@everframe/react) | [React SDK](packages/sdk-react/README.md) | [React web](examples/react-web) |
-| React Native, Apple TV, and Android TV | [`@everframe/react-native`](https://www.npmjs.com/package/@everframe/react-native) | [React Native SDK](packages/sdk-react-native/README.md) | [React Native](examples/react-native), [React TV](examples/react-tv-sample) |
-| Flutter on Android, iOS, and web | [`everframe_flutter`](https://pub.dev/packages/everframe_flutter) | [Flutter SDK](packages/everframe_flutter/README.md) | [Android probe](examples/flutter-android-probe), [iOS probe](examples/flutter-ios-probe), [web probe](examples/flutter-web-probe) |
-| Kotlin Multiplatform on Android, iOS, and Kotlin/JS | [`dev.everframe:kmp`](https://central.sonatype.com/artifact/dev.everframe/kmp) | [KMP SDK](packages/everframe_kmp/README.md) | [Android probe](examples/kmp-android-compose-probe), [iOS probes](examples/kmp-ios-probes), [browser canvas probe](examples/flutter-web-probe) |
-| Android and Android TV | `dev.everframe` Maven modules | [Android SDK](packages/sdk-android/README.md) | [Compose](examples/android-compose), [Views](examples/android-views) |
-| iOS, iPadOS, and tvOS | `Everframe` Swift package | [Apple SDK](packages/sdk-ios/README.md) | [iOS](examples/ios-native), [tvOS replay](examples/tvos-replay) |
-| Server-side identity | [`@everframe/identity`](https://www.npmjs.com/package/@everframe/identity) | [Identity helper](packages/identity/README.md) | Runtime-specific recipes are included in the package documentation |
+| Platform                                            | SDK                                                                                | Documentation                                           | Examples                                                                                                                                       |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web and framework-agnostic JavaScript               | [`@everframe/web`](https://www.npmjs.com/package/@everframe/web)                   | [Web SDK](packages/sdk-web/README.md)                   | [Vue](examples/vue-web), [Smart TV](examples/smarttv-tester)                                                                                   |
+| React                                               | [`@everframe/react`](https://www.npmjs.com/package/@everframe/react)               | [React SDK](packages/sdk-react/README.md)               | [React web](examples/react-web)                                                                                                                |
+| React Native, Apple TV, and Android TV              | [`@everframe/react-native`](https://www.npmjs.com/package/@everframe/react-native) | [React Native SDK](packages/sdk-react-native/README.md) | [React Native](examples/react-native), [React TV](examples/react-tv-sample)                                                                    |
+| Flutter on Android, iOS, and web                    | [`everframe_flutter`](https://pub.dev/packages/everframe_flutter)                  | [Flutter SDK](packages/everframe_flutter/README.md)     | [Android probe](examples/flutter-android-probe), [iOS probe](examples/flutter-ios-probe), [web probe](examples/flutter-web-probe)              |
+| Kotlin Multiplatform on Android, iOS, and Kotlin/JS | [`dev.everframe:kmp`](https://central.sonatype.com/artifact/dev.everframe/kmp)     | [KMP SDK](packages/everframe_kmp/README.md)             | [Android probe](examples/kmp-android-compose-probe), [iOS probes](examples/kmp-ios-probes), [browser canvas probe](examples/flutter-web-probe) |
+| Android and Android TV                              | `dev.everframe` Maven modules                                                      | [Android SDK](packages/sdk-android/README.md)           | [Compose](examples/android-compose), [Views](examples/android-views)                                                                           |
+| iOS, iPadOS, and tvOS                               | `Everframe` Swift package                                                          | [Apple SDK](packages/sdk-ios/README.md)                 | [iOS](examples/ios-native), [tvOS replay](examples/tvos-replay)                                                                                |
+| Server-side identity                                | [`@everframe/identity`](https://www.npmjs.com/package/@everframe/identity)         | [Identity helper](packages/identity/README.md)          | Runtime-specific recipes are included in the package documentation                                                                             |
 
 Each SDK README is the canonical guide for installation, configuration,
 privacy controls, platform support, and current limitations.
@@ -67,19 +67,19 @@ products, and setup instructions.
 The [`examples`](examples) directory contains runnable hosts for the supported
 platforms and integration styles:
 
-| Example | Demonstrates |
-| --- | --- |
-| [`react-web`](examples/react-web) | React web integration and SSR/CSP fixtures |
-| [`vue-web`](examples/vue-web) | Framework-agnostic SDK integration from Vue |
-| [`smarttv-tester`](examples/smarttv-tester) | Browser-based Smart TV behavior |
-| [`react-native`](examples/react-native) | React Native bridge integration |
-| [`flutter-android-probe`](examples/flutter-android-probe) | Flutter Android source and privacy probe |
-| [`flutter-ios-probe`](examples/flutter-ios-probe) | Flutter iOS source and privacy probe |
-| [`react-tv-sample`](examples/react-tv-sample) | React Native TV host integration |
-| [`android-compose`](examples/android-compose) | Native Android with Jetpack Compose |
-| [`android-views`](examples/android-views) | Native Android with the Views system |
-| [`ios-native`](examples/ios-native) | Native iOS integration |
-| [`tvos-replay`](examples/tvos-replay) | Credential-free tvOS replay and remote-focus smoke testing |
+| Example                                                   | Demonstrates                                               |
+| --------------------------------------------------------- | ---------------------------------------------------------- |
+| [`react-web`](examples/react-web)                         | React web integration and SSR/CSP fixtures                 |
+| [`vue-web`](examples/vue-web)                             | Framework-agnostic SDK integration from Vue                |
+| [`smarttv-tester`](examples/smarttv-tester)               | Browser-based Smart TV behavior                            |
+| [`react-native`](examples/react-native)                   | React Native bridge integration                            |
+| [`flutter-android-probe`](examples/flutter-android-probe) | Flutter Android source and privacy probe                   |
+| [`flutter-ios-probe`](examples/flutter-ios-probe)         | Flutter iOS source and privacy probe                       |
+| [`react-tv-sample`](examples/react-tv-sample)             | React Native TV host integration                           |
+| [`android-compose`](examples/android-compose)             | Native Android with Jetpack Compose                        |
+| [`android-views`](examples/android-views)                 | Native Android with the Views system                       |
+| [`ios-native`](examples/ios-native)                       | Native iOS integration                                     |
+| [`tvos-replay`](examples/tvos-replay)                     | Credential-free tvOS replay and remote-focus smoke testing |
 
 Examples that connect to Everframe read development credentials from generated,
 ignored configuration. Start from the checked-in template:

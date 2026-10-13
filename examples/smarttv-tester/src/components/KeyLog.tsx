@@ -33,13 +33,16 @@ export function KeyLog(): React.JSX.Element {
   return (
     <section style={{ marginTop: 24 }}>
       <h2 style={{ fontSize: 20, margin: '0 0 8px' }}>Key events</h2>
-      {rows.length === 0 && (
-        <p style={{ fontSize: 16, opacity: 0.5 }}>Press any remote key…</p>
-      )}
+      {rows.length === 0 && <p style={{ fontSize: 16, opacity: 0.5 }}>Press any remote key…</p>}
       {rows.map((r) => (
         <div
           key={r.seq}
-          style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, lineHeight: '24px' }}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: 16,
+            lineHeight: '24px',
+          }}
         >
           <span>{r.key}</span>
           <span style={{ opacity: 0.6 }}>keyCode {r.keyCode}</span>

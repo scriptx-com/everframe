@@ -25,10 +25,14 @@ const rootCause = () => ({
 
 describe('generic crash cause contract', () => {
   it('parses the canonical shared native crash fixture', () => {
-    const fixture = JSON.parse(readFileSync(join(__dirname, 'fixtures', 'crash-causes.json'), 'utf8'));
+    const fixture = JSON.parse(
+      readFileSync(join(__dirname, 'fixtures', 'crash-causes.json'), 'utf8'),
+    );
     const parsed = CrashPayload.parse(fixture);
-    expect(parsed.causeChain?.causes.map(cause => cause.exceptionType))
-      .toEqual(['TypeError', 'RangeError']);
+    expect(parsed.causeChain?.causes.map((cause) => cause.exceptionType)).toEqual([
+      'TypeError',
+      'RangeError',
+    ]);
     expect(parsed.causeChain?.causes[0]?.frames[0]).toEqual({
       raw: 'at middle (https://fixture.test/middle.js:11:7)',
       file: 'https://fixture.test/middle.js',
@@ -42,7 +46,7 @@ describe('generic crash cause contract', () => {
     const cause = rootCause();
     const input = { causes: [cause], truncated: false };
 
-    const normalized = normalizeCrashCauseChain(input, value => value);
+    const normalized = normalizeCrashCauseChain(input, (value) => value);
 
     expect(normalized).toEqual(input);
     expect(CrashCauseChain.safeParse(input).success).toBe(true);
@@ -53,18 +57,20 @@ describe('generic crash cause contract', () => {
   it('requires wrapper flags and never salvages a malformed strict-reader chain', () => {
     const cause = rootCause();
 
-    expect(normalizeCrashCauseChain(undefined, value => value)).toBeUndefined();
-    expect(normalizeCrashCauseChain({ causes: [cause] }, value => value)).toBeUndefined();
+    expect(normalizeCrashCauseChain(undefined, (value) => value)).toBeUndefined();
+    expect(normalizeCrashCauseChain({ causes: [cause] }, (value) => value)).toBeUndefined();
     expect(parseCrashCauseChain({ causes: [cause, null], truncated: false })).toBeUndefined();
   });
 
   it('keeps only the valid causal prefix when tolerant input becomes malformed', () => {
     const cause = rootCause();
 
-    expect(normalizeCrashCauseChain(
-      { causes: [cause, null, cause], truncated: false },
-      value => value,
-    )).toEqual({ causes: [cause], truncated: true });
+    expect(
+      normalizeCrashCauseChain(
+        { causes: [cause, null, cause], truncated: false },
+        (value) => value,
+      ),
+    ).toEqual({ causes: [cause], truncated: true });
   });
 
   it('does not inspect frames when a later header cannot fit', () => {
@@ -77,25 +83,31 @@ describe('generic crash cause contract', () => {
       })),
     };
     let framesDescriptorReads = 0;
-    const exhausted = new Proxy({
-      exceptionType: 'Inner',
-      message: '\\'.repeat(4096),
-      frames: [],
-      framesTruncated: false,
-    }, {
-      getOwnPropertyDescriptor(target, property) {
-        if (property === 'frames') {
-          framesDescriptorReads += 1;
-          throw new Error('frames inspected before header admission');
-        }
-        return Reflect.getOwnPropertyDescriptor(target, property);
+    const exhausted = new Proxy(
+      {
+        exceptionType: 'Inner',
+        message: '\\'.repeat(4096),
+        frames: [],
+        framesTruncated: false,
       },
-    });
+      {
+        getOwnPropertyDescriptor(target, property) {
+          if (property === 'frames') {
+            framesDescriptorReads += 1;
+            throw new Error('frames inspected before header admission');
+          }
+          return Reflect.getOwnPropertyDescriptor(target, property);
+        },
+      },
+    );
 
-    const normalized = normalizeCrashCauseChain({
-      causes: [retained, exhausted],
-      truncated: false,
-    }, value => value);
+    const normalized = normalizeCrashCauseChain(
+      {
+        causes: [retained, exhausted],
+        truncated: false,
+      },
+      (value) => value,
+    );
 
     expect(framesDescriptorReads).toBe(0);
     expect(normalized?.causes).toEqual([retained]);
@@ -104,46 +116,58 @@ describe('generic crash cause contract', () => {
 
   it('does not inspect frames on a malformed header', () => {
     let framesDescriptorReads = 0;
-    const malformed = new Proxy({
-      exceptionType: 7,
-      message: 'bad',
-      frames: [],
-      framesTruncated: false,
-    }, {
-      getOwnPropertyDescriptor(target, property) {
-        if (property === 'frames') {
-          framesDescriptorReads += 1;
-          throw new Error('frames inspected for malformed header');
-        }
-        return Reflect.getOwnPropertyDescriptor(target, property);
+    const malformed = new Proxy(
+      {
+        exceptionType: 7,
+        message: 'bad',
+        frames: [],
+        framesTruncated: false,
       },
-    });
+      {
+        getOwnPropertyDescriptor(target, property) {
+          if (property === 'frames') {
+            framesDescriptorReads += 1;
+            throw new Error('frames inspected for malformed header');
+          }
+          return Reflect.getOwnPropertyDescriptor(target, property);
+        },
+      },
+    );
 
-    expect(normalizeCrashCauseChain({
-      causes: [rootCause(), malformed, rootCause()],
-      truncated: false,
-    }, value => value)).toEqual({ causes: [rootCause()], truncated: true });
+    expect(
+      normalizeCrashCauseChain(
+        {
+          causes: [rootCause(), malformed, rootCause()],
+          truncated: false,
+        },
+        (value) => value,
+      ),
+    ).toEqual({ causes: [rootCause()], truncated: true });
     expect(framesDescriptorReads).toBe(0);
   });
 
   it('redacts each admitted header once and lets text loss admit later causes', () => {
     let redactions = 0;
-    const fitter = createCrashCauseChainFitter(value => {
+    const fitter = createCrashCauseChainFitter((value) => {
       redactions += 1;
       return value;
     });
 
-    expect(fitter.beginCause({
-      exceptionType: 'Error',
-      message: 'x'.repeat(4097),
-      framesTruncated: false,
-    })).toBe('accepted');
+    expect(
+      fitter.beginCause({
+        exceptionType: 'Error',
+        message: 'x'.repeat(4097),
+        framesTruncated: false,
+      }),
+    ).toBe('accepted');
     const afterFirstHeader = redactions;
-    expect(fitter.beginCause({
-      exceptionType: 'TypeError',
-      message: 'inner',
-      framesTruncated: false,
-    })).toBe('accepted');
+    expect(
+      fitter.beginCause({
+        exceptionType: 'TypeError',
+        message: 'inner',
+        framesTruncated: false,
+      }),
+    ).toBe('accepted');
 
     expect(redactions - afterFirstHeader).toBe(2);
     expect(fitter.finish()?.truncated).toBe(true);
@@ -152,16 +176,24 @@ describe('generic crash cause contract', () => {
   it('strips extension keys at every level and never invokes unknown accessors or toJSON', () => {
     let calls = 0;
     const frame = { raw: 'at root', futureFrame: true };
-    Object.defineProperty(frame, 'unknownAccessor', { enumerable: true, get: () => { calls++; } });
+    Object.defineProperty(frame, 'unknownAccessor', {
+      enumerable: true,
+      get: () => {
+        calls++;
+      },
+    });
     const cause = {
       ...rootCause(),
       frames: [frame],
       futureCause: true,
-      toJSON: () => { calls++; return {}; },
+      toJSON: () => {
+        calls++;
+        return {};
+      },
     };
     const input = { causes: [cause], truncated: false, futureWrapper: true };
 
-    expect(normalizeCrashCauseChain(input, value => value)).toEqual({
+    expect(normalizeCrashCauseChain(input, (value) => value)).toEqual({
       causes: [{ ...rootCause(), frames: [{ raw: 'at root' }] }],
       truncated: false,
     });
@@ -173,23 +205,30 @@ describe('generic crash cause contract', () => {
   });
 
   it('repairs invalid text without raw fallback and preserves valid surrogate pairs', () => {
-    const normalized = normalizeCrashCauseChain({
-      causes: [{
-        exceptionType: 'Err\0or',
-        message: `a\uD800😀`,
-        frames: [{ raw: `r\uDC00😀` }],
-        framesTruncated: false,
-      }],
-      truncated: false,
-    }, value => value);
+    const normalized = normalizeCrashCauseChain(
+      {
+        causes: [
+          {
+            exceptionType: 'Err\0or',
+            message: `a\uD800😀`,
+            frames: [{ raw: `r\uDC00😀` }],
+            framesTruncated: false,
+          },
+        ],
+        truncated: false,
+      },
+      (value) => value,
+    );
 
     expect(normalized).toEqual({
-      causes: [{
-        exceptionType: 'Err�or',
-        message: 'a�😀',
-        frames: [{ raw: 'r�😀' }],
-        framesTruncated: false,
-      }],
+      causes: [
+        {
+          exceptionType: 'Err�or',
+          message: 'a�😀',
+          frames: [{ raw: 'r�😀' }],
+          framesTruncated: false,
+        },
+      ],
       truncated: false,
     });
     expect(CrashCauseChain.safeParse(normalized).success).toBe(true);
@@ -197,78 +236,101 @@ describe('generic crash cause contract', () => {
 
   it('omits the whole optional chain when redaction throws or returns a non-string', () => {
     const input = { causes: [rootCause()], truncated: false };
-    expect(normalizeCrashCauseChain(input, () => { throw new Error('mask failed'); }))
-      .toBeUndefined();
+    expect(
+      normalizeCrashCauseChain(input, () => {
+        throw new Error('mask failed');
+      }),
+    ).toBeUndefined();
     expect(normalizeCrashCauseChain(input, () => 42 as never)).toBeUndefined();
   });
 
   it('stops header redaction after the first field fails', () => {
     let calls = 0;
-    const fitter = createCrashCauseChainFitter(value => {
+    const fitter = createCrashCauseChainFitter((value) => {
       calls += 1;
-      return calls === 1 ? 42 as never : value;
+      return calls === 1 ? (42 as never) : value;
     });
 
-    expect(fitter.beginCause({
-      exceptionType: 'Error',
-      message: 'must-not-be-redacted',
-      framesTruncated: false,
-    })).toBe('discarded');
+    expect(
+      fitter.beginCause({
+        exceptionType: 'Error',
+        message: 'must-not-be-redacted',
+        framesTruncated: false,
+      }),
+    ).toBe('discarded');
     expect(calls).toBe(1);
     expect(fitter.finish()).toBeUndefined();
   });
 
   it('uses one shared escaped-Unicode policy for helper and incremental fitting', () => {
     const input = {
-      causes: [{
-        exceptionType: 'Type"\\Error',
-        message: 'line\n😀',
-        frames: [{
-          raw: 'at "root"\\next\t😀',
-          file: 'https://fixture.test/a\\b.js',
-          function: 'run😀',
-          line: 1,
-          col: 0,
-        }],
-        framesTruncated: false,
-      }],
+      causes: [
+        {
+          exceptionType: 'Type"\\Error',
+          message: 'line\n😀',
+          frames: [
+            {
+              raw: 'at "root"\\next\t😀',
+              file: 'https://fixture.test/a\\b.js',
+              function: 'run😀',
+              line: 1,
+              col: 0,
+            },
+          ],
+          framesTruncated: false,
+        },
+      ],
       truncated: false,
     };
     const cause = input.causes[0]!;
     const frame = cause.frames[0]!;
     let helperRedactions = 0;
-    const helper = normalizeCrashCauseChain(input, value => { helperRedactions++; return value; });
+    const helper = normalizeCrashCauseChain(input, (value) => {
+      helperRedactions++;
+      return value;
+    });
     let incrementalRedactions = 0;
-    const fitter = createCrashCauseChainFitter(value => { incrementalRedactions++; return value; });
-    expect(fitter.beginCause({
-      exceptionType: cause.exceptionType,
-      message: cause.message,
-      framesTruncated: false,
-    })).toBe('accepted');
+    const fitter = createCrashCauseChainFitter((value) => {
+      incrementalRedactions++;
+      return value;
+    });
+    expect(
+      fitter.beginCause({
+        exceptionType: cause.exceptionType,
+        message: cause.message,
+        framesTruncated: false,
+      }),
+    ).toBe('accepted');
     expect(fitter.appendFrame(frame)).toBe('accepted');
     const incremental = fitter.finish();
 
     expect(incremental).toEqual(helper);
-    expect(Buffer.byteLength(JSON.stringify(incremental), 'utf8'))
-      .toBe(Buffer.byteLength(JSON.stringify(helper), 'utf8'));
+    expect(Buffer.byteLength(JSON.stringify(incremental), 'utf8')).toBe(
+      Buffer.byteLength(JSON.stringify(helper), 'utf8'),
+    );
     expect(helperRedactions).toBe(5);
     expect(incrementalRedactions).toBe(5);
   });
 
   it('bounds scan and expanding-redactor output without splitting astral pairs', () => {
     let redactorInputLength = 0;
-    const normalized = normalizeCrashCauseChain({
-      causes: [{
-        exceptionType: 'Error',
-        message: `${'x'.repeat(8_191)}!${'x'.repeat(808)}`,
-        frames: [],
-        framesTruncated: false,
-      }],
-      truncated: false,
-    }, value => {
-      if (value.startsWith('x')) redactorInputLength = value.length;
-      return value.startsWith('x') ? `${'y'.repeat(4095)}😀tail` : value;
-    });
+    const normalized = normalizeCrashCauseChain(
+      {
+        causes: [
+          {
+            exceptionType: 'Error',
+            message: `${'x'.repeat(8_191)}!${'x'.repeat(808)}`,
+            frames: [],
+            framesTruncated: false,
+          },
+        ],
+        truncated: false,
+      },
+      (value) => {
+        if (value.startsWith('x')) redactorInputLength = value.length;
+        return value.startsWith('x') ? `${'y'.repeat(4095)}😀tail` : value;
+      },
+    );
 
     expect(redactorInputLength).toBe(8_192);
     expect(normalized?.causes[0]?.message).toBe('y'.repeat(4095));
@@ -278,10 +340,20 @@ describe('generic crash cause contract', () => {
 
   it('drops a secret cut by the scan window instead of keeping its unmatched prefix', () => {
     const token = `eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(9_000)}.${'S'.repeat(43)}`;
-    const normalized = normalizeCrashCauseChain({
-      causes: [{ exceptionType: 'Error', message: `${'x'.repeat(4_000)} ${token}`, frames: [], framesTruncated: false }],
-      truncated: false,
-    }, value => redactJwt(value));
+    const normalized = normalizeCrashCauseChain(
+      {
+        causes: [
+          {
+            exceptionType: 'Error',
+            message: `${'x'.repeat(4_000)} ${token}`,
+            frames: [],
+            framesTruncated: false,
+          },
+        ],
+        truncated: false,
+      },
+      (value) => redactJwt(value),
+    );
 
     expect(normalized?.causes[0]?.message).toBe('x'.repeat(4_000));
     expect(normalized?.truncated).toBe(true);
@@ -289,10 +361,23 @@ describe('generic crash cause contract', () => {
 
   it('never shows the redactor a digit group cut by the scan window', () => {
     const seen: string[] = [];
-    normalizeCrashCauseChain({
-      causes: [{ exceptionType: 'Error', message: `${'x'.repeat(8_178)} 4111 1111 1111 1111`, frames: [], framesTruncated: false }],
-      truncated: false,
-    }, value => { seen.push(value); return value; });
+    normalizeCrashCauseChain(
+      {
+        causes: [
+          {
+            exceptionType: 'Error',
+            message: `${'x'.repeat(8_178)} 4111 1111 1111 1111`,
+            frames: [],
+            framesTruncated: false,
+          },
+        ],
+        truncated: false,
+      },
+      (value) => {
+        seen.push(value);
+        return value;
+      },
+    );
 
     expect(seen).toEqual(['Error', 'x'.repeat(8_178)]);
   });
@@ -306,10 +391,20 @@ describe('generic crash cause contract', () => {
       // The cut falls inside the domain, then right after the address.
       for (const start of [8_178, 8_192 - address.length]) {
         const before = tokens.padEnd(start - 1, 'p');
-        const normalized = normalizeCrashCauseChain({
-          causes: [{ exceptionType: 'Error', message: `${before} ${address} tail`, frames: [], framesTruncated: false }],
-          truncated: false,
-        }, redact);
+        const normalized = normalizeCrashCauseChain(
+          {
+            causes: [
+              {
+                exceptionType: 'Error',
+                message: `${before} ${address} tail`,
+                frames: [],
+                framesTruncated: false,
+              },
+            ],
+            truncated: false,
+          },
+          redact,
+        );
 
         expect(normalized?.causes[0]?.message, `${address} at ${start}`).toBe(redact(before));
         expect(normalized?.truncated).toBe(true);
@@ -319,24 +414,33 @@ describe('generic crash cause contract', () => {
 
   it('keeps a valid frame prefix, omits malformed optional fields, and permits the next cause', () => {
     const second = { ...rootCause(), exceptionType: 'InnerError', frames: [] };
-    const normalized = normalizeCrashCauseChain({
-      causes: [{
-        ...rootCause(),
-        frames: [
-          { raw: 'first', file: 7, function: 'run', line: -1, col: 0 },
-          { raw: 42 },
-          { raw: 'unvisited' },
+    const normalized = normalizeCrashCauseChain(
+      {
+        causes: [
+          {
+            ...rootCause(),
+            frames: [
+              { raw: 'first', file: 7, function: 'run', line: -1, col: 0 },
+              { raw: 42 },
+              { raw: 'unvisited' },
+            ],
+          },
+          second,
         ],
-      }, second],
-      truncated: false,
-    }, value => value);
+        truncated: false,
+      },
+      (value) => value,
+    );
 
     expect(normalized).toEqual({
-      causes: [{
-        ...rootCause(),
-        frames: [{ raw: 'first', function: 'run', col: 0 }],
-        framesTruncated: true,
-      }, second],
+      causes: [
+        {
+          ...rootCause(),
+          frames: [{ raw: 'first', function: 'run', col: 0 }],
+          framesTruncated: true,
+        },
+        second,
+      ],
       truncated: false,
     });
   });
@@ -351,68 +455,100 @@ describe('generic crash cause contract', () => {
         return Reflect.getOwnPropertyDescriptor(target, property);
       },
     });
-    const bounded = normalizeCrashCauseChain({ causes, truncated: false }, value => value);
+    const bounded = normalizeCrashCauseChain({ causes, truncated: false }, (value) => value);
     expect(bounded?.causes).toHaveLength(MAX_CRASH_CAUSES);
     expect(bounded?.truncated).toBe(true);
     expect(descriptors).toBeLessThanOrEqual(MAX_CRASH_CAUSES + 2);
 
     const revoked = Proxy.revocable(rootCause(), {});
     revoked.revoke();
-    expect(normalizeCrashCauseChain(
-      { causes: [rootCause(), revoked.proxy, rootCause()], truncated: false },
-      value => value,
-    )).toEqual({ causes: [rootCause()], truncated: true });
+    expect(
+      normalizeCrashCauseChain(
+        { causes: [rootCause(), revoked.proxy, rootCause()], truncated: false },
+        (value) => value,
+      ),
+    ).toEqual({ causes: [rootCause()], truncated: true });
   });
 
   it('rejects invalid direct wire text, positions, item caps, and required flags', () => {
     const cause = rootCause();
-    expect(CrashCauseChain.safeParse({
-      causes: Array.from({ length: MAX_CRASH_CAUSES }, rootCause),
-      truncated: false,
-    }).success).toBe(true);
-    expect(CrashCauseChain.safeParse({
-      causes: [{
-        ...cause,
-        frames: Array.from({ length: MAX_CRASH_CAUSE_FRAMES }, () => ({ raw: 'x' })),
-      }],
-      truncated: false,
-    }).success).toBe(true);
-    expect(CrashCauseChain.safeParse({ causes: [
-      { ...cause, message: '\0' },
-    ], truncated: false }).success).toBe(false);
-    expect(CrashCauseChain.safeParse({ causes: [
-      { ...cause, frames: [{ raw: 'x', line: Number.MAX_SAFE_INTEGER + 1 }] },
-    ], truncated: false }).success).toBe(false);
-    expect(CrashCauseChain.safeParse({
-      causes: Array.from({ length: MAX_CRASH_CAUSES + 1 }, rootCause),
-      truncated: true,
-    }).success).toBe(false);
-    expect(CrashCauseChain.safeParse({
-      causes: [{ ...cause, frames: Array.from({ length: MAX_CRASH_CAUSE_FRAMES + 1 }, () => ({ raw: 'x' })) }],
-      truncated: true,
-    }).success).toBe(false);
-    expect(CrashCauseChain.safeParse({
-      causes: [{ exceptionType: 'Error', message: 'x', frames: [] }],
-      truncated: false,
-    }).success).toBe(false);
+    expect(
+      CrashCauseChain.safeParse({
+        causes: Array.from({ length: MAX_CRASH_CAUSES }, rootCause),
+        truncated: false,
+      }).success,
+    ).toBe(true);
+    expect(
+      CrashCauseChain.safeParse({
+        causes: [
+          {
+            ...cause,
+            frames: Array.from({ length: MAX_CRASH_CAUSE_FRAMES }, () => ({ raw: 'x' })),
+          },
+        ],
+        truncated: false,
+      }).success,
+    ).toBe(true);
+    expect(
+      CrashCauseChain.safeParse({ causes: [{ ...cause, message: '\0' }], truncated: false })
+        .success,
+    ).toBe(false);
+    expect(
+      CrashCauseChain.safeParse({
+        causes: [{ ...cause, frames: [{ raw: 'x', line: Number.MAX_SAFE_INTEGER + 1 }] }],
+        truncated: false,
+      }).success,
+    ).toBe(false);
+    expect(
+      CrashCauseChain.safeParse({
+        causes: Array.from({ length: MAX_CRASH_CAUSES + 1 }, rootCause),
+        truncated: true,
+      }).success,
+    ).toBe(false);
+    expect(
+      CrashCauseChain.safeParse({
+        causes: [
+          {
+            ...cause,
+            frames: Array.from({ length: MAX_CRASH_CAUSE_FRAMES + 1 }, () => ({ raw: 'x' })),
+          },
+        ],
+        truncated: true,
+      }).success,
+    ).toBe(false);
+    expect(
+      CrashCauseChain.safeParse({
+        causes: [{ exceptionType: 'Error', message: 'x', frames: [] }],
+        truncated: false,
+      }).success,
+    ).toBe(false);
   });
 });
 
 describe('incremental crash cause fitting', () => {
   it('returns frames_full without touching the 33rd frame, then accepts the next cause', () => {
     let redactions = 0;
-    const fitter = createCrashCauseChainFitter(value => { redactions++; return value; });
-    expect(fitter.beginCause({ exceptionType: 'Outer', message: 'x', framesTruncated: false }))
-      .toBe('accepted');
+    const fitter = createCrashCauseChainFitter((value) => {
+      redactions++;
+      return value;
+    });
+    expect(
+      fitter.beginCause({ exceptionType: 'Outer', message: 'x', framesTruncated: false }),
+    ).toBe('accepted');
     for (let index = 0; index < MAX_CRASH_CAUSE_FRAMES; index++) {
       expect(fitter.appendFrame({ raw: `frame-${index}` })).toBe('accepted');
     }
     const beforeExtra = redactions;
-    const extra = Object.defineProperty({}, 'raw', { get: () => { throw new Error('read'); } });
+    const extra = Object.defineProperty({}, 'raw', {
+      get: () => {
+        throw new Error('read');
+      },
+    });
     expect(fitter.appendFrame(extra as { raw: string })).toBe('frames_full');
     expect(redactions).toBe(beforeExtra);
-    expect(fitter.beginCause({ exceptionType: 'Inner', message: 'y', framesTruncated: false }))
-      .toBe('accepted');
+    expect(
+      fitter.beginCause({ exceptionType: 'Inner', message: 'y', framesTruncated: false }),
+    ).toBe('accepted');
 
     const result = fitter.finish();
     expect(result?.causes).toHaveLength(2);
@@ -422,38 +558,51 @@ describe('incremental crash cause fitting', () => {
 
   it('refuses a ninth header structurally without reading or redacting it', () => {
     let redactions = 0;
-    const fitter = createCrashCauseChainFitter(value => { redactions++; return value; });
+    const fitter = createCrashCauseChainFitter((value) => {
+      redactions++;
+      return value;
+    });
     for (let index = 0; index < MAX_CRASH_CAUSES; index++) {
-      expect(fitter.beginCause({ exceptionType: `E${index}`, message: 'x', framesTruncated: false }))
-        .toBe('accepted');
+      expect(
+        fitter.beginCause({ exceptionType: `E${index}`, message: 'x', framesTruncated: false }),
+      ).toBe('accepted');
     }
     const beforeNinth = redactions;
-    const ninth = Object.defineProperty({}, 'exceptionType', { get: () => { throw new Error('read'); } });
+    const ninth = Object.defineProperty({}, 'exceptionType', {
+      get: () => {
+        throw new Error('read');
+      },
+    });
     expect(fitter.beginCause(ninth as never)).toBe('exhausted');
     expect(redactions).toBe(beforeNinth);
     expect(fitter.finish()).toMatchObject({ truncated: true });
   });
 
   it('seals after finish and discards malformed operation order or ownership loss', () => {
-    const malformed = createCrashCauseChainFitter(value => value);
+    const malformed = createCrashCauseChainFitter((value) => value);
     expect(malformed.appendFrame({ raw: 'orphan' })).toBe('discarded');
     expect(malformed.finish()).toBeUndefined();
 
-    const badMark = createCrashCauseChainFitter(value => value);
+    const badMark = createCrashCauseChainFitter((value) => value);
     badMark.markFramesTruncated();
     expect(badMark.finish()).toBeUndefined();
 
     let owned = true;
-    const cancelled = createCrashCauseChainFitter(value => value, () => owned);
-    expect(cancelled.beginCause({ exceptionType: 'Error', message: 'x', framesTruncated: false }))
-      .toBe('accepted');
+    const cancelled = createCrashCauseChainFitter(
+      (value) => value,
+      () => owned,
+    );
+    expect(
+      cancelled.beginCause({ exceptionType: 'Error', message: 'x', framesTruncated: false }),
+    ).toBe('accepted');
     owned = false;
     expect(cancelled.finish()).toBeUndefined();
 
-    const sealed = createCrashCauseChainFitter(value => value);
+    const sealed = createCrashCauseChainFitter((value) => value);
     sealed.markChainTruncated();
-    expect(sealed.beginCause({ exceptionType: 'Error', message: 'x', framesTruncated: false }))
-      .toBe('accepted');
+    expect(
+      sealed.beginCause({ exceptionType: 'Error', message: 'x', framesTruncated: false }),
+    ).toBe('accepted');
     sealed.markFramesTruncated();
     const first = sealed.finish();
     expect(sealed.finish()).toBe(first);
@@ -461,15 +610,17 @@ describe('incremental crash cause fitting', () => {
       causes: [{ exceptionType: 'Error', message: 'x', frames: [], framesTruncated: true }],
       truncated: true,
     });
-    expect(sealed.beginCause({ exceptionType: 'Later', message: 'y', framesTruncated: false }))
-      .toBe('discarded');
+    expect(
+      sealed.beginCause({ exceptionType: 'Later', message: 'y', framesTruncated: false }),
+    ).toBe('discarded');
     expect(sealed.finish()).toBe(first);
   });
 
   it('retains a header and frame prefix when byte admission becomes exhausted', () => {
-    const fitter = createCrashCauseChainFitter(value => value);
-    expect(fitter.beginCause({ exceptionType: 'Error', message: 'x', framesTruncated: false }))
-      .toBe('accepted');
+    const fitter = createCrashCauseChainFitter((value) => value);
+    expect(
+      fitter.beginCause({ exceptionType: 'Error', message: 'x', framesTruncated: false }),
+    ).toBe('accepted');
     let result: string = 'accepted';
     let accepted = 0;
     while (result === 'accepted') {
@@ -488,42 +639,61 @@ describe('incremental crash cause fitting', () => {
     expect(chain?.causes[0]?.frames).toHaveLength(accepted);
     expect(chain?.causes[0]?.framesTruncated).toBe(true);
     expect(chain?.truncated).toBe(true);
-    expect(Buffer.byteLength(JSON.stringify(chain), 'utf8')).toBeLessThanOrEqual(MAX_CRASH_CAUSE_BYTES);
+    expect(Buffer.byteLength(JSON.stringify(chain), 'utf8')).toBeLessThanOrEqual(
+      MAX_CRASH_CAUSE_BYTES,
+    );
   });
 
   it('does no further field or callback work after exhaustion', () => {
     let redactions = 0;
-    const fitter = createCrashCauseChainFitter(value => { redactions++; return value; });
-    expect(fitter.beginCause({ exceptionType: 'Error', message: 'x', framesTruncated: false }))
-      .toBe('accepted');
-    while (fitter.appendFrame({
-      raw: 'r'.repeat(1024), file: 'f'.repeat(1024), function: 'n'.repeat(512),
-    }) === 'accepted') {
+    const fitter = createCrashCauseChainFitter((value) => {
+      redactions++;
+      return value;
+    });
+    expect(
+      fitter.beginCause({ exceptionType: 'Error', message: 'x', framesTruncated: false }),
+    ).toBe('accepted');
+    while (
+      fitter.appendFrame({
+        raw: 'r'.repeat(1024),
+        file: 'f'.repeat(1024),
+        function: 'n'.repeat(512),
+      }) === 'accepted'
+    ) {
       // Fill the byte budget.
     }
     const before = redactions;
-    const unreadable = Object.defineProperty({}, 'message', { get: () => { throw new Error('read'); } });
+    const unreadable = Object.defineProperty({}, 'message', {
+      get: () => {
+        throw new Error('read');
+      },
+    });
     expect(fitter.beginCause(unreadable as never)).toBe('exhausted');
     expect(fitter.appendFrame(unreadable as never)).toBe('exhausted');
     expect(redactions).toBe(before);
   });
 
   it('exhausts on a later header without shrinking the retained earlier cause', () => {
-    const fitter = createCrashCauseChainFitter(value => value);
-    expect(fitter.beginCause({ exceptionType: 'Outer', message: 'x', framesTruncated: false }))
-      .toBe('accepted');
+    const fitter = createCrashCauseChainFitter((value) => value);
+    expect(
+      fitter.beginCause({ exceptionType: 'Outer', message: 'x', framesTruncated: false }),
+    ).toBe('accepted');
     for (let index = 0; index < 24; index++) {
-      expect(fitter.appendFrame({
-        raw: 'r'.repeat(1024),
-        file: 'f'.repeat(1024),
-        function: 'n'.repeat(512),
-      })).toBe('accepted');
+      expect(
+        fitter.appendFrame({
+          raw: 'r'.repeat(1024),
+          file: 'f'.repeat(1024),
+          function: 'n'.repeat(512),
+        }),
+      ).toBe('accepted');
     }
-    expect(fitter.beginCause({
-      exceptionType: 'Inner',
-      message: '\\'.repeat(4096),
-      framesTruncated: false,
-    })).toBe('exhausted');
+    expect(
+      fitter.beginCause({
+        exceptionType: 'Inner',
+        message: '\\'.repeat(4096),
+        framesTruncated: false,
+      }),
+    ).toBe('exhausted');
 
     const result = fitter.finish();
     expect(result?.causes).toHaveLength(1);
@@ -570,10 +740,14 @@ describe('whole-chain byte boundary', () => {
 
 // Native adapters explicitly mark a present malformed root as lost enrichment.
 it('matches the shared mobile normalization fixtures', () => {
-  const fixtures = JSON.parse(readFileSync(join(__dirname, 'fixtures/crash-causes-native-parity.json'), 'utf8'));
+  const fixtures = JSON.parse(
+    readFileSync(join(__dirname, 'fixtures/crash-causes-native-parity.json'), 'utf8'),
+  );
   for (const test of fixtures.cases) {
-    const result = normalizeCrashCauseChain(test.input, (text: string) => text)
-      ?? { causes: [], truncated: true };
+    const result = normalizeCrashCauseChain(test.input, (text: string) => text) ?? {
+      causes: [],
+      truncated: true,
+    };
     expect(result, test.name).toEqual(test.expected);
     expect(CrashCauseChain.safeParse(result).success, test.name).toBe(true);
   }

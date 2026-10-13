@@ -26,7 +26,9 @@ test.beforeEach(async ({ page }) => {
   stubIngest(page);
 });
 
-test('the attribute-marked fixture is present in the DOM with its marker attribute', async ({ page }) => {
+test('the attribute-marked fixture is present in the DOM with its marker attribute', async ({
+  page,
+}) => {
   await page.goto('/');
   await expect(page.getByTestId('sensitive-attr-block')).toBeVisible();
   // The attribute path is a capture-time scan, not a registry entry — so it is

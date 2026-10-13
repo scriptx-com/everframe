@@ -40,7 +40,11 @@ import {
   strongestShotReason,
   type ShotCapture,
 } from '../capture/shot-capture.js';
-import { assembleDialogShots, reportScreenshotFrom, type ReportScreenshot } from './dialog-shots.js';
+import {
+  assembleDialogShots,
+  reportScreenshotFrom,
+  type ReportScreenshot,
+} from './dialog-shots.js';
 import {
   __getBrandingServerConfig,
   __subscribeBrandingServerConfig,

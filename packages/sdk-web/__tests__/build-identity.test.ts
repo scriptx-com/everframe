@@ -25,11 +25,18 @@ describe('resolveAppBuild', () => {
     expect(resolveAppBuild(undefined)).toBe('late');
   });
 
-  it.each([null, 'b', {}, { buildId: '' }, { buildId: ' \t' }, { buildId: 7 }, { buildId: 'a'.repeat(201) }, { buildId: 'a\u0000b' }, { buildId: 'a\ud800' }])(
-    'ignores an invalid injected value %j',
-    (value) => {
-      g.__EVERFRAME_BUILD__ = value;
-      expect(resolveAppBuild(undefined)).toBeUndefined();
-    },
-  );
+  it.each([
+    null,
+    'b',
+    {},
+    { buildId: '' },
+    { buildId: ' \t' },
+    { buildId: 7 },
+    { buildId: 'a'.repeat(201) },
+    { buildId: 'a\u0000b' },
+    { buildId: 'a\ud800' },
+  ])('ignores an invalid injected value %j', (value) => {
+    g.__EVERFRAME_BUILD__ = value;
+    expect(resolveAppBuild(undefined)).toBeUndefined();
+  });
 });

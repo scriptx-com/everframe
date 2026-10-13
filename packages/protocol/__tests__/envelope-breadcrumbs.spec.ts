@@ -19,7 +19,10 @@ describe('payload.breadcrumbs (additive)', () => {
   it('rejects a chain over 128 entries', () => {
     const fixture = JSON.parse(JSON.stringify(withBreadcrumbs)) as Record<string, any>;
     fixture.payload.breadcrumbs = Array.from({ length: 129 }, (_, i) => ({
-      t: 1751884800000 + i, seq: i, kind: 'tap', message: `tap ${i}`,
+      t: 1751884800000 + i,
+      seq: i,
+      kind: 'tap',
+      message: `tap ${i}`,
     }));
     expect(ReportEnvelope.safeParse(fixture).success).toBe(false);
   });

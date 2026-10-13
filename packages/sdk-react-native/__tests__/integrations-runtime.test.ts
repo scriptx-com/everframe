@@ -18,7 +18,9 @@ describe('runtime integrations', () => {
 
   it('runs setup on mount (after context publish) and teardown on unmount (after context clear)', () => {
     let teardownContext: unknown = 'not called';
-    const teardown = vi.fn(() => { teardownContext = __getCurrentContext(); });
+    const teardown = vi.fn(() => {
+      teardownContext = __getCurrentContext();
+    });
     const setup = vi.fn(() => {
       expect(__getCurrentContext()).not.toBeNull();
       return teardown;
@@ -37,7 +39,12 @@ describe('runtime integrations', () => {
     const rt = createRuntime({
       sdkKey: 'k',
       integrations: [
-        { name: 'boom', setup: () => { throw new Error('nope'); } },
+        {
+          name: 'boom',
+          setup: () => {
+            throw new Error('nope');
+          },
+        },
         { name: 'good', setup: good },
       ],
     });
@@ -51,7 +58,14 @@ describe('runtime integrations', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const rt = createRuntime({
       sdkKey: 'k',
-      integrations: [{ name: 'boom', setup: () => () => { throw new Error('nope'); } }],
+      integrations: [
+        {
+          name: 'boom',
+          setup: () => () => {
+            throw new Error('nope');
+          },
+        },
+      ],
     });
     rt.mount();
     expect(() => rt.unmount()).not.toThrow();

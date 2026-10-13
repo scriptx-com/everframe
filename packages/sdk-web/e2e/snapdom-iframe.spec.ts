@@ -10,15 +10,19 @@
 import { test, expect } from '@playwright/test';
 
 for (const htmlBg of ['rgb(255,255,255)', null] as const) {
-  test(`a same-origin iframe is captured without restyling its live document, content at its live y (html background ${htmlBg ?? 'none'})`, async ({ page }) => {
+  test(`a same-origin iframe is captured without restyling its live document, content at its live y (html background ${htmlBg ?? 'none'})`, async ({
+    page,
+  }) => {
     await page.goto('/e2e/fixtures/plain.html');
     const r = await page.evaluate(async (htmlBg) => {
       document.body.style.background = '#fff';
       document.querySelector('main')!.remove();
       const frame = document.createElement('iframe');
-      frame.style.cssText = 'display:block;position:absolute;left:40px;top:40px;width:300px;height:300px;border:0';
+      frame.style.cssText =
+        'display:block;position:absolute;left:40px;top:40px;width:300px;height:300px;border:0';
       frame.srcdoc =
-        '<!doctype html><html><head><style>' + (htmlBg ? `html{background:${htmlBg}}` : '') +
+        '<!doctype html><html><head><style>' +
+        (htmlBg ? `html{background:${htmlBg}}` : '') +
         'body{margin:0;height:100px;display:flex;align-items:center;background:rgb(0,120,255)}' +
         '#dot{width:300px;height:20px;background:rgb(255,0,255)}</style></head>' +
         '<body><div id="dot"></div></body></html>';
@@ -28,7 +32,8 @@ for (const htmlBg of ['rgb(255,255,255)', null] as const) {
       });
       const doc = frame.contentDocument!;
       const win = frame.contentWindow!;
-      const liveDotTop = frame.getBoundingClientRect().top + doc.getElementById('dot')!.getBoundingClientRect().top;
+      const liveDotTop =
+        frame.getBoundingClientRect().top + doc.getElementById('dot')!.getBoundingClientRect().top;
       // Watch the live iframe document for as long as the capture runs.
       let maxBodyHeight = 0;
       let injected = 0;
@@ -47,7 +52,12 @@ for (const htmlBg of ['rgb(255,255,255)', null] as const) {
       };
       loop();
       const w = window as unknown as {
-        __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
+        __everframe: {
+          __adapter: {
+            captureScreenshot(): Promise<{ blob: Blob }>;
+            __lastScreenshotRenderer?: string;
+          };
+        };
       };
       const shot = await w.__everframe.__adapter.captureScreenshot();
       running = false;
@@ -87,17 +97,23 @@ for (const htmlBg of ['rgb(255,255,255)', null] as const) {
     expect(r.dotRows).toBeGreaterThanOrEqual(18);
     expect(Math.abs(r.dotTop - r.liveDotTop)).toBeLessThanOrEqual(2);
     const expected = htmlBg ? [255, 255, 255] : [0, 120, 255];
-    expect(r.below.slice(0, 3).every((v, i) => Math.abs(v - expected[i]!) <= 30), `below ${r.below.join(',')}`).toBe(true);
+    expect(
+      r.below.slice(0, 3).every((v, i) => Math.abs(v - expected[i]!) <= 30),
+      `below ${r.below.join(',')}`,
+    ).toBe(true);
   });
 }
 
-test('a pinned iframe capture never restyles the iframe root (outline) or its content-visibility elements', async ({ page }) => {
+test('a pinned iframe capture never restyles the iframe root (outline) or its content-visibility elements', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/plain.html');
   const r = await page.evaluate(async () => {
     document.body.style.background = '#fff';
     document.querySelector('main')!.remove();
     const frame = document.createElement('iframe');
-    frame.style.cssText = 'display:block;position:absolute;left:40px;top:40px;width:300px;height:300px;border:0';
+    frame.style.cssText =
+      'display:block;position:absolute;left:40px;top:40px;width:300px;height:300px;border:0';
     frame.srcdoc =
       '<!doctype html><html><head><style>html{border:0;outline:10px solid red;background:#fff}' +
       'body{margin:0}#cv{content-visibility:auto;contain-intrinsic-size:auto 40px;height:40px;background:rgb(0,120,255)}' +
@@ -108,17 +124,24 @@ test('a pinned iframe capture never restyles the iframe root (outline) or its co
       document.body.appendChild(frame);
     });
     const doc = frame.contentDocument!;
-    const liveDotTop = frame.getBoundingClientRect().top + doc.getElementById('dot')!.getBoundingClientRect().top;
+    const liveDotTop =
+      frame.getBoundingClientRect().top + doc.getElementById('dot')!.getBoundingClientRect().top;
     const styleChanges: string[] = [];
     const mo = new MutationObserver((records) => {
       for (const rec of records) {
-        if (rec.type === 'attributes' && rec.attributeName === 'style') styleChanges.push((rec.target as Element).id || (rec.target as Element).tagName);
+        if (rec.type === 'attributes' && rec.attributeName === 'style')
+          styleChanges.push((rec.target as Element).id || (rec.target as Element).tagName);
         if (rec.type === 'childList' && rec.addedNodes.length) styleChanges.push('inserted');
       }
     });
     mo.observe(doc.documentElement, { attributes: true, childList: true, subtree: true });
     const w = window as unknown as {
-      __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
+      __everframe: {
+        __adapter: {
+          captureScreenshot(): Promise<{ blob: Blob }>;
+          __lastScreenshotRenderer?: string;
+        };
+      };
     };
     const shot = await w.__everframe.__adapter.captureScreenshot();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -136,7 +159,12 @@ test('a pinned iframe capture never restyles the iframe root (outline) or its co
       const d = ctx.getImageData(x, Math.round(y * scale), 1, 1).data;
       if (d[0]! > 200 && d[1]! < 60 && d[2]! > 200) dotTop = y;
     }
-    return { renderer: w.__everframe.__adapter.__lastScreenshotRenderer, styleChanges, liveDotTop, dotTop };
+    return {
+      renderer: w.__everframe.__adapter.__lastScreenshotRenderer,
+      styleChanges,
+      liveDotTop,
+      dotTop,
+    };
   });
   expect(r.renderer).toBe('snapdom');
   expect(r.styleChanges).toEqual([]);
@@ -144,7 +172,10 @@ test('a pinned iframe capture never restyles the iframe root (outline) or its co
 });
 
 // The nested capture restores the iframe's own scroll; the pin must not shift it again.
-test('a scrolled same-origin iframe is captured at its scroll position', async ({ page, browserName }) => {
+test('a scrolled same-origin iframe is captured at its scroll position', async ({
+  page,
+  browserName,
+}) => {
   // KNOWN GAP: on WebKit snapDOM's nested render of a scrolled iframe comes
   // back without the scrolled content (blank), so the capture falls back to
   // modern-screenshot. Not a leak; tracked as a follow-up.
@@ -154,7 +185,8 @@ test('a scrolled same-origin iframe is captured at its scroll position', async (
     document.body.style.cssText = 'background:rgb(200,200,200);min-height:100vh';
     document.querySelector('main')!.remove();
     const frame = document.createElement('iframe');
-    frame.style.cssText = 'display:block;position:absolute;left:40px;top:40px;width:300px;height:300px;border:0';
+    frame.style.cssText =
+      'display:block;position:absolute;left:40px;top:40px;width:300px;height:300px;border:0';
     frame.srcdoc =
       '<!doctype html><html><head><style>html{background:#fff}body{margin:0;height:1000px}' +
       '#dot{position:relative;top:300px;width:300px;height:20px;background:rgb(255,0,255)}</style></head>' +
@@ -164,9 +196,16 @@ test('a scrolled same-origin iframe is captured at its scroll position', async (
       document.body.appendChild(frame);
     });
     frame.contentWindow!.scrollTo(0, 200);
-    const liveDotTop = frame.getBoundingClientRect().top + frame.contentDocument!.getElementById('dot')!.getBoundingClientRect().top;
+    const liveDotTop =
+      frame.getBoundingClientRect().top +
+      frame.contentDocument!.getElementById('dot')!.getBoundingClientRect().top;
     const w = window as unknown as {
-      __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
+      __everframe: {
+        __adapter: {
+          captureScreenshot(): Promise<{ blob: Blob }>;
+          __lastScreenshotRenderer?: string;
+        };
+      };
     };
     const shot = await w.__everframe.__adapter.captureScreenshot();
     const bmp = await createImageBitmap(shot.blob);
@@ -182,7 +221,12 @@ test('a scrolled same-origin iframe is captured at its scroll position', async (
       const d = ctx.getImageData(x, Math.round(y * scale), 1, 1).data;
       if (d[0]! > 200 && d[1]! < 60 && d[2]! > 200) dotTop = y;
     }
-    return { renderer: w.__everframe.__adapter.__lastScreenshotRenderer, liveDotTop, dotTop, scrolled: frame.contentWindow!.scrollY };
+    return {
+      renderer: w.__everframe.__adapter.__lastScreenshotRenderer,
+      liveDotTop,
+      dotTop,
+      scrolled: frame.contentWindow!.scrollY,
+    };
   });
   expect(r.renderer).toBe('snapdom');
   expect(r.scrolled).toBe(200);

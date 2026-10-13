@@ -57,7 +57,7 @@ describe('consoleIntegration', () => {
   it('re-entrancy: a crumb sink that logs cannot loop', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
     crumbs.mockImplementation(() => {
-      console.log('sink logging back');   // must NOT recurse into a new crumb
+      console.log('sink logging back'); // must NOT recurse into a new crumb
     });
     teardown = consoleIntegration().setup();
     console.log('outer');

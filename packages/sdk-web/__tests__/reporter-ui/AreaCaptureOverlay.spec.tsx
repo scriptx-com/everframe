@@ -50,9 +50,7 @@ describe('<AreaCaptureOverlay>', () => {
   it('"Capture full page" calls onSelect(null); Cancel calls onCancel', () => {
     const onSelect = vi.fn();
     const onCancel = vi.fn();
-    const { getByTestId } = render(
-      <AreaCaptureOverlay onSelect={onSelect} onCancel={onCancel} />,
-    );
+    const { getByTestId } = render(<AreaCaptureOverlay onSelect={onSelect} onCancel={onCancel} />);
     fireEvent.click(getByTestId('area-capture-full'));
     expect(onSelect).toHaveBeenCalledWith(null);
     fireEvent.click(getByTestId('area-capture-cancel'));

@@ -12,10 +12,10 @@
 // (Phase 05.1 precedent: SDK ships zero QR chrome, mirroring the
 // triggers-are-host-concern lock in MEMORY.md). Any QR lib works; we picked
 // qrcode.react for its tiny footprint + tree-shakeable SVG export.
-import * as React from "react";
-import { useEffect, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
-import { companion } from "@everframe/react";
+import * as React from 'react';
+import { useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { companion } from '@everframe/react';
 
 type CompanionState = companion.CompanionState;
 
@@ -25,7 +25,7 @@ type CompanionState = companion.CompanionState;
 // in this app's bootstrap before <App /> mounts.
 
 export function App(): React.JSX.Element {
-  const [state, setState] = useState<CompanionState>("unpaired");
+  const [state, setState] = useState<CompanionState>('unpaired');
   const [pairUrl, setPairUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,44 +59,32 @@ export function App(): React.JSX.Element {
   return (
     <main
       style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "32px",
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '32px',
       }}
     >
       <h1 style={{ fontSize: 48, margin: 0 }}>Everframe — React TV Sample</h1>
 
-      {state === "unpaired" && pairUrl && (
-        <div style={{ background: "#fff", padding: 24, borderRadius: 12 }}>
+      {state === 'unpaired' && pairUrl && (
+        <div style={{ background: '#fff', padding: 24, borderRadius: 12 }}>
           <QRCodeSVG value={pairUrl} size={400} level="M" />
         </div>
       )}
-      {state === "unpaired" && !pairUrl && (
-        <p style={{ fontSize: 24 }}>Connecting to relay…</p>
+      {state === 'unpaired' && !pairUrl && <p style={{ fontSize: 24 }}>Connecting to relay…</p>}
+      {state === 'paired' && (
+        <p style={{ fontSize: 28 }}>Phone connected — file your report from your phone</p>
       )}
-      {state === "paired" && (
-        <p style={{ fontSize: 28 }}>
-          Phone connected — file your report from your phone
-        </p>
-      )}
-      {state === "report_in_progress" && (
-        <p style={{ fontSize: 28 }}>Report in progress…</p>
-      )}
-      {state === "phone_disconnected" && (
-        <p style={{ fontSize: 24, opacity: 0.7 }}>
-          Phone disconnected — reconnecting…
-        </p>
+      {state === 'report_in_progress' && <p style={{ fontSize: 28 }}>Report in progress…</p>}
+      {state === 'phone_disconnected' && (
+        <p style={{ fontSize: 24, opacity: 0.7 }}>Phone disconnected — reconnecting…</p>
       )}
 
-      <p
-        style={{ position: "absolute", bottom: 24, fontSize: 16, opacity: 0.5 }}
-      >
-        State: {state}
-      </p>
+      <p style={{ position: 'absolute', bottom: 24, fontSize: 16, opacity: 0.5 }}>State: {state}</p>
     </main>
   );
 }

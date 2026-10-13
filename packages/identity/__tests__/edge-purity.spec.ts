@@ -120,7 +120,7 @@ describe('edge purity', () => {
 // the scanning logic directly against known-good and known-bad snippets.
 describe('purity-scanning helpers', () => {
   it('does not flag process. mentioned only inside a // comment', () => {
-    const src = "// an unset process.env.FOO is fine to mention in prose\nconst x = 1;";
+    const src = '// an unset process.env.FOO is fine to mention in prose\nconst x = 1;';
     expect(hasProcessRef(src)).toBe(false);
   });
 

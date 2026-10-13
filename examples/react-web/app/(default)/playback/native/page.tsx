@@ -21,9 +21,9 @@ export default function NativePlaybackPage() {
         Native progressive
       </h1>
       <p className="lede">
-        The baseline. Same-origin, two encodings, nothing between the element
-        and the browser's own decoder — so whatever shows up in the session
-        timeline is the adapter reading the element directly.
+        The baseline. Same-origin, two encodings, nothing between the element and the browser's own
+        decoder — so whatever shows up in the session timeline is the adapter reading the element
+        directly.
       </p>
 
       <PlayerBench
@@ -34,7 +34,15 @@ export default function NativePlaybackPage() {
         videoRef={ref}
       >
         {/* eslint-disable-next-line jsx-a11y/media-has-caption -- silent colour loop, no speech */}
-        <video ref={ref} controls muted playsInline width={640} height={360} data-testid="native-video">
+        <video
+          ref={ref}
+          controls
+          muted
+          playsInline
+          width={640}
+          height={360}
+          data-testid="native-video"
+        >
           {CLIP_SOURCES.map((s) => (
             <source key={s.src} src={s.src} type={s.type} />
           ))}

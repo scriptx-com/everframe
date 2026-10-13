@@ -52,10 +52,10 @@ if (!cmd) {
 if (!(await isFree(PORT))) {
   console.error(
     `\n[everframe-example] Metro port ${PORT} is already in use.\n` +
-    `Another RN sample is probably running. Stop it, or run this one on\n` +
-    `its own port:\n` +
-    `  METRO_PORT=8082 pnpm ios\n` +
-    `  lsof -nP -iTCP:${PORT} -sTCP:LISTEN     # see what is holding it\n`,
+      `Another RN sample is probably running. Stop it, or run this one on\n` +
+      `its own port:\n` +
+      `  METRO_PORT=8082 pnpm ios\n` +
+      `  lsof -nP -iTCP:${PORT} -sTCP:LISTEN     # see what is holding it\n`,
   );
   process.exit(1);
 }

@@ -27,9 +27,17 @@ beforeEach(async () => {
   await writeFile(join(staging, 'latest-android.json'), JSON.stringify({ buildId }));
   await writeFile(join(staging, buildId, 'manifest.partial.json'), JSON.stringify(base));
 });
-afterEach(async () => { await rm(staging, { recursive: true, force: true }); });
+afterEach(async () => {
+  await rm(staging, { recursive: true, force: true });
+});
 
-const options = { stagingDir: '', platform: 'android' as const, release: true, allowMissing: false, hasToken: true };
+const options = {
+  stagingDir: '',
+  platform: 'android' as const,
+  release: true,
+  allowMissing: false,
+  hasToken: true,
+};
 
 describe('verifyStagedBuild', () => {
   it('passes when the manifest is complete', async () => {
@@ -65,7 +73,10 @@ describe('verifyStagedBuild', () => {
 
   it('is a silent no-op on a dev build with no token', async () => {
     const result = await verifyStagedBuild({
-      ...options, stagingDir: staging, release: false, hasToken: false,
+      ...options,
+      stagingDir: staging,
+      release: false,
+      hasToken: false,
     });
     expect(result).toEqual({ ok: true, failures: [], warnings: [] });
   });

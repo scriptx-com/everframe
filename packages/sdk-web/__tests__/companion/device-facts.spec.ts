@@ -19,32 +19,50 @@ const WIN_EDGE_UA =
 describe('deriveDeviceFacts', () => {
   it('recognizes Samsung Tizen TVs with the OS version', () => {
     expect(deriveDeviceFacts(TIZEN_UA)).toEqual({
-      platform: 'web', model: 'Samsung TV', osName: 'Tizen', osVersion: '7.0',
+      platform: 'web',
+      model: 'Samsung TV',
+      osName: 'Tizen',
+      osVersion: '7.0',
     });
   });
 
   it('recognizes LG webOS TVs (no version in modern UAs)', () => {
     expect(deriveDeviceFacts(WEBOS_UA)).toEqual({
-      platform: 'web', model: 'LG TV', osName: 'webOS', osVersion: null,
+      platform: 'web',
+      model: 'LG TV',
+      osName: 'webOS',
+      osVersion: null,
     });
   });
 
   it('desktop browsers: browser+major as model, OS as osName', () => {
     expect(deriveDeviceFacts(MAC_CHROME_UA)).toEqual({
-      platform: 'web', model: 'Chrome 126', osName: 'macOS', osVersion: null,
+      platform: 'web',
+      model: 'Chrome 126',
+      osName: 'macOS',
+      osVersion: null,
     });
     // Edge advertises Chrome too — the Edg/ token wins.
     expect(deriveDeviceFacts(WIN_EDGE_UA)).toEqual({
-      platform: 'web', model: 'Edge 125', osName: 'Windows', osVersion: null,
+      platform: 'web',
+      model: 'Edge 125',
+      osName: 'Windows',
+      osVersion: null,
     });
   });
 
   it('degrades to all-null facts on an unrecognizable UA, never throws', () => {
     expect(deriveDeviceFacts('curl/8.4.0')).toEqual({
-      platform: 'web', model: null, osName: null, osVersion: null,
+      platform: 'web',
+      model: null,
+      osName: null,
+      osVersion: null,
     });
     expect(deriveDeviceFacts('')).toEqual({
-      platform: 'web', model: null, osName: null, osVersion: null,
+      platform: 'web',
+      model: null,
+      osName: null,
+      osVersion: null,
     });
   });
 

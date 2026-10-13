@@ -8,10 +8,15 @@ import { fileURLToPath } from 'node:url';
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '../dist');
 
 for (const variant of ['', 'browser/']) {
-  test(`the ${variant || 'ESM'} replay chunk ships the snapshot fix and remains lazy`, async ({ page }) => {
+  test(`the ${variant || 'ESM'} replay chunk ships the snapshot fix and remains lazy`, async ({
+    page,
+  }) => {
     const directory = resolve(dist, variant);
     const recorder = readdirSync(directory).find((file) => /^rrweb-.*\.js$/.test(file));
-    expect(recorder, 'patched rrweb must be shipped instead of an external bare import').toBeTruthy();
+    expect(
+      recorder,
+      'patched rrweb must be shipped instead of an external bare import',
+    ).toBeTruthy();
     // Walk static edges from the actual entry; the recorder must only be reachable
     // through import(), even if a future build moves that import to a shared chunk.
     const eager = new Set<string>();
@@ -27,9 +32,12 @@ for (const variant of ['', 'browser/']) {
     visit('index.js');
     expect([...eager].some((file) => file.endsWith(recorder!))).toBe(false);
 
-    await page.route('**/replay-bundle-fixture', (route) => route.fulfill({
-      contentType: 'text/html', body: '<!doctype html><div id="card" style="color: red">Card</div>',
-    }));
+    await page.route('**/replay-bundle-fixture', (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: '<!doctype html><div id="card" style="color: red">Card</div>',
+      }),
+    );
     await page.goto('/replay-bundle-fixture');
     const result = await page.evaluate(async (url) => {
       const rr = await import(url);
@@ -42,7 +50,11 @@ for (const variant of ['', 'browser/']) {
       const snapshots: unknown[] = [];
       let stop: (() => void) | undefined;
       try {
-        stop = rr.record({ emit: (e: { type: number }) => { if (e.type === 2) snapshots.push(e); } });
+        stop = rr.record({
+          emit: (e: { type: number }) => {
+            if (e.type === 2) snapshots.push(e);
+          },
+        });
         rr.record.takeFullSnapshot();
         return { hrefWrites, snapshots: snapshots.length, dom: JSON.stringify(snapshots.at(-1)) };
       } finally {

@@ -40,7 +40,7 @@ export const UINode: z.ZodType<UINode> = z.lazy(() =>
     sensitive: z.boolean().optional(),
     // Plan 05-01 (D-05): see interface comment above.
     nodeKind: z.enum(['compose', 'view', 'dom']).optional(),
-  })
+  }),
 );
 
 export const UITree = z.object({

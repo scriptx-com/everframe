@@ -10,12 +10,26 @@ import type { ReporterApi, ThreadSummary } from '../src/reporter/api.js';
 
 function fakeThreads(): ThreadClient {
   return {
-    getState: vi.fn(() => ({ enabled: true, readOnly: false, threads: [], unreadCount: 5, pending: [], cooldownUntilMs: null })),
-    list: vi.fn(() => []), unreadCount: vi.fn(() => 5),
-    subscribe: vi.fn(() => () => {}), refresh: vi.fn(async () => {}),
-    wake: vi.fn(), startPolling: vi.fn(), stopPolling: vi.fn(),
-    get: vi.fn(async () => null), reply: vi.fn(async () => {}), retryMessage: vi.fn(async () => {}),
-    markRead: vi.fn(async () => {}), deleteThread: vi.fn(async () => {}),
+    getState: vi.fn(() => ({
+      enabled: true,
+      readOnly: false,
+      threads: [],
+      unreadCount: 5,
+      pending: [],
+      cooldownUntilMs: null,
+    })),
+    list: vi.fn(() => []),
+    unreadCount: vi.fn(() => 5),
+    subscribe: vi.fn(() => () => {}),
+    refresh: vi.fn(async () => {}),
+    wake: vi.fn(),
+    startPolling: vi.fn(),
+    stopPolling: vi.fn(),
+    get: vi.fn(async () => null),
+    reply: vi.fn(async () => {}),
+    retryMessage: vi.fn(async () => {}),
+    markRead: vi.fn(async () => {}),
+    deleteThread: vi.fn(async () => {}),
     shutdown: vi.fn(),
   } as unknown as ThreadClient;
 }
@@ -87,7 +101,12 @@ describe('tx.threads facade', () => {
     await adapter.threads.refresh();
     expect(listThreads).not.toHaveBeenCalled();
     expect(adapter.threads.getState()).toEqual({
-      enabled: false, readOnly: false, threads: [], unreadCount: 0, pending: [], cooldownUntilMs: null,
+      enabled: false,
+      readOnly: false,
+      threads: [],
+      unreadCount: 0,
+      pending: [],
+      cooldownUntilMs: null,
     });
   });
 
@@ -99,13 +118,22 @@ describe('tx.threads facade', () => {
   // read-only inbox navigate back as if the delete worked while list()
   // still shows the same conversation.
   it('delete() resolves false when the server latches replies_disabled instead of deleting, and the thread stays listed', async () => {
-    const t1: ThreadSummary = { id: 't1', status: 'open', reportTitle: 'Crash', createdAt: '2026-08-01T00:00:00.000Z', lastMessageAt: null, unreadCount: 0 };
+    const t1: ThreadSummary = {
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Crash',
+      createdAt: '2026-08-01T00:00:00.000Z',
+      lastMessageAt: null,
+      unreadCount: 0,
+    };
     const api = {
       listThreads: vi.fn(async () => ({ kind: 'ok' as const, threads: [t1], etag: null })),
       listMessages: vi.fn(),
       postMessage: vi.fn(),
       markRead: vi.fn(),
-      deleteThread: vi.fn(async () => { throw new ReporterApiError('replies_disabled', 401); }),
+      deleteThread: vi.fn(async () => {
+        throw new ReporterApiError('replies_disabled', 401);
+      }),
     } as unknown as ReporterApi;
     const credentials = {
       randomBytes: (n: number) => new Uint8Array(n),
@@ -122,7 +150,7 @@ describe('tx.threads facade', () => {
 
     const deleted = await client.threads.delete('t1');
     expect(deleted).toBe(false);
-    expect(client.threads.list().map((t) => t.id)).toEqual(['t1']);   // still there
+    expect(client.threads.list().map((t) => t.id)).toEqual(['t1']); // still there
   });
 
   // Finding 2 (round 7, PR review): against the REAL facade + REAL thread
@@ -133,7 +161,14 @@ describe('tx.threads facade', () => {
   // locally; a `true` here would navigate the built-in inbox back as though
   // the delete succeeded while list() still shows the same conversation.
   it('delete() resolves false when no reporter credential is available, and the thread stays listed', async () => {
-    const t1: ThreadSummary = { id: 't1', status: 'open', reportTitle: 'Crash', createdAt: '2026-08-01T00:00:00.000Z', lastMessageAt: null, unreadCount: 0 };
+    const t1: ThreadSummary = {
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Crash',
+      createdAt: '2026-08-01T00:00:00.000Z',
+      lastMessageAt: null,
+      unreadCount: 0,
+    };
     const deleteThread = vi.fn(async () => undefined);
     const api = {
       listThreads: vi.fn(async () => ({ kind: 'ok' as const, threads: [t1], etag: null })),
@@ -146,8 +181,12 @@ describe('tx.threads facade', () => {
     const credentials = {
       randomBytes: (n: number) => new Uint8Array(n),
       load: async () => token,
-      save: async (t: string) => { token = t; },
-      clear: async () => { token = null; },
+      save: async (t: string) => {
+        token = t;
+      },
+      clear: async () => {
+        token = null;
+      },
     };
     const threads = createThreadClient({ api, credentials, isEnabled: () => true });
     const adapter = { ...createFakePlatformAdapter(), threads };
@@ -166,7 +205,7 @@ describe('tx.threads facade', () => {
   it('is inert before init, after kill, and without an adapter client', async () => {
     const adapter = { ...createFakePlatformAdapter(), threads: fakeThreads() };
     const client = createClient(adapter);
-    expect(client.threads.list()).toEqual([]);           // pre-init
+    expect(client.threads.list()).toEqual([]); // pre-init
     expect(client.threads.unreadCount()).toBe(0);
     // Finding 5 (round 6, PR review): threads.delete() previously
     // optional-chained `threadsOrNull()?.deleteThread(id)` and then
@@ -176,12 +215,12 @@ describe('tx.threads facade', () => {
     expect(await client.threads.delete('t1')).toBe(false); // pre-init
     client.init({ sdkKey: 'txx_live_k' });
     client.kill();
-    expect(client.threads.unreadCount()).toBe(0);        // killed
+    expect(client.threads.unreadCount()).toBe(0); // killed
     expect(await client.threads.delete('t1')).toBe(false); // killed
 
     const bare = createClient(createFakePlatformAdapter());
     bare.init({ sdkKey: 'txx_live_k' });
-    expect(bare.threads.list()).toEqual([]);             // no platform thread client
+    expect(bare.threads.list()).toEqual([]); // no platform thread client
     expect(typeof bare.threads.subscribe(() => {})).toBe('function');
     expect(await bare.threads.delete('t1')).toBe(false); // no adapter thread client
   });

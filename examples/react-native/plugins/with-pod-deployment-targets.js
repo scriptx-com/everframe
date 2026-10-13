@@ -32,8 +32,14 @@ module.exports = (config) =>
       offset: 0,
       comment: '#',
     });
-    if (!merged.didMerge && !merged.didClear && !podfile.modResults.contents.includes('everframe-pod-deployment-targets'))
-      throw new Error('with-pod-deployment-targets: no react_native_post_install call in the Podfile');
+    if (
+      !merged.didMerge &&
+      !merged.didClear &&
+      !podfile.modResults.contents.includes('everframe-pod-deployment-targets')
+    )
+      throw new Error(
+        'with-pod-deployment-targets: no react_native_post_install call in the Podfile',
+      );
     podfile.modResults.contents = merged.contents;
     return podfile;
   });

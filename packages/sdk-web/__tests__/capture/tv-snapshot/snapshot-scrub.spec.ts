@@ -2,7 +2,10 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MAX_PATTERN_TEXT_LENGTH } from '../../../src/capture/tv-snapshot/page-redact.js';
-import { collectRetainedIds, scrubSnapshotTree } from '../../../src/capture/tv-snapshot/snapshot-scrub.js';
+import {
+  collectRetainedIds,
+  scrubSnapshotTree,
+} from '../../../src/capture/tv-snapshot/snapshot-scrub.js';
 import type { SnDocument } from '../../../src/capture/tv-snapshot/sn-types.js';
 import { doc, el, find, resetIds, text } from './sn-builders.js';
 import { findLeaks } from './leak-assert.js';
@@ -12,7 +15,8 @@ function scrub(root: SnDocument, masked = true): SnDocument {
   scrubSnapshotTree(root, { masked, retainedIds: collectRetainedIds(root), baseHref: BASE });
   return root;
 }
-const page = (...body: ReturnType<typeof el>[]) => doc(el('html', {}, [el('head'), el('body', {}, body)]));
+const page = (...body: ReturnType<typeof el>[]) =>
+  doc(el('html', {}, [el('head'), el('body', {}, body)]));
 
 beforeEach(() => resetIds());
 
@@ -26,20 +30,46 @@ describe('snapshot scrubber', () => {
   });
 
   it('keeps enumerated ARIA state and drops labels and out-of-set values', () => {
-    const nav = el('a', { 'aria-current': 'page', 'aria-label': 'Alice Smith', href: 'https://app.example.test/home' });
-    const toggle = el('button', { 'aria-pressed': 'true', 'aria-expanded': 'Alice', 'aria-selected': 'false' });
+    const nav = el('a', {
+      'aria-current': 'page',
+      'aria-label': 'Alice Smith',
+      href: 'https://app.example.test/home',
+    });
+    const toggle = el('button', {
+      'aria-pressed': 'true',
+      'aria-expanded': 'Alice',
+      'aria-selected': 'false',
+    });
     scrub(page(nav, toggle));
-    expect(nav.attributes).toEqual({ 'aria-current': 'page', href: 'https://app.example.test/home' });
+    expect(nav.attributes).toEqual({
+      'aria-current': 'page',
+      href: 'https://app.example.test/home',
+    });
     expect(toggle.attributes).toEqual({ 'aria-pressed': 'true', 'aria-selected': 'false' });
   });
 
   it('keeps validated SVG geometry and same-document refs to retained ids', () => {
     const path = el('path', { d: 'M0 0L10 5L0 10z', title: 'Alice Smith' }, [], { isSVG: true });
     const symbol = el('symbol', { id: 'play', viewBox: '0 0 10 10' }, [path], { isSVG: true });
-    const grad = el('linearGradient', { id: 'g', gradientUnits: 'userSpaceOnUse' }, [el('stop', { offset: '0', 'stop-color': '#f00' }, [], { isSVG: true })], { isSVG: true });
-    const use = el('use', { href: '#play', fill: 'url(#g)', 'xlink:href': '#gone' }, [], { isSVG: true });
-    const junk = el('path', { d: 'call', fill: 'Alice', transform: 'Alice(1)' }, [], { isSVG: true });
-    scrub(page(el('svg', { width: '40', height: '40', viewBox: '0 0 40 40' }, [grad, symbol, use, junk], { isSVG: true })));
+    const grad = el(
+      'linearGradient',
+      { id: 'g', gradientUnits: 'userSpaceOnUse' },
+      [el('stop', { offset: '0', 'stop-color': '#f00' }, [], { isSVG: true })],
+      { isSVG: true },
+    );
+    const use = el('use', { href: '#play', fill: 'url(#g)', 'xlink:href': '#gone' }, [], {
+      isSVG: true,
+    });
+    const junk = el('path', { d: 'call', fill: 'Alice', transform: 'Alice(1)' }, [], {
+      isSVG: true,
+    });
+    scrub(
+      page(
+        el('svg', { width: '40', height: '40', viewBox: '0 0 40 40' }, [grad, symbol, use, junk], {
+          isSVG: true,
+        }),
+      ),
+    );
     expect(use.attributes).toEqual({ href: '#play', fill: 'url(#g)' });
     expect(path.attributes).toEqual({ d: 'M0 0L10 5L0 10z' });
     expect(grad.attributes).toEqual({ id: 'g', gradientUnits: 'userSpaceOnUse' });
@@ -50,7 +80,8 @@ describe('snapshot scrubber', () => {
     const root = page(
       el('img', {
         src: 'https://alice:secret@cdn.example.test/p.png?token=SECRET#f',
-        srcset: 'https://cdn.example.test/1.png?t=SECRET 1x, https://alice:secret@cdn.example.test/2.png 2x',
+        srcset:
+          'https://cdn.example.test/1.png?t=SECRET 1x, https://alice:secret@cdn.example.test/2.png 2x',
         alt: 'Alice Smith',
       }),
       el('video', { poster: 'https://cdn.example.test/v.jpg?sig=SECRET' }),
@@ -63,7 +94,9 @@ describe('snapshot scrubber', () => {
       src: 'https://cdn.example.test/p.png',
       srcset: 'https://cdn.example.test/1.png 1x, https://cdn.example.test/2.png 2x',
     });
-    expect(find(root, (e) => e.tagName === 'video')!.attributes).toEqual({ poster: 'https://cdn.example.test/v.jpg' });
+    expect(find(root, (e) => e.tagName === 'video')!.attributes).toEqual({
+      poster: 'https://cdn.example.test/v.jpg',
+    });
     expect(find(root, (e) => e.tagName === 'a')!.attributes).toEqual({ href: '#' });
     expect(findLeaks(JSON.stringify(root), ['alice:secret', 'SECRET', 'Alice Smith'])).toEqual([]);
   });
@@ -83,7 +116,14 @@ describe('snapshot scrubber', () => {
   });
 
   it('drops free-text, data-* and handler attributes', () => {
-    const div = el('div', { title: 'Alice', 'data-user': 'Alice', onerror: 'x()', rr_mediaState: 'played', class: 'tile', role: 'button' });
+    const div = el('div', {
+      title: 'Alice',
+      'data-user': 'Alice',
+      onerror: 'x()',
+      rr_mediaState: 'played',
+      class: 'tile',
+      role: 'button',
+    });
     scrub(page(div));
     expect(div.attributes).toEqual({ class: 'tile', role: 'button' });
   });
@@ -157,7 +197,13 @@ describe('snapshot scrubber', () => {
   it('drops prototype-named attributes without throwing', () => {
     const names = ['constructor', '__proto__', 'toString', 'valueOf', 'hasOwnProperty'];
     const attrs: Record<string, string> = {};
-    for (const n of names) Object.defineProperty(attrs, n, { value: 'Alice', enumerable: true, configurable: true, writable: true });
+    for (const n of names)
+      Object.defineProperty(attrs, n, {
+        value: 'Alice',
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
     const plain = el('div', { ...attrs, class: 'tile' });
     const svg = el('path', { ...attrs }, [], { isSVG: true });
     scrub(page(plain, el('svg', {}, [svg], { isSVG: true })));
@@ -203,7 +249,12 @@ describe('snapshot scrubber', () => {
   it('blanks <title> text, in head and inside SVG (final review finding 7)', () => {
     const title = el('title', {}, [text('Alice Smith — account')]);
     const svgTitle = el('title', {}, [text('SVGTOOLTIP')], { isSVG: true });
-    const root = doc(el('html', {}, [el('head', {}, [title]), el('body', {}, [el('svg', {}, [svgTitle], { isSVG: true })])]));
+    const root = doc(
+      el('html', {}, [
+        el('head', {}, [title]),
+        el('body', {}, [el('svg', {}, [svgTitle], { isSVG: true })]),
+      ]),
+    );
     scrub(root);
     expect(findLeaks(JSON.stringify(root), ['Alice Smith', 'SVGTOOLTIP'])).toEqual([]);
     expect(title.childNodes).toHaveLength(1);
@@ -227,14 +278,24 @@ describe('snapshot scrubber', () => {
       const encoded = el('img', { src: '/u/alice%40example.test/p.png' });
       const video = el('video', { poster: `https://cdn.example.test/${JWT}/v.jpg` });
       const link = el('a', { href: `/user/${EMAIL}` });
-      const use = el('use', { 'xlink:href': `https://cdn.example.test/${EMAIL}.svg` }, [], { isSVG: true });
+      const use = el('use', { 'xlink:href': `https://cdn.example.test/${EMAIL}.svg` }, [], {
+        isSVG: true,
+      });
       const root = page(img, encoded, video, link, el('svg', {}, [use], { isSVG: true }));
       scrub(root);
       expect(findLeaks(JSON.stringify(root), SECRETS)).toEqual([]);
       expect(img.attributes.src).toBe('https://app.example.test/u/%5BREDACTED%3AEMAIL%5D/p.png');
-      expect(encoded.attributes.src).toBe('https://app.example.test/u/%5BREDACTED%3AEMAIL%5D/p.png');
+      expect(encoded.attributes.src).toBe(
+        'https://app.example.test/u/%5BREDACTED%3AEMAIL%5D/p.png',
+      );
       expect(link.attributes.href).toBe('https://app.example.test/user/%5BREDACTED%3AEMAIL%5D');
-      for (const url of [img.attributes.src, encoded.attributes.src, video.attributes.poster, link.attributes.href, use.attributes['xlink:href']]) {
+      for (const url of [
+        img.attributes.src,
+        encoded.attributes.src,
+        video.attributes.poster,
+        link.attributes.href,
+        use.attributes['xlink:href'],
+      ]) {
         parses(url as string);
       }
       const candidates = String(img.attributes.srcset).split(', ');
@@ -265,14 +326,21 @@ describe('snapshot scrubber', () => {
       scrub(root);
       const json = JSON.stringify(root);
       expect(findLeaks(json, SECRETS)).toEqual([]);
-      const urls = [...`${String(sheet.attributes._cssText)}${String(inline.attributes.style)}`.matchAll(/url\("([^"]*)"\)/g)].map((m) => m[1]!);
+      const urls = [
+        ...`${String(sheet.attributes._cssText)}${String(inline.attributes.style)}`.matchAll(
+          /url\("([^"]*)"\)/g,
+        ),
+      ].map((m) => m[1]!);
       expect(urls).toHaveLength(5);
       for (const url of urls) parses(url);
       expect(urls.every((u) => u.includes('REDACTED'))).toBe(true);
     });
 
     it('redacts a ~20k-char URL path in well under a second', () => {
-      const img = el('img', { src: `/${'a'.repeat(20_000)}`, srcset: `/${'a.'.repeat(10_000)} 1x` });
+      const img = el('img', {
+        src: `/${'a'.repeat(20_000)}`,
+        srcset: `/${'a.'.repeat(10_000)} 1x`,
+      });
       const started = performance.now();
       scrub(page(img));
       expect(performance.now() - started).toBeLessThan(1000);
@@ -310,19 +378,39 @@ describe('snapshot scrubber', () => {
   });
 
   describe('doctype', () => {
-    const doctype = (name: string, publicId: string, systemId: string) => ({ type: 1 as const, id: 800, name, publicId, systemId });
+    const doctype = (name: string, publicId: string, systemId: string) => ({
+      type: 1 as const,
+      id: 800,
+      name,
+      publicId,
+      systemId,
+    });
 
     it('keeps a standard DTD (it decides the document mode)', () => {
-      const dt = doctype('html', '-//W3C//DTD HTML 4.01 Transitional//EN', 'http://www.w3.org/TR/html4/loose.dtd');
+      const dt = doctype(
+        'html',
+        '-//W3C//DTD HTML 4.01 Transitional//EN',
+        'http://www.w3.org/TR/html4/loose.dtd',
+      );
       scrub(doc(dt, el('html')));
-      expect(dt).toEqual(doctype('html', '-//W3C//DTD HTML 4.01 Transitional//EN', 'http://www.w3.org/TR/html4/loose.dtd'));
+      expect(dt).toEqual(
+        doctype(
+          'html',
+          '-//W3C//DTD HTML 4.01 Transitional//EN',
+          'http://www.w3.org/TR/html4/loose.dtd',
+        ),
+      );
       const html5 = doctype('html', '', '');
       scrub(doc(html5, el('html')));
       expect(html5).toEqual(doctype('html', '', ''));
     });
 
     it('clears page-chosen identifiers and names', () => {
-      const dt = doctype('Alice', 'Alice Smith', `https://evil.test/${'alice@example.test'}.dtd?u=1`);
+      const dt = doctype(
+        'Alice',
+        'Alice Smith',
+        `https://evil.test/${'alice@example.test'}.dtd?u=1`,
+      );
       const root = doc(dt, el('html'));
       scrub(root);
       expect(dt).toEqual(doctype('', '', ''));

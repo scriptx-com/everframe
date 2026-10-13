@@ -262,53 +262,55 @@ export const NETWORK_BODIES_CONFIG_DEFAULT: NetworkBodiesConfig = Object.freeze(
  * closed), so a drifted/hostile rate can never feed the `random() < samplingRate`
  * gate (CONFIG-02 / CR-04-C).
  */
-export const ReplayConfigResponse = z.object({
-  replayEnabled: z.boolean(),
-  replayDurationSec: z.number(),
-  samplingRate: z.number().min(0).max(1),
-  breadcrumbs: BreadcrumbsConfig.optional(),
-  networkBodies: NetworkBodiesServerConfigLenient,
-  replies: RepliesConfig.optional(),
-  identity: IdentityConfig.optional(),
-  companionBadge: CompanionBadgeServerConfigLenient,
-  branding: BrandingServerConfigLenient,
-  // Session Vitals (spec 2026-09-01). Flat top-level fields, matching
-  // replayEnabled/samplingRate's shape rather than a nested block — the
-  // server (Task 11, the server configuration contract) emits both
-  // unconditionally, no capability negotiation. Declared here (Task 8) AHEAD
-  // of Task 11's server emission so the two land in either order: the web
-  // adapter's `applyLiveConfig` (adapter.ts) is per-field lenient on absence
-  // regardless, but a `.strict()` schema that did NOT know these keys would
-  // fail-parse the ENTIRE response the day the server starts sending them —
-  // taking replay/breadcrumbs/etc. down with it, not just vitals. `.catch(
-  // undefined)` on each, independently, so a malformed value degrades only
-  // that field rather than the whole response (same doctrine as
-  // BrandingHexColor above).
-  vitalsEnabled: z.boolean().optional().catch(undefined),
-  vitalsSampleRate: z.number().min(0).max(1).optional().catch(undefined),
-  // Report Resource Window (spec 2026-09-05). Nested block (unlike vitals'
-  // flat fields above) — negotiated via `resources` in X-Everframe-SDK-Features,
-  // see ResourcesServerConfig's own header for the degrade-to-absent
-  // posture this field shares with companionBadge/branding.
-  resources: ResourcesServerConfigLenient,
-  reportHotkey: z
-    .object({ binding: z.string().trim().min(1).max(100) })
-    .strict()
-    .optional()
-    .catch(undefined),
-  // Smart-TV snapshot path kill switch (spec 2026-09-29): true only when the
-  // server has a render service. The server emits it ONLY for SDKs that send
-  // the `screenshotrender` feature token, because this schema is .strict() and
-  // an unknown key would fail every older SDK's whole config parse.
-  screenshotRender: z.boolean().optional().catch(undefined),
-  // Crash-only sessions (spec 2026-10-12): the replay coverage for a session
-  // whose host turned the reporter off. Sent only to SDKs that declare the
-  // `crashonly` feature token, for the same .strict() reason as above. Absent
-  // means 0 (see `replaySamplingRate` in lifecycle.ts). A malformed value
-  // degrades to absent, like `vitalsSampleRate`, rather than failing the
-  // whole parse.
-  crashOnlySamplingRate: z.number().min(0).max(1).optional().catch(undefined),
-}).strict();
+export const ReplayConfigResponse = z
+  .object({
+    replayEnabled: z.boolean(),
+    replayDurationSec: z.number(),
+    samplingRate: z.number().min(0).max(1),
+    breadcrumbs: BreadcrumbsConfig.optional(),
+    networkBodies: NetworkBodiesServerConfigLenient,
+    replies: RepliesConfig.optional(),
+    identity: IdentityConfig.optional(),
+    companionBadge: CompanionBadgeServerConfigLenient,
+    branding: BrandingServerConfigLenient,
+    // Session Vitals (spec 2026-09-01). Flat top-level fields, matching
+    // replayEnabled/samplingRate's shape rather than a nested block — the
+    // server (Task 11, the server configuration contract) emits both
+    // unconditionally, no capability negotiation. Declared here (Task 8) AHEAD
+    // of Task 11's server emission so the two land in either order: the web
+    // adapter's `applyLiveConfig` (adapter.ts) is per-field lenient on absence
+    // regardless, but a `.strict()` schema that did NOT know these keys would
+    // fail-parse the ENTIRE response the day the server starts sending them —
+    // taking replay/breadcrumbs/etc. down with it, not just vitals. `.catch(
+    // undefined)` on each, independently, so a malformed value degrades only
+    // that field rather than the whole response (same doctrine as
+    // BrandingHexColor above).
+    vitalsEnabled: z.boolean().optional().catch(undefined),
+    vitalsSampleRate: z.number().min(0).max(1).optional().catch(undefined),
+    // Report Resource Window (spec 2026-09-05). Nested block (unlike vitals'
+    // flat fields above) — negotiated via `resources` in X-Everframe-SDK-Features,
+    // see ResourcesServerConfig's own header for the degrade-to-absent
+    // posture this field shares with companionBadge/branding.
+    resources: ResourcesServerConfigLenient,
+    reportHotkey: z
+      .object({ binding: z.string().trim().min(1).max(100) })
+      .strict()
+      .optional()
+      .catch(undefined),
+    // Smart-TV snapshot path kill switch (spec 2026-09-29): true only when the
+    // server has a render service. The server emits it ONLY for SDKs that send
+    // the `screenshotrender` feature token, because this schema is .strict() and
+    // an unknown key would fail every older SDK's whole config parse.
+    screenshotRender: z.boolean().optional().catch(undefined),
+    // Crash-only sessions (spec 2026-10-12): the replay coverage for a session
+    // whose host turned the reporter off. Sent only to SDKs that declare the
+    // `crashonly` feature token, for the same .strict() reason as above. Absent
+    // means 0 (see `replaySamplingRate` in lifecycle.ts). A malformed value
+    // degrades to absent, like `vitalsSampleRate`, rather than failing the
+    // whole parse.
+    crashOnlySamplingRate: z.number().min(0).max(1).optional().catch(undefined),
+  })
+  .strict();
 
 export type ReplayConfig = z.infer<typeof ReplayConfigResponse>;
 

@@ -29,7 +29,8 @@ export default mergeConfig(
         ),
         // Before the bare 'react-native' key, which would also match this subpath.
         'react-native/Libraries/Core/ExceptionsManager': new URL(
-          './__tests__/stubs/react-native-exceptions-manager.ts', import.meta.url,
+          './__tests__/stubs/react-native-exceptions-manager.ts',
+          import.meta.url,
         ).pathname,
         'react-native': new URL('./__tests__/stubs/react-native.ts', import.meta.url).pathname,
       },

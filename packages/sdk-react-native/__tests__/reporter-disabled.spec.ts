@@ -26,7 +26,9 @@ describe('reporter config flattening', () => {
   it('omits the bridge field otherwise', () => {
     expect('reporterDisabled' in extract({ sdkKey: 'k' })).toBe(false);
     expect('reporterDisabled' in extract({ sdkKey: 'k', reporter: {} })).toBe(false);
-    expect('reporterDisabled' in extract({ sdkKey: 'k', reporter: { disabled: false } })).toBe(false);
+    expect('reporterDisabled' in extract({ sdkKey: 'k', reporter: { disabled: false } })).toBe(
+      false,
+    );
   });
 });
 

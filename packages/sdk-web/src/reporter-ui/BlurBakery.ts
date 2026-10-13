@@ -30,10 +30,7 @@ import {
  * Falls back from OffscreenCanvas to HTMLCanvasElement for environments without
  * OffscreenCanvas (older mobile Safari, jsdom).
  */
-export async function bakeAnnotations(
-  source: Blob,
-  annotations: Annotation[],
-): Promise<Blob> {
+export async function bakeAnnotations(source: Blob, annotations: Annotation[]): Promise<Blob> {
   if (annotations.length === 0) return source;
   let bitmap: ImageBitmap;
   try {
@@ -161,9 +158,7 @@ export async function bakeAnnotations(
   return encodeBlobPreferWebP(canvas);
 }
 
-async function encodeBlobPreferWebP(
-  canvas: HTMLCanvasElement | OffscreenCanvas,
-): Promise<Blob> {
+async function encodeBlobPreferWebP(canvas: HTMLCanvasElement | OffscreenCanvas): Promise<Blob> {
   // Guard with `typeof` first — environments without OffscreenCanvas (jsdom,
   // older mobile Safari) don't declare the identifier at all, so a bare
   // `instanceof OffscreenCanvas` throws a ReferenceError instead of just
@@ -189,4 +184,3 @@ async function encodeBlobPreferWebP(
   if (webp && webp.size < png.size) return webp;
   return png;
 }
-

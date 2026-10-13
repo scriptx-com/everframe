@@ -97,8 +97,6 @@ test('strict-CSP: SDK threads cspNonce to dynamically-injected <style> tags duri
   // need a nonce, but Next.js dev mode threads its own nonces or omits style-src in dev —
   // which is why we use a static test nonce locked at the layout level.)
   const STATIC_TEST_NONCE = 'STATIC_TEST_NONCE_FOR_PLAYWRIGHT';
-  const unNonced = captureStyles.filter(
-    (s) => !s.hasNonce || s.nonceValue !== STATIC_TEST_NONCE,
-  );
+  const unNonced = captureStyles.filter((s) => !s.hasNonce || s.nonceValue !== STATIC_TEST_NONCE);
   expect(unNonced).toEqual([]);
 });

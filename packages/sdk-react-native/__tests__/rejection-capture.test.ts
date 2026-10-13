@@ -7,7 +7,9 @@ import { createCaptureController } from '../src/errors.js';
 const occurredAt = '2026-10-05T12:00:00.000Z';
 const owners: ReturnType<typeof createCaptureController>[] = [];
 function controller() {
-  const value = createCaptureController({ jsBundle: { buildId: 'rejection-build', bundleName: 'index.bundle' } });
+  const value = createCaptureController({
+    jsBundle: { buildId: 'rejection-build', bundleName: 'index.bundle' },
+  });
   owners.push(value);
   return value;
 }
@@ -23,10 +25,14 @@ beforeEach(() => {
   automatic.mockReset().mockReturnValue(true);
   explicit.mockReset().mockReturnValue(true);
 });
-afterEach(() => { owners.splice(0).forEach((owner) => owner.dispose()); vi.unstubAllGlobals(); });
+afterEach(() => {
+  owners.splice(0).forEach((owner) => owner.dispose());
+  vi.unstubAllGlobals();
+});
 
 it('doesNotReserveAcceptanceWhilePending', () => {
-  const owner = controller(), reason = error();
+  const owner = controller(),
+    reason = error();
   const pending = owner.prepareRejection(reason, occurredAt)!;
   expect(automatic).not.toHaveBeenCalled();
   owner.captureException(reason);
@@ -36,35 +42,45 @@ it('doesNotReserveAcceptanceWhilePending', () => {
 });
 it('refusalAllowsLaterExplicitCapture', () => {
   automatic.mockReturnValue(false);
-  const owner = controller(), reason = error();
+  const owner = controller(),
+    reason = error();
   expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('native-refused');
   owner.captureException(reason);
   expect(automatic).toHaveBeenCalledTimes(1);
   expect(explicit).toHaveBeenCalledTimes(1);
 });
 it('acceptedExplicitSuppressesPendingRejection', () => {
-  const owner = controller(), reason = error();
+  const owner = controller(),
+    reason = error();
   owner.captureException(reason);
   const pending = owner.prepareRejection(reason, occurredAt)!;
   expect(owner.submitRejection(pending)).toBe('duplicate');
   expect(automatic).not.toHaveBeenCalled();
 });
 it('accepted rejection suppresses later explicit capture of the same object', () => {
-  const owner = controller(), reason = error();
+  const owner = controller(),
+    reason = error();
   expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('accepted');
   owner.captureException(reason);
   expect(explicit).not.toHaveBeenCalled();
 });
 it('snapshotSurvivesCauseMutation', () => {
-  const owner = controller(), reason = error();
+  const owner = controller(),
+    reason = error();
   const cause = new Error('before');
   Object.defineProperty(reason, 'cause', { value: cause });
   const pending = owner.prepareRejection(reason, occurredAt)!;
-  reason.message = 'changed'; cause.message = 'after';
+  reason.message = 'changed';
+  cause.message = 'after';
   expect(owner.submitRejection(pending)).toBe('accepted');
   const payload = JSON.parse(automatic.mock.calls[0][0]);
-  expect(payload).toMatchObject({ message: 'original message', occurredAt,
-    mechanism: 'unhandledrejection', source: 'error', handled: false, fatal: false,
+  expect(payload).toMatchObject({
+    message: 'original message',
+    occurredAt,
+    mechanism: 'unhandledrejection',
+    source: 'error',
+    handled: false,
+    fatal: false,
     jsBundle: { buildId: 'rejection-build', bundleName: 'index.bundle' },
     causeChain: { causes: [{ message: 'before' }] },
   });
@@ -74,7 +90,11 @@ it('snapshotSurvivesCauseMutation', () => {
 it('shares automatic allowance while preserving independent explicit allowance', () => {
   const owner = controller();
   for (let i = 0; i < 10; i++)
-    expect(owner.submitRejection(owner.prepareRejection(error(`site${String.fromCharCode(65 + i)}`), occurredAt)!)).toBe('accepted');
+    expect(
+      owner.submitRejection(
+        owner.prepareRejection(error(`site${String.fromCharCode(65 + i)}`), occurredAt)!,
+      ),
+    ).toBe('accepted');
   const reason = error('eleventh');
   expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('allowance');
   owner.captureException(reason);
@@ -83,46 +103,69 @@ it('shares automatic allowance while preserving independent explicit allowance',
 });
 function errorUtilsController() {
   let handler: ((error: unknown, isFatal?: boolean) => void) | undefined;
-  const owner = createCaptureController({ jsBundle: { buildId: 'rejection-build', bundleName: 'index.bundle' },
-    errorUtils: { getGlobalHandler: () => () => {}, setGlobalHandler: (installed) => { handler = installed; } } });
+  const owner = createCaptureController({
+    jsBundle: { buildId: 'rejection-build', bundleName: 'index.bundle' },
+    errorUtils: {
+      getGlobalHandler: () => () => {},
+      setGlobalHandler: (installed) => {
+        handler = installed;
+      },
+    },
+  });
   owners.push(owner);
   return { owner, report: (value: unknown, fatal = false) => handler!(value, fatal) };
 }
 it('rejections share automatic keys with ErrorUtils reports', () => {
   const { owner, report } = errorUtilsController();
   report(error('sharedSite'));
-  expect(owner.submitRejection(owner.prepareRejection(error('sharedSite'), occurredAt)!)).toBe('duplicate');
+  expect(owner.submitRejection(owner.prepareRejection(error('sharedSite'), occurredAt)!)).toBe(
+    'duplicate',
+  );
   expect(automatic).toHaveBeenCalledTimes(1);
 });
 it('ErrorUtils reports spend the automatic allowance that rejections share', () => {
   const { owner, report } = errorUtilsController();
   for (let i = 0; i < 10; i++) report(error(`site${String.fromCharCode(65 + i)}`));
-  expect(owner.submitRejection(owner.prepareRejection(error('eleventh'), occurredAt)!)).toBe('allowance');
+  expect(owner.submitRejection(owner.prepareRejection(error('eleventh'), occurredAt)!)).toBe(
+    'allowance',
+  );
   expect(automatic).toHaveBeenCalledTimes(10);
 });
 it('an accepted rejection does not suppress a later fatal crash of the same error', () => {
-  const { owner, report } = errorUtilsController(), reason = error();
+  const { owner, report } = errorUtilsController(),
+    reason = error();
   expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('accepted');
   report(reason, true);
   expect(automatic).toHaveBeenCalledTimes(2);
-  expect(JSON.parse(automatic.mock.calls[1][0])).toMatchObject({ fatal: true, source: 'crash', mechanism: 'errorutils' });
+  expect(JSON.parse(automatic.mock.calls[1][0])).toMatchObject({
+    fatal: true,
+    source: 'crash',
+    mechanism: 'errorutils',
+  });
 });
 it('refuses rejection capture on a bridge without reportCrash', () => {
-  const owner = controller(), pending = owner.prepareRejection(error(), occurredAt)!;
+  const owner = controller(),
+    pending = owner.prepareRejection(error(), occurredAt)!;
   const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'reportCrash')!;
   Object.defineProperty(NativeEverframe, 'reportCrash', { configurable: true, value: undefined });
-  try { expect(owner.submitRejection(pending)).toBe('native-refused'); }
-  finally { Object.defineProperty(NativeEverframe, 'reportCrash', descriptor); }
+  try {
+    expect(owner.submitRejection(pending)).toBe('native-refused');
+  } finally {
+    Object.defineProperty(NativeEverframe, 'reportCrash', descriptor);
+  }
   expect(automatic).not.toHaveBeenCalled();
 });
 it('refusal does not spend an automatic key', () => {
   const owner = controller();
   automatic.mockReturnValueOnce(false);
-  expect(owner.submitRejection(owner.prepareRejection(error(), occurredAt)!)).toBe('native-refused');
+  expect(owner.submitRejection(owner.prepareRejection(error(), occurredAt)!)).toBe(
+    'native-refused',
+  );
   expect(owner.submitRejection(owner.prepareRejection(error(), occurredAt)!)).toBe('accepted');
 });
 it('refuses stale or foreign snapshots without invoking native', () => {
-  const first = controller(), second = controller();
+  const first = controller(),
+    second = controller();
   const pending = first.prepareRejection(error(), occurredAt)!;
   expect(second.submitRejection(pending)).toBe('inactive');
   first.dispose();
@@ -130,23 +173,52 @@ it('refuses stale or foreign snapshots without invoking native', () => {
   expect(automatic).not.toHaveBeenCalled();
 });
 it('getter disposal prevents preparation from surviving its owner', () => {
-  const owner = controller(), reason = error();
-  Object.defineProperty(reason, 'message', { get() { owner.dispose(); return 'stale'; } });
+  const owner = controller(),
+    reason = error();
+  Object.defineProperty(reason, 'message', {
+    get() {
+      owner.dispose();
+      return 'stale';
+    },
+  });
   expect(owner.prepareRejection(reason, occurredAt)).toBeUndefined();
   expect(automatic).not.toHaveBeenCalled();
 });
 it('native lookup disposal prevents stale submission', () => {
-  const owner = controller(), pending = owner.prepareRejection(error(), occurredAt)!;
+  const owner = controller(),
+    pending = owner.prepareRejection(error(), occurredAt)!;
   const descriptor = Object.getOwnPropertyDescriptor(NativeEverframe, 'reportCrash')!;
-  Object.defineProperty(NativeEverframe, 'reportCrash', { configurable: true, get() { owner.dispose(); return automatic; } });
-  try { expect(owner.submitRejection(pending)).toBe('inactive'); }
-  finally { Object.defineProperty(NativeEverframe, 'reportCrash', descriptor); }
+  Object.defineProperty(NativeEverframe, 'reportCrash', {
+    configurable: true,
+    get() {
+      owner.dispose();
+      return automatic;
+    },
+  });
+  try {
+    expect(owner.submitRejection(pending)).toBe('inactive');
+  } finally {
+    Object.defineProperty(NativeEverframe, 'reportCrash', descriptor);
+  }
   expect(automatic).not.toHaveBeenCalled();
 });
 it.each([
-  ['fetch response', { type: 'default', status: 401, ok: false, headers: { map: { 'set-cookie': 'sid=secret-cookie' } },
-    url: 'https://api.example.com/v1/me?api_key=sk_live_secret' }, '[object]'],
-  ['request config', { config: { headers: { Authorization: 'Token abc123', 'x-api-key': 'live_abc123' } } }, '[object]'],
+  [
+    'fetch response',
+    {
+      type: 'default',
+      status: 401,
+      ok: false,
+      headers: { map: { 'set-cookie': 'sid=secret-cookie' } },
+      url: 'https://api.example.com/v1/me?api_key=sk_live_secret',
+    },
+    '[object]',
+  ],
+  [
+    'request config',
+    { config: { headers: { Authorization: 'Token abc123', 'x-api-key': 'live_abc123' } } },
+    '[object]',
+  ],
   ['array', ['secret-cookie'], '[object]'],
   ['function', function secretCookie() {}, '[function]'],
   ['symbol', Symbol('secret-cookie'), '[symbol]'],
@@ -159,25 +231,56 @@ it.each([
   const owner = controller();
   expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('accepted');
   const raw = automatic.mock.calls[0][0];
-  expect(JSON.parse(raw)).toMatchObject({ exceptionType: 'UnhandledValue', message, framesRaw: [],
-    mechanism: 'unhandledrejection' });
-  for (const secret of ['secret-cookie', 'sk_live_secret', 'abc123']) expect(raw).not.toContain(secret);
+  expect(JSON.parse(raw)).toMatchObject({
+    exceptionType: 'UnhandledValue',
+    message,
+    framesRaw: [],
+    mechanism: 'unhandledrejection',
+  });
+  for (const secret of ['secret-cookie', 'sk_live_secret', 'abc123'])
+    expect(raw).not.toContain(secret);
 });
 it('deduplicates non-Error reasons by their reported value', () => {
   const owner = controller();
-  const submit = (reason: unknown) => owner.submitRejection(owner.prepareRejection(reason, occurredAt)!);
-  expect(['Session expired', 'Network timeout', 'Session expired', { code: 'E_AUTH' }, undefined, 42,
-    { code: 'E_PAYMENT' }, '42'].map(submit))
-    .toEqual(['accepted', 'accepted', 'duplicate', 'accepted', 'accepted', 'accepted', 'duplicate', 'duplicate']);
-  expect(automatic.mock.calls.map(([raw]) => JSON.parse(raw).message))
-    .toEqual(['Session expired', 'Network timeout', '[object]', 'undefined', '42']);
+  const submit = (reason: unknown) =>
+    owner.submitRejection(owner.prepareRejection(reason, occurredAt)!);
+  expect(
+    [
+      'Session expired',
+      'Network timeout',
+      'Session expired',
+      { code: 'E_AUTH' },
+      undefined,
+      42,
+      { code: 'E_PAYMENT' },
+      '42',
+    ].map(submit),
+  ).toEqual([
+    'accepted',
+    'accepted',
+    'duplicate',
+    'accepted',
+    'accepted',
+    'accepted',
+    'duplicate',
+    'duplicate',
+  ]);
+  expect(automatic.mock.calls.map(([raw]) => JSON.parse(raw).message)).toEqual([
+    'Session expired',
+    'Network timeout',
+    '[object]',
+    'undefined',
+    '42',
+  ]);
 });
 it('a non-Error message that varies only in digits spends one automatic key', () => {
   const { owner, report } = errorUtilsController();
-  const submit = (reason: unknown) => owner.submitRejection(owner.prepareRejection(reason, occurredAt)!);
+  const submit = (reason: unknown) =>
+    owner.submitRejection(owner.prepareRejection(reason, occurredAt)!);
   expect(submit({ code: 'E_UPLOAD' })).toBe('accepted');
-  expect(Array.from({ length: 12 }, (_, i) => submit(`Request ${1000 + i} failed after ${250 * i} ms`)))
-    .toEqual(['accepted', ...Array<string>(11).fill('duplicate')]);
+  expect(
+    Array.from({ length: 12 }, (_, i) => submit(`Request ${1000 + i} failed after ${250 * i} ms`)),
+  ).toEqual(['accepted', ...Array<string>(11).fill('duplicate')]);
   expect(['Session expired', 'Network timeout'].map(submit)).toEqual(['accepted', 'accepted']);
   report(error('unrelatedSite'));
   expect(automatic).toHaveBeenCalledTimes(5);
@@ -185,28 +288,45 @@ it('a non-Error message that varies only in digits spends one automatic key', ()
 });
 it('non-Error reasons spend at most half of the shared automatic keys', () => {
   const { owner, report } = errorUtilsController();
-  const submit = (reason: unknown) => owner.submitRejection(owner.prepareRejection(reason, occurredAt)!);
+  const submit = (reason: unknown) =>
+    owner.submitRejection(owner.prepareRejection(reason, occurredAt)!);
   // Hex identifiers vary in letters too, so ignoring digits cannot merge them.
-  expect(['3fa85f64', '9c2b1e7d', 'b7e4d0a1', '0d9f6c3e', 'e5a17b42', '6c0e9d8f']
-    .map((id) => submit(`Session ${id} expired`)))
-    .toEqual([...Array<string>(5).fill('accepted'), 'allowance']);
+  expect(
+    ['3fa85f64', '9c2b1e7d', 'b7e4d0a1', '0d9f6c3e', 'e5a17b42', '6c0e9d8f'].map((id) =>
+      submit(`Session ${id} expired`),
+    ),
+  ).toEqual([...Array<string>(5).fill('accepted'), 'allowance']);
   expect(submit('Session 3fa85f64 expired')).toBe('duplicate');
   for (let i = 0; i < 5; i++) report(error(`site${String.fromCharCode(65 + i)}`));
-  expect(automatic.mock.calls.slice(5).map(([raw]) => JSON.parse(raw).mechanism))
-    .toEqual(Array<string>(5).fill('errorutils'));
+  expect(automatic.mock.calls.slice(5).map(([raw]) => JSON.parse(raw).mechanism)).toEqual(
+    Array<string>(5).fill('errorutils'),
+  );
   expect(submit(error('eleventh'))).toBe('allowance');
 });
 it('a burst of distinct non-Error values still leaves 5 keys for Error rejections', () => {
   const owner = controller();
-  const submit = (reason: unknown) => owner.submitRejection(owner.prepareRejection(reason, occurredAt)!);
+  const submit = (reason: unknown) =>
+    owner.submitRejection(owner.prepareRejection(reason, occurredAt)!);
   // Ten values that differ in letters would fill all 10 keys if values were not capped at 5.
-  const values = Array.from({ length: 10 }, (_, i) => submit(`Session ${String.fromCharCode(97 + i)}4f2 expired`));
-  expect(Array.from({ length: 6 }, (_, i) => submit(error(`site${String.fromCharCode(65 + i)}`))))
-    .toEqual([...Array<string>(5).fill('accepted'), 'allowance']);
-  expect(values).toEqual([...Array<string>(5).fill('accepted'), ...Array<string>(5).fill('allowance')]);
+  const values = Array.from({ length: 10 }, (_, i) =>
+    submit(`Session ${String.fromCharCode(97 + i)}4f2 expired`),
+  );
+  expect(
+    Array.from({ length: 6 }, (_, i) => submit(error(`site${String.fromCharCode(65 + i)}`))),
+  ).toEqual([...Array<string>(5).fill('accepted'), 'allowance']);
+  expect(values).toEqual([
+    ...Array<string>(5).fill('accepted'),
+    ...Array<string>(5).fill('allowance'),
+  ]);
 });
 it.each([
-  ['string cause of an object reason', { code: 'UPLOAD_FAILED', cause: 'PUT https://bucket.example/u.jpg?X-Amz-Signature=sig-secret denied' }],
+  [
+    'string cause of an object reason',
+    {
+      code: 'UPLOAD_FAILED',
+      cause: 'PUT https://bucket.example/u.jpg?X-Amz-Signature=sig-secret denied',
+    },
+  ],
   ['Error cause of an object reason', { code: 'E_UPLOAD', cause: new Error('sig-secret') }],
   ['cause of an array reason', Object.assign(['upload'], { cause: 'sig-secret' })],
   ['cause of a function reason', Object.assign(function upload() {}, { cause: 'sig-secret' })],
@@ -218,8 +338,11 @@ it.each([
   expect(raw).not.toContain('sig-secret');
 });
 it('contains bridge failure and leaves later explicit admission available', () => {
-  const owner = controller(), reason = error();
-  automatic.mockImplementationOnce(() => { throw new Error('bridge unavailable'); });
+  const owner = controller(),
+    reason = error();
+  automatic.mockImplementationOnce(() => {
+    throw new Error('bridge unavailable');
+  });
   expect(owner.submitRejection(owner.prepareRejection(reason, occurredAt)!)).toBe('capture-failed');
   owner.captureException(reason);
   expect(explicit).toHaveBeenCalledTimes(1);

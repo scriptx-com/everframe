@@ -62,7 +62,10 @@ test('Apple CI runs serialized SwiftPM unit tests and crash-recorder integrity c
   assert.match(workflow, /permissions:\s*\n\s+contents:\s*read/);
   assert.match(workflow, /swift test --package-path packages\/sdk-ios --no-parallel/);
   assert.match(workflow, /node packages\/sdk-ios\/crash-recorder\/scripts\/verify-vendor\.mjs/);
-  assert.match(workflow, /swift build --package-path packages\/sdk-ios\/crash-recorder --product EFCRProbe/);
+  assert.match(
+    workflow,
+    /swift build --package-path packages\/sdk-ios\/crash-recorder --product EFCRProbe/,
+  );
   assert.match(workflow, /EVERFRAME_DEV_INGEST_URL: http:\/\/127\.0\.0\.1:9/);
   assert.doesNotMatch(workflow, /xcodegen|xcodebuild|ReplayTV/);
   assert.doesNotMatch(workflow, /admin|EVERFRAME_ADMIN|drive-xctest|benchmark-runner|dashboard/i);
@@ -148,17 +151,30 @@ test('published metadata points to the public MIT-licensed repository', () => {
   );
   assert.doesNotMatch(publishingText, /name\.set\("Apache-2\.0"\)/);
   assert.match(read('packages/sdk-android/android/build.gradle.kts'), /withSourcesJar\(\)/);
-  assert.match(read('packages/sdk-android/android/build.gradle.kts'), /org\.jetbrains\.dokka-javadoc/);
-  assert.match(read('packages/sdk-android/android/build.gradle.kts'), /dokkaGeneratePublicationJavadoc/);
-  assert.match(read('packages/sdk-android/android/build.gradle.kts'), /archiveClassifier\.set\("javadoc"\)/);
+  assert.match(
+    read('packages/sdk-android/android/build.gradle.kts'),
+    /org\.jetbrains\.dokka-javadoc/,
+  );
+  assert.match(
+    read('packages/sdk-android/android/build.gradle.kts'),
+    /dokkaGeneratePublicationJavadoc/,
+  );
+  assert.match(
+    read('packages/sdk-android/android/build.gradle.kts'),
+    /archiveClassifier\.set\("javadoc"\)/,
+  );
 
   const publicMetadata = filesUnder('packages', (file) => {
     const basename = path.basename(file);
-    return basename === 'package.json'
-      || basename === 'README.md'
-      || basename === 'NOTICE'
-      || file.endsWith('.podspec');
-  }).map(read).join('\n');
+    return (
+      basename === 'package.json' ||
+      basename === 'README.md' ||
+      basename === 'NOTICE' ||
+      file.endsWith('.podspec')
+    );
+  })
+    .map(read)
+    .join('\n');
 
   const former = 'trace' + 'itx';
   assert.doesNotMatch(publicMetadata, new RegExp(`github\\.com/scriptx-com/${former}`));

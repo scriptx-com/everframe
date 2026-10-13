@@ -62,7 +62,13 @@ export { trackPlayer, trackVitals } from './vitals/index.js';
 export type { PlayerHandle, TrackPlayerOptions } from './vitals/index.js';
 export { hlsIntegration } from './vitals/integrations/hls.js';
 export { shakaIntegration } from './vitals/integrations/shaka.js';
-export type { PlayerIntegration, PlayerIntegrationContext, PlayerSnapshot, PlayerStartupTimings, PlayerEmit } from '@everframe/sdk-core';
+export type {
+  PlayerIntegration,
+  PlayerIntegrationContext,
+  PlayerSnapshot,
+  PlayerStartupTimings,
+  PlayerEmit,
+} from '@everframe/sdk-core';
 
 // ── Reporter styles ─────────────────────────────────────────────────────
 export { injectReporterStyles } from './reporter-ui/style-injector.js';

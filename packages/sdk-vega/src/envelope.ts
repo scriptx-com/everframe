@@ -13,7 +13,14 @@
 // `new Error(message, { cause })`.
 import { buildEnvelope, redactStringContent, type DeviceMetadata } from '@everframe/sdk-core';
 import { isSensitiveKey } from '@everframe/protocol';
-import type { Breadcrumb, CrashDetails, CrashFrame, CrashPayload, JsBundleMetadata, ReportEnvelope } from '@everframe/protocol';
+import type {
+  Breadcrumb,
+  CrashDetails,
+  CrashFrame,
+  CrashPayload,
+  JsBundleMetadata,
+  ReportEnvelope,
+} from '@everframe/protocol';
 import { vegaFingerprint } from './bundle.js';
 import type { VegaCaptureOptions, VegaUser } from './config.js';
 
@@ -31,12 +38,14 @@ const MAX_KEYS = 32;
 const MAX_DETAILS_CHARS = 8192;
 const REDACTED = '[REDACTED]';
 // Lone surrogates and NUL fail the protocol's text rule; drop the value instead.
-const INVALID_TEXT = /[\u0000]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+const INVALID_TEXT =
+  /[\u0000]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 
 function ownValue(source: object, key: string): { present: boolean; value?: unknown } {
   try {
     const descriptor = Object.getOwnPropertyDescriptor(source, key);
-    if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) return { present: false };
+    if (!descriptor || !descriptor.enumerable || !('value' in descriptor))
+      return { present: false };
     return { present: true, value: descriptor.value };
   } catch {
     return { present: false };
@@ -83,7 +92,12 @@ export function projectDetails(
         truncated = true;
         break;
       }
-      if (key.length === 0 || key.length > MAX_KEY || INVALID_TEXT.test(key) || key === '__proto__') {
+      if (
+        key.length === 0 ||
+        key.length > MAX_KEY ||
+        INVALID_TEXT.test(key) ||
+        key === '__proto__'
+      ) {
         truncated = true;
         continue;
       }
@@ -104,7 +118,11 @@ export function projectDetails(
         }
         if (text.length > MAX_STRING) truncated = true;
         out[key] = text.slice(0, MAX_STRING);
-      } else if ((typeof entry === 'number' && Number.isFinite(entry)) || typeof entry === 'boolean' || entry === null) {
+      } else if (
+        (typeof entry === 'number' && Number.isFinite(entry)) ||
+        typeof entry === 'boolean' ||
+        entry === null
+      ) {
         out[key] = entry;
       } else {
         // Nested objects, arrays, functions and the like are not projected.
@@ -146,7 +164,9 @@ export function buildVegaEnvelope(input: VegaEnvelopeInput): ReportEnvelope {
   const redact = (value: string) => redactStringContent(value, {});
   // Redaction can expand text past the caps; re-slice after it, as sdk-core does.
   const message = redact(input.message).slice(0, MAX_MESSAGE);
-  const frames: CrashFrame[] = input.framesRaw.map((raw) => ({ raw: redact(raw).slice(0, MAX_RAW) }));
+  const frames: CrashFrame[] = input.framesRaw.map((raw) => ({
+    raw: redact(raw).slice(0, MAX_RAW),
+  }));
   const handled = input.mechanism === 'captureException';
   const crash: CrashPayload = {
     ...(input.jsBundle ? { jsBundle: input.jsBundle } : {}),
@@ -169,7 +189,13 @@ export function buildVegaEnvelope(input: VegaEnvelopeInput): ReportEnvelope {
       description: '',
       ...(input.user ? { user: input.user } : {}),
     },
-    draft: { title: '', description: '', excludedArtifacts: [...CRASH_EXCLUDED], annotations: [], redactions: [] },
+    draft: {
+      title: '',
+      description: '',
+      excludedArtifacts: [...CRASH_EXCLUDED],
+      annotations: [],
+      redactions: [],
+    },
     breadcrumbs: input.breadcrumbs,
     device: input.device,
     app: input.app,
