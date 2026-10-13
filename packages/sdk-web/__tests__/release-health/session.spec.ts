@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
 import { expect, it } from 'vitest';
 import { createWebHealthSession } from '../../src/release-health/session.js';
 import { exposure, at } from './fixture.js';

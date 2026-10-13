@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
 import { afterEach, expect, it, vi } from 'vitest';
 import { createWebHealthJournal } from '../../src/release-health/journal.js';
 import { createWebHealthTransport } from '../../src/release-health/transport.js';

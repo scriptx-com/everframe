@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
 import { afterEach, expect, it, vi } from 'vitest';
 import { acquireWebHealth, type WebHealthLease } from '../../src/release-health/runtime.js';
 const leases:WebHealthLease[]=[];
