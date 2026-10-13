@@ -1,0 +1,27 @@
+docs/release-health.md
+  s_fb5ca7e7bd2185::t_95d3e5de5f27e3 281,288-295
+packages/sdk-react/__tests__/provider-release-health.spec.tsx
+  s_fb5ca7e7bd2185::t_59f8d7361091a5 18-28
+packages/sdk-web/__tests__/release-health/runtime.spec.ts
+  s_fb5ca7e7bd2185::t_9dd84f372938fd 6,19-29
+packages/sdk-web/src/adapter.ts
+  s_fb5ca7e7bd2185::t_6056c23db4348e 138,2246-2252
+packages/sdk-web/src/release-health/runtime.ts
+  s_fb5ca7e7bd2185::t_172772d318c591 7,11,26-27,30,39,53-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c5d92dc9f7b49b7d38a40056ad7a12528bb118d8",
+  "prompts": {},
+  "sessions": {
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
