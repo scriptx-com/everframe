@@ -1,0 +1,43 @@
+docs/release-health-alerts.md
+  s_fb5ca7e7bd2185::t_22721de0ac151a 16,26-32,62-64
+docs/release-health.md
+  s_fb5ca7e7bd2185::t_9679116e74ced4 7-9,83-108,111-112,124-143
+packages/protocol/__tests__/web-release-health.spec.ts
+  s_fb5ca7e7bd2185::t_b90b83f85f317b 30-32
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_fb5ca7e7bd2185::t_edfe9c7140f389 64-66
+packages/protocol/src/release-health.ts
+  s_fb5ca7e7bd2185::t_0623c0d2b0ff05 108
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_dbd309ddf8ec5b::t_86a545e1cea2eb 3958,3962
+packages/sdk-web/src/adapter.ts
+  s_fb5ca7e7bd2185::t_f4b094d78643d2 1545-1546,1608
+packages/sdk-web/src/release-health/runtime.ts
+  s_fb5ca7e7bd2185::t_d4a8bd85cad8a1 10,38,47
+packages/sdk-web/src/release-health/session.ts
+  s_fb5ca7e7bd2185::t_1c4537f0a645d5 19,22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "53843ad0e71288e9f0d124f8f18b5af780789983",
+  "prompts": {},
+  "sessions": {
+    "s_dbd309ddf8ec5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "599d6135-c94f-4012-96a8-c8b2810f9699",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
