@@ -1,5 +1,18 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.3.0
+
+### Patch Changes
+
+- 8644592: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  The Xcode phase for React Native and Expo apps is now one line. `everframe setup react-native` and the Expo config plugin add an "Upload Everframe Build Artifacts" phase that runs `scripts/xcode-upload.sh` from the installed `@everframe/cli` with `/bin/bash` and the App ID. The script skips Debug builds, reads `NODE_BINARY` and `EVERFRAME_SYMBOLS_STRICT` from `.xcode.env`, and runs `everframe xcode build-phase`. A missing Node or a failed upload still warns and the build continues, unless `EVERFRAME_SYMBOLS_STRICT=1`. `@everframe/cli` must be installed in the app: without it the script does not exist and the iOS build fails.
+
+  The setup finds `@everframe/cli` from the app root the way Node does, so a package hoisted to a monorepo root works. Without an installed package it writes the standard `node_modules` path, and `setup react-native` warns that builds fail until the package is installed.
+
+  The Everframe phases, including the one from `everframe setup xcode`, declare the app's dSYM as their only input, so they run after Xcode writes it. The `EVERFRAME_DSYM_INPUT` build settings are no longer written. The targets keep `ENABLE_USER_SCRIPT_SANDBOXING = NO`, and React Native and Expo targets keep `SOURCEMAP_FILE` when they do not set it. Running the setup again replaces the phase in place.
+
 ## 1.2.1
 
 ### Minor Changes
@@ -45,6 +58,7 @@
   <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
   Builds can upload their native symbols automatically, and a symbol problem never breaks a build by default.
+
   - `everframe dsym upload-build` finds the binaries and dSYMs itself: `--xcode` inside a Run Script phase, `--archive` for an `.xcarchive` (fastlane, Xcode Cloud, CI) and `--app` for any other layout. App and extension executables are required. Embedded frameworks are optional and warn when they have no dSYM. dSYM folders are searched recursively. iOS, tvOS and their simulators are supported.
   - `everframe setup xcode` adds an "Upload Everframe Symbols" phase to every application target, and `--print-script` prints it for XcodeGen. The phase turns off user script sandboxing on those targets and declares a dSYM input only for `dwarf-with-dsym` builds.
   - The React Native and Expo build phase also uploads iOS dSYMs, skips Debug builds, reads flavored Android variants such as `tvRelease`, and turns off user script sandboxing.
@@ -71,6 +85,7 @@
   <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
   Build integrations keep uploading past a single symbol problem instead of stopping at it.
+
   - `everframe elf upload-build --binaries-dir` uploads every library even when the service rejects one, then prints `warning: everframe: upload failed for <path>: …` for each rejection, also with `--summary`. `--strict`, `EVERFRAME_SYMBOLS_STRICT=1` and `--binary` still fail at the first rejection.
   - `everframe dsym upload-build` searches each `--dsym-dir` folder on its own in lenient mode: a missing or unreadable folder prints `warning: everframe: skipped <folder>: <code>` and the others are still searched. Strict mode still fails.
   - `everframe dsym upload-build --xcode` no longer gives up on the whole upload, including the app's own dSYM, when a symlink loop or a folder it may not read sits in the build products. It skips that entry with a warning and keeps the frameworks it did find. It also warns when the build products search stops at its 16384-entry limit. Strict mode still fails on an unreadable folder.

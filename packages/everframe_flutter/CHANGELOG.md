@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-## Unreleased
+## 1.3.0
 
 - Native release-health sessions are enabled by default. `releaseHealth: false` opts out without disabling error reports; `crash: false` disables both. Native `start(debugBuild:)` forwards an explicit build flag. Dart errors remain outside the native crash rate.
 - The web bridge forwards the health opt-out to Web SDK 1.2.2+, applies changed settings on repeated starts, and cancels deferred initialization when killed.
