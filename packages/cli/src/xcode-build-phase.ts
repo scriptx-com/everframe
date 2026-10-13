@@ -26,9 +26,10 @@ export interface XcodeBuildPhaseDependencies {
 }
 
 /**
- * `everframe xcode build-phase`: the body of the "Upload Everframe Build Artifacts" Run Script
- * phase of React Native and Expo apps. It reads Xcode's build settings from the environment,
- * uploads the Hermes bundle with its composed source map (`SOURCEMAP_FILE`), then the dSYMs.
+ * `everframe xcode build-phase`: what `scripts/xcode-upload.sh` runs in the "Upload Everframe
+ * Build Artifacts" Run Script phase of React Native and Expo apps. It reads Xcode's build
+ * settings from the environment, uploads the Hermes bundle with its composed source map
+ * (`SOURCEMAP_FILE`), then the dSYMs.
  *
  * It never fails the build by default: Debug builds and `SKIP_BUNDLING` skip, and a missing
  * EVERFRAME_API_TOKEN, a sandboxed phase or a failed step print `warning:` lines and exit 0.

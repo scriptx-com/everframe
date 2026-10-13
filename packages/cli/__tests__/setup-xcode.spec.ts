@@ -56,7 +56,7 @@ function settings(project: ReturnType<typeof load>, name: string): Array<Record<
   );
 }
 
-it("adds one last, always-run symbols phase with ordering inputs to every application target", async () => {
+it("adds one last, always-run symbols phase with the dSYM input to every application target", async () => {
   const { dir, pbx } = await projectCopy();
   const result = await setupXcode({ project: dir, appId: APP, cliVersion: "1.2.3" });
   expect(result).toEqual({ changed: true, targets: expect.arrayContaining(["SampleApp", "SampleAppTV"]), xcodegen: false });
@@ -78,25 +78,16 @@ it("adds one last, always-run symbols phase with ordering inputs to every applic
   }
 });
 
-/** Enough of Xcode's macro expansion for the input settings: $(NAME) and $(NAME:c99extidentifier). */
-function expand(value: string, settings: Record<string, string>): string {
-  let out = value.replace(/^"(.*)"$/, "$1");
-  for (let i = 0; i < 10 && out.includes("$("); i++)
-    out = out.replace(/\$\(([A-Za-z0-9_]+)(:c99extidentifier)?\)/g, (_m, name: string, op?: string) => {
-      const raw = (settings[name] ?? "").replace(/^"(.*)"$/, "$1");
-      return op ? raw.replace(/[^A-Za-z0-9_]/g, "_") : raw;
-    });
-  return out;
-}
-it.each([
-  ["dwarf", "/build/Debug-iphonesimulator/App.app/Info.plist"],
-  ["dwarf-with-dsym", "/build/Release-iphoneos/App.app.dSYM/Contents/Resources/DWARF/App"],
-])("declares an input that exists for DEBUG_INFORMATION_FORMAT=%s", (format, expected) => {
-  const xcode = format === "dwarf"
-    ? { TARGET_BUILD_DIR: "/build/Debug-iphonesimulator", INFOPLIST_PATH: "App.app/Info.plist" }
-    : { DWARF_DSYM_FOLDER_PATH: "/build/Release-iphoneos", DWARF_DSYM_FILE_NAME: "App.app.dSYM", EXECUTABLE_NAME: "App" };
-  const environment = { ...SYMBOLS_BUILD_SETTINGS, ...xcode, DEBUG_INFORMATION_FORMAT: format };
-  expect(expand(SYMBOLS_PHASE_INPUTS[0]!, environment)).toBe(expected);
+it("orders the phase after dSYM generation with the dSYM as its only input, and writes one setting", async () => {
+  const { dir, pbx } = await projectCopy();
+  await setupXcode({ project: dir, appId: APP, cliVersion: "1.2.3" });
+  const text = await readFile(pbx, "utf8");
+  expect(SYMBOLS_PHASE_INPUTS).toEqual([
+    '"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"',
+  ]);
+  expect(SYMBOLS_BUILD_SETTINGS).toEqual({ ENABLE_USER_SCRIPT_SANDBOXING: "NO" });
+  expect(text).not.toContain("EVERFRAME_DSYM_INPUT");
+  expect(text).not.toContain("$(INFOPLIST_PATH)");
 });
 it("is idempotent", async () => {
   const { dir, pbx } = await projectCopy();
@@ -104,6 +95,19 @@ it("is idempotent", async () => {
   const once = await readFile(pbx, "utf8");
   expect((await setupXcode({ project: dir, appId: APP, cliVersion: "1.2.3" })).changed).toBe(false);
   expect(await readFile(pbx, "utf8")).toBe(once);
+});
+it("rewrites an earlier phase of the same name in place", async () => {
+  const { dir, pbx } = await projectCopy();
+  await setupXcode({ project: dir, appId: APP, cliVersion: "1.2.3" });
+  const fresh = await readFile(pbx, "utf8");
+  const earlier = fresh.replace(
+    /inputPaths = \(\n(\t+)"\$\(DWARF_DSYM_FOLDER_PATH\)[^\n]*\n/g,
+    (_m, indent: string) => `inputPaths = (\n${indent}"$(EVERFRAME_DSYM_INPUT)",\n${indent}"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",\n`
+  );
+  expect(earlier).not.toBe(fresh);
+  await writeFile(pbx, earlier);
+  expect((await setupXcode({ project: dir, appId: APP, cliVersion: "1.2.3" })).changed).toBe(true);
+  expect(await readFile(pbx, "utf8")).toBe(fresh);
 });
 it("narrows to --target and rejects unknown targets with the valid names", async () => {
   const { dir, pbx } = await projectCopy();
