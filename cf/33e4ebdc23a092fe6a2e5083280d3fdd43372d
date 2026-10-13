@@ -1,0 +1,547 @@
+docs/crash-reporting-support.md
+  s_fb5ca7e7bd2185::t_5877598137640a 3,13-27,39-44
+docs/session-replay.md
+  s_fb5ca7e7bd2185::t_b2a4dcb384ff2b 109-113
+examples/flutter-desktop-probe/macos/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json
+  s_fb5ca7e7bd2185::t_7bb4b37addcd28 2,4-7,10-13,16-19,22-25,28-31,34-37,40-43,46-49,52-55,58-61,64-66
+examples/flutter-ios-probe/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json
+  s_fb5ca7e7bd2185::t_4d093ee89355b8 2,4-7,10-13,16-19,22-25,28-31,34-37,40-43,46-49,52-55,58-61,64-67,70-73,76-79,82-85,88-91,94-97,100-103,106-109,112-115,118-120
+examples/flutter-ios-probe/ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json
+  s_fb5ca7e7bd2185::t_80ca0b59725987 2,4-6,9-11,14-16,19-21
+examples/flutter-ios-probe/ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md
+  s_fb5ca7e7bd2185::t_9f204760e136bb 3,8
+examples/flutter-web-probe/scripts/serve.mjs
+  s_fb5ca7e7bd2185::t_f0fde574bd38da 33-38,44-47
+examples/flutter-web-probe/web/index.html
+  s_fb5ca7e7bd2185::t_c54d7148bb0374 5-27
+examples/flutter-web-probe/web/kmp-canvas.html
+  s_fb5ca7e7bd2185::t_d81a226a511d9e 5-34
+examples/ios-native/README.md
+  s_fb5ca7e7bd2185::t_ddfae8ec60bd32 9-13,37-50,75,79,85,90,102,107,124,136
+examples/ios-native/SampleApp/Assets.xcassets/AppIcon.appiconset/Contents.json
+  s_fb5ca7e7bd2185::t_0c5fc2faf24c89 2,4-6,9-11
+examples/ios-native/SampleApp/Assets.xcassets/Contents.json
+  s_fb5ca7e7bd2185::t_202be44d132b99 2-4
+examples/ios-native/SampleAppTV/Assets.xcassets/Contents.json
+  s_fb5ca7e7bd2185::t_8bd85a2a474bbf 2-4
+examples/ios-native/SampleAppTV/README.md
+  s_fb5ca7e7bd2185::t_9a769b35a570b5 14-17,44-46
+examples/ios-native/project.yml
+  s_fb5ca7e7bd2185::t_635ab6366d3341 21-22,33-34,37,43,48,54,58-59,68,79,84,90,94-95,103
+examples/kmp-ios-probes/project.yml
+  s_fb5ca7e7bd2185::t_5620947233f895 7,13,15
+examples/react-native/README.md
+  s_fb5ca7e7bd2185::t_e77392be60be7d 78-84,116,298-300,302-309,313-315
+examples/react-native/app.json
+  s_fb5ca7e7bd2185::t_cda3750a8decfd 32
+examples/react-native/maestro/reporter-smoke.yaml
+  s_fb5ca7e7bd2185::t_c939bb55a9b6ba 32,37-38,42-43,45,50
+examples/react-native/plugins/with-everframe-artifacts.js
+  s_fb5ca7e7bd2185::t_80777b0815f459 7-9
+examples/react-native/plugins/with-everframe-ios-local.js
+  s_fb5ca7e7bd2185::t_9b67513862a6fe 106,182,185,290,426,437,448
+examples/react-native/plugins/with-everframe-tv-prebuild.js
+  s_fb5ca7e7bd2185::t_99c25a48601740 35,79,81,104,128,145
+examples/react-native/plugins/with-pod-deployment-targets.js
+  s_fb5ca7e7bd2185::t_d0e7616806c9da 35-42
+examples/react-native/scripts/sync-env.mjs
+  s_fb5ca7e7bd2185::t_531b98c25510f7 53-55,68
+examples/react-native/scripts/with-free-port.mjs
+  s_fb5ca7e7bd2185::t_7ee3a26b39ac6d 55-58
+examples/react-native/src/App.tsx
+  s_fb5ca7e7bd2185::t_24548a89c98846 72-79,144
+examples/react-native/src/components/ErrorTests.tsx
+  s_fb5ca7e7bd2185::t_8a630a91d19bba 58-60,63-64,82-83,88-89,92-93
+examples/react-native/src/components/ReportFab.tsx
+  s_fb5ca7e7bd2185::t_1a18d7cea1c8f0 101-103,108-109,112-120
+examples/react-native/src/components/SpecimenPlate.tsx
+  s_fb5ca7e7bd2185::t_6336fc512be3c2 94-103,161-169,205-212,231-234,258-259,286-287
+examples/react-native/src/components/TabBar.tsx
+  s_fb5ca7e7bd2185::t_fcd8e473ed5ff2 64-65
+examples/react-native/src/data/specimens.ts
+  s_fb5ca7e7bd2185::t_e9cd4ce5a349e4 11,37-45,48-56,59-67,70-78,81-89,92-100,103-111,114-120,122
+examples/react-native/src/screens/Companion.tsx
+  s_fb5ca7e7bd2185::t_f5ef479311d76d 74-75,88-89,111-112,130-131,142-143,154-155,166-167,175,188-190
+examples/react-native/src/screens/FieldLog.tsx
+  s_fb5ca7e7bd2185::t_7368c3142d3067 11,108-109,131-132,156-157,163-164,176-177
+examples/react-native/src/screens/Form.tsx
+  s_fb5ca7e7bd2185::t_0072572f588bb1 107-108,136-138,155-156,176-177,213-214
+examples/react-native/src/screens/Home.tsx
+  s_fb5ca7e7bd2185::t_7158b1b96a8401 39-40,93-94
+examples/react-native/src/screens/Playback.tsx
+  s_fb5ca7e7bd2185::t_39c4b4fc07bcd3 78-80,134-135
+examples/react-native/src/screens/Specimens.tsx
+  s_fb5ca7e7bd2185::t_20c727e94c3417 35-36,114-115,135-136
+examples/react-native/src/theme.ts
+  s_fb5ca7e7bd2185::t_a59e190668496e 47-52,62-67
+examples/react-tv-sample/README.md
+  s_fb5ca7e7bd2185::t_b77aa2349a7ed9 61-66
+examples/react-tv-sample/index.html
+  s_fb5ca7e7bd2185::t_6a05486a579693 1
+examples/react-tv-sample/src/App.tsx
+  s_fb5ca7e7bd2185::t_917cf177fb0617 15-18,28,62-68,73-74,78-80,82-84,87
+examples/react-web/README.md
+  s_fb5ca7e7bd2185::t_3fc5ffeb0b0afa 161-164,166
+examples/react-web/app/(default)/CompanionQR.tsx
+  s_fb5ca7e7bd2185::t_a6c0e68a5a8a55 16-19,36-37,40-49,56,68,72,76,80
+examples/react-web/app/(default)/archive/page.tsx
+  s_fb5ca7e7bd2185::t_27b26847326ed5 10-13,16-23,26,29-34,39-50,84-85,95-97,120,124,147
+examples/react-web/app/(default)/layout.tsx
+  s_fb5ca7e7bd2185::t_30b2b783359181 3,5-10,15,39
+examples/react-web/app/(default)/log/page.tsx
+  s_fb5ca7e7bd2185::t_6bad9b5d7c5105 8-12,17-18,38,43-44,59,62-63,97-98,109,120
+examples/react-web/app/(default)/page.tsx
+  s_fb5ca7e7bd2185::t_59c0d0a28c2f85 12-17,19,31,33-35,42,57-58,66-67,75-76,84-85,93,97-98,131
+examples/react-web/app/(default)/playback/dash/page.tsx
+  s_fb5ca7e7bd2185::t_6f4f510eef298a 68-71,105-106,119-124,143-151
+examples/react-web/app/(default)/playback/hls/page.tsx
+  s_fb5ca7e7bd2185::t_a4d2ea6ada78d0 64-67,88-91,104-113,153-155
+examples/react-web/app/(default)/playback/native/page.tsx
+  s_fb5ca7e7bd2185::t_06075ad885303e 24-26,37-45
+examples/react-web/app/(default)/playback/page.tsx
+  s_fb5ca7e7bd2185::t_e26e99175af0ac 13-14,19-20,25-26,38-41,46-51
+examples/react-web/app/(default)/settings/page.tsx
+  s_fb5ca7e7bd2185::t_cf031782d9719b 7-9,13-14,26,32,40-41,53-54,86-87,107-109,116-117,125
+examples/react-web/app/(default)/source-map-check/page.tsx
+  s_fb5ca7e7bd2185::t_5ed8bd97416d6f 41-42,44-49,51-52,55-57
+examples/react-web/app/(default)/specimens/[id]/page.tsx
+  s_fb5ca7e7bd2185::t_f44b4f453bb5be 7-13,15,26-27,41,60,84-85,95
+examples/react-web/app/(default)/specimens/page.tsx
+  s_fb5ca7e7bd2185::t_a64dbb91ebccfc 7-11,22-23,26-31
+examples/react-web/app/(default)/video/page.tsx
+  s_fb5ca7e7bd2185::t_82478ff91374bf 87-89,189-190
+examples/react-web/app/(strict)/layout.tsx
+  s_fb5ca7e7bd2185::t_e021796361d04c 20-26
+examples/react-web/app/api/everframe-identity/route.ts
+  s_fb5ca7e7bd2185::t_c93fe920da4243 59-62
+examples/react-web/app/components/PlayerBench.tsx
+  s_fb5ca7e7bd2185::t_3dcd40fc35b87e 52-65,115-121,134-135,168-177,180-185,188-198,202-210,213-221,230-233,235-239,242-251,274-275,278-280
+examples/react-web/app/components/ReportFab.module.css
+  s_fb5ca7e7bd2185::t_acf7fdf4adac62 24-28
+examples/react-web/app/components/ReportFab.tsx
+  s_fb5ca7e7bd2185::t_47c7b28b099fd1 15-18
+examples/react-web/app/components/SiteNav.tsx
+  s_fb5ca7e7bd2185::t_2d750ae5088e8b 3-5,8-15,19,36-37
+examples/react-web/app/components/SpecimenPlate.tsx
+  s_fb5ca7e7bd2185::t_47594554f40bbe 9,22-23,69-70,77-86,107-108,136-137,144-152,176-177,188-195,214,238
+examples/react-web/app/globals.css
+  s_fb5ca7e7bd2185::t_3167fb88a793db 37-39,207,227-230,285-287,295,357-359,392-394,521,639-641
+examples/react-web/app/layout.tsx
+  s_fb5ca7e7bd2185::t_2f5f1ed2e6dce9 3,6-7
+examples/react-web/app/lib/field-log.ts
+  s_fb5ca7e7bd2185::t_d34be10288b8c0 17,22-25,29-32,36-38,44
+examples/react-web/app/lib/specimens.ts
+  s_fb5ca7e7bd2185::t_cb5dc039f166dd 11,37-45,48-56,59-67,70-78,81-89,92-100,103-111,114-120,122
+examples/react-web/tsconfig.json
+  s_fb5ca7e7bd2185::t_bd5f90bc1d5a8d 4,22,34
+examples/roku-channel/README.md
+  s_fb5ca7e7bd2185::t_f36f67ad45de38 31,43-48,70-81
+examples/roku-channel/__tests__/channel.spec.ts
+  s_fb5ca7e7bd2185::t_9406cebe50d133 34-37,44-46,48-53,60-69,71-73,113-115,122-124,127-129,134-137,140-145
+examples/roku-channel/__tests__/run-roku-helpers.spec.ts
+  s_fb5ca7e7bd2185::t_9b8d05cd1a81a8 26-28,35-37,46-52,55-60,71-77,88-94,102-108,117-120
+examples/roku-channel/__tests__/run-roku.spec.ts
+  s_fb5ca7e7bd2185::t_b99bbbe9b89f20 14-16,45-47,50-52,54-56,59-60,70-76,85-86,94-96,108-110
+examples/roku-channel/scripts/run-roku.mjs
+  s_fb5ca7e7bd2185::t_06140fb2eac306 10-18,79-80,98-103,109-119,133-134,163-166,171-174,198-199,217-228,234-242,246-252,254-257
+examples/smarttv-tester/index.html
+  s_fb5ca7e7bd2185::t_c671509826a0a5 1
+examples/smarttv-tester/scripts/run-chromium.mjs
+  s_fb5ca7e7bd2185::t_8c18074f5d3b30 117-118,158-164
+examples/smarttv-tester/src/components/CompanionControls.tsx
+  s_fb5ca7e7bd2185::t_b0322497c05326 33-40,47-54,62-63
+examples/smarttv-tester/src/components/KeyLog.tsx
+  s_fb5ca7e7bd2185::t_4128ed74a4a160 36,40-45
+examples/smarttv-tester/src/components/TileGrid.tsx
+  s_fb5ca7e7bd2185::t_8b1c306d85226c 39-45
+examples/tvos-replay/project.yml
+  s_fb5ca7e7bd2185::t_ebcacedf741790 7-8,14,27,49,53
+examples/vue-web/README.md
+  s_fb5ca7e7bd2185::t_ba5c5d05870c2e 33-40
+examples/vue-web/public/strict-csp.css
+  s_fb5ca7e7bd2185::t_509218d9f2f120 13-47
+examples/vue-web/src/styles.css
+  s_fb5ca7e7bd2185::t_be72d3d3d43189 3-58
+examples/vue-web/src/views/HomeView.vue
+  s_fb5ca7e7bd2185::t_7697e757072ec7 26-29,51
+examples/vue-web/src/views/SettingsView.vue
+  s_fb5ca7e7bd2185::t_0b201ad9b6f890 60-61
+examples/vue-web/src/views/SpecimenDetailView.vue
+  s_fb5ca7e7bd2185::t_644a3c6efd6f30 25-27
+examples/vue-web/strict-csp.html
+  s_fb5ca7e7bd2185::t_29b89a00a4ea17 19
+packages/babel-plugin-displayname/__tests__/cases.spec.ts
+  s_fb5ca7e7bd2185::t_ea746f19101579 21-24
+packages/babel-plugin-displayname/src/index.cjs
+  s_fb5ca7e7bd2185::t_6612846ce45306 104-111,139-142,152-153,169,209
+packages/babel-plugin-displayname/src/index.d.ts
+  s_fb5ca7e7bd2185::t_5f6b3ecd3b8c2d 10-13
+packages/bundler-plugin/__tests__/core.spec.ts
+  s_fb5ca7e7bd2185::t_8313ba517264bb 7-12,29-34,49-57,71-73,79-82,97-110,116-118,134-136
+packages/bundler-plugin/__tests__/esbuild.spec.ts
+  s_fb5ca7e7bd2185::t_5c56021f92469b 16-19,26-33,40-47,53-59,61-63,68-74,81-89
+packages/bundler-plugin/__tests__/next.spec.ts
+  s_fb5ca7e7bd2185::t_dc8ffcaccf64c6 51-53,85-89,92-95
+packages/bundler-plugin/__tests__/rollup-build.spec.ts
+  s_fb5ca7e7bd2185::t_0e9f5215687a38 19-25,29-31
+packages/bundler-plugin/__tests__/vite-build.spec.ts
+  s_fb5ca7e7bd2185::t_b74a9c01f46a71 12-15,22-25,36-41,50-52,61-66,98-103,116-121,129-131,134-136,143-154,167-171,178-180
+packages/bundler-plugin/__tests__/webpack.spec.ts
+  s_fb5ca7e7bd2185::t_7f66d1bfb81f53 15-25,36-40,42-49
+packages/bundler-plugin/src/core.ts
+  s_fb5ca7e7bd2185::t_0e5eef534527e7 37-40,87-90
+packages/bundler-plugin/src/next.ts
+  s_fb5ca7e7bd2185::t_dc3b96521f7c7d 27-30,33-35
+packages/bundler-plugin/src/plugin.ts
+  s_fb5ca7e7bd2185::t_a72462515e0aa2 6-12,26-33,49-57,65-68,72-73,79-81,143-144
+packages/bundler-plugin/tsup.config.ts
+  s_fb5ca7e7bd2185::t_f1320accbb3bc2 3,6-8,12-13
+packages/bundler-plugin/vitest.config.ts
+  s_fb5ca7e7bd2185::t_00a0a762faf56e 3,6
+packages/cli/README.md
+  s_fb5ca7e7bd2185::t_470fd719aceb90 107-116
+packages/cli/__tests__/apple-build-fixture.ts
+  s_fb5ca7e7bd2185::t_ca244ee053f7b0 3-6,8,11,20,23,51-52,66,72-73,79,92,94,104-120,127
+packages/cli/__tests__/apple-build.spec.ts
+  s_fb5ca7e7bd2185::t_3425d7df68bf8a 3-8,18,22-23,29,43,45,51,54,56,63,70,77,84,91,98,105,113,120-126,128-130,132,135,137,141,144,152,155-170,176,178,180,183-197,199-204,209-212,216,220,224,228,230,232,237,240,245,247,249-251,257-258,261-267,269-272,274,277-280,283,285-286,289-293,296,298,312,315,317,319,321,324-325,328,331-332,336,339-340,344,346-347,351,355-356,359,361-374,379,381-383,385,387-388,394,396-403,405,407,414-415,417,425-426,428,434-435,437,442-450,452,455-456,458,462-463,467-468,473,476-477,479,481,483,487-489,491,493-495,497,499,503,505,507,509-510,515-516,519,521-522,525,527-528,530-531,537,543,545,547,558,561,564,567,569-570,572,575,577,581-584,591,593,595-599,608-610,612,615,617,619,629-631,634,637-639,646-648,650,652-655,660-663,674-677,682,686,690-693
+packages/cli/__tests__/apple-command.spec.ts
+  s_fb5ca7e7bd2185::t_d4a9a567a81efc 3-12,14,16,22,25,28-31,33-34,36,42,44,48-56,68-69,73,77,80-82,84-86,88-89,91,93,98,101-116,119-121,128,130-132,134-139,141,144-147,149,154,156-157,159,162,164-168,170,172,174-175,177-178,181,183-187,189,191-195,197,200,203,208-211,213-216,219,221,223-224,226-230,233,235-238,240,242,245-258,260,262,264,270-274,278-279,281-282,285-297,300-305,307,310,312,315,318-321,323,325-329,332,336,340-344,346-350,353,355-359,364-365,367-371,373-374,377-379
+packages/cli/__tests__/apple-discover.spec.ts
+  s_fb5ca7e7bd2185::t_2fb234e756eb89 3-8,15-16,20,30-33,35-36,41,49-50,52-54,56-59,61,65,72,77,80-83,88-93,97-98,100,103-112,114,117-120,122,125-127,130,133,136,139,142-145,147,150-156,160-163,177-194,196-204,206-210,213,215-220,222,224,227,236,239,241-243,247,249-250,257,268,271-273,278-332,344-346
+packages/cli/__tests__/apple-upload.spec.ts
+  s_fb5ca7e7bd2185::t_72f7b55ac424ca 3-9,12,14,18-19,28-30,35,39,42-43,53-67,70-83,89,91,100,102,105,109,112,117,124,127,131-133,136-137,144-145,149,151,153,155,157,160-161,165-169,171,173,177,179-180,183,185-187,189-192,196,198,202-208,211-212,214,216,218,220,225-228,235-239,241,243,247,249-250,252,255,257,261,265-268,270-272
+packages/cli/__tests__/bin-symlink-invoke.spec.ts
+  s_fb5ca7e7bd2185::t_66034db285bc1f 3-9,23-24,26,34-35,39-40,42-46,49-52,56,62,69-70
+packages/cli/__tests__/build-collect.spec.ts
+  s_fb5ca7e7bd2185::t_00f4adfa94cecc 35-45,50-68,70-71,74-80,83-89,111-114,172-177
+packages/cli/__tests__/build-verify.spec.ts
+  s_fb5ca7e7bd2185::t_553bde04c08c13 30-32,34-40,76-79
+packages/cli/__tests__/bundle-identity.spec.ts
+  s_fb5ca7e7bd2185::t_e25d522e2292e5 8-83
+packages/cli/__tests__/command.spec.ts
+  s_fb5ca7e7bd2185::t_b19078da0217cf 3-11,13-15,17-19,21,27-30,33-43,49-51,56,59,61,64-68,70-75,78,80,82,85-86,88-92,95,99-101,103-105,112-124,126-139,143-149,151-152,154,158,168-180,182-195,198-199,203,215-217,220-221,224-225,227-229,233-234,236-237,242,246-255,257,265-267,274-275,277,279,283-284,288-289,296-300,304,314-316,318-321,323,326,328-335,340-350,353,361,363-364,367,373,375-376,379,386,393,397-398
+packages/cli/__tests__/dsym.spec.ts
+  s_fb5ca7e7bd2185::t_77361198da9e71 3-10,12,14,16-17,24,26-27,29,33-35,42,44-45,47-48,50,52,54,56,60-62,65-73,75-76,80,82-83,86,88,92,98-101,108,110-111,114,116-117,120,127-130,137,139-140,143,145-146,148,153-156,159,161-162,166-168,170-171,173-180
+packages/cli/__tests__/elf-build-fixtures.ts
+  s_fb5ca7e7bd2185::t_d4914239e2540f 3-4,10-57,59-65
+packages/cli/__tests__/elf-build.spec.ts
+  s_fb5ca7e7bd2185::t_bdc1c8b64f58d7 5-16,23-37,40-48,50-53,55-64,66-182,185-204,206-328
+packages/cli/__tests__/elf-command.spec.ts
+  s_fb5ca7e7bd2185::t_d1450c8dc935da 3-10,12-14,16,23,25-26,28-30,32,34-37,47-52,55,59,69,71-75,78,81-87,89,91-92,100-105,109-111,114-119,129-133,135-139,142,148,150-155,162-166,169-177,183-185,188,190,193,197-201,204-206,208,213-216,219-226,228-230,232,235-242,245-251,253-262,264,271-280,284-291,294,299,302-307,309-311,318-320,323-325,329-331,335,338-341,344-346,348,350-358,360-361,363-365,367,369,371-374,376,379-381,385,387-389,391,400-403,408,410-411,420-425,427,430-435,437,440-441,449,451-458,462,465-469,472,474
+packages/cli/__tests__/elf-upload-build.spec.ts
+  s_fb5ca7e7bd2185::t_e01b2918f51009 14-36,39-41,45-102,104-108,110-122,124-129,131-133,136,138,141-142,144-157,160-178,180-184,187-198,200-204,206-225,228-236,238-247,249-266,268-278,280-281
+packages/cli/__tests__/elf.spec.ts
+  s_fb5ca7e7bd2185::t_6e05ac38334063 3-11,13,15,17-18,25,27-28,30,34-36,43,45-46,48-49,51,53,55,57,59-61,63,65,67-76,78-84,86,89,93-95,98-106,108-109,113,115-116,119,121,125,131-134,141,143-144,147,149-150,153,158-161,164,166-167,171-173,175-176,178-185
+packages/cli/__tests__/expo-export.spec.ts
+  s_fb5ca7e7bd2185::t_509c96b4183e67 27-28,33-42,46-49,52-58,67-69,79-82,97-104,127-129,136-139
+packages/cli/__tests__/hermes.spec.ts
+  s_fb5ca7e7bd2185::t_e26eb57ba393a5 3-12,15-17,20,27-28,30-31,35,40-42,45-46,58,62-63,66-68,74-76,79,91,97,102-104,108,111,114-116,118,126,128-129,131,139,142,144,148-150,154,157,162-164,168,172-173,178-180,183,187,194-195,200-202,204-210,212,216,223-225,228,244,247-249,256,259,262,264-265,272,283,287,293-294,298-300,307-310,314,323,327,331,334-336,341,347,351
+packages/cli/__tests__/large-dsym-upload.spec.ts
+  s_fb5ca7e7bd2185::t_bf984caed9c4ef 3-16,19,22,24-25,29-31,35-37,40,44,47,52,55-56,61-62,64,71,76,84,93,98,104-105,109,112,119,122,125,127,129,131,133,139,141,148,151-152,156-157,160,172,177,179,185,190,196,205,208,211,213,218,223-224,231-232,235,239,242,254-255,260,263,270,288,290,292-293,295,297,299,302
+packages/cli/__tests__/manifest.spec.ts
+  s_fb5ca7e7bd2185::t_5a9353ea33ff46 3-8,10,12-13,17-18,20-24,27,29,34,37-38,43-44,50-51,54,56-57,60,62,64,67,69,72,74,76,80,82,84,87,89-91,93-94,97,100,102,104,107,110,112-113,117-118,122,124-126,129-130,133-142
+packages/cli/__tests__/native-setup.spec.ts
+  s_fb5ca7e7bd2185::t_eba6af15478a46 3-10,30,45-46,85-88,110-117,123-126,134-136,142-144,170-172,205-206,222-224,233-248,301-311,315-316,320-322,326-332
+packages/cli/__tests__/r8.spec.ts
+  s_fb5ca7e7bd2185::t_1aacc06025cb34 3-13,15-18,20,23-25,30,38-39,44,50-52,55,61,70-76,78,80-81,83,86-88,91,93,95-97,101,105,109,114,117-119,135-136,139,146-147,149,158,164,166,169-175,178,184,187,190,193,197-202,206-212,215-216,222,226,232-233,241,247,249,253,256,260,268,274,277,280,286,294,300,305,308,317,320-321,323-325,327,329,342,348-349,354,357,363,370,374,377,381-383,385,394,400-401,403-407,409,413-416,418,425,428-434,438,441,447-449,461-462,465-466,470-472,474-476,479,492-493,495,497
+packages/cli/__tests__/setup-react-native.spec.ts
+  s_fb5ca7e7bd2185::t_99e110954a90bb 21-24,26-29,37-43,67-70,72-75,77-79,85-87,110-113,116-117,154-157,180-182,191-193,210-213,216-218,223-226,235-237,239-251
+packages/cli/__tests__/setup-xcode.spec.ts
+  s_fb5ca7e7bd2185::t_3e3acbc0a97893 3-17,19,21,32-33,35-36,43-47,50-52,63-70,72,76,78-83,85,90,92,94,96,102,104-105,109-111,113,115-118,120,122-123,126-127,131-132,134,136-139,141-147,150,152-153,155-156,158,160-161,168,170-172,175,177,179-188,190-195,198-208,210,212-213,216,218-219,221,223-224,226,228,230-233,235,237,239-240,242-246,248,252-257,261,263,265-267,270-274,277-285,287-288,291-294
+packages/cli/__tests__/staging-io.spec.ts
+  s_fb5ca7e7bd2185::t_82a90750787aa1 25-27,64-67
+packages/cli/__tests__/upload-file-safety.spec.ts
+  s_fb5ca7e7bd2185::t_17fd20101b8a04 3-4,15-21,23-24,31,36,42,47,49,52,55-56,67,69-70,78-79,82,95,104,108,111-113,121,124,126,133-134,139,146,148-149,153-162,165,172,176,185,195,197-198
+packages/cli/__tests__/upload.spec.ts
+  s_fb5ca7e7bd2185::t_a75e553f63a869 3-8,14,16-18,21,24-25,27,34-36,38-39,42,44-46,53,60,67-68,85-86,88-89,92,95,98-99,102,105,107,109,111,125,128-130,132,136,141,143-146,148-150,152,157,159,161,166,171,174,179,184,190,194,200-201,210,215,217-219,227,230,234,238-240,242-243,245,248,257,262,264,271,275,278-280,282-283,285,289,293-296,298-300,303,305,308,312-316,319,321,324,328,331-332,336-339,342,346,354-355,359,368,374-377,379,388-390,395,400-401,404-406,411-412,416-417,421-422,424-425,429,431,434,437,442,444,447,449,454-455,461,465,471,475,482-483,492,496,503
+packages/cli/__tests__/vega.spec.ts
+  s_fb5ca7e7bd2185::t_64305c72678b49 3-12,15,17,20-24,28-32,36-42,47,49-53,55-58,64,68-70,73-74,76,80-81,89-90,92-99,101-103,106,111-113,116,118-119,123-124,128,132-138,140-147,151,159-168,172-176,181-184,186-199,205,212,214,216-224,230,232-234,236-241
+packages/cli/__tests__/xcode-build-phase.spec.ts
+  s_fb5ca7e7bd2185::t_2e2ea3d41ae401 3-8,15,17,19-24,34-37,45-46,50,55,58-78,83-91,95,98-117,121-133,135-136,143,145-150,154,156,160-162,166-172,175-178,182-183,187-194,196-205,207,211,213-214,218-219,222-229,232,235,238,240-242,244-246
+packages/cli/__tests__/xcode-upload-script.spec.ts
+  s_fb5ca7e7bd2185::t_78ef766448ed23 4-14,42-44,56-57,62-68,76-77,83-86,104-118,123-126,133-136,175-177,189-191,194-205,210-216
+packages/cli/build-constants.ts
+  s_fb5ca7e7bd2185::t_148afaa146842e 3,10-12
+packages/cli/src/apple-build.ts
+  s_fb5ca7e7bd2185::t_d26aeee5763af5 3-9,16,56,59,62-64,71,75-78,86,93-94,96-97,100-101,103,115,119,122-123,137,147,152,158,160,178,200-201,208,220,232,239,243,256,264-266,287,297-298,306,308,312,319,327,342,346,348,363,365-368,382-383,397,411,413-417,419,425,431,448,458,466,479,481,485,490,497,505,522,524,529-532
+packages/cli/src/apple-command.ts
+  s_fb5ca7e7bd2185::t_7cb961cf1313f3 3-4,11-22,39,48-54,58-63,65-68,70-72,74,85,97-98,101-102,119,124-126,131,133-134,137,139-141,144,152
+packages/cli/src/apple-discover.ts
+  s_fb5ca7e7bd2185::t_3d8591647b2051 3-5,13-14,17-19,21,25,44,69-72,80-81,90,106-108,116-117,121-122,129,143-144,165,175-177,181,213,227-229,232-234,239-242,244-246,260,274-275,277,279-281,288-291,302,307,309,311,313,315-320,323-326,330,339,344,350-352,354,362-363,365-368,371-373
+packages/cli/src/apple-upload.ts
+  s_fb5ca7e7bd2185::t_54c7d3ce215905 3,10-14,20,22,33,48,51-53,79-80,84
+packages/cli/src/build-collect.ts
+  s_fb5ca7e7bd2185::t_1f436bc868089d 71-75,79-90,94
+packages/cli/src/build-verify.ts
+  s_fb5ca7e7bd2185::t_627981e5be67d8 43
+packages/cli/src/bundle-identity.ts
+  s_fb5ca7e7bd2185::t_ae1d9f8a6084b8 5-11,15-21,26-27,29-33,38-43,46-58,63-64,68-71,80-82
+packages/cli/src/defaults.ts
+  s_fb5ca7e7bd2185::t_1426a15cc7ec1b 4,6,13,16,18,23,32-36,38-43
+packages/cli/src/dsym.ts
+  s_fb5ca7e7bd2185::t_40dc278d192e36 3-8,14,20,25-26,28,33,37-38,44-46
+packages/cli/src/elf-build.ts
+  s_fb5ca7e7bd2185::t_188e3370dd4870 11-12,15-18,21-23,26-30,32-38,40-44,47-49,52-74,77-82,84-86,88-90,92-113,115-120,122-135,137-139,141-144,150-169,171-176,179-180,182-240,242-249,251-255,257-276,278,280-344,347-366,368-370,374-391
+packages/cli/src/elf-command.ts
+  s_fb5ca7e7bd2185::t_4ffc048f8c1fe6 3-16,18,38,47-54,59-60,62-66,77-82,85-87,96-97,105,108-111,116,119-120,123-124,127-128,131-136,144
+packages/cli/src/elf-identity.ts
+  s_fb5ca7e7bd2185::t_f0040be0de2187 7-8,10-91,93-108,110,112-155,157-165,167-169
+packages/cli/src/elf-upload.ts
+  s_fb5ca7e7bd2185::t_f749dc2b7d9426 5-10,13-14,24-31,33-61,63-65
+packages/cli/src/elf.ts
+  s_fb5ca7e7bd2185::t_cf5a5a38145249 3-8,14,20,25-26,28,33,37-38,44-46
+packages/cli/src/expo-export.ts
+  s_fb5ca7e7bd2185::t_3a89899a93a58f 58-63
+packages/cli/src/hermes.ts
+  s_fb5ca7e7bd2185::t_508750b51b4737 3-6,15,21,28,30-33,35,37,44,46,60-61,64,76
+packages/cli/src/index.ts
+  s_fb5ca7e7bd2185::t_c1365c13a7f175 3-26,28-46,74-75,79,84-95,109,114-117,123-125,127-131,134-135,138-160,162-164,174-176,183-184,189-190,195,206-209,217-218,237-245,254-255,257,259-260,276,285,294-297,307-309,316,319,333-336,346-348,355,358,377-380,387-388,392,394-404,409,415-417,424,426,430-433,447,453-461,468-469,475,477,486-489,508,514,538-543,550,553,555,557,566,574,578-579,593
+packages/cli/src/manifest.ts
+  s_fb5ca7e7bd2185::t_a75d6c0e702288 3-6,12-13,28,31,33,38-40,45,47,51,55,59,62,69,71,75,78-79,88,91,96,98,100,104,111,113,134,137,140
+packages/cli/src/native-setup/gradle.ts
+  s_fb5ca7e7bd2185::t_9cbdf15911a138 9-10,17-21,26-32,36-38,50-52,61-66,80-82
+packages/cli/src/native-setup/index.ts
+  s_fb5ca7e7bd2185::t_fcd628369a9e01 4-10,22-28
+packages/cli/src/native-setup/script.ts
+  s_fb5ca7e7bd2185::t_bfcd8fcb24bc2c 6,17-18,27-29
+packages/cli/src/native-setup/xcode-symbols.ts
+  s_fb5ca7e7bd2185::t_9b3ff839c035fd 3,5,12-14,17,41,51-53,56,59-60,64-65,68,71,75,80-81,83,95-96,98,102-105,109-114,120-121,129-139,142-152,154,158
+packages/cli/src/native-setup/xcode.ts
+  s_fb5ca7e7bd2185::t_1554c02c7ba4ba 14-15,29-33,71-75,78-82,90-100,104-111
+packages/cli/src/r8.ts
+  s_fb5ca7e7bd2185::t_4118048c7d6184 3-6,13,18,20-22,30-31,41
+packages/cli/src/setup-react-native.ts
+  s_fb5ca7e7bd2185::t_640e25897ff146 31,45-49,58-62
+packages/cli/src/setup-xcode.ts
+  s_fb5ca7e7bd2185::t_101eb8e9d12ba1 3-6,15-16,22-25
+packages/cli/src/staged-upload.ts
+  s_fb5ca7e7bd2185::t_c099ebbc6c8549 23-26,36-37,42-48
+packages/cli/src/staging-io.ts
+  s_fb5ca7e7bd2185::t_542a8194858e6e 72-76
+packages/cli/src/upload-snapshot.ts
+  s_fb5ca7e7bd2185::t_2a9dc5b8fdefda 3-10,16,22,26,34,53,70,86,95,103,120,124,133,142,151,153
+packages/cli/src/upload.ts
+  s_fb5ca7e7bd2185::t_5beb03a0bcba17 3-12,40,71,76,88,91-94,100,102,104,112,115,117,123,126-127,132-134,137,147,149,152,154,186,207-210,219,222-223,230,234,246,250,253,267,274-275,287-288,292,306,312,316,329,335,337,344,347,370,373,383,394,396,400-401,407-408,414,416,419,422,431-434,448-450,453,455-457,468,471-472,476-478,480,485,489-490,498
+packages/cli/src/vega.ts
+  s_fb5ca7e7bd2185::t_8746e2fa2c04ed 11-14,16,34,37,45,53,59,65,77,87
+packages/cli/src/xcode-build-phase.ts
+  s_fb5ca7e7bd2185::t_4bcab1f703c260 3-10,12,14,16,52,54-55,58,72,82-87,89-91,93-98,100-105,107,109-115,117,119-125,130-133,135,138,144-147,149-153
+packages/cli/tsup.config.ts
+  s_fb5ca7e7bd2185::t_ec8e6f8a0bd4fa 3-4,7-14,17,20-23
+packages/cli/vitest.config.ts
+  s_fb5ca7e7bd2185::t_cb4fd474a45b97 3-4,8
+packages/everframe_flutter/assets/visual_capture.js
+  s_fb5ca7e7bd2185::t_2f769a8a7e29e0 21-29,35-40,43-48,53-58
+packages/everframe_flutter/test/web_visual_capture.test.mjs
+  s_fb5ca7e7bd2185::t_e7eb4bb815b6a5 20-22,25-26
+packages/expo/__tests__/with-everframe.spec.ts
+  s_fb5ca7e7bd2185::t_38758c308fcec1 14-17,42-48,74-76,79-82,100-102,117-119,123-127
+packages/expo/src/withEverframe.ts
+  s_fb5ca7e7bd2185::t_1acda4e077e3ff 21-24,30-32,57-61
+packages/expo/tsup.config.ts
+  s_fb5ca7e7bd2185::t_e9bfa923d0f3e2 3,6-7,11-13
+packages/expo/vitest.config.ts
+  s_fb5ca7e7bd2185::t_f8434442dcb7d0 3,6
+packages/identity/README.md
+  s_fb5ca7e7bd2185::t_0aaab11d0cc4e0 91-96
+packages/identity/__tests__/cors.spec.ts
+  s_fb5ca7e7bd2185::t_abccf1797abd9b 32-34,77-79,117-119
+packages/identity/__tests__/edge-purity.spec.ts
+  s_fb5ca7e7bd2185::t_ec26ea2e6bca18 123
+packages/identity/__tests__/handler.spec.ts
+  s_fb5ca7e7bd2185::t_a3894a627b05ef 12-14,26-28,32-34,40-42,49-51,55-60,65-69,75-79,84-86,90-92,97-101,123,133,136,159-161,167-169,194-196,205-207
+packages/identity/__tests__/mint.spec.ts
+  s_fb5ca7e7bd2185::t_e48d8e39c27c9e 34-37,40-42,51-54,62-65,90-93,100-105,111-116
+packages/identity/__tests__/node.spec.ts
+  s_fb5ca7e7bd2185::t_255fb05c4e0e40 29-33,38,51,53,59-63,99,108-112,125-130,132-134
+packages/identity/src/node.ts
+  s_fb5ca7e7bd2185::t_bff9f070cd5026 32-33
+packages/metro/__tests__/staging.spec.ts
+  s_fb5ca7e7bd2185::t_b3aa15bf05e755 19-24,48-50,58-60,75-77
+packages/metro/__tests__/with-everframe.spec.ts
+  s_fb5ca7e7bd2185::t_23adb3e70104d5 12-17,118-120
+packages/metro/tsup.config.ts
+  s_fb5ca7e7bd2185::t_ea73dc8d935024 3,6-7,10,13-15
+packages/metro/vitest.config.ts
+  s_fb5ca7e7bd2185::t_b93636fa06e643 3,6
+packages/protocol/__tests__/android-native-crash.spec.ts
+  s_fb5ca7e7bd2185::t_4be1aca49545a2 6-30,34-40,46-59,61-66,68-75,77-78,82-88,93-102,108-109
+packages/protocol/__tests__/apple-diagnostic.spec.ts
+  s_fb5ca7e7bd2185::t_43a34ae3538ea7 7-15,17-41,43-44,47-56,58-59,66-73,78-184,186-191,195-274,276-278,281-284,289-292
+packages/protocol/__tests__/blank-check.spec.ts
+  s_fb5ca7e7bd2185::t_c6b14e089cbb00 22-24,30-32
+packages/protocol/__tests__/breadcrumb.spec.ts
+  s_fb5ca7e7bd2185::t_2fc540c218cba2 27-33,57-62
+packages/protocol/__tests__/build-artifacts-manifest.spec.ts
+  s_fb5ca7e7bd2185::t_49120d92fb4652 22-24,58-67,78-87,99-101,105-118,123-133,137-157,167-174,178-180,198-203,233-240,249-256,259-264,280-286,293-295,333-336,399-412,423-426,431-438
+packages/protocol/__tests__/crash-causes.spec.ts
+  s_fb5ca7e7bd2185::t_c26e7d864f18da 28-30,32-35,49,60-61,68-73,86-91,93-102,104-110,119-124,126-135,137-145,151,156-162,164-170,179-184,189-192,196,208-221,224-231,239-243,249,251,254-260,267-282,288-291,293-303,308-310,317-333,343-356,364-380,394-407,417-428,430-433,436-443,458,465-470,475-524,531-537,542-546,549-551,561-564,566-568,571-575,582,586,591-597,601,603-605,613-615,620-623,642-644,649-662,666-670,677-680,682-688,690-696,743-745,747-750
+packages/protocol/__tests__/crash-details-native-parity.spec.ts
+  s_fb5ca7e7bd2185::t_556e9bea92577d 18-20,26,28-37,42
+packages/protocol/__tests__/crash-details.spec.ts
+  s_fb5ca7e7bd2185::t_04a37689510790 45-53,55-57,77-79,89-95,97-101,112-118,120-125,150-152,217-222,242-252,262-264,282-287,293-304,314-320,322,334-343,345-346,365,370-377,391-394,417-424,427-428,446-450,464-480,482,491-502,516-519,538-542
+packages/protocol/__tests__/crash-details.types.ts
+  s_fb5ca7e7bd2185::t_8aa92396be020f 37-39
+packages/protocol/__tests__/crash-reporting-extension.spec.ts
+  s_fb5ca7e7bd2185::t_7014667d86da88 10-58,60-71,77-78,80-89,92-94,96-100,102-106,109-113,115-130,134-152
+packages/protocol/__tests__/crash-reporting-followthrough.spec.ts
+  s_fb5ca7e7bd2185::t_a61e468a152ca1 10-58,60-71,75-97,100-101,103-106,112-113,115-135,137-142,145-147
+packages/protocol/__tests__/crash-reporting-integration.spec.ts
+  s_fb5ca7e7bd2185::t_1fd9d8c3ce9e84 8-23,28-44,47-71,77-80,83-91,95-97,100-104
+packages/protocol/__tests__/crash.spec.ts
+  s_fb5ca7e7bd2185::t_f65676a478a097 17-19,83-92,102-123,133-136,165-170,173-175,177-195,200-202,204-206,216-221,223-239,242-261,265-315,319-344,354,358-359,363
+packages/protocol/__tests__/diagnostic.spec.ts
+  s_fb5ca7e7bd2185::t_8101e60cf0f8e4 8-9,11-12,14-26,32-35,37-40,52-59,61-62,69-78,84-94,96-102,107-117,119-121,125-136,138-139,147-149,153-156,158-159,162-163,168-210,214-219,221-222,224-225,231-244,252-257,261-265,269-276
+packages/protocol/__tests__/dom-snapshot.spec.ts
+  s_fb5ca7e7bd2185::t_ce1ce30ce5981c 27-31,51-55,152-158,174-175,177-179,206-212
+packages/protocol/__tests__/dsym-manifest.spec.ts
+  s_fb5ca7e7bd2185::t_c2be9e1c057e1b 3-5,8-11,13-14,16,19-22,28,32,35,38,42-44,47,52,57,60,66
+packages/protocol/__tests__/elf-manifest.spec.ts
+  s_fb5ca7e7bd2185::t_4132e2479c440b 3-5,8-11,13-14,16,19-22,28,32,35,38,42-44,47,52,57,60,66
+packages/protocol/__tests__/envelope-app-debug.spec.ts
+  s_fb5ca7e7bd2185::t_6c1d197dcf471a 7-10
+packages/protocol/__tests__/envelope-breadcrumbs.spec.ts
+  s_fb5ca7e7bd2185::t_2e5d056b078193 22-25
+packages/protocol/__tests__/envelope-retired-fields.spec.ts
+  s_fb5ca7e7bd2185::t_1a32ebcee61f9a 8-13
+packages/protocol/__tests__/error-replay-attachment.spec.ts
+  s_fb5ca7e7bd2185::t_27d7a996c00553 16-17,21-26,29-34,56-62
+packages/protocol/__tests__/framework-identities.spec.ts
+  s_fb5ca7e7bd2185::t_2d0a40bd5f64dc 11-16,18-19,37
+packages/protocol/__tests__/generated-identity.spec.ts
+  s_fb5ca7e7bd2185::t_1a09a245ba96f1 20-22
+packages/protocol/__tests__/helpers/replay-attachment.ts
+  s_fb5ca7e7bd2185::t_3a0a68aa07de18 10-16,22-31
+packages/protocol/__tests__/inferred-termination.spec.ts
+  s_fb5ca7e7bd2185::t_06f640414810a2 7-10,18-23,26-34,37-63,70,72-79,84-87,104-107,109-112,117-121,123-124,131-134,139-347,349-350,356-358
+packages/protocol/__tests__/json-schema.spec.ts
+  s_fb5ca7e7bd2185::t_7cedae2f7c3c68 18,26,30,119-122,127-129,143-153,231-238,241-265,270-277,283-287,290-292,296-298,313-346,348-351
+packages/protocol/__tests__/jwt-corpus.ts
+  s_fb5ca7e7bd2185::t_2268e16fc27b79 10-19,35-36,40-42,56-65,71-75,77-91,93-97,105-114,126-130,133-137,139-148,150-154,162-166,169-173,178-183,187-191,193-220,224-228
+packages/protocol/__tests__/jwt-reference.ts
+  s_fb5ca7e7bd2185::t_ce438af1e09ec6 11-20,24-25,36-37,43,56,58-61
+packages/protocol/__tests__/native-crash-details-check.spec.ts
+  s_fb5ca7e7bd2185::t_43d31caf24153d 15-17,28-31,55-66,76-78
+packages/protocol/__tests__/native-crash.spec.ts
+  s_fb5ca7e7bd2185::t_6472c01846b49e 7-9,11-18,21-26,28-34,37-38,51,54-64,71-72,77-79,81-83,86-92,98-104,107-126,128-130,134-139,143-161,164-165,170-171,177-184,187-189,192-198,203-206,209-212,219-228,230-231,236-248,251-265
+packages/protocol/__tests__/native-video.spec.ts
+  s_fb5ca7e7bd2185::t_1801e53d89082d 7-16,38-46,52-61
+packages/protocol/__tests__/network-body.spec.ts
+  s_fb5ca7e7bd2185::t_7906e1e97d7c79 34-39
+packages/protocol/__tests__/platform-enum.spec.ts
+  s_fb5ca7e7bd2185::t_9b94c4fb0832dc 7-19
+packages/protocol/__tests__/recovered-stall.spec.ts
+  s_fb5ca7e7bd2185::t_69310fabe67c85 9-28,32-39,48-54,60-203,205-207,210-231
+packages/protocol/__tests__/redaction-patterns.spec.ts
+  s_fb5ca7e7bd2185::t_853f46540bbb87 32-33,37-38,40-45,50-51,56-58,65-90,106-109,113-116,118-121
+packages/protocol/__tests__/relay-cross-sdk.spec.ts
+  s_fb5ca7e7bd2185::t_c8e7f107290b9b 88
+packages/protocol/__tests__/relay-imageless.spec.ts
+  s_fb5ca7e7bd2185::t_70081af096b786 34-38,50-54,70-77,79-91,103-106,111-114,121-131,136-139
+packages/protocol/__tests__/relay-messages.spec.ts
+  s_fb5ca7e7bd2185::t_69d730bf86885e 154-160,172-178
+packages/protocol/__tests__/release-health-alert.spec.ts
+  s_fb5ca7e7bd2185::t_aa9b3df234e5fe 5-7,13-15,18-20,38-53,63-73,77-79,84-197,204-210,213-217,219
+packages/protocol/__tests__/release-health.spec.ts
+  s_fb5ca7e7bd2185::t_a4bd767d66c221 6-9,15-23,25-50,53-54,68-71,85,91-95,100-132,141-205,207-222,228-233,241-248,257-283,288-291,303-311,313-315,320-327,332-339,344-349,353-358,362-364,366-368,372-379,385-389
+packages/protocol/__tests__/render-contract.spec.ts
+  s_fb5ca7e7bd2185::t_d76bcd93664455 56-58,88-90
+packages/protocol/__tests__/roku-envelope.spec.ts
+  s_fb5ca7e7bd2185::t_36747f21cce8bf 14-15,24-26
+packages/protocol/__tests__/sensitive-keys.spec.ts
+  s_fb5ca7e7bd2185::t_ca41a0fb1242a0 8-22,27-32,35-39
+packages/protocol/__tests__/vega-envelope.spec.ts
+  s_fb5ca7e7bd2185::t_950905131bb025 14-15,18-20,44-50
+packages/protocol/__tests__/vitals-android-fixture.spec.ts
+  s_fb5ca7e7bd2185::t_701dd9eb354fed 31-35
+packages/protocol/__tests__/vitals-ios-fixture.spec.ts
+  s_fb5ca7e7bd2185::t_c8960858a5d47f 9-14,30-34,49-51,60-63,65-67
+packages/protocol/__tests__/vitals.spec.ts
+  s_fb5ca7e7bd2185::t_e9bad8653299b1 6-12,20-22,24-29,38-45,55-70,75-87,102-114,119-124,143-155,165-183,191-193,195-222,230-232,237-243,252-257,270-272,281-294,496-508
+packages/protocol/__tests__/vtree.spec.ts
+  s_fb5ca7e7bd2185::t_49d4798075cc08 128-133,137,148,195,205,219,226,229,339,350,353,474
+packages/protocol/scripts/check-native-crash-details.mjs
+  s_fb5ca7e7bd2185::t_c923d7620e555d 7,10,38,41-42,44
+packages/protocol/scripts/codegen-relay-kotlin.mjs
+  s_fb5ca7e7bd2185::t_4446e537c69b23 26,29,54,78,81,95,117,136,141,184,191
+packages/protocol/scripts/codegen-relay-swift.mjs
+  s_fb5ca7e7bd2185::t_8a8993db46294a 36-37,60,69,107,122,141,193,198,233-244,246,249,253
+packages/protocol/scripts/codegen-vtree-kotlin.mjs
+  s_fb5ca7e7bd2185::t_cf8cd7bd3af715 36,39,86,138,153,182,202,223,228
+packages/protocol/scripts/codegen-vtree-swift.mjs
+  s_fb5ca7e7bd2185::t_03ab5df1896e1f 36-37,76,96,174,206,227,275,279,284
+packages/protocol/src/android-native-crash.ts
+  s_fb5ca7e7bd2185::t_b2bdd4d4953a8b 8-30,33-47
+packages/protocol/src/apple-diagnostic.ts
+  s_fb5ca7e7bd2185::t_63ab3542bf955d 5-62,64-119,121-122
+packages/protocol/src/attachments.ts
+  s_fb5ca7e7bd2185::t_6192f79d005369 33-67
+packages/protocol/src/blank-check.ts
+  s_fb5ca7e7bd2185::t_370ae06b441138 19-22
+packages/protocol/src/build-artifacts.ts
+  s_fb5ca7e7bd2185::t_dea9f082e2a2f6 31-38,55-62,65,71-72,80,84,90-91,99,112-118,204-205,215,224-225,235,307,317,348-349,352-353,367-368,371-372,391-397,408-415,448-451
+packages/protocol/src/crash-causes.ts
+  s_fb5ca7e7bd2185::t_a69b0d8821bbd5 26,28,30,41-58,61-71,104,142,148-161,166-180,201,203,209,259-261,299-308,413,419-421,438-442,476-480,525-529,561-567
+packages/protocol/src/crash-details.ts
+  s_fb5ca7e7bd2185::t_74eb819060577d 17,31-35,57-58,66-67,74-75,86-93,96-97,99-103,218-219,227-231,239-241,272-273,311-315,386,401-403,414-416,419-421,429-431,466,481-482
+packages/protocol/src/crash.ts
+  s_fb5ca7e7bd2185::t_64696fd79e5b0d 32-37,45-52,55-61,90-102,105-109
+packages/protocol/src/diagnostic.ts
+  s_fb5ca7e7bd2185::t_1e5fa110d03462 19-29,31-48,52-143
+packages/protocol/src/dom-snapshot.ts
+  s_fb5ca7e7bd2185::t_1e9157a419e0b7 157-159,207-209
+packages/protocol/src/envelope.ts
+  s_fb5ca7e7bd2185::t_ca217555ba30b9 11-13,214-215,218-238,243-262,272-289,292-295,297-300,305-306,309-319,323-335,337-345
+packages/protocol/src/index.ts
+  s_fb5ca7e7bd2185::t_10c10a5594405f 18-34,36-40,56-62,68-84,88-92,96-109,114-125,128-134,137-141,143-148,150-155,158-163,166-172,176-188
+packages/protocol/src/inferred-termination.ts
+  s_fb5ca7e7bd2185::t_f2eff93bd1c032 9-11,15-17,25-27,34-96
+packages/protocol/src/native-crash.ts
+  s_fb5ca7e7bd2185::t_3030bc71ad2ca6 27-45,48-54,57-67,69-161
+packages/protocol/src/recovered-stall.ts
+  s_fb5ca7e7bd2185::t_119d94745cac9b 6-43
+packages/protocol/src/redaction.ts
+  s_fb5ca7e7bd2185::t_02072c01ebdaf5 73-76,126-130,165-168,170-173
+packages/protocol/src/relay/messages.ts
+  s_fb5ca7e7bd2185::t_0a7e9b9b3d891b 210-214,217-221,224-228,231-235,247,276,285
+packages/protocol/src/release-health-alert.ts
+  s_fb5ca7e7bd2185::t_04b8204aa8c6c2 7-12,22-27,29-30,36-84
+packages/protocol/src/resources.ts
+  s_fb5ca7e7bd2185::t_317afef07f4cb3 53-74
+packages/protocol/src/sdk-platform.ts
+  s_fb5ca7e7bd2185::t_1250c2db627dc7 6-18
+packages/protocol/src/ui-tree.ts
+  s_fb5ca7e7bd2185::t_16f5265237cf32 43
+packages/protocol/src/vitals.ts
+  s_fb5ca7e7bd2185::t_cb053437ab87cc 24-45,111-114,116,121-133,135-166,174-188,190-194,196-215,217-225,280-286,288-346,355-398
+packages/protocol/src/vtree/timeline.ts
+  s_fb5ca7e7bd2185::t_f3cea785a98fbd 32,131-134,163
+packages/sdk-android/README.md
+  s_fb5ca7e7bd2185::t_c2695e5243ca4c 24-30,75-80
+packages/sdk-android/android/README.md
+  s_fb5ca7e7bd2185::t_4acf29c56d8a94 19-26,587-594
+packages/sdk-android/core/src/test/cpp/api24-collector/android/dependency-pins.json
+  s_fb5ca7e7bd2185::t_d7c3e5d81bab7c 4
+packages/sdk-android/native/toolchain-pins.json
+  s_fb5ca7e7bd2185::t_df832396a6a4dc 3
+packages/sdk-react-native/__tests__/codegen-types-compat.spec.ts
+  s_fb5ca7e7bd2185::t_a4074a9deb5deb 4-8,11,13-14,16-17,20-21,23,26
+packages/sdk-web/__tests__/vitals/player-adapter.spec.ts
+  s_fb5ca7e7bd2185::t_7d831dbd0b885a 24-31,817-818,830-832,969-973,975-988,1000-1006,1028-1031,1050-1052,1060-1069,1096-1099,1111-1113,1129-1134,1152-1157,1168-1170,1177-1180,1182-1185,1192-1199,1208-1218,1265-1270,1348-1350,1365-1367,1373-1375,1388-1390,1396-1398,1416-1418,1423-1425,1443-1451,1468-1470,1476,1484-1486,1488-1490,1495-1497,1512-1517,1519-1521,1526,1534-1538,1540-1543,1552-1556,1560-1564,1574-1575,1622-1625,1643-1645,1698-1700,1709-1711,1729-1731,1739-1741,1753-1755,1758-1759,1777-1779,1854-1856,1885-1888
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cf33e4ebdc23a092fe6a2e5083280d3fdd43372d",
+  "prompts": {},
+  "sessions": {
+    "s_fb5ca7e7bd2185": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1345d-aadb-7ea2-b6b8-84abacc9113f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
