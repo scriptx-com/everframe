@@ -172,7 +172,7 @@ export async function main(
       for (const file of files) console.log(file.changed ? `Updated ${file.path}` : `No changes: ${file.path}`);
       if (uploadScript && !uploadScript.installed)
         console.warn(
-          `warning: no installed @everframe/cli with scripts/xcode-upload.sh was found from this app, so the Xcode phase runs ${uploadScript.path}. Install @everframe/cli in the app (npm install --save-dev @everframe/cli) and run this command again. Until then, builds warn that nothing was uploaded.`,
+          `warning: @everframe/cli is not installed in this app, so the Xcode phase's script ${uploadScript.path} does not exist and every build of the app fails until it does. Install @everframe/cli in the app (npm install --save-dev @everframe/cli) and run this command again.`,
         );
       console.log("Add to metro.config.js:");
       console.log(metroHint);

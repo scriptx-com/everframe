@@ -34,25 +34,18 @@ const THIN_GRADLE = [
   '// @generated end everframe-build-artifacts',
 ].join('\n');
 
-/** The exact phase line for a script path. */
-const phaseLine = (path: string) =>
-  `EVERFRAME_UPLOAD="${path}"; ` +
-  `if [ -x "$EVERFRAME_UPLOAD" ]; then "$EVERFRAME_UPLOAD" --app-id "${APP}"; ` +
-  'else case "${EVERFRAME_SYMBOLS_STRICT:-}" in 1|true) echo "error: everframe: @everframe/cli is not installed: $EVERFRAME_UPLOAD is missing."; exit 1;; esac; ' +
-  'echo "warning: everframe: @everframe/cli is not installed: $EVERFRAME_UPLOAD is missing. Build artifacts were not uploaded and the build continues. Install @everframe/cli in the app, or set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead."; fi';
-const ONE_LINE = phaseLine('${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh');
+const ONE_LINE = `"\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`;
 const DSYM_INPUT = '"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"';
 
 describe('xcodePhaseScript', () => {
   it('is one line that runs the upload script shipped in @everframe/cli', () => {
     expect(xcodePhaseScript(APP)).toBe(ONE_LINE);
-    expect(ONE_LINE).not.toContain('\n');
     expect(xcodePhaseScript(APP, DEFAULT_XCODE_UPLOAD_SCRIPT)).toBe(ONE_LINE);
   });
 
   it('takes a hoisted script path', () => {
     const hoisted = '${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh';
-    expect(xcodePhaseScript(APP, hoisted)).toBe(phaseLine(hoisted));
+    expect(xcodePhaseScript(APP, hoisted)).toBe(`"${hoisted}" --app-id "${APP}"`);
   });
 
   it.each([
@@ -217,7 +210,7 @@ describe('patchXcodeProject', () => {
     });
     patchXcodeProject(project, APP, '${SRCROOT}/../../node_modules/@everframe/cli/scripts/xcode-upload.sh');
     expect(phaseScripts(project)).toEqual([
-      `"${phaseLine('${SRCROOT}/../../node_modules/@everframe/cli/scripts/xcode-upload.sh').replace(/"/g, '\\"')}"`,
+      `"\\"\${SRCROOT}/../../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id \\"${APP}\\""`,
     ]);
     const section = project.hash.project.objects.PBXShellScriptBuildPhase ?? {};
     const key = Object.keys(section).find((k) => section[`${k}_comment`] === XCODE_PHASE_NAME)!;

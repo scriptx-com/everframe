@@ -34,18 +34,11 @@ export function xcodeUploadScriptPath(srcRoot: string): { path: string; installe
  * The Run Script body: one line that runs the `scripts/xcode-upload.sh` shipped in
  * `@everframe/cli`. The script skips Debug and SKIP_BUNDLING builds, reads NODE_BINARY from
  * `.xcode.env`, and runs `everframe xcode build-phase`, which owns the upload logic (token,
- * strict mode, time budget, Hermes map, dSYMs). When the script is missing (the package is not
- * installed), the line prints a `warning:` and the build continues, unless
- * EVERFRAME_SYMBOLS_STRICT is 1 or true, which fails it.
+ * strict mode, time budget, Hermes map, dSYMs).
  */
 export function xcodePhaseScript(appId: string, scriptPath = DEFAULT_XCODE_UPLOAD_SCRIPT): string {
   if (!SCRIPT_PATH.test(scriptPath)) throw new Error(`invalid_upload_script_path: ${scriptPath}`);
-  return [
-    `EVERFRAME_UPLOAD="${scriptPath}";`,
-    `if [ -x "$EVERFRAME_UPLOAD" ]; then "$EVERFRAME_UPLOAD" --app-id "${checkedAppId(appId)}";`,
-    'else case "${EVERFRAME_SYMBOLS_STRICT:-}" in 1|true) echo "error: everframe: @everframe/cli is not installed: $EVERFRAME_UPLOAD is missing."; exit 1;; esac;',
-    'echo "warning: everframe: @everframe/cli is not installed: $EVERFRAME_UPLOAD is missing. Build artifacts were not uploaded and the build continues. Install @everframe/cli in the app, or set EVERFRAME_SYMBOLS_STRICT=1 to fail the build instead."; fi',
-  ].join(' ');
+  return `"${scriptPath}" --app-id "${checkedAppId(appId)}"`;
 }
 
 /** The subset of the `xcode` package's project object this module uses. */
