@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Release health qualification host
 
 This isolated Release framework consumer exercises anonymous iOS segments (with

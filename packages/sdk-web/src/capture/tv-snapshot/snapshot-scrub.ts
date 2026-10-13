@@ -10,8 +10,20 @@
 import type { RedactionEngineConfig } from '@everframe/sdk-core';
 import { MASK_PLACEHOLDER } from '../replay/mask-mapping.js';
 import { pageRedactionConfig, redactPageString, redactUrlPath } from './page-redact.js';
-import { SCRUB_MEMO_MAX_ENTRIES, SCRUB_MEMO_MAX_KEY, scrubCssText, scrubInlineStyle, type CssScrubContext } from './css-scrub.js';
-import { fragmentId, isDataUrl, sameDocumentFragmentId, sanitizeHttpUrl, sanitizeSrcset } from './url-sanitize.js';
+import {
+  SCRUB_MEMO_MAX_ENTRIES,
+  SCRUB_MEMO_MAX_KEY,
+  scrubCssText,
+  scrubInlineStyle,
+  type CssScrubContext,
+} from './css-scrub.js';
+import {
+  fragmentId,
+  isDataUrl,
+  sameDocumentFragmentId,
+  sanitizeHttpUrl,
+  sanitizeSrcset,
+} from './url-sanitize.js';
 import { isAllowedSvgAttr, isAriaStateValue } from './allowlists.js';
 import {
   SN_CDATA,
@@ -36,8 +48,25 @@ export interface SnapshotScrubContext extends CssScrubContext {
 
 /** Layout/identity attributes that cannot carry user content (same spirit as scrub.ts). */
 const BASE_ATTRS = new Set([
-  'id', 'class', 'type', 'name', 'rel', 'role', 'width', 'height', 'colspan', 'rowspan',
-  'checked', 'selected', 'disabled', 'readonly', 'hidden', 'dir', 'lang', 'sizes', 'media',
+  'id',
+  'class',
+  'type',
+  'name',
+  'rel',
+  'role',
+  'width',
+  'height',
+  'colspan',
+  'rowspan',
+  'checked',
+  'selected',
+  'disabled',
+  'readonly',
+  'hidden',
+  'dir',
+  'lang',
+  'sizes',
+  'media',
 ]);
 const URL_ATTRS = new Set(['href', 'src', 'poster', 'xlink:href']);
 
@@ -49,10 +78,12 @@ const URL_ATTRS = new Set(['href', 'src', 'poster', 'xlink:href']);
  */
 const MAX_SLOT_NAME_LENGTH = 64;
 function isSlotName(value: SnAttributeValue): boolean {
-  if (typeof value !== 'string' || value === '' || value.length > MAX_SLOT_NAME_LENGTH) return false;
+  if (typeof value !== 'string' || value === '' || value.length > MAX_SLOT_NAME_LENGTH)
+    return false;
   for (let i = 0; i < value.length; i++) {
     const c = value.charCodeAt(i);
-    const ok = (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 45 || c === 95;
+    const ok =
+      (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 45 || c === 95;
     if (!ok) return false;
   }
   return true;
@@ -89,7 +120,11 @@ function memoized<T>(map: Map<string, T> | null, key: string, compute: () => T):
   return value;
 }
 
-function sanitizeDomUrl(value: string, ctx: SnapshotScrubContext, config: RedactionEngineConfig): string | null {
+function sanitizeDomUrl(
+  value: string,
+  ctx: SnapshotScrubContext,
+  config: RedactionEngineConfig,
+): string | null {
   // A bare `#id`, or one rrweb absolutized against this document (codex r10
   // F2): back to `#id` only when its target survives in the snapshot.
   const id = fragmentId(value) ?? sameDocumentFragmentId(value, ctx.documentKey ?? '');
@@ -101,7 +136,12 @@ function sanitizeDomUrl(value: string, ctx: SnapshotScrubContext, config: Redact
   return clean === null ? null : redactUrlPath(clean, config);
 }
 
-function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: RedactionEngineConfig, memo: ScrubMemo | null): void {
+function scrubElement(
+  node: SnElement,
+  ctx: SnapshotScrubContext,
+  config: RedactionEngineConfig,
+  memo: ScrubMemo | null,
+): void {
   const tag = node.tagName.toLowerCase();
   const next: Record<string, SnAttributeValue> = {};
   for (const key of Object.keys(node.attributes)) {
@@ -146,7 +186,8 @@ function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: Redact
     }
     if (tag === 'select' && lower === 'size') {
       const raw = String(value).trim();
-      if (raw !== '' && raw.length <= 4 && /^[0-9]+$/.test(raw) && Number(raw) <= 1000) next[key] = String(Number(raw));
+      if (raw !== '' && raw.length <= 4 && /^[0-9]+$/.test(raw) && Number(raw) <= 1000)
+        next[key] = String(Number(raw));
       continue;
     }
     if (lower === 'slot' || (lower === 'name' && tag === 'slot')) {
@@ -176,7 +217,10 @@ function scrubElement(node: SnElement, ctx: SnapshotScrubContext, config: Redact
       continue;
     }
     if (BASE_ATTRS.has(lower)) {
-      next[key] = typeof value === 'string' ? memoized(memo?.text ?? null, value, () => redactPageString(value, config)) : value;
+      next[key] =
+        typeof value === 'string'
+          ? memoized(memo?.text ?? null, value, () => redactPageString(value, config))
+          : value;
     }
     // Everything else — title, alt, placeholder, aria-label, out-of-set ARIA
     // values, data-*, on*, rr_media*, rr_src, rr_width… — is dropped.
@@ -213,10 +257,18 @@ const DTD_PUBLIC_IDS = new Set(
   ].map((id) => id.toLowerCase()),
 );
 const DTD_SYSTEM_PATHS = [
-  'TR/html4/strict.dtd', 'TR/html4/loose.dtd', 'TR/html4/frameset.dtd',
-  'TR/REC-html40/strict.dtd', 'TR/REC-html40/loose.dtd', 'TR/REC-html40/frameset.dtd',
-  'TR/xhtml1/DTD/xhtml1-strict.dtd', 'TR/xhtml1/DTD/xhtml1-transitional.dtd', 'TR/xhtml1/DTD/xhtml1-frameset.dtd',
-  'TR/xhtml11/DTD/xhtml11.dtd', 'TR/xhtml-basic/xhtml-basic10.dtd', 'TR/xhtml-basic/xhtml-basic11.dtd',
+  'TR/html4/strict.dtd',
+  'TR/html4/loose.dtd',
+  'TR/html4/frameset.dtd',
+  'TR/REC-html40/strict.dtd',
+  'TR/REC-html40/loose.dtd',
+  'TR/REC-html40/frameset.dtd',
+  'TR/xhtml1/DTD/xhtml1-strict.dtd',
+  'TR/xhtml1/DTD/xhtml1-transitional.dtd',
+  'TR/xhtml1/DTD/xhtml1-frameset.dtd',
+  'TR/xhtml11/DTD/xhtml11.dtd',
+  'TR/xhtml-basic/xhtml-basic10.dtd',
+  'TR/xhtml-basic/xhtml-basic11.dtd',
 ];
 const DTD_SYSTEM_IDS = new Set(
   ['about:legacy-compat'].concat(
@@ -233,8 +285,10 @@ const DTD_SYSTEM_IDS = new Set(
  */
 function scrubDoctype(node: SnOther): void {
   if (node.name !== undefined && node.name.toLowerCase() !== 'html') node.name = '';
-  if (node.publicId !== undefined && !DTD_PUBLIC_IDS.has(node.publicId.toLowerCase())) node.publicId = '';
-  if (node.systemId !== undefined && !DTD_SYSTEM_IDS.has(node.systemId.toLowerCase())) node.systemId = '';
+  if (node.publicId !== undefined && !DTD_PUBLIC_IDS.has(node.publicId.toLowerCase()))
+    node.publicId = '';
+  if (node.systemId !== undefined && !DTD_SYSTEM_IDS.has(node.systemId.toLowerCase()))
+    node.systemId = '';
 }
 
 // ── tree walk ──────────────────────────────────────────────────────────────
@@ -255,13 +309,17 @@ function survivingIds(ids: ReadonlySet<string>, config: RedactionEngineConfig): 
 /** Scrub a serialized snapshot tree in place. Iterative: page-controlled depth never grows the stack. */
 export function scrubSnapshotTree(root: SnNode, ctx: SnapshotScrubContext): void {
   const config = pageRedactionConfig(ctx.redaction);
-  const memo: ScrubMemo | null = memoEnabled ? { style: new Map(), text: new Map(), url: new Map() } : null;
+  const memo: ScrubMemo | null = memoEnabled
+    ? { style: new Map(), text: new Map(), url: new Map() }
+    : null;
   const scrubCtx: SnapshotScrubContext = {
     ...ctx,
     retainedIds: survivingIds(ctx.retainedIds, config),
     validity: memoEnabled ? new Map() : undefined,
   };
-  const stack: Array<{ node: SnNode; parentTag: string | null }> = [{ node: root, parentTag: null }];
+  const stack: Array<{ node: SnNode; parentTag: string | null }> = [
+    { node: root, parentTag: null },
+  ];
   for (let item = stack.pop(); item !== undefined; item = stack.pop()) {
     const { node, parentTag } = item;
     if (node.type === SN_TEXT) {
@@ -271,7 +329,9 @@ export function scrubSnapshotTree(root: SnNode, ctx: SnapshotScrubContext): void
           ? ''
           : parentTag === 'style' || node.isStyle === true
             ? scrubCssText(node.textContent, scrubCtx)
-            : memoized(memo?.text ?? null, node.textContent, () => redactPageString(node.textContent, config));
+            : memoized(memo?.text ?? null, node.textContent, () =>
+                redactPageString(node.textContent, config),
+              );
       continue;
     }
     if (node.type === SN_DOCTYPE) {
@@ -293,7 +353,8 @@ export function scrubSnapshotTree(root: SnNode, ctx: SnapshotScrubContext): void
       for (const child of node.childNodes) stack.push({ node: child, parentTag: tag });
       continue;
     }
-    if ('childNodes' in node) for (const child of node.childNodes) stack.push({ node: child, parentTag: null });
+    if ('childNodes' in node)
+      for (const child of node.childNodes) stack.push({ node: child, parentTag: null });
   }
 }
 

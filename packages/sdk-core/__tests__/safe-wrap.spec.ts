@@ -22,7 +22,7 @@ describe('DEFE-02: safeWrap', () => {
       () => {
         throw new Error('boom');
       },
-      { name: 'boom', onError }
+      { name: 'boom', onError },
     );
     expect(wrapped()).toBeUndefined();
     expect(onError).toHaveBeenCalledOnce();
@@ -40,7 +40,7 @@ describe('DEFE-02: safeWrap', () => {
       async () => {
         throw new Error('async-boom');
       },
-      { name: 'asyncBoom', onError }
+      { name: 'asyncBoom', onError },
     );
     await expect(wrapped()).resolves.toBeUndefined();
     expect(onError).toHaveBeenCalledOnce();
@@ -65,7 +65,7 @@ describe('DEFE-02: safeWrap', () => {
       () => {
         throw 'oops-string';
       },
-      { name: 'stringy', onError }
+      { name: 'stringy', onError },
     );
     wrapped();
     expect(onError).toHaveBeenCalledWith('oops-string');
@@ -76,12 +76,12 @@ describe('DEFE-02: safeWrap', () => {
       () => {
         throw new Error('x');
       },
-      { name: 'log-prefix' }
+      { name: 'log-prefix' },
     );
     wrapped();
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('[everframe]'),
-      expect.any(Error)
+      expect.any(Error),
     );
   });
 
@@ -99,13 +99,13 @@ describe('DEFE-02: safeWrap', () => {
           () => {
             throw boom;
           },
-          { name: 'sync', onError, projectError: (e) => (e as Error).name }
+          { name: 'sync', onError, projectError: (e) => (e as Error).name },
         ),
         safeWrap(
           async () => {
             throw boom;
           },
-          { name: 'async', onError, projectError: (e) => (e as Error).name }
+          { name: 'async', onError, projectError: (e) => (e as Error).name },
         ),
       ]) {
         await wrapped();

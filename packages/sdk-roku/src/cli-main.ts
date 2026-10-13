@@ -22,13 +22,21 @@ export function main(argv: string[]): number {
       help: { type: 'boolean', short: 'h' },
     },
   });
-  if (values.help || positionals[0] !== 'instrument' || !positionals[1] || (!values.out && !values['dry-run'])) {
+  if (
+    values.help ||
+    positionals[0] !== 'instrument' ||
+    !positionals[1] ||
+    (!values.out && !values['dry-run'])
+  ) {
     console.error(USAGE);
     return values.help ? 0 : 2;
   }
   const mechanisms = values.mechanisms?.split(',').map((m) => m.trim()) as Mechanism[] | undefined;
   const bad = mechanisms?.filter((m) => !ALL_MECHANISMS.includes(m));
-  if (bad?.length) { console.error(`Unknown mechanism(s): ${bad.join(', ')}`); return 2; }
+  if (bad?.length) {
+    console.error(`Unknown mechanism(s): ${bad.join(', ')}`);
+    return 2;
+  }
   let report: InstrumentReport;
   try {
     report = instrument({
@@ -45,9 +53,12 @@ export function main(argv: string[]): number {
     return 1;
   }
   for (const w of report.wrapped) console.log(`wrapped  ${w.file}  ${w.fn}`);
-  for (const s of report.screens) console.log(`screen   ${s.file ?? '(no instrumented init)'}  ${s.component}  via ${s.via}`);
+  for (const s of report.screens)
+    console.log(`screen   ${s.file ?? '(no instrumented init)'}  ${s.component}  via ${s.via}`);
   if (report.libraryZip) console.log(`library  ${report.libraryZip}`);
   for (const s of report.skipped) console.warn(`skipped  ${s.file}  ${s.fn}: ${s.reason}`);
-  console.log(`${report.wrapped.length} function(s) wrapped, ${report.injected.length} component(s) hooked, ${report.screens.length} screen(s) tracked${values['dry-run'] ? ' (dry run)' : ''}`);
+  console.log(
+    `${report.wrapped.length} function(s) wrapped, ${report.injected.length} component(s) hooked, ${report.screens.length} screen(s) tracked${values['dry-run'] ? ' (dry run)' : ''}`,
+  );
   return 0;
 }

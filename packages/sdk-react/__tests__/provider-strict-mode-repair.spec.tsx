@@ -18,10 +18,13 @@ let configFetches: number;
 beforeEach(() => {
   localStorage.clear();
   configFetches = 0;
-  vi.stubGlobal('fetch', vi.fn(async (url: unknown) => {
-    if (String(url).includes('/api/config')) configFetches += 1;
-    return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
-  }));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: unknown) => {
+      if (String(url).includes('/api/config')) configFetches += 1;
+      return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }),
+  );
 });
 
 afterEach(() => {
@@ -31,7 +34,8 @@ afterEach(() => {
 });
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 60));
-const killed = (ctx: InternalContext): boolean => __internalClientState.get(ctx.client)?.killed === true;
+const killed = (ctx: InternalContext): boolean =>
+  __internalClientState.get(ctx.client)?.killed === true;
 
 /** Records every context the Provider hands to its children. */
 function Probe({ seen }: { seen: Set<InternalContext> }) {
@@ -73,7 +77,13 @@ describe('StrictMode repair', () => {
 
   it("keeps a child's kill() terminal through a re-render", async () => {
     const seen = new Set<InternalContext>();
-    const tree = () => strict(<><KillOnMount /><Probe seen={seen} /></>);
+    const tree = () =>
+      strict(
+        <>
+          <KillOnMount />
+          <Probe seen={seen} />
+        </>,
+      );
     const view = render(tree());
     await settle();
     view.rerender(tree());

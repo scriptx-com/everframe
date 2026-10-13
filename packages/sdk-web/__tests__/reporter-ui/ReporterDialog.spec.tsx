@@ -49,9 +49,7 @@ vi.mock('react-konva', () => ({
   Line: () => <div data-testid="konva-line" />,
   // Forward `data-testid` so a caller-supplied one isn't clobbered by the
   // generic fallback below.
-  Rect: (props: Record<string, unknown>) => (
-    <div data-testid="konva-rect" {...props} />
-  ),
+  Rect: (props: Record<string, unknown>) => <div data-testid="konva-rect" {...props} />,
   Image: () => <div data-testid="konva-image" />,
   Arrow: () => <div data-testid="konva-arrow" />,
   Ellipse: () => <div data-testid="konva-ellipse" />,
@@ -253,12 +251,7 @@ describe('<ReporterDialog>', () => {
     const adapter = buildMockAdapter();
     const onCancel = vi.fn();
     const { findByTestId, queryByTestId } = render(
-      <ReporterDialog
-        open={true}
-        adapter={adapter}
-        onComplete={vi.fn()}
-        onCancel={onCancel}
-      />,
+      <ReporterDialog open={true} adapter={adapter} onComplete={vi.fn()} onCancel={onCancel} />,
     );
     const titleInput = (await findByTestId('report-title')) as HTMLInputElement;
     await act(async () => {
@@ -320,7 +313,12 @@ describe('<ReporterDialog> — multi-screenshot strip', () => {
   it('renders one thumbnail + add tile after capture completes', async () => {
     const adapter = buildMockAdapter();
     const { findByTestId } = render(
-      <ReporterDialog open adapter={adapter} onComplete={() => undefined} onCancel={() => undefined} />,
+      <ReporterDialog
+        open
+        adapter={adapter}
+        onComplete={() => undefined}
+        onCancel={() => undefined}
+      />,
     );
     expect(await findByTestId('screenshot-strip')).toBeInTheDocument();
     expect(await findByTestId('screenshot-thumb-0')).toBeInTheDocument();
@@ -330,7 +328,12 @@ describe('<ReporterDialog> — multi-screenshot strip', () => {
   it('deleting the only (annotation-free) screenshot needs no confirm and shows the no-screenshot notice', async () => {
     const adapter = buildMockAdapter();
     const { findByTestId, findByText, queryByTestId } = render(
-      <ReporterDialog open adapter={adapter} onComplete={() => undefined} onCancel={() => undefined} />,
+      <ReporterDialog
+        open
+        adapter={adapter}
+        onComplete={() => undefined}
+        onCancel={() => undefined}
+      />,
     );
     fireEvent.click(await findByTestId('screenshot-delete-0'));
     expect(queryByTestId('delete-shot-confirm')).toBeNull();
@@ -347,7 +350,12 @@ describe('<ReporterDialog> — add screenshot flow', () => {
   it('add → overlay shows; full-page capture appends a second thumbnail', async () => {
     const adapter = buildMockAdapter();
     const { findByTestId } = render(
-      <ReporterDialog open adapter={adapter} onComplete={() => undefined} onCancel={() => undefined} />,
+      <ReporterDialog
+        open
+        adapter={adapter}
+        onComplete={() => undefined}
+        onCancel={() => undefined}
+      />,
     );
     fireEvent.click(await findByTestId('screenshot-add'));
     expect(await findByTestId('area-capture-overlay')).toBeInTheDocument();
@@ -358,7 +366,12 @@ describe('<ReporterDialog> — add screenshot flow', () => {
   it('cancel returns to the modal without adding', async () => {
     const adapter = buildMockAdapter();
     const { findByTestId, queryByTestId } = render(
-      <ReporterDialog open adapter={adapter} onComplete={() => undefined} onCancel={() => undefined} />,
+      <ReporterDialog
+        open
+        adapter={adapter}
+        onComplete={() => undefined}
+        onCancel={() => undefined}
+      />,
     );
     fireEvent.click(await findByTestId('screenshot-add'));
     fireEvent.click(await findByTestId('area-capture-cancel'));
@@ -380,7 +393,12 @@ describe('<ReporterDialog> — add screenshot flow', () => {
         .mockRejectedValueOnce(new Error('boom')),
     });
     const { findByTestId, queryByTestId } = render(
-      <ReporterDialog open adapter={adapter} onComplete={() => undefined} onCancel={() => undefined} />,
+      <ReporterDialog
+        open
+        adapter={adapter}
+        onComplete={() => undefined}
+        onCancel={() => undefined}
+      />,
     );
     fireEvent.click(await findByTestId('screenshot-add'));
     fireEvent.click(await findByTestId('area-capture-full'));
@@ -409,7 +427,12 @@ describe('<ReporterDialog> — add screenshot flow', () => {
         }),
       });
       const { findByTestId } = render(
-        <ReporterDialog open adapter={adapter} onComplete={() => undefined} onCancel={() => undefined} />,
+        <ReporterDialog
+          open
+          adapter={adapter}
+          onComplete={() => undefined}
+          onCancel={() => undefined}
+        />,
       );
       fireEvent.click(await findByTestId('screenshot-add'));
       const overlay = await findByTestId('area-capture-overlay');
@@ -451,7 +474,12 @@ describe('<ReporterDialog> — add screenshot flow', () => {
         }),
       });
       const { findByTestId } = render(
-        <ReporterDialog open adapter={adapter} onComplete={() => undefined} onCancel={() => undefined} />,
+        <ReporterDialog
+          open
+          adapter={adapter}
+          onComplete={() => undefined}
+          onCancel={() => undefined}
+        />,
       );
       fireEvent.click(await findByTestId('screenshot-add'));
       const overlay = await findByTestId('area-capture-overlay');
@@ -516,7 +544,10 @@ describe('<ReporterDialog> — per-shot degraded reason', () => {
         };
       },
     });
-    Object.defineProperty(adapter, '__lastDegradedReason', { get: () => undefined, configurable: true });
+    Object.defineProperty(adapter, '__lastDegradedReason', {
+      get: () => undefined,
+      configurable: true,
+    });
     return adapter;
   }
 
@@ -525,13 +556,16 @@ describe('<ReporterDialog> — per-shot degraded reason', () => {
     steps: (q: ReturnType<typeof render>) => Promise<void>,
   ): Promise<string | undefined> {
     const onComplete = vi.fn();
-    const q = render(<ReporterDialog open adapter={adapter} onComplete={onComplete} onCancel={() => undefined} />);
+    const q = render(
+      <ReporterDialog open adapter={adapter} onComplete={onComplete} onCancel={() => undefined} />,
+    );
     await q.findByTestId('screenshot-thumb-0');
     await steps(q);
     fireEvent.change(await q.findByTestId('report-title'), { target: { value: 'bug' } });
     fireEvent.click(await q.findByTestId('submit-report'));
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
-    return (onComplete.mock.calls[0]![0] as { bundle: { degradedReason?: string } }).bundle.degradedReason;
+    return (onComplete.mock.calls[0]![0] as { bundle: { degradedReason?: string } }).bundle
+      .degradedReason;
   }
 
   const addFullShot = async (q: ReturnType<typeof render>): Promise<void> => {
@@ -541,16 +575,22 @@ describe('<ReporterDialog> — per-shot degraded reason', () => {
   };
 
   it('a blank ADDED shot flags the submitted report', async () => {
-    const reason = await submitWith(adapterWithReasons([undefined, 'screenshot_blank']), addFullShot);
+    const reason = await submitWith(
+      adapterWithReasons([undefined, 'screenshot_blank']),
+      addFullShot,
+    );
     expect(reason).toBe('screenshot_blank');
   });
 
   it('deleting the flagged added shot drops its flag', async () => {
-    const reason = await submitWith(adapterWithReasons([undefined, 'screenshot_blank']), async (q) => {
-      await addFullShot(q);
-      fireEvent.click(await q.findByTestId('screenshot-delete-1'));
-      await waitFor(() => expect(q.queryByTestId('screenshot-thumb-1')).toBeNull());
-    });
+    const reason = await submitWith(
+      adapterWithReasons([undefined, 'screenshot_blank']),
+      async (q) => {
+        await addFullShot(q);
+        fireEvent.click(await q.findByTestId('screenshot-delete-1'));
+        await waitFor(() => expect(q.queryByTestId('screenshot-thumb-1')).toBeNull());
+      },
+    );
     expect(reason).toBeUndefined();
   });
 
@@ -567,13 +607,23 @@ describe('<ReporterDialog> — per-shot degraded reason', () => {
   });
 
   it('keeps an open-time non-screenshot reason when no shot is flagged', async () => {
-    const reason = await submitWith(adapterWithReasons(['ui_tree_unavailable', undefined]), addFullShot);
+    const reason = await submitWith(
+      adapterWithReasons(['ui_tree_unavailable', undefined]),
+      addFullShot,
+    );
     expect(reason).toBe('ui_tree_unavailable');
   });
 
   it('submittedDegradedReason: failed outranks blank outranks the base reason', () => {
-    expect(submittedDegradedReason([{ degradedReason: 'screenshot_blank' }, { degradedReason: 'screenshot_failed' }], 'ui_tree_unavailable')).toBe('screenshot_failed');
-    expect(submittedDegradedReason([{}, { degradedReason: 'screenshot_blank' }], 'ui_tree_unavailable')).toBe('screenshot_blank');
+    expect(
+      submittedDegradedReason(
+        [{ degradedReason: 'screenshot_blank' }, { degradedReason: 'screenshot_failed' }],
+        'ui_tree_unavailable',
+      ),
+    ).toBe('screenshot_failed');
+    expect(
+      submittedDegradedReason([{}, { degradedReason: 'screenshot_blank' }], 'ui_tree_unavailable'),
+    ).toBe('screenshot_blank');
     expect(submittedDegradedReason([{}], 'ui_tree_unavailable')).toBe('ui_tree_unavailable');
     expect(submittedDegradedReason([], undefined)).toBeUndefined();
   });

@@ -29,10 +29,7 @@
           }
         }
       ],
-      [
-        "@react-native-tvos/config-tv",
-        { "tvosDeploymentTarget": "16.4" }
-      ],
+      ["@react-native-tvos/config-tv", { "tvosDeploymentTarget": "16.4" }],
       "./plugins/with-everframe-workspace.js",
       "./plugins/with-everframe-tv-prebuild.js",
       "./plugins/with-everframe-ios-local.js",

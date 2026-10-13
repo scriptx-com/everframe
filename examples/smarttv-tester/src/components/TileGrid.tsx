@@ -36,7 +36,13 @@ function Tile({ label }: { label: string }): React.JSX.Element {
   );
 }
 
-export function TileGrid({ rows = 3, cols = 4 }: { rows?: number; cols?: number }): React.JSX.Element {
+export function TileGrid({
+  rows = 3,
+  cols = 4,
+}: {
+  rows?: number;
+  cols?: number;
+}): React.JSX.Element {
   return (
     <section>
       <h2 style={{ fontSize: 20, margin: '0 0 12px' }}>Focus grid</h2>

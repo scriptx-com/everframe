@@ -6,7 +6,8 @@ import { createPlayerRegistry } from '../../src/vitals/registry.js';
 describe('createPlayerRegistry', () => {
   it('mints stable ids per element in first-seen order, weakly (no registration needed)', () => {
     const r = createPlayerRegistry();
-    const a = document.createElement('video'), b = document.createElement('audio');
+    const a = document.createElement('video'),
+      b = document.createElement('audio');
     expect(r.idFor(a)).toBe('p1');
     expect(r.idFor(b)).toBe('p2');
     expect(r.idFor(a)).toBe('p1');
@@ -20,7 +21,7 @@ describe('createPlayerRegistry', () => {
   // `registered()`) disagreed with the still-running live player about the
   // same registration's name/integration. `register()` now merges the same
   // way — a supplied field overrides, an omitted one is kept.
-  it('register() returns the same id idFor() would, merges a second registration\'s supplied fields, and unregister() removes it', () => {
+  it("register() returns the same id idFor() would, merges a second registration's supplied fields, and unregister() removes it", () => {
     const r = createPlayerRegistry();
     const a = document.createElement('video');
     expect(r.idFor(a)).toBe('p1');
@@ -36,7 +37,7 @@ describe('createPlayerRegistry', () => {
   });
   // Codex round-2 item 6 — the merge must still let a later call OVERRIDE a
   // field it explicitly supplies; only OMITTED fields are preserved.
-  it('a supplied field overrides the previous registration\'s value for that field', () => {
+  it("a supplied field overrides the previous registration's value for that field", () => {
     const r = createPlayerRegistry();
     const a = document.createElement('video');
     r.register({ element: a, name: 'first' });

@@ -30,7 +30,9 @@ function withinCap(data: unknown, maxBytes: number): boolean {
 /** The unserializable marker, or `undefined` if even IT doesn't fit `maxBytes`. */
 function unserializable(maxBytes: number): BoundedJson {
   const data = { unserializable: true };
-  return withinCap(data, maxBytes) ? { data, truncated: true } : { data: undefined, truncated: true };
+  return withinCap(data, maxBytes)
+    ? { data, truncated: true }
+    : { data: undefined, truncated: true };
 }
 
 /** Cut `s` to at most `maxBytes` of UTF-8 without splitting a code point. */

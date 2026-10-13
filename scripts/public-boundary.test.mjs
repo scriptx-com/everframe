@@ -36,15 +36,11 @@ const policy = {
   forbiddenTextPatterns: [
     { pattern: `@everframe/${'admin'}`, reason: 'out-of-scope package reference' },
   ],
-  ignoredPathPatterns: [
-    '(^|/)(?:node_modules|dist|build|target|\\.turbo|\\.next)(?:/|$)',
-  ],
+  ignoredPathPatterns: ['(^|/)(?:node_modules|dist|build|target|\\.turbo|\\.next)(?:/|$)'],
   envTemplates: ['.env.example'],
   license: {
     ownedExtensions: ['.mjs', '.ts'],
-    upstream: [
-      { path: 'packages/sdk-core/gradlew', spdx: 'Apache-2.0' },
-    ],
+    upstream: [{ path: 'packages/sdk-core/gradlew', spdx: 'Apache-2.0' }],
   },
 };
 
@@ -74,10 +70,8 @@ const safeFiles = {
     name: '@everframe/sdk-core',
     dependencies: {},
   }),
-  'packages/sdk-core/src/index.ts':
-    `// ${spdxLabel} MIT\n// SPDX-FileCopyrightText: 2026 ScriptX\nexport const value = 1;\n`,
-  'packages/sdk-core/gradlew':
-    `#!/bin/sh\n# ${spdxLabel} Apache-2.0\n`,
+  'packages/sdk-core/src/index.ts': `// ${spdxLabel} MIT\n// SPDX-FileCopyrightText: 2026 ScriptX\nexport const value = 1;\n`,
+  'packages/sdk-core/gradlew': `#!/bin/sh\n# ${spdxLabel} Apache-2.0\n`,
 };
 
 test('accepts a public-only tree with empty environment placeholders', () => {
@@ -106,8 +100,7 @@ test('rejects out-of-scope paths and package references', () => {
   const result = run({
     ...safeFiles,
     [`apps/${'admin'}/index.ts`]: `// ${spdxLabel} MIT\n`,
-    'packages/sdk-core/src/out-of-scope.ts':
-      `// ${spdxLabel} MIT\nimport "${privatePackage}";\n`,
+    'packages/sdk-core/src/out-of-scope.ts': `// ${spdxLabel} MIT\nimport "${privatePackage}";\n`,
   });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /apps\/admin\/index\.ts.*forbidden path/);
@@ -128,9 +121,10 @@ test('rejects unresolved internal workspace dependencies', () => {
 test('accepts the exact Everframe public package set', () => {
   const files = structuredClone(safeFiles);
   for (const [index, packageName] of publicPackages.entries()) {
-    const manifestPath = packageName === '@everframe/sdk-core'
-      ? 'packages/sdk-core/package.json'
-      : `packages/public-${index}/package.json`;
+    const manifestPath =
+      packageName === '@everframe/sdk-core'
+        ? 'packages/sdk-core/package.json'
+        : `packages/public-${index}/package.json`;
     files[manifestPath] = JSON.stringify({
       name: packageName,
       dependencies: {},
@@ -164,7 +158,10 @@ test('rejects a legacy scoped root manifest', () => {
 
   const result = run(files);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, new RegExp(`package\\.json.*${legacyScope}/root.*legacy package scope`));
+  assert.match(
+    result.stderr,
+    new RegExp(`package\\.json.*${legacyScope}/root.*legacy package scope`),
+  );
 });
 
 test('rejects a legacy scoped example manifest', () => {
@@ -176,7 +173,10 @@ test('rejects a legacy scoped example manifest', () => {
 
   const result = run(files);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, new RegExp(`examples/demo/package\\.json.*${legacyScope}/example-demo.*legacy package scope`));
+  assert.match(
+    result.stderr,
+    new RegExp(`examples/demo/package\\.json.*${legacyScope}/example-demo.*legacy package scope`),
+  );
 });
 
 test('rejects a tree missing a required public package', () => {
@@ -190,8 +190,7 @@ test('rejects a tree missing a required public package', () => {
 test('rejects admin-backed tvOS automation', () => {
   const result = run({
     ...safeFiles,
-    'examples/tvos-replay/scripts/benchmark.mjs':
-      `// ${spdxLabel} MIT\nexport const benchmark = true;\n`,
+    'examples/tvos-replay/scripts/benchmark.mjs': `// ${spdxLabel} MIT\nexport const benchmark = true;\n`,
   });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /examples\/tvos-replay\/scripts\/benchmark\.mjs.*forbidden path/);
@@ -210,8 +209,7 @@ test('rejects owned source without MIT SPDX while preserving upstream licenses',
 test('requires SPDX in the file header instead of a later string literal', () => {
   const result = run({
     ...safeFiles,
-    'packages/sdk-core/src/late.ts':
-      `export const embedded = "${spdxLabel} MIT";\n`,
+    'packages/sdk-core/src/late.ts': `export const embedded = "${spdxLabel} MIT";\n`,
   });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, spdxDiagnostic('late\\.ts', 'MIT'));
@@ -220,8 +218,7 @@ test('requires SPDX in the file header instead of a later string literal', () =>
 test('rejects relicensing an upstream Apache file as MIT', () => {
   const result = run({
     ...safeFiles,
-    'packages/sdk-core/gradlew':
-      `#!/bin/sh\n# ${spdxLabel} MIT\n`,
+    'packages/sdk-core/gradlew': `#!/bin/sh\n# ${spdxLabel} MIT\n`,
   });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, spdxDiagnostic('gradlew', 'Apache-2\\.0'));

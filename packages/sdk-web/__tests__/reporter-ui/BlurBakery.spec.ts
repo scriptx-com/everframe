@@ -5,10 +5,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bakeAnnotations } from '../../src/reporter-ui/BlurBakery.js';
 
 const PNG_BYTES = new Uint8Array([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52, 0, 0, 0,
-  1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 0x1f, 0x15, 0xc4, 0x89, 0, 0, 0, 0x0d, 0x49, 0x44, 0x41, 0x54,
-  0x78, 0x9c, 0x63, 0, 1, 0, 0, 5, 0, 1, 0x0d, 0x0a, 0x2d, 0xb4, 0, 0, 0, 0, 0x49, 0x45, 0x4e,
-  0x44, 0xae, 0x42, 0x60, 0x82,
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 1,
+  0, 0, 0, 1, 8, 6, 0, 0, 0, 0x1f, 0x15, 0xc4, 0x89, 0, 0, 0, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78,
+  0x9c, 0x63, 0, 1, 0, 0, 5, 0, 1, 0x0d, 0x0a, 0x2d, 0xb4, 0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae,
+  0x42, 0x60, 0x82,
 ]);
 
 describe('bakeAnnotations', () => {
@@ -37,8 +37,26 @@ describe('bakeAnnotations — overhaul shape kinds', () => {
   it('paints rect and ellipse outlines with stroke color/thickness', async () => {
     const { ctx, blob } = installCanvasSpies();
     const annotations: ModelAnnotation[] = [
-      { id: newAnnotationId(), kind: 'rect', x: 5, y: 6, width: 20, height: 10, color: '#FF3B30', thickness: 4 },
-      { id: newAnnotationId(), kind: 'ellipse', x: 40, y: 6, width: 20, height: 10, color: '#FFCC00', thickness: 2 },
+      {
+        id: newAnnotationId(),
+        kind: 'rect',
+        x: 5,
+        y: 6,
+        width: 20,
+        height: 10,
+        color: '#FF3B30',
+        thickness: 4,
+      },
+      {
+        id: newAnnotationId(),
+        kind: 'ellipse',
+        x: 40,
+        y: 6,
+        width: 20,
+        height: 10,
+        color: '#FFCC00',
+        thickness: 2,
+      },
     ];
     await bakeAnnotations(blob, annotations);
     expect(ctx.strokeRect).toHaveBeenCalledWith(5, 6, 20, 10);
@@ -48,7 +66,13 @@ describe('bakeAnnotations — overhaul shape kinds', () => {
   it('paints highlighter strokes with reduced alpha and multiplied width', async () => {
     const { ctx, blob } = installCanvasSpies();
     const annotations: ModelAnnotation[] = [
-      { id: newAnnotationId(), kind: 'highlighter', points: [0, 0, 30, 0], color: '#FFCC00', thickness: 8 },
+      {
+        id: newAnnotationId(),
+        kind: 'highlighter',
+        points: [0, 0, 30, 0],
+        color: '#FFCC00',
+        thickness: 8,
+      },
     ];
     await bakeAnnotations(blob, annotations);
     expect(ctx.globalAlpha).toBe(HIGHLIGHTER_OPACITY);
@@ -58,7 +82,15 @@ describe('bakeAnnotations — overhaul shape kinds', () => {
   it('paints text with the shared font family and per-line offsets', async () => {
     const { ctx, blob } = installCanvasSpies();
     const annotations: ModelAnnotation[] = [
-      { id: newAnnotationId(), kind: 'text', x: 10, y: 20, text: 'line1\nline2', color: '#FFFFFF', fontSize: 24 },
+      {
+        id: newAnnotationId(),
+        kind: 'text',
+        x: 10,
+        y: 20,
+        text: 'line1\nline2',
+        color: '#FFFFFF',
+        fontSize: 24,
+      },
     ];
     await bakeAnnotations(blob, annotations);
     expect(ctx.font).toBe(`24px ${TEXT_FONT_FAMILY}`);
@@ -69,7 +101,16 @@ describe('bakeAnnotations — overhaul shape kinds', () => {
   it('still paints redactions before any other kind (PRIV-03 order)', async () => {
     const { ctx, blob, callOrder } = installCanvasSpies();
     const annotations: ModelAnnotation[] = [
-      { id: newAnnotationId(), kind: 'rect', x: 0, y: 0, width: 5, height: 5, color: '#000', thickness: 2 },
+      {
+        id: newAnnotationId(),
+        kind: 'rect',
+        x: 0,
+        y: 0,
+        width: 5,
+        height: 5,
+        color: '#000',
+        thickness: 2,
+      },
       { id: newAnnotationId(), kind: 'blur', x: 1, y: 1, width: 2, height: 2 },
     ];
     await bakeAnnotations(blob, annotations);
@@ -108,7 +149,10 @@ function installCanvasSpies(): {
     textBaseline: '',
   };
   // jsdom has no createImageBitmap — stub it plus a canvas whose 2d context is our spy.
-  vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 100, height: 100 })));
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async () => ({ width: 100, height: 100 })),
+  );
   const fakeCanvas = {
     width: 100,
     height: 100,

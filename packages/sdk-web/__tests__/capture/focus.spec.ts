@@ -53,7 +53,8 @@ describe('captureFocusedNode', () => {
   it('takes the cursor from left/top when the rect has no x/y (Chrome < 61 ClientRect), and it passes the schema', () => {
     const input = document.getElementById('email')! as HTMLInputElement;
     // Chrome 53's ClientRect: left/top/right/bottom/width/height, no x/y.
-    input.getBoundingClientRect = () => ({ left: 120, top: 48, right: 320, bottom: 88, width: 200, height: 40 }) as DOMRect;
+    input.getBoundingClientRect = () =>
+      ({ left: 120, top: 48, right: 320, bottom: 88, width: 200, height: 40 }) as DOMRect;
     input.focus();
     const fn = captureFocusedNode()!;
     expect(fn.cursor).toEqual({ x: 120, y: 48 });

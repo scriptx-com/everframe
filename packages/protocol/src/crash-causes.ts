@@ -23,11 +23,11 @@ function isValidWireText(value: string): boolean {
   for (let index = 0; index < value.length; index++) {
     const unit = value.charCodeAt(index);
     if (unit === 0) return false;
-    if (unit >= 0xD800 && unit <= 0xDBFF) {
+    if (unit >= 0xd800 && unit <= 0xdbff) {
       const next = value.charCodeAt(index + 1);
-      if (!(next >= 0xDC00 && next <= 0xDFFF)) return false;
+      if (!(next >= 0xdc00 && next <= 0xdfff)) return false;
       index++;
-    } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
+    } else if (unit >= 0xdc00 && unit <= 0xdfff) {
       return false;
     }
   }
@@ -38,30 +38,37 @@ function wireText(max: number) {
   return z.string().max(max).refine(isValidWireText, 'invalid wire text');
 }
 
-const CrashCauseFrame = z.object({
-  raw: wireText(MAX_FRAME_RAW_UNITS),
-  file: wireText(MAX_FRAME_FILE_UNITS).optional(),
-  function: wireText(MAX_FRAME_FUNCTION_UNITS).optional(),
-  line: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
-  col: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
-}).meta({ id: 'CrashCauseFrame', title: 'CrashCauseFrame' });
+const CrashCauseFrame = z
+  .object({
+    raw: wireText(MAX_FRAME_RAW_UNITS),
+    file: wireText(MAX_FRAME_FILE_UNITS).optional(),
+    function: wireText(MAX_FRAME_FUNCTION_UNITS).optional(),
+    line: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+    col: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+  })
+  .meta({ id: 'CrashCauseFrame', title: 'CrashCauseFrame' });
 
-export const CrashCause = z.object({
-  exceptionType: wireText(MAX_EXCEPTION_TYPE_UNITS),
-  message: wireText(MAX_MESSAGE_UNITS),
-  frames: z.array(CrashCauseFrame).max(MAX_CRASH_CAUSE_FRAMES),
-  framesTruncated: z.boolean(),
-}).meta({ id: 'CrashCause', title: 'CrashCause' });
+export const CrashCause = z
+  .object({
+    exceptionType: wireText(MAX_EXCEPTION_TYPE_UNITS),
+    message: wireText(MAX_MESSAGE_UNITS),
+    frames: z.array(CrashCauseFrame).max(MAX_CRASH_CAUSE_FRAMES),
+    framesTruncated: z.boolean(),
+  })
+  .meta({ id: 'CrashCause', title: 'CrashCause' });
 export type CrashCause = z.infer<typeof CrashCause>;
 
-export const CrashCauseChain = z.object({
-  causes: z.array(CrashCause).max(MAX_CRASH_CAUSES),
-  truncated: z.boolean(),
-}).superRefine((value, context) => {
-  if (utf8Bytes(JSON.stringify(value)) > MAX_CRASH_CAUSE_BYTES) {
-    context.addIssue({ code: 'custom', message: 'crash cause chain exceeds byte limit' });
-  }
-}).meta({ id: 'CrashCauseChain', title: 'CrashCauseChain' });
+export const CrashCauseChain = z
+  .object({
+    causes: z.array(CrashCause).max(MAX_CRASH_CAUSES),
+    truncated: z.boolean(),
+  })
+  .superRefine((value, context) => {
+    if (utf8Bytes(JSON.stringify(value)) > MAX_CRASH_CAUSE_BYTES) {
+      context.addIssue({ code: 'custom', message: 'crash cause chain exceeds byte limit' });
+    }
+  })
+  .meta({ id: 'CrashCauseChain', title: 'CrashCauseChain' });
 export type CrashCauseChain = z.infer<typeof CrashCauseChain>;
 
 export type CauseFitResult = 'accepted' | 'exhausted' | 'discarded';
@@ -94,11 +101,7 @@ type OwnRead =
   | { ok: true; present: true; value: unknown }
   | { ok: false };
 
-function ownData(
-  input: object,
-  key: PropertyKey,
-  stillOwned: () => boolean,
-): OwnRead {
+function ownData(input: object, key: PropertyKey, stillOwned: () => boolean): OwnRead {
   try {
     if (!stillOwned()) return { ok: false };
     const descriptor = Object.getOwnPropertyDescriptor(input, key);
@@ -136,22 +139,45 @@ function prefixWithoutSplit(value: string, limit: number): { value: string; lost
   let end = limit;
   const last = value.charCodeAt(end - 1);
   const next = value.charCodeAt(end);
-  if (last >= 0xD800 && last <= 0xDBFF && next >= 0xDC00 && next <= 0xDFFF) end--;
+  if (last >= 0xd800 && last <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) end--;
   return { value: value.slice(0, end), lost: true };
 }
 
 // Units of the tokens redaction only matches whole: JWT, bearer and email.
 function isTokenUnit(unit: number): boolean {
-  return (unit >= 0x30 && unit <= 0x39) || (unit >= 0x41 && unit <= 0x5A) || (unit >= 0x61 && unit <= 0x7A)
-    || unit === 0x25 || unit === 0x2B || unit === 0x2D || unit === 0x2E || unit === 0x2F || unit === 0x3D
-    || unit === 0x40 || unit === 0x5F || unit === 0x7E;
+  return (
+    (unit >= 0x30 && unit <= 0x39) ||
+    (unit >= 0x41 && unit <= 0x5a) ||
+    (unit >= 0x61 && unit <= 0x7a) ||
+    unit === 0x25 ||
+    unit === 0x2b ||
+    unit === 0x2d ||
+    unit === 0x2e ||
+    unit === 0x2f ||
+    unit === 0x3d ||
+    unit === 0x40 ||
+    unit === 0x5f ||
+    unit === 0x7e
+  );
 }
 
 // Digits, dashes and JavaScript whitespace: the units of card and SSN numbers.
 function isDigitGroupUnit(unit: number): boolean {
-  return (unit >= 0x30 && unit <= 0x39) || unit === 0x2D || (unit >= 0x09 && unit <= 0x0D) || unit === 0x20
-    || unit === 0xA0 || unit === 0x1680 || (unit >= 0x2000 && unit <= 0x200A) || unit === 0x2028
-    || unit === 0x2029 || unit === 0x202F || unit === 0x205F || unit === 0x3000 || unit === 0xFEFF;
+  return (
+    (unit >= 0x30 && unit <= 0x39) ||
+    unit === 0x2d ||
+    (unit >= 0x09 && unit <= 0x0d) ||
+    unit === 0x20 ||
+    unit === 0xa0 ||
+    unit === 0x1680 ||
+    (unit >= 0x2000 && unit <= 0x200a) ||
+    unit === 0x2028 ||
+    unit === 0x2029 ||
+    unit === 0x202f ||
+    unit === 0x205f ||
+    unit === 0x3000 ||
+    unit === 0xfeff
+  );
 }
 
 /**
@@ -172,15 +198,15 @@ function repairText(value: string): string {
     const unit = value.charCodeAt(index);
     if (unit === 0) {
       output += '\uFFFD';
-    } else if (unit >= 0xD800 && unit <= 0xDBFF) {
+    } else if (unit >= 0xd800 && unit <= 0xdbff) {
       const next = value.charCodeAt(index + 1);
-      if (next >= 0xDC00 && next <= 0xDFFF) {
+      if (next >= 0xdc00 && next <= 0xdfff) {
         output += value.charAt(index) + value.charAt(index + 1);
         index++;
       } else {
         output += '\uFFFD';
       }
-    } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
+    } else if (unit >= 0xdc00 && unit <= 0xdfff) {
       output += '\uFFFD';
     } else {
       output += value.charAt(index);
@@ -230,7 +256,9 @@ export function createCrashCauseChainFitter(
   const normalizeText = (value: unknown, cap: number): NormalizedText | undefined => {
     if (typeof value !== 'string' || !safeOwned(stillOwned)) return undefined;
     const scanned = prefixWithoutSplit(value, MAX_CRASH_CAUSE_TEXT_SCAN_UNITS);
-    const repairedInput = repairText(scanned.lost ? dropCrashCauseCutToken(scanned.value) : scanned.value);
+    const repairedInput = repairText(
+      scanned.lost ? dropCrashCauseCutToken(scanned.value) : scanned.value,
+    );
     let redacted: unknown;
     try {
       if (!safeOwned(stillOwned)) return undefined;
@@ -268,10 +296,16 @@ export function createCrashCauseChainFitter(
     const exceptionTypeRead = ownData(header, 'exceptionType', stillOwned);
     const messageRead = ownData(header, 'message', stillOwned);
     const framesTruncatedRead = ownData(header, 'framesTruncated', stillOwned);
-    if (!exceptionTypeRead.ok || !exceptionTypeRead.present
-      || !messageRead.ok || !messageRead.present
-      || !framesTruncatedRead.ok || !framesTruncatedRead.present
-      || typeof framesTruncatedRead.value !== 'boolean') return discard();
+    if (
+      !exceptionTypeRead.ok ||
+      !exceptionTypeRead.present ||
+      !messageRead.ok ||
+      !messageRead.present ||
+      !framesTruncatedRead.ok ||
+      !framesTruncatedRead.present ||
+      typeof framesTruncatedRead.value !== 'boolean'
+    )
+      return discard();
     const exceptionType = normalizeText(exceptionTypeRead.value, MAX_EXCEPTION_TYPE_UNITS);
     if (!exceptionType) return discard();
     const message = normalizeText(messageRead.value, MAX_MESSAGE_UNITS);
@@ -376,14 +410,15 @@ export function createCrashCauseChainFitter(
       causes: causes.map(({ cause }) => ({
         exceptionType: cause.exceptionType,
         message: cause.message,
-        frames: cause.frames.map(frame => ({ ...frame })),
+        frames: cause.frames.map((frame) => ({ ...frame })),
         framesTruncated: cause.framesTruncated,
       })),
       truncated: chainTruncated,
     };
     const finalBytes = utf8Bytes(JSON.stringify(result));
-    const trueFlags = (result.truncated ? 1 : 0)
-      + result.causes.reduce((count, cause) => count + (cause.framesTruncated ? 1 : 0), 0);
+    const trueFlags =
+      (result.truncated ? 1 : 0) +
+      result.causes.reduce((count, cause) => count + (cause.framesTruncated ? 1 : 0), 0);
     if (finalBytes > MAX_CRASH_CAUSE_BYTES || reservedBytes - finalBytes !== trueFlags) {
       mode = 'discarded';
       sealed = true;
@@ -400,8 +435,11 @@ export function createCrashCauseChainFitter(
 
 function readArrayLength(array: unknown[], stillOwned: () => boolean): number | undefined {
   const read = ownData(array, 'length', stillOwned);
-  return read.ok && read.present && typeof read.value === 'number'
-    && Number.isSafeInteger(read.value) && read.value >= 0
+  return read.ok &&
+    read.present &&
+    typeof read.value === 'number' &&
+    Number.isSafeInteger(read.value) &&
+    read.value >= 0
     ? read.value
     : undefined;
 }
@@ -435,8 +473,11 @@ export function normalizeCrashCauseChain(
     const exceptionType = requiredOwn(causeRead.value, 'exceptionType', stillOwned);
     const message = requiredOwn(causeRead.value, 'message', stillOwned);
     const framesTruncated = requiredOwn(causeRead.value, 'framesTruncated', stillOwned);
-    if (typeof exceptionType !== 'string' || typeof message !== 'string'
-      || typeof framesTruncated !== 'boolean') {
+    if (
+      typeof exceptionType !== 'string' ||
+      typeof message !== 'string' ||
+      typeof framesTruncated !== 'boolean'
+    ) {
       fitter.markChainTruncated();
       break;
     }
@@ -481,7 +522,11 @@ export function normalizeCrashCauseChain(
         if (!read.ok) {
           optionalLoss = true;
         } else if (read.present) {
-          if (typeof read.value === 'number' && Number.isSafeInteger(read.value) && read.value >= 0) {
+          if (
+            typeof read.value === 'number' &&
+            Number.isSafeInteger(read.value) &&
+            read.value >= 0
+          ) {
             projected[key] = read.value;
           } else {
             optionalLoss = true;
@@ -513,8 +558,13 @@ function projectStrict(input: unknown): CrashCauseChain | undefined {
     const message = requiredOwn(causeRead.value, 'message', owned);
     const framesValue = requiredOwn(causeRead.value, 'frames', owned);
     const framesTruncated = requiredOwn(causeRead.value, 'framesTruncated', owned);
-    if (typeof exceptionType !== 'string' || typeof message !== 'string'
-      || !isArray(framesValue) || typeof framesTruncated !== 'boolean') return undefined;
+    if (
+      typeof exceptionType !== 'string' ||
+      typeof message !== 'string' ||
+      !isArray(framesValue) ||
+      typeof framesTruncated !== 'boolean'
+    )
+      return undefined;
     const frameLength = readArrayLength(framesValue, owned);
     if (frameLength === undefined || frameLength > MAX_CRASH_CAUSE_FRAMES) return undefined;
     const frames: z.infer<typeof CrashCauseFrame>[] = [];

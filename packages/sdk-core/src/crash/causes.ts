@@ -30,7 +30,9 @@ const objectGetPrototypeOf = Object.getPrototypeOf;
 const reflectApply = Reflect.apply;
 const AmbientError = Error;
 
-function captureNativeStackGetter(): { getter: (this: unknown) => unknown; prototype?: object } | undefined {
+function captureNativeStackGetter():
+  | { getter: (this: unknown) => unknown; prototype?: object }
+  | undefined {
   try {
     const probe = new AmbientError();
     const own = objectGetOwnPropertyDescriptor(probe, 'stack');
@@ -87,7 +89,8 @@ function ownStack(value: object, stillOwned: () => boolean): StackRead {
       const seen = new Set<object>([value]);
       for (let links = 0; links < MAX_INHERITED_STACK_LINKS; links += 1) {
         const next = safePrototype(current, stillOwned);
-        if (next === undefined) return safeOwned(stillOwned) ? { kind: 'lost' } : { kind: 'cancelled' };
+        if (next === undefined)
+          return safeOwned(stillOwned) ? { kind: 'lost' } : { kind: 'cancelled' };
         if (next === null) return { kind: 'absent' };
         if (seen.has(next)) return { kind: 'lost' };
         seen.add(next);
@@ -96,7 +99,11 @@ function ownStack(value: object, stillOwned: () => boolean): StackRead {
         if (!safeOwned(stillOwned)) return { kind: 'cancelled' };
         if (!inherited && current === nativeStack.prototype) return { kind: 'lost' };
         if (inherited) {
-          if (current !== nativeStack.prototype || 'value' in inherited || inherited.get !== nativeStackGetter)
+          if (
+            current !== nativeStack.prototype ||
+            'value' in inherited ||
+            inherited.get !== nativeStackGetter
+          )
             return { kind: 'lost' };
           descriptor = inherited;
           break;
@@ -152,7 +159,11 @@ function readType(
     if (links >= 4) break;
     const prototype = safePrototype(current, stillOwned);
     if (prototype === undefined) {
-      return { type: 'Error', lost: safeOwned(stillOwned) ? true : lost, cancelled: !safeOwned(stillOwned) };
+      return {
+        type: 'Error',
+        lost: safeOwned(stillOwned) ? true : lost,
+        cancelled: !safeOwned(stillOwned),
+      };
     }
     current = prototype;
     links += 1;
@@ -202,14 +213,22 @@ function feedStack(
 function terminalHeader(value: unknown): { message: string; lossy: boolean } {
   if (value === null) return { message: 'null', lossy: false };
   switch (typeof value) {
-    case 'undefined': return { message: 'undefined', lossy: false };
-    case 'string': return { message: value, lossy: false };
-    case 'boolean': return { message: value ? 'true' : 'false', lossy: false };
-    case 'number': return { message: numberToString.call(value), lossy: false };
-    case 'bigint': return { message: '[bigint]', lossy: true };
-    case 'symbol': return { message: '[symbol]', lossy: true };
-    case 'function': return { message: '[function]', lossy: true };
-    default: return { message: '[object]', lossy: true };
+    case 'undefined':
+      return { message: 'undefined', lossy: false };
+    case 'string':
+      return { message: value, lossy: false };
+    case 'boolean':
+      return { message: value ? 'true' : 'false', lossy: false };
+    case 'number':
+      return { message: numberToString.call(value), lossy: false };
+    case 'bigint':
+      return { message: '[bigint]', lossy: true };
+    case 'symbol':
+      return { message: '[symbol]', lossy: true };
+    case 'function':
+      return { message: '[function]', lossy: true };
+    default:
+      return { message: '[object]', lossy: true };
   }
 }
 

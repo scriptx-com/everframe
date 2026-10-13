@@ -30,10 +30,10 @@ const urlOf = (input: RequestInfo | URL): string =>
   typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
 const configOn = (): Response =>
-  new Response(
-    JSON.stringify({ replayEnabled: true, replayDurationSec: 30, samplingRate: 1 }),
-    { status: 200, headers: { 'content-type': 'application/json' } },
-  );
+  new Response(JSON.stringify({ replayEnabled: true, replayDurationSec: 30, samplingRate: 1 }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
 
 async function flush(times = 12): Promise<void> {
   for (let i = 0; i < times; i++) await Promise.resolve();

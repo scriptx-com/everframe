@@ -29,7 +29,12 @@ const submitMock = vi.mocked(submitReportFromDraft);
 
 function makeWs(): { send: ReturnType<typeof vi.fn>; client: RelayWSClient } {
   const send = vi.fn();
-  const client = { send, sendBinary: vi.fn(), start: vi.fn(), stop: vi.fn() } as unknown as RelayWSClient;
+  const client = {
+    send,
+    sendBinary: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+  } as unknown as RelayWSClient;
   return { send, client };
 }
 
@@ -253,7 +258,12 @@ describe('companion/capture-bridge report.submit', () => {
         throw new Error('boom');
       },
     };
-    handleCompanionSubmitText({ ...SUBMIT_MSG, correlation_id: 'c-2' }, client, throwing, companion);
+    handleCompanionSubmitText(
+      { ...SUBMIT_MSG, correlation_id: 'c-2' },
+      client,
+      throwing,
+      companion,
+    );
     handleCompanionSubmitBinary(BAKED, client, throwing, companion);
     await vi.waitFor(() => expect(send).toHaveBeenCalled());
     expect(submitMock.mock.calls[0]![0].draft.extra).toBeUndefined();
@@ -394,7 +404,12 @@ describe('companion/capture-bridge report.submit', () => {
   // the way in) ever being involved. `captureUserSnapshot` therefore projects
   // too, and this locks it on the path where it is load-bearing.
   it('ships only id/email/displayName when the host getUser returns its own user object', async () => {
-    submitMock.mockResolvedValue({ ok: true, retryable: false, reportId: 'rid-11', threadId: null });
+    submitMock.mockResolvedValue({
+      ok: true,
+      retryable: false,
+      reportId: 'rid-11',
+      threadId: null,
+    });
     const { send, client } = makeWs();
     const companion = createCompanion();
     const fat = {
@@ -425,7 +440,12 @@ describe('companion/capture-bridge report.submit', () => {
   // through to `runCompanionSubmit`'s outer try/catch, whose fallback is
   // `report.failed('ingest_error')` — i.e. losing the whole report.
   it('degrades to anonymous when the host getUser throws, and still submits', async () => {
-    submitMock.mockResolvedValue({ ok: true, retryable: false, reportId: 'rid-10', threadId: null });
+    submitMock.mockResolvedValue({
+      ok: true,
+      retryable: false,
+      reportId: 'rid-10',
+      threadId: null,
+    });
     const { send, client } = makeWs();
     const companion = createCompanion();
     const host = makeHost(null, () => {
@@ -574,7 +594,12 @@ describe('host teardown while the lazy submit chunk loads (codex r7 F2)', () => 
     const host = makeHost(); // no isKilled — like @everframe/react's Provider host
     seam.__setCompanionHost(host);
 
-    handleCompanionSubmitText({ ...SUBMIT_MSG, correlation_id: 'c-teardown' } as ReportSubmit, client, host, companion);
+    handleCompanionSubmitText(
+      { ...SUBMIT_MSG, correlation_id: 'c-teardown' } as ReportSubmit,
+      client,
+      host,
+      companion,
+    );
     handleCompanionSubmitBinary(BAKED, client, host, companion);
     seam.__setCompanionHost(null); // EverframeProvider unmounts before companion-submit resolves
 
@@ -590,19 +615,29 @@ describe('host teardown while the lazy submit chunk loads (codex r7 F2)', () => 
 describe('account switch while the lazy submit chunk loads (codex r8 F2)', () => {
   afterEach(() => vi.clearAllMocks());
 
-  it("submits as the account that sent the final frame, not the one signed in when the chunk resolves", async () => {
-    submitMock.mockResolvedValue({ ok: true, retryable: false, reportId: 'rid-ab', threadId: null });
+  it('submits as the account that sent the final frame, not the one signed in when the chunk resolves', async () => {
+    submitMock.mockResolvedValue({
+      ok: true,
+      retryable: false,
+      reportId: 'rid-ab',
+      threadId: null,
+    });
     __resetCompanionSubmitFramingForTests();
     let account: 'A' | 'B' = 'A';
     const host = makeHost(null, () => ({ id: `user_${account}` }));
-    (host.adapter as unknown as { __captureIdentityAtSubmitBoundary: () => Promise<string | null> }).__captureIdentityAtSubmitBoundary = vi.fn(
-      async () => `token_${account}`,
-    );
+    (
+      host.adapter as unknown as { __captureIdentityAtSubmitBoundary: () => Promise<string | null> }
+    ).__captureIdentityAtSubmitBoundary = vi.fn(async () => `token_${account}`);
     const { send, client } = makeWs();
     const companion = createCompanion();
     companion.__setState('report_in_progress');
 
-    handleCompanionSubmitText({ ...SUBMIT_MSG, correlation_id: 'c-switch' } as ReportSubmit, client, host, companion);
+    handleCompanionSubmitText(
+      { ...SUBMIT_MSG, correlation_id: 'c-switch' } as ReportSubmit,
+      client,
+      host,
+      companion,
+    );
     handleCompanionSubmitBinary(BAKED, client, host, companion);
     account = 'B'; // the same mounted host signs in as B before companion-submit resolves
 

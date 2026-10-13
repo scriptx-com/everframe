@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-"use client";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+'use client';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 const LINKS = [
-  { href: "/", label: "Field desk" },
-  { href: "/specimens", label: "Specimens" },
-  { href: "/video", label: "Video" },
-  { href: "/playback", label: "Playback" },
-  { href: "/log", label: "Field log" },
-  { href: "/archive", label: "Archive" },
-  { href: "/settings", label: "Settings" },
-  { href: "/source-map-check", label: "Errors" },
+  { href: '/', label: 'Field desk' },
+  { href: '/specimens', label: 'Specimens' },
+  { href: '/video', label: 'Video' },
+  { href: '/playback', label: 'Playback' },
+  { href: '/log', label: 'Field log' },
+  { href: '/archive', label: 'Archive' },
+  { href: '/settings', label: 'Settings' },
+  { href: '/source-map-check', label: 'Errors' },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+  return href === '/' ? pathname === '/' : pathname.startsWith(href);
 }
 
 export function SiteNav() {
@@ -33,8 +33,8 @@ export function SiteNav() {
             <Link
               key={href}
               href={href}
-              aria-current={isActive(pathname, href) ? "page" : undefined}
-              data-testid={`nav-${label.toLowerCase().replace(/\s/g, "-")}`}
+              aria-current={isActive(pathname, href) ? 'page' : undefined}
+              data-testid={`nav-${label.toLowerCase().replace(/\s/g, '-')}`}
             >
               {label}
             </Link>

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import type { CustomRule } from "./redaction.js";
+import type { CustomRule } from './redaction.js';
 
 export interface UserMetadata {
   id?: string;
@@ -9,7 +9,7 @@ export interface UserMetadata {
 }
 
 export interface RedactionConfig {
-  maskInputs?: Array<"email" | "tel" | "creditcard" | "ssn">;
+  maskInputs?: Array<'email' | 'tel' | 'creditcard' | 'ssn'>;
   allowProps?: string[];
   customRules?: CustomRule[];
 }

@@ -23,7 +23,6 @@
   <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
   Builds can upload their native symbols automatically, and a symbol problem never breaks a build by default.
-
   - `everframe dsym upload-build` finds the binaries and dSYMs itself: `--xcode` inside a Run Script phase, `--archive` for an `.xcarchive` (fastlane, Xcode Cloud, CI) and `--app` for any other layout. App and extension executables are required. Embedded frameworks are optional and warn when they have no dSYM. dSYM folders are searched recursively. iOS, tvOS and their simulators are supported.
   - `everframe setup xcode` adds an "Upload Everframe Symbols" phase to every application target, and `--print-script` prints it for XcodeGen. The phase turns off user script sandboxing on those targets and declares a dSYM input only for `dwarf-with-dsym` builds.
   - The React Native and Expo build phase also uploads iOS dSYMs, skips Debug builds, reads flavored Android variants such as `tvRelease`, and turns off user script sandboxing.
@@ -189,7 +188,6 @@
   **Deploy the API before releasing this SDK version. This is a hard
   precondition, not a nice-to-have**, and getting the order wrong is worse than
   "vitals are lossy" the way earlier phases could be:
-
   - An old API rejects a phase-4 `VitalsEntry` (the new `playerId`, `custom`
     entries, and player event types, plus `vitals_sessions.player_count` from
     migration `0082`) with a non-retryable 400. On the **vitals chunk/summary

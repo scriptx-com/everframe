@@ -22,16 +22,35 @@ export interface ErrorCaptureStatus {
   counters: Record<ErrorCapturePath, ErrorCaptureCounters>;
 }
 function emptyCounters(): ErrorCaptureCounters {
-  return { attempted: 0, accepted: 0, duplicateSuppressed: 0, allowanceSuppressed: 0,
-    bridgeUnavailable: 0, nativeRefused: 0, captureFailed: 0, reentrantSuppressed: 0,
-    inactiveAborted: 0 };
+  return {
+    attempted: 0,
+    accepted: 0,
+    duplicateSuppressed: 0,
+    allowanceSuppressed: 0,
+    bridgeUnavailable: 0,
+    nativeRefused: 0,
+    captureFailed: 0,
+    reentrantSuppressed: 0,
+    inactiveAborted: 0,
+  };
 }
-export function emptyErrorCaptureStatus(status: ErrorCaptureStatus['status'], reason: ErrorCaptureStatus['reason']): ErrorCaptureStatus {
-  return { status, reason, scope: 'mounted-js-admission', limits: { handled: 10, automatic: 10 },
-    counters: { handled: emptyCounters(), errorUtils: emptyCounters(), rejection: emptyCounters() } };
+export function emptyErrorCaptureStatus(
+  status: ErrorCaptureStatus['status'],
+  reason: ErrorCaptureStatus['reason'],
+): ErrorCaptureStatus {
+  return {
+    status,
+    reason,
+    scope: 'mounted-js-admission',
+    limits: { handled: 10, automatic: 10 },
+    counters: { handled: emptyCounters(), errorUtils: emptyCounters(), rejection: emptyCounters() },
+  };
 }
 /** Internal bookkeeping; deliberately absent from the package barrels. */
-export function incrementErrorCaptureCounter(counters: ErrorCaptureCounters, key: keyof ErrorCaptureCounters): void {
+export function incrementErrorCaptureCounter(
+  counters: ErrorCaptureCounters,
+  key: keyof ErrorCaptureCounters,
+): void {
   counters[key] = Math.min(2147483647, counters[key] + 1);
 }
 export function createErrorCaptureLedger() {
@@ -40,14 +59,18 @@ export function createErrorCaptureLedger() {
     begin(path: ErrorCapturePath): (outcome: ErrorCaptureOutcome) => void {
       incrementErrorCaptureCounter(counters[path], 'attempted');
       let settled = false;
-      return outcome => {
+      return (outcome) => {
         if (settled) return;
         settled = true;
         incrementErrorCaptureCounter(counters[path], outcome);
       };
     },
     snapshot(): ErrorCaptureStatus['counters'] {
-      return { handled: { ...counters.handled }, errorUtils: { ...counters.errorUtils }, rejection: { ...counters.rejection } };
+      return {
+        handled: { ...counters.handled },
+        errorUtils: { ...counters.errorUtils },
+        rejection: { ...counters.rejection },
+      };
     },
   };
 }

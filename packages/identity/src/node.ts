@@ -29,7 +29,8 @@ async function readBody(req: IncomingMessage): Promise<Uint8Array | undefined> {
   const chunks: Uint8Array[] = [];
   let total = 0;
   for await (const chunk of req) {
-    const bytes = typeof chunk === 'string' ? new TextEncoder().encode(chunk) : new Uint8Array(chunk);
+    const bytes =
+      typeof chunk === 'string' ? new TextEncoder().encode(chunk) : new Uint8Array(chunk);
     total += bytes.byteLength;
     // Checked as soon as the running total EXCEEDS the cap — never accumulate
     // first and check after, or the cap is just a suggestion. Deliberately

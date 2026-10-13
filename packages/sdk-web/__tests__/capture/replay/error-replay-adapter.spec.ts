@@ -13,7 +13,10 @@ const importRrweb = async (): Promise<{ record: (o: Record<string, unknown>) => 
   record: (options: Record<string, unknown>) => {
     const emit = options['emit'] as (e: unknown, isCheckout?: boolean) => void;
     rrweb.fire = (ts: number, type = 2): void => {
-      emit({ type, timestamp: ts, data: { node: { type: 3, textContent: `frame ${ts}`, id: 1 } } }, type === 2);
+      emit(
+        { type, timestamp: ts, data: { node: { type: 3, textContent: `frame ${ts}`, id: 1 } } },
+        type === 2,
+      );
     };
     return () => undefined;
   },
@@ -43,7 +46,10 @@ vi.mock('../../../src/capture/replay/index.js', async (importOriginal) => {
 import type { ReplayRecorder } from '../../../src/capture/replay/recorder.js';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../../src/adapter.js';
 import { __resetErrorReplayBudgetForTesting } from '../../../src/capture/replay/error-replay.js';
-import { __resetErrorReplayPartsForTesting, isErrorReplayPending } from '../../../src/transport/error-replay-parts.js';
+import {
+  __resetErrorReplayPartsForTesting,
+  isErrorReplayPending,
+} from '../../../src/transport/error-replay-parts.js';
 import { drainOutbox } from '../../../src/transport/submit.js';
 import { REPLAY_BYTE_CAP } from '../../../src/transport/draft-to-envelope.js';
 import { readBlobArrayBuffer } from '../../../src/internal/blob.js';
@@ -85,9 +91,10 @@ async function bytesOf(blob: Blob): Promise<Uint8Array> {
 
 async function envelopeOf(body: FormData): Promise<Record<string, any>> {
   const raw = await bytesOf(body.get('envelope') as Blob);
-  const json = raw[0] === 0x1f && raw[1] === 0x8b
-    ? gunzipSync(Buffer.from(raw)).toString('utf8')
-    : new TextDecoder().decode(raw);
+  const json =
+    raw[0] === 0x1f && raw[1] === 0x8b
+      ? gunzipSync(Buffer.from(raw)).toString('utf8')
+      : new TextDecoder().decode(raw);
   return JSON.parse(json) as Record<string, any>;
 }
 
@@ -141,16 +148,26 @@ describe('replays on web errors', () => {
     const body = ingest[0]!;
     const envelope = await envelopeOf(body);
     expect(envelope.source).toBe('error');
-    expect(envelope.attachments).toEqual([expect.objectContaining({
-      partName: 'session-replay', kind: 'session-replay', format: 'rrweb', contentType: 'application/octet-stream',
-    })]);
+    expect(envelope.attachments).toEqual([
+      expect.objectContaining({
+        partName: 'session-replay',
+        kind: 'session-replay',
+        format: 'rrweb',
+        contentType: 'application/octet-stream',
+      }),
+    ]);
     const part = await bytesOf(body.get('session-replay') as Blob);
     expect(envelope.attachments[0].byteLength).toBe(part.byteLength);
-    const events = JSON.parse(gunzipSync(Buffer.from(part)).toString('utf8')) as Array<{ type: number }>;
+    const events = JSON.parse(gunzipSync(Buffer.from(part)).toString('utf8')) as Array<{
+      type: number;
+    }>;
     expect(events.map((e) => e.type)).toEqual([2, 3, 5]);
     // Non-destructive: same window, still recording, lifecycle untouched.
-    expect((recorders[recorders.length - 1] as ReplayRecorder).__diagnostics())
-      .toMatchObject({ recording: true, frozen: false, frames: 2 });
+    expect((recorders[recorders.length - 1] as ReplayRecorder).__diagnostics()).toMatchObject({
+      recording: true,
+      frozen: false,
+      frames: 2,
+    });
     expect(adapter.__replayLifecycle?.state).toBe('BUFFERING');
   });
 
@@ -161,7 +178,9 @@ describe('replays on web errors', () => {
       adapter.captureException?.(errorWithStack(names[i]!));
       await vi.waitFor(() => expect(ingest).toHaveLength(i + 1));
     }
-    const counts = await Promise.all(ingest.map(async (body) => (await envelopeOf(body)).attachments.length));
+    const counts = await Promise.all(
+      ingest.map(async (body) => (await envelopeOf(body)).attachments.length),
+    );
     expect(counts).toEqual([1, 1, 0]);
     expect(ingest[2]!.get('session-replay')).toBeNull();
     expect((await envelopeOf(ingest[2]!)).captureControl.replayOmitted).toBeUndefined();
@@ -178,10 +197,17 @@ describe('replays on web errors', () => {
     expect(await adapter.outbox!.list()).toHaveLength(1);
     adapter.onKill?.();
     expect(await adapter.outbox!.list()).toHaveLength(1);
-    const replacement = createWebPlatformAdapter({ sdkKey: 'pk_test', sessionReplay: { disabled: true } });
+    const replacement = createWebPlatformAdapter({
+      sdkKey: 'pk_test',
+      sessionReplay: { disabled: true },
+    });
     adapters.push(replacement);
     ingestStatus = 200;
-    await drainOutbox({ outbox: replacement.outbox!, config: { sdkKey: 'pk_test', sessionReplay: { disabled: true } }, sdkVersion: 'test' });
+    await drainOutbox({
+      outbox: replacement.outbox!,
+      config: { sdkKey: 'pk_test', sessionReplay: { disabled: true } },
+      sdkVersion: 'test',
+    });
     expect(ingest.at(-1)!.get('session-replay')).toBeNull();
     expect((await envelopeOf(ingest.at(-1)!)).attachments).toEqual([]);
     expect(await replacement.outbox!.list()).toEqual([]);
@@ -212,7 +238,10 @@ describe('replays on web errors', () => {
 
   it('keeps the replay of an uncaught React render error when the provider unmounts in the same commit', async () => {
     const adapter = await recordingAdapter();
-    adapter.__captureUncaughtReactError(errorWithStack('render'), '\n    at Widget (Widget.tsx:3:7)');
+    adapter.__captureUncaughtReactError(
+      errorWithStack('render'),
+      '\n    at Widget (Widget.tsx:3:7)',
+    );
     adapter.onKill?.('release'); // React unmounts the provider; the recorder is killed
     await vi.waitFor(() => expect(ingest).toHaveLength(1));
     const envelope = await envelopeOf(ingest[0]!);
@@ -245,7 +274,10 @@ describe('replays on web errors', () => {
   it('persists the original JSON before export, skips other drains, and sends at the deadline', async () => {
     const adapter = await recordingAdapter();
     let finish!: (bytes: Uint8Array) => void;
-    gz.impl = () => new Promise((resolve) => { finish = resolve; });
+    gz.impl = () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     adapter.captureException?.(errorWithStack('deadline'));
     await flush();
@@ -255,7 +287,11 @@ describe('replays on web errors', () => {
     expect(JSON.parse(original).attachments).toEqual([]);
     expect(JSON.parse(original).captureControl.replayOmitted).toBeUndefined();
     expect(isErrorReplayPending(items[0]!.reportId)).toBe(true);
-    await drainOutbox({ outbox: adapter.outbox!, config: { sdkKey: 'pk_test' }, sdkVersion: 'test' });
+    await drainOutbox({
+      outbox: adapter.outbox!,
+      config: { sdkKey: 'pk_test' },
+      sdkVersion: 'test',
+    });
     expect(ingest).toHaveLength(0);
     await vi.advanceTimersByTimeAsync(3_000);
     vi.useRealTimers();
@@ -270,7 +306,9 @@ describe('replays on web errors', () => {
 
   it('forgets a pending replay when outbox admission fails', async () => {
     const adapter = await recordingAdapter();
-    const enqueue = vi.spyOn(adapter.outbox!, 'enqueue').mockRejectedValue(new Error('storage failed'));
+    const enqueue = vi
+      .spyOn(adapter.outbox!, 'enqueue')
+      .mockRejectedValue(new Error('storage failed'));
     adapter.captureException?.(errorWithStack('enqueue-failed'));
     const reportId = enqueue.mock.calls[0]![0].reportId;
     expect(isErrorReplayPending(reportId)).toBe(true);
@@ -282,7 +320,10 @@ describe('replays on web errors', () => {
   it('discards the error and replay when consent is withdrawn during export', async () => {
     const adapter = await recordingAdapter();
     let finish!: (bytes: Uint8Array) => void;
-    gz.impl = () => new Promise((resolve) => { finish = resolve; });
+    gz.impl = () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
     adapter.captureException?.(errorWithStack('withdraw'));
     await flush();
     const items = await adapter.outbox!.list();
@@ -295,21 +336,24 @@ describe('replays on web errors', () => {
     expect(ingest).toHaveLength(0);
   });
 
-  it.each(['onerror', 'unhandledrejection'])('attaches replay through the %s browser hook', async (mechanism) => {
-    await recordingAdapter();
-    const error = errorWithStack(mechanism);
-    if (mechanism === 'onerror') window.onerror?.(error.message, 'app.ts', 1, 1, error);
-    else {
-      const event = new Event('unhandledrejection');
-      Object.defineProperty(event, 'reason', { value: error });
-      window.dispatchEvent(event);
-    }
-    await vi.waitFor(() => expect(ingest).toHaveLength(1));
-    const envelope = await envelopeOf(ingest[0]!);
-    expect(envelope.source).toBe('error');
-    expect(envelope.payload.crash.mechanism).toBe(mechanism);
-    expect(ingest[0]!.get('session-replay')).not.toBeNull();
-  });
+  it.each(['onerror', 'unhandledrejection'])(
+    'attaches replay through the %s browser hook',
+    async (mechanism) => {
+      await recordingAdapter();
+      const error = errorWithStack(mechanism);
+      if (mechanism === 'onerror') window.onerror?.(error.message, 'app.ts', 1, 1, error);
+      else {
+        const event = new Event('unhandledrejection');
+        Object.defineProperty(event, 'reason', { value: error });
+        window.dispatchEvent(event);
+      }
+      await vi.waitFor(() => expect(ingest).toHaveLength(1));
+      const envelope = await envelopeOf(ingest[0]!);
+      expect(envelope.source).toBe('error');
+      expect(envelope.payload.crash.mechanism).toBe(mechanism);
+      expect(ingest[0]!.get('session-replay')).not.toBeNull();
+    },
+  );
 
   it('takes no extra snapshot for duplicate or throttled errors', async () => {
     const adapter = await recordingAdapter();

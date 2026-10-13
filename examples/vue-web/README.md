@@ -30,14 +30,14 @@ cannot reach).
 
 ## What each route exercises
 
-| Route | Exercises |
-| --- | --- |
-| `/` | Seeded PII, both masking surfaces, password input, host-owned trigger |
-| `/specimens` | Filterable list — tap crumbs and `aria-label`-derived labels |
-| `/specimens/:id` | Detail view, cross-page `localStorage` write |
-| `/log` | Add / delete entries — DOM mutation for replay |
-| `/settings` | `setUser`, `setExtra`, `kill()` |
-| `/strict-csp.html` | A separate document with its own CSP header and `cspNonce` |
+| Route              | Exercises                                                             |
+| ------------------ | --------------------------------------------------------------------- |
+| `/`                | Seeded PII, both masking surfaces, password input, host-owned trigger |
+| `/specimens`       | Filterable list — tap crumbs and `aria-label`-derived labels          |
+| `/specimens/:id`   | Detail view, cross-page `localStorage` write                          |
+| `/log`             | Add / delete entries — DOM mutation for replay                        |
+| `/settings`        | `setUser`, `setExtra`, `kill()`                                       |
+| `/strict-csp.html` | A separate document with its own CSP header and `cspNonce`            |
 
 `/archive` and `/video` from the React example are deliberately absent: both
 test the shared capture core rather than anything the Web SDK does differently.

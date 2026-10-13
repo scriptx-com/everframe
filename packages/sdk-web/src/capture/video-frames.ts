@@ -699,7 +699,13 @@ export async function installVideoStandIns(
     // visible) but no frame: the capture is cropped to the viewport, so their
     // pixels could never appear in the report.
     // left/top: Chrome < 61's ClientRect has no x/y.
-    if (!intersectsViewport({ x: painted.left, y: painted.top, width: painted.width, height: painted.height }, viewportW, viewportH)) {
+    if (
+      !intersectsViewport(
+        { x: painted.left, y: painted.top, width: painted.width, height: painted.height },
+        viewportW,
+        viewportH,
+      )
+    ) {
       candidates.push({ video, excluded: true, frame: null, posterUrl: null });
       continue;
     }

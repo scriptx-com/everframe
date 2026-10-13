@@ -91,7 +91,7 @@ describe('Fix C: refreshGate() applies the live config immediately', () => {
 });
 
 describe('Fix B: killed-adapter guard + box clear on kill', () => {
-  it('onKill() clears the companion badge box so a dead adapter\'s override never outlives it', async () => {
+  it("onKill() clears the companion badge box so a dead adapter's override never outlives it", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       if (urlOf(input).includes('/api/config')) return configResponse(true);
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
@@ -112,7 +112,7 @@ describe('Fix B: killed-adapter guard + box clear on kill', () => {
     // Not registered in `adapters` — already killed, __testCleanup() would be redundant.
   });
 
-  it('a killed adapter\'s applyLiveConfig() (__applyBreadcrumbsConfig) is a no-op — it must not resurrect the box', async () => {
+  it("a killed adapter's applyLiveConfig() (__applyBreadcrumbsConfig) is a no-op — it must not resurrect the box", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       if (urlOf(input).includes('/api/config')) return configResponse(true);
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });

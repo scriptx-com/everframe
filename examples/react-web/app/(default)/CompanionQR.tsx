@@ -13,10 +13,10 @@
 // pair URL is retained after bond (cleared only on socket close), so the QR
 // must be torn down off `state === 'paired'` — keying it off a null pairUrl
 // would leave a stale QR on screen.
-"use client";
-import { useEffect } from "react";
-import { QRCodeSVG } from "qrcode.react";
-import { companion } from "@everframe/react";
+'use client';
+import { useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { companion } from '@everframe/react';
 
 export function CompanionQR() {
   const { state, pairUrl, resolvedName } = companion.useCompanion();
@@ -33,20 +33,27 @@ export function CompanionQR() {
     <section data-testid="companion-section">
       <h2 className="section-title">Phone-companion reporter</h2>
       <p className="muted">
-        Scan the code to pair a phone and file this page&apos;s report from it —
-        the relay streams context from this tab to the phone reporter.
+        Scan the code to pair a phone and file this page&apos;s report from it — the relay streams
+        context from this tab to the phone reporter.
       </p>
 
-      {state === "unpaired" && pairUrl ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
-          <div style={{ background: "#fff", padding: 12, borderRadius: 8, border: "1px solid #d8dacc" }}>
+      {state === 'unpaired' && pairUrl ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
+          <div
+            style={{
+              background: '#fff',
+              padding: 12,
+              borderRadius: 8,
+              border: '1px solid #d8dacc',
+            }}
+          >
             <QRCodeSVG value={pairUrl} size={200} level="M" />
           </div>
           <p style={{ margin: 0 }}>Scan with your phone to file a report</p>
           <code
             data-testid="companion-pair-url"
             className="mono-note"
-            style={{ wordBreak: "break-all" }}
+            style={{ wordBreak: 'break-all' }}
           >
             {pairUrl}
           </code>
@@ -58,19 +65,19 @@ export function CompanionQR() {
         </div>
       ) : null}
 
-      {state === "unpaired" && !pairUrl ? (
+      {state === 'unpaired' && !pairUrl ? (
         <p data-testid="companion-status">Connecting to relay…</p>
       ) : null}
 
-      {state === "paired" ? (
+      {state === 'paired' ? (
         <p data-testid="companion-status">Phone connected — file your report from your phone.</p>
       ) : null}
 
-      {state === "report_in_progress" ? (
+      {state === 'report_in_progress' ? (
         <p data-testid="companion-status">Report in progress on phone…</p>
       ) : null}
 
-      {state === "phone_disconnected" ? (
+      {state === 'phone_disconnected' ? (
         <p data-testid="companion-status">Phone disconnected — reconnecting…</p>
       ) : null}
 

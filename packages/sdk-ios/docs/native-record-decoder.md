@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Native record normalization
 
 The internal decoder accepts the standalone recorder's pinned 3.9.0 standard fatal

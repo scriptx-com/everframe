@@ -5,7 +5,12 @@ import { createErrorUtils, createFetch, createHermes, createStorage, vegaError }
 
 type Host = typeof globalThis & Record<string, unknown>;
 const host = globalThis as Host;
-const saved = { ErrorUtils: host.ErrorUtils, HermesInternal: host.HermesInternal, fetch: host.fetch, __DEV__: host.__DEV__ };
+const saved = {
+  ErrorUtils: host.ErrorUtils,
+  HermesInternal: host.HermesInternal,
+  fetch: host.fetch,
+  __DEV__: host.__DEV__,
+};
 
 afterEach(() => {
   Object.assign(host, saved);
@@ -25,7 +30,11 @@ describe('public entry', () => {
     expect(errorUtils.handler).toBeTypeOf('function');
     expect(hermes.options?.allRejections).toBe(true);
     // The probe runs from Node here, so there is no Vega bundle id.
-    expect(sdk.getStatus()).toMatchObject({ enabled: true, bundleId: null, rejections: 'observed' });
+    expect(sdk.getStatus()).toMatchObject({
+      enabled: true,
+      bundleId: null,
+      rejections: 'observed',
+    });
 
     sdk.setUser({ id: 'u-9' });
     sdk.addBreadcrumb({ message: 'hello' });
@@ -35,14 +44,23 @@ describe('public entry', () => {
     expect(fetch.requests[0]!.envelope).toMatchObject({
       sdk: { name: 'everframe-vega', platform: 'vega' },
       reporter: { user: { id: 'u-9' } },
-      context: { app: { version: '2.0.0' }, device: { os: 'Vega OS', screenSize: { width: 1920, height: 1080 } } },
+      context: {
+        app: { version: '2.0.0' },
+        device: { os: 'Vega OS', screenSize: { width: 1920, height: 1080 } },
+      },
     });
   });
 
   it('exports only the documented API', async () => {
     const sdk = await import('../src/index.js');
-    expect(Object.keys(sdk).sort()).toEqual(
-      ['SDK_VERSION', 'addBreadcrumb', 'captureException', 'flush', 'getStatus', 'init', 'setUser'],
-    );
+    expect(Object.keys(sdk).sort()).toEqual([
+      'SDK_VERSION',
+      'addBreadcrumb',
+      'captureException',
+      'flush',
+      'getStatus',
+      'init',
+      'setUser',
+    ]);
   });
 });

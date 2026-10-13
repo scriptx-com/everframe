@@ -7,10 +7,10 @@ Crash and error reporting for Roku channels (BrightScript / SceneGraph).
 
 ## What you get
 
-| Tier | Setup | Reports | Requires |
-| --- | --- | --- | --- |
-| 1. ComponentLibrary | Load the library, call `start()`, and add a few lines to `Main()` | Crashes and runtime errors detected on the **next launch** (exit reason from `GetLastExitInfo`, recorded by your `Main()`), manual `captureException`, breadcrumbs, user | Roku OS **13.0+** for exit detection |
-| 2. Build-step instrumentation | Run `everframe-roku instrument` before packaging | Everything in tier 1 (the `Main()` lines are added for you), plus errors from wrapped entry points (recorded, then re-thrown) with a stack, a `try-catch` mechanism, and key-press / scene-init breadcrumbs | Roku OS **9.4+** (try/catch) |
+| Tier                          | Setup                                                             | Reports                                                                                                                                                                                                     | Requires                             |
+| ----------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 1. ComponentLibrary           | Load the library, call `start()`, and add a few lines to `Main()` | Crashes and runtime errors detected on the **next launch** (exit reason from `GetLastExitInfo`, recorded by your `Main()`), manual `captureException`, breadcrumbs, user                                    | Roku OS **13.0+** for exit detection |
+| 2. Build-step instrumentation | Run `everframe-roku instrument` before packaging                  | Everything in tier 1 (the `Main()` lines are added for you), plus errors from wrapped entry points (recorded, then re-thrown) with a stack, a `try-catch` mechanism, and key-press / scene-init breadcrumbs | Roku OS **9.4+** (try/catch)         |
 
 Notes on stack frames:
 
@@ -85,13 +85,13 @@ end sub
 
 `start()` publishes the node as `m.global.everframe`. Supported config keys:
 
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `sdkKey` | required | Your Everframe SDK key |
-| `endpoint` | `https://everframe.dev` | Ingest host. For self-testing only |
-| `enabled` | `true` | Set `false` to turn the SDK off. This is remembered on the device: queued reports are discarded, and instrumented code records nothing until a later `start()` without it. |
-| `debugBuild` | detected | `true` or `false` to say whether this is a debug build. By default a sideloaded channel (`roAppInfo.IsDev()`) is one. Everframe never creates a release from a debug build. |
-| `maxBreadcrumbs` | `50` | Breadcrumb ring size. An integer, clamped to 1–50; other values are ignored |
+| Key              | Default                 | Meaning                                                                                                                                                                     |
+| ---------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sdkKey`         | required                | Your Everframe SDK key                                                                                                                                                      |
+| `endpoint`       | `https://everframe.dev` | Ingest host. For self-testing only                                                                                                                                          |
+| `enabled`        | `true`                  | Set `false` to turn the SDK off. This is remembered on the device: queued reports are discarded, and instrumented code records nothing until a later `start()` without it.  |
+| `debugBuild`     | detected                | `true` or `false` to say whether this is a debug build. By default a sideloaded channel (`roAppInfo.IsDev()`) is one. Everframe never creates a release from a debug build. |
+| `maxBreadcrumbs` | `50`                    | Breadcrumb ring size. An integer, clamped to 1–50; other values are ignored                                                                                                 |
 
 ## Tier 1: ComponentLibrary, remote
 
@@ -152,6 +152,7 @@ Add one Everframe build step that writes an instrumented copy of your channel to
   ```
 
   Keep your normal launch configuration (with `"rootDir": "${workspaceFolder}"`) for debugging; the debugger stops in different places in the instrumented copy.
+
 - **Any other tool, CI or signed packaging:** run `everframe:build`, then zip or deploy the contents of `.everframe-build` with your own tooling.
 
 If your scene loads the bundled zip, keep a copy of it in `components/` so uninstrumented dev builds can load the library too (with the tier 1 `Main()` lines, uninstrumented builds still report crashes on the next launch; the instrumented `Main` records the exit itself, so the two do not conflict).

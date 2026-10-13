@@ -28,10 +28,7 @@ const exists = (path: string) =>
  * Patches whichever of android/ and ios/ exist; everything is read and patched before any write.
  * Re-running it rewrites the generated blocks in place.
  */
-export async function setupReactNative(options: {
-  projectRoot: string;
-  appId: string;
-}): Promise<{
+export async function setupReactNative(options: { projectRoot: string; appId: string }): Promise<{
   files: Array<{ path: string; changed: boolean }>;
   changed: string[];
   metroHint: string;
@@ -45,7 +42,11 @@ export async function setupReactNative(options: {
   const gradlePath = join(options.projectRoot, gradleRelative);
   if (await exists(gradlePath)) {
     const before = await readFile(gradlePath, 'utf8');
-    writes.push({ relative: gradleRelative, before, after: patchAppBuildGradle(before, options.appId) });
+    writes.push({
+      relative: gradleRelative,
+      before,
+      after: patchAppBuildGradle(before, options.appId),
+    });
   } else if (await exists(`${gradlePath}.kts`)) {
     assertGroovy('kotlin');
   }
@@ -54,7 +55,11 @@ export async function setupReactNative(options: {
   const rootPath = join(options.projectRoot, rootRelative);
   if (await exists(rootPath)) {
     const rootBefore = await readFile(rootPath, 'utf8');
-    writes.push({ relative: rootRelative, before: rootBefore, after: patchRootBuildGradle(rootBefore) });
+    writes.push({
+      relative: rootRelative,
+      before: rootBefore,
+      after: patchRootBuildGradle(rootBefore),
+    });
   } else if (await exists(`${rootPath}.kts`)) {
     assertGroovy('kotlin');
   }

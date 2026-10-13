@@ -89,17 +89,25 @@ function stubFetch(h: Harness, tokenFor: (n: number) => string | null): void {
         // below. Matches the shape every other provider test in this
         // package stubs (e.g. provider-outbox-drain-identity-gate.spec.tsx).
         return new Response(
-          JSON.stringify({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1, ...h.configBody }),
+          JSON.stringify({
+            replayEnabled: false,
+            replayDurationSec: 30,
+            samplingRate: 1,
+            ...h.configBody,
+          }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         );
       }
       if (url.includes('/mint')) {
         const headers: Record<string, string> = {};
-        new Headers(init?.headers).forEach((v, k) => { headers[k] = v; });
+        new Headers(init?.headers).forEach((v, k) => {
+          headers[k] = v;
+        });
         h.calls.push({ url, headers });
         const token = tokenFor(n++);
         return new Response(JSON.stringify({ token, expiresAt: Date.now() + 300_000 }), {
-          status: 200, headers: { 'content-type': 'application/json' },
+          status: 200,
+          headers: { 'content-type': 'application/json' },
         });
       }
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
@@ -107,7 +115,12 @@ function stubFetch(h: Harness, tokenFor: (n: number) => string | null): void {
   );
 }
 
-const flush = async () => { await act(async () => { await Promise.resolve(); await new Promise((r) => setTimeout(r, 0)); }); };
+const flush = async () => {
+  await act(async () => {
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+  });
+};
 
 describe('identity prop', () => {
   it('fetches a token when key is set', async () => {
@@ -150,7 +163,11 @@ describe('identity prop', () => {
     const { rerender } = render(
       <EverframeProvider
         config={config}
-        identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ authorization: `Bearer t${nth++}` }) }}
+        identity={{
+          endpoint: '/mint',
+          key: 'u_alice',
+          headers: () => ({ authorization: `Bearer t${nth++}` }),
+        }}
       >
         <div />
       </EverframeProvider>,
@@ -164,7 +181,11 @@ describe('identity prop', () => {
     rerender(
       <EverframeProvider
         config={config}
-        identity={{ endpoint: '/mint', key: 'u_bob', headers: () => ({ authorization: `Bearer t${nth++}` }) }}
+        identity={{
+          endpoint: '/mint',
+          key: 'u_bob',
+          headers: () => ({ authorization: `Bearer t${nth++}` }),
+        }}
       >
         <div />
       </EverframeProvider>,
@@ -191,7 +212,11 @@ describe('identity prop', () => {
     const { rerender } = render(
       <EverframeProvider
         config={config}
-        identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ authorization: 'Bearer OLD' }) }}
+        identity={{
+          endpoint: '/mint',
+          key: 'u_alice',
+          headers: () => ({ authorization: 'Bearer OLD' }),
+        }}
       >
         <Ctx />
       </EverframeProvider>,
@@ -203,7 +228,11 @@ describe('identity prop', () => {
     rerender(
       <EverframeProvider
         config={config}
-        identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ authorization: 'Bearer NEW' }) }}
+        identity={{
+          endpoint: '/mint',
+          key: 'u_alice',
+          headers: () => ({ authorization: 'Bearer NEW' }),
+        }}
       >
         <Ctx />
       </EverframeProvider>,
@@ -212,7 +241,9 @@ describe('identity prop', () => {
 
     // Force a read. The cached token is near expiry, so the holder re-asks the
     // provider, which must consult the CURRENT headers callback.
-    await act(async () => { await ctxRef!.adapter.__identityTokenReader.get(Date.now()); });
+    await act(async () => {
+      await ctxRef!.adapter.__identityTokenReader.get(Date.now());
+    });
 
     expect(h.calls.at(-1)!.headers.authorization).toBe('Bearer NEW');
   });
@@ -224,7 +255,10 @@ describe('identity prop', () => {
     stubFetch(h, () => mkJwt('u_alice'));
 
     const { rerender } = render(
-      <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ a: '1' }) }}>
+      <EverframeProvider
+        config={config}
+        identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ a: '1' }) }}
+      >
         <div />
       </EverframeProvider>,
     );
@@ -233,7 +267,10 @@ describe('identity prop', () => {
 
     for (let i = 0; i < 3; i++) {
       rerender(
-        <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ a: '1' }) }}>
+        <EverframeProvider
+          config={config}
+          identity={{ endpoint: '/mint', key: 'u_alice', headers: () => ({ a: '1' }) }}
+        >
           <div />
         </EverframeProvider>,
       );
@@ -279,17 +316,26 @@ describe('identity prop', () => {
 
   it('stays anonymous when the endpoint fails, without throwing', async () => {
     const h: Harness = { calls: [], configBody: { identity: { enabled: true } } };
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      if (url.includes('/api/config')) {
-        // See the matching comment in stubFetch() above — required fields.
-        return new Response(
-          JSON.stringify({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1, ...h.configBody }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        );
-      }
-      throw new TypeError('network down');
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url =
+          typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        if (url.includes('/api/config')) {
+          // See the matching comment in stubFetch() above — required fields.
+          return new Response(
+            JSON.stringify({
+              replayEnabled: false,
+              replayDurationSec: 30,
+              samplingRate: 1,
+              ...h.configBody,
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        }
+        throw new TypeError('network down');
+      }),
+    );
 
     expect(() =>
       render(
@@ -306,18 +352,28 @@ describe('identity prop', () => {
     // 401/500/etc from the customer's mint endpoint must degrade the same as
     // a network failure, not throw or leave a stale token in place.
     const h: Harness = { calls: [], configBody: { identity: { enabled: true } } };
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      if (url.includes('/api/config')) {
-        return new Response(
-          JSON.stringify({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1, ...h.configBody }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        );
-      }
-      return new Response(JSON.stringify({ error: 'unauthorized' }), {
-        status: 500, headers: { 'content-type': 'application/json' },
-      });
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url =
+          typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        if (url.includes('/api/config')) {
+          return new Response(
+            JSON.stringify({
+              replayEnabled: false,
+              replayDurationSec: 30,
+              samplingRate: 1,
+              ...h.configBody,
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        }
+        return new Response(JSON.stringify({ error: 'unauthorized' }), {
+          status: 500,
+          headers: { 'content-type': 'application/json' },
+        });
+      }),
+    );
 
     render(
       <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
@@ -336,18 +392,28 @@ describe('identity prop', () => {
     // A 200 with `{ token: 42 }` or `{ token: {} }` etc. must resolve to
     // anonymous rather than being coerced or crashing the provider.
     const h: Harness = { calls: [], configBody: { identity: { enabled: true } } };
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      if (url.includes('/api/config')) {
-        return new Response(
-          JSON.stringify({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1, ...h.configBody }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        );
-      }
-      return new Response(JSON.stringify({ token: 42 }), {
-        status: 200, headers: { 'content-type': 'application/json' },
-      });
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url =
+          typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        if (url.includes('/api/config')) {
+          return new Response(
+            JSON.stringify({
+              replayEnabled: false,
+              replayDurationSec: 30,
+              samplingRate: 1,
+              ...h.configBody,
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        }
+        return new Response(JSON.stringify({ token: 42 }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }),
+    );
 
     render(
       <EverframeProvider config={config} identity={{ endpoint: '/mint', key: 'u_alice' }}>
@@ -403,17 +469,27 @@ describe('identity prop', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        const url =
+          typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
         if (url.includes('/api/config')) {
           return new Response(
-            JSON.stringify({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1, identity: { enabled: true } }),
+            JSON.stringify({
+              replayEnabled: false,
+              replayDurationSec: 30,
+              samplingRate: 1,
+              identity: { enabled: true },
+            }),
             { status: 200, headers: { 'content-type': 'application/json' } },
           );
         }
         calls.push(url);
-        return new Response(JSON.stringify({ token: mkJwt('u'), expiresAt: Date.now() + 300_000 }), {
-          status: 200, headers: { 'content-type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ token: mkJwt('u'), expiresAt: Date.now() + 300_000 }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          },
+        );
       }),
     );
 
@@ -439,7 +515,7 @@ describe('identity prop', () => {
     expect(calls.every((u) => u.includes('/mint-alice') || u.includes('/mint-bob'))).toBe(true);
   });
 
-  it('never sends the post-switch identity\'s credential to the pre-switch endpoint (in-flight mint during a switch)', async () => {
+  it("never sends the post-switch identity's credential to the pre-switch endpoint (in-flight mint during a switch)", async () => {
     // THE FIX'S OWN TARGET (Serious finding). `endpoint` is captured in the
     // effect closure (so a provider can never mint against a different
     // endpoint than it was installed for) but `headers`/`fetch`/`credentials`
@@ -457,19 +533,31 @@ describe('identity prop', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        const url =
+          typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
         if (url.includes('/api/config')) {
           return new Response(
-            JSON.stringify({ replayEnabled: false, replayDurationSec: 30, samplingRate: 1, identity: { enabled: true } }),
+            JSON.stringify({
+              replayEnabled: false,
+              replayDurationSec: 30,
+              samplingRate: 1,
+              identity: { enabled: true },
+            }),
             { status: 200, headers: { 'content-type': 'application/json' } },
           );
         }
         const headers: Record<string, string> = {};
-        new Headers(init?.headers).forEach((v, k) => { headers[k] = v; });
-        calls.push({ url, headers });
-        return new Response(JSON.stringify({ token: mkJwt('u'), expiresAt: Date.now() + 300_000 }), {
-          status: 200, headers: { 'content-type': 'application/json' },
+        new Headers(init?.headers).forEach((v, k) => {
+          headers[k] = v;
         });
+        calls.push({ url, headers });
+        return new Response(
+          JSON.stringify({ token: mkJwt('u'), expiresAt: Date.now() + 300_000 }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          },
+        );
       }),
     );
 
@@ -496,7 +584,11 @@ describe('identity prop', () => {
     rerender(
       <EverframeProvider
         config={config}
-        identity={{ endpoint: '/mint-bob', key: 'u_bob', headers: () => ({ authorization: 'Bearer BOB_LIVE' }) }}
+        identity={{
+          endpoint: '/mint-bob',
+          key: 'u_bob',
+          headers: () => ({ authorization: 'Bearer BOB_LIVE' }),
+        }}
       >
         <div />
       </EverframeProvider>,
@@ -517,7 +609,7 @@ describe('identity prop', () => {
     expect(leaked).toBe(false);
   });
 
-  it('never lets a descendant effect observe the PREVIOUS user\'s token mid-switch', async () => {
+  it("never lets a descendant effect observe the PREVIOUS user's token mid-switch", async () => {
     // THE POINT OF THIS FIX. React runs passive effects child-before-parent
     // within a commit. A descendant reacting to the same sign-in (its own
     // effect keyed on the same user id) therefore commits BEFORE
@@ -670,7 +762,10 @@ describe('identity prop', () => {
     let gateResolved = false;
     let resolveGate: () => void = () => {};
     const gatePromise = new Promise<void>((resolve) => {
-      resolveGate = () => { gateResolved = true; resolve(); };
+      resolveGate = () => {
+        gateResolved = true;
+        resolve();
+      };
     });
     function SuspendUntilResolved() {
       if (!gateResolved) throw gatePromise;

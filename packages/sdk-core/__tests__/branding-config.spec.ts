@@ -56,7 +56,11 @@ describe('branding server config (client parse)', () => {
   it('unknown keys inside branding and inside theme are stripped, not fatal', () => {
     const cfg = parse({
       ...BASE,
-      branding: { watermark: true, futureFlag: 1, theme: { accent: '#336699', futureRole: '#000000' } },
+      branding: {
+        watermark: true,
+        futureFlag: 1,
+        theme: { accent: '#336699', futureRole: '#000000' },
+      },
     });
     expect(getBrandingServerConfig(cfg)).toEqual({ watermark: true, theme: { accent: '#336699' } });
   });

@@ -29,22 +29,22 @@ appId: dev.everframe.example
 # 1. The reporter trigger surface exists (proves the provider mounted, the host
 #    rendered, and useEverframe() resolved a real runtime).
 - assertVisible:
-    id: "open-reporter-button"
+    id: 'open-reporter-button'
 
 # 2. Tap → provider-rendered <ReporterModal> appears. The modal renders the
 #    "Capture preview" header (06-05 ReporterModal copy).
 - tapOn:
-    id: "open-reporter-button"
-- assertVisible: "Capture preview"
+    id: 'open-reporter-button'
+- assertVisible: 'Capture preview'
 
 # 3. User adds a title and submits.
 - tapOn:
-    id: "reporter-title-input"
-- inputText: "Reporter smoke test"
+    id: 'reporter-title-input'
+- inputText: 'Reporter smoke test'
 - tapOn:
-    id: "reporter-send-button"
+    id: 'reporter-send-button'
 
 # 4. Provider's reporter pipeline transitions to submitted; the host renders
 #    the "submitted" label (auto-clears after ~3s in Home.tsx).
 - assertVisible:
-    id: "submitted"
+    id: 'submitted'

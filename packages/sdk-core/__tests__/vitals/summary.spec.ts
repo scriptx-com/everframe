@@ -152,7 +152,7 @@ describe('summary accumulator', () => {
       expect(s.rebufferDurationMs).toBe(1600);
     });
 
-    it('ignores each buffer_end\'s own data.durationMs — a multi-player union always uses the span\'s own open/close transition times', () => {
+    it("ignores each buffer_end's own data.durationMs — a multi-player union always uses the span's own open/close transition times", () => {
       const a = acc();
       a.onEntry({ kind: 'player', t: 1000, type: 'buffer_start' });
       a.onEntry({ kind: 'player', t: 1200, type: 'buffer_start' });
@@ -185,7 +185,13 @@ describe('phase 4 — playerCount', () => {
   it('counts distinct playerIds across ANY player event, and unnamed events once', () => {
     const a = acc();
     a.onEntry({ kind: 'player', t: 1, type: 'play', playerId: 'p1' });
-    a.onEntry({ kind: 'player', t: 2, type: 'player_attach', playerId: 'p2', data: { tag: 'video', library: 'native' } });
+    a.onEntry({
+      kind: 'player',
+      t: 2,
+      type: 'player_attach',
+      playerId: 'p2',
+      data: { tag: 'video', library: 'native' },
+    });
     a.onEntry({ kind: 'player', t: 3, type: 'pause', playerId: 'p1' });
     a.onEntry({ kind: 'player', t: 4, type: 'seek' }); // phase-3 style, no id
     a.onEntry({ kind: 'player', t: 5, type: 'seek' });
@@ -206,7 +212,13 @@ describe('phase 4 — playerCount', () => {
   it('caps distinct playerId cardinality at 1000 instead of growing without bound', () => {
     const a = acc();
     for (let i = 0; i < 5000; i++) {
-      a.onEntry({ kind: 'player', t: i, type: 'player_attach', playerId: `p${i}`, data: { tag: 'video', library: 'native' } });
+      a.onEntry({
+        kind: 'player',
+        t: i,
+        type: 'player_attach',
+        playerId: `p${i}`,
+        data: { tag: 'video', library: 'native' },
+      });
     }
     expect(a.snapshot({ final: false, now: 6000 }).playerCount).toBe(1000);
   });
@@ -218,7 +230,13 @@ describe('phase 4 — playerCount', () => {
     const a = acc();
     a.onEntry({ kind: 'player', t: 1, type: 'play', playerId: 'p1' });
     for (let i = 0; i < 1000; i++) {
-      a.onEntry({ kind: 'player', t: i + 2, type: 'player_attach', playerId: `filler${i}`, data: { tag: 'video', library: 'native' } });
+      a.onEntry({
+        kind: 'player',
+        t: i + 2,
+        type: 'player_attach',
+        playerId: `filler${i}`,
+        data: { tag: 'video', library: 'native' },
+      });
     }
     // p1 was already tracked before the cap filled up with the filler ids —
     // a repeat event for it must still be recognised, not silently dropped.
@@ -244,7 +262,13 @@ describe('phase 4 — playerCount', () => {
     it('is false when the distinct count lands EXACTLY on the cap with no further new ids', () => {
       const a = acc();
       for (let i = 0; i < 1000; i++) {
-        a.onEntry({ kind: 'player', t: i, type: 'player_attach', playerId: `p${i}`, data: { tag: 'video', library: 'native' } });
+        a.onEntry({
+          kind: 'player',
+          t: i,
+          type: 'player_attach',
+          playerId: `p${i}`,
+          data: { tag: 'video', library: 'native' },
+        });
       }
       const s = a.snapshot({ final: false, now: 2000 });
       expect(s.playerCount).toBe(1000);
@@ -256,7 +280,13 @@ describe('phase 4 — playerCount', () => {
     it('is true once a distinct id beyond the cap is refused', () => {
       const a = acc();
       for (let i = 0; i < 1001; i++) {
-        a.onEntry({ kind: 'player', t: i, type: 'player_attach', playerId: `p${i}`, data: { tag: 'video', library: 'native' } });
+        a.onEntry({
+          kind: 'player',
+          t: i,
+          type: 'player_attach',
+          playerId: `p${i}`,
+          data: { tag: 'video', library: 'native' },
+        });
       }
       const s = a.snapshot({ final: false, now: 2000 });
       expect(s.playerCount).toBe(1000);
@@ -266,7 +296,13 @@ describe('phase 4 — playerCount', () => {
     it('repeat events for already-tracked ids after the cap fills do not spuriously flip saturation on', () => {
       const a = acc();
       for (let i = 0; i < 1000; i++) {
-        a.onEntry({ kind: 'player', t: i, type: 'player_attach', playerId: `p${i}`, data: { tag: 'video', library: 'native' } });
+        a.onEntry({
+          kind: 'player',
+          t: i,
+          type: 'player_attach',
+          playerId: `p${i}`,
+          data: { tag: 'video', library: 'native' },
+        });
       }
       // Repeats of already-tracked ids only — no GENUINELY new id appears.
       for (let i = 0; i < 1000; i++) {

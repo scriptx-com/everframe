@@ -11,7 +11,8 @@ export const SOURCEMAP_FILE_VALUE = '"$(DERIVED_FILE_DIR)/main.jsbundle.map"';
 export const XCODE_UPLOAD_SCRIPT = 'node_modules/@everframe/cli/scripts/xcode-upload.sh';
 /** The script's path when `node_modules` sits in the app root, beside `ios/`. */
 export const DEFAULT_XCODE_UPLOAD_SCRIPT = `\${SRCROOT}/../${XCODE_UPLOAD_SCRIPT}`;
-const SCRIPT_PATH = /^\$\{SRCROOT\}\/(?:\.\.\/)+node_modules\/@everframe\/cli\/scripts\/xcode-upload\.sh$/;
+const SCRIPT_PATH =
+  /^\$\{SRCROOT\}\/(?:\.\.\/)+node_modules\/@everframe\/cli\/scripts\/xcode-upload\.sh$/;
 
 /**
  * Where the phase finds the upload script, relative to `${SRCROOT}` (the folder that holds the
@@ -25,7 +26,11 @@ export function xcodeUploadScriptPath(srcRoot: string): { path: string; installe
   const root = resolve(srcRoot);
   for (let dir = dirname(root); ; dir = dirname(dir)) {
     const script = join(dir, XCODE_UPLOAD_SCRIPT);
-    if (existsSync(script)) return { path: `\${SRCROOT}/${relative(root, script).split(sep).join('/')}`, installed: true };
+    if (existsSync(script))
+      return {
+        path: `\${SRCROOT}/${relative(root, script).split(sep).join('/')}`,
+        installed: true,
+      };
     if (dirname(dir) === dir) return { path: DEFAULT_XCODE_UPLOAD_SCRIPT, installed: false };
   }
 }
@@ -63,12 +68,18 @@ export interface XcodeProjectLike {
  * place; defines `SOURCEMAP_FILE` only where the app has not set it, and turns off script
  * sandboxing. `scriptPath` comes from {@link xcodeUploadScriptPath}.
  */
-export function patchXcodeProject(project: XcodeProjectLike, appId: string, scriptPath = DEFAULT_XCODE_UPLOAD_SCRIPT): void {
+export function patchXcodeProject(
+  project: XcodeProjectLike,
+  appId: string,
+  scriptPath = DEFAULT_XCODE_UPLOAD_SCRIPT,
+): void {
   const target = project.getFirstTarget();
   const script = xcodePhaseScript(appId, scriptPath);
-  const existing = project.pbxItemByComment(XCODE_PHASE_NAME, 'PBXShellScriptBuildPhase') as
-    | { shellScript?: string; inputPaths?: string[]; alwaysOutOfDate?: number }
-    | null;
+  const existing = project.pbxItemByComment(XCODE_PHASE_NAME, 'PBXShellScriptBuildPhase') as {
+    shellScript?: string;
+    inputPaths?: string[];
+    alwaysOutOfDate?: number;
+  } | null;
   // The dSYM input orders the phase after dSYM generation; it reads fresh outputs every build.
   if (existing) {
     // Same quoting `addBuildPhase` applies, so an unchanged script serializes identically.
@@ -76,16 +87,28 @@ export function patchXcodeProject(project: XcodeProjectLike, appId: string, scri
     existing.inputPaths = [...SYMBOLS_PHASE_INPUTS];
     existing.alwaysOutOfDate = 1;
   } else {
-    const added = project.addBuildPhase([], 'PBXShellScriptBuildPhase', XCODE_PHASE_NAME, target.uuid, {
-      shellPath: '/bin/bash',
-      shellScript: script,
-      inputPaths: [...SYMBOLS_PHASE_INPUTS],
-    }) as { buildPhase?: { alwaysOutOfDate?: number } } | undefined;
+    const added = project.addBuildPhase(
+      [],
+      'PBXShellScriptBuildPhase',
+      XCODE_PHASE_NAME,
+      target.uuid,
+      {
+        shellPath: '/bin/bash',
+        shellScript: script,
+        inputPaths: [...SYMBOLS_PHASE_INPUTS],
+      },
+    ) as { buildPhase?: { alwaysOutOfDate?: number } } | undefined;
     if (added?.buildPhase) added.buildPhase.alwaysOutOfDate = 1;
   }
   const listId = (target.firstTarget as { buildConfigurationList?: string }).buildConfigurationList;
-  const lists = project.pbxXCConfigurationList() as Record<string, { buildConfigurations?: Array<{ value: string }> }>;
-  const configs = project.pbxXCBuildConfigurationSection() as Record<string, { buildSettings?: Record<string, string> } | string>;
+  const lists = project.pbxXCConfigurationList() as Record<
+    string,
+    { buildConfigurations?: Array<{ value: string }> }
+  >;
+  const configs = project.pbxXCBuildConfigurationSection() as Record<
+    string,
+    { buildSettings?: Record<string, string> } | string
+  >;
   for (const ref of (listId && lists[listId]?.buildConfigurations) || []) {
     const config = configs[ref.value];
     if (!config || typeof config === 'string') continue;

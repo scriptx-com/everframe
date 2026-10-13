@@ -7,7 +7,15 @@
 // Config comes from the repo-root .env (override path with EVERFRAME_ENV_FILE);
 // process env wins over the file.
 import { spawnSync } from 'node:child_process';
-import { cpSync, createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -68,7 +76,8 @@ const brsString = (s) => '"' + String(s).replace(/"/g, '""') + '"';
 function run(cmd, args, cwd) {
   const r = spawnSync(cmd, args, { cwd, stdio: 'inherit' });
   if (r.error) {
-    if (r.error.code === 'ENOENT') throw new Error(`${cmd} not found on PATH - install pnpm 9 (corepack enable)`);
+    if (r.error.code === 'ENOENT')
+      throw new Error(`${cmd} not found on PATH - install pnpm 9 (corepack enable)`);
     throw r.error;
   }
   if (r.status !== 0) throw new Error(`${cmd} ${args.join(' ')} exited ${r.status}`);
@@ -86,14 +95,28 @@ export function ingestWarning(endpoint) {
       host = '';
     }
   }
-  const local = host ? /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)$/i.test(host) : /localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]/.test(endpoint);
-  return local ? `[crash-lab] WARNING: EVERFRAME_INGEST_URL=${endpoint} points at localhost - the TV cannot reach it. Use your machine's LAN IP.` : null;
+  const local = host
+    ? /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)$/i.test(host)
+    : /localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]/.test(endpoint);
+  return local
+    ? `[crash-lab] WARNING: EVERFRAME_INGEST_URL=${endpoint} points at localhost - the TV cannot reach it. Use your machine's LAN IP.`
+    : null;
 }
 
 // Streams the Roku debug console (telnet 8085) into a file, retrying while the
 // channel is still starting. `done` resolves when the socket closes and rejects
 // if no connection could be made within timeoutMs. `close()` stops everything.
-export function streamLogs(host, { port = 8085, logFile = path.join(BUILD, 'console.log'), retryMs = 1000, timeoutMs = 15000, attemptMs = 3000, quiet = false } = {}) {
+export function streamLogs(
+  host,
+  {
+    port = 8085,
+    logFile = path.join(BUILD, 'console.log'),
+    retryMs = 1000,
+    timeoutMs = 15000,
+    attemptMs = 3000,
+    quiet = false,
+  } = {},
+) {
   mkdirSync(path.dirname(logFile), { recursive: true });
   const out = createWriteStream(logFile);
   const started = Date.now();
@@ -107,7 +130,8 @@ export function streamLogs(host, { port = 8085, logFile = path.join(BUILD, 'cons
   let connectedOnce = false;
   // Overall connect budget: a blackholed host (SYNs dropped) must not outlive it.
   const deadline = setTimeout(() => {
-    if (!connectedOnce) finish(new Error(`could not connect to ${host}:${port} within ${timeoutMs / 1000}s`));
+    if (!connectedOnce)
+      finish(new Error(`could not connect to ${host}:${port} within ${timeoutMs / 1000}s`));
   }, timeoutMs);
   const finish = (err) => {
     if (closed) return;
@@ -136,12 +160,18 @@ export function streamLogs(host, { port = 8085, logFile = path.join(BUILD, 'cons
     sock.on('close', () => {
       if (closed) return;
       if (connected) return finish();
-      if (Date.now() - started >= timeoutMs) return finish(new Error(`could not connect to ${host}:${port} within ${timeoutMs / 1000}s`));
+      if (Date.now() - started >= timeoutMs)
+        return finish(
+          new Error(`could not connect to ${host}:${port} within ${timeoutMs / 1000}s`),
+        );
       timer = setTimeout(attempt, retryMs);
     });
     sock.on('error', () => {}); // 'close' follows and drives the retry
   };
-  if (!quiet) console.log(`[crash-lab] streaming ${host}:${port} -> ${path.relative(EXAMPLE, logFile)} (Ctrl+C to stop)`);
+  if (!quiet)
+    console.log(
+      `[crash-lab] streaming ${host}:${port} -> ${path.relative(EXAMPLE, logFile)} (Ctrl+C to stop)`,
+    );
   attempt();
   return { done, close: () => finish() };
 }
@@ -165,7 +195,8 @@ export async function main(argv = process.argv.slice(2), processEnv = process.en
   const src = path.join(BUILD, 'src');
   const out = path.join(BUILD, 'out');
   mkdirSync(BUILD, { recursive: true });
-  for (const part of ['manifest', 'source', 'components']) cpSync(path.join(EXAMPLE, part), path.join(src, part), { recursive: true });
+  for (const part of ['manifest', 'source', 'components'])
+    cpSync(path.join(EXAMPLE, part), path.join(src, part), { recursive: true });
   mkdirSync(path.join(src, 'components/generated'), { recursive: true });
   writeFileSync(
     path.join(src, 'components/generated/ef_config.brs'),
@@ -183,20 +214,47 @@ export async function main(argv = process.argv.slice(2), processEnv = process.en
     cpSync(src, out, { recursive: true });
     if (bundle) cpSync(path.join(SDK, 'dist', libZip), path.join(out, 'components', libZip));
   } else {
-    const cli = ['exec', 'everframe-roku', 'instrument', src, '--out', out, '--exclude', 'components/Excluded.brs', '--exclude', 'components/OomTask.brs'];
+    const cli = [
+      'exec',
+      'everframe-roku',
+      'instrument',
+      src,
+      '--out',
+      out,
+      '--exclude',
+      'components/Excluded.brs',
+      '--exclude',
+      'components/OomTask.brs',
+    ];
     if (bundle) cli.push('--bundle-library');
     run('pnpm', cli, EXAMPLE);
   }
 
   const rokuDeploy = await import('roku-deploy');
-  await rokuDeploy.createPackage({ rootDir: out, outDir: BUILD, outFile: ZIP_NAME, retainStagingDir: false });
-  console.log(`[crash-lab] packaged ${path.relative(EXAMPLE, path.join(BUILD, ZIP_NAME))} (library: ${libraryUri})`);
+  await rokuDeploy.createPackage({
+    rootDir: out,
+    outDir: BUILD,
+    outFile: ZIP_NAME,
+    retainStagingDir: false,
+  });
+  console.log(
+    `[crash-lab] packaged ${path.relative(EXAMPLE, path.join(BUILD, ZIP_NAME))} (library: ${libraryUri})`,
+  );
 
   if (args['no-deploy']) return;
   try {
-    await rokuDeploy.publish({ host: env.host, password: env.password, rootDir: out, outDir: BUILD, outFile: ZIP_NAME });
+    await rokuDeploy.publish({
+      host: env.host,
+      password: env.password,
+      rootDir: out,
+      outDir: BUILD,
+      outFile: ZIP_NAME,
+    });
   } catch (e) {
-    throw new Error(`${e.message} (check ROKU_HOST, ROKU_DEV_PASSWORD and that developer mode is enabled)`, { cause: e });
+    throw new Error(
+      `${e.message} (check ROKU_HOST, ROKU_DEV_PASSWORD and that developer mode is enabled)`,
+      { cause: e },
+    );
   }
   console.log(`[crash-lab] sideloaded to ${env.host}`);
   if (args.logs) {

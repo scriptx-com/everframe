@@ -52,7 +52,11 @@ function AdapterProbe({ onAdapter }: { onAdapter: (threads: ThreadClient | undef
 }
 
 function urlOf(input: RequestInfo | URL): string {
-  return typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+  return typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.href
+      : (input as Request).url;
 }
 
 const OPEN_THREAD = {
@@ -108,7 +112,9 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
     globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
     try {
       const { findByTestId, queryByTestId } = render(
-        <EverframeProvider config={{ sdkKey: 'txx_live_wake_gate_test', appName: 'test', appVersion: '1.0.0' }}>
+        <EverframeProvider
+          config={{ sdkKey: 'txx_live_wake_gate_test', appName: 'test', appVersion: '1.0.0' }}
+        >
           <div>app</div>
           <OpenButton />
         </EverframeProvider>,
@@ -118,7 +124,9 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
       // thread poller's first (and only, pre-wake) tick idles to zero.
       await waitFor(() => expect(configCalls).toBeGreaterThanOrEqual(1));
       await flush(20);
-      expect(fetchSpy.mock.calls.some((c) => urlOf(c[0]).includes('/api/reporter/threads'))).toBe(false);
+      expect(fetchSpy.mock.calls.some((c) => urlOf(c[0]).includes('/api/reporter/threads'))).toBe(
+        false,
+      );
       expect(queryByTestId('reporter-fab')).toBeNull();
 
       const opener = await findByTestId('host-open');
@@ -139,7 +147,9 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
       // BEFORE deciding whether to arm, then actually poll.
       await waitFor(
         () => {
-          expect(fetchSpy.mock.calls.some((c) => urlOf(c[0]).includes('/api/reporter/threads'))).toBe(true);
+          expect(
+            fetchSpy.mock.calls.some((c) => urlOf(c[0]).includes('/api/reporter/threads')),
+          ).toBe(true);
         },
         { timeout: 5000 },
       );
@@ -150,7 +160,10 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
   });
 
   it('a mount-time config fetch failure followed by a wake() recovers once the config endpoint is healthy', async () => {
-    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_wake_gate_recover_test'), 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(
+      scopedReporterTokenStorageKey('txx_live_wake_gate_recover_test'),
+      'evr_test0000000000000000000000000000000000',
+    );
     const originalFetch = globalThis.fetch;
     let configCalls = 0;
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
@@ -183,7 +196,13 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
     try {
       const seen: ThreadClient[] = [];
       render(
-        <EverframeProvider config={{ sdkKey: 'txx_live_wake_gate_recover_test', appName: 'test', appVersion: '1.0.0' }}>
+        <EverframeProvider
+          config={{
+            sdkKey: 'txx_live_wake_gate_recover_test',
+            appName: 'test',
+            appVersion: '1.0.0',
+          }}
+        >
           <AdapterProbe
             onAdapter={(threads) => {
               if (threads) seen.push(threads);
@@ -194,7 +213,9 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
 
       await waitFor(() => expect(configCalls).toBeGreaterThanOrEqual(1));
       await flush(20);
-      expect(fetchSpy.mock.calls.some((c) => urlOf(c[0]).includes('/api/reporter/threads'))).toBe(false);
+      expect(fetchSpy.mock.calls.some((c) => urlOf(c[0]).includes('/api/reporter/threads'))).toBe(
+        false,
+      );
 
       const threads = seen[0];
       expect(threads).toBeDefined();
@@ -208,7 +229,9 @@ describe('finding 1 (round 5): wake() re-resolves the config gate mid-session', 
 
       await waitFor(
         () => {
-          expect(fetchSpy.mock.calls.some((c) => urlOf(c[0]).includes('/api/reporter/threads'))).toBe(true);
+          expect(
+            fetchSpy.mock.calls.some((c) => urlOf(c[0]).includes('/api/reporter/threads')),
+          ).toBe(true);
         },
         { timeout: 5000 },
       );

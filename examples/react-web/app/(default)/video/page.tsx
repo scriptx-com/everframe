@@ -84,10 +84,9 @@ export default function VideoPage() {
         Video
       </h1>
       <p className="lede">
-        Four <code>&lt;video&gt;</code> elements in four different readiness
-        states, plus an in-flow layout check. Open a report from this page —
-        capture must complete promptly, show the live frame where one can be
-        read, and leave the page's layout untouched.
+        Four <code>&lt;video&gt;</code> elements in four different readiness states, plus an in-flow
+        layout check. Open a report from this page — capture must complete promptly, show the live
+        frame where one can be read, and leave the page's layout untouched.
       </p>
 
       <div className="video-grid" data-testid="video-grid">
@@ -187,8 +186,8 @@ export default function VideoPage() {
       <section className="flow-bench" data-testid="flow-bench">
         <h2 className="flow-bench-title">Layout fidelity</h2>
         <p className="plate-note">
-          An in-flow video with nothing else reserving its space. The bar below
-          must sit at the same height in the screenshot as it does here.
+          An in-flow video with nothing else reserving its space. The bar below must sit at the same
+          height in the screenshot as it does here.
         </p>
         {/* eslint-disable-next-line jsx-a11y/media-has-caption -- silent colour loop, no speech */}
         <video

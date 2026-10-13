@@ -50,7 +50,14 @@ const NAMED_COLORS = new Set(
     'yellowgreen'
   ).split(' '),
 );
-const COLOR_KEYWORDS = new Set(['none', 'currentcolor', 'transparent', 'inherit', 'context-fill', 'context-stroke']);
+const COLOR_KEYWORDS = new Set([
+  'none',
+  'currentcolor',
+  'transparent',
+  'inherit',
+  'context-fill',
+  'context-stroke',
+]);
 
 /** A CSS named colour, `transparent` or `currentcolor` (case-insensitive) — never free text. */
 export function isColorWord(word: string): boolean {
@@ -60,7 +67,8 @@ export function isColorWord(word: string): boolean {
 
 const COLOR_FN_RE = /^(?:rgba?|hsla?)\(([^()]*)\)$/i;
 /** One colour-function argument: a number with an optional %/angle unit, or `none`. */
-const COLOR_ARG_RE = /^(?:[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?(?:%|deg|grad|rad|turn)?|none)$/i;
+const COLOR_ARG_RE =
+  /^(?:[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?(?:%|deg|grad|rad|turn)?|none)$/i;
 
 /** rgb()/hsl() with 3–4 numeric arguments only — the argument list can never spell words. */
 function isColorFunction(t: string): boolean {
@@ -93,7 +101,9 @@ const MAX_NUMBER_TOKEN_LENGTH = 64;
 function isNumberList(v: string): boolean {
   const t = v.trim();
   if (t === '' || t.length > 20_000) return false;
-  return t.split(/[\s,]+/).every((token) => token.length <= MAX_NUMBER_TOKEN_LENGTH && UNIT_NUMBER_RE.test(token));
+  return t
+    .split(/[\s,]+/)
+    .every((token) => token.length <= MAX_NUMBER_TOKEN_LENGTH && UNIT_NUMBER_RE.test(token));
 }
 
 const PATH_TOKEN_RE = /[MmZzLlHhVvCcSsQqTtAa]|[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?/g;
@@ -107,14 +117,16 @@ export function isPathData(d: string): boolean {
   if (tokens[0] !== 'M' && tokens[0] !== 'm') return false;
   for (let k = 1; k < tokens.length; k++) {
     const prev = tokens[k - 1]!;
-    if (COMMAND_RE.test(tokens[k]!) && COMMAND_RE.test(prev) && prev !== 'Z' && prev !== 'z') return false;
+    if (COMMAND_RE.test(tokens[k]!) && COMMAND_RE.test(prev) && prev !== 'Z' && prev !== 'z')
+      return false;
   }
   return true;
 }
 
 // One transform function per step of a linear scan. (A single anchored regex
 // with a repeated group backtracks exponentially on a near-miss.)
-const TRANSFORM_FN_RE = /\s*(?:matrix|translate|translateX|translateY|scale|rotate|skewX|skewY)\s*\(([^()]*)\)\s*,?/y;
+const TRANSFORM_FN_RE =
+  /\s*(?:matrix|translate|translateX|translateY|scale|rotate|skewX|skewY)\s*\(([^()]*)\)\s*,?/y;
 const TRANSFORM_ARGS_RE = /^[-+.\deE\s,]*$/;
 
 function isTransformList(value: string): boolean {
@@ -130,14 +142,57 @@ function isTransformList(value: string): boolean {
 }
 
 const SVG_NUMERIC = new Set([
-  'x', 'y', 'cx', 'cy', 'r', 'rx', 'ry', 'x1', 'y1', 'x2', 'y2', 'fx', 'fy', 'fr', 'offset',
-  'opacity', 'fill-opacity', 'stroke-opacity', 'stop-opacity', 'flood-opacity',
-  'stroke-width', 'stroke-miterlimit', 'stroke-dashoffset', 'stroke-dasharray',
-  'viewBox', 'points', 'refX', 'refY', 'markerWidth', 'markerHeight', 'pathLength', 'width', 'height',
+  'x',
+  'y',
+  'cx',
+  'cy',
+  'r',
+  'rx',
+  'ry',
+  'x1',
+  'y1',
+  'x2',
+  'y2',
+  'fx',
+  'fy',
+  'fr',
+  'offset',
+  'opacity',
+  'fill-opacity',
+  'stroke-opacity',
+  'stop-opacity',
+  'flood-opacity',
+  'stroke-width',
+  'stroke-miterlimit',
+  'stroke-dashoffset',
+  'stroke-dasharray',
+  'viewBox',
+  'points',
+  'refX',
+  'refY',
+  'markerWidth',
+  'markerHeight',
+  'pathLength',
+  'width',
+  'height',
 ]);
 const SVG_TRANSFORM = new Set(['transform', 'gradientTransform', 'patternTransform']);
-const SVG_PAINT = new Set(['fill', 'stroke', 'stop-color', 'color', 'flood-color', 'lighting-color']);
-const SVG_REF = new Set(['clip-path', 'mask', 'filter', 'marker-start', 'marker-mid', 'marker-end']);
+const SVG_PAINT = new Set([
+  'fill',
+  'stroke',
+  'stop-color',
+  'color',
+  'flood-color',
+  'lighting-color',
+]);
+const SVG_REF = new Set([
+  'clip-path',
+  'mask',
+  'filter',
+  'marker-start',
+  'marker-mid',
+  'marker-end',
+]);
 const UNITS = /^(?:userSpaceOnUse|objectBoundingBox)$/;
 const SVG_ENUM: Readonly<Record<string, RegExp>> = {
   'fill-rule': /^(?:nonzero|evenodd|inherit)$/,
@@ -169,7 +224,8 @@ const MAX_ENUM_LENGTH = 64;
 const MAX_REF_LENGTH = 1024;
 
 const isSpace = (c: string): boolean => c !== '' && /\s/.test(c);
-const isLineTerminator = (c: string): boolean => c === '\n' || c === '\r' || c === '\u2028' || c === '\u2029';
+const isLineTerminator = (c: string): boolean =>
+  c === '\n' || c === '\r' || c === '\u2028' || c === '\u2029';
 
 /**
  * `url( ['"]#id['"] ) rest` → the id and the rest (leading whitespace
@@ -184,7 +240,11 @@ function parseLocalRef(t: string): { id: string; rest: string } | null {
   if (t.charAt(i) === "'" || t.charAt(i) === '"') i++;
   if (t.charAt(i) !== '#') return null;
   const start = ++i;
-  for (let c = t.charAt(i); c !== '' && c !== "'" && c !== '"' && c !== ')' && !isSpace(c); c = t.charAt(++i));
+  for (
+    let c = t.charAt(i);
+    c !== '' && c !== "'" && c !== '"' && c !== ')' && !isSpace(c);
+    c = t.charAt(++i)
+  );
   if (i === start) return null;
   const id = t.slice(start, i);
   if (t.charAt(i) === "'" || t.charAt(i) === '"') i++;
@@ -196,7 +256,10 @@ function parseLocalRef(t: string): { id: string; rest: string } | null {
   return { id, rest: t.slice(i) };
 }
 
-function refToRetained(value: string, retainedIds: ReadonlySet<string>): { ok: boolean; rest: string } {
+function refToRetained(
+  value: string,
+  retainedIds: ReadonlySet<string>,
+): { ok: boolean; rest: string } {
   if (value.length > MAX_REF_LENGTH) return { ok: false, rest: '' };
   const m = parseLocalRef(value.trim());
   if (m === null) return { ok: false, rest: '' };
@@ -204,13 +267,19 @@ function refToRetained(value: string, retainedIds: ReadonlySet<string>): { ok: b
 }
 
 /** Is `name="value"` a validated SVG geometry/paint attribute? (Case-sensitive names, as the DOM keeps them.) */
-export function isAllowedSvgAttr(name: string, value: string, retainedIds: ReadonlySet<string>): boolean {
-  if (SVG_NUMERIC.has(name)) return isNumberList(value) || (name === 'stroke-dasharray' && value.trim() === 'none');
+export function isAllowedSvgAttr(
+  name: string,
+  value: string,
+  retainedIds: ReadonlySet<string>,
+): boolean {
+  if (SVG_NUMERIC.has(name))
+    return isNumberList(value) || (name === 'stroke-dasharray' && value.trim() === 'none');
   if (name === 'd') return isPathData(value);
   if (SVG_TRANSFORM.has(name)) return isTransformList(value);
   if (SVG_PAINT.has(name)) {
     const ref = refToRetained(value, retainedIds);
-    if (value.trim().toLowerCase().startsWith('url(')) return ref.ok && (ref.rest === '' || isCssColor(ref.rest));
+    if (value.trim().toLowerCase().startsWith('url('))
+      return ref.ok && (ref.rest === '' || isCssColor(ref.rest));
     return isCssColor(value);
   }
   if (SVG_REF.has(name)) {

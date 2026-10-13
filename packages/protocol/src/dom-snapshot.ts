@@ -154,7 +154,9 @@ export function countDomSnapshotNodes(snapshot: DomSnapshotV1, limit: number): n
  * Returns early with `limit + 1` once the limit is exceeded.
  */
 export function domSnapshotDepth(snapshot: DomSnapshotV1, limit: number): number {
-  const stack: Array<{ node: unknown; depth: number }> = [{ node: snapshot.events[1].data.node, depth: 0 }];
+  const stack: Array<{ node: unknown; depth: number }> = [
+    { node: snapshot.events[1].data.node, depth: 0 },
+  ];
   let max = 0;
   while (stack.length > 0) {
     const { node, depth } = stack.pop()!;
@@ -202,7 +204,9 @@ export const CaptureControlRender = z.object({
 });
 export type CaptureControlRender = z.infer<typeof CaptureControlRender>;
 
-export function readCaptureControlRender(envelope: { captureControl?: unknown }): CaptureControlRender | null {
+export function readCaptureControlRender(envelope: {
+  captureControl?: unknown;
+}): CaptureControlRender | null {
   const cc = envelope.captureControl;
   if (!cc || typeof cc !== 'object') return null;
   const parsed = CaptureControlRender.safeParse((cc as { render?: unknown }).render);

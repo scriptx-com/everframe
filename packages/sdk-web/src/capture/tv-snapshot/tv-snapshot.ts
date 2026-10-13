@@ -50,7 +50,8 @@ export const WEAK_TV_SNAPSHOT_MAX_ELEMENTS = 1000;
 function snapshotTooCostly(deps: TvShotDeps): boolean {
   return (
     isWeakTvProfile(deps.userAgent) &&
-    countElementsUpTo(deps.snapshot.doc, WEAK_TV_SNAPSHOT_MAX_ELEMENTS) > WEAK_TV_SNAPSHOT_MAX_ELEMENTS
+    countElementsUpTo(deps.snapshot.doc, WEAK_TV_SNAPSHOT_MAX_ELEMENTS) >
+      WEAK_TV_SNAPSHOT_MAX_ELEMENTS
   );
 }
 
@@ -69,7 +70,9 @@ export interface TvShotDeps {
   isCurrent?: () => boolean;
 }
 
-const unavailable = (): ShotCapture => ({ degradedReason: DEGRADED_REASONS.screenshot_unavailable });
+const unavailable = (): ShotCapture => ({
+  degradedReason: DEGRADED_REASONS.screenshot_unavailable,
+});
 
 const stale = (deps: TvShotDeps): boolean => deps.isCurrent !== undefined && !deps.isCurrent();
 
@@ -83,13 +86,19 @@ export async function packSnapshot(
   doc: DomSnapshotV1,
   gzip: (bytes: Uint8Array) => Promise<Uint8Array>,
 ): Promise<CapturedSnapshot> {
-  if (countDomSnapshotNodes(doc, MAX_DOM_SNAPSHOT_NODES) > MAX_DOM_SNAPSHOT_NODES) throw new Error('snapshot_too_large');
-  if (domSnapshotDepth(doc, MAX_DOM_SNAPSHOT_DEPTH) > MAX_DOM_SNAPSHOT_DEPTH) throw new Error('snapshot_too_deep');
+  if (countDomSnapshotNodes(doc, MAX_DOM_SNAPSHOT_NODES) > MAX_DOM_SNAPSHOT_NODES)
+    throw new Error('snapshot_too_large');
+  if (domSnapshotDepth(doc, MAX_DOM_SNAPSHOT_DEPTH) > MAX_DOM_SNAPSHOT_DEPTH)
+    throw new Error('snapshot_too_deep');
   const json = new TextEncoder().encode(JSON.stringify(doc));
   if (json.byteLength > MAX_DOM_SNAPSHOT_DECOMPRESSED_BYTES) throw new Error('snapshot_too_large');
   const bytes = await gzip(json);
   if (bytes.byteLength > MAX_DOM_SNAPSHOT_COMPRESSED_BYTES) throw new Error('snapshot_too_large');
-  return { bytes, byteLength: bytes.byteLength, sha256: await sha256Hex(new Blob([bytes as BlobPart])) };
+  return {
+    bytes,
+    byteLength: bytes.byteLength,
+    sha256: await sha256Hex(new Blob([bytes as BlobPart])),
+  };
 }
 
 function fallbackShot(deps: TvShotDeps): Promise<ShotCapture> {
@@ -111,7 +120,10 @@ async function finishTvShot(taken: TakenSnapshot | null, deps: TvShotDeps): Prom
       const dpr = Math.min(taken.render.dpr || 1, 2);
       const rendered = await renderSnapshot(packed.bytes, {
         ...deps.render,
-        fallbackSize: { width: Math.round(viewport.width * dpr), height: Math.round(viewport.height * dpr) },
+        fallbackSize: {
+          width: Math.round(viewport.width * dpr),
+          height: Math.round(viewport.height * dpr),
+        },
       });
       if (stale(deps)) return unavailable();
       if (rendered.ok) {
@@ -123,15 +135,27 @@ async function finishTvShot(taken: TakenSnapshot | null, deps: TvShotDeps): Prom
           sha256: await sha256Hex(rendered.blob),
           ...(blank !== undefined ? { degradedReason: blank } : {}),
         };
-        return { image, snapshot: packed, render: taken.render, ...(blank !== undefined ? { degradedReason: blank } : {}) };
+        return {
+          image,
+          snapshot: packed,
+          render: taken.render,
+          ...(blank !== undefined ? { degradedReason: blank } : {}),
+        };
       }
-      return { snapshot: packed, render: taken.render, degradedReason: DEGRADED_REASONS.screenshot_render_failed };
+      return {
+        snapshot: packed,
+        render: taken.render,
+        degradedReason: DEGRADED_REASONS.screenshot_render_failed,
+      };
     }
   }
   return fallbackShot(deps);
 }
 
-export function captureTvShot(deps: TvShotDeps): { snapshotted: Promise<void>; shot: Promise<ShotCapture> } {
+export function captureTvShot(deps: TvShotDeps): {
+  snapshotted: Promise<void>;
+  shot: Promise<ShotCapture>;
+} {
   if (stale(deps)) return { snapshotted: Promise.resolve(), shot: Promise.resolve(unavailable()) };
   let taken: TakenSnapshot | null = null;
   try {

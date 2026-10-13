@@ -69,9 +69,8 @@ const INPUT = 5; // IncrementalSource.Input
  * leak-prone attributes, form state and CSS url() tokens.
  */
 function seededFullSnapshot(populated: boolean) {
-  const [cardText, jwt, email, password, ssn, plainName, phone, customSecret, cssToken] = SEEDED_PII as [
-    string, string, string, string, string, string, string, string, string,
-  ];
+  const [cardText, jwt, email, password, ssn, plainName, phone, customSecret, cssToken] =
+    SEEDED_PII as [string, string, string, string, string, string, string, string, string];
   return {
     type: FULL,
     timestamp: 1000,
@@ -80,29 +79,91 @@ function seededFullSnapshot(populated: boolean) {
         type: 1,
         childNodes: [
           { type: 3, textContent: populated ? cardText : '', id: 10 },
-          { type: 2, tagName: 'input', attributes: { type: 'text', value: populated ? jwt : '', 'data-token': jwt }, childNodes: [], id: 11 },
-          { type: 2, tagName: 'input', attributes: { type: 'password', value: password, name: 'pw' }, childNodes: [], id: 12 },
-          { type: 2, tagName: 'input', attributes: { type: 'hidden', value: ssn, name: 'ssn' }, childNodes: [], id: 19 },
           {
-            type: 2, tagName: 'textarea', attributes: { placeholder: email, title: email, 'aria-label': email },
-            childNodes: [{ type: 3, textContent: populated ? email : '', id: 14 }], id: 13,
+            type: 2,
+            tagName: 'input',
+            attributes: { type: 'text', value: populated ? jwt : '', 'data-token': jwt },
+            childNodes: [],
+            id: 11,
           },
           {
-            type: 2, tagName: 'select', attributes: { name: 'card-select' },
-            childNodes: [{
-              type: 2, tagName: 'option', attributes: { value: cardText, selected: 'true' },
-              childNodes: [{ type: 3, textContent: 'Saved card', id: 16 }], id: 15,
-            }],
+            type: 2,
+            tagName: 'input',
+            attributes: { type: 'password', value: password, name: 'pw' },
+            childNodes: [],
+            id: 12,
+          },
+          {
+            type: 2,
+            tagName: 'input',
+            attributes: { type: 'hidden', value: ssn, name: 'ssn' },
+            childNodes: [],
+            id: 19,
+          },
+          {
+            type: 2,
+            tagName: 'textarea',
+            attributes: { placeholder: email, title: email, 'aria-label': email },
+            childNodes: [{ type: 3, textContent: populated ? email : '', id: 14 }],
+            id: 13,
+          },
+          {
+            type: 2,
+            tagName: 'select',
+            attributes: { name: 'card-select' },
+            childNodes: [
+              {
+                type: 2,
+                tagName: 'option',
+                attributes: { value: cardText, selected: 'true' },
+                childNodes: [{ type: 3, textContent: 'Saved card', id: 16 }],
+                id: 15,
+              },
+            ],
             id: 17,
           },
-          { type: 2, tagName: 'a', attributes: { href: `https://app/profile?email=${email}&jwt=${jwt}` }, childNodes: [], id: 18 },
+          {
+            type: 2,
+            tagName: 'a',
+            attributes: { href: `https://app/profile?email=${email}&jwt=${jwt}` },
+            childNodes: [],
+            id: 18,
+          },
           { type: 3, textContent: populated ? plainName : '', id: 20 },
           { type: 3, textContent: populated ? phone : '', id: 21 },
-          { type: 2, tagName: 'div', attributes: { class: 'note' }, childNodes: [{ type: 3, textContent: populated ? customSecret : '', id: 23 }], id: 22 },
-          { type: 2, tagName: 'div', attributes: { style: `background:url(https://t.example.com?token=${cssToken})` }, childNodes: [], id: 24 },
-          { type: 2, tagName: 'style', attributes: { _cssText: `.x{background:url("/img.png?k=${cssToken}")}` }, childNodes: [], id: 25 },
-          { type: 3, textContent: populated ? `Authorization: Bearer ${BEARER_SECRET}` : '', id: 26 },
-          { type: 2, tagName: 'input', attributes: { type: 'checkbox', checked: true, name: 'agree' }, childNodes: [], id: 27 },
+          {
+            type: 2,
+            tagName: 'div',
+            attributes: { class: 'note' },
+            childNodes: [{ type: 3, textContent: populated ? customSecret : '', id: 23 }],
+            id: 22,
+          },
+          {
+            type: 2,
+            tagName: 'div',
+            attributes: { style: `background:url(https://t.example.com?token=${cssToken})` },
+            childNodes: [],
+            id: 24,
+          },
+          {
+            type: 2,
+            tagName: 'style',
+            attributes: { _cssText: `.x{background:url("/img.png?k=${cssToken}")}` },
+            childNodes: [],
+            id: 25,
+          },
+          {
+            type: 3,
+            textContent: populated ? `Authorization: Bearer ${BEARER_SECRET}` : '',
+            id: 26,
+          },
+          {
+            type: 2,
+            tagName: 'input',
+            attributes: { type: 'checkbox', checked: true, name: 'agree' },
+            childNodes: [],
+            id: 27,
+          },
         ],
         id: 1,
       },
@@ -125,14 +186,18 @@ function seededIncrementals() {
       data: {
         source: MUTATION,
         texts: [{ id: 20, value: `Authorization: Bearer ${BEARER_SECRET}` }],
-        attributes: [{
-          id: 11,
-          attributes: {
-            value: TYPED,
-            checked: true,
-            style: { 'background-image': `url(https://t.example.com/a.png?jwt=${SEEDED_PII[1]!})` },
+        attributes: [
+          {
+            id: 11,
+            attributes: {
+              value: TYPED,
+              checked: true,
+              style: {
+                'background-image': `url(https://t.example.com/a.png?jwt=${SEEDED_PII[1]!})`,
+              },
+            },
           },
-        }],
+        ],
         removes: [],
         adds: [],
       },
@@ -213,27 +278,34 @@ describe('REPLAY-04 golden-file masking', () => {
   });
 
   it('drops form state: no checked or selected attribute survives', () => {
-    const json = JSON.stringify(scrubReplayEvents([seededFullSnapshot(true), ...seededIncrementals()]));
+    const json = JSON.stringify(
+      scrubReplayEvents([seededFullSnapshot(true), ...seededIncrementals()]),
+    );
     expect(json).not.toMatch(/"(checked|selected)":/);
   });
 
   it('removes bearer tokens from text everywhere', () => {
-    const json = JSON.stringify(scrubReplayEvents([seededFullSnapshot(true), ...seededIncrementals()]));
+    const json = JSON.stringify(
+      scrubReplayEvents([seededFullSnapshot(true), ...seededIncrementals()]),
+    );
     expect(json).not.toContain(BEARER_SECRET);
     expect(json).toContain('Authorization: [REDACTED]');
   });
 
-  it.each([
-    'abc.123-45-6789.secretSuffix',
-    'abc.4111111111111111.secretSuffix',
-  ])('removes complete bearer credentials before overlapping pattern redaction: %s', (token) => {
-    const text = `Authorization: Bearer ${token}`;
-    const event = { type: FULL, data: { node: { textContent: text, attributes: { class: text } } } };
-    const [scrubbed] = scrubReplayEvents([event]);
-    expect(scrubbed!.data.node.textContent).toBe('Authorization: [REDACTED]');
-    expect(scrubbed!.data.node.attributes.class).toBe('Authorization: [REDACTED]');
-    expect(JSON.stringify(scrubbed)).not.toContain('secretSuffix');
-  });
+  it.each(['abc.123-45-6789.secretSuffix', 'abc.4111111111111111.secretSuffix'])(
+    'removes complete bearer credentials before overlapping pattern redaction: %s',
+    (token) => {
+      const text = `Authorization: Bearer ${token}`;
+      const event = {
+        type: FULL,
+        data: { node: { textContent: text, attributes: { class: text } } },
+      };
+      const [scrubbed] = scrubReplayEvents([event]);
+      expect(scrubbed!.data.node.textContent).toBe('Authorization: [REDACTED]');
+      expect(scrubbed!.data.node.attributes.class).toBe('Authorization: [REDACTED]');
+      expect(JSON.stringify(scrubbed)).not.toContain('secretSuffix');
+    },
+  );
 
   it('scrubs style diff objects on attribute mutations', () => {
     const json = JSON.stringify(scrubReplayEvents(seededIncrementals()));
@@ -243,13 +315,24 @@ describe('REPLAY-04 golden-file masking', () => {
   });
 
   it('scrubs prioritized style diff values without losing their CSS priority or removal markers', () => {
-    const event = { type: INCR, data: { source: MUTATION, attributes: [{ id: 24, attributes: {
-      style: {
-        'background-image': ['url(/private.png?token=style-secret)', 'important'],
-        content: [`Authorization: Bearer ${BEARER_SECRET}`, 'important'],
-        color: false,
+    const event = {
+      type: INCR,
+      data: {
+        source: MUTATION,
+        attributes: [
+          {
+            id: 24,
+            attributes: {
+              style: {
+                'background-image': ['url(/private.png?token=style-secret)', 'important'],
+                content: [`Authorization: Bearer ${BEARER_SECRET}`, 'important'],
+                color: false,
+              },
+            },
+          },
+        ],
       },
-    } }] } };
+    };
     const original = JSON.stringify(event);
     const [scrubbed] = scrubReplayEvents([event]);
     expect(scrubbed!.data.attributes[0]!.attributes.style).toEqual({
@@ -262,15 +345,24 @@ describe('REPLAY-04 golden-file masking', () => {
 
   it('uses the shared bearer pattern (protocol data/redaction-patterns.json)', () => {
     const shared = JSON.parse(
-      readFileSync(new NodeURL('../../../../protocol/data/redaction-patterns.json', import.meta.url), 'utf8'),
+      readFileSync(
+        new NodeURL('../../../../protocol/data/redaction-patterns.json', import.meta.url),
+        'utf8',
+      ),
     ) as { patterns: Array<{ id: string; regex: string }> };
-    expect(`(?i)${BEARER_PATTERN_SOURCE}`).toBe(shared.patterns.find((p) => p.id === 'bearer')!.regex);
+    expect(`(?i)${BEARER_PATTERN_SOURCE}`).toBe(
+      shared.patterns.find((p) => p.id === 'bearer')!.regex,
+    );
   });
 });
 
 describe('record options (spec 2026-10-11, "Web masking")', () => {
   it('masks every input, blocks sensitive elements and leaves ordinary text unmasked', () => {
-    const opts = buildRecordOptions({ durationSec: 30, emit: () => undefined, blockSelector: `[${SENSITIVE_ATTR}]` });
+    const opts = buildRecordOptions({
+      durationSec: 30,
+      emit: () => undefined,
+      blockSelector: `[${SENSITIVE_ATTR}]`,
+    });
     expect(opts.maskAllInputs).toBe(true);
     expect(opts.maskInputFn?.('hunter2')).toBe(MASK_PLACEHOLDER);
     expect(opts.maskTextSelector).toBeUndefined();
@@ -291,7 +383,9 @@ describe('record options (spec 2026-10-11, "Web masking")', () => {
     });
     rec.start(30);
     await vi.waitFor(() => expect(seen).toBeDefined());
-    expect(seen!['blockSelector']).toBe(`[${SENSITIVE_ATTR}], [${SENSITIVE_ATTR}] *, .rr-block, .rr-block *`);
+    expect(seen!['blockSelector']).toBe(
+      `[${SENSITIVE_ATTR}], [${SENSITIVE_ATTR}] *, .rr-block, .rr-block *`,
+    );
     expect(seen!['maskAllInputs']).toBe(true);
     expect(seen!['maskTextSelector']).toBeUndefined();
     rec.stop();
@@ -311,56 +405,78 @@ describe('real rrweb, end to end', () => {
   };
 
   it('blocks existing descendant characterData after dynamically marking its ancestor', async () => {
-    document.body.innerHTML = '<section id="panel"><span>Public before</span></section><p>Visible ordinary text</p>';
+    document.body.innerHTML =
+      '<section id="panel"><span>Public before</span></section><p>Visible ordinary text</p>';
     const rec = createReplayRecorder({ gzip: testGzip });
     try {
       rec.start(30);
       await vi.waitFor(() => expect(rec.__diagnostics().recording).toBe(true));
       sensitiveRegistry.addRef(document.querySelector('#panel')!);
       document.querySelector('span')!.firstChild!.textContent = 'Private medical diagnosis';
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       const capture = await rec.snapshot();
       const json = gunzipSync(Buffer.from(capture!.bytes)).toString('utf8');
       expect(json).not.toContain('Private medical diagnosis');
       expect(json).toContain('Visible ordinary text');
-    } finally { rec.kill(); }
+    } finally {
+      rec.kill();
+    }
   });
 
   it('disables production capture if installed rrweb has no privacy mirror', async () => {
     const mirror = record.mirror;
-    Object.defineProperty(record, 'mirror', { value: undefined, configurable: true, writable: true });
+    Object.defineProperty(record, 'mirror', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
     const rec = createReplayRecorder({ gzip: testGzip });
     try {
       rec.start(30);
       await vi.waitFor(() => expect(rec.disabled).toBe(true));
       expect(await rec.snapshot()).toBeNull();
-    } finally { rec.kill(); Object.defineProperty(record, 'mirror', { value: mirror, configurable: true, writable: true }); }
+    } finally {
+      rec.kill();
+      Object.defineProperty(record, 'mirror', {
+        value: mirror,
+        configurable: true,
+        writable: true,
+      });
+    }
   });
 
-  it.each(['host', 'outside ancestor'])('blocks existing shadow descendants after marking %s sensitive', async marked => {
-    document.body.innerHTML = '<section id="outside"><div id="host"></div></section><p>Visible ordinary text</p>';
-    const host = document.querySelector('#host')!;
-    const shadow = host.attachShadow({ mode: 'open' });
-    shadow.innerHTML = '<span>Public before</span>';
-    const rec = createReplayRecorder({ gzip: testGzip });
-    try {
-      rec.start(30);
-      await vi.waitFor(() => expect(rec.__diagnostics().recording).toBe(true));
-      sensitiveRegistry.addRef(marked === 'host' ? host : document.querySelector('#outside')!);
-      shadow.querySelector('span')!.firstChild!.textContent = 'Private shadow diagnosis';
-      shadow.querySelector('span')!.setAttribute('class', 'private-shadow-class');
-      const added = document.createElement('span'); added.textContent = 'New private shadow notes'; shadow.append(added);
-      record.addCustomEvent('private-shadow-custom', { text: 'Private custom diagnostic' });
-      await new Promise(resolve => setTimeout(resolve, 0));
-      const capture = await rec.snapshot();
-      const json = gunzipSync(Buffer.from(capture!.bytes)).toString('utf8');
-      expect(json).not.toContain('Private shadow diagnosis');
-      expect(json).not.toContain('private-shadow-class');
-      expect(json).not.toContain('New private shadow notes');
-      expect(json).not.toContain('Private custom diagnostic');
-      expect(json).toContain('Visible ordinary text');
-    } finally { rec.kill(); }
-  });
+  it.each(['host', 'outside ancestor'])(
+    'blocks existing shadow descendants after marking %s sensitive',
+    async (marked) => {
+      document.body.innerHTML =
+        '<section id="outside"><div id="host"></div></section><p>Visible ordinary text</p>';
+      const host = document.querySelector('#host')!;
+      const shadow = host.attachShadow({ mode: 'open' });
+      shadow.innerHTML = '<span>Public before</span>';
+      const rec = createReplayRecorder({ gzip: testGzip });
+      try {
+        rec.start(30);
+        await vi.waitFor(() => expect(rec.__diagnostics().recording).toBe(true));
+        sensitiveRegistry.addRef(marked === 'host' ? host : document.querySelector('#outside')!);
+        shadow.querySelector('span')!.firstChild!.textContent = 'Private shadow diagnosis';
+        shadow.querySelector('span')!.setAttribute('class', 'private-shadow-class');
+        const added = document.createElement('span');
+        added.textContent = 'New private shadow notes';
+        shadow.append(added);
+        record.addCustomEvent('private-shadow-custom', { text: 'Private custom diagnostic' });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const capture = await rec.snapshot();
+        const json = gunzipSync(Buffer.from(capture!.bytes)).toString('utf8');
+        expect(json).not.toContain('Private shadow diagnosis');
+        expect(json).not.toContain('private-shadow-class');
+        expect(json).not.toContain('New private shadow notes');
+        expect(json).not.toContain('Private custom diagnostic');
+        expect(json).toContain('Visible ordinary text');
+      } finally {
+        rec.kill();
+      }
+    },
+  );
 
   it('ships no input value and no pattern match, and keeps ordinary text readable', async () => {
     const jwt = SEEDED_PII[1]!;
@@ -401,8 +517,16 @@ describe('real rrweb, end to end', () => {
       expect(capture).not.toBeNull();
       const json = gunzipSync(Buffer.from(capture!.bytes)).toString('utf8');
       for (const secret of [
-        TYPED, SEEDED_PII[3]!, 'typed@example.org', 'private notes typed by the user', 'secret-plan-value',
-        '4111 1111 1111 1111', 'victim@example.com', jwt, BEARER_SECRET, 'Sensitive-subtree-secret',
+        TYPED,
+        SEEDED_PII[3]!,
+        'typed@example.org',
+        'private notes typed by the user',
+        'secret-plan-value',
+        '4111 1111 1111 1111',
+        'victim@example.com',
+        jwt,
+        BEARER_SECRET,
+        'Sensitive-subtree-secret',
       ]) {
         expect(json, secret).not.toContain(secret);
       }
@@ -437,7 +561,11 @@ describe('real rrweb, end to end', () => {
       const capture = await rec.takeFrozen();
       expect(capture).not.toBeNull();
       const json = gunzipSync(Buffer.from(capture!.bytes)).toString('utf8');
-      for (const secret of ['late-mounted-private-secret', 'newly-marked-private-secret', 'host-mask-private-secret']) {
+      for (const secret of [
+        'late-mounted-private-secret',
+        'newly-marked-private-secret',
+        'host-mask-private-secret',
+      ]) {
         expect(json, secret).not.toContain(secret);
       }
       expect(json).toContain('Public content stays readable');
@@ -446,46 +574,51 @@ describe('real rrweb, end to end', () => {
     }
   });
 
-
   it.each([
     { beforeStart: false, displayContents: false },
     { beforeStart: true, displayContents: false },
     { beforeStart: false, displayContents: true },
     { beforeStart: true, displayContents: true },
-  ])('blocks refs until removal (before start: $beforeStart, display:contents: $displayContents)', async ({ beforeStart, displayContents }) => {
-    document.body.innerHTML = '<section id="registered"><span></span></section>';
-    const element = document.querySelector<HTMLElement>('#registered')!;
-    const child = element.querySelector('span')!;
-    if (displayContents) element.style.display = 'contents';
-    expect(element.hasAttribute(SENSITIVE_ATTR)).toBe(false);
-    expect(element.classList.contains(RR_BLOCK_CLASS)).toBe(false);
-    if (beforeStart) sensitiveRegistry.addRef(element);
-    const rec = createReplayRecorder({ sensitiveElements: () => sensitiveRegistry.snapshotElements(), gzip: testGzip });
-    try {
-      rec.start(30);
-      await vi.waitFor(() => expect(rec.__diagnostics().recording).toBe(true));
-      if (!beforeStart) sensitiveRegistry.addRef(element);
-      child.textContent = 'late-registry-private-secret';
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      record.takeFullSnapshot(true);
-      child.textContent = '';
-      sensitiveRegistry.removeRef(element);
-      expect(child.classList.contains(RR_BLOCK_CLASS)).toBe(false);
-      child.textContent = 'Public after removal';
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      record.takeFullSnapshot(true);
-      rec.freeze();
-      const capture = await rec.takeFrozen();
-      expect(capture).not.toBeNull();
-      const json = gunzipSync(Buffer.from(capture!.bytes)).toString('utf8');
-      expect(json).not.toContain('late-registry-private-secret');
-      expect(json).toContain('Public after removal');
+  ])(
+    'blocks refs until removal (before start: $beforeStart, display:contents: $displayContents)',
+    async ({ beforeStart, displayContents }) => {
+      document.body.innerHTML = '<section id="registered"><span></span></section>';
+      const element = document.querySelector<HTMLElement>('#registered')!;
+      const child = element.querySelector('span')!;
+      if (displayContents) element.style.display = 'contents';
       expect(element.hasAttribute(SENSITIVE_ATTR)).toBe(false);
-    } finally {
-      rec.stop();
-      sensitiveRegistry.removeRef(element);
-    }
-  });
+      expect(element.classList.contains(RR_BLOCK_CLASS)).toBe(false);
+      if (beforeStart) sensitiveRegistry.addRef(element);
+      const rec = createReplayRecorder({
+        sensitiveElements: () => sensitiveRegistry.snapshotElements(),
+        gzip: testGzip,
+      });
+      try {
+        rec.start(30);
+        await vi.waitFor(() => expect(rec.__diagnostics().recording).toBe(true));
+        if (!beforeStart) sensitiveRegistry.addRef(element);
+        child.textContent = 'late-registry-private-secret';
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        record.takeFullSnapshot(true);
+        child.textContent = '';
+        sensitiveRegistry.removeRef(element);
+        expect(child.classList.contains(RR_BLOCK_CLASS)).toBe(false);
+        child.textContent = 'Public after removal';
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        record.takeFullSnapshot(true);
+        rec.freeze();
+        const capture = await rec.takeFrozen();
+        expect(capture).not.toBeNull();
+        const json = gunzipSync(Buffer.from(capture!.bytes)).toString('utf8');
+        expect(json).not.toContain('late-registry-private-secret');
+        expect(json).toContain('Public after removal');
+        expect(element.hasAttribute(SENSITIVE_ATTR)).toBe(false);
+      } finally {
+        rec.stop();
+        sensitiveRegistry.removeRef(element);
+      }
+    },
+  );
 
   it('preserves host block classes when restoring the recording DOM', async () => {
     document.body.innerHTML = '<section class="rr-block">host-private-secret</section>';
@@ -499,5 +632,4 @@ describe('real rrweb, end to end', () => {
     }
     expect(element.classList.contains(RR_BLOCK_CLASS)).toBe(true);
   });
-
 });

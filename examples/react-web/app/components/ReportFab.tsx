@@ -12,10 +12,10 @@
 // (style-src 'self' 'nonce-…') blocks style attributes. A CSS module is
 // served as a plain stylesheet from 'self' in production builds, so the
 // button stays styled even under the strict fixture.
-"use client";
-import { useRef, useState } from "react";
-import { useEverframe } from "@everframe/react";
-import styles from "./ReportFab.module.css";
+'use client';
+import { useRef, useState } from 'react';
+import { useEverframe } from '@everframe/react';
+import styles from './ReportFab.module.css';
 
 export function ReportFab() {
   const { open } = useEverframe();

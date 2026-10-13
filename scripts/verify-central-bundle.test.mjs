@@ -17,8 +17,14 @@ test('Central bundle verifier exists and rejects unsigned Maven artifacts', () =
   try {
     const directory = path.join(repository, 'dev/everframe/core/0.9.0');
     mkdirSync(directory, { recursive: true });
-    writeFileSync(path.join(directory, 'core-0.9.0.pom'), '<project><groupId>dev.everframe</groupId></project>');
-    const result = spawnSync('bash', [verifier, repository, '0.9.0'], { cwd: root, encoding: 'utf8' });
+    writeFileSync(
+      path.join(directory, 'core-0.9.0.pom'),
+      '<project><groupId>dev.everframe</groupId></project>',
+    );
+    const result = spawnSync('bash', [verifier, repository, '0.9.0'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
     assert.notEqual(result.status, 0);
     assert.match(`${result.stdout}\n${result.stderr}`, /signature|\.asc/i);
   } finally {
@@ -31,7 +37,9 @@ test('Gradle plugin applies Central-required ownership metadata to every publica
     path.join(root, 'packages/sdk-android/android/everframe-gradle-plugin/build.gradle.kts'),
     'utf8',
   );
-  const configureEach = buildFile.slice(buildFile.indexOf('publications.withType<MavenPublication>().configureEach'));
+  const configureEach = buildFile.slice(
+    buildFile.indexOf('publications.withType<MavenPublication>().configureEach'),
+  );
   assert.match(configureEach, /developers\s*\{/);
   assert.match(configureEach, /scm\s*\{/);
   assert.match(configureEach, /issueManagement\s*\{/);

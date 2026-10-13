@@ -95,11 +95,20 @@ function deepJsonBytes(value: unknown, limit: number): number {
     if (current !== null && typeof current === 'object') {
       // Bound auxiliary memory for pathological custom data. This allows over
       // 2,000 DOM levels without depending on the old TV engine's call stack.
-      if (stack.length >= 4096 || active.has(current) ||
-          typeof (current as { toJSON?: unknown }).toJSON === 'function') return limit + 1;
+      if (
+        stack.length >= 4096 ||
+        active.has(current) ||
+        typeof (current as { toJSON?: unknown }).toJSON === 'function'
+      )
+        return limit + 1;
       bytes += 2;
       active.add(current);
-      stack.push({ value: current, keys: Array.isArray(current) ? null : Object.keys(current), index: 0, included: 0 });
+      stack.push({
+        value: current,
+        keys: Array.isArray(current) ? null : Object.keys(current),
+        index: 0,
+        included: 0,
+      });
     } else {
       bytes += jsonBytes(current, limit - bytes);
     }
@@ -137,14 +146,20 @@ function jsonBytes(value: unknown, limit: number, depth = 0): number {
   if (limit < 0) return limit + 1;
   if (value === null) return 4;
   switch (typeof value) {
-    case 'string': return stringBytes(value, limit);
-    case 'number': return Number.isFinite(value) ? String(value).length : 4;
-    case 'boolean': return value ? 4 : 5;
+    case 'string':
+      return stringBytes(value, limit);
+    case 'number':
+      return Number.isFinite(value) ? String(value).length : 4;
+    case 'boolean':
+      return value ? 4 : 5;
     case 'undefined':
     case 'function':
-    case 'symbol': return 4; // Array slots; object properties are omitted below.
-    case 'object': break;
-    default: return limit + 1; // BigInt is not JSON data.
+    case 'symbol':
+      return 4; // Array slots; object properties are omitted below.
+    case 'object':
+      break;
+    default:
+      return limit + 1; // BigInt is not JSON data.
   }
   if (depth >= 128) return deepJsonBytes(value, limit);
   if (typeof (value as { toJSON?: unknown }).toJSON === 'function') return limit + 1;
@@ -246,7 +261,9 @@ export function createRollingBuffer(opts: RollingBufferOptions): RollingBuffer {
         // may carry isCheckout, so identify the boundary by event type.
         append(newSegment(null), { event, bytes: cost });
       } else if (event.type === FULL_SNAPSHOT) {
-        const pending = tail?.snapshotTs === null && tail.entries.length === 1 &&
+        const pending =
+          tail?.snapshotTs === null &&
+          tail.entries.length === 1 &&
           tail.entries[0]!.event.type === META;
         const segment = pending ? tail! : newSegment(event.timestamp);
         segment.snapshotTs = event.timestamp;
@@ -285,10 +302,18 @@ export function createRollingBuffer(opts: RollingBufferOptions): RollingBuffer {
       return events;
     },
 
-    oldestTs(): number | null { return head?.entries[0]?.event.timestamp ?? null; },
-    size(): number { return count; },
-    byteSize(): number { return bytes; },
-    capBreached(): boolean { return breached; },
+    oldestTs(): number | null {
+      return head?.entries[0]?.event.timestamp ?? null;
+    },
+    size(): number {
+      return count;
+    },
+    byteSize(): number {
+      return bytes;
+    },
+    capBreached(): boolean {
+      return breached;
+    },
     clear(): void {
       head = null;
       tail = null;

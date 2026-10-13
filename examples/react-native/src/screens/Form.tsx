@@ -104,8 +104,8 @@ export function Form(): React.JSX.Element {
       <View style={styles.card}>
         <Text style={type.sectionTitle}>Redaction demo</Text>
         <Text style={[type.muted, styles.cardBody]}>
-          The first field is captured normally; the second is wrapped in EverframeSensitive and
-          must be masked in the captured screenshot. Compare both in the produced envelope.
+          The first field is captured normally; the second is wrapped in EverframeSensitive and must
+          be masked in the captured screenshot. Compare both in the produced envelope.
         </Text>
 
         <Text style={styles.inputLabel}>Public field (not redacted)</Text>
@@ -133,9 +133,9 @@ export function Form(): React.JSX.Element {
       <View style={styles.card}>
         <Text style={type.sectionTitle}>Recognition — setUser()</Text>
         <Text style={[type.muted, styles.cardBody]}>
-          Puts a name on the next report. Self-declared: this app asserts it and nothing proves
-          it, so the dashboard shows these people as “Unverified”. Grouping and labelling only —
-          it never unlocks a conversation on another device.
+          Puts a name on the next report. Self-declared: this app asserts it and nothing proves it,
+          so the dashboard shows these people as “Unverified”. Grouping and labelling only — it
+          never unlocks a conversation on another device.
         </Text>
 
         <View style={styles.personRow}>
@@ -152,7 +152,8 @@ export function Form(): React.JSX.Element {
                   styles.personButton,
                   active && styles.personButtonActive,
                   (pressed || focused) && styles.applyButtonPressed,
-                ]}>
+                ]}
+              >
                 <Text style={[styles.personName, active && styles.personNameActive]}>
                   {collector.displayName}
                 </Text>
@@ -172,7 +173,8 @@ export function Form(): React.JSX.Element {
             styles.applyButton,
             recognizedAs === null && styles.applyButtonDisabled,
             (pressed || focused) && recognizedAs !== null && styles.applyButtonPressed,
-          ]}>
+          ]}
+        >
           <Text style={styles.applyButtonText}>Sign out — setUser()</Text>
         </Pressable>
 
@@ -208,7 +210,8 @@ export function Form(): React.JSX.Element {
           style={({ pressed, focused }) => [
             styles.applyButton,
             (pressed || focused) && styles.applyButtonPressed,
-          ]}>
+          ]}
+        >
           <Text style={styles.applyButtonText}>
             {applied ? 'Applied — rides with the next report' : 'Apply setExtra'}
           </Text>

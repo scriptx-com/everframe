@@ -19,8 +19,9 @@ const artifact = {
 
 describe('normalizeAssetUrl', () => {
   it('retains the asset path and removes only query and fragment', () => {
-    expect(normalizeAssetUrl('https://cdn.example/A%20B/App.js?v=2#x'))
-      .toBe('https://cdn.example/A%20B/App.js');
+    expect(normalizeAssetUrl('https://cdn.example/A%20B/App.js?v=2#x')).toBe(
+      'https://cdn.example/A%20B/App.js',
+    );
   });
 
   it.each([
@@ -54,14 +55,16 @@ describe('parseManifest', () => {
   });
 
   it('normalizes and sorts artifacts into a canonical manifest', () => {
-    expect(parseManifest({
-      version: 1,
-      buildId: 'web-abc',
-      artifacts: [
-        { ...artifact, url: 'https://cdn.example/z.js?v=2' },
-        { ...artifact, url: 'http://cdn.example/a.js#release' },
-      ],
-    })).toEqual({
+    expect(
+      parseManifest({
+        version: 1,
+        buildId: 'web-abc',
+        artifacts: [
+          { ...artifact, url: 'https://cdn.example/z.js?v=2' },
+          { ...artifact, url: 'http://cdn.example/a.js#release' },
+        ],
+      }),
+    ).toEqual({
       version: 1,
       buildId: 'web-abc',
       artifacts: [
@@ -72,10 +75,16 @@ describe('parseManifest', () => {
   });
 
   it('rejects duplicate identities after normalization', () => {
-    expect(() => parseManifest({ version: 1, buildId: 'web-abc', artifacts: [
-      { ...artifact, url: 'https://cdn.example/app.js?v=1' },
-      { ...artifact, url: 'https://cdn.example/app.js?v=2' },
-    ] })).toThrow();
+    expect(() =>
+      parseManifest({
+        version: 1,
+        buildId: 'web-abc',
+        artifacts: [
+          { ...artifact, url: 'https://cdn.example/app.js?v=1' },
+          { ...artifact, url: 'https://cdn.example/app.js?v=2' },
+        ],
+      }),
+    ).toThrow();
   });
 
   it.each(['', '   ', 'x'.repeat(201)])('rejects an invalid build ID', (buildId) => {
@@ -87,55 +96,65 @@ describe('parseManifest', () => {
     ['generatedSha256', 'g'.repeat(64)],
     ['generatedSha256', 'a'.repeat(63)],
     ['mapSha256', 'B'.repeat(64)],
-  ] as const)(
-    'rejects an invalid %s digest',
-    (field, digest) => {
-      expect(() => parseManifest({
+  ] as const)('rejects an invalid %s digest', (field, digest) => {
+    expect(() =>
+      parseManifest({
         version: 1,
         buildId: 'web-abc',
         artifacts: [{ ...artifact, [field]: digest, url: 'https://cdn.example/app.js' }],
-      })).toThrow();
+      }),
+    ).toThrow();
+  });
+
+  it.each([0, -1, 1.5, 32 * 1024 * 1024 + 1])(
+    'rejects an invalid map byte count: %s',
+    (mapBytes) => {
+      expect(() =>
+        parseManifest({
+          version: 1,
+          buildId: 'web-abc',
+          artifacts: [{ ...artifact, mapBytes, url: 'https://cdn.example/app.js' }],
+        }),
+      ).toThrow();
     },
   );
 
-  it.each([0, -1, 1.5, 32 * 1024 * 1024 + 1])('rejects an invalid map byte count: %s', (mapBytes) => {
-    expect(() => parseManifest({
-      version: 1,
-      buildId: 'web-abc',
-      artifacts: [{ ...artifact, mapBytes, url: 'https://cdn.example/app.js' }],
-    })).toThrow();
-  });
-
   it('rejects more than 256 MiB of maps in one build', () => {
-    expect(() => parseManifest({
-      version: 1,
-      buildId: 'web-abc',
-      artifacts: Array.from({ length: 9 }, (_, index) => ({
-        ...artifact,
-        mapBytes: 32 * 1024 * 1024,
-        url: `https://cdn.example/${index}.js`,
-      })),
-    })).toThrow();
+    expect(() =>
+      parseManifest({
+        version: 1,
+        buildId: 'web-abc',
+        artifacts: Array.from({ length: 9 }, (_, index) => ({
+          ...artifact,
+          mapBytes: 32 * 1024 * 1024,
+          url: `https://cdn.example/${index}.js`,
+        })),
+      }),
+    ).toThrow();
   });
 
   it('rejects more than 500 artifacts and a manifest larger than 1 MiB', () => {
-    expect(() => parseManifest({
-      version: 1,
-      buildId: 'web-abc',
-      artifacts: Array.from({ length: 501 }, (_, index) => ({
-        ...artifact,
-        url: `https://cdn.example/${index}.js`,
-      })),
-    })).toThrow();
-    expect(() => parseManifest({
-      version: 1,
-      buildId: 'web-abc',
-      artifacts: Array.from({ length: 500 }, (_, index) => ({
-        ...artifact,
-        mapBytes: 1,
-        url: `https://cdn.example/${index}-${'x'.repeat(1900)}.js`,
-      })),
-    })).toThrow();
+    expect(() =>
+      parseManifest({
+        version: 1,
+        buildId: 'web-abc',
+        artifacts: Array.from({ length: 501 }, (_, index) => ({
+          ...artifact,
+          url: `https://cdn.example/${index}.js`,
+        })),
+      }),
+    ).toThrow();
+    expect(() =>
+      parseManifest({
+        version: 1,
+        buildId: 'web-abc',
+        artifacts: Array.from({ length: 500 }, (_, index) => ({
+          ...artifact,
+          mapBytes: 1,
+          url: `https://cdn.example/${index}-${'x'.repeat(1900)}.js`,
+        })),
+      }),
+    ).toThrow();
   });
 });
 
@@ -145,17 +164,20 @@ describe('Hermes manifest identity', () => {
     runtime: 'hermes',
     platform: 'android',
     buildId: 'run-7-android',
-    artifacts: [{
-      url: 'hermes://android/index.android.bundle',
-      generatedSha256: 'a'.repeat(64),
-      mapSha256: 'b'.repeat(64),
-      mapBytes: 12,
-    }],
+    artifacts: [
+      {
+        url: 'hermes://android/index.android.bundle',
+        generatedSha256: 'a'.repeat(64),
+        mapSha256: 'b'.repeat(64),
+        mapBytes: 12,
+      },
+    ],
   } as const;
 
   it('constructs and parses one canonical artifact identity', () => {
-    expect(hermesAssetUrl('android', 'index.android.bundle'))
-      .toBe('hermes://android/index.android.bundle');
+    expect(hermesAssetUrl('android', 'index.android.bundle')).toBe(
+      'hermes://android/index.android.bundle',
+    );
     expect(parseManifest(valid)).toEqual(valid);
   });
 
@@ -173,10 +195,12 @@ describe('Hermes manifest identity', () => {
     'hermes://android/a/index.android.bundle',
     'hermes://user@android/index.android.bundle',
   ])('rejects a noncanonical or mismatched Hermes URI: %s', (url) => {
-    expect(() => parseManifest({
-      ...valid,
-      artifacts: [{ ...valid.artifacts[0], url }],
-    })).toThrow();
+    expect(() =>
+      parseManifest({
+        ...valid,
+        artifacts: [{ ...valid.artifacts[0], url }],
+      }),
+    ).toThrow();
   });
 
   it.each([
@@ -206,12 +230,14 @@ describe('Hermes manifest identity', () => {
       runtime: 'hermes',
       platform: 'vega',
       buildId: bundleId,
-      artifacts: [{
-        url: `hermes://vega/${bundleId}.bundle`,
-        generatedSha256: bundleId,
-        mapSha256: 'b'.repeat(64),
-        mapBytes: 12,
-      }],
+      artifacts: [
+        {
+          url: `hermes://vega/${bundleId}.bundle`,
+          generatedSha256: bundleId,
+          mapSha256: 'b'.repeat(64),
+          mapBytes: 12,
+        },
+      ],
     } as const;
 
     it('constructs and parses a vega artifact identity', () => {
@@ -220,18 +246,22 @@ describe('Hermes manifest identity', () => {
       expect(artifactKind(parseManifest(vega))).toBe('source_map');
     });
 
-    it.each([
-      `hermes://android/${bundleId}.bundle`,
-      `hermes://vega/a/${bundleId}.bundle`,
-    ])('rejects a vega manifest whose URI names another platform or path: %s', (url) => {
-      expect(() => parseManifest({ ...vega, artifacts: [{ ...vega.artifacts[0], url }] })).toThrow();
-    });
+    it.each([`hermes://android/${bundleId}.bundle`, `hermes://vega/a/${bundleId}.bundle`])(
+      'rejects a vega manifest whose URI names another platform or path: %s',
+      (url) => {
+        expect(() =>
+          parseManifest({ ...vega, artifacts: [{ ...vega.artifacts[0], url }] }),
+        ).toThrow();
+      },
+    );
 
     it('rejects a vega URI inside an android manifest', () => {
-      expect(() => parseManifest({
-        ...valid,
-        artifacts: [{ ...valid.artifacts[0], url: `hermes://vega/${bundleId}.bundle` }],
-      })).toThrow();
+      expect(() =>
+        parseManifest({
+          ...valid,
+          artifacts: [{ ...valid.artifacts[0], url: `hermes://vega/${bundleId}.bundle` }],
+        }),
+      ).toThrow();
     });
 
     it('still rejects platforms Hermes does not ship on', () => {
@@ -247,19 +277,22 @@ describe('R8 manifest identity', () => {
     runtime: 'r8',
     platform: 'android',
     buildId: 'ci-123',
-    artifacts: [{
-      url: R8_ASSET_URL,
-      mapSha256: 'a'.repeat(64),
-      mapBytes: 12,
-    }],
+    artifacts: [
+      {
+        url: R8_ASSET_URL,
+        mapSha256: 'a'.repeat(64),
+        mapBytes: 12,
+      },
+    ],
   } as const;
 
   it('preserves one exact mapping artifact and reports its namespace', () => {
     const parsed = parseManifest(valid);
     expect(parsed).toEqual(valid);
     expect(artifactKind(parsed)).toBe('r8');
-    expect(artifactKind(parseManifest({ version: 1, buildId: 'ci-123', artifacts: [] })))
-      .toBe('source_map');
+    expect(artifactKind(parseManifest({ version: 1, buildId: 'ci-123', artifacts: [] }))).toBe(
+      'source_map',
+    );
   });
 
   it.each([
@@ -297,7 +330,10 @@ describe('R8 manifest identity', () => {
   it('accepts R8 mappings up to 512 MiB, far above the 32 MiB JavaScript map limit', () => {
     expect(R8_MAX_BYTES).toBe(512 * 1024 * 1024);
     for (const mapBytes of [32 * 1024 * 1024 + 1, 70_769_438, R8_MAX_BYTES]) {
-      const manifest = parseManifest({ ...valid, artifacts: [{ ...valid.artifacts[0], mapBytes }] });
+      const manifest = parseManifest({
+        ...valid,
+        artifacts: [{ ...valid.artifacts[0], mapBytes }],
+      });
       expect(manifest.artifacts[0]!.mapBytes).toBe(mapBytes);
     }
   });
@@ -360,12 +396,20 @@ describe('path-only asset URLs', () => {
     expect(normalizeAssetUrl(url)).toBe(url);
   });
 
-  it.each(['~/', '~', '~assets/x.js', '~/a/../x.js', '~/./x.js', '~/a//x.js', '~/x.js?v=1', '~/x.js#h', '~/a\\x.js', `~/${'a'.repeat(2048)}`])(
-    'rejects %j',
-    (url) => {
-      expect(() => normalizeAssetUrl(url)).toThrow('invalid_asset_url');
-    },
-  );
+  it.each([
+    '~/',
+    '~',
+    '~assets/x.js',
+    '~/a/../x.js',
+    '~/./x.js',
+    '~/a//x.js',
+    '~/x.js?v=1',
+    '~/x.js#h',
+    '~/a\\x.js',
+    `~/${'a'.repeat(2048)}`,
+  ])('rejects %j', (url) => {
+    expect(() => normalizeAssetUrl(url)).toThrow('invalid_asset_url');
+  });
 
   it('parses a v1 manifest that mixes path-only and absolute urls', () => {
     const parsed = parseManifest({
@@ -376,12 +420,22 @@ describe('path-only asset URLs', () => {
         { url: 'https://cdn.example/assets/a.js', ...artifact },
       ],
     });
-    expect(parsed.artifacts.map((a) => a.url)).toEqual(['https://cdn.example/assets/a.js', '~/assets/b.js']);
+    expect(parsed.artifacts.map((a) => a.url)).toEqual([
+      'https://cdn.example/assets/a.js',
+      '~/assets/b.js',
+    ]);
   });
 
   it('rejects the same path-only url twice', () => {
     expect(() =>
-      parseManifest({ version: 1, buildId: 'b1', artifacts: [{ url: '~/x.js', ...artifact }, { url: '~/x.js', ...artifact }] }),
+      parseManifest({
+        version: 1,
+        buildId: 'b1',
+        artifacts: [
+          { url: '~/x.js', ...artifact },
+          { url: '~/x.js', ...artifact },
+        ],
+      }),
     ).toThrow('duplicate_asset_url');
   });
 });

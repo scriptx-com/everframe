@@ -16,10 +16,18 @@ describe('rollup', () => {
     const upload = vi.fn().mockResolvedValue({});
     const bundle = await rollup({
       input: join(root, 'main.js'),
-      plugins: [createEverframePlugin({ env: { EVERFRAME_API_TOKEN: 't' }, upload }).rollup({ appId: APP, buildId: 'b1', deleteAfterUpload: false })],
+      plugins: [
+        createEverframePlugin({ env: { EVERFRAME_API_TOKEN: 't' }, upload }).rollup({
+          appId: APP,
+          buildId: 'b1',
+          deleteAfterUpload: false,
+        }),
+      ],
     });
     await bundle.write({ file: join(root, 'build', 'bundle.js'), format: 'es' });
     expect(upload).toHaveBeenCalledWith(expect.objectContaining({ root: join(root, 'build') }));
-    expect(await readFile(join(root, 'build', 'bundle.js'), 'utf8')).toContain('__EVERFRAME_BUILD__');
+    expect(await readFile(join(root, 'build', 'bundle.js'), 'utf8')).toContain(
+      '__EVERFRAME_BUILD__',
+    );
   });
 });

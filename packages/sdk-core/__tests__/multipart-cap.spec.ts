@@ -16,10 +16,8 @@ describe('PIPE-03: 25 MB hard cap', () => {
     await expect(
       buildMultipart({
         envelope: env,
-        attachments: [
-          { name: 'huge', bytes: big, contentType: 'application/octet-stream' },
-        ],
-      })
+        attachments: [{ name: 'huge', bytes: big, contentType: 'application/octet-stream' }],
+      }),
     ).rejects.toBeInstanceOf(PayloadTooLargeError);
   });
 
@@ -29,9 +27,7 @@ describe('PIPE-03: 25 MB hard cap', () => {
     try {
       await buildMultipart({
         envelope: env,
-        attachments: [
-          { name: 'huge', bytes: big, contentType: 'application/octet-stream' },
-        ],
+        attachments: [{ name: 'huge', bytes: big, contentType: 'application/octet-stream' }],
       });
       throw new Error('should have thrown');
     } catch (e) {
@@ -55,8 +51,9 @@ describe('multipart compression threshold', () => {
   it('compresses when envelope JSON > 8KB', async () => {
     const env = buildSeededPIIEnvelope();
     // Pad description to push envelope past 8KB
-    (env as unknown as { reporter: { description: string } }).reporter.description =
-      'X'.repeat(GZIP_THRESHOLD + 100);
+    (env as unknown as { reporter: { description: string } }).reporter.description = 'X'.repeat(
+      GZIP_THRESHOLD + 100,
+    );
     const result = await buildMultipart({ envelope: env, attachments: [] });
     expect(result.envelopeContentEncoding).toBe('gzip');
     expect(result.envelopeBytes[0]).toBe(0x1f);

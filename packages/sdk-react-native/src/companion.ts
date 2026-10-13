@@ -60,11 +60,7 @@ export { getEmitter };
  * Android (mapped from the enum via `toRnString`). Keep this union in
  * lock-step with both native sides.
  */
-export type CompanionState =
-  | 'unpaired'
-  | 'paired'
-  | 'report_in_progress'
-  | 'phone_disconnected';
+export type CompanionState = 'unpaired' | 'paired' | 'report_in_progress' | 'phone_disconnected';
 
 // Event names — duplicated in `ios/Sources/EverframeEventEmitter.swift` and
 // `android/.../EverframeModule.kt`. Keep all three lists in lock-step; on iOS
@@ -239,12 +235,9 @@ function installAttachChallengeCache(): void {
  */
 function installResolvedNameCache(): void {
   if (_resolvedNameSub !== null) return;
-  _resolvedNameSub = getEmitter().addListener(
-    RESOLVED_NAME_EVENT,
-    (name: string | null) => {
-      _latestResolvedName = name ?? null;
-    },
-  );
+  _resolvedNameSub = getEmitter().addListener(RESOLVED_NAME_EVENT, (name: string | null) => {
+    _latestResolvedName = name ?? null;
+  });
 }
 
 /**
@@ -265,11 +258,14 @@ function cacheAttachChallenge(payload: CompanionAttachChallenge | null): void {
   }
   _latestAttachChallenge = payload;
   _latestAttachChallengeExpiresAt = Date.now() + payload.ttlMs;
-  _attachChallengeExpiryTimer = setTimeout(() => {
-    _attachChallengeExpiryTimer = null;
-    _latestAttachChallenge = null;
-    _latestAttachChallengeExpiresAt = null;
-  }, Math.max(0, payload.ttlMs));
+  _attachChallengeExpiryTimer = setTimeout(
+    () => {
+      _attachChallengeExpiryTimer = null;
+      _latestAttachChallenge = null;
+      _latestAttachChallengeExpiresAt = null;
+    },
+    Math.max(0, payload.ttlMs),
+  );
 }
 
 /**
@@ -319,9 +315,7 @@ export function onRunning(handler: (running: boolean) => void): () => void {
  * React components should prefer `useCompanion()`.
  */
 export function onState(handler: (state: CompanionState) => void): () => void {
-  const sub = getEmitter().addListener(STATE_EVENT, (s: string) =>
-    handler(s as CompanionState),
-  );
+  const sub = getEmitter().addListener(STATE_EVENT, (s: string) => handler(s as CompanionState));
   return () => sub.remove();
 }
 
@@ -332,13 +326,8 @@ export function onState(handler: (state: CompanionState) => void): () => void {
  * QR teardown off `state` (e.g. hide once `state === 'paired'`) instead, since
  * `state` is the reliably-delivered signal across the native bridge.
  */
-export function onPairUrl(
-  handler: (url: string | null) => void,
-): () => void {
-  const sub = getEmitter().addListener(
-    PAIR_URL_EVENT,
-    (url: string | null) => handler(url),
-  );
+export function onPairUrl(handler: (url: string | null) => void): () => void {
+  const sub = getEmitter().addListener(PAIR_URL_EVENT, (url: string | null) => handler(url));
   return () => sub.remove();
 }
 
@@ -353,9 +342,7 @@ export function onPairUrl(
  * and report submission are unaffected, so never gate the QR on it.
  */
 export function onCode(handler: (code: string | null) => void): () => void {
-  const sub = getEmitter().addListener(CODE_EVENT, (code: string | null) =>
-    handler(code),
-  );
+  const sub = getEmitter().addListener(CODE_EVENT, (code: string | null) => handler(code));
   return () => sub.remove();
 }
 
@@ -366,12 +353,9 @@ export function onCode(handler: (code: string | null) => void): () => void {
  * "Paired with <name>" — but drive the paired/unpaired chrome itself off
  * `state`, which is the reliably-delivered signal.
  */
-export function onAttachedUserName(
-  handler: (name: string | null) => void,
-): () => void {
-  const sub = getEmitter().addListener(
-    ATTACHED_USER_NAME_EVENT,
-    (name: string | null) => handler(name),
+export function onAttachedUserName(handler: (name: string | null) => void): () => void {
+  const sub = getEmitter().addListener(ATTACHED_USER_NAME_EVENT, (name: string | null) =>
+    handler(name),
   );
   return () => sub.remove();
 }
@@ -391,13 +375,8 @@ export function onAttachedUserName(
  * `onAttachChallenge`'s replay idiom exactly, minus the ttlMs
  * recomputation (a resolved name has no lifetime to recompute).
  */
-export function onResolvedName(
-  handler: (name: string | null) => void,
-): () => void {
-  const sub = getEmitter().addListener(
-    RESOLVED_NAME_EVENT,
-    (name: string | null) => handler(name),
-  );
+export function onResolvedName(handler: (name: string | null) => void): () => void {
+  const sub = getEmitter().addListener(RESOLVED_NAME_EVENT, (name: string | null) => handler(name));
   if (_latestResolvedName !== null) handler(_latestResolvedName);
   return () => sub.remove();
 }
@@ -473,8 +452,9 @@ export function useCompanion(): {
   // `attachChallengeReplayValue()` recomputes `ttlMs` as time remaining
   // until the cached deadline (review finding 4) — a mount 55s into a 60s
   // challenge must not seed `ttlMs: 60000`.
-  const [attachChallenge, setAttachChallenge] =
-    useState<CompanionAttachChallenge | null>(attachChallengeReplayValue());
+  const [attachChallenge, setAttachChallenge] = useState<CompanionAttachChallenge | null>(
+    attachChallengeReplayValue(),
+  );
   // Seeded from the module-scope flag (not `false`) so a remount sees the
   // LIVE intent on its first render — mirrors `resolvedName`'s seeding
   // above. Seeding from `false` would make a host's toggle flicker off on

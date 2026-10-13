@@ -77,10 +77,9 @@ test('the eager entry reaches React only through a dynamic import, and shares th
     (a, b) => statSync(join(DIST, b)).size - statSync(join(DIST, a)).size,
   )[0];
   expect(core, 'the entry statically imports no sibling chunk').toBeTruthy();
-  expect(
-    island.static,
-    `the island does not share the entry's core chunk (${core})`,
-  ).toContain(core);
+  expect(island.static, `the island does not share the entry's core chunk (${core})`).toContain(
+    core,
+  );
 
   // Dropping react/react-dom (or konva) from tsup's `noExternal`, or reaching
   // the dialog by the '@everframe/web/ui' subpath, all show up the same way:
@@ -217,7 +216,9 @@ test('both splitting builds contain complete relative import graphs in their own
       const imports = specifiers(readFileSync(join(directory, file), 'utf8'));
       for (const dependency of [...imports.static, ...imports.dynamic]) {
         if (dependency.startsWith('./')) {
-          expect(existsSync(join(directory, dependency)), `${file} cannot load ${dependency}`).toBe(true);
+          expect(existsSync(join(directory, dependency)), `${file} cannot load ${dependency}`).toBe(
+            true,
+          );
         }
       }
     }

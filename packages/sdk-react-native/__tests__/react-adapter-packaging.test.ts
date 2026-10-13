@@ -19,21 +19,40 @@ beforeAll(() => {
   mkdirSync(join(root, 'test-results'), { recursive: true });
   built = mkdtempSync(join(root, 'test-results', 'packaging-'));
   const tsup = createRequire(import.meta.url).resolve('tsup/dist/cli-default.js');
-  execFileSync(process.execPath, [tsup, '--out-dir', join(built, 'dist'), '--no-dts', '--silent'], { cwd: root, stdio: 'pipe' });
+  execFileSync(process.execPath, [tsup, '--out-dir', join(built, 'dist'), '--no-dts', '--silent'], {
+    cwd: root,
+    stdio: 'pipe',
+  });
 }, 60_000);
-afterAll(() => { if (built) rmSync(built, { recursive: true, force: true }); });
+afterAll(() => {
+  if (built) rmSync(built, { recursive: true, force: true });
+});
 afterEach(cleanup);
 it('published native root and adapter share the mounted provider', async () => {
   const native = await import(/* @vite-ignore */ join(built, 'dist/index.js'));
   const adapter = await import(/* @vite-ignore */ join(built, 'dist/integrations/react.js'));
-  render(React.createElement(native.EverframeProvider, { config: { sdkKey: 'txx_test_key' } }, null));
+  render(
+    React.createElement(native.EverframeProvider, { config: { sdkKey: 'txx_test_key' } }, null),
+  );
   adapter.captureReactError(new Error('published adapter'), { componentStack: 'Boundary' });
-  expect(native.getErrorCaptureStatus()).toMatchObject({ status: 'active', counters: { handled: { attempted: 1, accepted: 1 } } });
+  expect(native.getErrorCaptureStatus()).toMatchObject({
+    status: 'active',
+    counters: { handled: { attempted: 1, accepted: 1 } },
+  });
 });
 it('native subpath resolves while browser-conditioned consumers are rejected before initialization', () => {
   const script = "console.log(import.meta.resolve('@everframe/react-native/integrations/react'))";
-  const native = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: root, encoding: 'utf8' });
-  expect(native.status, native.stderr).toBe(0); expect(native.stdout).toContain('/dist/integrations/react.js');
-  const browser = spawnSync(process.execPath, ['--conditions=browser', '--input-type=module', '-e', script], { cwd: root, encoding: 'utf8' });
-  expect(browser.status).not.toBe(0); expect(browser.stderr).toContain('ERR_PACKAGE_PATH_NOT_EXPORTED');
+  const native = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  expect(native.status, native.stderr).toBe(0);
+  expect(native.stdout).toContain('/dist/integrations/react.js');
+  const browser = spawnSync(
+    process.execPath,
+    ['--conditions=browser', '--input-type=module', '-e', script],
+    { cwd: root, encoding: 'utf8' },
+  );
+  expect(browser.status).not.toBe(0);
+  expect(browser.stderr).toContain('ERR_PACKAGE_PATH_NOT_EXPORTED');
 });

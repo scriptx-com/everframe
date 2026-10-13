@@ -71,8 +71,8 @@ export function Companion(): React.JSX.Element {
       <Text style={type.eyebrow}>Fixture · phone-companion relay pairing</Text>
       <Text style={[type.display, styles.title]}>Companion</Text>
       <Text style={[type.muted, styles.lede]}>
-        Scan the code to pair a phone and file this screen&apos;s report from it — the relay
-        streams context from this device to the phone reporter.
+        Scan the code to pair a phone and file this screen&apos;s report from it — the relay streams
+        context from this device to the phone reporter.
       </Text>
 
       <View style={styles.card}>
@@ -85,7 +85,8 @@ export function Companion(): React.JSX.Element {
             <Text
               style={[type.body, styles.caption]}
               testID="companion-status"
-              accessibilityLabel="companion-status">
+              accessibilityLabel="companion-status"
+            >
               Companion is off
             </Text>
             <Text style={[type.muted, styles.caption]}>
@@ -107,7 +108,8 @@ export function Companion(): React.JSX.Element {
               <Text
                 style={styles.captionEmphasis}
                 testID="companion-name"
-                accessibilityLabel="companion-name">
+                accessibilityLabel="companion-name"
+              >
                 {resolvedName ?? `Code: ${code}`}
               </Text>
             )}
@@ -125,7 +127,8 @@ export function Companion(): React.JSX.Element {
             <Text
               style={[type.muted, styles.caption]}
               testID="companion-status"
-              accessibilityLabel="companion-status">
+              accessibilityLabel="companion-status"
+            >
               Connecting to relay…
             </Text>
           </View>
@@ -136,7 +139,8 @@ export function Companion(): React.JSX.Element {
             <Text
               style={styles.captionEmphasis}
               testID="companion-status"
-              accessibilityLabel="companion-status">
+              accessibilityLabel="companion-status"
+            >
               Phone connected — file from your phone
             </Text>
           </View>
@@ -147,7 +151,8 @@ export function Companion(): React.JSX.Element {
             <Text
               style={styles.captionEmphasis}
               testID="companion-status"
-              accessibilityLabel="companion-status">
+              accessibilityLabel="companion-status"
+            >
               Report in progress on phone
             </Text>
           </View>
@@ -158,7 +163,8 @@ export function Companion(): React.JSX.Element {
             <Text
               style={styles.captionWarning}
               testID="companion-status"
-              accessibilityLabel="companion-status">
+              accessibilityLabel="companion-status"
+            >
               Phone reconnecting…
             </Text>
           </View>
@@ -166,9 +172,7 @@ export function Companion(): React.JSX.Element {
 
         {/* `state` is stale once stopped (it is retained, not cleared), so
             say "off" rather than echo the last value the socket saw. */}
-        <Text style={[type.monoNote, styles.stateLine]}>
-          State: {running ? state : 'off'}
-        </Text>
+        <Text style={[type.monoNote, styles.stateLine]}>State: {running ? state : 'off'}</Text>
       </View>
 
       <Pressable
@@ -181,10 +185,9 @@ export function Companion(): React.JSX.Element {
           // `focused` is not decoration: without it this control gives no
           // feedback under a TV remote, which is half this screen's audience.
           (pressed || focused) && styles.sessionButtonPressed,
-        ]}>
-        <Text style={styles.sessionButtonText}>
-          {running ? 'End session' : 'Start companion'}
-        </Text>
+        ]}
+      >
+        <Text style={styles.sessionButtonText}>{running ? 'End session' : 'Start companion'}</Text>
       </Pressable>
     </View>
   );

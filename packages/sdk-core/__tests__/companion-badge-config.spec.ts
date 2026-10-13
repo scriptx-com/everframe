@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it } from 'vitest';
-import {
-  ReplayConfigResponse,
-  getCompanionBadgeServerConfig,
-} from '../src/index.js';
+import { ReplayConfigResponse, getCompanionBadgeServerConfig } from '../src/index.js';
 
 const BASE = { replayEnabled: true, replayDurationSec: 30, samplingRate: 1 };
 
 describe('companionBadge server config', () => {
   it('parses a valid block', () => {
     const cfg = ReplayConfigResponse.parse({
-      ...BASE, companionBadge: { enabled: false, position: 'top-left' },
+      ...BASE,
+      companionBadge: { enabled: false, position: 'top-left' },
     });
     expect(getCompanionBadgeServerConfig(cfg)).toEqual({ enabled: false, position: 'top-left' });
   });
@@ -25,13 +23,15 @@ describe('companionBadge server config', () => {
   });
   it('strips unknown nested fields instead of failing', () => {
     const cfg = ReplayConfigResponse.parse({
-      ...BASE, companionBadge: { enabled: true, position: 'top-right', future: 1 },
+      ...BASE,
+      companionBadge: { enabled: true, position: 'top-right', future: 1 },
     });
     expect(getCompanionBadgeServerConfig(cfg)).toEqual({ enabled: true, position: 'top-right' });
   });
   it('an unrecognized position degrades only the position, never the enabled override', () => {
     const cfg = ReplayConfigResponse.parse({
-      ...BASE, companionBadge: { enabled: false, position: 'center' },
+      ...BASE,
+      companionBadge: { enabled: false, position: 'center' },
     });
     expect(getCompanionBadgeServerConfig(cfg)).toEqual({ enabled: false });
   });

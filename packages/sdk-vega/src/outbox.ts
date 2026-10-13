@@ -77,7 +77,11 @@ function isItem(value: unknown): value is OutboxItem {
 }
 
 function expired(item: OutboxItem, now: number): boolean {
-  return item.attempts >= MAX_ATTEMPTS || now - item.enqueuedAt > MAX_AGE_MS || item.enqueuedAt > now + MAX_AGE_MS;
+  return (
+    item.attempts >= MAX_ATTEMPTS ||
+    now - item.enqueuedAt > MAX_AGE_MS ||
+    item.enqueuedAt > now + MAX_AGE_MS
+  );
 }
 
 /** Oldest non-fatal reports go first, then the oldest of the rest. */
@@ -119,7 +123,9 @@ export function createOutbox(deps: OutboxDeps): Outbox {
       });
       if (foreign > 0) {
         stale = true;
-        deps.debug(`[everframe] dropped ${foreign} stored report(s) captured for another SDK key or endpoint; they are not sent`);
+        deps.debug(
+          `[everframe] dropped ${foreign} stored report(s) captured for another SDK key or endpoint; they are not sent`,
+        );
       }
     } catch {
       // Unreadable storage behaves as empty; the next write replaces it.
@@ -137,7 +143,9 @@ export function createOutbox(deps: OutboxDeps): Outbox {
     } catch {
       if (!warnedWrite) {
         warnedWrite = true;
-        deps.warn('[everframe] could not write pending reports to storage; they are kept in memory only');
+        deps.warn(
+          '[everframe] could not write pending reports to storage; they are kept in memory only',
+        );
       }
     }
   };
@@ -163,7 +171,9 @@ export function createOutbox(deps: OutboxDeps): Outbox {
     ready,
     add(item) {
       if (!sameBinding(item, deps.binding)) return Promise.resolve();
-      return mutate((current) => fit([...current.filter((existing) => existing.reportId !== item.reportId), item]));
+      return mutate((current) =>
+        fit([...current.filter((existing) => existing.reportId !== item.reportId), item]),
+      );
     },
     remove(reportId) {
       return mutate((current) =>
@@ -175,14 +185,18 @@ export function createOutbox(deps: OutboxDeps): Outbox {
     recordAttempt(reportId) {
       return mutate((current) =>
         current.some((item) => item.reportId === reportId)
-          ? current.map((item) => (item.reportId === reportId ? { ...item, attempts: item.attempts + 1 } : item))
+          ? current.map((item) =>
+              item.reportId === reportId ? { ...item, attempts: item.attempts + 1 } : item,
+            )
           : current,
       );
     },
     async due() {
       const now = deps.now();
       await mutate((current) =>
-        current.some((item) => expired(item, now)) ? current.filter((item) => !expired(item, now)) : current,
+        current.some((item) => expired(item, now))
+          ? current.filter((item) => !expired(item, now))
+          : current,
       );
       return items.slice().sort((a, b) => a.enqueuedAt - b.enqueuedAt);
     },

@@ -127,10 +127,7 @@ export interface EditorHistory {
 export const EMPTY_HISTORY: EditorHistory = { past: [], future: [] };
 
 /** Record `snapshot` (the state BEFORE an edit) and invalidate redo. */
-export function pushHistory(
-  h: EditorHistory,
-  snapshot: ReadonlyArray<Annotation>,
-): EditorHistory {
+export function pushHistory(h: EditorHistory, snapshot: ReadonlyArray<Annotation>): EditorHistory {
   const past = [...h.past, snapshot];
   return { past: past.slice(-HISTORY_CAP), future: [] };
 }

@@ -4,9 +4,16 @@ import { describe, expect, it } from 'vitest';
 import { AttachmentRef } from '../src/attachments.js';
 
 const video = {
-  partName: 'replay', kind: 'session-replay', format: 'everframe-video-v1',
-  contentType: 'video/mp4', byteLength: 100, sha256: 'a'.repeat(64),
-  width: 394, height: 854, durationMs: 10000, replayStartEpochMs: 1000,
+  partName: 'replay',
+  kind: 'session-replay',
+  format: 'everframe-video-v1',
+  contentType: 'video/mp4',
+  byteLength: 100,
+  sha256: 'a'.repeat(64),
+  width: 394,
+  height: 854,
+  durationMs: 10000,
+  replayStartEpochMs: 1000,
 };
 
 describe('native video attachment', () => {
@@ -28,18 +35,29 @@ describe('native video attachment', () => {
   });
 
   it.each([
-    { kind: 'video' }, { contentType: 'application/gzip' },
-    { width: 0 }, { height: -1 }, { width: 1.5 },
-    { durationMs: -1 }, { durationMs: Infinity },
-    { replayStartEpochMs: -1 }, { replayStartEpochMs: NaN },
+    { kind: 'video' },
+    { contentType: 'application/gzip' },
+    { width: 0 },
+    { height: -1 },
+    { width: 1.5 },
+    { durationMs: -1 },
+    { durationMs: Infinity },
+    { replayStartEpochMs: -1 },
+    { replayStartEpochMs: NaN },
   ])('rejects invalid video metadata %j', (patch) => {
     expect(AttachmentRef.safeParse({ ...video, ...patch }).success).toBe(false);
   });
 
   it.each(['rrweb', 'traceitx-vtree-v1'])('preserves %s attachment decoding', (format) => {
-    expect(AttachmentRef.safeParse({
-      partName: 'replay', kind: 'session-replay', format,
-      contentType: 'application/gzip', byteLength: 100, sha256: 'a'.repeat(64),
-    }).success).toBe(true);
+    expect(
+      AttachmentRef.safeParse({
+        partName: 'replay',
+        kind: 'session-replay',
+        format,
+        contentType: 'application/gzip',
+        byteLength: 100,
+        sha256: 'a'.repeat(64),
+      }).success,
+    ).toBe(true);
   });
 });

@@ -62,21 +62,31 @@ export function CompanionPinCard(): React.ReactElement | null {
         // mounts after <ReporterDialog/> in provider.tsx, so a TIE would
         // paint on top of an open reporter. Staying strictly lower is what
         // makes "an open reporter still wins" actually true.
-        position: 'fixed', top: 16, right: 16, zIndex: 2147483645,
-        background: '#111', color: '#fff', borderRadius: 12,
-        padding: '14px 18px', fontFamily: 'system-ui, sans-serif',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.35)', maxWidth: 280,
+        position: 'fixed',
+        top: 16,
+        right: 16,
+        zIndex: 2147483645,
+        background: '#111',
+        color: '#fff',
+        borderRadius: 12,
+        padding: '14px 18px',
+        fontFamily: 'system-ui, sans-serif',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+        maxWidth: 280,
       }}
     >
-      <div style={{ fontSize: 13, opacity: 0.8 }}>
-        {challenge.requestedByName} wants to connect
-      </div>
-      <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: '0.2em', fontFamily: 'ui-monospace, monospace' }}>
+      <div style={{ fontSize: 13, opacity: 0.8 }}>{challenge.requestedByName} wants to connect</div>
+      <div
+        style={{
+          fontSize: 32,
+          fontWeight: 700,
+          letterSpacing: '0.2em',
+          fontFamily: 'ui-monospace, monospace',
+        }}
+      >
         {challenge.code}
       </div>
-      <div style={{ fontSize: 12, opacity: 0.6 }}>
-        Enter this code in the Everframe dashboard
-      </div>
+      <div style={{ fontSize: 12, opacity: 0.6 }}>Enter this code in the Everframe dashboard</div>
     </div>
   );
 }

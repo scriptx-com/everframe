@@ -78,7 +78,7 @@ export async function submitReport(
   url: string,
   sdkKey: string,
   body: FormData,
-  opts: SubmitOptions = {}
+  opts: SubmitOptions = {},
 ): Promise<SubmitResult> {
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch.bind(globalThis);
   const schedule = opts.retryScheduleMs ?? DEFAULT_RETRY_SCHEDULE_MS;
@@ -140,7 +140,15 @@ export async function submitReport(
       } catch {
         // Response body is best-effort metadata; a submit is never failed over it.
       }
-      return { ok: true, status: response.status, attempts, retried, reason: 'success', ...(thread ? { thread } : {}), ...(device ? { device } : {}) };
+      return {
+        ok: true,
+        status: response.status,
+        attempts,
+        retried,
+        reason: 'success',
+        ...(thread ? { thread } : {}),
+        ...(device ? { device } : {}),
+      };
     }
 
     const status = response?.status ?? 0;

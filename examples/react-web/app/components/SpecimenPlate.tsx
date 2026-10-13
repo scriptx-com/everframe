@@ -6,7 +6,7 @@
 // the example needs no binary image assets and every plate is still visually
 // distinct. Deterministic output only — no randomness, no timestamps — to
 // keep Next.js SSR hydration byte-stable (asserted by ssr-fixture.spec.ts).
-import type { Specimen } from "../lib/specimens";
+import type { Specimen } from '../lib/specimens';
 
 /** Positions (cx, cy) for up to 7 elytra spots, mirrored around the midline. */
 const SPOT_SLOTS: Array<[number, number]> = [
@@ -19,8 +19,8 @@ const SPOT_SLOTS: Array<[number, number]> = [
   [100, 92],
 ];
 
-function BeetleBody({ plate }: { plate: Specimen["plate"] }) {
-  const { color, color2 = "#20241c", spots = 0, glow, mandibles } = plate;
+function BeetleBody({ plate }: { plate: Specimen['plate'] }) {
+  const { color, color2 = '#20241c', spots = 0, glow, mandibles } = plate;
   return (
     <g>
       {/* legs — three arcs per side */}
@@ -66,16 +66,24 @@ function BeetleBody({ plate }: { plate: Specimen["plate"] }) {
   );
 }
 
-function ButterflyBody({ plate }: { plate: Specimen["plate"] }) {
-  const { color, color2 = "#3e5f8a" } = plate;
+function ButterflyBody({ plate }: { plate: Specimen['plate'] }) {
+  const { color, color2 = '#3e5f8a' } = plate;
   return (
     <g>
       {/* forewings */}
       <path d="M96 100 C 70 62, 44 54, 32 66 C 22 78, 34 104, 96 112 Z" fill={color} />
       <path d="M104 100 C 130 62, 156 54, 168 66 C 178 78, 166 104, 104 112 Z" fill={color} />
       {/* hindwings */}
-      <path d="M96 112 C 64 116, 48 134, 54 152 C 60 166, 84 158, 98 124 Z" fill={color} opacity="0.85" />
-      <path d="M104 112 C 136 116, 152 134, 146 152 C 140 166, 116 158, 102 124 Z" fill={color} opacity="0.85" />
+      <path
+        d="M96 112 C 64 116, 48 134, 54 152 C 60 166, 84 158, 98 124 Z"
+        fill={color}
+        opacity="0.85"
+      />
+      <path
+        d="M104 112 C 136 116, 152 134, 146 152 C 140 166, 116 158, 102 124 Z"
+        fill={color}
+        opacity="0.85"
+      />
       {/* eyespots */}
       <g>
         <circle cx="56" cy="76" r="9" fill={color2} />
@@ -96,8 +104,8 @@ function ButterflyBody({ plate }: { plate: Specimen["plate"] }) {
   );
 }
 
-function DamselflyBody({ plate }: { plate: Specimen["plate"] }) {
-  const { color, color2 = "#20241c" } = plate;
+function DamselflyBody({ plate }: { plate: Specimen['plate'] }) {
+  const { color, color2 = '#20241c' } = plate;
   return (
     <g>
       {/* wings folded back along the abdomen */}
@@ -125,15 +133,23 @@ function DamselflyBody({ plate }: { plate: Specimen["plate"] }) {
   );
 }
 
-function MantisBody({ plate }: { plate: Specimen["plate"] }) {
-  const { color, color2 = "#8aa35e" } = plate;
+function MantisBody({ plate }: { plate: Specimen['plate'] }) {
+  const { color, color2 = '#8aa35e' } = plate;
   return (
     <g>
       {/* abdomen + folded wings */}
       <ellipse cx="104" cy="134" rx="14" ry="34" fill={color} transform="rotate(14 104 134)" />
       <path d="M100 104 C 118 116, 122 146, 112 164" stroke={color2} strokeWidth="2" fill="none" />
       {/* thorax — long pronotum */}
-      <rect x="92" y="74" width="9" height="38" rx="4.5" fill={color} transform="rotate(-8 96 93)" />
+      <rect
+        x="92"
+        y="74"
+        width="9"
+        height="38"
+        rx="4.5"
+        fill={color}
+        transform="rotate(-8 96 93)"
+      />
       {/* triangular head, tilted */}
       <path d="M88 58 L 108 62 L 96 76 Z" fill={color2} />
       <circle cx="91" cy="62" r="2.6" fill="#20241c" />
@@ -157,8 +173,8 @@ function MantisBody({ plate }: { plate: Specimen["plate"] }) {
   );
 }
 
-function BeeBody({ plate }: { plate: Specimen["plate"] }) {
-  const { color, color2 = "#c9a227" } = plate;
+function BeeBody({ plate }: { plate: Specimen['plate'] }) {
+  const { color, color2 = '#c9a227' } = plate;
   return (
     <g>
       {/* wings */}
@@ -169,8 +185,14 @@ function BeeBody({ plate }: { plate: Specimen["plate"] }) {
       {/* fuzzy body */}
       <ellipse cx="100" cy="120" rx="34" ry="42" fill={color} />
       {/* stripes + buff tail */}
-      <path d="M67 104 C 78 98, 122 98, 133 104 L 133 116 C 122 110, 78 110, 67 116 Z" fill={color2} />
-      <path d="M69 138 C 82 132, 118 132, 131 138 L 129 150 C 118 145, 82 145, 71 150 Z" fill={color2} />
+      <path
+        d="M67 104 C 78 98, 122 98, 133 104 L 133 116 C 122 110, 78 110, 67 116 Z"
+        fill={color2}
+      />
+      <path
+        d="M69 138 C 82 132, 118 132, 131 138 L 129 150 C 118 145, 82 145, 71 150 Z"
+        fill={color2}
+      />
       <path d="M84 156 C 92 162, 108 162, 116 156 C 112 168, 88 168, 84 156 Z" fill="#e9e4c9" />
       {/* head */}
       <circle cx="100" cy="74" r="13" fill="#20241c" />
@@ -189,7 +211,7 @@ function BeeBody({ plate }: { plate: Specimen["plate"] }) {
   );
 }
 
-const BODIES: Record<Specimen["plate"]["kind"], typeof BeetleBody> = {
+const BODIES: Record<Specimen['plate']['kind'], typeof BeetleBody> = {
   beetle: BeetleBody,
   butterfly: ButterflyBody,
   damselfly: DamselflyBody,
@@ -213,7 +235,7 @@ export function SpecimenPlate({ specimen, size }: SpecimenPlateProps) {
       height={size}
       role="img"
       aria-label={`Illustration of ${specimen.commonName} (${specimen.latinName})`}
-      style={size ? undefined : { width: "100%", height: "auto", display: "block" }}
+      style={size ? undefined : { width: '100%', height: 'auto', display: 'block' }}
     >
       {gradientNeeded ? (
         <defs>

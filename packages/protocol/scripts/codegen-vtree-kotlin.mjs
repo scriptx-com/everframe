@@ -33,13 +33,10 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..', '..');
-const schemaPath = path.join(
-  repoRoot,
-  'packages/protocol/schemas-json/vtree.v1.schema.json'
-);
+const schemaPath = path.join(repoRoot, 'packages/protocol/schemas-json/vtree.v1.schema.json');
 const outPath = path.join(
   repoRoot,
-  'packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/VTree.kt'
+  'packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/VTree.kt',
 );
 
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
@@ -86,8 +83,7 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonClassDiscriminator
 `;
 
-const snake_to_camel = (s) =>
-  s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+const snake_to_camel = (s) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
 const pascal = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -139,12 +135,7 @@ function kotlinType(prop, ownerName, fieldName, extraTypes) {
   if (prop.enum) return 'String';
   if (prop.type === 'array') {
     if (Array.isArray(prop.prefixItems)) {
-      const inner = kotlinType(
-        prop.prefixItems[0],
-        ownerName,
-        fieldName,
-        extraTypes
-      );
+      const inner = kotlinType(prop.prefixItems[0], ownerName, fieldName, extraTypes);
       return `List<${inner}>`;
     }
     const items = prop.items;
@@ -159,9 +150,7 @@ function kotlinType(prop, ownerName, fieldName, extraTypes) {
       }
       return `List<${items.$id}>`;
     }
-    const singular = fieldName.endsWith('s')
-      ? fieldName.slice(0, -1)
-      : fieldName + 'Item';
+    const singular = fieldName.endsWith('s') ? fieldName.slice(0, -1) : fieldName + 'Item';
     const inner = kotlinType(items, ownerName, singular, extraTypes);
     return `List<${inner}>`;
   }
@@ -190,9 +179,7 @@ function kotlinType(prop, ownerName, fieldName, extraTypes) {
     emitInlineSealed(typeName, prop, extraTypes);
     return typeName;
   }
-  throw new Error(
-    `unhandled type for ${ownerName}.${fieldName}: ${JSON.stringify(prop)}`
-  );
+  throw new Error(`unhandled type for ${ownerName}.${fieldName}: ${JSON.stringify(prop)}`);
 }
 
 function emitDataClass(name, objSchema, extraTypes) {
@@ -212,11 +199,7 @@ function emitDataClass(name, objSchema, extraTypes) {
     return `    ${decl}`;
   });
 
-  const code =
-    `@Serializable\n` +
-    `data class ${name}(\n` +
-    params.join(',\n') +
-    `\n)\n`;
+  const code = `@Serializable\n` + `data class ${name}(\n` + params.join(',\n') + `\n)\n`;
 
   extraTypes.set(name, code);
 }
@@ -237,21 +220,12 @@ function emitInlineSealed(name, prop, extraTypes) {
     `@Serializable\n` +
     `@JsonClassDiscriminator("op")\n` +
     `sealed class ${name}\n` +
-    branches
-      .map((b) => `// branch ${b.disc} → ${b.branchName}`)
-      .join('\n') +
+    branches.map((b) => `// branch ${b.disc} → ${b.branchName}`).join('\n') +
     '\n';
   extraTypes.set(name, code);
 }
 
-function emitDataClassSubclass(
-  name,
-  objSchema,
-  parentName,
-  discField,
-  discValue,
-  extraTypes
-) {
+function emitDataClassSubclass(name, objSchema, parentName, discField, discValue, extraTypes) {
   if (extraTypes.has(name)) return;
   extraTypes.set(name, '');
   const required = new Set(objSchema.required || []);

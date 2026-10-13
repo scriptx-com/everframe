@@ -124,8 +124,6 @@ describe('the lazy island (Ruling 11)', () => {
     // of every seam, in a chunk that shares nothing with dist/index.js.
     // (Checked over the SPECIFIERS, not the raw text — the header comment
     // names the forbidden path in order to explain why it is forbidden.)
-    expect(
-      staticSpecifiers(island).filter((s) => s.startsWith('@everframe/web')),
-    ).toEqual([]);
+    expect(staticSpecifiers(island).filter((s) => s.startsWith('@everframe/web'))).toEqual([]);
   });
 });

@@ -26,10 +26,15 @@ describe('EverframeClient.addBreadcrumb', () => {
   it('accepts explicit kind, level, and data', () => {
     const client = freshClient();
     client.addBreadcrumb({
-      kind: 'navigation', level: 'info', message: '/a → /b', data: { from: '/a', to: '/b' },
+      kind: 'navigation',
+      level: 'info',
+      message: '/a → /b',
+      data: { from: '/a', to: '/b' },
     });
     expect(frozenChain(client)[0]).toMatchObject({
-      kind: 'navigation', level: 'info', data: { from: '/a', to: '/b' },
+      kind: 'navigation',
+      level: 'info',
+      data: { from: '/a', to: '/b' },
     });
   });
 
@@ -85,10 +90,19 @@ describe('public exports', () => {
   it('exposes the breadcrumbs surface from the package root', async () => {
     const root = await import('../src/index.js');
     for (const name of [
-      'createBreadcrumbBuffer', 'MAX_BREADCRUMBS', 'trimBreadcrumbs', 'crumbCost',
-      'truncateMiddle', 'isTrimMarker', 'BREADCRUMB_BYTE_BUDGET', 'CONSOLE_ENTRY_CAP',
-      'deriveLogsFromBreadcrumbs', 'deriveNetworkFromBreadcrumbs',
-      'BreadcrumbsConfig', 'BREADCRUMBS_CONFIG_DEFAULT', 'getBreadcrumbsConfig',
+      'createBreadcrumbBuffer',
+      'MAX_BREADCRUMBS',
+      'trimBreadcrumbs',
+      'crumbCost',
+      'truncateMiddle',
+      'isTrimMarker',
+      'BREADCRUMB_BYTE_BUDGET',
+      'CONSOLE_ENTRY_CAP',
+      'deriveLogsFromBreadcrumbs',
+      'deriveNetworkFromBreadcrumbs',
+      'BreadcrumbsConfig',
+      'BREADCRUMBS_CONFIG_DEFAULT',
+      'getBreadcrumbsConfig',
     ]) {
       expect(root, `missing export: ${name}`).toHaveProperty(name);
     }

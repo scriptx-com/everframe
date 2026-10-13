@@ -31,7 +31,9 @@ function providerWith(fetchImpl: typeof fetch) {
 }
 
 const last = (): Record<string, unknown> | undefined =>
-  __getReplayTrace().filter((e) => e.ev === 'config.refresh').pop();
+  __getReplayTrace()
+    .filter((e) => e.ev === 'config.refresh')
+    .pop();
 
 describe('config refresh tracing', () => {
   beforeEach(() => {

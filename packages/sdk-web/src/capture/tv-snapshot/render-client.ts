@@ -20,7 +20,13 @@ import {
 export const RENDER_TIMEOUT_MS = 10_000;
 
 /** A readable image whose meta header could not be read (e.g. not exposed by CORS) keeps these. */
-const DEFAULT_META: RenderMeta = { blank: false, missingAssets: 0, missingAssetUrls: [], fontsSubstituted: false, renderMs: 0 };
+const DEFAULT_META: RenderMeta = {
+  blank: false,
+  missingAssets: 0,
+  missingAssetUrls: [],
+  fontsSubstituted: false,
+  renderMs: 0,
+};
 
 export type RenderOutcome =
   | { ok: true; blob: Blob; width: number; height: number; meta: RenderMeta }
@@ -36,7 +42,8 @@ export interface RenderDeps {
   fallbackSize: { width: number; height: number };
 }
 
-const ascii = (b: Uint8Array, at: number, n: number): string => String.fromCharCode(...b.subarray(at, at + n));
+const ascii = (b: Uint8Array, at: number, n: number): string =>
+  String.fromCharCode(...b.subarray(at, at + n));
 
 export function webpDimensions(b: Uint8Array): { width: number; height: number } | null {
   if (b.length < 25 || ascii(b, 0, 4) !== 'RIFF' || ascii(b, 8, 4) !== 'WEBP') return null;
@@ -49,7 +56,10 @@ export function webpDimensions(b: Uint8Array): { width: number; height: number }
     return { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1 };
   }
   if (chunk === 'VP8X' && b.length >= 30) {
-    return { width: (b[24]! | (b[25]! << 8) | (b[26]! << 16)) + 1, height: (b[27]! | (b[28]! << 8) | (b[29]! << 16)) + 1 };
+    return {
+      width: (b[24]! | (b[25]! << 8) | (b[26]! << 16)) + 1,
+      height: (b[27]! | (b[28]! << 8) | (b[29]! << 16)) + 1,
+    };
   }
   return null;
 }

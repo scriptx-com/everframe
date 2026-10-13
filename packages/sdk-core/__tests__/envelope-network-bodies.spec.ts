@@ -7,10 +7,22 @@ import type { NetworkBodyEntry, Breadcrumb } from '@everframe/protocol';
 const base = {
   reportId: '00000000-0000-4000-8000-000000000000',
   submittedAt: new Date(0).toISOString(),
-  sdk: { name: 'everframe-react', version: '0.0.0', platform: 'web', formFactor: 'desktop' } as const,
+  sdk: {
+    name: 'everframe-react',
+    version: '0.0.0',
+    platform: 'web',
+    formFactor: 'desktop',
+  } as const,
   reporter: { title: 't', description: 'd' },
   draft: { title: 't', description: 'd', excludedArtifacts: [], annotations: [], redactions: [] },
-  device: { os: 'x', osVersion: '1', screenSize: { width: 1, height: 1 }, pixelRatio: 1, locale: 'en', timezone: 'UTC' },
+  device: {
+    os: 'x',
+    osVersion: '1',
+    screenSize: { width: 1, height: 1 },
+    pixelRatio: 1,
+    locale: 'en',
+    timezone: 'UTC',
+  },
   app: { name: 'a', version: '1' },
   attachments: [],
 };
@@ -59,7 +71,10 @@ describe('buildEnvelope networkBodies channel', () => {
   // ==================== F14: crumb<->body linkage (spec §10 test 8) ====================
 
   it('no breadcrumbs supplied - bodies present - networkBodies absent and no marker', () => {
-    const bodies: NetworkBodyEntry[] = [{ ref: 1, t: 1, resBody: 'x' }, { ref: 2, t: 2, resBody: 'y' }];
+    const bodies: NetworkBodyEntry[] = [
+      { ref: 1, t: 1, resBody: 'x' },
+      { ref: 2, t: 2, resBody: 'y' },
+    ];
     const env = buildEnvelope({ ...base, networkBodies: bodies });
     expect(env.payload.networkBodies).toBeUndefined();
     expect(env.captureControl.included).not.toContain('networkBodies');

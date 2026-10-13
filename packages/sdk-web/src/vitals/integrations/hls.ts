@@ -6,7 +6,12 @@
 // event-name strings below (stable since hls.js 1.0: `Hls.Events.X` are the
 // literal 'hlsX' strings). Timings use ctx.now() rather than hls.js `stats`
 // so they survive shape changes between minor versions.
-import type { PlayerIntegration, PlayerIntegrationContext, PlayerSnapshot, PlayerStartupTimings } from '@everframe/sdk-core';
+import type {
+  PlayerIntegration,
+  PlayerIntegrationContext,
+  PlayerSnapshot,
+  PlayerStartupTimings,
+} from '@everframe/sdk-core';
 import { safeWrap } from '@everframe/sdk-core';
 
 export const HLS_EVENTS = {
@@ -21,7 +26,11 @@ export const HLS_EVENTS = {
 
 type Handler = (event: string, data: unknown) => void;
 
-interface HlsLevel { bitrate?: number; width?: number; height?: number }
+interface HlsLevel {
+  bitrate?: number;
+  width?: number;
+  height?: number;
+}
 interface HlsLike {
   on?(event: string, handler: Handler): void;
   off?(event: string, handler: Handler): void;
@@ -30,12 +39,20 @@ interface HlsLike {
   bandwidthEstimate?: number;
   autoLevelEnabled?: boolean;
   url?: string | null;
-  config?: { emeEnabled?: boolean; drmSystems?: Record<string, unknown>; widevineLicenseUrl?: string };
+  config?: {
+    emeEnabled?: boolean;
+    drmSystems?: Record<string, unknown>;
+    widevineLicenseUrl?: string;
+  };
   constructor?: { version?: unknown };
 }
 
-function finite(n: unknown): n is number { return typeof n === 'number' && Number.isFinite(n); }
-function rec(v: unknown): Record<string, unknown> { return (v && typeof v === 'object' ? v : {}) as Record<string, unknown>; }
+function finite(n: unknown): n is number {
+  return typeof n === 'number' && Number.isFinite(n);
+}
+function rec(v: unknown): Record<string, unknown> {
+  return (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+}
 
 export function hlsIntegration(instance: unknown): PlayerIntegration {
   const hls = (instance ?? {}) as HlsLike;
@@ -130,14 +147,19 @@ export function hlsIntegration(instance: unknown): PlayerIntegration {
         noneEmitted = false;
       });
       on(HLS_EVENTS.MANIFEST_LOADED, () => {
-        if (loadingT !== undefined && manifestMs === undefined) manifestMs = Math.max(0, ctx.now() - loadingT);
+        if (loadingT !== undefined && manifestMs === undefined)
+          manifestMs = Math.max(0, ctx.now() - loadingT);
         emitDrmFromConfig();
       });
       on(HLS_EVENTS.LEVEL_LOADED, (_e, data) => {
         if (sourceEmitted) return;
         sourceEmitted = true;
         const details = rec(rec(data).details);
-        ctx.emit('source_change', { src: hls.url ?? '', protocol: 'hls', live: details.live === true });
+        ctx.emit('source_change', {
+          src: hls.url ?? '',
+          protocol: 'hls',
+          live: details.live === true,
+        });
       });
       on(HLS_EVENTS.LEVEL_SWITCHED, (_e, data) => {
         const idx = rec(data).level;
@@ -145,21 +167,34 @@ export function hlsIntegration(instance: unknown): PlayerIntegration {
         const level = hls.levels?.[idx];
         const dims = levelDims(level);
         if (!('bitrate' in dims)) return;
-        ctx.emit('bitrate_change', { ...dims, level: idx, reason: hls.autoLevelEnabled === false ? 'manual' : 'abr' });
+        ctx.emit('bitrate_change', {
+          ...dims,
+          level: idx,
+          reason: hls.autoLevelEnabled === false ? 'manual' : 'abr',
+        });
       });
       on(HLS_EVENTS.FRAG_LOADED, () => {
-        if (firstFragmentMs === undefined && loadingT !== undefined) firstFragmentMs = Math.max(0, ctx.now() - loadingT);
+        if (firstFragmentMs === undefined && loadingT !== undefined)
+          firstFragmentMs = Math.max(0, ctx.now() - loadingT);
       });
       on(HLS_EVENTS.KEY_LOADED, (_e, data) => {
         if (drmEmitted) return;
         drmEmitted = true;
         const d = rec(data);
-        const method = rec(rec(rec(d.keyInfo).decryptdata)).method ?? rec(rec(rec(d.frag).decryptdata)).method;
-        ctx.emit('drm', { keySystem: typeof method === 'string' ? method.toLowerCase() : 'aes-128' });
+        const method =
+          rec(rec(rec(d.keyInfo).decryptdata)).method ?? rec(rec(rec(d.frag).decryptdata)).method;
+        ctx.emit('drm', {
+          keySystem: typeof method === 'string' ? method.toLowerCase() : 'aes-128',
+        });
       });
       on(HLS_EVENTS.ERROR, (_e, data) => {
         const d = rec(data);
-        const detail = typeof d.reason === 'string' ? d.reason : typeof rec(d.error).message === 'string' ? (rec(d.error).message as string) : undefined;
+        const detail =
+          typeof d.reason === 'string'
+            ? d.reason
+            : typeof rec(d.error).message === 'string'
+              ? (rec(d.error).message as string)
+              : undefined;
         ctx.emit('error', {
           message: typeof d.details === 'string' ? d.details : 'hls error',
           ...(typeof d.type === 'string' ? { code: d.type } : {}),
@@ -191,7 +226,13 @@ export function hlsIntegration(instance: unknown): PlayerIntegration {
     },
 
     detach(): void {
-      for (const [name, fn] of handlers) { try { hls.off?.(name, fn); } catch { /* ignore */ } }
+      for (const [name, fn] of handlers) {
+        try {
+          hls.off?.(name, fn);
+        } catch {
+          /* ignore */
+        }
+      }
       handlers = [];
     },
   };

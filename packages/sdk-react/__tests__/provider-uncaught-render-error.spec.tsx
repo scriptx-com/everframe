@@ -46,14 +46,17 @@ beforeEach(() => {
   // environment the uncaught error below is expected.
   window.addEventListener('error', recordPageError);
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', false);
-  vi.stubGlobal('fetch', vi.fn(async (url: unknown, options?: RequestInit) => {
-    if (String(url).endsWith('/api/ingest')) {
-      ingestAttempts += 1;
-      const part = (options!.body as FormData).get('envelope') as Blob;
-      delivered.push(ReportEnvelope.parse(JSON.parse(await part.text())));
-    }
-    return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
-  }));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: unknown, options?: RequestInit) => {
+      if (String(url).endsWith('/api/ingest')) {
+        ingestAttempts += 1;
+        const part = (options!.body as FormData).get('envelope') as Blob;
+        delivered.push(ReportEnvelope.parse(JSON.parse(await part.text())));
+      }
+      return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }),
+  );
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
   vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   container = document.createElement('div');
@@ -84,13 +87,24 @@ function arm(): void {
 
 function ExplodingRow(): ReactNode {
   const error = new Error('smoke js-render: ExplodingRow');
-  error.stack = 'Error: smoke js-render: ExplodingRow\n    at ExplodingRow (https://app.example/index.js:1:1234)';
+  error.stack =
+    'Error: smoke js-render: ExplodingRow\n    at ExplodingRow (https://app.example/index.js:1:1234)';
   throw error;
 }
 
 function CrashHost() {
-  const explode = useSyncExternalStore(subscribe, () => armed, () => armed);
-  return explode ? <section><ExplodingRow /></section> : <p>ready</p>;
+  const explode = useSyncExternalStore(
+    subscribe,
+    () => armed,
+    () => armed,
+  );
+  return explode ? (
+    <section>
+      <ExplodingRow />
+    </section>
+  ) : (
+    <p>ready</p>
+  );
 }
 
 class HostBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -149,8 +163,13 @@ describe('an error no boundary catches while rendering', () => {
       frames: [{ raw: 'at ExplodingRow (https://app.example/index.js:1:1234)' }],
     });
     const message = envelope!.payload.crash!.message;
-    expect(message.startsWith('smoke js-render: ExplodingRow\n\nThis error is located at:\n')).toBe(true);
-    const componentStack = message.split('This error is located at:')[1]!.split('\n').filter(Boolean);
+    expect(message.startsWith('smoke js-render: ExplodingRow\n\nThis error is located at:\n')).toBe(
+      true,
+    );
+    const componentStack = message
+      .split('This error is located at:')[1]!
+      .split('\n')
+      .filter(Boolean);
     expect(componentStack[0]).toMatch(/^\s+at ExplodingRow\b/);
     expect(componentStack.some((line) => /^\s+at CrashHost\b/.test(line))).toBe(true);
 
@@ -177,7 +196,11 @@ describe('an error no boundary catches while rendering', () => {
   });
 
   it('stays with a host boundary inside the provider, which handles it', async () => {
-    mount(<HostBoundary><CrashHost /></HostBoundary>);
+    mount(
+      <HostBoundary>
+        <CrashHost />
+      </HostBoundary>,
+    );
     await mounted();
 
     setTimeout(arm, 0);
@@ -189,7 +212,12 @@ describe('an error no boundary catches while rendering', () => {
   });
 
   it('sends nothing after the host withdrew consent with kill()', async () => {
-    mount(<><KillSwitch /><CrashHost /></>);
+    mount(
+      <>
+        <KillSwitch />
+        <CrashHost />
+      </>,
+    );
     await mounted();
     hostKill!();
 

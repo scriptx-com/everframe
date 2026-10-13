@@ -1,17 +1,36 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it } from 'vitest';
-import { createOutbox, fit, MAX_AGE_MS, MAX_ATTEMPTS, MAX_ITEMS, OUTBOX_KEY, type OutboxDeps, type OutboxItem } from '../src/outbox.js';
+import {
+  createOutbox,
+  fit,
+  MAX_AGE_MS,
+  MAX_ATTEMPTS,
+  MAX_ITEMS,
+  OUTBOX_KEY,
+  type OutboxDeps,
+  type OutboxItem,
+} from '../src/outbox.js';
 import { createStorage, stored } from './fakes.js';
 
 const BINDING = { endpoint: 'https://everframe.dev/api/ingest', keyHash: 'a'.repeat(32) };
 
 const item = (reportId: string, extra: Partial<OutboxItem> = {}): OutboxItem => ({
-  reportId, body: `{"reportId":"${reportId}"}`, enqueuedAt: 1_000, attempts: 0, fatal: false, ...BINDING, ...extra,
+  reportId,
+  body: `{"reportId":"${reportId}"}`,
+  enqueuedAt: 1_000,
+  attempts: 0,
+  fatal: false,
+  ...BINDING,
+  ...extra,
 });
 
 const deps = (over: Partial<OutboxDeps> & Pick<OutboxDeps, 'storage'>): OutboxDeps => ({
-  now: () => 2_000, warn: () => undefined, binding: BINDING, debug: () => undefined, ...over,
+  now: () => 2_000,
+  warn: () => undefined,
+  binding: BINDING,
+  debug: () => undefined,
+  ...over,
 });
 
 describe('outbox', () => {
@@ -28,7 +47,10 @@ describe('outbox', () => {
   });
 
   it('does not overwrite stored reports with a capture made while loading', async () => {
-    const storage = createStorage({ deferLoad: true, initial: [item('from-last-launch', { fatal: true })] });
+    const storage = createStorage({
+      deferLoad: true,
+      initial: [item('from-last-launch', { fatal: true })],
+    });
     const outbox = createOutbox(deps({ storage, now: () => 2_000, warn: () => undefined }));
     const adding = outbox.add(item('new'));
     await Promise.resolve();
@@ -55,7 +77,10 @@ describe('outbox', () => {
   });
 
   it('keeps fatal reports when it has to drop', () => {
-    const items = [item('fatal-1', { fatal: true }), ...Array.from({ length: MAX_ITEMS + 2 }, (_, i) => item(`e${i}`))];
+    const items = [
+      item('fatal-1', { fatal: true }),
+      ...Array.from({ length: MAX_ITEMS + 2 }, (_, i) => item(`e${i}`)),
+    ];
     const kept = fit(items);
     expect(kept).toHaveLength(MAX_ITEMS);
     expect(kept[0]!.reportId).toBe('fatal-1');
@@ -64,7 +89,11 @@ describe('outbox', () => {
 
   it('caps the serialized size', () => {
     const big = 'x'.repeat(200 * 1024);
-    const kept = fit([item('a', { body: big }), item('b', { body: big }), item('c', { body: big })]);
+    const kept = fit([
+      item('a', { body: big }),
+      item('b', { body: big }),
+      item('c', { body: big }),
+    ]);
     expect(kept.map((i) => i.reportId)).toEqual(['b', 'c']);
   });
 
@@ -100,14 +129,26 @@ describe('outbox', () => {
   describe('binding to the SDK key and endpoint', () => {
     it('drops, never loads, reports captured for another key or endpoint, and removes them from storage', async () => {
       const otherKey = item('other-key', { keyHash: 'b'.repeat(32) });
-      const otherEndpoint = item('other-endpoint', { endpoint: 'http://127.0.0.1:8790/api/ingest' });
-      const unbound = { reportId: 'legacy', body: '{}', enqueuedAt: 1_000, attempts: 0, fatal: true };
-      const storage = createStorage({ initial: [otherKey, otherEndpoint, unbound as never, item('mine')] });
+      const otherEndpoint = item('other-endpoint', {
+        endpoint: 'http://127.0.0.1:8790/api/ingest',
+      });
+      const unbound = {
+        reportId: 'legacy',
+        body: '{}',
+        enqueuedAt: 1_000,
+        attempts: 0,
+        fatal: true,
+      };
+      const storage = createStorage({
+        initial: [otherKey, otherEndpoint, unbound as never, item('mine')],
+      });
       const debug: string[] = [];
       const outbox = createOutbox(deps({ storage, debug: (m) => debug.push(m) }));
       expect((await outbox.due()).map((i) => i.reportId)).toEqual(['mine']);
       expect(stored(storage).map((i) => i.reportId)).toEqual(['mine']);
-      expect(debug).toEqual(['[everframe] dropped 2 stored report(s) captured for another SDK key or endpoint; they are not sent']);
+      expect(debug).toEqual([
+        '[everframe] dropped 2 stored report(s) captured for another SDK key or endpoint; they are not sent',
+      ]);
     });
 
     it('cleans storage on load even when nothing else is written', async () => {

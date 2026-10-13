@@ -18,22 +18,35 @@ let warnedEpoch: object | undefined;
  */
 export function captureReactError(error: unknown, info?: { componentStack?: string | null }): void {
   const owner = __getCurrentContext();
-  if (!owner) { warnNotMounted(); return; }
+  if (!owner) {
+    warnNotMounted();
+    return;
+  }
   const epoch = __getContextEpoch();
   let componentStack: string | undefined;
   try {
     if (info != null) {
       const descriptor = Object.getOwnPropertyDescriptor(info, 'componentStack');
-      if (descriptor && 'value' in descriptor && typeof descriptor.value === 'string') componentStack = descriptor.value;
+      if (descriptor && 'value' in descriptor && typeof descriptor.value === 'string')
+        componentStack = descriptor.value;
     }
-  } catch { /* Hostile info is omitted; the error can still be captured. */ }
+  } catch {
+    /* Hostile info is omitted; the error can still be captured. */
+  }
   try {
     const capture = owner.captureException;
     if (__getCurrentContext() !== owner || __getContextEpoch() !== epoch) return;
     // The normalizer owns bounded scanning and truncation evidence.
-    applyFunction(capture, owner, [error, { context: 'react.error-boundary',
-      ...(componentStack !== undefined ? { metadata: { componentStack } } : {}) }]);
-  } catch { /* Reporting must not break the application's boundary callback. */ }
+    applyFunction(capture, owner, [
+      error,
+      {
+        context: 'react.error-boundary',
+        ...(componentStack !== undefined ? { metadata: { componentStack } } : {}),
+      },
+    ]);
+  } catch {
+    /* Reporting must not break the application's boundary callback. */
+  }
 }
 
 function warnNotMounted(): void {
@@ -41,7 +54,11 @@ function warnNotMounted(): void {
     const epoch = __getContextEpoch();
     if (warnedEpoch === epoch || typeof __DEV__ === 'undefined' || !__DEV__) return;
     warnedEpoch = epoch;
-    console.warn('[everframe] captureReactError: no EverframeProvider is mounted, so this error was not captured. ' +
-      'Render the error boundary inside <EverframeProvider>; errors caught during its first commit are not captured.');
-  } catch { /* Diagnostics must not break the application's boundary callback. */ }
+    console.warn(
+      '[everframe] captureReactError: no EverframeProvider is mounted, so this error was not captured. ' +
+        'Render the error boundary inside <EverframeProvider>; errors caught during its first commit are not captured.',
+    );
+  } catch {
+    /* Diagnostics must not break the application's boundary callback. */
+  }
 }

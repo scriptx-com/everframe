@@ -22,7 +22,9 @@ beforeEach(async () => {
   await writeFile(join(staging, 'latest-android.json'), JSON.stringify({ buildId }));
   await writeFile(join(staging, buildId, 'manifest.partial.json'), JSON.stringify(partial));
 });
-afterEach(async () => { await rm(staging, { recursive: true, force: true }); });
+afterEach(async () => {
+  await rm(staging, { recursive: true, force: true });
+});
 
 describe('staging io', () => {
   it('resolves the pointer to a build id', async () => {
@@ -59,7 +61,10 @@ describe('staging io', () => {
   });
 
   it('throws invalid_staged_manifest when partial manifest has wrong schema', async () => {
-    await writeFile(join(staging, buildId, 'manifest.partial.json'), JSON.stringify({ schema: 99 }));
+    await writeFile(
+      join(staging, buildId, 'manifest.partial.json'),
+      JSON.stringify({ schema: 99 }),
+    );
     await expect(readPartial(staging, buildId)).rejects.toThrow('invalid_staged_manifest');
   });
 

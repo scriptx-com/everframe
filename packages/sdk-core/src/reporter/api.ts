@@ -16,44 +16,61 @@ import { boundWait, timeoutSignal } from '../transport/timeout-signal.js';
 
 export const MESSAGE_BODY_MAX = 2000;
 
-const ThreadSummarySchema = z.object({
-  id: z.string(),
-  status: z.enum(['open', 'closed']),
-  reportTitle: z.string().nullable(),
-  createdAt: z.string(),
-  lastMessageAt: z.string().nullable(),
-  unreadCount: z.number().int().nonnegative(),
-}).passthrough();
+const ThreadSummarySchema = z
+  .object({
+    id: z.string(),
+    status: z.enum(['open', 'closed']),
+    reportTitle: z.string().nullable(),
+    createdAt: z.string(),
+    lastMessageAt: z.string().nullable(),
+    unreadCount: z.number().int().nonnegative(),
+  })
+  .passthrough();
 
 const ThreadListSchema = z.object({ threads: z.array(ThreadSummarySchema) }).passthrough();
 
-const ThreadMessageSchema = z.object({
-  id: z.string(),
-  authorKind: z.enum(['team', 'reporter', 'system']),
-  authorName: z.string().nullable(),
-  body: z.string(),
-  createdAt: z.string(),
-}).passthrough();
+const ThreadMessageSchema = z
+  .object({
+    id: z.string(),
+    authorKind: z.enum(['team', 'reporter', 'system']),
+    authorName: z.string().nullable(),
+    body: z.string(),
+    createdAt: z.string(),
+  })
+  .passthrough();
 
-const MessagePageSchema = z.object({
-  status: z.enum(['open', 'closed']),
-  messages: z.array(ThreadMessageSchema),
-  nextCursor: z.string().nullable(),
-  hasMore: z.boolean(),
-}).passthrough();
+const MessagePageSchema = z
+  .object({
+    status: z.enum(['open', 'closed']),
+    messages: z.array(ThreadMessageSchema),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+  })
+  .passthrough();
 
 export type ThreadSummary = z.infer<typeof ThreadSummarySchema>;
 export type ThreadMessage = z.infer<typeof ThreadMessageSchema>;
 export type MessagePage = z.infer<typeof MessagePageSchema>;
 
 export type ReporterApiErrorCode =
-  | 'invalid_sdk_key' | 'invalid_device_token' | 'replies_disabled'
-  | 'thread_not_found' | 'thread_closed' | 'rate_limit_exceeded'
-  | 'invalid_input' | 'network_error' | 'malformed_response';
+  | 'invalid_sdk_key'
+  | 'invalid_device_token'
+  | 'replies_disabled'
+  | 'thread_not_found'
+  | 'thread_closed'
+  | 'rate_limit_exceeded'
+  | 'invalid_input'
+  | 'network_error'
+  | 'malformed_response';
 
 const KNOWN_WIRE_CODES: ReadonlySet<string> = new Set([
-  'invalid_sdk_key', 'invalid_device_token', 'replies_disabled',
-  'thread_not_found', 'thread_closed', 'rate_limit_exceeded', 'invalid_input',
+  'invalid_sdk_key',
+  'invalid_device_token',
+  'replies_disabled',
+  'thread_not_found',
+  'thread_closed',
+  'rate_limit_exceeded',
+  'invalid_input',
 ]);
 
 export class ReporterApiError extends Error {
@@ -84,7 +101,7 @@ export interface ReporterApi {
 
 export interface ReporterApiDeps {
   fetchImpl: typeof fetch;
-  baseUrl: string;   // no trailing slash required; normalized below
+  baseUrl: string; // no trailing slash required; normalized below
   sdkKey: string;
   timeoutMs?: number; // default 10s; bounds every request
   /**
@@ -202,7 +219,8 @@ export function createReporterApi(deps: ReporterApiDeps): ReporterApi {
 
     async postMessage(deviceToken, threadId, body) {
       const res = await call(deviceToken, `/api/reporter/threads/${threadId}/messages`, {
-        method: 'POST', body: JSON.stringify({ body }),
+        method: 'POST',
+        body: JSON.stringify({ body }),
       });
       if (res.status !== 201) await throwWireError(res);
       let id: unknown;
@@ -216,12 +234,16 @@ export function createReporterApi(deps: ReporterApiDeps): ReporterApi {
     },
 
     async markRead(deviceToken, threadId) {
-      const res = await call(deviceToken, `/api/reporter/threads/${threadId}/read`, { method: 'POST' });
+      const res = await call(deviceToken, `/api/reporter/threads/${threadId}/read`, {
+        method: 'POST',
+      });
       if (res.status !== 204) await throwWireError(res);
     },
 
     async deleteThread(deviceToken, threadId) {
-      const res = await call(deviceToken, `/api/reporter/threads/${threadId}`, { method: 'DELETE' });
+      const res = await call(deviceToken, `/api/reporter/threads/${threadId}`, {
+        method: 'DELETE',
+      });
       if (res.status !== 204) await throwWireError(res);
     },
   };

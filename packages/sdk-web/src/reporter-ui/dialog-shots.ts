@@ -103,7 +103,11 @@ export async function assembleDialogShots(
       // The in-app reporter's only crop IS the area selection.
       snapshotAllowed({ cropped: shot.areaSelected, blurred, areaSelected: shot.areaSelected })
     ) {
-      out.domSnapshots.push({ shotNumber, bytes: shot.snapshot.bytes, sha256: shot.snapshot.sha256 });
+      out.domSnapshots.push({
+        shotNumber,
+        bytes: shot.snapshot.bytes,
+        sha256: shot.snapshot.sha256,
+      });
     }
     if (out.render === undefined && shot.render !== undefined) out.render = shot.render;
     if (shot.blob === null) continue;
@@ -124,11 +128,25 @@ export async function assembleDialogShots(
         // report still ships.
       }
     }
-    out.bundleShots.push({ blob, sha256: sha, width: shot.width, height: shot.height, annotated, shotNumber });
+    out.bundleShots.push({
+      blob,
+      sha256: sha,
+      width: shot.width,
+      height: shot.height,
+      annotated,
+      shotNumber,
+    });
     for (const a of shot.annotations) {
       out.taggedAnnotations.push({ ...(a as unknown as Record<string, unknown>), partName });
       if (a.kind === 'blur') {
-        out.taggedRedactions.push({ x: a.x, y: a.y, width: a.width, height: a.height, type: 'blur', partName });
+        out.taggedRedactions.push({
+          x: a.x,
+          y: a.y,
+          width: a.width,
+          height: a.height,
+          type: 'blur',
+          partName,
+        });
       }
     }
   }

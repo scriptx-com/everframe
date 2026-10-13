@@ -13,14 +13,25 @@ import { readFileSync } from 'node:fs';
 import { ReportEnvelope } from '../src/index.js';
 import { rrwebReplayRef, videoReplayRef } from './helpers/replay-attachment.js';
 
-const fixture = () => JSON.parse(readFileSync(new URL('./fixtures/crash-report.json', import.meta.url), 'utf8'));
+const fixture = () =>
+  JSON.parse(readFileSync(new URL('./fixtures/crash-report.json', import.meta.url), 'utf8'));
 
 const SDKS = {
   web: { name: 'everframe-web', platform: 'web', formFactor: 'desktop', replay: rrwebReplayRef },
-  android: { name: 'everframe-android', platform: 'android', formFactor: 'phone', replay: videoReplayRef },
+  android: {
+    name: 'everframe-android',
+    platform: 'android',
+    formFactor: 'phone',
+    replay: videoReplayRef,
+  },
   ios: { name: 'everframe-ios', platform: 'ios', formFactor: 'phone', replay: videoReplayRef },
   tvos: { name: 'everframe-ios', platform: 'tvos', formFactor: 'tv', replay: videoReplayRef },
-  'react-native': { name: 'everframe-react-native', platform: 'android', formFactor: 'phone', replay: videoReplayRef },
+  'react-native': {
+    name: 'everframe-react-native',
+    platform: 'android',
+    formFactor: 'phone',
+    replay: videoReplayRef,
+  },
 } as const;
 
 /** A handled error from a running app, attributable like any report. */
@@ -42,10 +53,13 @@ const issues = (value: unknown) => {
 };
 
 describe('an error reported while the app runs carries its replay', () => {
-  it.each(['web', 'android', 'ios', 'tvos', 'react-native'] as const)('accepts one session-replay attachment from %s', (sdk) => {
-    expect(issues(runningError(sdk))).toEqual([]);
-    expect(ReportEnvelope.parse(runningError(sdk)).attachments).toHaveLength(1);
-  });
+  it.each(['web', 'android', 'ios', 'tvos', 'react-native'] as const)(
+    'accepts one session-replay attachment from %s',
+    (sdk) => {
+      expect(issues(runningError(sdk))).toEqual([]);
+      expect(ReportEnvelope.parse(runningError(sdk)).attachments).toHaveLength(1);
+    },
+  );
 
   it('accepts it on an unhandled error the page survives (window.onerror, unhandled rejection)', () => {
     const v = runningError('web');

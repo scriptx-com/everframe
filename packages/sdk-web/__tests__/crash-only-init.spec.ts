@@ -137,7 +137,9 @@ describe('crash-only init(): entry points', () => {
     };
 
     const fabEl = (): Element | null | undefined =>
-      document.getElementById('everframe-host')?.shadowRoot?.querySelector('[data-testid=reporter-fab]');
+      document
+        .getElementById('everframe-host')
+        ?.shadowRoot?.querySelector('[data-testid=reporter-fab]');
 
     function mountWithThread(reporterDisabled: boolean): Everframe {
       localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), `evr_${'0'.repeat(36)}`);

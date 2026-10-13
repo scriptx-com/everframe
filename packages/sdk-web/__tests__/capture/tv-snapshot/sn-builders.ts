@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import type { SnAttributeValue, SnDocument, SnElement, SnNode, SnText } from '../../../src/capture/tv-snapshot/sn-types.js';
+import type {
+  SnAttributeValue,
+  SnDocument,
+  SnElement,
+  SnNode,
+  SnText,
+} from '../../../src/capture/tv-snapshot/sn-types.js';
 
 let nextId = 1;
 export function resetIds(): void {

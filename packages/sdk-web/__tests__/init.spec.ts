@@ -15,7 +15,10 @@ beforeEach(() => {
   // sdk-react provider spec stubs fetch for the same reason.
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    vi.fn(
+      async () =>
+        new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    ),
   );
 });
 

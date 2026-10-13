@@ -25,7 +25,11 @@ describe('library zip', () => {
 
   it('contains both components and every lib file', () => {
     const libs = readdirSync(path.join(PKG, 'library/components/Everframe/lib'));
-    for (const f of ['components/Everframe/Everframe.xml', 'components/Everframe/EverframeReporter.xml', ...libs.map((l) => `components/Everframe/lib/${l}`)]) {
+    for (const f of [
+      'components/Everframe/Everframe.xml',
+      'components/Everframe/EverframeReporter.xml',
+      ...libs.map((l) => `components/Everframe/lib/${l}`),
+    ]) {
       expect(files[f], f).toBeDefined();
     }
   });
@@ -39,7 +43,8 @@ describe('library zip', () => {
       if (name.endsWith('.xml')) {
         const doc = xml.parse(strFromU8(bytes));
         const scripts = [doc.component.script].flat().filter(Boolean);
-        for (const s of scripts) expect(files[s.uri.replace('pkg:/', '')], `${name} -> ${s.uri}`).toBeDefined();
+        for (const s of scripts)
+          expect(files[s.uri.replace('pkg:/', '')], `${name} -> ${s.uri}`).toBeDefined();
       }
     }
   });

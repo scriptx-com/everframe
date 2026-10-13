@@ -7,4 +7,6 @@
 // a developer accident, not a customer-visible code path.
 declare const __EVERFRAME_INGEST_URL__: string | undefined;
 export const INGEST_URL: string =
-  typeof __EVERFRAME_INGEST_URL__ !== 'undefined' ? __EVERFRAME_INGEST_URL__ : 'https://everframe.dev';
+  typeof __EVERFRAME_INGEST_URL__ !== 'undefined'
+    ? __EVERFRAME_INGEST_URL__
+    : 'https://everframe.dev';

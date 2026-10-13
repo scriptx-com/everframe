@@ -14,34 +14,34 @@ export interface LogEntry {
   confirmed: boolean;
 }
 
-const KEY = "elytra-field-log";
+const KEY = 'elytra-field-log';
 
 /** Deterministic starter entries so the log page never opens empty. */
 export const SEED_ENTRIES: LogEntry[] = [
   {
-    id: "seed-1",
-    note: "Two ladybirds on the office windowsill — the dogfood kind of bug.",
-    specimenId: "everframe-001",
-    site: "Vilnius, office",
+    id: 'seed-1',
+    note: 'Two ladybirds on the office windowsill — the dogfood kind of bug.',
+    specimenId: 'everframe-001',
+    site: 'Vilnius, office',
     confirmed: true,
   },
   {
-    id: "seed-2",
-    note: "Faint green glow by the path after dusk. Almost certainly Lampyris.",
-    specimenId: "everframe-005",
-    site: "Neris riverbank",
+    id: 'seed-2',
+    note: 'Faint green glow by the path after dusk. Almost certainly Lampyris.',
+    specimenId: 'everframe-005',
+    site: 'Neris riverbank',
     confirmed: false,
   },
   {
-    id: "seed-3",
-    note: "Something large buzzed past the balcony. Stag beetle? Log and verify.",
-    site: "Užupis, balcony",
+    id: 'seed-3',
+    note: 'Something large buzzed past the balcony. Stag beetle? Log and verify.',
+    site: 'Užupis, balcony',
     confirmed: false,
   },
 ];
 
 export function readLog(): LogEntry[] {
-  if (typeof window === "undefined") return SEED_ENTRIES;
+  if (typeof window === 'undefined') return SEED_ENTRIES;
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return SEED_ENTRIES;

@@ -18,7 +18,12 @@ import type { Rect } from '@everframe/sdk-core';
  * not finite must stop the capture (fail closed), never paint nothing.
  */
 export function isFiniteRect(r: { x: number; y: number; width: number; height: number }): boolean {
-  return Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.width) && Number.isFinite(r.height);
+  return (
+    Number.isFinite(r.x) &&
+    Number.isFinite(r.y) &&
+    Number.isFinite(r.width) &&
+    Number.isFinite(r.height)
+  );
 }
 
 /** Thrown when a sensitive area has no finite position: the shot must not ship. */
@@ -41,7 +46,12 @@ export function paintMaskRectsOnCanvas(
   const inflate = 2;
   // Before the context check: an unpaintable rect fails the capture even
   // where the best-effort path would otherwise skip masking.
-  if (!rects.every(isFiniteRect) || !Number.isFinite(scale) || !Number.isFinite(offsetX) || !Number.isFinite(offsetY)) {
+  if (
+    !rects.every(isFiniteRect) ||
+    !Number.isFinite(scale) ||
+    !Number.isFinite(offsetX) ||
+    !Number.isFinite(offsetY)
+  ) {
     throw new UnmaskableRectError();
   }
   let ctx: CanvasRenderingContext2D | null = null;

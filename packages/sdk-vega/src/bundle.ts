@@ -26,7 +26,12 @@ export function probeBundleId(stack: unknown): string | undefined {
 }
 
 export function jsBundleFor(bundleId: string): JsBundleMetadata {
-  return { engine: 'hermes', platform: 'vega', buildId: bundleId, bundleName: `${bundleId}.bundle` };
+  return {
+    engine: 'hermes',
+    platform: 'vega',
+    buildId: bundleId,
+    bundleName: `${bundleId}.bundle`,
+  };
 }
 
 /**
@@ -66,7 +71,9 @@ export function vegaFingerprint(
   frames: ReadonlyArray<{ raw: string }>,
   message: string,
 ): string {
-  const normalized = frames.map((frame) => ({ raw: frame.raw.replace(ANY_BUNDLE_ID, 'app.bundle') }));
+  const normalized = frames.map((frame) => ({
+    raw: frame.raw.replace(ANY_BUNDLE_ID, 'app.bundle'),
+  }));
   const keyed = namelessTop(normalized.map((frame) => frame.raw))
     ? [{ raw: `message: ${keyMessage(message)}` }, ...normalized]
     : normalized;
@@ -74,7 +81,11 @@ export function vegaFingerprint(
 }
 
 /** Per-launch admission key: exception type, normalized top frame, and the message under the same rule. */
-export function captureKey(exceptionType: string, frames: ReadonlyArray<string>, message: string): string {
+export function captureKey(
+  exceptionType: string,
+  frames: ReadonlyArray<string>,
+  message: string,
+): string {
   const top = (frames[0] ?? '').replace(ANY_BUNDLE_ID, 'app.bundle').replace(/\d+/g, '#');
   return namelessTop(frames)
     ? `${exceptionType}:${top}:${keyMessage(message).replace(/\d+/g, '#')}`

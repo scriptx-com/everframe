@@ -16,7 +16,14 @@ import { parse } from 'acorn';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const pkgDir = fileURLToPath(new URL('..', import.meta.url));
-const FORBIDDEN_GLOBALS = ['crypto', 'structuredClone', 'WeakRef', 'TextDecoder', 'FinalizationRegistry', 'require'];
+const FORBIDDEN_GLOBALS = [
+  'crypto',
+  'structuredClone',
+  'WeakRef',
+  'TextDecoder',
+  'FinalizationRegistry',
+  'require',
+];
 
 let outDir: string;
 let code: string;
@@ -48,13 +55,15 @@ function freeIdentifiers(ast: Node): Set<string> {
     const n = node as Node;
     if (typeof n.type !== 'string') return;
     if (n.type === 'Identifier') {
-      const isProperty = (parent?.type === 'MemberExpression' && key === 'property' && !parent.computed)
-        || (parent?.type === 'Property' && key === 'key' && !parent.computed);
+      const isProperty =
+        (parent?.type === 'MemberExpression' && key === 'property' && !parent.computed) ||
+        (parent?.type === 'Property' && key === 'key' && !parent.computed);
       if (!isProperty) names.add(n.name as string);
       return;
     }
     for (const [childKey, child] of Object.entries(n)) {
-      if (childKey !== 'type' && childKey !== 'start' && childKey !== 'end') visit(child, n, childKey);
+      if (childKey !== 'type' && childKey !== 'start' && childKey !== 'end')
+        visit(child, n, childKey);
     }
   };
   visit(ast);
@@ -67,7 +76,9 @@ describe('published bundle', () => {
   });
 
   it('references no global Vega OS 1.1 Hermes lacks', () => {
-    const names = freeIdentifiers(parse(code, { ecmaVersion: 2019, sourceType: 'module' }) as unknown as Node);
+    const names = freeIdentifiers(
+      parse(code, { ecmaVersion: 2019, sourceType: 'module' }) as unknown as Node,
+    );
     expect(FORBIDDEN_GLOBALS.filter((name) => names.has(name))).toEqual([]);
   });
 
@@ -78,7 +89,9 @@ describe('published bundle', () => {
   });
 
   it('names the package version it was built from', () => {
-    const { version } = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf8')) as { version: string };
+    const { version } = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf8')) as {
+      version: string;
+    };
     expect(code).toContain(JSON.stringify(version));
     expect(code).not.toContain('__EVERFRAME_VEGA_VERSION__ ===');
   });

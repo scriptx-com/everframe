@@ -33,10 +33,7 @@ export function getThemeHost(): HTMLElement | null {
  * absent now — otherwise a downgrade (paid → free, or a theme field cleared)
  * would leave the old accent colour stranded on the element forever.
  */
-export function applyThemeVarsToHost(
-  host: HTMLElement,
-  vars: Record<string, string>,
-): void {
+export function applyThemeVarsToHost(host: HTMLElement, vars: Record<string, string>): void {
   if (!host?.style) return;
   for (const name of lastApplied) {
     if (!(name in vars)) host.style.removeProperty(name);

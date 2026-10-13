@@ -161,7 +161,10 @@ export async function renderViewportWithSnapdom(
   return run;
 }
 
-async function runSnapdom(root: HTMLElement, opts: SnapdomRenderOptions): Promise<SnapdomRenderResult> {
+async function runSnapdom(
+  root: HTMLElement,
+  opts: SnapdomRenderOptions,
+): Promise<SnapdomRenderResult> {
   const { snapdom } = await import('@zumer/snapdom');
   // Synchronously from here to the snapdom() call: resolved targets and the
   // root rect describe exactly the page snapDOM starts cloning.

@@ -27,7 +27,8 @@ const payloads = () => automatic.mock.calls.map(([json]) => JSON.parse(json));
 
 function renderError(message: string, componentStack: string) {
   const error = new Error(message);
-  error.stack = `Error: ${message}\n    at ExplodingRow (address at index.android.bundle:1:1243264)\n` +
+  error.stack =
+    `Error: ${message}\n    at ExplodingRow (address at index.android.bundle:1:1243264)\n` +
     '    at renderWithHooks (address at index.android.bundle:1:504783)';
   // What RN's ErrorHandlers.getExtendedError does before handleException.
   return Object.assign(error, { componentStack, isComponentError: true });
@@ -41,7 +42,9 @@ beforeEach(() => {
   globalHandler = vi.fn<Handler>();
   vi.stubGlobal('ErrorUtils', {
     getGlobalHandler: () => globalHandler,
-    setGlobalHandler: (handler: Handler) => { globalHandler = handler; },
+    setGlobalHandler: (handler: Handler) => {
+      globalHandler = handler;
+    },
   });
 });
 afterEach(() => {
@@ -58,25 +61,36 @@ describe('ExceptionsManager hook', () => {
     controllers.push(created);
     return created;
   };
-  afterEach(() => { controllers.splice(0).forEach((c) => c.dispose()); });
+  afterEach(() => {
+    controllers.splice(0).forEach((c) => c.dispose());
+  });
 
   it('reports an uncaught React error as a fatal JS crash with its component stack, before RN reports it', () => {
     controller();
-    const stack = '\n    at ExplodingRow (address at index.android.bundle:1:1243264)\n    at RCTView (<anonymous>)';
+    const stack =
+      '\n    at ExplodingRow (address at index.android.bundle:1:1243264)\n    at RCTView (<anonymous>)';
     const error = renderError('smoke js-render: ExplodingRow', stack);
-    automatic.mockImplementation(() => { expect(reported).toHaveLength(0); return true; });
+    automatic.mockImplementation(() => {
+      expect(reported).toHaveLength(0);
+      return true;
+    });
 
     ExceptionsManager.handleException(error, true);
 
-    expect(payloads()).toEqual([expect.objectContaining({
-      exceptionType: 'Error',
-      message: `smoke js-render: ExplodingRow\n\nThis error is located at:${stack}`,
-      framesRaw: [
-        'at ExplodingRow (address at index.android.bundle:1:1243264)',
-        'at renderWithHooks (address at index.android.bundle:1:504783)',
-      ],
-      source: 'crash', mechanism: 'errorutils', handled: false, fatal: true,
-    })]);
+    expect(payloads()).toEqual([
+      expect.objectContaining({
+        exceptionType: 'Error',
+        message: `smoke js-render: ExplodingRow\n\nThis error is located at:${stack}`,
+        framesRaw: [
+          'at ExplodingRow (address at index.android.bundle:1:1243264)',
+          'at renderWithHooks (address at index.android.bundle:1:504783)',
+        ],
+        source: 'crash',
+        mechanism: 'errorutils',
+        handled: false,
+        fatal: true,
+      }),
+    ]);
     expect(reported).toEqual([{ error, isFatal: true }]);
   });
 
@@ -96,7 +110,9 @@ describe('ExceptionsManager hook', () => {
   });
 
   it('does not report twice when an ErrorUtils handler forwards the error later', async () => {
-    globalHandler = (error, isFatal) => { setTimeout(() => ExceptionsManager.handleException(error, isFatal === true), 0); };
+    globalHandler = (error, isFatal) => {
+      setTimeout(() => ExceptionsManager.handleException(error, isFatal === true), 0);
+    };
     controller();
     globalHandler(new Error('flushed first'), true);
     await nextTask();
@@ -117,7 +133,12 @@ describe('ExceptionsManager hook', () => {
     controller();
     const error = new Error('hostile');
     let reads = 0;
-    Object.defineProperty(error, 'componentStack', { get() { reads++; return '\n    at X'; } });
+    Object.defineProperty(error, 'componentStack', {
+      get() {
+        reads++;
+        return '\n    at X';
+      },
+    });
     const receiver = { handleException: ExceptionsManager.handleException };
     receiver.handleException(error, true);
     expect(reads).toBe(0);
@@ -176,12 +197,22 @@ describe('EverframeProvider with a React 19 root wired like React Native', () =>
     root = createRoot(container, {
       onUncaughtError(error, info) {
         ownerAtReport.push(__getCurrentContext());
-        ExceptionsManager.handleException(Object.assign(error as Error,
-          { componentStack: info.componentStack, isComponentError: true }), true);
+        ExceptionsManager.handleException(
+          Object.assign(error as Error, {
+            componentStack: info.componentStack,
+            isComponentError: true,
+          }),
+          true,
+        );
       },
       onCaughtError(error, info) {
-        ExceptionsManager.handleException(Object.assign(error as Error,
-          { componentStack: info.componentStack, isComponentError: true }), false);
+        ExceptionsManager.handleException(
+          Object.assign(error as Error, {
+            componentStack: info.componentStack,
+            isComponentError: true,
+          }),
+          false,
+        );
       },
     });
   });
@@ -197,33 +228,58 @@ describe('EverframeProvider with a React 19 root wired like React Native', () =>
   }
   class Boundary extends React.Component<React.PropsWithChildren, { failed: boolean }> {
     override state = { failed: false };
-    static getDerivedStateFromError() { return { failed: true }; }
-    override componentDidCatch(error: unknown, info: React.ErrorInfo) { captureReactError(error, info); }
-    override render() { return this.state.failed ? <span>fallback</span> : this.props.children; }
+    static getDerivedStateFromError() {
+      return { failed: true };
+    }
+    override componentDidCatch(error: unknown, info: React.ErrorInfo) {
+      captureReactError(error, info);
+    }
+    override render() {
+      return this.state.failed ? <span>fallback</span> : this.props.children;
+    }
   }
 
   it('captures a render error with no boundary as one fatal JS crash', async () => {
     const tree = (explode: boolean) => (
-      <EverframeProvider config={{ sdkKey: 'evf_test_key' }}><ExplodingRow explode={explode} /></EverframeProvider>
+      <EverframeProvider config={{ sdkKey: 'evf_test_key' }}>
+        <ExplodingRow explode={explode} />
+      </EverframeProvider>
     );
     flushSync(() => root!.render(tree(false)));
     flushSync(() => root!.render(tree(true)));
 
     expect(ownerAtReport).toEqual([null]);
-    expect(payloads()).toEqual([expect.objectContaining({
-      exceptionType: 'Error', source: 'crash', mechanism: 'errorutils', handled: false, fatal: true,
-      message: expect.stringMatching(/^smoke js-render: ExplodingRow\n\nThis error is located at:\n\s+at ExplodingRow/),
-    })]);
+    expect(payloads()).toEqual([
+      expect.objectContaining({
+        exceptionType: 'Error',
+        source: 'crash',
+        mechanism: 'errorutils',
+        handled: false,
+        fatal: true,
+        message: expect.stringMatching(
+          /^smoke js-render: ExplodingRow\n\nThis error is located at:\n\s+at ExplodingRow/,
+        ),
+      }),
+    ]);
     expect(payloads()[0].message).toContain('EverframeProvider');
     expect(globalHandler).not.toHaveBeenCalled();
-    expect(reported).toEqual([{ error: expect.objectContaining({ message: 'smoke js-render: ExplodingRow' }), isFatal: true }]);
+    expect(reported).toEqual([
+      {
+        error: expect.objectContaining({ message: 'smoke js-render: ExplodingRow' }),
+        isFatal: true,
+      },
+    ]);
     await nextTask();
     expect(ExceptionsManager.handleException).toBe(originalHandleException);
   });
 
   it('leaves an error a boundary caught to captureReactError', () => {
     const tree = (explode: boolean) => (
-      <EverframeProvider config={{ sdkKey: 'evf_test_key' }}><Boundary><ExplodingRow explode={explode} /></Boundary></EverframeProvider>
+      <EverframeProvider config={{ sdkKey: 'evf_test_key' }}>
+        <Boundary>
+          <ExplodingRow explode={explode} />
+        </Boundary>
+      </EverframeProvider>
     );
     flushSync(() => root!.render(tree(false)));
     flushSync(() => root!.render(tree(true)));

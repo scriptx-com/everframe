@@ -190,7 +190,12 @@ export function attachPlayerVitals(deps: PlayerVitalsDeps): PlayerVitalsAdapter 
       return id;
     });
 
-  function emit(s: ElementState, type: VitalsPlayerEventType, data?: Record<string, unknown>, t: number = now()) {
+  function emit(
+    s: ElementState,
+    type: VitalsPlayerEventType,
+    data?: Record<string, unknown>,
+    t: number = now(),
+  ) {
     // exactOptionalPropertyTypes forbids `data: undefined` — omit the key entirely
     // rather than assign an explicit undefined onto an optional property.
     if (data === undefined) {
@@ -285,7 +290,10 @@ export function attachPlayerVitals(deps: PlayerVitalsDeps): PlayerVitalsAdapter 
           });
           const facts: SourceFacts = {
             src: clean.src,
-            protocol: typeof data?.protocol === 'string' ? (data.protocol as SourceProtocol) : clean.protocol,
+            protocol:
+              typeof data?.protocol === 'string'
+                ? (data.protocol as SourceProtocol)
+                : clean.protocol,
             ...(typeof data?.mime === 'string' ? { mime: data.mime } : {}),
             ...(typeof data?.live === 'boolean' ? { live: data.live } : {}),
           };
@@ -340,7 +348,8 @@ export function attachPlayerVitals(deps: PlayerVitalsDeps): PlayerVitalsAdapter 
         // events pass through — reusing `sanitizeSource`'s own origin+path
         // reduction (`scrubUrlsInText`) rather than a second URL parser.
         if (type === 'error' && payload) {
-          if (typeof payload.message === 'string') payload.message = scrubUrlsInText(payload.message);
+          if (typeof payload.message === 'string')
+            payload.message = scrubUrlsInText(payload.message);
           if (typeof payload.detail === 'string') payload.detail = scrubUrlsInText(payload.detail);
         }
         emit(s, type, payload, at);
@@ -382,8 +391,13 @@ export function attachPlayerVitals(deps: PlayerVitalsDeps): PlayerVitalsAdapter 
       try {
         const rawLibrary = lib.library;
         const rawVersion = lib.version;
-        library = (rawLibrary != null ? String(rawLibrary) : 'native').slice(0, MAX_PLAYER_LIBRARY_LENGTH) || 'native';
-        libraryVersion = rawVersion != null ? String(rawVersion).slice(0, MAX_PLAYER_LIBRARY_LENGTH) : undefined;
+        library =
+          (rawLibrary != null ? String(rawLibrary) : 'native').slice(
+            0,
+            MAX_PLAYER_LIBRARY_LENGTH,
+          ) || 'native';
+        libraryVersion =
+          rawVersion != null ? String(rawVersion).slice(0, MAX_PLAYER_LIBRARY_LENGTH) : undefined;
       } catch {
         degradeIntegration(s, lib);
         library = 'native';
@@ -585,7 +599,8 @@ export function attachPlayerVitals(deps: PlayerVitalsDeps): PlayerVitalsAdapter 
       const b = el.buffered;
       const ct = el.currentTime;
       for (let i = 0; i < b.length; i++) {
-        if (b.start(i) <= ct && ct <= b.end(i)) return Math.max(0, Math.round((b.end(i) - ct) * 1000));
+        if (b.start(i) <= ct && ct <= b.end(i))
+          return Math.max(0, Math.round((b.end(i) - ct) * 1000));
       }
     } catch {
       /* detached element — buffered/currentTime can throw */
@@ -602,7 +617,11 @@ export function attachPlayerVitals(deps: PlayerVitalsDeps): PlayerVitalsAdapter 
    * since identity belongs to the ELEMENT, not to which library happens to
    * be driving it at a given moment.
    */
-  function upgrade(s: ElementState, el: HTMLMediaElement, opts: TrackPlayerAdapterOptions | undefined): void {
+  function upgrade(
+    s: ElementState,
+    el: HTMLMediaElement,
+    opts: TrackPlayerAdapterOptions | undefined,
+  ): void {
     // Codex round-3 item 6 — captured BEFORE `s.name` is overwritten, so the
     // branch below can tell an actual change (customer supplies a NEW name)
     // from a repeat call that happens to supply the same one (a re-scan
@@ -829,7 +848,15 @@ export function attachPlayerVitals(deps: PlayerVitalsDeps): PlayerVitalsAdapter 
       // playback errors needs to separate a network failure from a decode
       // failure from an unsupported source. Only included when present, so
       // a schema-driven error without a numeric code still emits cleanly.
-      emit(s, 'error', { message: err?.message ?? 'code ' + err?.code, ...(err?.code != null ? { code: err.code } : {}) }, t);
+      emit(
+        s,
+        'error',
+        {
+          message: err?.message ?? 'code ' + err?.code,
+          ...(err?.code != null ? { code: err.code } : {}),
+        },
+        t,
+      );
     });
 
     on('waiting', () => {
@@ -868,7 +895,12 @@ export function attachPlayerVitals(deps: PlayerVitalsDeps): PlayerVitalsAdapter 
         // fetch, license acquisition, first-fragment download — none of
         // which the bare element can see). `startupTimings` never throws
         // (wrapped internally) and returns `{}` with no integration.
-        emit(s, 'startup', { ttffMs: Math.max(0, t - (s.loadStartT ?? t)), ...startupTimings(s) }, t);
+        emit(
+          s,
+          'startup',
+          { ttffMs: Math.max(0, t - (s.loadStartT ?? t)), ...startupTimings(s) },
+          t,
+        );
         return;
       }
       setBuffering(s, false, now());
@@ -963,7 +995,8 @@ export function attachPlayerVitals(deps: PlayerVitalsDeps): PlayerVitalsAdapter 
     // `untrackPlayer` marks an element so a later DOM scan (this one, or the
     // MutationObserver's) does not silently re-bind it — only an explicit
     // `trackPlayer()` call re-arms it (see `bind`'s userDetached.delete).
-    if (el.matches?.(MEDIA_SELECTOR) && !userDetached.has(el as HTMLMediaElement)) bindFromScan(el as HTMLMediaElement);
+    if (el.matches?.(MEDIA_SELECTOR) && !userDetached.has(el as HTMLMediaElement))
+      bindFromScan(el as HTMLMediaElement);
     el.querySelectorAll?.(MEDIA_SELECTOR).forEach((child) => {
       if (!userDetached.has(child as HTMLMediaElement)) bindFromScan(child as HTMLMediaElement);
     });
@@ -1038,7 +1071,10 @@ export function attachPlayerVitals(deps: PlayerVitalsDeps): PlayerVitalsAdapter 
         // element-derived AND integration-reported sources, so a player
         // that has ever announced one keeps reporting even while paused.
         if (!s.lastSource && !s.isPlaying) continue;
-        const data: Record<string, unknown> = { bufferAheadMs: bufferAheadMs(el), droppedFrames: 0 };
+        const data: Record<string, unknown> = {
+          bufferAheadMs: bufferAheadMs(el),
+          droppedFrames: 0,
+        };
         const dropped = readDroppedFrames(el);
         if (dropped !== undefined) {
           data.droppedFrames = Math.max(0, dropped - s.lastDroppedFrames);

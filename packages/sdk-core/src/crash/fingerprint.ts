@@ -15,8 +15,12 @@ export function computeCrashFingerprint(
   exceptionType: string,
   frames: ReadonlyArray<{ raw: string; function?: string; file?: string }>,
 ): string {
-  const keys = frames.slice(0, TOP_FRAMES).map((f) =>
-    f.function != null && f.file != null ? `${f.function}|${f.file}` : f.raw.replace(/[0-9]+/g, ''),
-  );
+  const keys = frames
+    .slice(0, TOP_FRAMES)
+    .map((f) =>
+      f.function != null && f.file != null
+        ? `${f.function}|${f.file}`
+        : f.raw.replace(/[0-9]+/g, ''),
+    );
   return sha256Hex(`${exceptionType}\n${keys.join('\n')}`).slice(0, 16);
 }

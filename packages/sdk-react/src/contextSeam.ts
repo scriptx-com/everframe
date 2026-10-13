@@ -13,7 +13,12 @@
 //
 // Single-instance enforcement: a second mount throws — two providers in one
 // process would race on this slot and silently spoof the `open()` destination.
-import type { AddBreadcrumbInput, CaptureExceptionOptions, ExtraResolver, UserMetadata } from '@everframe/sdk-core';
+import type {
+  AddBreadcrumbInput,
+  CaptureExceptionOptions,
+  ExtraResolver,
+  UserMetadata,
+} from '@everframe/sdk-core';
 import {
   type ReporterResult,
   EverframeNotMountedError,

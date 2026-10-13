@@ -8,4 +8,3 @@
  * whose declaration is disabled by default in React Native 0.87.
  */
 export type UnsafeObject = object;
-

@@ -18,14 +18,20 @@ describe('extractCrashFacts', () => {
   });
 
   it('handles non-Error rejection reasons', () => {
-    expect(extractCrashFacts('boom')).toEqual({ exceptionType: 'UnhandledValue', message: 'boom', frames: [] });
+    expect(extractCrashFacts('boom')).toEqual({
+      exceptionType: 'UnhandledValue',
+      message: 'boom',
+      frames: [],
+    });
     expect(extractCrashFacts({ code: 7 }).exceptionType).toBe('UnhandledValue');
     expect(extractCrashFacts(undefined).message).toBe('undefined');
   });
 
   it('enforces caps: message 4096, frames 256, raw 1024', () => {
     const err = new Error('m'.repeat(9000));
-    err.stack = 'Error\n' + Array.from({ length: 300 }, (_, i) => `    at f${i} (${'p'.repeat(2000)}:1:1)`).join('\n');
+    err.stack =
+      'Error\n' +
+      Array.from({ length: 300 }, (_, i) => `    at f${i} (${'p'.repeat(2000)}:1:1)`).join('\n');
     const facts = extractCrashFacts(err);
     expect(facts.message).toHaveLength(4096);
     expect(facts.frames).toHaveLength(256);

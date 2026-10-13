@@ -30,19 +30,10 @@ export function DiscardConfirmModal({
       compact
       footer={
         <>
-          <Button
-            variant="secondary"
-            onClick={onDismiss}
-            data-testid="discard-keep"
-            autoFocus
-          >
+          <Button variant="secondary" onClick={onDismiss} data-testid="discard-keep" autoFocus>
             Keep editing
           </Button>
-          <Button
-            variant="outline-destructive"
-            onClick={onConfirm}
-            data-testid="discard-confirm"
-          >
+          <Button variant="outline-destructive" onClick={onConfirm} data-testid="discard-confirm">
             Discard report
           </Button>
         </>

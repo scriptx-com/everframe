@@ -2,13 +2,28 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { test, expect, type Page } from '@playwright/test';
 
-type Probe = { renderer?: string; reason?: string; w: number; h: number; samples: Record<string, number[]> };
+type Probe = {
+  renderer?: string;
+  reason?: string;
+  w: number;
+  h: number;
+  samples: Record<string, number[]>;
+};
 
 /** Capture through the real adapter, then sample pixel colours at named viewport points (CSS px). */
-async function captureAndSample(page: Page, points: Record<string, [number, number]>): Promise<Probe> {
+async function captureAndSample(
+  page: Page,
+  points: Record<string, [number, number]>,
+): Promise<Probe> {
   return page.evaluate(async (pts) => {
     const w = window as unknown as {
-      __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string; __lastDegradedReason?: string } };
+      __everframe: {
+        __adapter: {
+          captureScreenshot(): Promise<{ blob: Blob }>;
+          __lastScreenshotRenderer?: string;
+          __lastDegradedReason?: string;
+        };
+      };
     };
     const shot = await w.__everframe.__adapter.captureScreenshot();
     const bmp = await createImageBitmap(shot.blob);
@@ -20,7 +35,9 @@ async function captureAndSample(page: Page, points: Record<string, [number, numb
     const scale = bmp.width / window.innerWidth;
     const samples: Record<string, number[]> = {};
     for (const [name, [x, y]] of Object.entries(pts)) {
-      samples[name] = Array.from(ctx.getImageData(Math.round(x * scale), Math.round(y * scale), 1, 1).data);
+      samples[name] = Array.from(
+        ctx.getImageData(Math.round(x * scale), Math.round(y * scale), 1, 1).data,
+      );
     }
     return {
       renderer: w.__everframe.__adapter.__lastScreenshotRenderer,
@@ -32,9 +49,12 @@ async function captureAndSample(page: Page, points: Record<string, [number, numb
   }, points);
 }
 
-const near = (a: number[], b: number[], tol = 40): boolean => a.slice(0, 3).every((v, i) => Math.abs(v - b[i]!) <= tol);
+const near = (a: number[], b: number[], tol = 40): boolean =>
+  a.slice(0, 3).every((v, i) => Math.abs(v - b[i]!) <= tol);
 
-test('sparse page: a single short line on a white page is captured by snapdom, not flagged blank', async ({ page }) => {
+test('sparse page: a single short line on a white page is captured by snapdom, not flagged blank', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/sparse.html');
   const r = await captureAndSample(page, {});
   expect(r.renderer).toBe('snapdom');
@@ -47,7 +67,9 @@ test('sparse page with the line removed is flagged screenshot_blank', async ({ p
   expect(r.reason).toBe('screenshot_blank');
 });
 
-test('scrolled page shows the scrolled content, masks the sensitive box, keeps video layout', async ({ page }) => {
+test('scrolled page shows the scrolled content, masks the sensitive box, keeps video layout', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   await page.evaluate(() => document.getElementById('dark')!.scrollIntoView());
   const pos = await page.evaluate(() => {
@@ -59,9 +81,9 @@ test('scrolled page shows the scrolled content, masks the sensitive box, keeps v
   });
   const r = await captureAndSample(page, pos);
   expect(r.renderer).toBe('snapdom');
-  expect(near(r.samples.bg!, [13, 17, 23])).toBe(true);        // dark section, not the white top
-  expect(near(r.samples.secret!, [0, 0, 0])).toBe(true);        // masked solid black
-  expect(near(r.samples.after!, [0, 200, 0])).toBe(true);       // video box kept, nothing shifted
+  expect(near(r.samples.bg!, [13, 17, 23])).toBe(true); // dark section, not the white top
+  expect(near(r.samples.secret!, [0, 0, 0])).toBe(true); // masked solid black
+  expect(near(r.samples.after!, [0, 200, 0])).toBe(true); // video box kept, nothing shifted
 });
 
 test('nested scroll container shows its scrolled position', async ({ page }) => {
@@ -80,7 +102,9 @@ test('nested scroll container shows its scrolled position', async ({ page }) => 
   expect(near(r.samples.marker!, [255, 0, 255])).toBe(true);
 });
 
-test('scroller child with a class-applied transform keeps it and the scroll offset', async ({ page }) => {
+test('scroller child with a class-applied transform keeps it and the scroll offset', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   await page.evaluate(() => {
     const el = document.getElementById('classy')!;
@@ -101,7 +125,9 @@ test('scroller child with a class-applied transform keeps it and the scroll offs
   expect(near(r.samples.unshifted!, [255, 255, 255])).toBe(true);
 });
 
-test('scroller child with an individual scale keeps it without scaling the scroll offset', async ({ page }) => {
+test('scroller child with an individual scale keeps it without scaling the scroll offset', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   await page.evaluate(() => {
     const el = document.getElementById('scaled')!;
@@ -121,7 +147,9 @@ test('scroller child with an individual scale keeps it without scaling the scrol
   expect(near(r.samples.above!, [255, 255, 255])).toBe(true);
 });
 
-test('an absolute grandchild anchored to a positioned scroller stays where it is seen', async ({ page }) => {
+test('an absolute grandchild anchored to a positioned scroller stays where it is seen', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   await page.evaluate(() => {
     const el = document.getElementById('cb-rebase')!;
@@ -145,7 +173,9 @@ test('an absolute grandchild anchored to a positioned scroller stays where it is
   expect(near(r.samples.wrong!, [255, 255, 255])).toBe(true);
 });
 
-test('scroller with plain in-flow rows shows each row at its live position (one restoration, not two)', async ({ page }) => {
+test('scroller with plain in-flow rows shows each row at its live position (one restoration, not two)', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   await page.evaluate(() => {
     const el = document.getElementById('rows')!;
@@ -158,7 +188,9 @@ test('scroller with plain in-flow rows shows each row at its live position (one 
       return [b.left + 20, b.top + b.height / 2];
     };
     const colour = (id: string): number[] =>
-      (getComputedStyle(document.getElementById(id)!).backgroundColor.match(/\d+/g) ?? []).map(Number);
+      (getComputedStyle(document.getElementById(id)!).backgroundColor.match(/\d+/g) ?? []).map(
+        Number,
+      );
     return {
       pos: { row10: at('rows-10'), row12: at('rows-12'), row14: at('rows-14') },
       colours: { row10: colour('rows-10'), row12: colour('rows-12'), row14: colour('rows-14') },
@@ -212,11 +244,16 @@ async function scrollAndProbe(
 function expectColoursAt(r: Probe, expected: Record<string, number[]>): void {
   for (const [name, colour] of Object.entries(expected)) {
     const sample = r.samples[name]!;
-    expect(near(sample, colour, 30), `${name}: captured ${sample.slice(0, 3)} vs live ${colour}`).toBe(true);
+    expect(
+      near(sample, colour, 30),
+      `${name}: captured ${sample.slice(0, 3)} vs live ${colour}`,
+    ).toBe(true);
   }
 }
 
-test('stylesheet-sized scroller keeps its height and clipping: rows at live positions, content below untouched', async ({ page }) => {
+test('stylesheet-sized scroller keeps its height and clipping: rows at live positions, content below untouched', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   const probe = await scrollAndProbe(
     page,
@@ -230,7 +267,9 @@ test('stylesheet-sized scroller keeps its height and clipping: rows at live posi
   expectColoursAt(r, probe.colours);
 });
 
-test('stylesheet-sized scroller with a fixed child keeps its height and clipping', async ({ page }) => {
+test('stylesheet-sized scroller with a fixed child keeps its height and clipping', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   const probe = await scrollAndProbe(
     page,
@@ -244,14 +283,21 @@ test('stylesheet-sized scroller with a fixed child keeps its height and clipping
   expectColoursAt(r, probe.colours);
 });
 
-test('horizontally scrolled flex carousel keeps its row layout and scroll offset', async ({ page }) => {
+test('horizontally scrolled flex carousel keeps its row layout and scroll offset', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
-  const probe = await scrollAndProbe(page, 'carousel', { left: 450 }, {
-    a: [20, 50],
-    b: [120, 50],
-    c: [300, 50],
-    d: [480, 50],
-  });
+  const probe = await scrollAndProbe(
+    page,
+    'carousel',
+    { left: 450 },
+    {
+      a: [20, 50],
+      b: [120, 50],
+      c: [300, 50],
+      d: [480, 50],
+    },
+  );
   const r = await captureAndSample(page, probe.pos);
   expect(r.renderer).toBe('snapdom');
   expectColoursAt(r, probe.colours);
@@ -259,18 +305,25 @@ test('horizontally scrolled flex carousel keeps its row layout and scroll offset
 
 test('scrolled grid scroller keeps its grid layout and scroll offset', async ({ page }) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
-  const probe = await scrollAndProbe(page, 'grid', { top: 170 }, {
-    a: [40, 20],
-    b: [200, 20],
-    c: [40, 120],
-    d: [200, 180],
-  });
+  const probe = await scrollAndProbe(
+    page,
+    'grid',
+    { top: 170 },
+    {
+      a: [40, 20],
+      b: [200, 20],
+      c: [40, 120],
+      d: [200, 180],
+    },
+  );
   const r = await captureAndSample(page, probe.pos);
   expect(r.renderer).toBe('snapdom');
   expectColoursAt(r, probe.colours);
 });
 
-test('a capture root that scrolls on its own (html overflow hidden) renders at its scroll and masks the sensitive box there', async ({ page }) => {
+test('a capture root that scrolls on its own (html overflow hidden) renders at its scroll and masks the sensitive box there', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/scrolling-body.html');
   const pos = await page.evaluate(() => {
     document.body.scrollTop = 300;
@@ -289,11 +342,15 @@ test('a capture root that scrolls on its own (html overflow hidden) renders at i
   expect(near(r.samples.secret!, [0, 0, 0])).toBe(true);
 });
 
-test('an app update to ellipsized text during capture is kept and no text node is left emptied', async ({ page }) => {
+test('an app update to ellipsized text during capture is kept and no text node is left emptied', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/ellipsis.html');
   const r = await page.evaluate(async () => {
     const w = window as unknown as {
-      __everframe: { __adapter: { captureScreenshot(): Promise<unknown>; __lastScreenshotRenderer?: string } };
+      __everframe: {
+        __adapter: { captureScreenshot(): Promise<unknown>; __lastScreenshotRenderer?: string };
+      };
     };
     const price = document.getElementById('price')!;
     const [amount, suffix] = Array.from(price.childNodes) as Text[];
@@ -330,19 +387,28 @@ test('an app update to ellipsized text during capture is kept and no text node i
   expect(r.sameNodes).toBe(true);
 });
 
-test('grid with justify-content: space-between keeps its second column at its live x', async ({ page }) => {
+test('grid with justify-content: space-between keeps its second column at its live x', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
-  const probe = await scrollAndProbe(page, 'grid-sb', { top: 100 }, {
-    first: [40, 30],
-    second: [340, 30], // live second column: x 300..400
-    gap: [200, 30], // between the tracks: scroller background
-  });
+  const probe = await scrollAndProbe(
+    page,
+    'grid-sb',
+    { top: 100 },
+    {
+      first: [40, 30],
+      second: [340, 30], // live second column: x 300..400
+      gap: [200, 30], // between the tracks: scroller background
+    },
+  );
   const r = await captureAndSample(page, probe.pos);
   expect(r.renderer).toBe('snapdom');
   expectColoursAt(r, probe.colours);
 });
 
-test('snapDOM masks a sensitive element on the clone: black at its live rect, the live element never restyled', async ({ page }) => {
+test('snapDOM masks a sensitive element on the clone: black at its live rect, the live element never restyled', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   await page.evaluate(() => document.getElementById('dark')!.scrollIntoView());
   const pos = await page.evaluate(() => {
@@ -351,7 +417,12 @@ test('snapDOM masks a sensitive element on the clone: black at its live rect, th
     w.__secretMutations = 0;
     new MutationObserver((records) => {
       w.__secretMutations += records.length;
-    }).observe(document.getElementById('secret')!, { attributes: true, childList: true, subtree: true, characterData: true });
+    }).observe(document.getElementById('secret')!, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
     return {
       centre: [b.left + b.width / 2, b.top + b.height / 2] as [number, number],
       left: [b.left + 6, b.top + b.height / 2] as [number, number],
@@ -359,19 +430,29 @@ test('snapDOM masks a sensitive element on the clone: black at its live rect, th
     };
   });
   const r = await captureAndSample(page, pos);
-  const mutations = await page.evaluate(() => (window as unknown as { __secretMutations: number }).__secretMutations);
+  const mutations = await page.evaluate(
+    () => (window as unknown as { __secretMutations: number }).__secretMutations,
+  );
   expect(r.renderer).toBe('snapdom');
   expect(mutations).toBe(0);
-  for (const name of ['centre', 'left', 'right']) expect(near(r.samples[name]!, [0, 0, 0]), name).toBe(true);
+  for (const name of ['centre', 'left', 'right'])
+    expect(near(r.samples[name]!, [0, 0, 0]), name).toBe(true);
 });
 
-test('a checked appearance:none checkbox marked sensitive ships as a plain black box', async ({ page }) => {
+test('a checked appearance:none checkbox marked sensitive ships as a plain black box', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   const r = await page.evaluate(async () => {
     const el = document.getElementById('consent-box')!;
     el.scrollIntoView({ block: 'center' });
     const w = window as unknown as {
-      __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
+      __everframe: {
+        __adapter: {
+          captureScreenshot(): Promise<{ blob: Blob }>;
+          __lastScreenshotRenderer?: string;
+        };
+      };
     };
     const shot = await w.__everframe.__adapter.captureScreenshot();
     const bmp = await createImageBitmap(shot.blob);
@@ -391,8 +472,13 @@ test('a checked appearance:none checkbox marked sensitive ships as a plain black
     const h0 = Math.floor((b.height - 10) * scale);
     const data = ctx.getImageData(x0, y0, w0, h0).data;
     let brightest = 0;
-    for (let i = 0; i < data.length; i += 4) brightest = Math.max(brightest, data[i]!, data[i + 1]!, data[i + 2]!);
-    return { renderer: w.__everframe.__adapter.__lastScreenshotRenderer, brightest, pixels: data.length / 4 };
+    for (let i = 0; i < data.length; i += 4)
+      brightest = Math.max(brightest, data[i]!, data[i + 1]!, data[i + 2]!);
+    return {
+      renderer: w.__everframe.__adapter.__lastScreenshotRenderer,
+      brightest,
+      pixels: data.length / 4,
+    };
   });
   expect(r.renderer).toBe('snapdom');
   expect(r.pixels).toBeGreaterThan(100);
@@ -415,11 +501,14 @@ test('a fixed child of a sensitive section is masked where snapDOM lifted it', a
   });
   const r = await captureAndSample(page, pos);
   expect(r.renderer).toBe('snapdom');
-  for (const name of ['fabL', 'fabC', 'fabR', 'section']) expect(near(r.samples[name]!, [0, 0, 0]), name).toBe(true);
+  for (const name of ['fabL', 'fabC', 'fabR', 'section'])
+    expect(near(r.samples[name]!, [0, 0, 0]), name).toBe(true);
   expect(near(r.samples.outside!, [0, 120, 255])).toBe(true);
 });
 
-test('a sensitive fixed modal centred with a transform is masked exactly over its live rect', async ({ page }) => {
+test('a sensitive fixed modal centred with a transform is masked exactly over its live rect', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/sensitive-fixed.html');
   const pos = await page.evaluate(() => {
     const b = document.getElementById('modal')!.getBoundingClientRect();
@@ -436,15 +525,22 @@ test('a sensitive fixed modal centred with a transform is masked exactly over it
   });
   const r = await captureAndSample(page, pos);
   expect(r.renderer).toBe('snapdom');
-  for (const name of ['tl', 'tr', 'bl', 'br', 'centre']) expect(near(r.samples[name]!, [0, 0, 0]), name).toBe(true);
-  for (const name of ['aboveLeft', 'left', 'above']) expect(near(r.samples[name]!, [0, 120, 255]), name).toBe(true);
+  for (const name of ['tl', 'tr', 'bl', 'br', 'centre'])
+    expect(near(r.samples[name]!, [0, 0, 0]), name).toBe(true);
+  for (const name of ['aboveLeft', 'left', 'above'])
+    expect(near(r.samples[name]!, [0, 120, 255]), name).toBe(true);
 });
 
 test('bare text inside a sensitive display:contents wrapper is never painted', async ({ page }) => {
   await page.goto('/e2e/fixtures/sensitive-fixed.html');
   const r = await page.evaluate(async () => {
     const w = window as unknown as {
-      __everframe: { __adapter: { captureScreenshot(): Promise<{ blob: Blob }>; __lastScreenshotRenderer?: string } };
+      __everframe: {
+        __adapter: {
+          captureScreenshot(): Promise<{ blob: Blob }>;
+          __lastScreenshotRenderer?: string;
+        };
+      };
     };
     const text = document.getElementById('contents-wrap')!.firstChild!;
     const range = document.createRange();
@@ -465,15 +561,22 @@ test('bare text inside a sensitive display:contents wrapper is never painted', a
       Math.floor((b.height - 4) * scale),
     ).data;
     let brightest = 0;
-    for (let i = 0; i < data.length; i += 4) brightest = Math.max(brightest, data[i]!, data[i + 1]!, data[i + 2]!);
-    return { renderer: w.__everframe.__adapter.__lastScreenshotRenderer, brightest, pixels: data.length / 4 };
+    for (let i = 0; i < data.length; i += 4)
+      brightest = Math.max(brightest, data[i]!, data[i + 1]!, data[i + 2]!);
+    return {
+      renderer: w.__everframe.__adapter.__lastScreenshotRenderer,
+      brightest,
+      pixels: data.length / 4,
+    };
   });
   expect(r.renderer).toBe('snapdom');
   expect(r.pixels).toBeGreaterThan(100);
   expect(r.brightest).toBeLessThanOrEqual(40); // black line fragment, no glyphs
 });
 
-test('a sensitive element with CSS zoom is masked at its zoomed size without shifting what follows', async ({ page }) => {
+test('a sensitive element with CSS zoom is masked at its zoomed size without shifting what follows', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/sensitive-fixed.html');
   const pos = await page.evaluate(() => {
     const b = document.getElementById('zoomed')!.getBoundingClientRect();
@@ -494,7 +597,9 @@ test('a sensitive element with CSS zoom is masked at its zoomed size without shi
   expect(near(r.samples.after!, [0, 200, 0])).toBe(true);
 });
 
-test('a script edit to an existing stylesheet rule shows up in the next capture', async ({ page }) => {
+test('a script edit to an existing stylesheet rule shows up in the next capture', async ({
+  page,
+}) => {
   await page.goto('/e2e/fixtures/capture-cases.html');
   const pos = await page.evaluate(() => {
     const el = document.getElementById('cx')!;
@@ -509,7 +614,8 @@ test('a script edit to an existing stylesheet rule shows up in the next capture'
   await page.evaluate(() => {
     for (const sheet of Array.from(document.styleSheets)) {
       for (const rule of Array.from(sheet.cssRules)) {
-        if (rule instanceof CSSStyleRule && rule.selectorText === '.cx') rule.style.background = 'rgb(0,255,0)';
+        if (rule instanceof CSSStyleRule && rule.selectorText === '.cx')
+          rule.style.background = 'rgb(0,255,0)';
       }
     }
   });

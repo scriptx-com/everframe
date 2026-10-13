@@ -30,9 +30,7 @@ function baseBundle(): CaptureBundle {
       { level: 'log', message: 'l1', timestamp: 1 },
       { level: 'warn', message: 'l2', timestamp: 2 },
     ],
-    network: [
-      { method: 'GET', url: 'https://api.example.com', startedAt: 1, status: 200 },
-    ],
+    network: [{ method: 'GET', url: 'https://api.example.com', startedAt: 1, status: 200 }],
     metadata: {
       os: 'macOS',
       osVersion: '14.0',
@@ -55,10 +53,14 @@ const baseDraft: ReportDraft = {
 describe('draftToEnvelope', () => {
   it('preserves the deployed app build on user-filed reports', () => {
     const { envelope } = draftToEnvelope(
-      baseDraft, baseBundle(), { ...baseConfig(), appBuild: 'web-abc123' }, '0.1.0',
+      baseDraft,
+      baseBundle(),
+      { ...baseConfig(), appBuild: 'web-abc123' },
+      '0.1.0',
     );
     expect(ReportEnvelope.parse(envelope).context.app).toMatchObject({
-      version: '1.0.0', build: 'web-abc123',
+      version: '1.0.0',
+      build: 'web-abc123',
     });
   });
 
@@ -68,7 +70,10 @@ describe('draftToEnvelope', () => {
     it('is true when the config says debugBuild', () => {
       vi.stubGlobal('location', { hostname: 'example.com' });
       const { envelope } = draftToEnvelope(
-        baseDraft, baseBundle(), { ...baseConfig(), debugBuild: true }, '0.1.0',
+        baseDraft,
+        baseBundle(),
+        { ...baseConfig(), debugBuild: true },
+        '0.1.0',
       );
       expect(ReportEnvelope.parse(envelope).context.app.debug).toBe(true);
     });
@@ -137,7 +142,12 @@ describe('draftToEnvelope', () => {
   });
 
   it('Pitfall 8 — when redactions empty, only screenshot ships; no annotated-screenshot kind', () => {
-    const { attachments, envelope } = draftToEnvelope(baseDraft, baseBundle(), baseConfig(), '0.1.0');
+    const { attachments, envelope } = draftToEnvelope(
+      baseDraft,
+      baseBundle(),
+      baseConfig(),
+      '0.1.0',
+    );
     expect(attachments).toHaveLength(1);
     expect(attachments[0]!.kind).toBe('screenshot');
     expect(attachments[0]!.name).toBe('screenshot');
@@ -147,7 +157,10 @@ describe('draftToEnvelope', () => {
   });
 
   it('captureControl.degradedReason populated from bundle.degradedReason', () => {
-    const bundle: CaptureBundle = { ...baseBundle(), degradedReason: 'react_version_unsupported_fiber' };
+    const bundle: CaptureBundle = {
+      ...baseBundle(),
+      degradedReason: 'react_version_unsupported_fiber',
+    };
     const { envelope } = draftToEnvelope(baseDraft, bundle, baseConfig(), '0.1.0');
     expect(envelope.captureControl.degradedReason).toBe('react_version_unsupported_fiber');
   });
@@ -221,7 +234,13 @@ describe('draftToEnvelope — multi-screenshot (report-window overhaul)', () => 
 
   it('respects excludedArtifacts screenshot switch for ALL shots', () => {
     const { attachments } = draftToEnvelope(
-      { title: 't', description: '', excludedArtifacts: ['screenshot'], annotations: [], redactions: [] },
+      {
+        title: 't',
+        description: '',
+        excludedArtifacts: ['screenshot'],
+        annotations: [],
+        redactions: [],
+      },
       {
         ...baseBundle(),
         screenshots: [

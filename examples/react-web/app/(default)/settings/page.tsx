@@ -4,14 +4,14 @@
 // Settings — the SDK-surface page: setUser / setExtra / kill wired to real
 // controls, so the example demonstrates the full useEverframe() API, not just
 // open().
-"use client";
-import { useState } from "react";
-import { useEverframe } from "@everframe/react";
+'use client';
+import { useState } from 'react';
+import { useEverframe } from '@everframe/react';
 
 export default function SettingsPage() {
   const { setUser, setExtra, kill } = useEverframe();
-  const [name, setName] = useState("Ada Collector");
-  const [email, setEmail] = useState("ada@example.com");
+  const [name, setName] = useState('Ada Collector');
+  const [email, setEmail] = useState('ada@example.com');
   const [extra, setExtra_] = useState('{"plan":"field-team","build":"demo"}');
   const [status, setStatus] = useState<string | null>(null);
   const [killed, setKilled] = useState(false);
@@ -23,15 +23,13 @@ export default function SettingsPage() {
 
   const applyExtra = () => {
     setExtra(extra);
-    setStatus("setExtra applied — the string rides along with the next report.");
+    setStatus('setExtra applied — the string rides along with the next report.');
   };
 
   const killSdk = () => {
     kill();
     setKilled(true);
-    setStatus(
-      "SDK killed. Reporter, hotkey, and capture are disabled until the page reloads."
-    );
+    setStatus('SDK killed. Reporter, hotkey, and capture are disabled until the page reloads.');
   };
 
   return (
@@ -39,8 +37,8 @@ export default function SettingsPage() {
       <p className="eyebrow">SDK surface</p>
       <h1 className="display">Settings</h1>
       <p className="lede">
-        The reporter is one call; this page wires up the rest of the
-        useEverframe() API so you can watch each one land in the next report.
+        The reporter is one call; this page wires up the rest of the useEverframe() API so you can
+        watch each one land in the next report.
       </p>
 
       {status ? (
@@ -52,8 +50,8 @@ export default function SettingsPage() {
       <section className="card">
         <h2 className="section-title">Identity — setUser()</h2>
         <p className="muted">
-          Attribute reports to a signed-in user. Email-shaped values are still
-          subject to redaction rules on the ingest side.
+          Attribute reports to a signed-in user. Email-shaped values are still subject to redaction
+          rules on the ingest side.
         </p>
         <div className="field-row">
           <div className="field">
@@ -85,8 +83,8 @@ export default function SettingsPage() {
       <section className="card">
         <h2 className="section-title">Report metadata — setExtra()</h2>
         <p className="muted">
-          One opaque string, attached verbatim to the next report envelope.
-          JSON is a convention, not a requirement.
+          One opaque string, attached verbatim to the next report envelope. JSON is a convention,
+          not a requirement.
         </p>
         <div className="field">
           <label htmlFor="extra-input">Extra payload</label>
@@ -106,19 +104,17 @@ export default function SettingsPage() {
       <section className="card">
         <h2 className="section-title">Triggers</h2>
         <p className="muted">
-          This app installs two: the floating report button in the corner
-          (host-owned — the SDK ships no visible chrome) and the built-in
-          hotkey <strong>Cmd/Ctrl + Shift + B</strong>. Try the hotkey from any
-          page.
+          This app installs two: the floating report button in the corner (host-owned — the SDK
+          ships no visible chrome) and the built-in hotkey <strong>Cmd/Ctrl + Shift + B</strong>.
+          Try the hotkey from any page.
         </p>
       </section>
 
       <section className="card">
         <h2 className="section-title">Kill switch — kill()</h2>
         <p className="muted">
-          Permanently disables the SDK for this page load: recorder stops,
-          triggers stop responding, nothing else is captured or sent. Reload
-          to bring it back.
+          Permanently disables the SDK for this page load: recorder stops, triggers stop responding,
+          nothing else is captured or sent. Reload to bring it back.
         </p>
         <button
           className="btn btn-danger"
@@ -126,7 +122,7 @@ export default function SettingsPage() {
           disabled={killed}
           data-testid="kill-sdk"
         >
-          {killed ? "SDK is killed for this session" : "Kill the SDK"}
+          {killed ? 'SDK is killed for this session' : 'Kill the SDK'}
         </button>
       </section>
     </main>

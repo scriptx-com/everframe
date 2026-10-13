@@ -41,7 +41,9 @@ describe('web adapter — resources capability negotiation', () => {
     adapters.push(adapter);
     await adapter.__initReplay();
 
-    const configCall = fetchMock.mock.calls.find((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config'));
+    const configCall = fetchMock.mock.calls.find((c) =>
+      urlOf(c[0] as RequestInfo | URL).includes('/api/config'),
+    );
     expect(configCall).toBeDefined();
     const headers = configCall![1]?.headers as Record<string, string>;
     const features = headers['X-Everframe-SDK-Features']!.split(',').map((s) => s.trim());
@@ -94,7 +96,13 @@ describe('web adapter — resources capability negotiation', () => {
       submittedAt: new Date(0).toISOString(),
       sdk: { name: 'everframe-web', version: '0.1.0', platform: 'web', formFactor: 'desktop' },
       reporter: { title: 'X', description: 'Y' },
-      draft: { title: 'X', description: 'Y', excludedArtifacts: [], annotations: [], redactions: [] },
+      draft: {
+        title: 'X',
+        description: 'Y',
+        excludedArtifacts: [],
+        annotations: [],
+        redactions: [],
+      },
       device: {
         os: 'macOS',
         osVersion: '14.0',

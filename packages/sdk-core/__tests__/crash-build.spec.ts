@@ -22,11 +22,20 @@ const base = () => ({
   occurredAt: '2026-07-18T12:00:00.000Z',
   reportId: '123e4567-e89b-42d3-a456-426614174000',
   submittedAt: '2026-07-18T12:00:00.100Z',
-  sdk: { name: 'everframe-react' as const, version: '1.0.0', platform: 'web' as const, formFactor: 'desktop' as const },
+  sdk: {
+    name: 'everframe-react' as const,
+    version: '1.0.0',
+    platform: 'web' as const,
+    formFactor: 'desktop' as const,
+  },
   breadcrumbs: [{ kind: 'error' as const, message: 'two', seq: 1, t: 999 }],
   device: {
-    os: 'macOS', osVersion: '15', screenSize: { width: 1280, height: 800 },
-    pixelRatio: 2, locale: 'en-US', timezone: 'UTC',
+    os: 'macOS',
+    osVersion: '15',
+    screenSize: { width: 1280, height: 800 },
+    pixelRatio: 2,
+    locale: 'en-US',
+    timezone: 'UTC',
   },
   app: { name: 'demo', version: '1.2.3' },
   route: '/checkout',
@@ -62,12 +71,14 @@ describe('buildCrashEnvelope (spec 2026-07-18)', () => {
 
   it('attaches the owned cause snapshot without a second normalization pass or fingerprint input', () => {
     const causeChain = {
-      causes: [{
-        exceptionType: 'TypeError',
-        message: 'already-owned',
-        frames: [{ raw: 'at inner (owned.js:1:2)' }],
-        framesTruncated: false,
-      }],
+      causes: [
+        {
+          exceptionType: 'TypeError',
+          message: 'already-owned',
+          frames: [{ raw: 'at inner (owned.js:1:2)' }],
+          framesTruncated: false,
+        },
+      ],
       truncated: false,
     };
     const withCause = buildCrashEnvelope({
@@ -92,7 +103,8 @@ describe('buildCrashEnvelope (spec 2026-07-18)', () => {
   it('preserves handled and fatal as separate classification fields', () => {
     const { envelope } = buildCrashEnvelope({ ...base(), handled: true, fatal: false });
     expect(ReportEnvelope.parse(envelope).payload.crash).toMatchObject({
-      handled: true, fatal: false,
+      handled: true,
+      fatal: false,
     });
   });
 
@@ -123,7 +135,12 @@ describe('buildCrashEnvelope (spec 2026-07-18)', () => {
     expect(parsed.captureControl.included).toEqual(['breadcrumbs']);
     // Only breadcrumbs captured — no derived logs/network, no uiTree/screenshot.
     expect(parsed.captures).toMatchObject({
-      screenshot: false, uiTree: false, focus: false, logs: false, network: false, breadcrumbs: true,
+      screenshot: false,
+      uiTree: false,
+      focus: false,
+      logs: false,
+      network: false,
+      breadcrumbs: true,
     });
     expect(parsed.payload.logs).toBeUndefined();
   });
@@ -177,12 +194,13 @@ describe('buildCrashEnvelope (spec 2026-07-18)', () => {
     input.facts.message = 'smoke js-render: ExplodingRow';
     const { envelope, fingerprint } = buildCrashEnvelope({
       ...input,
-      componentStack: '\n    at ExplodingRow (https://app.example/index.js:1:20)\n    at Card 123-45-6789',
+      componentStack:
+        '\n    at ExplodingRow (https://app.example/index.js:1:20)\n    at Card 123-45-6789',
     });
 
     expect(envelope.payload.crash?.message).toBe(
-      'smoke js-render: ExplodingRow\n\nThis error is located at:'
-        + '\n    at ExplodingRow (https://app.example/index.js:1:20)\n    at Card [REDACTED:SSN]',
+      'smoke js-render: ExplodingRow\n\nThis error is located at:' +
+        '\n    at ExplodingRow (https://app.example/index.js:1:20)\n    at Card [REDACTED:SSN]',
     );
     expect(envelope.reporter.title).toBe('TypeError: smoke js-render: ExplodingRow');
     expect(envelope.source).toBe('crash');
@@ -194,8 +212,15 @@ describe('buildCrashEnvelope (spec 2026-07-18)', () => {
   it('keeps a message with a component stack within the 4096-char protocol limit', () => {
     const input = base();
     input.facts.message = 'm'.repeat(4000);
-    const { envelope } = buildCrashEnvelope({ ...input, componentStack: '\n    at Row'.repeat(100) });
+    const { envelope } = buildCrashEnvelope({
+      ...input,
+      componentStack: '\n    at Row'.repeat(100),
+    });
     expect(envelope.payload.crash?.message.length).toBe(4096);
-    expect(envelope.payload.crash?.message.startsWith(`${'m'.repeat(4000)}\n\nThis error is located at:\n    at Row`)).toBe(true);
+    expect(
+      envelope.payload.crash?.message.startsWith(
+        `${'m'.repeat(4000)}\n\nThis error is located at:\n    at Row`,
+      ),
+    ).toBe(true);
   });
 });

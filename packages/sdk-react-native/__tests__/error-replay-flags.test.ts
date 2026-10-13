@@ -38,7 +38,9 @@ beforeEach(() => {
   errorUtilsHandler = vi.fn();
   vi.stubGlobal('ErrorUtils', {
     getGlobalHandler: () => errorUtilsHandler,
-    setGlobalHandler: (handler: Handler) => { errorUtilsHandler = handler; },
+    setGlobalHandler: (handler: Handler) => {
+      errorUtilsHandler = handler;
+    },
   });
 });
 afterEach(() => {
@@ -48,17 +50,43 @@ afterEach(() => {
 });
 
 describe('errors the app survives reach the bridge as fatal: false', () => {
-  const survivable: Array<{ name: string; report: (controller: Controller) => void;
-    method: 'reportCrash' | 'captureHandledException'; mechanism: string; handled: boolean }> = [
-    { name: 'a non-fatal ErrorUtils error', report: () => errorUtilsHandler(failure('nonFatal'), false),
-      method: 'reportCrash', mechanism: 'errorutils', handled: false },
-    { name: 'an ErrorUtils error reported without an isFatal argument', report: () => errorUtilsHandler(failure('noFlag')),
-      method: 'reportCrash', mechanism: 'errorutils', handled: false },
-    { name: 'an unhandled promise rejection',
-      report: (controller) => { controller.submitRejection(controller.prepareRejection(failure('rejected'), occurredAt)!); },
-      method: 'reportCrash', mechanism: 'unhandledrejection', handled: false },
-    { name: 'captureException', report: (controller) => controller.captureException(failure('explicit')),
-      method: 'captureHandledException', mechanism: 'captureException', handled: true },
+  const survivable: Array<{
+    name: string;
+    report: (controller: Controller) => void;
+    method: 'reportCrash' | 'captureHandledException';
+    mechanism: string;
+    handled: boolean;
+  }> = [
+    {
+      name: 'a non-fatal ErrorUtils error',
+      report: () => errorUtilsHandler(failure('nonFatal'), false),
+      method: 'reportCrash',
+      mechanism: 'errorutils',
+      handled: false,
+    },
+    {
+      name: 'an ErrorUtils error reported without an isFatal argument',
+      report: () => errorUtilsHandler(failure('noFlag')),
+      method: 'reportCrash',
+      mechanism: 'errorutils',
+      handled: false,
+    },
+    {
+      name: 'an unhandled promise rejection',
+      report: (controller) => {
+        controller.submitRejection(controller.prepareRejection(failure('rejected'), occurredAt)!);
+      },
+      method: 'reportCrash',
+      mechanism: 'unhandledrejection',
+      handled: false,
+    },
+    {
+      name: 'captureException',
+      report: (controller) => controller.captureException(failure('explicit')),
+      method: 'captureHandledException',
+      mechanism: 'captureException',
+      handled: true,
+    },
   ];
 
   it.each(survivable)('$name goes through $method', ({ report, method, mechanism, handled }) => {
@@ -76,7 +104,10 @@ describe('errors the app survives reach the bridge as fatal: false', () => {
 describe('errors that end the app reach the bridge as fatal: true', () => {
   const fatal: Array<{ name: string; report: () => void }> = [
     { name: 'a fatal ErrorUtils error', report: () => errorUtilsHandler(failure('fatal'), true) },
-    { name: 'a React error that no boundary caught', report: () => ExceptionsManager.handleException(failure('uncaught'), true) },
+    {
+      name: 'a React error that no boundary caught',
+      report: () => ExceptionsManager.handleException(failure('uncaught'), true),
+    },
   ];
 
   it.each(fatal)('$name goes through reportCrash only', ({ report }) => {
@@ -85,7 +116,12 @@ describe('errors that end the app reach the bridge as fatal: true', () => {
     expect(explicit).not.toHaveBeenCalled();
     expect(automatic).toHaveBeenCalledTimes(1);
     const payload = sent(automatic)[0];
-    expect(payload).toMatchObject({ fatal: true, source: 'crash', mechanism: 'errorutils', handled: false });
+    expect(payload).toMatchObject({
+      fatal: true,
+      source: 'crash',
+      mechanism: 'errorutils',
+      handled: false,
+    });
     expect(typeof payload.fatal).toBe('boolean');
   });
 
@@ -104,7 +140,9 @@ describe('errors that end the app reach the bridge as fatal: true', () => {
     errorUtilsHandler(error, true);
     expect(explicit).toHaveBeenCalledTimes(1);
     expect(sent(explicit)[0]).toMatchObject({ fatal: false, handled: true });
-    expect(sent(automatic)).toEqual([expect.objectContaining({ fatal: true, source: 'crash', handled: false })]);
+    expect(sent(automatic)).toEqual([
+      expect.objectContaining({ fatal: true, source: 'crash', handled: false }),
+    ]);
   });
 });
 

@@ -17,7 +17,13 @@ const STATIC_NONCE = 'STATIC_TEST_NONCE_FOR_PLAYWRIGHT';
 export default function StrictCspLayout({ children }: { children: ReactNode }) {
   return (
     <EverframeProvider
-      config={{ sdkKey: EVERFRAME_KEY, appBuild: process.env.NEXT_PUBLIC_EVERFRAME_APP_BUILD, cspNonce: STATIC_NONCE, debug: true, vitals: { enabled: true } }}
+      config={{
+        sdkKey: EVERFRAME_KEY,
+        appBuild: process.env.NEXT_PUBLIC_EVERFRAME_APP_BUILD,
+        cspNonce: STATIC_NONCE,
+        debug: true,
+        vitals: { enabled: true },
+      }}
     >
       {children}
       <ReportFab />

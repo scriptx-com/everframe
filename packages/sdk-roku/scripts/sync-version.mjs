@@ -33,7 +33,11 @@ end function
 
 const manifestPath = path.join(pkg, 'library/manifest');
 let manifest = readFileSync(manifestPath, 'utf8');
-for (const [key, value] of [['major_version', major], ['minor_version', minor], ['build_version', build]]) {
+for (const [key, value] of [
+  ['major_version', major],
+  ['minor_version', minor],
+  ['build_version', build],
+]) {
   const re = new RegExp(`^${key}=.*$`, 'm');
   if (!re.test(manifest)) {
     console.error(`error: ${key} missing from ${manifestPath}`);

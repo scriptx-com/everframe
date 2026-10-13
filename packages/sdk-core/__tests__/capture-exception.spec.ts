@@ -12,7 +12,9 @@ describe('captureException facade', () => {
     const captured: Array<{ error: unknown; options: CaptureExceptionOptions | undefined }> = [];
     const client = createClient({
       ...createFakePlatformAdapter(),
-      captureException: (error, options) => { captured.push({ error, options }); },
+      captureException: (error, options) => {
+        captured.push({ error, options });
+      },
     });
     const error = new Error('checkout failed');
     const options = { severity: 'warning', context: 'checkout', metadata: { retry: 2 } } as const;
@@ -38,15 +40,21 @@ describe('captureException facade', () => {
   it('allows adapters that do not implement exception reporting', () => {
     const client = createClient(createFakePlatformAdapter());
     client.init({ sdkKey: 'test' });
-    expect(() => client.captureException(new Error('caught'), { context: 'checkout' })).not.toThrow();
+    expect(() =>
+      client.captureException(new Error('caught'), { context: 'checkout' }),
+    ).not.toThrow();
   });
 
   it('contains adapter failures even when the host error callback also throws', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const onError = vi.fn(() => { throw new Error('host callback failed'); });
+    const onError = vi.fn(() => {
+      throw new Error('host callback failed');
+    });
     const client = createClient({
       ...createFakePlatformAdapter(),
-      captureException() { throw new Error('adapter failed'); },
+      captureException() {
+        throw new Error('adapter failed');
+      },
     });
     client.init({ sdkKey: 'test', onError });
     expect(() => client.captureException(new Error('caught'))).not.toThrow();

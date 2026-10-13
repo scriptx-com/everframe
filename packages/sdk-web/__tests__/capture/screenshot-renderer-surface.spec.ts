@@ -33,7 +33,10 @@ describe('adapter.__lastScreenshotRenderer', () => {
     vi.doMock('../../src/capture/screenshot.js', async (orig) => ({
       ...(await orig<typeof import('../../src/capture/screenshot.js')>()),
       captureScreenshot: vi.fn(
-        async (o: { __setDegradedReason?: (r: string) => void; __setRenderer?: (r: string) => void }) => {
+        async (o: {
+          __setDegradedReason?: (r: string) => void;
+          __setRenderer?: (r: string) => void;
+        }) => {
           call += 1;
           if (call === 1) {
             o.__setDegradedReason?.('screenshot_blank');
@@ -57,7 +60,7 @@ describe('adapter.__lastScreenshotRenderer', () => {
     expect(adapter.__lastScreenshotRenderer).toBeUndefined();
   });
 
-  it('an overlapping capture resets the shared getter but not the earlier result\'s own reason', async () => {
+  it("an overlapping capture resets the shared getter but not the earlier result's own reason", async () => {
     const releases: Array<() => void> = [];
     vi.doMock('../../src/capture/screenshot.js', async (orig) => ({
       ...(await orig<typeof import('../../src/capture/screenshot.js')>()),
@@ -66,7 +69,13 @@ describe('adapter.__lastScreenshotRenderer', () => {
         await new Promise<void>((resolve) => releases.push(resolve));
         if (first) {
           o.__setDegradedReason?.('screenshot_blank');
-          return { blob: new Blob(['x']), width: 1, height: 1, sha256: '0'.repeat(64), degradedReason: 'screenshot_blank' };
+          return {
+            blob: new Blob(['x']),
+            width: 1,
+            height: 1,
+            sha256: '0'.repeat(64),
+            degradedReason: 'screenshot_blank',
+          };
         }
         return { blob: new Blob(['y']), width: 1, height: 1, sha256: '1'.repeat(64) };
       }),

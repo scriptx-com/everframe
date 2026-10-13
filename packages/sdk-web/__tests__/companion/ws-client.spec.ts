@@ -110,9 +110,7 @@ describe('companion/ws-client', () => {
       }),
     );
 
-    expect(companion.getPairUrl()).toBe(
-      'https://relay.example.com/r/tok-abc',
-    );
+    expect(companion.getPairUrl()).toBe('https://relay.example.com/r/tok-abc');
     expect(companion.getState()).toBe('unpaired');
   });
 
@@ -134,12 +132,8 @@ describe('companion/ws-client', () => {
     client.start();
     lastWS!._open();
 
-    lastWS!._message(
-      JSON.stringify({ type: 'preview.start', correlation_id: 'c1' }),
-    );
-    lastWS!._message(
-      JSON.stringify({ type: 'shot.request', correlation_id: 'c1', shot_id: 's1' }),
-    );
+    lastWS!._message(JSON.stringify({ type: 'preview.start', correlation_id: 'c1' }));
+    lastWS!._message(JSON.stringify({ type: 'shot.request', correlation_id: 'c1', shot_id: 's1' }));
 
     const sent = (lastWS!.send as unknown as { mock: { calls: string[][] } }).mock.calls.map(
       (c) => JSON.parse(c[0]!) as { type: string; reason?: string; shot_id?: string },
@@ -310,9 +304,7 @@ describe('companion/ws-client', () => {
     );
 
     // Old server (or an ordinary QR pair, which never gets one) — no field.
-    lastWS!._message(
-      JSON.stringify({ type: 'report.request', correlation_id: 'corr-1' }),
-    );
+    lastWS!._message(JSON.stringify({ type: 'report.request', correlation_id: 'corr-1' }));
 
     // NEVER FATAL / never a hard failure: the report still proceeds using
     // whatever token was already captured, degraded but not broken.
@@ -550,8 +542,11 @@ describe('companion/ws-client', () => {
   it('announce resolvedName lands in state; deviceProvider result rides the announce body', async () => {
     const companion = createCompanion();
     const DEVICE = {
-      id: '11111111-2222-4333-8444-555555555555', platform: 'web' as const,
-      model: 'Samsung TV', osName: 'Tizen', osVersion: '7.0',
+      id: '11111111-2222-4333-8444-555555555555',
+      platform: 'web' as const,
+      model: 'Samsung TV',
+      osName: 'Tizen',
+      osVersion: '7.0',
     };
     const announceImpl = vi.fn(async (o: Record<string, unknown>) => {
       expect(o.device).toEqual(DEVICE);
@@ -590,7 +585,9 @@ describe('companion/ws-client', () => {
       webSocketCtor: makeFakeWSCtor(),
       storage: makeStorage(),
       sdkKey: 'txx_live_x',
-      deviceProvider: async () => { throw new Error('nope'); },
+      deviceProvider: async () => {
+        throw new Error('nope');
+      },
       announceImpl: announceImpl as never,
     });
 
@@ -666,7 +663,9 @@ describe('companion/ws-client', () => {
       sdkKey: 'txx_live_x',
       deviceProvider: async () => {
         const id = await resolveCompanionDeviceId();
-        return id === null ? null : { id, platform: 'web' as const, model: null, osName: null, osVersion: null };
+        return id === null
+          ? null
+          : { id, platform: 'web' as const, model: null, osName: null, osVersion: null };
       },
       announceImpl: announceImpl as never,
     });

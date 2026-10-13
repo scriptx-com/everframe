@@ -23,7 +23,11 @@ export function ensureGlobalThis(
 ): void {
   if (present()) return;
   try {
-    Object.defineProperty(scope, 'globalThis', { value: scope, writable: true, configurable: true });
+    Object.defineProperty(scope, 'globalThis', {
+      value: scope,
+      writable: true,
+      configurable: true,
+    });
   } catch {
     /* a frozen global: nothing more to do */
   }

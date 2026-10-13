@@ -91,8 +91,16 @@ function ButterflyBody({ plate }: { plate: Specimen['plate'] }): React.JSX.Eleme
       <Path d="M96 100 C 70 62, 44 54, 32 66 C 22 78, 34 104, 96 112 Z" fill={color} />
       <Path d="M104 100 C 130 62, 156 54, 168 66 C 178 78, 166 104, 104 112 Z" fill={color} />
       {/* hindwings */}
-      <Path d="M96 112 C 64 116, 48 134, 54 152 C 60 166, 84 158, 98 124 Z" fill={color} opacity={0.85} />
-      <Path d="M104 112 C 136 116, 152 134, 146 152 C 140 166, 116 158, 102 124 Z" fill={color} opacity={0.85} />
+      <Path
+        d="M96 112 C 64 116, 48 134, 54 152 C 60 166, 84 158, 98 124 Z"
+        fill={color}
+        opacity={0.85}
+      />
+      <Path
+        d="M104 112 C 136 116, 152 134, 146 152 C 140 166, 116 158, 102 124 Z"
+        fill={color}
+        opacity={0.85}
+      />
       {/* eyespots */}
       <G>
         <Circle cx={56} cy={76} r={9} fill={color2} />
@@ -150,7 +158,15 @@ function MantisBody({ plate }: { plate: Specimen['plate'] }): React.JSX.Element 
       <Ellipse cx={104} cy={134} rx={14} ry={34} fill={color} transform="rotate(14 104 134)" />
       <Path d="M100 104 C 118 116, 122 146, 112 164" stroke={color2} strokeWidth={2} fill="none" />
       {/* thorax — long pronotum */}
-      <Rect x={92} y={74} width={9} height={38} rx={4.5} fill={color} transform="rotate(-8 96 93)" />
+      <Rect
+        x={92}
+        y={74}
+        width={9}
+        height={38}
+        rx={4.5}
+        fill={color}
+        transform="rotate(-8 96 93)"
+      />
       {/* triangular head, tilted */}
       <Path d="M88 58 L 108 62 L 96 76 Z" fill={color2} />
       <Circle cx={91} cy={62} r={2.6} fill="#20241c" />
@@ -186,8 +202,14 @@ function BeeBody({ plate }: { plate: Specimen['plate'] }): React.JSX.Element {
       {/* fuzzy body */}
       <Ellipse cx={100} cy={120} rx={34} ry={42} fill={color} />
       {/* stripes + buff tail */}
-      <Path d="M67 104 C 78 98, 122 98, 133 104 L 133 116 C 122 110, 78 110, 67 116 Z" fill={color2} />
-      <Path d="M69 138 C 82 132, 118 132, 131 138 L 129 150 C 118 145, 82 145, 71 150 Z" fill={color2} />
+      <Path
+        d="M67 104 C 78 98, 122 98, 133 104 L 133 116 C 122 110, 78 110, 67 116 Z"
+        fill={color2}
+      />
+      <Path
+        d="M69 138 C 82 132, 118 132, 131 138 L 129 150 C 118 145, 82 145, 71 150 Z"
+        fill={color2}
+      />
       <Path d="M84 156 C 92 162, 108 162, 116 156 C 112 168, 88 168, 84 156 Z" fill="#e9e4c9" />
       {/* head */}
       <Circle cx={100} cy={74} r={13} fill="#20241c" />
@@ -206,7 +228,10 @@ function BeeBody({ plate }: { plate: Specimen['plate'] }): React.JSX.Element {
   );
 }
 
-const BODIES: Record<Specimen['plate']['kind'], (props: { plate: Specimen['plate'] }) => React.JSX.Element> = {
+const BODIES: Record<
+  Specimen['plate']['kind'],
+  (props: { plate: Specimen['plate'] }) => React.JSX.Element
+> = {
   beetle: BeetleBody,
   butterfly: ButterflyBody,
   damselfly: DamselflyBody,
@@ -230,7 +255,8 @@ export function SpecimenPlate({ specimen, size, bare }: SpecimenPlateProps): Rea
       width={size}
       height={size}
       accessible
-      accessibilityLabel={`Illustration of ${specimen.commonName} (${specimen.latinName})`}>
+      accessibilityLabel={`Illustration of ${specimen.commonName} (${specimen.latinName})`}
+    >
       {specimen.plate.glow ? (
         <Defs>
           <RadialGradient id="txx-glow" cx="50%" cy="50%" r="50%">
@@ -257,7 +283,8 @@ export function SpecimenPlate({ specimen, size, bare }: SpecimenPlateProps): Rea
           fontFamily={font.mono}
           fontSize={9}
           letterSpacing={1.5}
-          fill="#8a9082">
+          fill="#8a9082"
+        >
           {`${specimen.id.toUpperCase()} · ${specimen.order.toUpperCase()}`}
         </SvgText>
       ) : null}

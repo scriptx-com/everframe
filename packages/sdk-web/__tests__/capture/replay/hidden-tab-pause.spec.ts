@@ -101,8 +101,11 @@ describe('hidden-tab pause', () => {
     h.state.emit!({ type: FULL, timestamp: 96_000 }, true);
     h.state.emit!({ type: INCR, timestamp: 99_000 });
     const capture = await h.rec.snapshot();
-    expect(JSON.parse(new TextDecoder().decode(capture!.bytes)).map((e: { timestamp: number }) => e.timestamp))
-      .toEqual([96_000, 96_000, 99_000, 100_000]);
+    expect(
+      JSON.parse(new TextDecoder().decode(capture!.bytes)).map(
+        (e: { timestamp: number }) => e.timestamp,
+      ),
+    ).toEqual([96_000, 96_000, 99_000, 100_000]);
   });
 
   it('rejects old rrweb emissions even after recording resumes', async () => {
@@ -121,19 +124,29 @@ describe('hidden-tab pause', () => {
     h.state.emit!({ type: FULL, timestamp: 96_000 }, true);
     h.state.emit!({ type: INCR, timestamp: 99_000 });
     const capture = await h.rec.snapshot();
-    expect(JSON.parse(new TextDecoder().decode(capture!.bytes)).map((e: { timestamp: number }) => e.timestamp))
-      .toEqual([96_000, 99_000, 100_000]);
+    expect(
+      JSON.parse(new TextDecoder().decode(capture!.bytes)).map(
+        (e: { timestamp: number }) => e.timestamp,
+      ),
+    ).toEqual([96_000, 99_000, 100_000]);
   });
 
   it('cancels a pending rrweb import while hidden and starts only the visible generation', async () => {
     const p = page(false);
     let load!: (mod: { record: () => () => void }) => void;
-    const importing = new Promise<{ record: () => () => void }>((resolve) => { load = resolve; });
+    const importing = new Promise<{ record: () => () => void }>((resolve) => {
+      load = resolve;
+    });
     let recordCalls = 0;
     const rec = createReplayRecorder({ importRrweb: () => importing, visibility: p.visibility });
     rec.start(30);
     p.set(true);
-    load({ record: () => { recordCalls++; return () => undefined; } });
+    load({
+      record: () => {
+        recordCalls++;
+        return () => undefined;
+      },
+    });
     await flush();
     expect(recordCalls).toBe(0);
     expect(rec.__diagnostics()).toMatchObject({ recording: false, pausedHidden: true, frames: 0 });
@@ -147,7 +160,10 @@ describe('hidden-tab pause', () => {
     const h = harness();
     h.rec.start(30);
     await flush();
-    h.state.emit!({ type: FULL, timestamp: 90_000, data: { pad: 'x'.repeat(5 * 1024 * 1024) } }, true);
+    h.state.emit!(
+      { type: FULL, timestamp: 90_000, data: { pad: 'x'.repeat(5 * 1024 * 1024) } },
+      true,
+    );
     expect(h.rec.disabled).toBe(true);
     expect(h.page.listeners.size).toBe(0);
     h.page.set(true);

@@ -40,7 +40,11 @@ afterEach(() => {
 });
 
 function urlOf(input: RequestInfo | URL): string {
-  return typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+  return typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.href
+      : (input as Request).url;
 }
 
 function tokenHeaderOf(init: RequestInit | undefined): string | null | undefined {
@@ -65,7 +69,9 @@ describe('adapter.ts thread-client reporterApi — identity token wiring', () =>
       if (url.includes('/api/config')) {
         return new Response(
           JSON.stringify({
-            replayEnabled: false, replayDurationSec: 30, samplingRate: 1,
+            replayEnabled: false,
+            replayDurationSec: 30,
+            samplingRate: 1,
             replies: { enabled: true },
             identity: { enabled: true },
           }),
@@ -97,7 +103,11 @@ describe('adapter.ts thread-client reporterApi — identity token wiring', () =>
     await adapter.threads?.refresh(); // drives a real listThreads() call
 
     await vi.waitFor(() => {
-      expect(fetchMock.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/reporter/threads'))).toBe(true);
+      expect(
+        fetchMock.mock.calls.some((c) =>
+          urlOf(c[0] as RequestInfo | URL).includes('/api/reporter/threads'),
+        ),
+      ).toBe(true);
     });
 
     // Asserted here, OUTSIDE the mock — see the Finding A comment at the top.
@@ -112,7 +122,9 @@ describe('adapter.ts thread-client reporterApi — identity token wiring', () =>
       if (url.includes('/api/config')) {
         return new Response(
           JSON.stringify({
-            replayEnabled: false, replayDurationSec: 30, samplingRate: 1,
+            replayEnabled: false,
+            replayDurationSec: 30,
+            samplingRate: 1,
             replies: { enabled: true },
             // No `identity` block — same wire shape as no signing secret configured.
           }),
@@ -139,7 +151,11 @@ describe('adapter.ts thread-client reporterApi — identity token wiring', () =>
     await adapter.threads?.refresh();
 
     await vi.waitFor(() => {
-      expect(fetchMock.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/reporter/threads'))).toBe(true);
+      expect(
+        fetchMock.mock.calls.some((c) =>
+          urlOf(c[0] as RequestInfo | URL).includes('/api/reporter/threads'),
+        ),
+      ).toBe(true);
     });
 
     expect(observedHeader).toBeFalsy();
@@ -155,7 +171,9 @@ describe('adapter.ts crash-sink drain — identity token wiring (Finding B)', ()
       if (url.includes('/api/config')) {
         return new Response(
           JSON.stringify({
-            replayEnabled: false, replayDurationSec: 30, samplingRate: 1,
+            replayEnabled: false,
+            replayDurationSec: 30,
+            samplingRate: 1,
             identity: { enabled: true },
           }),
           { status: 200, headers: { 'content-type': 'application/json' } },
@@ -198,7 +216,9 @@ describe('adapter.ts crash-sink drain — identity token wiring (Finding B)', ()
     window.onerror?.('identity-crash-path', 'a.ts', 1, 1, err);
 
     await vi.waitFor(() => {
-      expect(fetchMock.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'))).toBe(true);
+      expect(
+        fetchMock.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest')),
+      ).toBe(true);
     });
 
     expect(observedHeader).toBe(jwt);
@@ -220,7 +240,9 @@ describe('adapter.ts crash-sink drain — identity token wiring (Finding B)', ()
       if (url.includes('/api/config')) {
         return new Response(
           JSON.stringify({
-            replayEnabled: false, replayDurationSec: 30, samplingRate: 1,
+            replayEnabled: false,
+            replayDurationSec: 30,
+            samplingRate: 1,
             identity: { enabled: true },
           }),
           { status: 200, headers: { 'content-type': 'application/json' } },
@@ -249,7 +271,9 @@ describe('adapter.ts crash-sink drain — identity token wiring (Finding B)', ()
     window.onerror?.('identity-crash-cold-path', 'a.ts', 1, 1, err);
 
     await vi.waitFor(() => {
-      expect(fetchMock.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'))).toBe(true);
+      expect(
+        fetchMock.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest')),
+      ).toBe(true);
     });
 
     expect(observedHeader).toBeFalsy();
@@ -288,7 +312,9 @@ describe('adapter.ts crash-sink drain — identity token wiring (Finding B)', ()
     window.onerror?.('identity-crash-path-off', 'a.ts', 1, 1, err);
 
     await vi.waitFor(() => {
-      expect(fetchMock.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'))).toBe(true);
+      expect(
+        fetchMock.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest')),
+      ).toBe(true);
     });
 
     expect(observedHeader).toBeFalsy();
@@ -320,7 +346,9 @@ describe('adapter.ts crash-sink — peek captures crash-time identity without in
       if (url.includes('/api/config')) {
         return new Response(
           JSON.stringify({
-            replayEnabled: false, replayDurationSec: 30, samplingRate: 1,
+            replayEnabled: false,
+            replayDurationSec: 30,
+            samplingRate: 1,
             identity: { enabled: true },
           }),
           { status: 200, headers: { 'content-type': 'application/json' } },
@@ -355,7 +383,9 @@ describe('adapter.ts crash-sink — peek captures crash-time identity without in
     window.onerror?.('identity-crash-peek-path', 'a.ts', 1, 1, err);
 
     await vi.waitFor(() => {
-      expect(fetchMock.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest'))).toBe(true);
+      expect(
+        fetchMock.mock.calls.some((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/ingest')),
+      ).toBe(true);
     });
 
     // Asserted here, OUTSIDE the mock and OUTSIDE the crash handler — the

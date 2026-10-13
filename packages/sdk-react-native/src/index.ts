@@ -40,7 +40,11 @@ export {
   EverframeReporterDisabledError,
 } from './contextSeam.js';
 export type { EverframeContextValue } from './contextSeam.js';
-export type { PromiseRejectionStatus, PromiseRejectionCounters, RejectionReason } from './promise-rejection-types.js';
+export type {
+  PromiseRejectionStatus,
+  PromiseRejectionCounters,
+  RejectionReason,
+} from './promise-rejection-types.js';
 export type { EverframeIntegration } from './integrations/types.js';
 
 // Reporter result type.
@@ -53,7 +57,12 @@ export type { EverframeScreenProps } from './EverframeScreen.js';
 
 // Session Vitals (spec 2026-09-06) — library-agnostic player bridge + log line.
 export { trackPlayer, trackVitals, useTrackPlayer } from './vitals.js';
-export type { HostPlayerEventType, PlayerHandle, PlayerStats, TrackPlayerOptions } from './vitals.js';
+export type {
+  HostPlayerEventType,
+  PlayerHandle,
+  PlayerStats,
+  TrackPlayerOptions,
+} from './vitals.js';
 export type { VitalsPlayerEventType } from '@everframe/protocol';
 
 // Bridge-level types still useful at the JS boundary.
@@ -70,12 +79,7 @@ export { useCompanion } from './companion.js';
 export type { CompanionState } from './companion.js';
 
 // Re-export protocol + sdk-core for ergonomic single-import.
-export type {
-  ReportEnvelope,
-  UITree,
-  UINode,
-  AttachmentRef,
-} from '@everframe/protocol';
+export type { ReportEnvelope, UITree, UINode, AttachmentRef } from '@everframe/protocol';
 export type { CaptureExceptionOptions, ReportDraft, DeviceMetadata } from '@everframe/sdk-core';
 /**
  * The `setExtra` payload ceiling (16 KiB), re-exported so a host that wants
@@ -87,6 +91,23 @@ export type { CaptureExceptionOptions, ReportDraft, DeviceMetadata } from '@ever
  */
 export { EXTRA_MAX_CHARS } from '@everframe/sdk-core';
 
-export type { ErrorCaptureStatus, ErrorCaptureCounters, ErrorCapturePath, ErrorCaptureOutcome } from './error-capture-status.js';
+export type {
+  ErrorCaptureStatus,
+  ErrorCaptureCounters,
+  ErrorCapturePath,
+  ErrorCaptureOutcome,
+} from './error-capture-status.js';
 
-export type { ReportDeliveryStatus, ReportDeliveryReason, ReportCapturePath, ReportCaptureOutcome, ReportCapturePathStatus, ReportQueueOperation, ReportQueueStatus, ReportStorageFailure, ReportTransportOrigin, ReportTransportOutcome, ReportTransportStatus } from "./report-delivery-status.js";
+export type {
+  ReportDeliveryStatus,
+  ReportDeliveryReason,
+  ReportCapturePath,
+  ReportCaptureOutcome,
+  ReportCapturePathStatus,
+  ReportQueueOperation,
+  ReportQueueStatus,
+  ReportStorageFailure,
+  ReportTransportOrigin,
+  ReportTransportOutcome,
+  ReportTransportStatus,
+} from './report-delivery-status.js';

@@ -7,12 +7,22 @@ import * as webEntry from '../src/index.web.js';
 import * as nativeEntry from '../src/index.js';
 import * as reactSdk from '@everframe/react';
 
-const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
+const manifest = JSON.parse(
+  readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'),
+);
 
 describe('React Native browser entry', () => {
   it('reports Hermes observation as unsupported without altering browser exports', () => {
-    expect(webEntry.getErrorCaptureStatus()).toMatchObject({ status: 'unsupported', reason: 'platform', counters: { handled: { attempted: 0 } } });
-    expect(webEntry.getPromiseRejectionStatus()).toMatchObject({ status: 'unsupported', reason: 'platform', counters: {pending: 0} });
+    expect(webEntry.getErrorCaptureStatus()).toMatchObject({
+      status: 'unsupported',
+      reason: 'platform',
+      counters: { handled: { attempted: 0 } },
+    });
+    expect(webEntry.getPromiseRejectionStatus()).toMatchObject({
+      status: 'unsupported',
+      reason: 'platform',
+      counters: { pending: 0 },
+    });
     expect(typeof nativeEntry.getPromiseRejectionStatus).toBe('function');
   });
   it('routes browser resolution to a dedicated web bundle and keeps native as the default', () => {
@@ -47,8 +57,9 @@ describe('React Native browser entry', () => {
     expect(typeof webEntry.EverframeReporterDisabledError).toBe('function');
     expect(webEntry.EverframeReporterDisabledError).toBe(reactSdk.EverframeReporterDisabledError);
     expect(typeof nativeEntry.EverframeReporterDisabledError).toBe('function');
-    expect(new nativeEntry.EverframeReporterDisabledError().name)
-      .toBe(new webEntry.EverframeReporterDisabledError().name);
+    expect(new nativeEntry.EverframeReporterDisabledError().name).toBe(
+      new webEntry.EverframeReporterDisabledError().name,
+    );
   });
 
   it('keeps the sensitive wrapper import name on native and web', () => {

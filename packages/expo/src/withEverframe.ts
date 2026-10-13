@@ -18,13 +18,18 @@ export interface WithEverframeOptions {
   appId: string;
 }
 
-export function applyAndroid<T extends { language: string; contents: string }>(gradle: T, appId: string): T {
+export function applyAndroid<T extends { language: string; contents: string }>(
+  gradle: T,
+  appId: string,
+): T {
   assertGroovy(gradle.language);
   return { ...gradle, contents: patchAppBuildGradle(gradle.contents, appId) };
 }
 
 /** Adds the dev.everframe Gradle plugin to the root build.gradle's buildscript classpath. */
-export function applyAndroidProject<T extends { language: string; contents: string }>(gradle: T): T {
+export function applyAndroidProject<T extends { language: string; contents: string }>(
+  gradle: T,
+): T {
   assertGroovy(gradle.language);
   return { ...gradle, contents: patchRootBuildGradle(gradle.contents) };
 }
@@ -49,7 +54,11 @@ export const withEverframe: ConfigPlugin<WithEverframeOptions> = (config, { appI
     return mod;
   });
   return withXcodeProject(config, (mod) => {
-    applyIos(mod.modResults as unknown as XcodeProjectLike, appId, mod.modRequest.platformProjectRoot);
+    applyIos(
+      mod.modResults as unknown as XcodeProjectLike,
+      appId,
+      mod.modRequest.platformProjectRoot,
+    );
     return mod;
   });
 };

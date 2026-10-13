@@ -11,10 +11,13 @@ import vega from './fixtures/vega-crash-envelope.json';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const AjvCtor = (Ajv as unknown as { default: typeof Ajv }).default ?? Ajv;
-const addFormatsFn = (addFormats as unknown as { default: typeof addFormats }).default ?? addFormats;
+const addFormatsFn =
+  (addFormats as unknown as { default: typeof addFormats }).default ?? addFormats;
 
 describe('Vega OS envelope', () => {
-  const schema = JSON.parse(readFileSync(path.resolve(__dirname, '../schemas-json/envelope.v1.schema.json'), 'utf8'));
+  const schema = JSON.parse(
+    readFileSync(path.resolve(__dirname, '../schemas-json/envelope.v1.schema.json'), 'utf8'),
+  );
   const ajv = new AjvCtor({ strict: false, allErrors: true });
   addFormatsFn(ajv);
   const validate = ajv.compile(schema);
@@ -38,7 +41,13 @@ describe('Vega OS envelope', () => {
       { ...vega, sdk: { ...vega.sdk, platform: 'kepler' } },
       {
         ...vega,
-        payload: { ...vega.payload, crash: { ...vega.payload.crash, jsBundle: { ...vega.payload.crash.jsBundle, platform: 'kepler' } } },
+        payload: {
+          ...vega.payload,
+          crash: {
+            ...vega.payload.crash,
+            jsBundle: { ...vega.payload.crash.jsBundle, platform: 'kepler' },
+          },
+        },
       },
     ]) {
       expect(ReportEnvelope.safeParse(bad).success).toBe(false);

@@ -14,7 +14,10 @@ export { useTrackPlayer } from './useTrackPlayer.js';
 export { trackPlayer, trackVitals, hlsIntegration, shakaIntegration } from '@everframe/web';
 export type { PlayerHandle, TrackPlayerOptions, PlayerIntegration } from '@everframe/web';
 export { Sensitive } from './sensitive/Sensitive.js';
-export { Sensitive as EverframeSensitive, useEverframeSensitiveRef } from './sensitive/Sensitive.js';
+export {
+  Sensitive as EverframeSensitive,
+  useEverframeSensitiveRef,
+} from './sensitive/Sensitive.js';
 export type { SensitiveProps } from './sensitive/Sensitive.js';
 export type { WebEverframeConfig, ReporterTheme } from '@everframe/web';
 

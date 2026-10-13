@@ -11,9 +11,22 @@ import { ReportEnvelope, type Breadcrumb } from '@everframe/protocol';
 const chain: Breadcrumb[] = [
   { t: 1000, seq: 0, kind: 'navigation', message: '/a → /b', data: { from: '/a', to: '/b' } },
   { t: 2000, seq: 1, kind: 'console', level: 'warn', message: 'low stock' },
-  { t: 2500, seq: 2, kind: 'console', level: 'info', message: '+3 console hidden', data: { droppedCount: 3 } },
-  { t: 3000, seq: 3, kind: 'network', level: 'error', message: 'POST /api/x 500',
-    data: { method: 'POST', url: '/api/x', status: 500, durationMs: 42 } },
+  {
+    t: 2500,
+    seq: 2,
+    kind: 'console',
+    level: 'info',
+    message: '+3 console hidden',
+    data: { droppedCount: 3 },
+  },
+  {
+    t: 3000,
+    seq: 3,
+    kind: 'network',
+    level: 'error',
+    message: 'POST /api/x 500',
+    data: { method: 'POST', url: '/api/x', status: 500, durationMs: 42 },
+  },
 ];
 
 describe('deriveLogsFromBreadcrumbs', () => {
@@ -39,9 +52,22 @@ describe('deriveNetworkFromBreadcrumbs', () => {
 
   it('excludes network trim markers from derivation', () => {
     const withMarker: Breadcrumb[] = [
-      { t: 3000, seq: 0, kind: 'network', level: 'info', message: '+2 network hidden', data: { droppedCount: 2 } },
-      { t: 3500, seq: 1, kind: 'network', level: 'error', message: 'GET /api/y 500',
-        data: { method: 'GET', url: '/api/y', status: 500, durationMs: 10 } },
+      {
+        t: 3000,
+        seq: 0,
+        kind: 'network',
+        level: 'info',
+        message: '+2 network hidden',
+        data: { droppedCount: 2 },
+      },
+      {
+        t: 3500,
+        seq: 1,
+        kind: 'network',
+        level: 'error',
+        message: 'GET /api/y 500',
+        data: { method: 'GET', url: '/api/y', status: 500, durationMs: 10 },
+      },
     ];
     expect(deriveNetworkFromBreadcrumbs(withMarker)).toEqual([
       { method: 'GET', url: '/api/y', status: 500, durationMs: 10, startedAt: 3500 },
@@ -56,8 +82,12 @@ const baseInput = (): BuildEnvelopeInput => ({
   reporter: { title: 't', description: 'd' },
   draft: { title: 't', description: 'd', excludedArtifacts: [], annotations: [], redactions: [] },
   device: {
-    os: 'macOS', osVersion: '15', screenSize: { width: 1, height: 1 },
-    pixelRatio: 1, locale: 'en-US', timezone: 'UTC',
+    os: 'macOS',
+    osVersion: '15',
+    screenSize: { width: 1, height: 1 },
+    pixelRatio: 1,
+    locale: 'en-US',
+    timezone: 'UTC',
   },
   app: { name: 'app', version: '1.0.0' },
   attachments: [],
@@ -131,10 +161,15 @@ describe('buildEnvelope with breadcrumbs', () => {
 
   it('applies the byte budget via breadcrumbTrim', () => {
     const noisy: Breadcrumb[] = Array.from({ length: 20 }, (_, i) => ({
-      t: i, seq: i, kind: 'console', message: 'c'.repeat(100),
+      t: i,
+      seq: i,
+      kind: 'console',
+      message: 'c'.repeat(100),
     }));
     const env = buildEnvelope({
-      ...baseInput(), breadcrumbs: noisy, breadcrumbTrim: { byteBudget: 400 },
+      ...baseInput(),
+      breadcrumbs: noisy,
+      breadcrumbTrim: { byteBudget: 400 },
     });
     const shipped = env.payload.breadcrumbs!;
     expect(shipped.length).toBeLessThan(20);

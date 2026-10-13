@@ -16,7 +16,10 @@ export const RENDER_BLANK_CHECK = Object.freeze({
 } as const);
 
 /** True when every pixel's luminance lies within `range` of every other's (RGBA, 4 bytes per pixel). */
-export function isNearUniform(rgba: ArrayLike<number>, range: number = RENDER_BLANK_CHECK.lumaRange): boolean {
+export function isNearUniform(
+  rgba: ArrayLike<number>,
+  range: number = RENDER_BLANK_CHECK.lumaRange,
+): boolean {
   let min = 255;
   let max = 0;
   for (let i = 0; i + 3 < rgba.length; i += 4) {

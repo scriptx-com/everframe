@@ -30,13 +30,21 @@ createServer(async (req, res) => {
   const pathname = decodeURIComponent(url.pathname);
 
   if (req.method === 'GET' && pathname === '/api/config') {
-    respond(res, 200, JSON.stringify({ replayEnabled: true, replayDurationSec: 30, samplingRate: 1 }), 'application/json');
+    respond(
+      res,
+      200,
+      JSON.stringify({ replayEnabled: true, replayDurationSec: 30, samplingRate: 1 }),
+      'application/json',
+    );
     return;
   }
   if (req.method === 'POST' && pathname === '/api/ingest') {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
-    lastReport = { bytes: Buffer.concat(chunks), contentType: req.headers['content-type'] ?? 'application/octet-stream' };
+    lastReport = {
+      bytes: Buffer.concat(chunks),
+      contentType: req.headers['content-type'] ?? 'application/octet-stream',
+    };
     respond(res, 200, '{}', 'application/json');
     return;
   }

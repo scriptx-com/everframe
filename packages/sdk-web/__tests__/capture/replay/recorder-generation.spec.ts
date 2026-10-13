@@ -13,11 +13,7 @@
 // generation and a superseded one stands down.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { gzipSync } from 'node:zlib';
-import {
-  __enableReplayTrace,
-  __getReplayTrace,
-  __resetReplayTrace,
-} from '@everframe/sdk-core';
+import { __enableReplayTrace, __getReplayTrace, __resetReplayTrace } from '@everframe/sdk-core';
 import { createReplayRecorder } from '../../../src/capture/replay/recorder.js';
 
 const testGzip = async (input: Uint8Array): Promise<Uint8Array> =>

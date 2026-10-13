@@ -141,7 +141,9 @@ test('the four <video> plates are genuinely in their distinct hazard states', as
  * to the capture's device px by `devicePixelRatio`, which is exactly the
  * transform `compositeVideoFrames` uses.
  */
-async function sampleVideoPlates(page: Page): Promise<Record<string, { blue: number; dark: number }>> {
+async function sampleVideoPlates(
+  page: Page,
+): Promise<Record<string, { blue: number; dark: number }>> {
   return page.evaluate(async () => {
     const img = document.querySelector<HTMLImageElement>('.everframe-annotate-thumb-img');
     if (!img) throw new Error('reporter thumbnail not found — capture did not produce a blob');

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { defineConfig } from "tsup";
+import { defineConfig } from 'tsup';
 
 export default defineConfig({
   // Two entries so the TurboModule spec ships as its own file in dist/.
@@ -11,16 +11,16 @@ export default defineConfig({
   // enter the host bundle (spec 2026-07-14 — opt-in stays opt-in at the
   // bundle level too).
   entry: [
-    "src/index.ts",
-    "src/index.web.ts",
-    "src/NativeEverframe.ts",
-    "src/integrations/console.ts",
-    "src/integrations/react.ts",
-    "src/integrations/react-navigation.ts",
-    "src/integrations/react-native-video.ts",
-    "src/integrations/theoplayer.ts",
+    'src/index.ts',
+    'src/index.web.ts',
+    'src/NativeEverframe.ts',
+    'src/integrations/console.ts',
+    'src/integrations/react.ts',
+    'src/integrations/react-navigation.ts',
+    'src/integrations/react-native-video.ts',
+    'src/integrations/theoplayer.ts',
   ],
-  format: ["esm"],
+  format: ['esm'],
   // `noExternal` below only governs the JS bundle — tsup's dts step is a
   // separate rollup pass that does NOT honour it. Without this `resolve`, the
   // emitted .d.ts files keep `import … from '@everframe/sdk-core'` /
@@ -32,7 +32,7 @@ export default defineConfig({
   // `types` field. tsup's dts resolver uses the pre-`exports` node algorithm
   // and is blind to `exports`; drop that field and this silently degrades back
   // to an external import with no build error.
-  dts: { resolve: ["@everframe/sdk-core", "@everframe/protocol"] },
+  dts: { resolve: ['@everframe/sdk-core', '@everframe/protocol'] },
   clean: true,
   // MUST stay true (esm default, made explicit): contextSeam holds the
   // module-level current-context singleton. Without splitting, each entry
@@ -49,15 +49,15 @@ export default defineConfig({
   esbuildOptions(options) {
     options.keepNames = true;
   },
-  target: "es2022",
-  outDir: "dist",
+  target: 'es2022',
+  outDir: 'dist',
   // React Native consumers bundle this output with Metro. Without an explicit
   // browser platform, tsup/esbuild selects fflate's Node export while bundling
   // sdk-core's Hermes gzip fallback, leaving imports of `module` and
   // `worker_threads` in the published chunk. Metro has no Node built-ins, so
   // an optimized Android bundle fails before the app can be installed.
-  platform: "browser",
-  external: ["react", "react-native", "bippy", "@everframe/react"],
+  platform: 'browser',
+  external: ['react', 'react-native', 'bippy', '@everframe/react'],
   // Bundle internal workspace packages into this dist — none of them exist
   // on npm (they're `private: true` workspace siblings), so the published
   // RN package must inline their code. Without this, the published bundle
@@ -70,5 +70,5 @@ export default defineConfig({
   // externalize it from the JS bundle as well; keeping it here holds the
   // bundle self-contained exactly as it was validated, and the dependency
   // exists purely so the consumer can resolve the type import.
-  noExternal: ["@everframe/sdk-core", "@everframe/protocol", "zod"],
+  noExternal: ['@everframe/sdk-core', '@everframe/protocol', 'zod'],
 });

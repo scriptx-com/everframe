@@ -128,10 +128,7 @@ export const IDENTITY_PROVIDER_TIMEOUT_MS = 2_000;
  *     bounded by `IDENTITY_PROVIDER_TIMEOUT_MS`;
  *   - `null`: sign-out — clears any cached token and stops presenting one.
  */
-export type IdentityTokenSource =
-  | string
-  | (() => string | null | Promise<string | null>)
-  | null;
+export type IdentityTokenSource = string | (() => string | null | Promise<string | null>) | null;
 
 /**
  * The narrow read surface transport code needs (`submitReport`,
@@ -145,8 +142,7 @@ export interface IdentityTokenReader {
   get(now: number): Promise<string | null>;
 }
 
-const BASE64URL_ALPHABET =
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+const BASE64URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 const BASE64URL_REVERSE: Readonly<Record<string, number>> = (() => {
   const map: Record<string, number> = {};
   for (let i = 0; i < BASE64URL_ALPHABET.length; i++) {

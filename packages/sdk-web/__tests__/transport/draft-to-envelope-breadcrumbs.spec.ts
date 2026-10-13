@@ -45,7 +45,10 @@ describe('draftToEnvelope breadcrumbs', () => {
 
   it('applies breadcrumbTrim options from the bundle', () => {
     const noisy: Breadcrumb[] = Array.from({ length: 20 }, (_, i) => ({
-      t: i, seq: i, kind: 'console', message: 'c'.repeat(100),
+      t: i,
+      seq: i,
+      kind: 'console',
+      message: 'c'.repeat(100),
     }));
     const { envelope } = draftToEnvelope(
       draft,

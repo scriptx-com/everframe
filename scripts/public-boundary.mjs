@@ -86,7 +86,10 @@ for (const file of files) {
     for (const [index, line] of text.split(/\r?\n/).entries()) {
       const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
       if (match && match[2] !== '') {
-        report(`${relativePath}:${index + 1}`, `${match[1]} must be empty in a public environment template`);
+        report(
+          `${relativePath}:${index + 1}`,
+          `${match[1]} must be empty in a public environment template`,
+        );
       }
     }
   }
@@ -102,13 +105,18 @@ for (const file of files) {
     if (manifest.name?.startsWith(legacyPackageScope)) {
       report(relativePath, `${manifest.name} uses the legacy package scope`);
     } else if (
-      relativePath.startsWith('packages/')
-      && manifest.name?.startsWith(publicPackageScope)
-      && !publicPackages.has(manifest.name)
+      relativePath.startsWith('packages/') &&
+      manifest.name?.startsWith(publicPackageScope) &&
+      !publicPackages.has(manifest.name)
     ) {
       report(relativePath, `${manifest.name} is not in publicPackages`);
     }
-    for (const section of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
+    for (const section of [
+      'dependencies',
+      'devDependencies',
+      'peerDependencies',
+      'optionalDependencies',
+    ]) {
       for (const [name, version] of Object.entries(manifest[section] ?? {})) {
         if (name.startsWith(publicPackageScope) || name.startsWith(legacyPackageScope)) {
           internalDependencies.push({ relativePath, name, version });
@@ -118,8 +126,10 @@ for (const file of files) {
   }
 
   const extension = path.extname(relativePath);
-  const upstream = (policy.license?.upstream ?? []).find((entry) =>
-    entry.path === relativePath || (entry.pathPattern && new RegExp(entry.pathPattern).test(relativePath))
+  const upstream = (policy.license?.upstream ?? []).find(
+    (entry) =>
+      entry.path === relativePath ||
+      (entry.pathPattern && new RegExp(entry.pathPattern).test(relativePath)),
   );
   if (upstream || (policy.license?.ownedExtensions ?? []).includes(extension)) {
     const exempt = matchesAny(relativePath, policy.license?.exemptPathPatterns);

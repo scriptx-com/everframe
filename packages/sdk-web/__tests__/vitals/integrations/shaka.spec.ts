@@ -14,10 +14,19 @@ function fakeShaka(over: Record<string, unknown> = {}) {
       handlers.set(name, [...(handlers.get(name) ?? []), fn]);
     },
     removeEventListener(name: string, fn: (event?: unknown) => void) {
-      handlers.set(name, (handlers.get(name) ?? []).filter((h) => h !== fn));
+      handlers.set(
+        name,
+        (handlers.get(name) ?? []).filter((h) => h !== fn),
+      );
     },
-    fire(name: string, event?: unknown) { for (const h of handlers.get(name) ?? []) h(event); },
-    handlerCount() { let n = 0; for (const l of handlers.values()) n += l.length; return n; },
+    fire(name: string, event?: unknown) {
+      for (const h of handlers.get(name) ?? []) h(event);
+    },
+    handlerCount() {
+      let n = 0;
+      for (const l of handlers.values()) n += l.length;
+      return n;
+    },
     getAssetUri: () => 'https://cdn.example.com/d/manifest.mpd?sig=1',
     getManifestType: () => 'DASH',
     isLive: () => false,
@@ -25,7 +34,11 @@ function fakeShaka(over: Record<string, unknown> = {}) {
       { active: false, bandwidth: 800_000, width: 640, height: 360 },
       { active: true, bandwidth: 3_000_000, width: 1920, height: 1080 },
     ],
-    getStats: () => ({ estimatedBandwidth: 6_500_000, manifestTimeSeconds: 0.08, licenseTime: 0.12 }),
+    getStats: () => ({
+      estimatedBandwidth: 6_500_000,
+      manifestTimeSeconds: 0.08,
+      licenseTime: 0.12,
+    }),
     drmInfo: (): { keySystem: string } | null => ({ keySystem: 'com.widevine.alpha' }),
     keySystem: () => 'com.widevine.alpha',
     constructor: { version: 'v4.11.0' },
@@ -39,7 +52,10 @@ function attach(shaka: ReturnType<typeof fakeShaka>, clock = { t: 1000 }) {
   const integ = shakaIntegration(shaka);
   const ctx: PlayerIntegrationContext = {
     element: {},
-    emit: (type, data, t) => emitted.push(data === undefined ? { type } : t === undefined ? { type, data } : { type, data, t }),
+    emit: (type, data, t) =>
+      emitted.push(
+        data === undefined ? { type } : t === undefined ? { type, data } : { type, data, t },
+      ),
     now: () => clock.t,
   };
   integ.attach(ctx);
@@ -73,15 +89,29 @@ describe('shakaIntegration', () => {
     dash.getAssetUri = () => 'https://cdn.example.com/d/manifest.mpd?sig=1';
     dash.fire(SHAKA_EVENTS.MANIFEST_PARSED);
     expect(dashEmitted.filter((e) => e.type === 'source_change')).toEqual([
-      { type: 'source_change', data: { src: 'https://cdn.example.com/d/manifest.mpd?sig=1', protocol: 'dash', live: false } },
+      {
+        type: 'source_change',
+        data: {
+          src: 'https://cdn.example.com/d/manifest.mpd?sig=1',
+          protocol: 'dash',
+          live: false,
+        },
+      },
     ]);
 
-    const hls = fakeShaka({ getAssetUri: () => '', getManifestType: () => 'HLS', isLive: () => true });
+    const hls = fakeShaka({
+      getAssetUri: () => '',
+      getManifestType: () => 'HLS',
+      isLive: () => true,
+    });
     const { emitted: hlsEmitted } = attach(hls);
     hls.getAssetUri = () => 'https://cdn.example.com/d/manifest.mpd?sig=1';
     hls.fire(SHAKA_EVENTS.MANIFEST_PARSED);
     expect(hlsEmitted.filter((e) => e.type === 'source_change')).toEqual([
-      { type: 'source_change', data: { src: 'https://cdn.example.com/d/manifest.mpd?sig=1', protocol: 'hls', live: true } },
+      {
+        type: 'source_change',
+        data: { src: 'https://cdn.example.com/d/manifest.mpd?sig=1', protocol: 'hls', live: true },
+      },
     ]);
 
     const other = fakeShaka({ getAssetUri: () => '', getManifestType: () => 'SMOOTH' });
@@ -89,7 +119,14 @@ describe('shakaIntegration', () => {
     other.getAssetUri = () => 'https://cdn.example.com/d/manifest.mpd?sig=1';
     other.fire(SHAKA_EVENTS.MANIFEST_PARSED);
     expect(otherEmitted.filter((e) => e.type === 'source_change')).toEqual([
-      { type: 'source_change', data: { src: 'https://cdn.example.com/d/manifest.mpd?sig=1', protocol: 'unknown', live: false } },
+      {
+        type: 'source_change',
+        data: {
+          src: 'https://cdn.example.com/d/manifest.mpd?sig=1',
+          protocol: 'unknown',
+          live: false,
+        },
+      },
     ]);
   });
 
@@ -108,7 +145,10 @@ describe('shakaIntegration', () => {
     noManifestType.fire(SHAKA_EVENTS.MANIFEST_PARSED);
     const sourceChanges = emitted.filter((e) => e.type === 'source_change');
     expect(sourceChanges).toEqual([
-      { type: 'source_change', data: { src: 'https://cdn.example.com/d/manifest.mpd?sig=1', live: false } },
+      {
+        type: 'source_change',
+        data: { src: 'https://cdn.example.com/d/manifest.mpd?sig=1', live: false },
+      },
     ]);
     expect(sourceChanges[0]!.data).not.toHaveProperty('protocol');
   });
@@ -121,7 +161,11 @@ describe('shakaIntegration', () => {
     shaka.fire(SHAKA_EVENTS.MANIFEST_PARSED);
     clock.t = 1300;
     shaka.fire(SHAKA_EVENTS.LOADED);
-    expect(integ.startupTimings?.()).toEqual({ manifestMs: 80, firstFragmentMs: 300, licenseMs: 120 });
+    expect(integ.startupTimings?.()).toEqual({
+      manifestMs: 80,
+      firstFragmentMs: 300,
+      licenseMs: 120,
+    });
   });
 
   it('falls back to getStats().manifestTimeSeconds*1000 for manifestMs when no loading event was observed', () => {
@@ -143,7 +187,7 @@ describe('shakaIntegration', () => {
     ]);
   });
 
-  it('re-emits drm per load, without leaking the previous load\'s licenseMs — a reused instance can switch protection across loads', () => {
+  it("re-emits drm per load, without leaking the previous load's licenseMs — a reused instance can switch protection across loads", () => {
     const shaka = fakeShaka();
     const { emitted } = attach(shaka);
     shaka.fire(SHAKA_EVENTS.LOADING);
@@ -151,7 +195,11 @@ describe('shakaIntegration', () => {
 
     shaka.drmInfo = () => null;
     shaka.keySystem = () => '';
-    shaka.getStats = () => ({ estimatedBandwidth: 6_500_000, manifestTimeSeconds: 0.08, licenseTime: 0 });
+    shaka.getStats = () => ({
+      estimatedBandwidth: 6_500_000,
+      manifestTimeSeconds: 0.08,
+      licenseTime: 0,
+    });
     shaka.fire(SHAKA_EVENTS.LOADING); // second load: clear content, no license step
     shaka.fire(SHAKA_EVENTS.LOADED);
 
@@ -165,7 +213,11 @@ describe('shakaIntegration', () => {
     const shaka = fakeShaka({
       drmInfo: () => null,
       keySystem: () => '',
-      getStats: () => ({ estimatedBandwidth: 6_500_000, manifestTimeSeconds: 0.08, licenseTime: 0 }),
+      getStats: () => ({
+        estimatedBandwidth: 6_500_000,
+        manifestTimeSeconds: 0.08,
+        licenseTime: 0,
+      }),
     });
     const { emitted } = attach(shaka);
     shaka.fire(SHAKA_EVENTS.LOADED);
@@ -180,8 +232,14 @@ describe('shakaIntegration', () => {
     shaka.fire(SHAKA_EVENTS.ADAPTATION);
     shaka.fire(SHAKA_EVENTS.VARIANT_CHANGED);
     expect(emitted.filter((e) => e.type === 'bitrate_change')).toEqual([
-      { type: 'bitrate_change', data: { bitrate: 3_000_000, width: 1920, height: 1080, reason: 'abr' } },
-      { type: 'bitrate_change', data: { bitrate: 3_000_000, width: 1920, height: 1080, reason: 'manual' } },
+      {
+        type: 'bitrate_change',
+        data: { bitrate: 3_000_000, width: 1920, height: 1080, reason: 'abr' },
+      },
+      {
+        type: 'bitrate_change',
+        data: { bitrate: 3_000_000, width: 1920, height: 1080, reason: 'manual' },
+      },
     ]);
 
     // No active variant (or no bandwidth) → nothing emitted.
@@ -193,18 +251,31 @@ describe('shakaIntegration', () => {
   it('maps error events with code, fatal (severity 2) and category', () => {
     const shaka = fakeShaka();
     const { emitted } = attach(shaka);
-    shaka.fire(SHAKA_EVENTS.ERROR, { detail: { code: 1001, category: 1, severity: 2, message: 'HTTP_ERROR' } });
+    shaka.fire(SHAKA_EVENTS.ERROR, {
+      detail: { code: 1001, category: 1, severity: 2, message: 'HTTP_ERROR' },
+    });
     shaka.fire(SHAKA_EVENTS.ERROR, { detail: { code: 1002, category: 3, severity: 1 } });
     expect(emitted.filter((e) => e.type === 'error')).toEqual([
-      { type: 'error', data: { message: 'HTTP_ERROR', code: 1001, fatal: true, detail: 'category 1' } },
-      { type: 'error', data: { message: 'shaka error 1002', code: 1002, fatal: false, detail: 'category 3' } },
+      {
+        type: 'error',
+        data: { message: 'HTTP_ERROR', code: 1001, fatal: true, detail: 'category 1' },
+      },
+      {
+        type: 'error',
+        data: { message: 'shaka error 1002', code: 1002, fatal: false, detail: 'category 3' },
+      },
     ]);
   });
 
   it('snapshot() reads the active variant and estimatedBandwidth', () => {
     const shaka = fakeShaka();
     const { integ } = attach(shaka);
-    expect(integ.snapshot?.()).toEqual({ bitrate: 3_000_000, width: 1920, height: 1080, bandwidthEstimate: 6_500_000 });
+    expect(integ.snapshot?.()).toEqual({
+      bitrate: 3_000_000,
+      width: 1920,
+      height: 1080,
+      bandwidthEstimate: 6_500_000,
+    });
 
     shaka.getVariantTracks = () => [];
     expect(integ.snapshot?.()).toEqual({ bandwidthEstimate: 6_500_000 });
@@ -238,7 +309,9 @@ describe('shakaIntegration', () => {
     const poisoned: VariantTrack = {};
     Object.defineProperty(poisoned, 'active', {
       configurable: true,
-      get() { throw new Error('duck-typed track is broken'); },
+      get() {
+        throw new Error('duck-typed track is broken');
+      },
     });
     shaka.getVariantTracks = () => [poisoned];
     expect(() => shaka.fire(SHAKA_EVENTS.ADAPTATION)).not.toThrow();

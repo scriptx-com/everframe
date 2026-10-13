@@ -125,16 +125,16 @@ describe('VTREE-01 golden fixture — round-trip', () => {
   it('parse → re-encode → canonical-equal (byte-equal round-trip)', () => {
     const parsed = vtree.VTreeTimeline.parse(fixture.timeline);
     const reencoded = JSON.parse(JSON.stringify(parsed));
-    expect(canonicalize(reencoded)).toEqual(canonicalize({
-      ...fixture.timeline,
-      version: 'everframe-vtree-v1',
-    }));
+    expect(canonicalize(reencoded)).toEqual(
+      canonicalize({
+        ...fixture.timeline,
+        version: 'everframe-vtree-v1',
+      }),
+    );
   });
 
   it('fixture has a frame-0 snapshot + set/add/remove diff frames', () => {
-    const ops = fixture.timeline.frames
-      .flatMap((f) => f.ops as unknown as Op[])
-      .map((o) => o.op);
+    const ops = fixture.timeline.frames.flatMap((f) => f.ops as unknown as Op[]).map((o) => o.op);
     expect(ops).toContain('add');
     expect(ops).toContain('set');
     expect(ops).toContain('remove');
@@ -145,9 +145,7 @@ describe('VTREE-01 golden fixture — apply-frames diff semantics', () => {
   const rendered = applyFrames(fixture.timeline);
 
   it('reproduces the expected render state after all frames (render oracle)', () => {
-    expect(canonicalize(rendered)).toEqual(
-      canonicalize(fixture.expectedRenderAfterAllFrames)
-    );
+    expect(canonicalize(rendered)).toEqual(canonicalize(fixture.expectedRenderAfterAllFrames));
   });
 
   it('set patches title text by id (persists across frames)', () => {
@@ -194,9 +192,7 @@ describe('VTREE-02 masked invariant — Zod .refine', () => {
   };
 
   it('rejects a masked VNode that carries text (refine violation)', () => {
-    expect(() =>
-      vtree.VNode.parse({ ...validMasked, text: 'secret' })
-    ).toThrow();
+    expect(() => vtree.VNode.parse({ ...validMasked, text: 'secret' })).toThrow();
   });
 
   it('accepts a masked VNode with no text and re-encodes canonical-equal', () => {
@@ -206,9 +202,7 @@ describe('VTREE-02 masked invariant — Zod .refine', () => {
   });
 
   it('rejects a timeline whose snapshot contains a masked+text node', () => {
-    expect(() =>
-      vtree.VTreeTimeline.parse(fixture.invalidMaskedWithText)
-    ).toThrow();
+    expect(() => vtree.VTreeTimeline.parse(fixture.invalidMaskedWithText)).toThrow();
   });
 
   it('apply-frames carries the masked node through into the render oracle', () => {
@@ -222,23 +216,17 @@ describe('VTREE-02 masked invariant — Zod .refine', () => {
 });
 
 describe('VTREE-01 emitted schema — ajv 2020 independent validation', () => {
-  const schemaPath = path.resolve(
-    __dirname,
-    '../schemas-json/vtree.v1.schema.json'
-  );
+  const schemaPath = path.resolve(__dirname, '../schemas-json/vtree.v1.schema.json');
   const jsonSchema = JSON.parse(readFileSync(schemaPath, 'utf8'));
 
   // ajv & ajv-formats publish dual ESM/CJS — under verbatimModuleSyntax we get
   // the namespace; the constructor / plugin fn lives on `.default`.
   const AjvCtor = (Ajv as unknown as { default: typeof Ajv }).default ?? Ajv;
   const addFormatsFn =
-    (addFormats as unknown as { default: typeof addFormats }).default ??
-    addFormats;
+    (addFormats as unknown as { default: typeof addFormats }).default ?? addFormats;
 
   it('is Draft 2020-12', () => {
-    expect(jsonSchema.$schema).toBe(
-      'https://json-schema.org/draft/2020-12/schema'
-    );
+    expect(jsonSchema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
   });
 
   it('validates the golden fixture timeline via ajv (independent validator)', () => {
@@ -348,10 +336,7 @@ describe('VTREE-03 originEpochMs — optional wall-clock anchor', () => {
   });
 
   it('emitted JSON Schema carries originEpochMs as an additive optional property', () => {
-    const schemaPath = path.resolve(
-      __dirname,
-      '../schemas-json/vtree.v1.schema.json'
-    );
+    const schemaPath = path.resolve(__dirname, '../schemas-json/vtree.v1.schema.json');
     const jsonSchema = JSON.parse(readFileSync(schemaPath, 'utf8')) as {
       properties?: Record<string, unknown>;
       required?: string[];
@@ -362,13 +347,10 @@ describe('VTREE-03 originEpochMs — optional wall-clock anchor', () => {
 });
 
 describe('VTREE-01 generated native shape guard (Pitfall-1)', () => {
-  const swiftPath = path.resolve(
-    __dirname,
-    '../../sdk-ios/Sources/EverframeProtocol/VTree.swift'
-  );
+  const swiftPath = path.resolve(__dirname, '../../sdk-ios/Sources/EverframeProtocol/VTree.swift');
   const kotlinPath = path.resolve(
     __dirname,
-    '../../sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/VTree.kt'
+    '../../sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/VTree.kt',
   );
 
   it('Swift emits exactly one Everframe node struct + operation enum', () => {
@@ -489,11 +471,8 @@ describe('vtree v1 — textAlign + fontWeight (stage 2a, additive)', () => {
       ],
     };
     const parsed = vtree.VTreeTimeline.parse(timeline);
-    expect(canonicalize(JSON.parse(JSON.stringify(parsed)))).toEqual(
-      canonicalize(timeline),
-    );
+    expect(canonicalize(JSON.parse(JSON.stringify(parsed)))).toEqual(canonicalize(timeline));
   });
-
 });
 
 describe('VTREE-04 image asset table (stage 4a)', () => {

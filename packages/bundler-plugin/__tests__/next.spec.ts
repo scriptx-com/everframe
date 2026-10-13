@@ -48,7 +48,9 @@ describe('withEverframe (next)', () => {
     const options: EverframeBundlerOptions = { appId: APP };
     const typed: NextConfigShape = { reactStrictMode: true, webpack: null };
     const wrapped: NextConfigShape = withEverframe(typed, options);
-    expect(wrapped.webpack!({ plugins: [] }, { isServer: false, dev: false }).plugins).toHaveLength(1);
+    expect(wrapped.webpack!({ plugins: [] }, { isServer: false, dev: false }).plugins).toHaveLength(
+      1,
+    );
   });
 
   it('adds an empty turbopack config unless one is set', () => {
@@ -80,10 +82,17 @@ describe('withEverframe (next)', () => {
     const afterEmit: Array<() => Promise<void>> = [];
     const compiler: CompilerLike = {
       options: { mode: 'production', output: { path: dir } },
-      webpack: { BannerPlugin: class { apply() {} } },
+      webpack: {
+        BannerPlugin: class {
+          apply() {}
+        },
+      },
       hooks: { afterEmit: { tapPromise: (_n, fn) => void afterEmit.push(fn) } },
     };
-    const config = withEverframe({}, { appId: APP }).webpack!({ plugins: [] }, { isServer: false, dev: false });
+    const config = withEverframe({}, { appId: APP }).webpack!(
+      { plugins: [] },
+      { isServer: false, dev: false },
+    );
     (config.plugins[0] as { apply(c: CompilerLike): void }).apply(compiler);
     await afterEmit[0]!();
     // Without a token the plugin deletes the maps under its upload root, so this shows the root.

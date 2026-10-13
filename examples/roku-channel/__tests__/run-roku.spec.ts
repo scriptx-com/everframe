@@ -11,7 +11,9 @@ import { Parser } from 'brighterscript';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = path.join(ROOT, 'scripts/run-roku.mjs');
 const KEY = 'evf_test_key_do_not_leak_123';
-const sdkVersion = JSON.parse(readFileSync(path.join(ROOT, '../../packages/sdk-roku/package.json'), 'utf8')).version;
+const sdkVersion = JSON.parse(
+  readFileSync(path.join(ROOT, '../../packages/sdk-roku/package.json'), 'utf8'),
+).version;
 
 const baseEnv = { ...process.env, EVERFRAME_ENV_FILE: '/dev/null' };
 
@@ -40,15 +42,22 @@ describe('run-roku.mjs --no-deploy', () => {
     expect(config).toContain(`"libraryUri": "pkg:/${zipName}"`);
     expect(config).toContain(`"sdkKey": "${KEY}"`);
     expect(strFromU8(files['components/LabScene.brs']!)).toContain("' everframe:instrumented");
-    expect(strFromU8(files['components/LabScene.xml']!)).toContain('pkg:/components/everframe_hook/everframe_hook.brs');
+    expect(strFromU8(files['components/LabScene.xml']!)).toContain(
+      'pkg:/components/everframe_hook/everframe_hook.brs',
+    );
     expect(strFromU8(files['components/Excluded.brs']!)).not.toContain('everframe:instrumented');
     expect(strFromU8(files['components/OomTask.brs']!)).not.toContain('everframe:instrumented');
-    expect(strFromU8(files['source/main.brs']!)).toContain("sub Main() : try : Everframe_RecordLastExit() ' everframe:instrumented");
+    expect(strFromU8(files['source/main.brs']!)).toContain(
+      "sub Main() : try : Everframe_RecordLastExit() ' everframe:instrumented",
+    );
     // Row 10: DetailsScreen matches the default --screens pattern *Screen.
-    expect(strFromU8(files['components/DetailsScreen.brs']!)).toContain(`sub init() : try : Everframe_Screen(m.top.subtype()) ' everframe:instrumented`);
+    expect(strFromU8(files['components/DetailsScreen.brs']!)).toContain(
+      `sub init() : try : Everframe_Screen(m.top.subtype()) ' everframe:instrumented`,
+    );
     expect(strFromU8(files['components/LabScene.brs']!)).not.toContain('Everframe_Screen(');
     for (const [name, bytes] of Object.entries(files)) {
-      if (name.endsWith('.brs')) expect(Parser.parse(strFromU8(bytes)).diagnostics, name).toEqual([]);
+      if (name.endsWith('.brs'))
+        expect(Parser.parse(strFromU8(bytes)).diagnostics, name).toEqual([]);
     }
   });
 
@@ -58,7 +67,13 @@ describe('run-roku.mjs --no-deploy', () => {
       if (name === 'components/generated/ef_config.brs' || name.endsWith('.zip')) continue;
       expect(strFromU8(bytes).includes(KEY), name).toBe(false);
     }
-    const committed = walk(ROOT).filter((f) => !f.includes(`${path.sep}.build${path.sep}`) && !f.includes(`${path.sep}node_modules${path.sep}`) && !f.includes(`${path.sep}generated${path.sep}`) && !f.endsWith('.spec.ts'));
+    const committed = walk(ROOT).filter(
+      (f) =>
+        !f.includes(`${path.sep}.build${path.sep}`) &&
+        !f.includes(`${path.sep}node_modules${path.sep}`) &&
+        !f.includes(`${path.sep}generated${path.sep}`) &&
+        !f.endsWith('.spec.ts'),
+    );
     for (const f of committed) expect(readFileSync(f, 'utf8').includes(KEY), f).toBe(false);
   });
 
@@ -67,7 +82,8 @@ describe('run-roku.mjs --no-deploy', () => {
     const files = zipFiles();
     expect(files[`components/everframe-roku-${sdkVersion}.zip`]).toBeDefined();
     for (const [name, bytes] of Object.entries(files)) {
-      if (name.endsWith('.brs')) expect(strFromU8(bytes).includes('everframe:instrumented'), name).toBe(false);
+      if (name.endsWith('.brs'))
+        expect(strFromU8(bytes).includes('everframe:instrumented'), name).toBe(false);
     }
   });
 
@@ -75,7 +91,9 @@ describe('run-roku.mjs --no-deploy', () => {
     build(['--remote-library', 'https://cdn.example.com/everframe-roku.zip']);
     const files = zipFiles();
     expect(Object.keys(files).some((n) => n.endsWith('.zip'))).toBe(false);
-    expect(strFromU8(files['components/generated/ef_config.brs']!)).toContain('"libraryUri": "https://cdn.example.com/everframe-roku.zip"');
+    expect(strFromU8(files['components/generated/ef_config.brs']!)).toContain(
+      '"libraryUri": "https://cdn.example.com/everframe-roku.zip"',
+    );
   });
 
   it('warns on stderr when the ingest URL is localhost', () => {
@@ -87,7 +105,9 @@ describe('run-roku.mjs --no-deploy', () => {
     expect(r.status).toBe(0);
     expect(r.stderr).toMatch(/localhost.*TV cannot reach/i);
     expect(r.stdout).not.toMatch(/TV cannot reach/i);
-    expect(strFromU8(zipFiles()['components/generated/ef_config.brs']!)).toContain('endpoint: "http://localhost:8787"');
+    expect(strFromU8(zipFiles()['components/generated/ef_config.brs']!)).toContain(
+      'endpoint: "http://localhost:8787"',
+    );
   });
 
   it('fails clearly without a key', () => {

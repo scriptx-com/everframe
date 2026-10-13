@@ -14,7 +14,10 @@ const importRrweb = async (): Promise<{ record: (o: Record<string, unknown>) => 
   record: (options: Record<string, unknown>) => {
     const emit = options['emit'] as (e: unknown, isCheckout?: boolean) => void;
     rrweb.fire = (ts: number, type = 2): void => {
-      emit({ type, timestamp: ts, data: { node: { type: 3, textContent: `frame ${ts}`, id: 1 } } }, type === 2);
+      emit(
+        { type, timestamp: ts, data: { node: { type: 3, textContent: `frame ${ts}`, id: 1 } } },
+        type === 2,
+      );
     };
     return () => undefined;
   },
@@ -71,9 +74,10 @@ async function flush(times = 12): Promise<void> {
 
 async function envelopeOf(body: FormData): Promise<Record<string, any>> {
   const raw = new Uint8Array(await readBlobArrayBuffer(body.get('envelope') as Blob));
-  const json = raw[0] === 0x1f && raw[1] === 0x8b
-    ? gunzipSync(Buffer.from(raw)).toString('utf8')
-    : new TextDecoder().decode(raw);
+  const json =
+    raw[0] === 0x1f && raw[1] === 0x8b
+      ? gunzipSync(Buffer.from(raw)).toString('utf8')
+      : new TextDecoder().decode(raw);
   return JSON.parse(json) as Record<string, any>;
 }
 
@@ -126,7 +130,12 @@ describe('error replays in crash-only sessions', () => {
   });
 
   it('attaches a replay once a companion bond upgrades the session', async () => {
-    stubServer({ replayEnabled: true, replayDurationSec: 30, samplingRate: 1, crashOnlySamplingRate: 0 });
+    stubServer({
+      replayEnabled: true,
+      replayDurationSec: 30,
+      samplingRate: 1,
+      crashOnlySamplingRate: 0,
+    });
     const adapter = crashOnlyAdapter();
     await adapter.__initReplay();
     adapter.__setCompanionAttached();
@@ -145,7 +154,12 @@ describe('error replays in crash-only sessions', () => {
 
   it('attaches a replay in a crash-only session the crash-only rate admitted', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.01);
-    stubServer({ replayEnabled: true, replayDurationSec: 30, samplingRate: 0, crashOnlySamplingRate: 0.05 });
+    stubServer({
+      replayEnabled: true,
+      replayDurationSec: 30,
+      samplingRate: 0,
+      crashOnlySamplingRate: 0.05,
+    });
     const adapter = crashOnlyAdapter();
     await adapter.__initReplay();
     await flush();

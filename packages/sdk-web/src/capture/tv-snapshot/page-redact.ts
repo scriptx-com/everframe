@@ -33,7 +33,12 @@ function isTokenChar(code: number): boolean {
     (code >= 48 && code <= 57) ||
     (code >= 65 && code <= 90) ||
     (code >= 97 && code <= 122) ||
-    code === 46 || code === 95 || code === 37 || code === 43 || code === 64 || code === 45
+    code === 46 ||
+    code === 95 ||
+    code === 37 ||
+    code === 43 ||
+    code === 64 ||
+    code === 45
   );
 }
 
@@ -84,7 +89,10 @@ function maskLongTokenRuns(s: string): string {
 
 /** Pattern-redact a page-controlled string (text node, attribute value). */
 export function redactPageString(value: string, config: RedactionEngineConfig): string {
-  return redactStringContent(maskLongTokenRuns(truncateAtTokenBoundary(value, MAX_PATTERN_TEXT_LENGTH)), config);
+  return redactStringContent(
+    maskLongTokenRuns(truncateAtTokenBoundary(value, MAX_PATTERN_TEXT_LENGTH)),
+    config,
+  );
 }
 
 function isHex(c: number): boolean {

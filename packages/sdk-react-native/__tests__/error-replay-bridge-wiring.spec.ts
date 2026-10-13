@@ -25,8 +25,9 @@ describe('Android bridge: which core entry point a JavaScript error takes', () =
   const kotlin = source(ANDROID);
   const start = kotlin.indexOf('val accepted = when {');
   const end = kotlin.indexOf('// Scheduling is best-effort after acceptance');
-  const [, handled = '', fatal = '', otherwise = ''] =
-    kotlin.slice(start, end).split(/\n\s+(?:handled|fatal|else) ->/);
+  const [, handled = '', fatal = '', otherwise = ''] = kotlin
+    .slice(start, end)
+    .split(/\n\s+(?:handled|fatal|else) ->/);
 
   it('selects the entry point with one when over handled, then fatal, then everything else', () => {
     expect(start).toBeGreaterThan(-1);
@@ -61,12 +62,14 @@ describe('iOS bridge: which attachReplay value a JavaScript error passes', () =>
 
   it('asks for a replay on an explicit capture', () => {
     expect(captureHandled).toContain(
-      'CrashReporter.captureHandledFacts(json: crashJson as String, sdkName: "everframe-react-native", attachReplay: true)');
+      'CrashReporter.captureHandledFacts(json: crashJson as String, sdkName: "everframe-react-native", attachReplay: true)',
+    );
   });
   it('asks for a replay on an automatic error only after the facts are read as an error the app survives', () => {
     // The fatal branch comes first and says false; the survivable call after the guard says true.
     expect(reportCrash).toMatch(
-      /guard appSurvivesError\(facts\) else \{\s*return CrashReporter\.captureFacts\([^)]*attachReplay: false\)\s*\}\s*return CrashReporter\.captureFacts\([^)]*attachReplay: true\)/);
+      /guard appSurvivesError\(facts\) else \{\s*return CrashReporter\.captureFacts\([^)]*attachReplay: false\)\s*\}\s*return CrashReporter\.captureFacts\([^)]*attachReplay: true\)/,
+    );
   });
   it('reads the fatal flag as a JSON boolean, treating anything unreadable as fatal', () => {
     const helper = swiftFunction(swift, 'static func appSurvivesError(');
@@ -77,7 +80,9 @@ describe('iOS bridge: which attachReplay value a JavaScript error passes', () =>
     expect(helper).toContain('return !boolean.boolValue');
   });
   it('passes attachReplay explicitly on all three native calls: true for the two survivable ones, false for the fatal one', () => {
-    const calls = [...swift.matchAll(/CrashReporter\.capture(?:Handled)?Facts\(([^)]*)\)/g)].map((match) => match[1] ?? '');
+    const calls = [...swift.matchAll(/CrashReporter\.capture(?:Handled)?Facts\(([^)]*)\)/g)].map(
+      (match) => match[1] ?? '',
+    );
     expect(calls).toHaveLength(3);
     for (const args of calls) expect(args).toMatch(/attachReplay: (?:true|false)/);
     expect(calls.filter((args) => args.includes('attachReplay: false'))).toHaveLength(1);

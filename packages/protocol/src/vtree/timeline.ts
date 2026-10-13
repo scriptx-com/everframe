@@ -29,7 +29,7 @@ import { z } from 'zod';
 // the timeline's `assets` table, and falls back to a solid placeholder box
 // (uses bg/frame) otherwise. A distinct opaque/`media` placeholder role is
 // deferred to v2.
-export const VRole = z.enum(['view','text','image','input','button','scroll','list-item']);
+export const VRole = z.enum(['view', 'text', 'image', 'input', 'button', 'scroll', 'list-item']);
 
 // Recursive type matches z.optional() emit shape under
 // exactOptionalPropertyTypes: an optional property may be omitted OR explicitly
@@ -128,14 +128,10 @@ export const VNode: z.ZodType<VNode> = z.lazy(() =>
     // BOTH clauses are live as of stage 4a — the image half was dormant only
     // while v1 shipped no image bytes. DROPPED by z.toJSONSchema (22-RESEARCH
     // §Pitfall 1) — this is the ONLY place it is type-enforced.
-    .refine(
-      (n) => !(n.masked === true && (n.text !== undefined || n.imageRef !== undefined)),
-      {
-        message:
-          'masked node must carry no text/image payload (text or imageRef present)',
-      },
-    )
-    .meta({ $id: 'VNode' })
+    .refine((n) => !(n.masked === true && (n.text !== undefined || n.imageRef !== undefined)), {
+      message: 'masked node must carry no text/image payload (text or imageRef present)',
+    })
+    .meta({ $id: 'VNode' }),
 );
 
 // VOp — the per-frame diff. Discriminated union on `op`, mirroring the
@@ -164,9 +160,7 @@ export const VOpSet = z
   .object({
     op: z.literal('set'),
     id: z.string(),
-    frame: z
-      .object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() })
-      .optional(),
+    frame: z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() }).optional(),
     bg: z.string().optional(),
     text: z.string().optional(),
     alpha: z.number().optional(),

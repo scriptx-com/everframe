@@ -30,8 +30,7 @@ const STORAGE_KEY = 'everframe.companionDeviceId';
  *  fail the server's `z.string().uuid()`, 400ing every announce and silently
  *  stranding the SDK on the ticketless path until site data is cleared — so
  *  it must be rejected here too, not just malformed shapes. */
-export const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** `explicit` is honored only by the first `resolveCompanionDeviceId()` call
  *  per page load — first-call-wins, mirroring the companion singleton's
@@ -91,17 +90,23 @@ function webosLgudid(): Promise<string | null> {
       const w = window as unknown as {
         webOS?: {
           service?: {
-            request?: (uri: string, params: {
-              method: string;
-              parameters: { idType: string[] };
-              onSuccess: (r: { idList?: Array<{ idType: string; idValue: string }> }) => void;
-              onFailure: (e: unknown) => void;
-            }) => void;
+            request?: (
+              uri: string,
+              params: {
+                method: string;
+                parameters: { idType: string[] };
+                onSuccess: (r: { idList?: Array<{ idType: string; idValue: string }> }) => void;
+                onFailure: (e: unknown) => void;
+              },
+            ) => void;
           };
         };
       };
       const request = w.webOS?.service?.request;
-      if (typeof request !== 'function') { resolve(null); return; }
+      if (typeof request !== 'function') {
+        resolve(null);
+        return;
+      }
       // Luna callbacks can simply never fire on a broken bridge — bound it.
       // Round 2 W1: kept below ws-client's outer DEVICE_PREFLIGHT_TIMEOUT_MS
       // (4s) so a hung Luna bridge degrades to the NEXT source in the chain
@@ -126,7 +131,10 @@ function webosLgudid(): Promise<string | null> {
             resolve(null);
           }
         },
-        onFailure: () => { clearTimeout(timer); resolve(null); },
+        onFailure: () => {
+          clearTimeout(timer);
+          resolve(null);
+        },
       });
     } catch {
       resolve(null);
@@ -160,7 +168,11 @@ function storedUuid(): string | null {
     if (fresh === undefined) return null;
     // Memory-first is unnecessary here (the caller memoizes); a failed
     // setItem just means a fresh id next page load — still functional.
-    try { localStorage.setItem(STORAGE_KEY, fresh); } catch { /* quota/private mode */ }
+    try {
+      localStorage.setItem(STORAGE_KEY, fresh);
+    } catch {
+      /* quota/private mode */
+    }
     return fresh;
   } catch {
     return null;
@@ -175,7 +187,9 @@ async function resolveOnce(opts: DeviceIdOptions): Promise<string | null> {
         const hashed = await hashToUuid(raw);
         if (hashed !== null) return hashed;
       }
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
   const duid = tizenDuid();
   if (duid !== null) {

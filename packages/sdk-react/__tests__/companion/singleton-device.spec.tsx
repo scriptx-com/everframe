@@ -14,8 +14,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import {
-  start, stop,
-  __getCompanionApi, __getCompanionBadgeConfig,
+  start,
+  stop,
+  __getCompanionApi,
+  __getCompanionBadgeConfig,
   __resetDeviceIdForTests,
 } from '@everframe/web';
 import { useCompanion } from '../../src/companion/use-companion.js';
@@ -57,7 +59,9 @@ describe('companion singleton device naming', () => {
   it('useCompanion exposes resolvedName reactively', () => {
     const { result } = renderHook(() => useCompanion());
     expect(result.current.resolvedName).toBeNull();
-    act(() => { __getCompanionApi().__setResolvedName('QA Lobby TV'); });
+    act(() => {
+      __getCompanionApi().__setResolvedName('QA Lobby TV');
+    });
     expect(result.current.resolvedName).toBe('QA Lobby TV');
   });
 
@@ -66,7 +70,9 @@ describe('companion singleton device naming', () => {
   it('stop() after an attach clears attachedUserName', () => {
     vi.stubGlobal('WebSocket', makeNoopWSCtor());
     start();
-    act(() => { __getCompanionApi().__setAttachedUserName('Aurimas'); });
+    act(() => {
+      __getCompanionApi().__setAttachedUserName('Aurimas');
+    });
     expect(__getCompanionApi().getAttachedUserName()).toBe('Aurimas');
 
     stop();

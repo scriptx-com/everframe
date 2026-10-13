@@ -15,7 +15,12 @@ import {
 } from '../../src/capture/shot-capture.js';
 import { DEGRADED_REASONS } from '../../src/internal/degraded-reasons.js';
 
-const image = { blob: new Blob(['x'], { type: 'image/webp' }), width: 2, height: 2, sha256: 'a'.repeat(64) };
+const image = {
+  blob: new Blob(['x'], { type: 'image/webp' }),
+  width: 2,
+  height: 2,
+  sha256: 'a'.repeat(64),
+};
 
 describe('shot-capture contract', () => {
   it('re-exports the protocol part naming and content type', () => {
@@ -31,7 +36,9 @@ describe('shot-capture contract', () => {
   });
 
   it('prefers __captureShot and falls back to captureScreenshot for older adapters', async () => {
-    const shot = { snapshot: { bytes: new Uint8Array([1]), sha256: 'b'.repeat(64), byteLength: 1 } };
+    const shot = {
+      snapshot: { bytes: new Uint8Array([1]), sha256: 'b'.repeat(64), byteLength: 1 },
+    };
     const modern = { captureScreenshot: vi.fn(), __captureShot: vi.fn(async () => shot) };
     await expect(captureShotVia(modern)).resolves.toBe(shot);
     await captureShotVia(modern, { consumePreCapture: true });
@@ -42,9 +49,15 @@ describe('shot-capture contract', () => {
   });
 
   it('ranks reasons failed > unavailable > render_failed > blank and ignores others', () => {
-    expect(strongestShotReason(['screenshot_blank', 'screenshot_render_failed'])).toBe('screenshot_render_failed');
-    expect(strongestShotReason(['screenshot_render_failed', 'screenshot_unavailable'])).toBe('screenshot_unavailable');
-    expect(strongestShotReason(['screenshot_unavailable', 'screenshot_failed'])).toBe('screenshot_failed');
+    expect(strongestShotReason(['screenshot_blank', 'screenshot_render_failed'])).toBe(
+      'screenshot_render_failed',
+    );
+    expect(strongestShotReason(['screenshot_render_failed', 'screenshot_unavailable'])).toBe(
+      'screenshot_unavailable',
+    );
+    expect(strongestShotReason(['screenshot_unavailable', 'screenshot_failed'])).toBe(
+      'screenshot_failed',
+    );
     expect(strongestShotReason(['ui_tree_unavailable', undefined])).toBeUndefined();
     expect(isShotReason(DEGRADED_REASONS.screenshot_render_failed)).toBe(true);
     expect(isShotReason('csp_blocked')).toBe(false);
@@ -60,7 +73,8 @@ describe('shot-capture contract', () => {
 });
 
 describe('bounded element count, shadow roots included (codex r6 F3)', () => {
-  const CAPABLE = 'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.79 Safari/537.36';
+  const CAPABLE =
+    'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.79 Safari/537.36';
 
   it('counts light DOM and open shadow descendants, stopping just past the limit', () => {
     document.body.innerHTML = '<div id="host"><b></b></div><p></p>';
@@ -89,9 +103,13 @@ describe('bounded element count, shadow roots included (codex r6 F3)', () => {
 
   it('3,000 shadow elements skip the on-device fallback', async () => {
     document.body.innerHTML = '<div id="host"></div>';
-    document.getElementById('host')!.attachShadow({ mode: 'open' }).innerHTML = '<i></i>'.repeat(3000);
+    document.getElementById('host')!.attachShadow({ mode: 'open' }).innerHTML = '<i></i>'.repeat(
+      3000,
+    );
     const capture = vi.fn(async () => image);
-    await expect(boundedTvFallbackShot(capture, document, CAPABLE)).resolves.toEqual({ degradedReason: 'screenshot_unavailable' });
+    await expect(boundedTvFallbackShot(capture, document, CAPABLE)).resolves.toEqual({
+      degradedReason: 'screenshot_unavailable',
+    });
     expect(capture).not.toHaveBeenCalled();
   });
 });

@@ -106,11 +106,11 @@ An app can turn the bug reporter off and keep crash and error reporting, for
 example in production builds. A session started that way is a crash-only
 session.
 
-| SDK | Setting |
-| --- | --- |
-| Web, React, React Native | `reporter: { disabled: true }` |
-| iOS | `reporterEnabled: false` on `EverframeConfig` |
-| Android | `reporterEnabled = false` on `EverframeConfig` |
+| SDK                      | Setting                                        |
+| ------------------------ | ---------------------------------------------- |
+| Web, React, React Native | `reporter: { disabled: true }`                 |
+| iOS                      | `reporterEnabled: false` on `EverframeConfig`  |
+| Android                  | `reporterEnabled = false` on `EverframeConfig` |
 
 - **Two coverage rates.** The app's Session replay settings have one sampling
   rate for sessions that can file a report and one for crash-only sessions.

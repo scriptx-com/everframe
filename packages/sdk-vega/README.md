@@ -61,29 +61,29 @@ Metro and are not mapped.
 
 ## API
 
-| Call | |
-| --- | --- |
-| `init(config)` | Start the SDK. Call once; later calls are ignored. |
-| `captureException(error, options?)` | Report a caught error. `options`: `severity` (`info`, `warning`, `error`), `context` (a label), `metadata` (flat: strings, numbers, booleans, null). Keys that name a credential (`password`, `token`, `secret`, `apiKey`, `authorization`, `cookie`, in any case or spelling) keep their name and get `[REDACTED]` before the report is stored or sent. |
-| `setUser(user \| null)` | `{ id?, email?, displayName? }` on later reports. |
-| `addBreadcrumb({ message, kind?, level?, data? })` | The latest 100 breadcrumbs ride on every report. |
-| `flush()` | Resolves after stored reports were sent once. |
-| `getStatus()` | `{ enabled, bundleId, rejections, pending }`. |
+| Call                                               |                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `init(config)`                                     | Start the SDK. Call once; later calls are ignored.                                                                                                                                                                                                                                                                                                       |
+| `captureException(error, options?)`                | Report a caught error. `options`: `severity` (`info`, `warning`, `error`), `context` (a label), `metadata` (flat: strings, numbers, booleans, null). Keys that name a credential (`password`, `token`, `secret`, `apiKey`, `authorization`, `cookie`, in any case or spelling) keep their name and get `[REDACTED]` before the report is stored or sent. |
+| `setUser(user \| null)`                            | `{ id?, email?, displayName? }` on later reports.                                                                                                                                                                                                                                                                                                        |
+| `addBreadcrumb({ message, kind?, level?, data? })` | The latest 100 breadcrumbs ride on every report.                                                                                                                                                                                                                                                                                                         |
+| `flush()`                                          | Resolves after stored reports were sent once.                                                                                                                                                                                                                                                                                                            |
+| `getStatus()`                                      | `{ enabled, bundleId, rejections, pending }`.                                                                                                                                                                                                                                                                                                            |
 
 ## Configuration
 
-| Key | Default | |
-| --- | --- | --- |
-| `sdkKey` | required | Your Vega integration's SDK key. Without it the SDK stays off. |
-| `storage` | none | AsyncStorage, or any object with `getItem` and `setItem`. |
-| `appName` | `Vega app` | Shown on reports. |
-| `appVersion` | `0.0.0` | Your app version. |
-| `appBuild` | none | A build number or CI build id. |
-| `debugBuild` | `__DEV__` | Whether this is a debug build. Everframe never makes a release out of one. |
-| `captureUnhandledRejections` | `true` | `false` stops reporting promise rejections. |
-| `device` | none | `{ model, osVersion }`, e.g. from `@amazon-devices/react-native-device-info`. React Native for Vega does not expose them to JavaScript. |
-| `enabled` | `true` | `false` turns the SDK off. |
-| `endpoint` | `https://everframe.dev` | For self-testing only. |
+| Key                          | Default                 |                                                                                                                                         |
+| ---------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `sdkKey`                     | required                | Your Vega integration's SDK key. Without it the SDK stays off.                                                                          |
+| `storage`                    | none                    | AsyncStorage, or any object with `getItem` and `setItem`.                                                                               |
+| `appName`                    | `Vega app`              | Shown on reports.                                                                                                                       |
+| `appVersion`                 | `0.0.0`                 | Your app version.                                                                                                                       |
+| `appBuild`                   | none                    | A build number or CI build id.                                                                                                          |
+| `debugBuild`                 | `__DEV__`               | Whether this is a debug build. Everframe never makes a release out of one.                                                              |
+| `captureUnhandledRejections` | `true`                  | `false` stops reporting promise rejections.                                                                                             |
+| `device`                     | none                    | `{ model, osVersion }`, e.g. from `@amazon-devices/react-native-device-info`. React Native for Vega does not expose them to JavaScript. |
+| `enabled`                    | `true`                  | `false` turns the SDK off.                                                                                                              |
+| `endpoint`                   | `https://everframe.dev` | For self-testing only.                                                                                                                  |
 
 Dashboard settings (session replay, vitals, network bodies and the like) do
 not apply: the SDK does not fetch server config.

@@ -111,7 +111,15 @@ export default defineConfig({
   // dependency exists purely so the consumer can resolve the type import.
   // Ship the workspace rrweb patch to consumers, but load it only when replay
   // starts. Without splitting, bundling rrweb would put it in the eager entry.
-  noExternal: ['@everframe/sdk-core', '@everframe/protocol', '@everframe/web', '@everframe/web/ui', 'zod', 'rrweb', 'modern-screenshot'],
+  noExternal: [
+    '@everframe/sdk-core',
+    '@everframe/protocol',
+    '@everframe/web',
+    '@everframe/web/ui',
+    'zod',
+    'rrweb',
+    'modern-screenshot',
+  ],
   splitting: true,
   treeshake: true,
   // esbuild minification: dead-code-elim + identifier mangling. NOT full

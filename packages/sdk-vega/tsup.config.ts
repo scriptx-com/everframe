@@ -5,7 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'tsup';
 
 const source = (relative: string) => fileURLToPath(new URL(relative, import.meta.url));
-const { version } = JSON.parse(readFileSync(source('./package.json'), 'utf8')) as { version: string };
+const { version } = JSON.parse(readFileSync(source('./package.json'), 'utf8')) as {
+  version: string;
+};
 
 export default defineConfig({
   entry: ['src/index.ts'],

@@ -45,10 +45,7 @@ describe('companion/state', () => {
     c.__setPairUrl(null);
 
     expect(handler).toHaveBeenCalledTimes(2);
-    expect(handler).toHaveBeenNthCalledWith(
-      1,
-      'https://relay.example.com/r/abc',
-    );
+    expect(handler).toHaveBeenNthCalledWith(1, 'https://relay.example.com/r/abc');
     expect(handler).toHaveBeenNthCalledWith(2, null);
   });
 

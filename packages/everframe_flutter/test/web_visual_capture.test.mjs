@@ -17,9 +17,12 @@ test('uses Flutter-owned PNG bytes and rejects absent frames', async () => {
 
 test('returns only valid bounded Flutter replay', async () => {
   const replay = { version: 'everframe-vtree-v1', frames: [{ timestamp: 25 }] };
-  const host = { everframeFlutterTakeReplay: () => Buffer.from(JSON.stringify(replay)).toString('base64') };
+  const host = {
+    everframeFlutterTakeReplay: () => Buffer.from(JSON.stringify(replay)).toString('base64'),
+  };
   const capture = flutterVisualCapture(host);
   assert.equal((await capture.replay.takeFrozen()).durationMs, 25);
-  host.everframeFlutterTakeReplay = () => Buffer.from(JSON.stringify({ frames: [] })).toString('base64');
+  host.everframeFlutterTakeReplay = () =>
+    Buffer.from(JSON.stringify({ frames: [] })).toString('base64');
   assert.equal(await capture.replay.takeFrozen(), null);
 });

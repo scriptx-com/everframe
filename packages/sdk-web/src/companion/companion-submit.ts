@@ -12,13 +12,25 @@
 import type { ReportDraft } from '@everframe/sdk-core';
 import { MAX_REPORT_SHOTS } from '@everframe/protocol';
 import { sha256Hex } from '../capture/sha256.js';
-import { snapshotAllowed, strongestShotReason, type ShotRedactionState } from '../capture/shot-capture.js';
+import {
+  snapshotAllowed,
+  strongestShotReason,
+  type ShotRedactionState,
+} from '../capture/shot-capture.js';
 import { submitReportFromDraft } from '../transport/submit.js';
-import type { BundleDomSnapshot, BundleScreenshot, CaptureBundle } from '../transport/draft-to-envelope.js';
+import type {
+  BundleDomSnapshot,
+  BundleScreenshot,
+  CaptureBundle,
+} from '../transport/draft-to-envelope.js';
 import type { RelayWSClient, ReportSubmit } from './ws-client.js';
 import type { CompanionAPI } from './state.js';
 import type { CompanionHost } from './host-seam.js';
-import { __companionSeamTicket, __isCompanionKilled, type CompanionSeamTicket } from './host-seam.js';
+import {
+  __companionSeamTicket,
+  __isCompanionKilled,
+  type CompanionSeamTicket,
+} from './host-seam.js';
 import type { ShotStashInfo } from './shot-stash.js';
 import {
   captureSubmitIdentity,
@@ -210,7 +222,11 @@ export async function runCompanionSubmit(input: CompanionSubmitInput): Promise<v
         primary?.snapshot !== undefined &&
         snapshotAllowed(redactionOf(msg.primary_shot?.redaction, msg.annotations))
       ) {
-        domSnapshots.push({ shotNumber: 1, bytes: primary.snapshot.bytes, sha256: primary.snapshot.sha256 });
+        domSnapshots.push({
+          shotNumber: 1,
+          bytes: primary.snapshot.bytes,
+          sha256: primary.snapshot.sha256,
+        });
       }
     }
 
@@ -249,7 +265,11 @@ export async function runCompanionSubmit(input: CompanionSubmitInput): Promise<v
             !info.recropped &&
             snapshotAllowed(redactionOf(s.redaction, s.annotations))
           ) {
-            domSnapshots.push({ shotNumber, bytes: info.snapshot.bytes, sha256: info.snapshot.sha256 });
+            domSnapshots.push({
+              shotNumber,
+              bytes: info.snapshot.bytes,
+              sha256: info.snapshot.sha256,
+            });
           }
         }
         if (s.has_image === false) continue;
@@ -285,9 +305,7 @@ export async function runCompanionSubmit(input: CompanionSubmitInput): Promise<v
         const capture = await lifecycle.complete();
         if (capture && capture.bytes.byteLength > 0) {
           bundle.replayCapture = capture;
-          bundle.replaySha256 = await sha256Hex(
-            new Blob([capture.bytes as unknown as BlobPart]),
-          );
+          bundle.replaySha256 = await sha256Hex(new Blob([capture.bytes as unknown as BlobPart]));
         }
       }
     } catch {
@@ -354,10 +372,7 @@ export async function runCompanionSubmit(input: CompanionSubmitInput): Promise<v
       ws.send(reportCompleted(msg.correlation_id, outcome.reportId));
     } else {
       ws.send(
-        reportFailed(
-          msg.correlation_id,
-          outcome.retryable ? 'ingest_retryable' : 'ingest_error',
-        ),
+        reportFailed(msg.correlation_id, outcome.retryable ? 'ingest_retryable' : 'ingest_error'),
       );
     }
   } catch {

@@ -66,5 +66,4 @@ describe('PROTO-02 cross-SDK fixture parity (TS)', () => {
     expect(marker.data?.['droppedCount']).toBe(3);
     expect(typeof marker.data?.['droppedCount']).toBe('number');
   });
-
 });

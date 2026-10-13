@@ -98,15 +98,26 @@ export function ReportFab({ onCompanion }: { onCompanion: () => void }): React.J
       )}
       <Pressable
         testID="open-reporter-button"
-        accessibilityLabel={Platform.isTV && Platform.OS === 'ios' ? 'Open companion reporter' : 'Open Reporter'}
+        accessibilityLabel={
+          Platform.isTV && Platform.OS === 'ios' ? 'Open companion reporter' : 'Open Reporter'
+        }
         accessibilityRole="button"
         // TV: land initial focus here so the remote can press OK immediately.
         hasTVPreferredFocus={Platform.isTV}
         onPress={onOpenReporter}
-        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}>
+        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+      >
         {/* minimal beetle glyph: body, seam, legs, antennae */}
         <Svg viewBox="0 0 24 24" width={18} height={18}>
-          <Ellipse cx={12} cy={13.5} rx={5} ry={6.5} stroke={color.sdkText} strokeWidth={1.8} fill="none" />
+          <Ellipse
+            cx={12}
+            cy={13.5}
+            rx={5}
+            ry={6.5}
+            stroke={color.sdkText}
+            strokeWidth={1.8}
+            fill="none"
+          />
           <Path
             d="M12 7v13 M7 11H4M7 15H4.5M17 11h3M17 15h2.5 M10 7 8 4M14 7l2-3"
             stroke={color.sdkText}

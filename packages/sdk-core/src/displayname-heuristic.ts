@@ -18,7 +18,7 @@ export function sampleAndWarn(displayNames: Array<string | undefined>, sampleSiz
     console.warn(
       '[everframe] More than half of sampled components have no displayName or look minified. ' +
         'Install @everframe/babel-plugin-displayname or @everframe/swc-plugin-displayname for AI-readable reports. ' +
-        'See https://github.com/scriptx-com/everframe#displayname-plugin'
+        'See https://github.com/scriptx-com/everframe#displayname-plugin',
     );
   }
 }

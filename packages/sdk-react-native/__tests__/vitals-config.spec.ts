@@ -16,9 +16,16 @@ describe('RuntimeConfig.vitals → flat ConfigOpts (spec 2026-09-06 §1)', () =>
   afterEach(() => __setCurrentContext(null));
 
   it('flattens all three fields when set', () => {
-    createRuntime({ sdkKey: 'k', vitals: { enabled: false, sampleRate: 0.25, captureSourceQuery: true } }).mount();
+    createRuntime({
+      sdkKey: 'k',
+      vitals: { enabled: false, sampleRate: 0.25, captureSourceQuery: true },
+    }).mount();
     expect(native.configureSync).toHaveBeenCalledWith(
-      expect.objectContaining({ vitalsEnabled: false, vitalsSampleRate: 0.25, vitalsCaptureSourceQuery: true }),
+      expect.objectContaining({
+        vitalsEnabled: false,
+        vitalsSampleRate: 0.25,
+        vitalsCaptureSourceQuery: true,
+      }),
     );
   });
 
@@ -41,15 +48,21 @@ describe('RuntimeConfig.vitals → flat ConfigOpts (spec 2026-09-06 §1)', () =>
     // `__DEV__` is undefined under vitest (it is a Metro/RN global), and the
     // warning is deliberately DEV-only — set it for the cases that assert it.
     const g = globalThis as unknown as { __DEV__?: boolean };
-    beforeEach(() => { g.__DEV__ = true; });
-    afterEach(() => { delete g.__DEV__; });
+    beforeEach(() => {
+      g.__DEV__ = true;
+    });
+    afterEach(() => {
+      delete g.__DEV__;
+    });
 
     it('drops an out-of-range sampleRate and warns', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       createRuntime({ sdkKey: 'k', vitals: { sampleRate: 50 } }).mount();
       const opts = native.configureSync.mock.calls[0][0];
       expect('vitalsSampleRate' in opts).toBe(false);
-      expect(warn).toHaveBeenCalledWith('[everframe] vitals.sampleRate must be within 0..1; ignoring 50');
+      expect(warn).toHaveBeenCalledWith(
+        '[everframe] vitals.sampleRate must be within 0..1; ignoring 50',
+      );
       warn.mockRestore();
     });
 
@@ -65,7 +78,11 @@ describe('RuntimeConfig.vitals → flat ConfigOpts (spec 2026-09-06 §1)', () =>
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       // Release health is on by default and warns in development without a Hermes build identity; opt out so
       // this test still asserts that nothing at all is warned.
-      createRuntime({ sdkKey: 'k', vitals: { sampleRate: rate }, releaseHealth: { enabled: false } }).mount();
+      createRuntime({
+        sdkKey: 'k',
+        vitals: { sampleRate: rate },
+        releaseHealth: { enabled: false },
+      }).mount();
       expect(native.configureSync.mock.calls[0][0].vitalsSampleRate).toBe(rate);
       expect(warn).not.toHaveBeenCalled();
       warn.mockRestore();

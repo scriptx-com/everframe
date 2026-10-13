@@ -90,13 +90,20 @@ async function flush(ms = 20): Promise<void> {
 
 describe('finding 6: client.kill() terminally shuts down thread polling through the Provider', () => {
   it('kill() makes the FAB disappear, and a subsequent visibilitychange to visible does not resurrect polling', async () => {
-    localStorage.setItem(scopedReporterTokenStorageKey('txx_live_test'), 'evr_test0000000000000000000000000000000000');
+    localStorage.setItem(
+      scopedReporterTokenStorageKey('txx_live_test'),
+      'evr_test0000000000000000000000000000000000',
+    );
     const { calls } = stubFetch();
 
     let client: EverframeClient | undefined;
     const { getByTestId, queryByTestId } = render(
       <EverframeProvider config={config}>
-        <ClientProbe onClient={(c) => { client = c; }} />
+        <ClientProbe
+          onClient={(c) => {
+            client = c;
+          }}
+        />
       </EverframeProvider>,
     );
 

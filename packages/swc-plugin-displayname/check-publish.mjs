@@ -34,7 +34,9 @@ if (!existsSync(wasm)) {
   // `serde::__private`, which swc_common 13 used) without anything going red.
   if (process.env.CI) {
     console.error('[check:publish] FAIL — swc_plugin_displayname.wasm is missing in CI.');
-    console.error('[check:publish]   CI installs rustup + wasm32-wasip1, so the artifact should exist.');
+    console.error(
+      '[check:publish]   CI installs rustup + wasm32-wasip1, so the artifact should exist.',
+    );
     console.error('[check:publish]   A skip here would pass an unverified package; refusing.');
     process.exit(1);
   }

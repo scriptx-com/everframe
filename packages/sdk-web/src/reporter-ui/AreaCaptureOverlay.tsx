@@ -84,9 +84,7 @@ export function AreaCaptureOverlay({ onSelect, onCancel }: AreaCaptureOverlayPro
       }}
     >
       <div className="everframe-area-capture-bar">
-        <span className="everframe-area-capture-hint">
-          Drag to select an area — Esc to cancel
-        </span>
+        <span className="everframe-area-capture-hint">Drag to select an area — Esc to cancel</span>
         <button
           type="button"
           className="everframe-area-capture-btn"

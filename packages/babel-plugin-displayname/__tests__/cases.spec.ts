@@ -18,7 +18,10 @@ async function transform(file: string): Promise<string> {
   const result = await transformAsync(source, {
     babelrc: false,
     configFile: false,
-    presets: [['@babel/preset-typescript', { allExtensions: true, isTSX: true }], '@babel/preset-react'],
+    presets: [
+      ['@babel/preset-typescript', { allExtensions: true, isTSX: true }],
+      '@babel/preset-react',
+    ],
     plugins: [plugin],
     filename: file,
   });

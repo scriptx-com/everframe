@@ -21,7 +21,9 @@ describe('createLocalStorageCredentialStore', () => {
     const store = createLocalStorageCredentialStore(SCOPE_A)!;
     expect(await store.load()).toBeNull();
     await store.save('evr_' + 'a'.repeat(43));
-    expect(localStorage.getItem(scopedReporterTokenStorageKey(SCOPE_A))).toBe('evr_' + 'a'.repeat(43));
+    expect(localStorage.getItem(scopedReporterTokenStorageKey(SCOPE_A))).toBe(
+      'evr_' + 'a'.repeat(43),
+    );
     expect(await store.load()).toBe('evr_' + 'a'.repeat(43));
     await store.clear();
     expect(await store.load()).toBeNull();
@@ -37,7 +39,9 @@ describe('createLocalStorageCredentialStore', () => {
   it('load survives a throwing localStorage (private-mode quota)', async () => {
     const store = createLocalStorageCredentialStore(SCOPE_A)!;
     const orig = Storage.prototype.getItem;
-    Storage.prototype.getItem = () => { throw new Error('denied'); };
+    Storage.prototype.getItem = () => {
+      throw new Error('denied');
+    };
     try {
       expect(await store.load()).toBeNull();
     } finally {
@@ -55,7 +59,9 @@ describe('createLocalStorageCredentialStore', () => {
   it('save() mirrors the token in memory so load() survives a throwing localStorage.setItem', async () => {
     const store = createLocalStorageCredentialStore(SCOPE_A)!;
     const orig = Storage.prototype.setItem;
-    Storage.prototype.setItem = () => { throw new Error('QuotaExceededError'); };
+    Storage.prototype.setItem = () => {
+      throw new Error('QuotaExceededError');
+    };
     const token = 'evr_' + 'c'.repeat(43);
     try {
       await store.save(token);
@@ -71,7 +77,9 @@ describe('createLocalStorageCredentialStore', () => {
   it('clear() also clears the in-memory mirror', async () => {
     const store = createLocalStorageCredentialStore(SCOPE_A)!;
     const orig = Storage.prototype.setItem;
-    Storage.prototype.setItem = () => { throw new Error('QuotaExceededError'); };
+    Storage.prototype.setItem = () => {
+      throw new Error('QuotaExceededError');
+    };
     try {
       await store.save('evr_' + 'd'.repeat(43));
       await store.clear();
@@ -104,7 +112,6 @@ describe('createLocalStorageCredentialStore', () => {
       expect(localStorage.getItem(scopedReporterTokenStorageKey(SCOPE_A))).toBe(tokenA);
       expect(localStorage.getItem(scopedReporterTokenStorageKey(SCOPE_B))).toBe(tokenB);
     });
-
   });
 
   // PR review Finding (round 5): on an opaque/sandboxed origin, the

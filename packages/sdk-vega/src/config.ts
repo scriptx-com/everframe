@@ -18,7 +18,14 @@ export interface VegaUser {
   displayName?: string;
 }
 
-export type BreadcrumbKind = 'navigation' | 'tap' | 'console' | 'network' | 'lifecycle' | 'error' | 'custom';
+export type BreadcrumbKind =
+  | 'navigation'
+  | 'tap'
+  | 'console'
+  | 'network'
+  | 'lifecycle'
+  | 'error'
+  | 'custom';
 
 export interface VegaBreadcrumb {
   /** Defaults to `custom`. */
@@ -101,9 +108,10 @@ export function resolveConfig(config: VegaConfig, dev: boolean): ResolvedConfig 
   const endpoint = (text(config.endpoint, 2048) ?? DEFAULT_ENDPOINT).replace(/\/+$/, '');
   const build = text(config.appBuild, 200);
   const storage = config.storage;
-  const usableStorage = storage && typeof storage.getItem === 'function' && typeof storage.setItem === 'function'
-    ? storage
-    : undefined;
+  const usableStorage =
+    storage && typeof storage.getItem === 'function' && typeof storage.setItem === 'function'
+      ? storage
+      : undefined;
   const model = text(config.device?.model, 256);
   const osVersion = text(config.device?.osVersion, 128);
   return {

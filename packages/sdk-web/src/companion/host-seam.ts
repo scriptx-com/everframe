@@ -127,9 +127,7 @@ export interface CompanionSeamTicket {
  * singleton takes one of these at `start()` so a session's standalone fallback
  * is judged against the seam as it stood when that session opened.
  */
-export function __companionSeamTicket(
-  host: CompanionHost | null = __host,
-): CompanionSeamTicket {
+export function __companionSeamTicket(host: CompanionHost | null = __host): CompanionSeamTicket {
   return { host, published: host !== null && host === __host, epoch: __epoch };
 }
 
@@ -229,9 +227,7 @@ function seamTicketDead(t: CompanionSeamTicket): boolean {
  * assumption about an unknown starting point is the earliest one.
  */
 export function __isCompanionKilled(ticket?: CompanionSeamTicket): boolean {
-  return seamTicketDead(
-    ticket ?? { host: __host, published: __host !== null, epoch: 0 },
-  );
+  return seamTicketDead(ticket ?? { host: __host, published: __host !== null, epoch: 0 });
 }
 
 /**

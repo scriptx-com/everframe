@@ -3,7 +3,12 @@
 import { sha256Hex } from './sha256.js';
 import type { HostVisualCapture } from './host-visual.js';
 
-export interface CanvasSensitiveRect { x: number; y: number; width: number; height: number }
+export interface CanvasSensitiveRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export interface CanvasVisualOptions {
   /** The renderer-owned canvas, for example a Compose Multiplatform web surface. */
@@ -35,9 +40,19 @@ export function createCanvasVisualCapture(options: CanvasVisualOptions): HostVis
       if (width < 1 || height < 1 || width > 2048 || height > 2048) return null;
       const rects = options.sensitiveRects();
       if (!Array.isArray(rects) || (!options.allowUnmarked && rects.length === 0)) return null;
-      if (rects.some(({ x, y, width: w, height: h }) =>
-        ![x, y, w, h].every(Number.isFinite) || w <= 0 || h <= 0 ||
-        x < 0 || y < 0 || x + w > width || y + h > height)) return null;
+      if (
+        rects.some(
+          ({ x, y, width: w, height: h }) =>
+            ![x, y, w, h].every(Number.isFinite) ||
+            w <= 0 ||
+            h <= 0 ||
+            x < 0 ||
+            y < 0 ||
+            x + w > width ||
+            y + h > height,
+        )
+      )
+        return null;
       const output = document.createElement('canvas');
       output.width = width;
       output.height = height;
@@ -60,9 +75,17 @@ export function createCanvasVisualCapture(options: CanvasVisualOptions): HostVis
   let frozen = false;
   let revoked = false;
   let bytes = 0;
-  const stop = (): void => { if (timer) clearInterval(timer); timer = undefined; generation++; };
+  const stop = (): void => {
+    if (timer) clearInterval(timer);
+    timer = undefined;
+    generation++;
+  };
   const reset = (): void => {
-    stop(); frames = []; bytes = 0; frozen = false; revoked = false;
+    stop();
+    frames = [];
+    bytes = 0;
+    frozen = false;
+    revoked = false;
   };
   const sample = async (token: number): Promise<void> => {
     if (busy || frozen || revoked || token !== generation) return;
@@ -70,62 +93,101 @@ export function createCanvasVisualCapture(options: CanvasVisualOptions): HostVis
     try {
       const blob = await captureScreenshot();
       if (token !== generation) return;
-      if (!blob || blob.size < 24) { revoked = true; frames = []; stop(); return; }
+      if (!blob || blob.size < 24) {
+        revoked = true;
+        frames = [];
+        stop();
+        return;
+      }
       const at = Date.now();
-      frames.push({ at, blob, width: options.canvas.width, height: options.canvas.height }); bytes += blob.size;
+      frames.push({ at, blob, width: options.canvas.width, height: options.canvas.height });
+      bytes += blob.size;
       while (frames.length > MAX_FRAMES || bytes > MAX_BYTES || at - frames[0]!.at > MAX_AGE_MS) {
         bytes -= frames.shift()!.blob.size;
       }
-    } finally { busy = false; }
+    } finally {
+      busy = false;
+    }
   };
   const start = (): void => {
     reset();
     const token = generation;
     void sample(token);
-    timer = setInterval(() => { void sample(token); }, 500);
+    timer = setInterval(() => {
+      void sample(token);
+    }, 500);
   };
 
   return {
     captureScreenshot,
     replay: {
       start,
-      freeze() { frozen = true; stop(); },
+      freeze() {
+        frozen = true;
+        stop();
+      },
       discardAndResume: start,
       async takeFrozen() {
         if (!frozen || revoked || frames.length === 0) return null;
         try {
           const first = frames[0]!;
-          if (frames.some((frame) => frame.width !== first.width || frame.height !== first.height)) return null;
-          const assets: Record<string, { mime: 'image/png'; w: number; h: number; b64: string }> = {};
+          if (frames.some((frame) => frame.width !== first.width || frame.height !== first.height))
+            return null;
+          const assets: Record<string, { mime: 'image/png'; w: number; h: number; b64: string }> =
+            {};
           const outputFrames: Array<{ timestamp: number; ops: unknown[] }> = [];
           let previousRef: string | undefined;
           for (const frame of frames) {
             const bytes = new Uint8Array(await frame.blob.arrayBuffer());
             const ref = (await sha256Hex(frame.blob)).slice(0, 16);
-            assets[ref] ??= { mime: 'image/png', w: first.width, h: first.height, b64: base64(bytes) };
+            assets[ref] ??= {
+              mime: 'image/png',
+              w: first.width,
+              h: first.height,
+              b64: base64(bytes),
+            };
             outputFrames.push({
               timestamp: frame.at - first.at,
               ops: !previousRef
-                ? [{ op: 'add', parent: '', index: 0, node: {
-                  id: 'kmp-web-root', role: 'image',
-                  frame: { x: 0, y: 0, w: first.width, h: first.height },
-                  imageRef: ref, children: [],
-                } }]
-                : ref === previousRef ? [] : [{ op: 'set', id: 'kmp-web-root', imageRef: ref }],
+                ? [
+                    {
+                      op: 'add',
+                      parent: '',
+                      index: 0,
+                      node: {
+                        id: 'kmp-web-root',
+                        role: 'image',
+                        frame: { x: 0, y: 0, w: first.width, h: first.height },
+                        imageRef: ref,
+                        children: [],
+                      },
+                    },
+                  ]
+                : ref === previousRef
+                  ? []
+                  : [{ op: 'set', id: 'kmp-web-root', imageRef: ref }],
             });
             previousRef = ref;
           }
-          const encoded = new TextEncoder().encode(JSON.stringify({
-            version: 'everframe-vtree-v1',
-            viewport: { width: first.width, height: first.height, scale: 1 },
-            frames: outputFrames,
-            originEpochMs: first.at,
-            assets,
-          }));
+          const encoded = new TextEncoder().encode(
+            JSON.stringify({
+              version: 'everframe-vtree-v1',
+              viewport: { width: first.width, height: first.height, scale: 1 },
+              frames: outputFrames,
+              originEpochMs: first.at,
+              assets,
+            }),
+          );
           if (encoded.byteLength > MAX_BYTES) return null;
-          return { format: 'everframe-vtree-v1' as const, bytes: encoded,
-            contentType: 'application/json', durationMs: outputFrames.at(-1)!.timestamp };
-        } catch { return null; }
+          return {
+            format: 'everframe-vtree-v1' as const,
+            bytes: encoded,
+            contentType: 'application/json',
+            durationMs: outputFrames.at(-1)!.timestamp,
+          };
+        } catch {
+          return null;
+        }
       },
       stop,
       kill: reset,

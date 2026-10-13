@@ -44,7 +44,12 @@ const TV = Platform.isTV ? 1.35 : 1;
 
 export const type = {
   display: { fontFamily: font.display, fontSize: 30 * TV, lineHeight: 34 * TV, color: color.ink },
-  sectionTitle: { fontFamily: font.display, fontSize: 21 * TV, lineHeight: 26 * TV, color: color.ink },
+  sectionTitle: {
+    fontFamily: font.display,
+    fontSize: 21 * TV,
+    lineHeight: 26 * TV,
+    color: color.ink,
+  },
   eyebrow: {
     fontFamily: font.mono,
     fontSize: 11 * TV,
@@ -54,7 +59,12 @@ export const type = {
   },
   body: { fontSize: 15 * TV, lineHeight: 22 * TV, color: color.ink },
   muted: { fontSize: 14 * TV, lineHeight: 20 * TV, color: color.inkSoft },
-  monoNote: { fontFamily: font.mono, fontSize: 11 * TV, lineHeight: 16 * TV, color: color.inkFaint },
+  monoNote: {
+    fontFamily: font.mono,
+    fontSize: 11 * TV,
+    lineHeight: 16 * TV,
+    color: color.inkFaint,
+  },
 } as const;
 
 export const radius = { card: 10, control: 8, pill: 999 } as const;

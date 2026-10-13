@@ -39,7 +39,7 @@ afterEach(() => {
 const config = { sdkKey: 'txx_live_test' };
 
 describe('EverframeProvider — Session Vitals wiring (Codex round-1 finding S1)', () => {
-  it('calls setupVitals exactly once on mount, mirroring init.ts\'s deps', () => {
+  it("calls setupVitals exactly once on mount, mirroring init.ts's deps", () => {
     const destroy = vi.fn();
     setupVitalsMock.mockReturnValue({ destroy });
 
@@ -70,7 +70,7 @@ describe('EverframeProvider — Session Vitals wiring (Codex round-1 finding S1)
     expect(deps.isKilled()).toBe(false);
   });
 
-  it('calls the handle\'s destroy() in the unmount cleanup', () => {
+  it("calls the handle's destroy() in the unmount cleanup", () => {
     const destroy = vi.fn();
     setupVitalsMock.mockReturnValue({ destroy });
 

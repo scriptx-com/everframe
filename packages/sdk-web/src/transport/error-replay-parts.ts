@@ -28,14 +28,21 @@ export const ERROR_REPLAY_PART = 'session-replay';
 type Entry = { owner?: object; sdkKey?: string } & (
   | { state: 'pending' }
   | { state: 'attach'; capture: ReplayCapture }
-  | { state: 'omitted' });
+  | { state: 'omitted' }
+);
 
 const entries = new Map<string, Entry>();
 const pageOwner = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-export function markErrorReplayPending(reportId: string, ownership: { owner: object; sdkKey: string } | undefined = undefined): Record<string, string> {
+export function markErrorReplayPending(
+  reportId: string,
+  ownership: { owner: object; sdkKey: string } | undefined = undefined,
+): Record<string, string> {
   entries.set(reportId, { state: 'pending', ...ownership });
-  return { errorReplayOwner: pageOwner, errorReplayUntil: String(Date.now() + ERROR_REPLAY_DEADLINE_MS) };
+  return {
+    errorReplayOwner: pageOwner,
+    errorReplayUntil: String(Date.now() + ERROR_REPLAY_DEADLINE_MS),
+  };
 }
 
 /** Tiny persisted lease: reloads retain its original deadline, never its bytes. */
@@ -50,7 +57,8 @@ export function errorReplayHoldMs(item: OutboxItem): number {
 export function settleErrorReplay(reportId: string, outcome: ErrorReplayOutcome): void {
   const entry = entries.get(reportId);
   if (entry?.state !== 'pending') return;
-  if (outcome.kind === 'attach') entries.set(reportId, { ...entry, state: 'attach', capture: outcome.capture });
+  if (outcome.kind === 'attach')
+    entries.set(reportId, { ...entry, state: 'attach', capture: outcome.capture });
   else if (outcome.kind === 'omitted') entries.set(reportId, { ...entry, state: 'omitted' });
   else entries.delete(reportId);
 }

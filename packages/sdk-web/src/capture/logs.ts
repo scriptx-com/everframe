@@ -151,10 +151,7 @@ export function installConsolePatcher(opts: ConsolePatcherOptions = {}): () => v
     err?: Error,
   ): boolean | void => {
     const errMessage = err?.message ?? (typeof msg === 'string' ? msg : String(msg));
-    pushEntry('error', [
-      `[uncaught-error] ${errMessage}`,
-      { src, ln, col, stack: err?.stack },
-    ]);
+    pushEntry('error', [`[uncaught-error] ${errMessage}`, { src, ln, col, stack: err?.stack }]);
     crumb({
       kind: 'error',
       level: 'error',
@@ -163,7 +160,11 @@ export function installConsolePatcher(opts: ConsolePatcherOptions = {}): () => v
     });
     try {
       // Resource-load events are not unhandled JavaScript exceptions.
-      if (typeof msg === 'string' || err || (typeof ErrorEvent !== 'undefined' && msg instanceof ErrorEvent)) {
+      if (
+        typeof msg === 'string' ||
+        err ||
+        (typeof ErrorEvent !== 'undefined' && msg instanceof ErrorEvent)
+      ) {
         opts.crashSink?.(err ?? errMessage, 'onerror');
       }
     } catch {

@@ -27,7 +27,12 @@ type InboxView = { view: 'list' } | { view: 'thread'; threadId: string };
  * single open `thread`); all thread data flows through the `threads` facade
  * prop, never a side channel. Hosted in the shared Modal primitive.
  */
-export function InboxDialog({ open, onClose, threads, onNewReport }: InboxDialogProps): JSX.Element | null {
+export function InboxDialog({
+  open,
+  onClose,
+  threads,
+  onNewReport,
+}: InboxDialogProps): JSX.Element | null {
   const [view, setView] = useState<InboxView>({ view: 'list' });
 
   const handleClose = (): void => {

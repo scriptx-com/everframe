@@ -48,9 +48,9 @@ describe('ambient UI (no React)', () => {
     const ui = createAmbientUI(makeShadow(), { onOpen: () => undefined });
     ui.setVisible(true);
     ui.setUnread(2);
-    expect(
-      shadow.querySelector('[data-testid=reporter-fab]')?.getAttribute('aria-label'),
-    ).toBe('Your reports — 2 unread');
+    expect(shadow.querySelector('[data-testid=reporter-fab]')?.getAttribute('aria-label')).toBe(
+      'Your reports — 2 unread',
+    );
   });
 
   it('destroy() removes it from the shadow root', () => {

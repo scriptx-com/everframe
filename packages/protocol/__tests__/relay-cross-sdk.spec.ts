@@ -85,9 +85,7 @@ describe('PROTO-03 cross-SDK relay fixture parity (TS)', () => {
   });
 
   it('rejects pair.created missing required pair_token', () => {
-    expect(() =>
-      relay.RelayMessage.parse({ type: 'pair.created', pair_id: 'x' })
-    ).toThrow();
+    expect(() => relay.RelayMessage.parse({ type: 'pair.created', pair_id: 'x' })).toThrow();
   });
 
   it('accepts well-formed pair.created', () => {

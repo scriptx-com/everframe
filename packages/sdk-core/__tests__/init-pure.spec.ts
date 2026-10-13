@@ -11,9 +11,7 @@ describe('DEFE-01: init is pure (no I/O, no side effects)', () => {
   let setIntervalSpy: MockInstance;
 
   beforeEach(() => {
-    fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockImplementation(async () => new Response(''));
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(''));
     setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
     setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
   });
@@ -60,9 +58,7 @@ describe('DEFE-01: importing sdk-core adds no globalThis keys', () => {
     const before = new Set(Object.keys(globalThis));
     await import('../src/index.js');
     const after = new Set(Object.keys(globalThis));
-    const added = [...after].filter(
-      (k) => !before.has(k) && !UPSTREAM_ALLOWED_GLOBALS.has(k)
-    );
+    const added = [...after].filter((k) => !before.has(k) && !UPSTREAM_ALLOWED_GLOBALS.has(k));
     expect(added).toEqual([]);
   });
 });

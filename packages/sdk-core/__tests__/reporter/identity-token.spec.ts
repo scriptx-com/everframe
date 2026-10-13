@@ -94,7 +94,12 @@ describe('IdentityTokenHolder', () => {
       const h = new IdentityTokenHolder();
       const now = 1_000_000_000_000;
       let resolveProvider!: (v: string) => void;
-      h.set(() => new Promise<string>((resolve) => { resolveProvider = resolve; }));
+      h.set(
+        () =>
+          new Promise<string>((resolve) => {
+            resolveProvider = resolve;
+          }),
+      );
 
       const pending = h.get(now); // Alice's request starts…
       // Let get() actually invoke source() (deferred one microtask via the
@@ -117,7 +122,12 @@ describe('IdentityTokenHolder', () => {
       const h = new IdentityTokenHolder();
       const now = 1_000_000_000_000;
       let resolveProvider!: (v: string) => void;
-      h.set(() => new Promise<string>((resolve) => { resolveProvider = resolve; }));
+      h.set(
+        () =>
+          new Promise<string>((resolve) => {
+            resolveProvider = resolve;
+          }),
+      );
 
       const pending = h.get(now); // Alice's request starts…
       await Promise.resolve();
@@ -454,7 +464,12 @@ describe('IdentityTokenHolder guard', () => {
     const h = new IdentityTokenHolder();
     const now = 1_000_000_000_000;
     let resolveProvider!: (v: string) => void;
-    h.set(() => new Promise<string>((resolve) => { resolveProvider = resolve; }));
+    h.set(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveProvider = resolve;
+        }),
+    );
 
     let allowed = true;
     h.setGuard(() => allowed);

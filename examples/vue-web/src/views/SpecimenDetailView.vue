@@ -22,11 +22,9 @@ function logObservation(): void {
     <h1 data-testid="specimen-name">{{ specimen.commonName }}</h1>
     <SpecimenPlate :specimen="specimen" />
     <dl class="card">
-      <dt>Latin name</dt><dd>{{ specimen.latinName }}</dd>
-      <dt>Order</dt><dd>{{ specimen.order }}</dd>
-      <dt>Size</dt><dd>{{ specimen.sizeMm }}</dd>
-      <dt>Habitat</dt><dd>{{ specimen.habitat }}</dd>
-      <dt>Season</dt><dd>{{ specimen.season }}</dd>
+      <dt>Latin name</dt><dd>{{ specimen.latinName }}</dd> <dt>Order</dt
+      ><dd>{{ specimen.order }}</dd> <dt>Size</dt><dd>{{ specimen.sizeMm }}</dd> <dt>Habitat</dt
+      ><dd>{{ specimen.habitat }}</dd> <dt>Season</dt><dd>{{ specimen.season }}</dd>
     </dl>
     <p>{{ specimen.note }}</p>
     <button type="button" data-testid="log-observation" @click="logObservation">

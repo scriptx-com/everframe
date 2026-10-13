@@ -52,8 +52,8 @@ describe('resolveThemeVars — mapping and derivation', () => {
       { watermark: false, theme: { accent: '#ff0000' } },
       { accent: '#00ff00', accentForeground: '#111111' },
     );
-    expect(vars['--everframe-accent']).toBe('#ff0000');      // server wins
-    expect(vars['--everframe-accent-fg']).toBe('#111111');   // inline fills the gap
+    expect(vars['--everframe-accent']).toBe('#ff0000'); // server wins
+    expect(vars['--everframe-accent-fg']).toBe('#111111'); // inline fills the gap
   });
 
   it('background derives the tonal ramp, modal gradient top, and surface', () => {

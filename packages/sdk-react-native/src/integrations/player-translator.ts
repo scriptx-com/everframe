@@ -9,11 +9,21 @@
 // onto these calls.
 import type { PlayerHandle, PlayerStats } from '../vitals.js';
 
-export interface TranslatorClock { now(): number }
+export interface TranslatorClock {
+  now(): number;
+}
 export interface PlayerTranslator {
-  loadStart(src: string | undefined, extra?: { mime?: string; live?: boolean; keySystem?: string }): void;
-  seedSource(src: string | undefined, extra?: { mime?: string; live?: boolean; keySystem?: string }): void;
-  playing(): void; paused(): void; ended(): void;
+  loadStart(
+    src: string | undefined,
+    extra?: { mime?: string; live?: boolean; keySystem?: string },
+  ): void;
+  seedSource(
+    src: string | undefined,
+    extra?: { mime?: string; live?: boolean; keySystem?: string },
+  ): void;
+  playing(): void;
+  paused(): void;
+  ended(): void;
   bufferingChanged(on: boolean): void;
   seek(): void;
   rateChanged(rate: number): void;
@@ -66,12 +76,29 @@ export function createPlayerTranslator(
   const emit = (type: Parameters<PlayerHandle['emit']>[0], data?: Record<string, unknown>) => {
     if (!closed) handle.emit(type, data, clock.now());
   };
-  const openPlay = () => { if (!playing) { playing = true; emit('play'); } };
-  const closePlay = () => { if (playing) { playing = false; emit('pause'); } };
-  const closeBuffer = () => {
-    if (bufferStartAt !== undefined) { const d = clock.now() - bufferStartAt; bufferStartAt = undefined; emit('buffer_end', { durationMs: Math.max(0, d) }); }
+  const openPlay = () => {
+    if (!playing) {
+      playing = true;
+      emit('play');
+    }
   };
-  const emitSource = (src: string | undefined, extra?: { mime?: string; live?: boolean; keySystem?: string }) => {
+  const closePlay = () => {
+    if (playing) {
+      playing = false;
+      emit('pause');
+    }
+  };
+  const closeBuffer = () => {
+    if (bufferStartAt !== undefined) {
+      const d = clock.now() - bufferStartAt;
+      bufferStartAt = undefined;
+      emit('buffer_end', { durationMs: Math.max(0, d) });
+    }
+  };
+  const emitSource = (
+    src: string | undefined,
+    extra?: { mime?: string; live?: boolean; keySystem?: string },
+  ) => {
     const data: Record<string, unknown> = {};
     if (src) data.src = src;
     if (extra?.mime) data.mime = extra.mime;
@@ -89,10 +116,14 @@ export function createPlayerTranslator(
       // land without an accompanying play), and rate/size de-dup must not
       // suppress the new source's first real values just because they
       // match the old source's last-seen ones.
-      closeBuffer(); closePlay(); lastRate = undefined; lastSize = undefined;
+      closeBuffer();
+      closePlay();
+      lastRate = undefined;
+      lastSize = undefined;
       // The new source has its own startup to serve, so its first buffering is startup again.
       started = false;
-      loadStartAt = clock.now(); startupPending = true;
+      loadStartAt = clock.now();
+      startupPending = true;
       emitSource(src, extra);
     },
     // Attach-time source read: describes what is ALREADY loaded. It emits the
@@ -102,10 +133,13 @@ export function createPlayerTranslator(
     // idle player picked up an hour later would claim an hour-long startup).
     // It also closes nothing and resets no de-dup: at attach there is no open
     // span and no previous source to de-dup against.
-    seedSource(src, extra) { emitSource(src, extra); },
+    seedSource(src, extra) {
+      emitSource(src, extra);
+    },
     playing() {
       if (startupPending && loadStartAt !== undefined) {
-        startupPending = false; emit('startup', { ttffMs: Math.max(0, clock.now() - loadStartAt) });
+        startupPending = false;
+        emit('startup', { ttffMs: Math.max(0, clock.now() - loadStartAt) });
       }
       started = true;
       openPlay();
@@ -113,21 +147,34 @@ export function createPlayerTranslator(
     // A buffer span left open when playback stops would otherwise run until
     // the next `buffer_end` (or forever), so close it BEFORE the play span:
     // `buffer_end` then `pause` keeps the spans properly nested.
-    paused() { closeBuffer(); closePlay(); },
-    ended() { closeBuffer(); closePlay(); },
+    paused() {
+      closeBuffer();
+      closePlay();
+    },
+    ended() {
+      closeBuffer();
+      closePlay();
+    },
     bufferingChanged(on) {
       // Round-4, F2 — before the first frame of this source there is no span to open and none
       // to close: nothing is tracked, so an unmatched `bufferingChanged(false)` on the way out
       // of startup emits nothing either (`closeBuffer` is a no-op with no span open, but the
       // gate makes the intent explicit rather than incidental).
       if (!started) return;
-      if (on) { if (bufferStartAt === undefined) { bufferStartAt = clock.now(); emit('buffer_start'); } }
-      else closeBuffer();
+      if (on) {
+        if (bufferStartAt === undefined) {
+          bufferStartAt = clock.now();
+          emit('buffer_start');
+        }
+      } else closeBuffer();
     },
-    seek() { emit('seek'); },
+    seek() {
+      emit('seek');
+    },
     rateChanged(rate) {
       if (!(rate > 0) || rate === lastRate) return;
-      lastRate = rate; emit('rate_change', { rate });
+      lastRate = rate;
+      emit('rate_change', { rate });
     },
     bitrateChanged(bitrate, width, height) {
       const data: Record<string, unknown> = { bitrate };
@@ -138,7 +185,8 @@ export function createPlayerTranslator(
     sizeChanged(width, height) {
       const key = `${width}x${height}`;
       if (key === lastSize || !(width > 0) || !(height > 0)) return;
-      lastSize = key; emit('quality_change', { width, height });
+      lastSize = key;
+      emit('quality_change', { width, height });
     },
     error(message, code, fatal) {
       if (!fatal) {
@@ -152,14 +200,18 @@ export function createPlayerTranslator(
         const now = clock.now();
         // `>=` so an error exactly 60_000 ms after an admitted one evicts it: the window is
         // the last minute, half-open, and the two SDK twins charge it the same way.
-        while (nonFatalAdmittedAt.length > 0 && now - (nonFatalAdmittedAt[0] as number) >= 60_000) nonFatalAdmittedAt.shift();
+        while (nonFatalAdmittedAt.length > 0 && now - (nonFatalAdmittedAt[0] as number) >= 60_000)
+          nonFatalAdmittedAt.shift();
         if (nonFatalAdmittedAt.length >= NON_FATAL_ERRORS_PER_MINUTE) return;
         nonFatalAdmittedAt.push(now);
       }
       const data: Record<string, unknown> = { message, fatal };
       if (code !== undefined) data.code = code;
       emit('error', data);
-      if (fatal) { closeBuffer(); closePlay(); }
+      if (fatal) {
+        closeBuffer();
+        closePlay();
+      }
     },
     stats(stats) {
       const now = clock.now();
@@ -170,7 +222,11 @@ export function createPlayerTranslator(
     // Attach-time seed: open the span WITHOUT a startup. Adapters seed the
     // source via `seedSource` (which never arms), so the disarm here is only
     // belt-and-braces against a caller that used `loadStart` to seed.
-    seedPlaying() { startupPending = false; started = true; openPlay(); },
+    seedPlaying() {
+      startupPending = false;
+      started = true;
+      openPlay();
+    },
     // Codex round-8, J2 — attach-time seed for a player that is PAST startup but not
     // currently playing: the source has produced frames (a positive `currentTime`, or the
     // library says it is ready), it is simply paused or — the case this exists for —
@@ -186,17 +242,25 @@ export function createPlayerTranslator(
     // NOT back-dated into a `buffer_start` — its start time is unknowable from here — so the
     // span opens on the next `onBuffer(true)`/state event, which is the first moment we
     // actually observe. Idempotent.
-    seedStarted() { started = true; },
+    seedStarted() {
+      started = true;
+    },
     close() {
       if (closed) return;
-      closeBuffer(); closePlay();
+      closeBuffer();
+      closePlay();
       closed = true;
       handle.detach();
     },
-    wrap: (fn) => (...a) => {
-      try { fn(...a); } catch (e) {
-        if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[everframe] player adapter handler failed', e);
-      }
-    },
+    wrap:
+      (fn) =>
+      (...a) => {
+        try {
+          fn(...a);
+        } catch (e) {
+          if (typeof __DEV__ !== 'undefined' && __DEV__)
+            console.warn('[everframe] player adapter handler failed', e);
+        }
+      },
   };
 }

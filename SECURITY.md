@@ -12,4 +12,3 @@ impact. We will acknowledge the report and coordinate remediation and disclosure
 through the private advisory.
 
 Only the latest released SDK versions receive security fixes.
-

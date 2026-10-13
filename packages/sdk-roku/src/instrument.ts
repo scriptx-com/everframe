@@ -1,13 +1,35 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { copyFileSync, cpSync, existsSync, lstatSync, statSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  cpSync,
+  existsSync,
+  lstatSync,
+  statSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { discoverEntryPoints, ALL_MECHANISMS, DEFAULT_SCREENS, type Mechanism } from './entry-points.js';
+import {
+  discoverEntryPoints,
+  ALL_MECHANISMS,
+  DEFAULT_SCREENS,
+  type Mechanism,
+} from './entry-points.js';
 import { wrapFunctions, MARKER } from './wrap.js';
 
 export interface InstrumentOptions {
-  root: string; out?: string; exclude?: string[]; mechanisms?: Mechanism[]; dryRun?: boolean; bundleLibrary?: boolean;
+  root: string;
+  out?: string;
+  exclude?: string[];
+  mechanisms?: Mechanism[];
+  dryRun?: boolean;
+  bundleLibrary?: boolean;
   /** Component-name globs whose init() sets the current screen; default DEFAULT_SCREENS, [] disables. */
   screens?: string[];
 }
@@ -29,9 +51,18 @@ export const OUT_MARKER = '.everframe-build';
 const MARKER_TEXT = 'Created by everframe-roku instrument';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const HOOK_SET = ['everframe_hook.brs', 'ef_util.brs', 'ef_frames.brs', 'ef_record.brs', 'ef_queue.brs', 'ef_fingerprint.brs'];
+const HOOK_SET = [
+  'everframe_hook.brs',
+  'ef_util.brs',
+  'ef_frames.brs',
+  'ef_record.brs',
+  'ef_queue.brs',
+  'ef_fingerprint.brs',
+];
 const hookSource = (f: string) =>
-  f === 'everframe_hook.brs' ? path.join(PKG, 'hook', f) : path.join(PKG, 'library/components/Everframe/lib', f);
+  f === 'everframe_hook.brs'
+    ? path.join(PKG, 'hook', f)
+    : path.join(PKG, 'library/components/Everframe/lib', f);
 
 export function instrument(opts: InstrumentOptions): InstrumentReport {
   // Canonical paths throughout: a symlinked or `..`-spelled --out must not alias the channel.
@@ -65,7 +96,8 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
       if (fn.toLowerCase() !== 'init') continue;
       const t = targets.get('init');
       if (t?.screen) emittedIn.set(file, 'all');
-      else if (t?.screenIf && !t.screenConflict) emittedIn.set(file, new Set(t.screenIf.names.map((n) => n.toLowerCase())));
+      else if (t?.screenIf && !t.screenConflict)
+        emittedIn.set(file, new Set(t.screenIf.names.map((n) => n.toLowerCase())));
     }
     for (const s of res.skipped) report.skipped.push({ file, ...s });
     if (res.wrapped.length > 0) rewritten.set(file, res.code);
@@ -73,11 +105,15 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
   }
 
   const compByName = new Map<string, (typeof plan.components)[number]>();
-  for (const c of plan.components) if (!compByName.has(c.name.toLowerCase())) compByName.set(c.name.toLowerCase(), c);
+  for (const c of plan.components)
+    if (!compByName.has(c.name.toLowerCase())) compByName.set(c.name.toLowerCase(), c);
   for (const sc of plan.screens) {
     // Own scripts first, then up the extends chain: the first init() that sets this component's screen.
     const me = sc.component.toLowerCase();
-    const covers = (f: string) => { const e = emittedIn.get(f); return e === 'all' || (e !== undefined && e.has(me)); };
+    const covers = (f: string) => {
+      const e = emittedIn.get(f);
+      return e === 'all' || (e !== undefined && e.has(me));
+    };
     let file: string | undefined;
     const seen = new Set<string>();
     let c = plan.components.find((x) => x.name === sc.component && !x.excluded);
@@ -117,7 +153,10 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
     cpSync(zip, dest);
     report.libraryZip = path.relative(out, dest);
   }
-  writeFileSync(path.join(out, OUT_MARKER), `${MARKER_TEXT}. This directory is cleared on every run.\n`);
+  writeFileSync(
+    path.join(out, OUT_MARKER),
+    `${MARKER_TEXT}. This directory is cleared on every run.\n`,
+  );
   return report;
 }
 
@@ -125,7 +164,7 @@ export function instrument(opts: InstrumentOptions): InstrumentReport {
 function inertRanges(text: string): Array<[number, number]> {
   const ranges: Array<[number, number]> = [];
   const re = /<!--|<!\[CDATA\[/g;
-  for (let m; (m = re.exec(text));) {
+  for (let m; (m = re.exec(text)); ) {
     const close = m[0] === '<!--' ? '-->' : ']]>';
     const end = text.indexOf(close, m.index + m[0].length);
     const stop = end < 0 ? text.length : end + close.length;
@@ -146,7 +185,9 @@ export function injectHookImports(text: string): string {
   const active = inert.reduceRight((t, [a, b]) => t.slice(0, a) + t.slice(b), text);
   const missing = HOOK_SET.filter((f) => !active.includes(`pkg:/components/everframe_hook/${f}`));
   if (missing.length === 0) return text;
-  const tags = missing.map((f) => `\n  <script type="text/brightscript" uri="pkg:/components/everframe_hook/${f}" />`).join('');
+  const tags = missing
+    .map((f) => `\n  <script type="text/brightscript" uri="pkg:/components/everframe_hook/${f}" />`)
+    .join('');
   const last = (re: RegExp) => [...text.matchAll(re)].filter((m) => live(m.index)).at(-1);
   const script = last(/<script\b[^>]*\/>|<\/script\s*>/gi);
   if (script) {
@@ -154,7 +195,8 @@ export function injectHookImports(text: string): string {
     return text.slice(0, at) + tags + text.slice(at);
   }
   const end = last(/<\/component\s*>/gi);
-  if (!end) throw new Error('component XML has no <script> or </component> to add the hook imports to');
+  if (!end)
+    throw new Error('component XML has no <script> or </component> to add the hook imports to');
   return text.slice(0, end.index) + tags.slice(1) + '\n' + text.slice(end.index);
 }
 
@@ -163,7 +205,9 @@ function canonical(p: string): string {
   let head = path.resolve(p);
   const rest: string[] = [];
   for (;;) {
-    try { return path.join(realpathSync.native(head), ...rest); } catch (e) {
+    try {
+      return path.join(realpathSync.native(head), ...rest);
+    } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== 'ENOENT' || path.dirname(head) === head) throw e;
     }
     rest.unshift(path.basename(head));
@@ -172,7 +216,8 @@ function canonical(p: string): string {
 }
 
 /** `child` is strictly below `parent` (both canonical). */
-const isInside = (child: string, parent: string) => child.startsWith(parent.endsWith(path.sep) ? parent : parent + path.sep);
+const isInside = (child: string, parent: string) =>
+  child.startsWith(parent.endsWith(path.sep) ? parent : parent + path.sep);
 
 /**
  * Copies the channel into `out`, dereferencing file symlinks (so writes never go
@@ -188,7 +233,11 @@ function copyChannel(src: string, dst: string, skip: string | undefined) {
     if (from === skip) continue;
     const to = path.join(dst, name);
     let st;
-    try { st = lstatSync(from).isSymbolicLink() ? statSync(from) : lstatSync(from); } catch { continue; }
+    try {
+      st = lstatSync(from).isSymbolicLink() ? statSync(from) : lstatSync(from);
+    } catch {
+      continue;
+    }
     if (st.isDirectory()) {
       if (lstatSync(from).isSymbolicLink()) continue;
       copyChannel(from, to, skip);
@@ -205,7 +254,9 @@ function prepareOut(out: string) {
     const entries = readdirSync(out);
     if (entries.length > 0) {
       if (!hasMarker(out)) {
-        throw new Error(`refusing to overwrite a directory everframe-roku did not create: ${out} (use an empty or new directory)`);
+        throw new Error(
+          `refusing to overwrite a directory everframe-roku did not create: ${out} (use an empty or new directory)`,
+        );
       }
       for (const e of entries) rmSync(path.join(out, e), { recursive: true, force: true });
     }
@@ -216,5 +267,9 @@ function prepareOut(out: string) {
 /** A regular file (not a directory such as a channel's own ./.everframe-build, not a symlink) holding the text this tool writes. */
 function hasMarker(out: string): boolean {
   const f = path.join(out, OUT_MARKER);
-  try { return lstatSync(f).isFile() && readFileSync(f, 'utf8').startsWith(MARKER_TEXT); } catch { return false; }
+  try {
+    return lstatSync(f).isFile() && readFileSync(f, 'utf8').startsWith(MARKER_TEXT);
+  } catch {
+    return false;
+  }
 }

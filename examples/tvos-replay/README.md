@@ -42,7 +42,6 @@ you control, pass these launch environment values:
 The `ReplayPhone` scheme builds the same fixture for an iPhone
 (`xcodebuild build -project ReplayTV.xcodeproj -scheme ReplayPhone`).
 
-
 Do not put keys in the Xcode project, generated `.xctestrun` files, or source.
 Operational benchmarks and dashboard verification are intentionally outside
 this public sample.

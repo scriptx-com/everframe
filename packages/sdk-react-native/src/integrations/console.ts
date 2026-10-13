@@ -46,8 +46,8 @@ export function consoleIntegration(opts?: { levels?: ConsoleLevel[] }): Everfram
         originals.push({ level, fn });
         const original = fn.bind(console);
         console[level] = (...args: unknown[]) => {
-          original(...args);          // host behavior first, always
-          if (inHook) return;         // re-entrancy: a logging crumb sink must not loop
+          original(...args); // host behavior first, always
+          if (inHook) return; // re-entrancy: a logging crumb sink must not loop
           inHook = true;
           try {
             const message = serializeArgs(args);

@@ -13,7 +13,9 @@ describe('release-health native bridge contracts', () => {
   });
   it('Android reads a missing enabled flag as on, only an explicit false as off, and forwards includeDebugBuilds', () => {
     const android = source('android/src/main/java/dev/everframe/rn/EverframeModule.kt');
-    expect(android).toContain('if (opts.takeIfHasBoolean("releaseHealthEnabled") == false) return null');
+    expect(android).toContain(
+      'if (opts.takeIfHasBoolean("releaseHealthEnabled") == false) return null',
+    );
     expect(android).not.toContain('opts.takeIfHasBoolean("releaseHealthEnabled") != true');
     expect(android).toContain('opts.takeIfHasBoolean("releaseHealthIncludeDebugBuilds") ?: false');
     expect(android).toContain('includeDebugBuilds = includeDebugBuilds');
@@ -37,8 +39,12 @@ describe('release-health native bridge contracts', () => {
   it('forwards the release-health scalar fields through codegen', () => {
     // The pre-release-health Objective-C configure overload was removed (no customers yet).
     const objc = source('ios/Sources/EverframeModule.mm');
-    for (const name of ['releaseHealthEnabled', 'releaseHealthLoadedBuildId', 'releaseHealthUserId',
-      'releaseHealthIncludeDebugBuilds']) {
+    for (const name of [
+      'releaseHealthEnabled',
+      'releaseHealthLoadedBuildId',
+      'releaseHealthUserId',
+      'releaseHealthIncludeDebugBuilds',
+    ]) {
       expect(objc).toContain(`opts.${name}()`);
       expect(objc).toContain(`${name}:`);
     }
@@ -51,25 +57,37 @@ describe('release-health native bridge contracts', () => {
   });
   it('carries debugBuild to both native configs, absent staying nil or null', () => {
     expect(source('android/src/main/java/dev/everframe/rn/EverframeModule.kt')).toContain(
-      'debugBuild = opts.takeIfHasBoolean("debugBuild")');
-    expect(source('ios/Sources/EverframeBridge.swift')).toContain('cfg.debugBuild = debugBuild?.boolValue');
+      'debugBuild = opts.takeIfHasBoolean("debugBuild")',
+    );
+    expect(source('ios/Sources/EverframeBridge.swift')).toContain(
+      'cfg.debugBuild = debugBuild?.boolValue',
+    );
     const objc = source('ios/Sources/EverframeModule.mm');
     expect(objc).toContain('opts.debugBuild().has_value()');
     expect(objc).toContain('debugBuild:debugBuild');
     expect(source('src/NativeEverframe.ts')).toContain('debugBuild?: boolean;');
   });
   it('declares the includeDebugBuilds bridge field in the codegen spec', () => {
-    expect(source('src/NativeEverframe.ts')).toContain('releaseHealthIncludeDebugBuilds?: boolean;');
+    expect(source('src/NativeEverframe.ts')).toContain(
+      'releaseHealthIncludeDebugBuilds?: boolean;',
+    );
   });
   it('passes no developer-typed native build ID across either bridge', () => {
     // The native SDKs read the app version; the bridges carry the flag, the loaded bundle and the user ID.
-    for (const path of ['ios/Sources/EverframeModule.mm', 'ios/Sources/EverframeBridge.swift', 'src/NativeEverframe.ts',
-      'src/runtime.ts', 'android/src/main/java/dev/everframe/rn/EverframeModule.kt']) {
+    for (const path of [
+      'ios/Sources/EverframeModule.mm',
+      'ios/Sources/EverframeBridge.swift',
+      'src/NativeEverframe.ts',
+      'src/runtime.ts',
+      'android/src/main/java/dev/everframe/rn/EverframeModule.kt',
+    ]) {
       expect(source(path), path).not.toContain('releaseHealthNativeBuildId');
     }
     expect(source('android/src/main/java/dev/everframe/rn/EverframeModule.kt')).toContain(
-      'ReleaseHealthConfig(enabled = true, userId = user, loadedBuildId = loaded,');
+      'ReleaseHealthConfig(enabled = true, userId = user, loadedBuildId = loaded,',
+    );
     expect(source('ios/Sources/EverframeBridge.swift')).toContain(
-      'ReleaseHealthConfiguration(userId: releaseHealthUserId as String?,');
+      'ReleaseHealthConfiguration(userId: releaseHealthUserId as String?,',
+    );
   });
 });

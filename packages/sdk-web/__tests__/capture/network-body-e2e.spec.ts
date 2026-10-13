@@ -8,14 +8,24 @@ describe('body capture end-to-end (patcher → buffer → snapshot)', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('gate OFF by default ⇒ no bodies buffered', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('{"ok":true}', {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+      ),
+    );
     const buf = createNetworkBodyBuffer();
     let id = 0;
     const h: BodyCaptureHooks = {
       enabled: () => false, // default gate off
       config: () => ({ bodyByteCap: 8192, bodyContentTypes: ['application/json'] }),
-      redaction: () => ({}), nextReqId: () => ++id, sink: (e) => buf.add(e),
+      redaction: () => ({}),
+      nextReqId: () => ++id,
+      sink: (e) => buf.add(e),
     };
     const uninstall = installFetchPatcher({ bodyCapture: h });
     await fetch('https://api.test/x');
@@ -30,15 +40,28 @@ describe('body capture end-to-end (patcher → buffer → snapshot)', () => {
     // ENTRY_OVERHEAD, plus header bytes) so the budget below is dominated by
     // body size, not swamped by the fixed cost — mirrors the native suites'
     // post-F2 budget rescaling.
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response('B'.repeat(2000), { status: 200, headers: { 'content-type': 'text/plain' } })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('B'.repeat(2000), {
+            status: 200,
+            headers: { 'content-type': 'text/plain' },
+          }),
+      ),
+    );
     const buf = createNetworkBodyBuffer({ byteBudget: 3000 });
     let id = 0;
     let sunkCount = 0;
     const h: BodyCaptureHooks = {
       enabled: () => true,
       config: () => ({ bodyByteCap: 8192, bodyContentTypes: ['text/*'] }),
-      redaction: () => ({}), nextReqId: () => ++id, sink: (e) => { buf.add(e); sunkCount++; },
+      redaction: () => ({}),
+      nextReqId: () => ++id,
+      sink: (e) => {
+        buf.add(e);
+        sunkCount++;
+      },
     };
     const uninstall = installFetchPatcher({ bodyCapture: h });
     await fetch('https://api.test/a'); // ref 1, 2000 bytes

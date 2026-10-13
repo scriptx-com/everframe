@@ -28,40 +28,71 @@ describe('submitReport identity token', () => {
     const jwt = mkJwt(Date.now() / 1000 + 300);
     const holder = new IdentityTokenHolder();
     holder.set(jwt);
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      status: 'received', eventId: 'e1', deliveryCount: 0, idempotent: false,
-    }), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: 'received',
+            eventId: 'e1',
+            deliveryCount: 0,
+            idempotent: false,
+          }),
+          { status: 200 },
+        ),
+    );
     await submitReport('https://x.test/api/ingest', 'txx_live_k', new FormData(), {
       fetchImpl: fetchImpl as unknown as typeof fetch,
       retryScheduleMs: [],
       identityToken: holder,
     });
-    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!.headers as Record<string, string>;
+    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!
+      .headers as Record<string, string>;
     expect(headers[IDENTITY_TOKEN_HEADER]).toBe(jwt);
   });
 
   it('omits the header when no holder is supplied', async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      status: 'received', eventId: 'e1', deliveryCount: 0, idempotent: false,
-    }), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: 'received',
+            eventId: 'e1',
+            deliveryCount: 0,
+            idempotent: false,
+          }),
+          { status: 200 },
+        ),
+    );
     await submitReport('https://x.test/api/ingest', 'txx_live_k', new FormData(), {
-      fetchImpl: fetchImpl as unknown as typeof fetch, retryScheduleMs: [],
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      retryScheduleMs: [],
     });
-    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!.headers as Record<string, string>;
+    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!
+      .headers as Record<string, string>;
     expect(IDENTITY_TOKEN_HEADER in headers).toBe(false);
   });
 
   it('omits the header when the holder resolves null, and the submit still succeeds', async () => {
     const holder = new IdentityTokenHolder(); // never set() — no source
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      status: 'received', eventId: 'e1', deliveryCount: 0, idempotent: false,
-    }), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: 'received',
+            eventId: 'e1',
+            deliveryCount: 0,
+            idempotent: false,
+          }),
+          { status: 200 },
+        ),
+    );
     const res = await submitReport('https://x.test/api/ingest', 'txx_live_k', new FormData(), {
       fetchImpl: fetchImpl as unknown as typeof fetch,
       retryScheduleMs: [],
       identityToken: holder,
     });
-    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!.headers as Record<string, string>;
+    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!
+      .headers as Record<string, string>;
     expect(IDENTITY_TOKEN_HEADER in headers).toBe(false);
     expect(res.ok).toBe(true);
   });
@@ -71,16 +102,26 @@ describe('submitReport identity token', () => {
     holder.set(() => {
       throw new Error('no session');
     });
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      status: 'received', eventId: 'e1', deliveryCount: 0, idempotent: false,
-    }), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: 'received',
+            eventId: 'e1',
+            deliveryCount: 0,
+            idempotent: false,
+          }),
+          { status: 200 },
+        ),
+    );
     const res = await submitReport('https://x.test/api/ingest', 'txx_live_k', new FormData(), {
       fetchImpl: fetchImpl as unknown as typeof fetch,
       retryScheduleMs: [],
       identityToken: holder,
     });
     expect(res.ok).toBe(true);
-    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!.headers as Record<string, string>;
+    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!
+      .headers as Record<string, string>;
     expect(IDENTITY_TOKEN_HEADER in headers).toBe(false);
   });
 });
@@ -99,17 +140,23 @@ describe('createReporterApi identity token', () => {
     const jwt = mkJwt(Date.now() / 1000 + 300);
     const holder = new IdentityTokenHolder();
     holder.set(jwt);
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ threads: [] }), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify({ threads: [] }), { status: 200 }),
+    );
     await apiWith(fetchImpl, holder).listThreads(TOKEN, null);
-    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!.headers as Record<string, string>;
+    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!
+      .headers as Record<string, string>;
     expect(headers['X-Everframe-Device-Token']).toBe(TOKEN);
     expect(headers[IDENTITY_TOKEN_HEADER]).toBe(jwt);
   });
 
   it('omits the header when no holder is supplied', async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ threads: [] }), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify({ threads: [] }), { status: 200 }),
+    );
     await apiWith(fetchImpl).listThreads(TOKEN, null);
-    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!.headers as Record<string, string>;
+    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!
+      .headers as Record<string, string>;
     expect(IDENTITY_TOKEN_HEADER in headers).toBe(false);
   });
 
@@ -117,12 +164,15 @@ describe('createReporterApi identity token', () => {
     vi.useFakeTimers();
     const holder = new IdentityTokenHolder();
     holder.set(() => new Promise<string>(() => {}));
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ threads: [] }), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify({ threads: [] }), { status: 200 }),
+    );
     const resultPromise = apiWith(fetchImpl, holder).listThreads(TOKEN, null);
     await vi.advanceTimersByTimeAsync(3_000);
     const res = await resultPromise;
     expect(res.kind).toBe('ok');
-    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!.headers as Record<string, string>;
+    const headers = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1]!
+      .headers as Record<string, string>;
     expect(IDENTITY_TOKEN_HEADER in headers).toBe(false);
     vi.useRealTimers();
   });

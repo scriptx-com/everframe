@@ -19,13 +19,17 @@ describe('isNearUniform', () => {
     expect(isNearUniform(px([0, 0, 0, 255], [0, 0, 0, 255]))).toBe(true);
   });
   it('tolerates encoder noise below the range', () => {
-    expect(isNearUniform(px([250, 250, 250, 255], [255, 255, 255, 255], [253, 252, 254, 255]))).toBe(true);
+    expect(
+      isNearUniform(px([250, 250, 250, 255], [255, 255, 255, 255], [253, 252, 254, 255])),
+    ).toBe(true);
   });
   it('accepts an image with real contrast', () => {
     expect(isNearUniform(px([255, 255, 255, 255], [20, 20, 20, 255]))).toBe(false);
   });
   it('accepts a dark theme with a light element', () => {
-    expect(isNearUniform(px([13, 17, 23, 255], [13, 17, 23, 255], [230, 230, 230, 255]))).toBe(false);
+    expect(isNearUniform(px([13, 17, 23, 255], [13, 17, 23, 255], [230, 230, 230, 255]))).toBe(
+      false,
+    );
   });
   it('treats fully transparent pixels as the white capture background', () => {
     expect(isNearUniform(px([0, 0, 0, 0], [255, 255, 255, 255]))).toBe(true);

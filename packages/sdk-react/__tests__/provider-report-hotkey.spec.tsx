@@ -23,17 +23,23 @@ afterEach(() => {
 });
 
 function stubFetch(binding: string): void {
-  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-    if (String(input).includes('/api/config')) {
-      return new Response(JSON.stringify({
-        replayEnabled: false,
-        replayDurationSec: 30,
-        samplingRate: 1,
-        reportHotkey: { binding },
-      }), { status: 200, headers: { 'content-type': 'application/json' } });
-    }
-    return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
-  }));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/api/config')) {
+        return new Response(
+          JSON.stringify({
+            replayEnabled: false,
+            replayDurationSec: 30,
+            samplingRate: 1,
+            reportHotkey: { binding },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+    }),
+  );
 }
 
 describe('dashboard-owned report hotkey', () => {
@@ -51,22 +57,26 @@ describe('dashboard-owned report hotkey', () => {
     });
 
     await act(async () => {
-      window.dispatchEvent(new KeyboardEvent('keydown', {
-        key: 'B',
-        ctrlKey: true,
-        shiftKey: true,
-        bubbles: true,
-      }));
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'B',
+          ctrlKey: true,
+          shiftKey: true,
+          bubbles: true,
+        }),
+      );
       await Promise.resolve();
     });
     expect(screen.queryByTestId('reporter-modal')).toBeNull();
 
     await act(async () => {
-      window.dispatchEvent(new KeyboardEvent('keydown', {
-        key: 'R',
-        altKey: true,
-        bubbles: true,
-      }));
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'R',
+          altKey: true,
+          bubbles: true,
+        }),
+      );
     });
     expect(await screen.findByTestId('reporter-modal')).toBeInTheDocument();
   });

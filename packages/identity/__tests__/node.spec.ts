@@ -26,12 +26,16 @@ async function listen(handler: ReturnType<typeof createIdentityHandler>): Promis
 describe('toNodeHandler', () => {
   it('serves a token over node:http', async () => {
     const url = await listen(
-      createIdentityHandler({ secret: SECRET, projectId: PROJECT_ID, resolveUser: () => ({ id: 'u_alice' }) }),
+      createIdentityHandler({
+        secret: SECRET,
+        projectId: PROJECT_ID,
+        resolveUser: () => ({ id: 'u_alice' }),
+      }),
     );
     const res = await fetch(`${url}/api/everframe-identity`);
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store');
-    expect((await res.json() as { token: string }).token).toBeTypeOf('string');
+    expect(((await res.json()) as { token: string }).token).toBeTypeOf('string');
   });
 
   it('forwards request headers so bearer auth works', async () => {
@@ -44,16 +48,19 @@ describe('toNodeHandler', () => {
       }),
     );
     const ok = await fetch(`${url}/i`, { headers: { authorization: 'Bearer good' } });
-    expect((await ok.json() as { token: string | null }).token).toBeTypeOf('string');
+    expect(((await ok.json()) as { token: string | null }).token).toBeTypeOf('string');
     const anon = await fetch(`${url}/i`);
-    expect((await anon.json() as { token: string | null }).token).toBeNull();
+    expect(((await anon.json()) as { token: string | null }).token).toBeNull();
   });
 
   it('propagates the status code', async () => {
     const url = await listen(
       createIdentityHandler({
-        secret: SECRET, projectId: PROJECT_ID,
-        resolveUser: () => { throw new Error('db down'); },
+        secret: SECRET,
+        projectId: PROJECT_ID,
+        resolveUser: () => {
+          throw new Error('db down');
+        },
       }),
     );
     expect((await fetch(`${url}/i`)).status).toBe(500);
@@ -89,7 +96,7 @@ describe('toNodeHandler', () => {
     const small = 'a'.repeat(1024);
     const res = await fetch(`${url}/i`, { method: 'POST', body: small });
     expect(res.status).toBe(200);
-    expect((await res.json() as { token: string }).token).toBeTypeOf('string');
+    expect(((await res.json()) as { token: string }).token).toBeTypeOf('string');
   });
 
   it('does not reject and responds sanely when the Host header is malformed', async () => {
@@ -98,7 +105,11 @@ describe('toNodeHandler', () => {
     // enough here — no body is read for GET, so the stub needs no readable
     // stream behavior.
     const node = toNodeHandler(
-      createIdentityHandler({ secret: SECRET, projectId: PROJECT_ID, resolveUser: () => ({ id: 'u_alice' }) }),
+      createIdentityHandler({
+        secret: SECRET,
+        projectId: PROJECT_ID,
+        resolveUser: () => ({ id: 'u_alice' }),
+      }),
     );
 
     const req = {
@@ -111,10 +122,16 @@ describe('toNodeHandler', () => {
     let statusCode = 0;
     const res = {
       headersSent: false,
-      set statusCode(v: number) { statusCode = v; },
-      get statusCode() { return statusCode; },
+      set statusCode(v: number) {
+        statusCode = v;
+      },
+      get statusCode() {
+        return statusCode;
+      },
       setHeader: () => undefined,
-      end: () => { ended = true; },
+      end: () => {
+        ended = true;
+      },
     } as unknown as ServerResponse;
 
     await expect(node(req, res)).resolves.toBeUndefined();

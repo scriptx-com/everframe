@@ -49,7 +49,8 @@ function oldMatches(text) {
 }
 
 function validPattern(pattern) {
-  if (typeof pattern !== 'string' || !pattern || /[\n\r*?\[\]{}()|^$\\]/.test(pattern)) return false;
+  if (typeof pattern !== 'string' || !pattern || /[\n\r*?\[\]{}()|^$\\]/.test(pattern))
+    return false;
   const normalized = pattern.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
   if ([former, `com${former}`, `x${former}`].includes(normalized)) return false;
   const matches = [...oldMatches(pattern)];
@@ -107,7 +108,8 @@ function validHistoricalGitleaksFingerprint(line) {
     historicalPath.includes('\\') ||
     historicalPath.startsWith('/') ||
     path.posix.normalize(historicalPath) !== historicalPath
-  ) return false;
+  )
+    return false;
   if (!historicalCommitExists(commit)) return false;
   const lines = historicalBlobLines(commit, historicalPath);
   const historicalLine = lines?.[Number(lineText) - 1];
@@ -119,16 +121,23 @@ function historicalGitleaksFingerprintRanges(source) {
   let offset = 0;
   for (const lineWithBreak of source.match(/[^\n]*(?:\n|$)/g) ?? []) {
     if (!lineWithBreak) continue;
-    const line = lineWithBreak.endsWith('\n') ? lineWithBreak.slice(0, -1).replace(/\r$/, '') : lineWithBreak;
-    if (validHistoricalGitleaksFingerprint(line)) ranges.push({ start: offset, end: offset + line.length });
+    const line = lineWithBreak.endsWith('\n')
+      ? lineWithBreak.slice(0, -1).replace(/\r$/, '')
+      : lineWithBreak;
+    if (validHistoricalGitleaksFingerprint(line))
+      ranges.push({ start: offset, end: offset + line.length });
     offset += lineWithBreak.length;
   }
   return ranges;
 }
 
-const tracked = spawnSync('git', ['-C', root, 'ls-files', '--cached', '-z'], { encoding: 'buffer' });
+const tracked = spawnSync('git', ['-C', root, 'ls-files', '--cached', '-z'], {
+  encoding: 'buffer',
+});
 if (tracked.status !== 0) {
-  process.stderr.write(`brand scan: cannot list tracked files: ${tracked.stderr.toString('utf8').trim()}\n`);
+  process.stderr.write(
+    `brand scan: cannot list tracked files: ${tracked.stderr.toString('utf8').trim()}\n`,
+  );
   process.exit(1);
 }
 const files = tracked.stdout.toString('utf8').split('\0').filter(Boolean).sort();
@@ -152,12 +161,25 @@ for (const [index, entry] of policy.exceptions.entries()) {
   const reason = entry?.reason;
   const key = `${file}\0${pattern}`;
   let valid = true;
-  if (typeof entry?.path !== 'string' || !fileSet.has(file) || file === policyRelativePath || file.includes('\\')) {
-    report(file, pattern ?? `exception ${index + 1}`, 'invalid exception path; use one exact tracked file');
+  if (
+    typeof entry?.path !== 'string' ||
+    !fileSet.has(file) ||
+    file === policyRelativePath ||
+    file.includes('\\')
+  ) {
+    report(
+      file,
+      pattern ?? `exception ${index + 1}`,
+      'invalid exception path; use one exact tracked file',
+    );
     valid = false;
   }
   if (!validPattern(pattern)) {
-    report(file, pattern ?? `exception ${index + 1}`, 'invalid exception pattern; use one exact old identity or contextual phrase');
+    report(
+      file,
+      pattern ?? `exception ${index + 1}`,
+      'invalid exception pattern; use one exact old identity or contextual phrase',
+    );
     valid = false;
   }
   if (typeof reason !== 'string' || !reason.trim()) {
@@ -197,9 +219,8 @@ for (const file of files) {
   } catch {
     continue;
   }
-  const historicalFingerprintRanges = file === '.gitleaksignore'
-    ? historicalGitleaksFingerprintRanges(content)
-    : [];
+  const historicalFingerprintRanges =
+    file === '.gitleaksignore' ? historicalGitleaksFingerprintRanges(content) : [];
 
   let line = 1;
   let previous = 0;
@@ -208,11 +229,19 @@ for (const file of files) {
       if (content[cursor] === '\n') line += 1;
     }
     previous = match.index;
-    if (historicalFingerprintRanges.some(({ start, end }) =>
-      match.index >= start && match.index + match[0].length <= end
-    )) continue;
+    if (
+      historicalFingerprintRanges.some(
+        ({ start, end }) => match.index >= start && match.index + match[0].length <= end,
+      )
+    )
+      continue;
     if (!allowed(file, content, match)) {
-      report(file, match[0], 'active identity in text', `:${line}:${match.index - content.lastIndexOf('\n', match.index - 1)}`);
+      report(
+        file,
+        match[0],
+        'active identity in text',
+        `:${line}:${match.index - content.lastIndexOf('\n', match.index - 1)}`,
+      );
     }
   }
 }
@@ -223,11 +252,16 @@ for (const [key, reason] of exceptions) {
   report(file, match, `stale exception; ${reason}`);
 }
 
-diagnostics.sort((a, b) => a.file < b.file ? -1 : a.file > b.file ? 1 : a.order - b.order);
+diagnostics.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.order - b.order));
 if (diagnostics.length) {
-  process.stderr.write(`${diagnostics.map((entry) =>
-    `${entry.file}${entry.location}: ${JSON.stringify(entry.match)} — ${entry.reason}${entry.count > 1 ? ` (${entry.count} matches)` : ''}`
-  ).join('\n')}\n`);
+  process.stderr.write(
+    `${diagnostics
+      .map(
+        (entry) =>
+          `${entry.file}${entry.location}: ${JSON.stringify(entry.match)} — ${entry.reason}${entry.count > 1 ? ` (${entry.count} matches)` : ''}`,
+      )
+      .join('\n')}\n`,
+  );
   process.exitCode = 1;
 } else {
   process.stdout.write(`Brand identity OK (${files.length} tracked paths)\n`);

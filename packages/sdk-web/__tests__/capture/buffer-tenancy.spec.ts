@@ -40,10 +40,7 @@ const mk = (config: Parameters<typeof createWebPlatformAdapter>[0]) => {
 beforeEach(() => {
   // Stubbed BEFORE any adapter exists: the fetch patcher wraps whatever
   // `globalThis.fetch` is at install time, and install is install-once.
-  vi.stubGlobal(
-    'fetch',
-    vi.fn().mockResolvedValue(new Response('{}', { status: 200 })),
-  );
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 200 })));
 });
 
 afterEach(() => {

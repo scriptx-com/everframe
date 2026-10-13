@@ -33,14 +33,8 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..', '..');
-const schemaPath = path.join(
-  repoRoot,
-  'packages/protocol/schemas-json/vtree.v1.schema.json'
-);
-const outPath = path.join(
-  repoRoot,
-  'packages/sdk-ios/Sources/EverframeProtocol/VTree.swift'
-);
+const schemaPath = path.join(repoRoot, 'packages/protocol/schemas-json/vtree.v1.schema.json');
+const outPath = path.join(repoRoot, 'packages/sdk-ios/Sources/EverframeProtocol/VTree.swift');
 
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 if (schema.type !== 'object' || !schema.properties) {
@@ -79,8 +73,7 @@ const HEADER = `// SPDX-License-Identifier: MIT
 import Foundation
 `;
 
-const snake_to_camel = (s) =>
-  s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+const snake_to_camel = (s) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
 // LOUD invariant doc-comments injected by the emitter (NOT hand-edited into the
 // generated file — a hand-edit would fail the next `pnpm codegen && git
@@ -100,7 +93,7 @@ const FIELD_DOC_COMMENTS = {
 };
 
 const pascal = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-const prefixed = (name) => name.startsWith('Everframe') ? name : `Everframe${name}`;
+const prefixed = (name) => (name.startsWith('Everframe') ? name : `Everframe${name}`);
 
 /**
  * True for a JSON Schema object used as an open-ended MAP: `additionalProperties`
@@ -178,9 +171,7 @@ function swiftType(prop, ownerName, fieldName, extraTypes) {
       }
       return `[${typeName}]`;
     }
-    const singular = fieldName.endsWith('s')
-      ? fieldName.slice(0, -1)
-      : fieldName + 'Item';
+    const singular = fieldName.endsWith('s') ? fieldName.slice(0, -1) : fieldName + 'Item';
     const inner = swiftType(items, ownerName, singular, extraTypes);
     return `[${inner}]`;
   }
@@ -212,9 +203,7 @@ function swiftType(prop, ownerName, fieldName, extraTypes) {
     emitInlineOneOf(typeName, prop, extraTypes);
     return typeName;
   }
-  throw new Error(
-    `unhandled type for ${ownerName}.${fieldName}: ${JSON.stringify(prop)}`
-  );
+  throw new Error(`unhandled type for ${ownerName}.${fieldName}: ${JSON.stringify(prop)}`);
 }
 
 function emitStruct(name, objSchema, extraTypes) {
@@ -235,9 +224,7 @@ function emitStruct(name, objSchema, extraTypes) {
     if (docComment) fieldDecls.push(...docComment);
     fieldDecls.push(`    public let ${swiftName}: ${t}`);
     codingKeys.push(
-      swiftName === f
-        ? `        case ${swiftName}`
-        : `        case ${swiftName} = "${f}"`
+      swiftName === f ? `        case ${swiftName}` : `        case ${swiftName} = "${f}"`,
     );
   }
 
@@ -285,22 +272,16 @@ function emitInlineOneOf(name, prop, extraTypes) {
     })
     .sort((a, b) => a.branchName.localeCompare(b.branchName));
 
-  const cases = branches
-    .map((b) => `    case ${b.caseName}(${b.branchName})`)
-    .join('\n');
+  const cases = branches.map((b) => `    case ${b.caseName}(${b.branchName})`).join('\n');
 
   const decodeCases = branches
     .map(
-      (b) =>
-        `        case "${b.disc}": self = .${b.caseName}(try ${b.branchName}(from: decoder))`
+      (b) => `        case "${b.disc}": self = .${b.caseName}(try ${b.branchName}(from: decoder))`,
     )
     .join('\n');
 
   const encodeCases = branches
-    .map(
-      (b) =>
-        `        case .${b.caseName}(let v): try v.encode(to: encoder)`
-    )
+    .map((b) => `        case .${b.caseName}(let v): try v.encode(to: encoder)`)
     .join('\n');
 
   const code = `public enum ${name}: Codable, Equatable {

@@ -69,7 +69,11 @@ export async function writeComplete(stagingDir: string, staged: StagedBuild): Pr
 }
 
 /** Promote only a successfully collected build to the existing verify/upload pointer. */
-export async function writePointer(stagingDir: string, platform: 'android' | 'ios', buildId: string): Promise<void> {
+export async function writePointer(
+  stagingDir: string,
+  platform: 'android' | 'ios',
+  buildId: string,
+): Promise<void> {
   const id = checkedBuildId(buildId);
   const target = join(stagingDir, `latest-${platform}.json`);
   const temporary = join(stagingDir, `.latest-${platform}-${randomUUID()}.tmp`);

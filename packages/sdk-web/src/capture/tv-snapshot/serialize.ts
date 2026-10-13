@@ -13,14 +13,30 @@
 // LAZY (tv-snapshot chunk) — the only module that imports rrweb-snapshot.
 import { cleanupSnapshot, createMirror, snapshot } from 'rrweb-snapshot';
 import type { RedactionEngineConfig } from '@everframe/sdk-core';
-import { applyReplayMaskClasses, MASK_PLACEHOLDER, RR_BLOCK_CLASS, RR_MASK_CLASS } from '../replay/mask-mapping.js';
+import {
+  applyReplayMaskClasses,
+  MASK_PLACEHOLDER,
+  RR_BLOCK_CLASS,
+  RR_MASK_CLASS,
+} from '../replay/mask-mapping.js';
 import type { RenderContext } from '../shot-capture.js';
-import { defaultFragmentsOf, defaultSizeOf, defaultTextRectsOf, pruneSnapshot, type PruneDeps } from './prune.js';
+import {
+  defaultFragmentsOf,
+  defaultSizeOf,
+  defaultTextRectsOf,
+  pruneSnapshot,
+  type PruneDeps,
+} from './prune.js';
 import { collectRetainedIds, scrubSnapshotTree } from './snapshot-scrub.js';
 import { pageRedactionConfig, redactUrlPath } from './page-redact.js';
 import { documentUrlKey, sanitizeMetaHref } from './url-sanitize.js';
 import { ensureGlobalThis } from '../../internal/global-scope.js';
-import { buildSnapshotContext, focusedSnapshotId, viewportEdge, type DomSnapshotDoc } from './context.js';
+import {
+  buildSnapshotContext,
+  focusedSnapshotId,
+  viewportEdge,
+  type DomSnapshotDoc,
+} from './context.js';
 import type { SnDocument } from './sn-types.js';
 
 /** SDK chrome is blocked at serialization (its inputs never serialize) and removed by the pruner. */
@@ -36,7 +52,9 @@ export interface SnapshotDeps {
   isSensitive: (el: Element) => boolean;
   redaction?: RedactionEngineConfig | undefined;
   now?: () => number;
-  measure?: Partial<Pick<PruneDeps, 'rectOf' | 'styleOf' | 'sizeOf' | 'fragmentsOf' | 'textRectsOf'>>;
+  measure?: Partial<
+    Pick<PruneDeps, 'rectOf' | 'styleOf' | 'sizeOf' | 'fragmentsOf' | 'textRectsOf'>
+  >;
 }
 
 export interface TakenSnapshot {
@@ -73,7 +91,9 @@ export function takeDomSnapshot(deps: SnapshotDeps): TakenSnapshot {
   // serialize-time block; the registry also returns its boxed descendants,
   // which ARE blocked, and the pruner masks the wrapper's bare text and
   // black-boxes any boxed descendant the registry missed (fail closed).
-  const restore = applyReplayMaskClasses(deps.sensitiveElements().filter((el) => !isContentsBox(win, el)));
+  const restore = applyReplayMaskClasses(
+    deps.sensitiveElements().filter((el) => !isContentsBox(win, el)),
+  );
   let root: SnDocument;
   try {
     const node = snapshot(doc, {
@@ -155,12 +175,23 @@ export function takeDomSnapshot(deps: SnapshotDeps): TakenSnapshot {
   const snapshotDoc: DomSnapshotDoc = {
     v: 1,
     events: [
-      { type: 4, data: { href: metaHref(win.location.href, deps.redaction), width: viewport.width, height: viewport.height }, timestamp },
+      {
+        type: 4,
+        data: {
+          href: metaHref(win.location.href, deps.redaction),
+          width: viewport.width,
+          height: viewport.height,
+        },
+        timestamp,
+      },
       {
         type: 2,
         data: {
           node: root as unknown as DomSnapshotDoc['events'][1]['data']['node'],
-          initialOffset: { top: scrollOffset(win.scrollY, win.pageYOffset), left: scrollOffset(win.scrollX, win.pageXOffset) },
+          initialOffset: {
+            top: scrollOffset(win.scrollY, win.pageYOffset),
+            left: scrollOffset(win.scrollX, win.pageXOffset),
+          },
         },
         timestamp,
       },

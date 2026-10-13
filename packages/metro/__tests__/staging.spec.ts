@@ -16,8 +16,12 @@ const partial = {
 };
 
 let root: string;
-beforeEach(async () => { root = await mkdtemp(join(tmpdir(), 'everframe-metro-')); });
-afterEach(async () => { await rm(root, { recursive: true, force: true }); });
+beforeEach(async () => {
+  root = await mkdtemp(join(tmpdir(), 'everframe-metro-'));
+});
+afterEach(async () => {
+  await rm(root, { recursive: true, force: true });
+});
 
 describe('writeStagedIdentity', () => {
   it('is synchronous, returning a plain string path, never a Promise', () => {
@@ -41,7 +45,9 @@ describe('writeStagedIdentity', () => {
 
   it('writes a per-platform pointer so the CLI never guesses', () => {
     writeStagedIdentity(root, partial);
-    const pointer = JSON.parse(readFileSync(join(stagingRoot(root), 'latest-android.json'), 'utf8'));
+    const pointer = JSON.parse(
+      readFileSync(join(stagingRoot(root), 'latest-android.json'), 'utf8'),
+    );
     expect(pointer).toEqual({ buildId: partial.buildId });
   });
 
@@ -49,7 +55,9 @@ describe('writeStagedIdentity', () => {
     writeStagedIdentity(root, partial);
     const second = { ...partial, buildId: '8f3ac21e-0000-4000-8000-000000000002' };
     writeStagedIdentity(root, second);
-    const pointer = JSON.parse(readFileSync(join(stagingRoot(root), 'latest-android.json'), 'utf8'));
+    const pointer = JSON.parse(
+      readFileSync(join(stagingRoot(root), 'latest-android.json'), 'utf8'),
+    );
     expect(pointer).toEqual({ buildId: second.buildId });
     expect(
       readFileSync(join(stagingRoot(root), partial.buildId, 'manifest.partial.json'), 'utf8'),
@@ -64,7 +72,9 @@ describe('writeStagedIdentity', () => {
       bundleName: 'main.jsbundle',
       buildId: '8f3ac21e-0000-4000-8000-000000000003',
     });
-    const android = JSON.parse(readFileSync(join(stagingRoot(root), 'latest-android.json'), 'utf8'));
+    const android = JSON.parse(
+      readFileSync(join(stagingRoot(root), 'latest-android.json'), 'utf8'),
+    );
     expect(android).toEqual({ buildId: partial.buildId });
   });
 });

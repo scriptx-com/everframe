@@ -14,7 +14,8 @@ describe('renderViewportWithSnapdom', () => {
     const toCanvas = vi.fn(async () => canvas);
     const snapdom = vi.fn(async () => ({ toCanvas }));
     vi.doMock('@zumer/snapdom', () => ({ snapdom }));
-    const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
+    const { renderViewportWithSnapdom } =
+      await import('../../src/capture/renderers/snapdom-renderer.js');
     const filter = (): boolean => true;
 
     const out = await renderViewportWithSnapdom(document.body, { pixelRatio: 1.5, filter });
@@ -74,9 +75,13 @@ describe('renderViewportWithSnapdom', () => {
         .spyOn(HTMLCanvasElement.prototype, 'getContext')
         .mockImplementation(() => ctx as unknown as CanvasRenderingContext2D);
       mockSnapdom(src);
-      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
+      const { renderViewportWithSnapdom } =
+        await import('../../src/capture/renderers/snapdom-renderer.js');
 
-      const { canvas: out } = await renderViewportWithSnapdom(document.body, { pixelRatio: 1.5, filter: () => true });
+      const { canvas: out } = await renderViewportWithSnapdom(document.body, {
+        pixelRatio: 1.5,
+        filter: () => true,
+      });
 
       expect(out).not.toBe(src);
       expect(out.width).toBe(1200);
@@ -92,8 +97,12 @@ describe('renderViewportWithSnapdom', () => {
       const src = snapCanvas(1600, 1200);
       const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext');
       mockSnapdom(src);
-      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
-      const { canvas: out } = await renderViewportWithSnapdom(document.body, { pixelRatio: 2, filter: () => true });
+      const { renderViewportWithSnapdom } =
+        await import('../../src/capture/renderers/snapdom-renderer.js');
+      const { canvas: out } = await renderViewportWithSnapdom(document.body, {
+        pixelRatio: 2,
+        filter: () => true,
+      });
       expect(out).toBe(src);
       expect(getContext).not.toHaveBeenCalled();
     });
@@ -102,8 +111,12 @@ describe('renderViewportWithSnapdom', () => {
       withViewport(800, 600);
       const src = snapCanvas(900, 700);
       mockSnapdom(src);
-      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
-      const { canvas: out } = await renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true });
+      const { renderViewportWithSnapdom } =
+        await import('../../src/capture/renderers/snapdom-renderer.js');
+      const { canvas: out } = await renderViewportWithSnapdom(document.body, {
+        pixelRatio: 1,
+        filter: () => true,
+      });
       expect(out).toBe(src);
     });
 
@@ -112,8 +125,12 @@ describe('renderViewportWithSnapdom', () => {
       const src = snapCanvas(790, 600);
       vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
       mockSnapdom(src);
-      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
-      const { canvas: out } = await renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true });
+      const { renderViewportWithSnapdom } =
+        await import('../../src/capture/renderers/snapdom-renderer.js');
+      const { canvas: out } = await renderViewportWithSnapdom(document.body, {
+        pixelRatio: 1,
+        filter: () => true,
+      });
       expect(out).toBe(src);
     });
 
@@ -133,8 +150,12 @@ describe('renderViewportWithSnapdom', () => {
         () => ctx as unknown as CanvasRenderingContext2D,
       );
       mockSnapdom(src);
-      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
-      const out = await renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true });
+      const { renderViewportWithSnapdom } =
+        await import('../../src/capture/renderers/snapdom-renderer.js');
+      const out = await renderViewportWithSnapdom(document.body, {
+        pixelRatio: 1,
+        filter: () => true,
+      });
       expect(out.canvas).not.toBe(src); // it was padded
       expect(out.canvas.width).toBe(800);
       expect(checked).toEqual([src]);
@@ -150,7 +171,8 @@ describe('renderViewportWithSnapdom', () => {
         return { toCanvas: async () => document.createElement('canvas') };
       }),
     }));
-    const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
+    const { renderViewportWithSnapdom } =
+      await import('../../src/capture/renderers/snapdom-renderer.js');
     await renderViewportWithSnapdom(document.body, {
       pixelRatio: 1,
       filter: (n) => (n as Element).id !== 'skip',
@@ -167,7 +189,8 @@ describe('renderViewportWithSnapdom', () => {
         throw new TypeError('s.append is not a function');
       }),
     }));
-    const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
+    const { renderViewportWithSnapdom } =
+      await import('../../src/capture/renderers/snapdom-renderer.js');
     await expect(
       renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true }),
     ).rejects.toThrow('s.append is not a function');
@@ -181,10 +204,11 @@ describe('renderViewportWithSnapdom', () => {
     vi.doMock('@zumer/snapdom', () => ({
       snapdom: vi.fn(async () => {
         rect = { left: 200, top: -500 }; // page scrolled mid-render
-        return ({ toCanvas: async () => document.createElement('canvas') });
+        return { toCanvas: async () => document.createElement('canvas') };
       }),
     }));
-    const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
+    const { renderViewportWithSnapdom } =
+      await import('../../src/capture/renderers/snapdom-renderer.js');
     const out = await renderViewportWithSnapdom(root, { pixelRatio: 1, filter: () => true });
     expect(out.rootLeft).toBe(200);
     expect(out.rootTop).toBe(100);
@@ -198,7 +222,9 @@ describe('renderViewportWithSnapdom', () => {
       const snapdom = vi.fn(
         () =>
           new Promise((resolve) => {
-            releases.push(() => resolve({ toCanvas: async () => document.createElement('canvas') }));
+            releases.push(() =>
+              resolve({ toCanvas: async () => document.createElement('canvas') }),
+            );
           }),
       );
       vi.doMock('@zumer/snapdom', () => ({ snapdom }));
@@ -207,10 +233,19 @@ describe('renderViewportWithSnapdom', () => {
 
     it('a second capture waits for the running one, then proceeds', async () => {
       const { snapdom, releases } = pending();
-      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
-      const a = renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true, busyWaitMs: 5_000 });
+      const { renderViewportWithSnapdom } =
+        await import('../../src/capture/renderers/snapdom-renderer.js');
+      const a = renderViewportWithSnapdom(document.body, {
+        pixelRatio: 1,
+        filter: () => true,
+        busyWaitMs: 5_000,
+      });
       await vi.waitFor(() => expect(snapdom).toHaveBeenCalledTimes(1));
-      const b = renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true, busyWaitMs: 5_000 });
+      const b = renderViewportWithSnapdom(document.body, {
+        pixelRatio: 1,
+        filter: () => true,
+        busyWaitMs: 5_000,
+      });
       await new Promise((r) => setTimeout(r, 30));
       expect(snapdom).toHaveBeenCalledTimes(1); // never concurrently
       releases[0]!();
@@ -227,7 +262,11 @@ describe('renderViewportWithSnapdom', () => {
       await vi.waitFor(() => expect(snapdom).toHaveBeenCalledTimes(1));
       const started = Date.now();
       await expect(
-        mod.renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true, busyWaitMs: 50 }),
+        mod.renderViewportWithSnapdom(document.body, {
+          pixelRatio: 1,
+          filter: () => true,
+          busyWaitMs: 50,
+        }),
       ).rejects.toBeInstanceOf(mod.SnapdomBusyError);
       expect(Date.now() - started).toBeGreaterThanOrEqual(45);
       expect(snapdom).toHaveBeenCalledTimes(1);
@@ -242,9 +281,14 @@ describe('renderViewportWithSnapdom', () => {
           return { toCanvas: async () => document.createElement('canvas') };
         }),
       }));
-      const { renderViewportWithSnapdom } = await import('../../src/capture/renderers/snapdom-renderer.js');
-      await expect(renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true })).rejects.toThrow('boom');
-      await expect(renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true })).resolves.toBeDefined();
+      const { renderViewportWithSnapdom } =
+        await import('../../src/capture/renderers/snapdom-renderer.js');
+      await expect(
+        renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true }),
+      ).rejects.toThrow('boom');
+      await expect(
+        renderViewportWithSnapdom(document.body, { pixelRatio: 1, filter: () => true }),
+      ).resolves.toBeDefined();
     });
   });
 });

@@ -18,24 +18,44 @@ export function flutterVisualCapture(host = window) {
       return bytes ? new Blob([bytes], { type: 'image/png' }) : null;
     },
     replay: {
-      start() { host.everframeFlutterStartReplay(); },
-      freeze() { host.everframeFlutterFreezeReplay(); },
-      discardAndResume() { host.everframeFlutterResetReplay(); },
+      start() {
+        host.everframeFlutterStartReplay();
+      },
+      freeze() {
+        host.everframeFlutterFreezeReplay();
+      },
+      discardAndResume() {
+        host.everframeFlutterResetReplay();
+      },
       async takeFrozen() {
         const bytes = bytesFromBase64(host.everframeFlutterTakeReplay());
         if (!bytes || bytes.byteLength > 8 * 1024 * 1024) return null;
         try {
           const replay = JSON.parse(new TextDecoder().decode(bytes));
-          if (replay.version !== 'everframe-vtree-v1' || !Array.isArray(replay.frames) || replay.frames.length === 0) return null;
+          if (
+            replay.version !== 'everframe-vtree-v1' ||
+            !Array.isArray(replay.frames) ||
+            replay.frames.length === 0
+          )
+            return null;
           const durationMs = replay.frames[replay.frames.length - 1].timestamp;
           if (!Number.isSafeInteger(durationMs) || durationMs < 0) return null;
-          return { format: 'everframe-vtree-v1', bytes, contentType: 'application/json', durationMs };
+          return {
+            format: 'everframe-vtree-v1',
+            bytes,
+            contentType: 'application/json',
+            durationMs,
+          };
         } catch {
           return null;
         }
       },
-      stop() { host.everframeFlutterStopReplay(); },
-      kill() { host.everframeFlutterStopReplay(); },
+      stop() {
+        host.everframeFlutterStopReplay();
+      },
+      kill() {
+        host.everframeFlutterStopReplay();
+      },
     },
   };
 }

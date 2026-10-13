@@ -3,21 +3,37 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseDomSnapshot } from '@everframe/protocol';
-import { SNAPSHOT_BLOCK_SELECTOR, takeDomSnapshot, type SnapshotDeps } from '../../../src/capture/tv-snapshot/serialize.js';
-import { buildSnapshotContext, focusedSnapshotId, tvPlatformFamily } from '../../../src/capture/tv-snapshot/context.js';
+import {
+  SNAPSHOT_BLOCK_SELECTOR,
+  takeDomSnapshot,
+  type SnapshotDeps,
+} from '../../../src/capture/tv-snapshot/serialize.js';
+import {
+  buildSnapshotContext,
+  focusedSnapshotId,
+  tvPlatformFamily,
+} from '../../../src/capture/tv-snapshot/context.js';
 import type { PruneRect } from '../../../src/capture/tv-snapshot/prune.js';
 import type { SnElement, SnNode } from '../../../src/capture/tv-snapshot/sn-types.js';
 import { findLeaks } from './leak-assert.js';
 
 const WEBOS_UA =
   'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.79 Safari/537.36 WebAppManager';
-const onScreen = (): PruneRect => ({ left: 0, top: 0, right: 100, bottom: 20, width: 100, height: 20 });
+const onScreen = (): PruneRect => ({
+  left: 0,
+  top: 0,
+  right: 100,
+  bottom: 20,
+  width: 100,
+  height: 20,
+});
 
 function findEl(node: SnNode, pred: (e: SnElement) => boolean): SnElement | undefined {
   const stack: SnNode[] = [node];
   for (let n = stack.pop(); n !== undefined; n = stack.pop()) {
     if (n.type === 2 && pred(n)) return n;
-    if ('childNodes' in n) for (let i = n.childNodes.length - 1; i >= 0; i--) stack.push(n.childNodes[i] as SnNode);
+    if ('childNodes' in n)
+      for (let i = n.childNodes.length - 1; i >= 0; i--) stack.push(n.childNodes[i] as SnNode);
   }
   return undefined;
 }
@@ -32,12 +48,22 @@ function decls(style: unknown): Record<string, string> {
   for (const part of String(style).split(';')) {
     const colon = part.indexOf(':');
     if (colon < 0) continue;
-    out[part.slice(0, colon).trim().toLowerCase()] = part.slice(colon + 1).replace(/\s+/g, ' ').replace(/\s*!\s*important/i, '!important').trim();
+    out[part.slice(0, colon).trim().toLowerCase()] = part
+      .slice(colon + 1)
+      .replace(/\s+/g, ' ')
+      .replace(/\s*!\s*important/i, '!important')
+      .trim();
   }
   return out;
 }
 
-const imp = (css: string): Record<string, string> => decls(css.split(';').map((d) => `${d}!important`).join(';'));
+const imp = (css: string): Record<string, string> =>
+  decls(
+    css
+      .split(';')
+      .map((d) => `${d}!important`)
+      .join(';'),
+  );
 
 function take(extra: Partial<SnapshotDeps> = {}) {
   return takeDomSnapshot({
@@ -55,7 +81,10 @@ function take(extra: Partial<SnapshotDeps> = {}) {
 
 beforeEach(() => {
   vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(WEBOS_UA);
-  window.matchMedia = vi.fn((q: string) => ({ matches: q.includes('dark'), media: q })) as unknown as typeof window.matchMedia;
+  window.matchMedia = vi.fn((q: string) => ({
+    matches: q.includes('dark'),
+    media: q,
+  })) as unknown as typeof window.matchMedia;
   window.history.replaceState(null, '', '/tv/home?access_token=SECRETTOKEN#code=SECRETCODE');
   document.head.innerHTML = '<style>#s::before{content:"Alice Smith"}body{color:#111}</style>';
   document.body.innerHTML = `
@@ -80,8 +109,16 @@ describe('takeDomSnapshot', () => {
     const json = JSON.stringify(taken.doc);
     expect(
       findLeaks(json, [
-        'ALICESECRET', '4111', 'ALICETYPED', 'ALICENOTES', 'alice@example.test', 'REPORTERUI', '99887766',
-        'Alice Smith', 'SECRETTOKEN', 'SECRETCODE',
+        'ALICESECRET',
+        '4111',
+        'ALICETYPED',
+        'ALICENOTES',
+        'alice@example.test',
+        'REPORTERUI',
+        '99887766',
+        'Alice Smith',
+        'SECRETTOKEN',
+        'SECRETCODE',
       ]),
     ).toEqual([]);
     expect(taken.masked).toBe(true);
@@ -102,9 +139,21 @@ describe('takeDomSnapshot', () => {
     vi.spyOn(window, 'scrollX', 'get').mockReturnValue(12);
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(240);
     const taken = take();
-    const [meta, full] = taken.doc.events as unknown as Array<{ type: number; timestamp: number; data: Record<string, unknown> }>;
-    expect(meta).toEqual({ type: 4, timestamp: 1000, data: { href: `${location.origin}/tv/home`, width: innerWidth, height: innerHeight } });
-    expect(full).toMatchObject({ type: 2, timestamp: 1000, data: { initialOffset: { top: 240, left: 12 } } });
+    const [meta, full] = taken.doc.events as unknown as Array<{
+      type: number;
+      timestamp: number;
+      data: Record<string, unknown>;
+    }>;
+    expect(meta).toEqual({
+      type: 4,
+      timestamp: 1000,
+      data: { href: `${location.origin}/tv/home`, width: innerWidth, height: innerHeight },
+    });
+    expect(full).toMatchObject({
+      type: 2,
+      timestamp: 1000,
+      data: { initialOffset: { top: 240, left: 12 } },
+    });
   });
 
   it('pattern-redacts the Meta href path and drops an oversize one to the origin', () => {
@@ -114,7 +163,9 @@ describe('takeDomSnapshot', () => {
     expect(href.startsWith(`${location.origin}/tv/user/`)).toBe(true);
 
     window.history.replaceState(null, '', '/seg'.repeat(700));
-    expect((take().doc.events[0] as { data: { href: string } }).data.href).toBe(`${location.origin}/`);
+    expect((take().doc.events[0] as { data: { href: string } }).data.href).toBe(
+      `${location.origin}/`,
+    );
   });
 
   it('records context: platform, dpr, media, fonts, focused element — and no separate scroll', () => {
@@ -126,7 +177,11 @@ describe('takeDomSnapshot', () => {
       userAgent: WEBOS_UA,
       dpr: window.devicePixelRatio,
       focusedId: button.id,
-      media: { prefersColorScheme: 'dark', prefersReducedMotion: 'no-preference', forcedColors: 'none' },
+      media: {
+        prefersColorScheme: 'dark',
+        prefersReducedMotion: 'no-preference',
+        forcedColors: 'none',
+      },
       viewport: { width: innerWidth, height: innerHeight },
       fonts: { status: 'loaded', loaded: [], failed: [] },
     });
@@ -189,12 +244,15 @@ describe('form controls whose live state differs from their markup', () => {
     (document.getElementById('cleared') as HTMLTextAreaElement).value = '';
     (document.getElementById('ci') as HTMLInputElement).value = '';
     const taken = take();
-    expect(findLeaks(JSON.stringify(taken.doc), ['DELETED_PRIVATE_DRAFT', 'DELETED_INPUT_VALUE'])).toEqual([]);
+    expect(
+      findLeaks(JSON.stringify(taken.doc), ['DELETED_PRIVATE_DRAFT', 'DELETED_INPUT_VALUE']),
+    ).toEqual([]);
     expect(findEl(rootOf(taken), (e) => e.attributes.id === 'cleared')!.childNodes).toEqual([]);
   });
 
   it('never ships the markup text of an edited textarea either', () => {
-    document.body.innerHTML = '<section id="s"></section><textarea id="edited">ORIGINAL_PRIVATE_DRAFT</textarea>';
+    document.body.innerHTML =
+      '<section id="s"></section><textarea id="edited">ORIGINAL_PRIVATE_DRAFT</textarea>';
     (document.getElementById('edited') as HTMLTextAreaElement).value = 'NEW_PRIVATE_DRAFT';
     const json = JSON.stringify(take().doc);
     expect(findLeaks(json, ['ORIGINAL_PRIVATE_DRAFT', 'NEW_PRIVATE_DRAFT'])).toEqual([]);
@@ -210,16 +268,25 @@ describe('sensitive content inside open shadow roots', () => {
       '<span id="wrap2" data-everframe-sensitive style="display:contents"><b>SHADOW_CONTENTS_CHILD</b>SHADOW_BARE</span>';
     const taken = take({ sensitiveElements: () => [] });
     const json = JSON.stringify(taken.doc);
-    expect(findLeaks(json, ['SHADOW_PRIVATE_NAME', 'SHADOW_CONTENTS_CHILD', 'SHADOW_BARE'])).toEqual([]);
+    expect(
+      findLeaks(json, ['SHADOW_PRIVATE_NAME', 'SHADOW_CONTENTS_CHILD', 'SHADOW_BARE']),
+    ).toEqual([]);
     expect(json).toContain('public');
     expect(taken.masked).toBe(true);
-    const inner = findEl(rootOf(taken), (e) => e.tagName === 'section' && e.childNodes.length === 0 && decls(e.attributes.style).background === '#000!important');
+    const inner = findEl(
+      rootOf(taken),
+      (e) =>
+        e.tagName === 'section' &&
+        e.childNodes.length === 0 &&
+        decls(e.attributes.style).background === '#000!important',
+    );
     expect(inner).toBeDefined();
   });
 
   it('fails closed when the sensitivity check throws', () => {
     document.body.innerHTML = '<section id="s"></section><div id="host"></div>';
-    document.getElementById('host')!.attachShadow({ mode: 'open' }).innerHTML = '<p id="x">THROWN_CHECK_TEXT</p>';
+    document.getElementById('host')!.attachShadow({ mode: 'open' }).innerHTML =
+      '<p id="x">THROWN_CHECK_TEXT</p>';
     const taken = take({
       sensitiveElements: () => [],
       isSensitive: (el) => {
@@ -233,7 +300,14 @@ describe('sensitive content inside open shadow roots', () => {
 });
 
 describe('off-screen inline content (viewport pruning)', () => {
-  const offRect: PruneRect = { left: 2000, top: 0, right: 2120, bottom: 20, width: 120, height: 20 };
+  const offRect: PruneRect = {
+    left: 2000,
+    top: 0,
+    right: 2120,
+    bottom: 20,
+    width: 120,
+    height: 20,
+  };
   const rectOf = (el: Element): PruneRect => (el.closest('#off, #offwrap') ? offRect : onScreen());
 
   it('drops the text of an inline element entirely outside the viewport, keeping its measured box', () => {
@@ -244,16 +318,23 @@ describe('off-screen inline content (viewport pruning)', () => {
     expect(findLeaks(json, ['OFFSCREEN_PRIVATE_NAME', 'NESTED_PRIVATE', 'T_ATTR'])).toEqual([]);
     expect(json).toContain('Visible');
     expect(json).toContain('tail');
-    const off = findEl(rootOf(taken), (e) => e.tagName === 'span' && e.childNodes.some((c) => c.type === 2))!;
+    const off = findEl(
+      rootOf(taken),
+      (e) => e.tagName === 'span' && e.childNodes.some((c) => c.type === 2),
+    )!;
     const box = off.childNodes[0] as SnElement;
     expect(decls(box.attributes.style)).toMatchObject({
-      display: 'inline-block!important', width: '120px!important', height: '20px!important', visibility: 'hidden!important',
+      display: 'inline-block!important',
+      width: '120px!important',
+      height: '20px!important',
+      visibility: 'hidden!important',
     });
     expect(parseDomSnapshot(JSON.parse(JSON.stringify(taken.doc)))).toMatchObject({ ok: true });
   });
 
   it('keeps one placeholder per line fragment of a wrapped inline element', () => {
-    document.body.innerHTML = '<section id="s"></section><p>Visible <span id="off">WRAPPED_PRIVATE_TEXT</span></p>';
+    document.body.innerHTML =
+      '<section id="s"></section><p>Visible <span id="off">WRAPPED_PRIVATE_TEXT</span></p>';
     const taken = take({
       measure: {
         rectOf,
@@ -284,9 +365,15 @@ describe('off-screen inline content (viewport pruning)', () => {
     document.body.innerHTML =
       '<section id="s"></section><div id="rail" style="white-space:nowrap;overflow:hidden">' +
       '<span id="offwrap" style="display:contents"><b id="seen">SEEN_CHILD</b> OFFSCREEN_PRIVATE_NAME</span></div>';
-    const textRectsOf = vi.fn((t: Node) => (t.textContent!.includes('OFFSCREEN') ? [offRect] : [onScreen()]));
+    const textRectsOf = vi.fn((t: Node) =>
+      t.textContent!.includes('OFFSCREEN') ? [offRect] : [onScreen()],
+    );
     const taken = take({
-      measure: { rectOf: (el) => (el.id === 'offwrap' ? offRect : onScreen()), sizeOf: () => ({ width: 100, height: 20 }), textRectsOf },
+      measure: {
+        rectOf: (el) => (el.id === 'offwrap' ? offRect : onScreen()),
+        sizeOf: () => ({ width: 100, height: 20 }),
+        textRectsOf,
+      },
     });
     const json = JSON.stringify(taken.doc);
     expect(findLeaks(json, ['OFFSCREEN_PRIVATE_NAME'])).toEqual([]);
@@ -310,8 +397,15 @@ describe('off-screen inline content (viewport pruning)', () => {
   });
 
   it('keeps on-screen bare text of a display:contents element', () => {
-    document.body.innerHTML = '<section id="s"></section><p>Visible <span style="display:contents">SEEN_CONTENTS_TEXT</span></p>';
-    const taken = take({ measure: { rectOf: onScreen, sizeOf: () => ({ width: 100, height: 20 }), textRectsOf: () => [onScreen()] } });
+    document.body.innerHTML =
+      '<section id="s"></section><p>Visible <span style="display:contents">SEEN_CONTENTS_TEXT</span></p>';
+    const taken = take({
+      measure: {
+        rectOf: onScreen,
+        sizeOf: () => ({ width: 100, height: 20 }),
+        textRectsOf: () => [onScreen()],
+      },
+    });
     expect(JSON.stringify(taken.doc)).toContain('SEEN_CONTENTS_TEXT');
   });
 });
@@ -325,7 +419,7 @@ describe('hidden or clipped text inside a visible SVG', () => {
   it('drops text under display:none, keeping definitions it holds', () => {
     svgPage(
       '<g style="display:none"><text>HIDDEN_SVG_PRIVATE_NAME</text><linearGradient id="gk"><stop offset="0"></stop></linearGradient></g>' +
-      '<text style="display:none">HIDDEN_TEXT_ITSELF</text><text id="shown">SHOWN_SVG_TEXT</text><rect fill="url(#gk)" width="5" height="5"></rect>',
+        '<text style="display:none">HIDDEN_TEXT_ITSELF</text><text id="shown">SHOWN_SVG_TEXT</text><rect fill="url(#gk)" width="5" height="5"></rect>',
     );
     const taken = take();
     const json = JSON.stringify(taken.doc);
@@ -335,14 +429,23 @@ describe('hidden or clipped text inside a visible SVG', () => {
   });
 
   it('masks text under visibility:hidden or opacity:0', () => {
-    svgPage('<g style="opacity:0"><text>FADED_SVG_TEXT</text></g><text style="visibility:hidden">INVISIBLE_SVG_TEXT</text>');
-    expect(findLeaks(JSON.stringify(take().doc), ['FADED_SVG_TEXT', 'INVISIBLE_SVG_TEXT'])).toEqual([]);
+    svgPage(
+      '<g style="opacity:0"><text>FADED_SVG_TEXT</text></g><text style="visibility:hidden">INVISIBLE_SVG_TEXT</text>',
+    );
+    expect(findLeaks(JSON.stringify(take().doc), ['FADED_SVG_TEXT', 'INVISIBLE_SVG_TEXT'])).toEqual(
+      [],
+    );
   });
 
   it('drops text outside the SVG clip', () => {
     svgPage('<text id="clipped">CLIPPED_SVG_TEXT</text><text id="inside">INSIDE_SVG_TEXT</text>');
     const json = JSON.stringify(
-      take({ measure: { rectOf: (el) => (el.id === 'clipped' ? far : onScreen()), sizeOf: () => ({ width: 100, height: 20 }) } }).doc,
+      take({
+        measure: {
+          rectOf: (el) => (el.id === 'clipped' ? far : onScreen()),
+          sizeOf: () => ({ width: 100, height: 20 }),
+        },
+      }).doc,
     );
     expect(findLeaks(json, ['CLIPPED_SVG_TEXT'])).toEqual([]);
     expect(json).toContain('INSIDE_SVG_TEXT');
@@ -359,19 +462,39 @@ describe('rrweb-snapshot CSS passes stay linear on page-controlled CSS (S18)', (
   };
 
   it('a style attribute of 32k unclosed url( runs', () => {
-    expect(timed(() => document.getElementById('victim')!.setAttribute('style', 'background:' + 'url('.repeat(32_000)))).toBeLessThan(1000);
+    expect(
+      timed(() =>
+        document
+          .getElementById('victim')!
+          .setAttribute('style', 'background:' + 'url('.repeat(32_000)),
+      ),
+    ).toBeLessThan(1000);
   });
 
   it('quoted url( runs that never close', () => {
-    expect(timed(() => document.getElementById('victim')!.setAttribute('style', 'background:' + 'url("'.repeat(20_000) + 'x' + '\n'))).toBeLessThan(1000);
-    expect(timed(() => document.getElementById('victim')!.setAttribute('style', 'background:' + "url('".repeat(20_000)))).toBeLessThan(1000);
+    expect(
+      timed(() =>
+        document
+          .getElementById('victim')!
+          .setAttribute('style', 'background:' + 'url("'.repeat(20_000) + 'x' + '\n'),
+      ),
+    ).toBeLessThan(1000);
+    expect(
+      timed(() =>
+        document
+          .getElementById('victim')!
+          .setAttribute('style', 'background:' + "url('".repeat(20_000)),
+      ),
+    ).toBeLessThan(1000);
   });
 
   it('a stylesheet whose string values hold url( runs, split across text nodes', () => {
     expect(
       timed(() => {
         const style = document.createElement('style');
-        style.appendChild(document.createTextNode(`#victim::after{content:"${'url('.repeat(20_000)}"}`));
+        style.appendChild(
+          document.createTextNode(`#victim::after{content:"${'url('.repeat(20_000)}"}`),
+        );
         style.appendChild(document.createTextNode(`${'{'.repeat(20_000)}`));
         document.head.appendChild(style);
       }),
@@ -389,7 +512,8 @@ describe('rrweb-snapshot CSS passes stay linear on page-controlled CSS (S18)', (
   });
 
   it('still absolutizes ordinary relative CSS urls the way rrweb does', () => {
-    document.body.innerHTML = '<section id="s"></section><div id="bg" style="background:url(img/a.png) , url(\'/b.png\'), url(&quot;c.png&quot;)">x</div>';
+    document.body.innerHTML =
+      '<section id="s"></section><div id="bg" style="background:url(img/a.png) , url(\'/b.png\'), url(&quot;c.png&quot;)">x</div>';
     const style = findEl(rootOf(take()), (e) => e.attributes.id === 'bg')!.attributes.style;
     expect(String(style)).toContain(`${location.origin}/tv/img/a.png`);
     expect(String(style)).toContain(`${location.origin}/b.png`);
@@ -398,15 +522,27 @@ describe('rrweb-snapshot CSS passes stay linear on page-controlled CSS (S18)', (
 });
 
 describe('pruned or hidden content does not survive in CSS', () => {
-  const css = '.old::before{content:"OFFSCREEN_PRIVATE_PHRASE"} .old{--patient-name: Alice Smith} .now{color:#111}';
+  const css =
+    '.old::before{content:"OFFSCREEN_PRIVATE_PHRASE"} .old{--patient-name: Alice Smith} .now{color:#111}';
 
   it('a pruned previous screen switches the page to the allowlist CSS scrub', () => {
     document.head.innerHTML = `<style>${css}</style>`;
-    document.body.innerHTML = '<section class="old" id="old">previous</section><main class="now" id="now">current</main>';
-    const above: PruneRect = { left: 0, top: -900, right: 1024, bottom: -100, width: 1024, height: 800 };
+    document.body.innerHTML =
+      '<section class="old" id="old">previous</section><main class="now" id="now">current</main>';
+    const above: PruneRect = {
+      left: 0,
+      top: -900,
+      right: 1024,
+      bottom: -100,
+      width: 1024,
+      height: 800,
+    };
     const taken = take({
       sensitiveElements: () => [],
-      measure: { rectOf: (el) => (el.id === 'old' ? above : onScreen()), sizeOf: () => ({ width: 100, height: 20 }) },
+      measure: {
+        rectOf: (el) => (el.id === 'old' ? above : onScreen()),
+        sizeOf: () => ({ width: 100, height: 20 }),
+      },
     });
     const json = JSON.stringify(taken.doc);
     expect(findLeaks(json, ['OFFSCREEN_PRIVATE_PHRASE', 'Alice Smith', 'previous'])).toEqual([]);
@@ -415,42 +551,78 @@ describe('pruned or hidden content does not survive in CSS', () => {
   });
 
   it('an off-screen SVG kept only for a referenced definition switches it (codex r4 F2)', () => {
-    document.head.innerHTML = '<style>.previous{--patient-name:Alice Smith}.previous::before{content:"OFFSCREEN_PRIVATE_PHRASE"}</style>';
+    document.head.innerHTML =
+      '<style>.previous{--patient-name:Alice Smith}.previous::before{content:"OFFSCREEN_PRIVATE_PHRASE"}</style>';
     document.body.innerHTML =
       '<svg id="old" class="previous" width="10" height="10"><text>OLD_SVG_TEXT</text><linearGradient id="gr"><stop offset="0"></stop></linearGradient></svg>' +
       '<svg id="cur" width="10" height="10"><rect fill="url(#gr)" width="5" height="5"></rect></svg>';
-    const above: PruneRect = { left: 0, top: -900, right: 100, bottom: -800, width: 100, height: 100 };
+    const above: PruneRect = {
+      left: 0,
+      top: -900,
+      right: 100,
+      bottom: -800,
+      width: 100,
+      height: 100,
+    };
     const taken = take({
       sensitiveElements: () => [],
-      measure: { rectOf: (el) => (el.id === 'old' ? above : onScreen()), sizeOf: () => ({ width: 100, height: 20 }) },
+      measure: {
+        rectOf: (el) => (el.id === 'old' ? above : onScreen()),
+        sizeOf: () => ({ width: 100, height: 20 }),
+      },
     });
     const json = JSON.stringify(taken.doc);
-    expect(findLeaks(json, ['OLD_SVG_TEXT', 'OFFSCREEN_PRIVATE_PHRASE', 'Alice Smith'])).toEqual([]);
+    expect(findLeaks(json, ['OLD_SVG_TEXT', 'OFFSCREEN_PRIVATE_PHRASE', 'Alice Smith'])).toEqual(
+      [],
+    );
     expect(findEl(rootOf(taken), (e) => e.attributes.id === 'gr')).toBeDefined();
     expect(taken.masked).toBe(true);
   });
 
   it('text masked for visibility:hidden also switches it', () => {
     document.head.innerHTML = `<style>${css}</style>`;
-    document.body.innerHTML = '<p class="old" style="visibility:hidden">HIDDENTEXT</p><main class="now">current</main>';
+    document.body.innerHTML =
+      '<p class="old" style="visibility:hidden">HIDDENTEXT</p><main class="now">current</main>';
     const taken = take({ sensitiveElements: () => [] });
-    expect(findLeaks(JSON.stringify(taken.doc), ['OFFSCREEN_PRIVATE_PHRASE', 'Alice Smith', 'HIDDENTEXT'])).toEqual([]);
+    expect(
+      findLeaks(JSON.stringify(taken.doc), [
+        'OFFSCREEN_PRIVATE_PHRASE',
+        'Alice Smith',
+        'HIDDENTEXT',
+      ]),
+    ).toEqual([]);
     expect(taken.masked).toBe(true);
   });
 
   it('a masked page keeps its colour/length theme variables, never a text one (codex r4 F4)', () => {
     document.head.innerHTML =
       '<style>:root{--surface:#101018;--focus:#ffcc00;--patient-name:Alice Smith}body{background:var(--surface);color:#fff}.selected{outline:6px solid var(--focus)}</style>';
-    document.body.innerHTML = '<section id="old">previous</section><h1>Movies</h1><button class="selected">Play</button>';
-    const above: PruneRect = { left: 0, top: -900, right: 1024, bottom: -100, width: 1024, height: 800 };
+    document.body.innerHTML =
+      '<section id="old">previous</section><h1>Movies</h1><button class="selected">Play</button>';
+    const above: PruneRect = {
+      left: 0,
+      top: -900,
+      right: 1024,
+      bottom: -100,
+      width: 1024,
+      height: 800,
+    };
     const taken = take({
       sensitiveElements: () => [],
-      measure: { rectOf: (el) => (el.id === 'old' ? above : onScreen()), sizeOf: () => ({ width: 100, height: 20 }) },
+      measure: {
+        rectOf: (el) => (el.id === 'old' ? above : onScreen()),
+        sizeOf: () => ({ width: 100, height: 20 }),
+      },
     });
     const json = JSON.stringify(taken.doc);
     expect(taken.masked).toBe(true);
     expect(findLeaks(json, ['Alice Smith', 'patient-name'])).toEqual([]);
-    for (const kept of ['--surface:#101018', '--focus:#ffcc00', 'background:var(--surface)', 'outline:6px solid var(--focus)']) {
+    for (const kept of [
+      '--surface:#101018',
+      '--focus:#ffcc00',
+      'background:var(--surface)',
+      'outline:6px solid var(--focus)',
+    ]) {
       expect(json).toContain(kept);
     }
   });
@@ -465,10 +637,20 @@ describe('pruned or hidden content does not survive in CSS', () => {
     expect(taken.masked).toBe(false); // nothing was withheld from the DOM…
     const json = JSON.stringify(taken.doc);
     // …yet the stylesheet is allowlisted all the same.
-    expect(findLeaks(json, ['PUBLIC_ICON_LABEL', '4111', 'Tan Brown', '--card', '--person'])).toEqual([]);
+    expect(
+      findLeaks(json, ['PUBLIC_ICON_LABEL', '4111', 'Tan Brown', '--card', '--person']),
+    ).toEqual([]);
     const css = String(findEl(rootOf(taken), (e) => e.tagName === 'style')!.attributes._cssText);
     // (jsdom's CSSOM re-serializes the `\e900` escape as the code point itself.)
-    for (const kept of ['--surface:#101018', '--gap:6px', '--shade:rgba(0,0,0,.5)', '--shadow:0 2px 4px rgba(0,0,0,.5)', '--lh:1.5', 'content:"\ue900"', 'content:"•"']) {
+    for (const kept of [
+      '--surface:#101018',
+      '--gap:6px',
+      '--shade:rgba(0,0,0,.5)',
+      '--shadow:0 2px 4px rgba(0,0,0,.5)',
+      '--lh:1.5',
+      'content:"\ue900"',
+      'content:"•"',
+    ]) {
       expect(css, kept).toContain(kept);
     }
   });
@@ -476,13 +658,15 @@ describe('pruned or hidden content does not survive in CSS', () => {
   it('var() fallbacks and function wrappers carry no private values (codex r6 F1/F2)', () => {
     document.head.innerHTML =
       '<style>.x{background:var(--surface, PRIVATE_FALLBACK_NAME)}:root{--card:calc(4111 1111 1111 1111);--card2:rgba(4111 1111 1111 1111)}</style>';
-    document.body.innerHTML = '<section data-everframe-sensitive>PRIVATE_FALLBACK_NAME</section><main>current</main>';
+    document.body.innerHTML =
+      '<section data-everframe-sensitive>PRIVATE_FALLBACK_NAME</section><main>current</main>';
     const json = JSON.stringify(take({ sensitiveElements: () => [] }).doc);
     expect(findLeaks(json, ['PRIVATE_FALLBACK_NAME', '4111'])).toEqual([]);
   });
 
   it('a cleared textarea or blanked title never survives in a content rule (codex r5 F2)', () => {
-    document.head.innerHTML = '<title>PRIVATE_TITLE</title><style>.x::before{content:"DELETED_PRIVATE_DRAFT"}.y::after{content:"PRIVATE_TITLE"}</style>';
+    document.head.innerHTML =
+      '<title>PRIVATE_TITLE</title><style>.x::before{content:"DELETED_PRIVATE_DRAFT"}.y::after{content:"PRIVATE_TITLE"}</style>';
     document.body.innerHTML = '<textarea id="t">DELETED_PRIVATE_DRAFT</textarea>';
     (document.getElementById('t') as HTMLTextAreaElement).value = '';
     const json = JSON.stringify(take({ sensitiveElements: () => [] }).doc);
@@ -491,7 +675,8 @@ describe('pruned or hidden content does not survive in CSS', () => {
 
   it('generated content of an invisible childless inline element is dropped (codex r5 F3)', () => {
     document.head.innerHTML = '<style>.previous::before{content:"HIDDEN_PRIVATE_PHRASE"}</style>';
-    document.body.innerHTML = '<p>Visible <span class="previous" style="display:inline;opacity:0"></span></p>';
+    document.body.innerHTML =
+      '<p>Visible <span class="previous" style="display:inline;opacity:0"></span></p>';
     const json = JSON.stringify(take({ sensitiveElements: () => [] }).doc);
     expect(findLeaks(json, ['HIDDEN_PRIVATE_PHRASE'])).toEqual([]);
   });
@@ -504,8 +689,16 @@ describe('non-rendered SVG content (allowlist)', () => {
   };
 
   it('drops desc, title and metadata text', () => {
-    page('<desc>PRIVATE_DESCRIPTION</desc><title>PRIVATE_TITLE</title><metadata><x>PRIVATE_META</x></metadata><rect width="5" height="5"></rect>');
-    expect(findLeaks(JSON.stringify(take().doc), ['PRIVATE_DESCRIPTION', 'PRIVATE_TITLE', 'PRIVATE_META'])).toEqual([]);
+    page(
+      '<desc>PRIVATE_DESCRIPTION</desc><title>PRIVATE_TITLE</title><metadata><x>PRIVATE_META</x></metadata><rect width="5" height="5"></rect>',
+    );
+    expect(
+      findLeaks(JSON.stringify(take().doc), [
+        'PRIVATE_DESCRIPTION',
+        'PRIVATE_TITLE',
+        'PRIVATE_META',
+      ]),
+    ).toEqual([]);
   });
 
   it('drops unreferenced definitions and their text, keeping referenced ones', () => {
@@ -521,7 +714,11 @@ describe('non-rendered SVG content (allowlist)', () => {
     expect(findLeaks(json, ['PRIVATE_NAME', 'UNUSED_SYMBOL_TEXT', 'STRAY_BARE_TEXT'])).toEqual([]);
     expect(json).toContain('USED_SYMBOL_TEXT');
     const root = rootOf(taken);
-    for (const id of ['g', 'base', 'used', 'css-clip']) expect(findEl(root, (e) => e.attributes.id === id), id).toBeDefined();
+    for (const id of ['g', 'base', 'used', 'css-clip'])
+      expect(
+        findEl(root, (e) => e.attributes.id === id),
+        id,
+      ).toBeDefined();
     expect(findEl(root, (e) => e.attributes.id === 'unused')).toBeUndefined();
   });
 
@@ -533,7 +730,13 @@ describe('non-rendered SVG content (allowlist)', () => {
         '<a href="https://cdn.example.test/PRIVATE_LINK" style="display:none"><rect width="1" height="1"></rect></a>',
     );
     const taken = take();
-    expect(findLeaks(JSON.stringify(taken.doc), ['private-cover', 'PRIVATE_SYMBOL_TEXT', 'PRIVATE_LINK'])).toEqual([]);
+    expect(
+      findLeaks(JSON.stringify(taken.doc), [
+        'private-cover',
+        'PRIVATE_SYMBOL_TEXT',
+        'PRIVATE_LINK',
+      ]),
+    ).toEqual([]);
     expect(taken.masked).toBe(true);
   });
 
@@ -546,7 +749,12 @@ describe('non-rendered SVG content (allowlist)', () => {
     );
     const far: PruneRect = { left: 2000, top: 0, right: 2005, bottom: 5, width: 5, height: 5 };
     const json = JSON.stringify(
-      take({ measure: { rectOf: (el) => (el.id === 'far' ? far : onScreen()), sizeOf: () => ({ width: 100, height: 20 }) } }).doc,
+      take({
+        measure: {
+          rectOf: (el) => (el.id === 'far' ? far : onScreen()),
+          sizeOf: () => ({ width: 100, height: 20 }),
+        },
+      }).doc,
     );
     expect(findLeaks(json, ['PRIVATE_IMAGE', 'CLIPPED_IMAGE', 'FADED_SPRITE'])).toEqual([]);
     expect(json).toContain('SHOWN_IMAGE');
@@ -555,8 +763,10 @@ describe('non-rendered SVG content (allowlist)', () => {
 
 describe('named slot assignments survive a serialize → rebuild round trip (codex r7 F3)', () => {
   it('keeps a validated slot attribute matching the slot name', async () => {
-    document.body.innerHTML = '<section id="s"></section><x-card id="card"><h2 id="head" slot="header">Visible heading</h2></x-card>';
-    document.getElementById('card')!.attachShadow({ mode: 'open' }).innerHTML = '<div><slot name="header"></slot></div>';
+    document.body.innerHTML =
+      '<section id="s"></section><x-card id="card"><h2 id="head" slot="header">Visible heading</h2></x-card>';
+    document.getElementById('card')!.attachShadow({ mode: 'open' }).innerHTML =
+      '<div><slot name="header"></slot></div>';
     const taken = take({ sensitiveElements: () => [] });
     const head = findEl(rootOf(taken), (e) => e.attributes.id === 'head')!;
     expect(head.attributes.slot).toBe('header');
@@ -568,13 +778,17 @@ describe('named slot assignments survive a serialize → rebuild round trip (cod
   });
 
   it('drops a slot attribute that is not a short name', () => {
-    document.body.innerHTML = '<section id="s"></section><x-card><p id="p" slot="alice@example.test">x</p></x-card>';
-    const p = findEl(rootOf(take({ sensitiveElements: () => [] })), (e) => e.attributes.id === 'p')!;
+    document.body.innerHTML =
+      '<section id="s"></section><x-card><p id="p" slot="alice@example.test">x</p></x-card>';
+    const p = findEl(
+      rootOf(take({ sensitiveElements: () => [] })),
+      (e) => e.attributes.id === 'p',
+    )!;
     expect(p.attributes.slot).toBeUndefined();
   });
 });
 
-describe('slotted light-DOM content follows its slot\'s ancestors (codex r7 F1)', () => {
+describe("slotted light-DOM content follows its slot's ancestors (codex r7 F1)", () => {
   const component = (shadowHtml: string) => {
     document.body.innerHTML =
       '<section id="s"></section><x-panel id="host"><p id="light">PRIVATE_PREVIOUS_SCREEN</p>BARE_SLOTTED_TEXT</x-panel><main>current</main>';
@@ -584,26 +798,45 @@ describe('slotted light-DOM content follows its slot\'s ancestors (codex r7 F1)'
   it('a sensitive shadow wrapper masks the content projected into it', () => {
     component('<div data-everframe-sensitive><slot></slot></div>');
     const taken = take({ sensitiveElements: () => [] });
-    expect(findLeaks(JSON.stringify(taken.doc), ['PRIVATE_PREVIOUS_SCREEN', 'BARE_SLOTTED_TEXT'])).toEqual([]);
+    expect(
+      findLeaks(JSON.stringify(taken.doc), ['PRIVATE_PREVIOUS_SCREEN', 'BARE_SLOTTED_TEXT']),
+    ).toEqual([]);
     expect(taken.masked).toBe(true);
   });
 
   it('an opacity:0 or display:none shadow wrapper hides it', () => {
-    for (const wrapper of ['<div style="opacity:0"><slot></slot></div>', '<div style="display:none"><slot></slot></div>']) {
+    for (const wrapper of [
+      '<div style="opacity:0"><slot></slot></div>',
+      '<div style="display:none"><slot></slot></div>',
+    ]) {
       component(wrapper);
-      expect(findLeaks(JSON.stringify(take({ sensitiveElements: () => [] }).doc), ['PRIVATE_PREVIOUS_SCREEN', 'BARE_SLOTTED_TEXT']), wrapper).toEqual([]);
+      expect(
+        findLeaks(JSON.stringify(take({ sensitiveElements: () => [] }).doc), [
+          'PRIVATE_PREVIOUS_SCREEN',
+          'BARE_SLOTTED_TEXT',
+        ]),
+        wrapper,
+      ).toEqual([]);
     }
   });
 
   it('a clipping shadow wrapper clips it', () => {
     component('<div id="clipper" style="overflow-x:hidden;overflow-y:hidden"><slot></slot></div>');
     const clipBox: PruneRect = { left: 0, top: 0, right: 100, bottom: 20, width: 100, height: 20 };
-    const outside: PruneRect = { left: 150, top: 0, right: 250, bottom: 20, width: 100, height: 20 };
+    const outside: PruneRect = {
+      left: 150,
+      top: 0,
+      right: 250,
+      bottom: 20,
+      width: 100,
+      height: 20,
+    };
     const json = JSON.stringify(
       take({
         sensitiveElements: () => [],
         measure: {
-          rectOf: (el) => (el.id === 'light' ? outside : el.id === 'clipper' ? clipBox : onScreen()),
+          rectOf: (el) =>
+            el.id === 'light' ? outside : el.id === 'clipper' ? clipBox : onScreen(),
           sizeOf: () => ({ width: 100, height: 20 }),
           textRectsOf: () => [outside],
         },
@@ -615,7 +848,9 @@ describe('slotted light-DOM content follows its slot\'s ancestors (codex r7 F1)'
 
   it('a plain slot keeps projected content', () => {
     component('<div><slot></slot></div>');
-    expect(JSON.stringify(take({ sensitiveElements: () => [] }).doc)).toContain('PRIVATE_PREVIOUS_SCREEN');
+    expect(JSON.stringify(take({ sensitiveElements: () => [] }).doc)).toContain(
+      'PRIVATE_PREVIOUS_SCREEN',
+    );
   });
 });
 
@@ -629,8 +864,10 @@ describe('zero-area boxes establish no visibility (codex r9 F1)', () => {
       sensitiveElements: () => [],
       measure: {
         rectOf: (el) => (el.closest('#panel') ? r : onScreen()),
-        sizeOf: (el) => (el.closest('#panel') ? { width: r.width, height: r.height } : { width: 100, height: 20 }),
-        textRectsOf: (t) => ((t.parentElement?.closest('#panel') ?? null) !== null ? [r] : [onScreen()]),
+        sizeOf: (el) =>
+          el.closest('#panel') ? { width: r.width, height: r.height } : { width: 100, height: 20 },
+        textRectsOf: (t) =>
+          (t.parentElement?.closest('#panel') ?? null) !== null ? [r] : [onScreen()],
       },
     });
   };
@@ -642,11 +879,14 @@ describe('zero-area boxes establish no visibility (codex r9 F1)', () => {
   });
 
   it('a transform:scaleY(0) panel (zero height) keeps none of its text', () => {
-    expect(findLeaks(JSON.stringify(panel(zeroH).doc), ['PANEL_PRIVATE_TEXT', 'CHILD_PRIVATE_TEXT'])).toEqual([]);
+    expect(
+      findLeaks(JSON.stringify(panel(zeroH).doc), ['PANEL_PRIVATE_TEXT', 'CHILD_PRIVATE_TEXT']),
+    ).toEqual([]);
   });
 
   it('a 0-height container keeps its visibly overflowing children', () => {
-    document.body.innerHTML = '<section id="s"></section><div id="zero" style="height:0">ZERO_OWN_TEXT<p id="over">OVERFLOWING_VISIBLE</p></div>';
+    document.body.innerHTML =
+      '<section id="s"></section><div id="zero" style="height:0">ZERO_OWN_TEXT<p id="over">OVERFLOWING_VISIBLE</p></div>';
     const json = JSON.stringify(
       take({
         sensitiveElements: () => [],
@@ -675,7 +915,8 @@ describe('display:contents sensitive wrappers (React <Sensitive>) keep their str
       isSensitive: (el) => sensitiveRegistry.isSensitive(el),
       measure: {
         rectOf: (el) => (el.id === 'child' ? box : onScreen()),
-        sizeOf: (el) => (el.id === 'child' ? { width: 200, height: 100 } : { width: 100, height: 20 }),
+        sizeOf: (el) =>
+          el.id === 'child' ? { width: 200, height: 100 } : { width: 100, height: 20 },
       },
     });
     const json = JSON.stringify(taken.doc);
@@ -685,7 +926,11 @@ describe('display:contents sensitive wrappers (React <Sensitive>) keep their str
     const wrap = findEl(root, (e) => e.tagName === 'span' && e.childNodes.length === 2)!;
     expect(wrap).toBeDefined(); // the wrapper survives with its children, not as a 0×0 block
     const child = wrap.childNodes.find((c) => c.type === 2) as SnElement;
-    expect(decls(child.attributes.style)).toMatchObject({ width: '200px!important', height: '100px!important', background: '#000!important' });
+    expect(decls(child.attributes.style)).toMatchObject({
+      width: '200px!important',
+      height: '100px!important',
+      background: '#000!important',
+    });
     expect(findEl(root, (e) => e.attributes.id === 'after')).toBeDefined();
   });
 });
@@ -706,15 +951,34 @@ describe('open dialogs and disclosures stay open (codex r10 F1)', () => {
     const { rebuild, createMirror, createCache } = await import('rrweb-snapshot');
     const target = document.implementation.createHTMLDocument('rebuilt');
     rebuild(root as never, { doc: target, mirror: createMirror(), cache: createCache() });
-    expect((target.getElementById('dlg') as HTMLElement & { open?: boolean }).hasAttribute('open')).toBe(true);
+    expect(
+      (target.getElementById('dlg') as HTMLElement & { open?: boolean }).hasAttribute('open'),
+    ).toBe(true);
     expect((target.getElementById('det') as HTMLDetailsElement).open).toBe(true);
   });
 
-  it('keeps only rrweb\'s known rr_open_mode values', async () => {
-    const { scrubSnapshotTree } = await import('../../../src/capture/tv-snapshot/snapshot-scrub.js');
-    const dlg = { type: 2, id: 2, tagName: 'dialog', attributes: { open: 'Alice', rr_open_mode: 'Alice Smith' }, childNodes: [] } as SnElement;
-    const modal = { type: 2, id: 3, tagName: 'dialog', attributes: { open: true, rr_open_mode: 'modal' }, childNodes: [] } as unknown as SnElement;
-    scrubSnapshotTree({ type: 0, id: 1, childNodes: [dlg, modal] } as never, { masked: true, retainedIds: new Set(), baseHref: 'https://tv.example.test/' });
+  it("keeps only rrweb's known rr_open_mode values", async () => {
+    const { scrubSnapshotTree } =
+      await import('../../../src/capture/tv-snapshot/snapshot-scrub.js');
+    const dlg = {
+      type: 2,
+      id: 2,
+      tagName: 'dialog',
+      attributes: { open: 'Alice', rr_open_mode: 'Alice Smith' },
+      childNodes: [],
+    } as SnElement;
+    const modal = {
+      type: 2,
+      id: 3,
+      tagName: 'dialog',
+      attributes: { open: true, rr_open_mode: 'modal' },
+      childNodes: [],
+    } as unknown as SnElement;
+    scrubSnapshotTree({ type: 0, id: 1, childNodes: [dlg, modal] } as never, {
+      masked: true,
+      retainedIds: new Set(),
+      baseHref: 'https://tv.example.test/',
+    });
     expect(dlg.attributes).toEqual({ open: '' });
     expect(modal.attributes).toEqual({ open: '', rr_open_mode: 'modal' });
   });
@@ -734,7 +998,9 @@ describe('same-document SVG references rrweb absolutized (codex r10 F2)', () => 
     expect(findEl(root, (e) => e.attributes.id === 'g')!.attributes.href).toBe('#base');
     expect(findEl(root, (e) => e.attributes.id === 'tp')!.attributes.href).toBe('#curve');
     // A different path is another document: its fragment is still stripped.
-    expect(findEl(root, (e) => e.attributes.id === 'other')!.attributes.href).toBe(`${location.origin}/tv/other`);
+    expect(findEl(root, (e) => e.attributes.id === 'other')!.attributes.href).toBe(
+      `${location.origin}/tv/other`,
+    );
   });
 
   it('drops a same-document reference whose target did not survive, and a different query', () => {
@@ -753,14 +1019,21 @@ describe('visible listboxes keep their shape and selection (codex r11 F2)', () =
     (document.getElementById('lb') as HTMLSelectElement).options[1]!.selected = true;
     const taken = take({ sensitiveElements: () => [] });
     const root = rootOf(taken);
-    expect(findEl(root, (e) => e.attributes.id === 'lb')!.attributes).toMatchObject({ multiple: '', size: '4' });
+    expect(findEl(root, (e) => e.attributes.id === 'lb')!.attributes).toMatchObject({
+      multiple: '',
+      size: '4',
+    });
     expect(findEl(root, (e) => e.attributes.id === 'bad')!.attributes.size).toBeUndefined();
     expect(findEl(root, (e) => e.attributes.id === 'huge')!.attributes.size).toBeUndefined();
     const { rebuild, createMirror, createCache } = await import('rrweb-snapshot');
     const target = document.implementation.createHTMLDocument('rebuilt');
     rebuild(root as never, { doc: target, mirror: createMirror(), cache: createCache() });
     const lb = target.getElementById('lb') as HTMLSelectElement;
-    expect({ multiple: lb.multiple, size: lb.size, selectedIndex: lb.selectedIndex }).toEqual({ multiple: true, size: 4, selectedIndex: 1 });
+    expect({ multiple: lb.multiple, size: lb.size, selectedIndex: lb.selectedIndex }).toEqual({
+      multiple: true,
+      size: 4,
+      selectedIndex: 1,
+    });
   });
 });
 
@@ -769,16 +1042,39 @@ describe('placeholder styles survive the scrubber end to end (ruling S21)', () =
   const STYLES: Record<string, Partial<CSSStyleDeclaration>> = {
     main: { display: 'grid', position: 'static' },
     list: { display: 'block', position: 'static' },
-    'li-off': { display: 'list-item', position: 'static', marginTop: '8px', marginRight: '0px', marginBottom: '8px', marginLeft: '0px' },
-    s: { display: 'block', position: 'static', marginTop: '4px', marginRight: '0px', marginBottom: '4px', marginLeft: '0px' },
-    'grid-off': { display: 'block', position: 'relative', gridRowStart: '2', gridRowEnd: 'span 2', top: '10px', left: '0px', zIndex: '3' },
+    'li-off': {
+      display: 'list-item',
+      position: 'static',
+      marginTop: '8px',
+      marginRight: '0px',
+      marginBottom: '8px',
+      marginLeft: '0px',
+    },
+    s: {
+      display: 'block',
+      position: 'static',
+      marginTop: '4px',
+      marginRight: '0px',
+      marginBottom: '4px',
+      marginLeft: '0px',
+    },
+    'grid-off': {
+      display: 'block',
+      position: 'relative',
+      gridRowStart: '2',
+      gridRowEnd: 'span 2',
+      top: '10px',
+      left: '0px',
+      zIndex: '3',
+    },
     'abs-off': { display: 'block', position: 'absolute' },
     'icons-off': { display: 'block', position: 'static' },
   };
   const OFF_IDS = new Set(['li-off', 's', 'grid-off', 'abs-off', 'icons-off']);
   /** Off-screen: one of OFF_IDS or inside one (a child of an off-screen box is off-screen too). */
   const isOff = (el: Element): boolean => {
-    for (let e: Element | null = el; e !== null; e = e.parentElement) if (OFF_IDS.has(e.id)) return true;
+    for (let e: Element | null = el; e !== null; e = e.parentElement)
+      if (OFF_IDS.has(e.id)) return true;
     return false;
   };
 
@@ -801,13 +1097,19 @@ describe('placeholder styles survive the scrubber end to end (ruling S21)', () =
       now: () => 1000,
       measure: {
         rectOf: (el) => (isOff(el) ? OFF : onScreen()),
-        styleOf: (el) => ({ display: 'block', position: 'static', ...(STYLES[el.id] ?? {}) }) as CSSStyleDeclaration,
+        styleOf: (el) =>
+          ({
+            display: 'block',
+            position: 'static',
+            ...(STYLES[el.id] ?? {}),
+          }) as CSSStyleDeclaration,
         sizeOf: (_el, r) => ({ width: r.width, height: r.height }),
       },
     });
   }
 
-  const COMMON = 'box-sizing:border-box;width:300px;height:40px;min-width:0;min-height:0;max-width:none;max-height:none';
+  const COMMON =
+    'box-sizing:border-box;width:300px;height:40px;min-width:0;min-height:0;max-width:none;max-height:none';
 
   it('keeps every placeholder declaration, !important, after the allowlist scrub', () => {
     const taken = takePage();
@@ -815,16 +1117,21 @@ describe('placeholder styles survive the scrubber end to end (ruling S21)', () =
     const styles = [] as Array<Record<string, string>>;
     const stack: SnNode[] = [root];
     for (let n = stack.pop(); n !== undefined; n = stack.pop()) {
-      if (n.type === 2 && typeof n.attributes.style === 'string') styles.push(decls(n.attributes.style));
+      if (n.type === 2 && typeof n.attributes.style === 'string')
+        styles.push(decls(n.attributes.style));
       if ('childNodes' in n) for (const c of n.childNodes) stack.push(c);
     }
     // In-flow list item: same box, collapsed margins, display:list-item, hidden.
     expect(styles).toContainEqual(
-      imp(`display:list-item;position:static;${COMMON};margin:8px 0px 8px 0px;padding:0;border:0;flex:0 0 auto;visibility:hidden`),
+      imp(
+        `display:list-item;position:static;${COMMON};margin:8px 0px 8px 0px;padding:0;border:0;flex:0 0 auto;visibility:hidden`,
+      ),
     );
     // Blocked sensitive element: same box, painted black.
     expect(styles).toContainEqual(
-      imp(`display:block;position:static;${COMMON};margin:4px 0px 4px 0px;padding:0;border:0;flex:0 0 auto;background:#000`),
+      imp(
+        `display:block;position:static;${COMMON};margin:4px 0px 4px 0px;padding:0;border:0;flex:0 0 auto;background:#000`,
+      ),
     );
     // Grid item: grid placement and relative offsets survive.
     expect(styles).toContainEqual(
@@ -837,18 +1144,34 @@ describe('placeholder styles survive the scrubber end to end (ruling S21)', () =
     expect(styles).toContainEqual(imp('display:none'));
     // Pruned screen holding an icon definition: same box, hosting a zero-size SVG carrier.
     expect(styles).toContainEqual(
-      imp(`display:block;position:static;${COMMON};margin:0px 0px 0px 0px;padding:0;border:0;flex:0 0 auto;visibility:hidden`),
+      imp(
+        `display:block;position:static;${COMMON};margin:0px 0px 0px 0px;padding:0;border:0;flex:0 0 auto;visibility:hidden`,
+      ),
     );
     const svg = findEl(root, (e) => e.tagName.toLowerCase() === 'svg')!;
     expect(svg.attributes).toMatchObject({ width: '0', height: '0' });
-    expect(decls(svg.attributes.style)).toEqual(imp('position:absolute;width:0;height:0;overflow:hidden;visibility:visible'));
+    expect(decls(svg.attributes.style)).toEqual(
+      imp('position:absolute;width:0;height:0;overflow:hidden;visibility:visible'),
+    );
     expect(findEl(svg, (e) => e.tagName.toLowerCase() === 'clippath')!.attributes.id).toBe('clip');
-    expect(decls(findEl(root, (e) => e.attributes.id === 'uses')!.attributes.style)).toEqual({ 'clip-path': 'url("#clip")' });
+    expect(decls(findEl(root, (e) => e.attributes.id === 'uses')!.attributes.style)).toEqual({
+      'clip-path': 'url("#clip")',
+    });
     // rrweb-snapshot absolutizes CSS url()s against the page; same-document
     // fragments come back as `#id` in both inline styles and stylesheets.
-    expect(findEl(root, (e) => e.tagName === 'style')!.attributes._cssText).toContain('clip-path:url("#clip")');
+    expect(findEl(root, (e) => e.tagName === 'style')!.attributes._cssText).toContain(
+      'clip-path:url("#clip")',
+    );
 
-    expect(findLeaks(JSON.stringify(taken.doc), ['OFFSCREENITEM', 'SECRETBOX', 'GRIDITEM', 'ABSITEM', 'ICONSCREEN'])).toEqual([]);
+    expect(
+      findLeaks(JSON.stringify(taken.doc), [
+        'OFFSCREENITEM',
+        'SECRETBOX',
+        'GRIDITEM',
+        'ABSITEM',
+        'ICONSCREEN',
+      ]),
+    ).toEqual([]);
     expect(taken.masked).toBe(true);
     expect(parseDomSnapshot(JSON.parse(JSON.stringify(taken.doc)))).toMatchObject({ ok: true });
   });
@@ -857,7 +1180,9 @@ describe('placeholder styles survive the scrubber end to end (ruling S21)', () =
 describe('snapshot context helpers', () => {
   it('classifies TV platform families', () => {
     expect(tvPlatformFamily(WEBOS_UA)).toBe('webos');
-    expect(tvPlatformFamily('Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36')).toBe('tizen');
+    expect(tvPlatformFamily('Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36')).toBe(
+      'tizen',
+    );
     expect(tvPlatformFamily('Mozilla/5.0 (X11; Linux x86_64) Chrome/120.0')).toBe('other');
   });
 
@@ -879,7 +1204,10 @@ describe('snapshot context helpers', () => {
       { family: `'${'F'.repeat(400)}'`, status: 'loaded' },
       ...Array.from({ length: 100 }, (_, i) => ({ family: `Face${i}`, status: 'loaded' })),
     ];
-    const fonts = { status: 'loading', forEach: (cb: (f: (typeof faces)[number]) => void) => faces.forEach(cb) };
+    const fonts = {
+      status: 'loading',
+      forEach: (cb: (f: (typeof faces)[number]) => void) => faces.forEach(cb),
+    };
     const fakeDoc = { fonts } as unknown as Document;
     const context = buildSnapshotContext(window, fakeDoc, null);
     expect(context.fonts.status).toBe('loading');
@@ -892,7 +1220,12 @@ describe('snapshot context helpers', () => {
   it('stays linear on long page- and device-controlled strings (ruling S18)', () => {
     const nearMiss = 'W'.repeat(20_000) + 'eb0';
     const faces = [{ family: `"${"'".repeat(20_000)}`, status: 'loaded' }];
-    const fakeDoc = { fonts: { status: 'loaded', forEach: (cb: (f: (typeof faces)[number]) => void) => faces.forEach(cb) } } as unknown as Document;
+    const fakeDoc = {
+      fonts: {
+        status: 'loaded',
+        forEach: (cb: (f: (typeof faces)[number]) => void) => faces.forEach(cb),
+      },
+    } as unknown as Document;
     const started = performance.now();
     expect(tvPlatformFamily(nearMiss)).toBe('other');
     buildSnapshotContext(window, fakeDoc, null);

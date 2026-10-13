@@ -17,7 +17,13 @@ import {
 import { buildVegaEnvelope } from './envelope.js';
 import { extractFacts, isErrorValue, renderLabel, renderValue } from './error-facts.js';
 import { uuidV4 } from './ids.js';
-import { createOutbox, sameBinding, type Outbox, type OutboxBinding, type OutboxItem } from './outbox.js';
+import {
+  createOutbox,
+  sameBinding,
+  type Outbox,
+  type OutboxBinding,
+  type OutboxItem,
+} from './outbox.js';
 import { sendReport, type FetchLike } from './transport.js';
 import { SDK_VERSION } from './version.js';
 
@@ -85,9 +91,22 @@ const AUTOMATIC_KEYS_MAX = 10;
 const VALUE_KEYS_MAX = 5;
 const HANDLED_KEYS_MAX = 10;
 const VALUE_KEY = 'UnhandledValue:value-';
-const SDK = { name: 'everframe-vega', version: SDK_VERSION, platform: 'vega', formFactor: 'tv' } as const;
+const SDK = {
+  name: 'everframe-vega',
+  version: SDK_VERSION,
+  platform: 'vega',
+  formFactor: 'tv',
+} as const;
 
-const BREADCRUMB_KINDS = new Set(['navigation', 'tap', 'console', 'network', 'lifecycle', 'error', 'custom']);
+const BREADCRUMB_KINDS = new Set([
+  'navigation',
+  'tap',
+  'console',
+  'network',
+  'lifecycle',
+  'error',
+  'custom',
+]);
 const BREADCRUMB_LEVELS = new Set(['debug', 'info', 'warn', 'error']);
 
 /** Non-Error values have no frame: key them by their digit-insensitive value. */
@@ -104,7 +123,10 @@ function valueKey(message: string): string {
  * to send with.
  */
 export function outboxBinding(config: { ingestUrl: string; sdkKey: string }): OutboxBinding {
-  return { endpoint: config.ingestUrl, keyHash: sha256Hex(`everframe-vega/outbox-key\n${config.sdkKey}`).slice(0, 32) };
+  return {
+    endpoint: config.ingestUrl,
+    keyHash: sha256Hex(`everframe-vega/outbox-key\n${config.sdkKey}`).slice(0, 32),
+  };
 }
 
 function cleanUser(user: VegaUser | null | undefined): VegaUser | null {
@@ -177,9 +199,10 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
     const labelled = mechanism === 'unhandledrejection' && !isErrorValue(value);
     const facts = extractFacts(value, labelled ? renderLabel : renderValue);
     const framesRaw = facts.framesRaw.map(stripBuildPath);
-    const key = facts.exceptionType === 'UnhandledValue' && framesRaw.length === 0
-      ? valueKey(facts.message)
-      : captureKey(facts.exceptionType, framesRaw, facts.message);
+    const key =
+      facts.exceptionType === 'UnhandledValue' && framesRaw.length === 0
+        ? valueKey(facts.message)
+        : captureKey(facts.exceptionType, framesRaw, facts.message);
     if (!admit(mechanism, fatal, key, value)) return undefined;
     const reportId = uuidV4(env.random);
     const envelope = buildVegaEnvelope({
@@ -199,11 +222,19 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
       user,
     });
     remember(mechanism, key, value);
-    return { reportId, body: JSON.stringify(envelope), enqueuedAt: env.now(), attempts: 0, fatal, ...binding! };
+    return {
+      reportId,
+      body: JSON.stringify(envelope),
+      enqueuedAt: env.now(),
+      attempts: 0,
+      fatal,
+      ...binding!,
+    };
   }
 
   const retryDelay = (): number =>
-    RETRY_DELAYS_MS[Math.min(Math.max(failures, 1), RETRY_DELAYS_MS.length) - 1] ?? RETRY_DELAYS_MS[0];
+    RETRY_DELAYS_MS[Math.min(Math.max(failures, 1), RETRY_DELAYS_MS.length) - 1] ??
+    RETRY_DELAYS_MS[0];
 
   function scheduleRetry(): void {
     if (retryTimer !== undefined || phase !== 'running') return;
@@ -221,7 +252,9 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
     // another key. The outbox already drops such reports; this guards the
     // send itself.
     if (!sameBinding(item, binding)) {
-      debug('[everframe] dropped a stored report captured for another SDK key or endpoint; it is not sent');
+      debug(
+        '[everframe] dropped a stored report captured for another SDK key or endpoint; it is not sent',
+      );
       await outbox.remove(item.reportId);
       return 'drop';
     }
@@ -273,9 +306,11 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
       }
       if (retry) scheduleRetry();
     })();
-    draining = run.catch(() => undefined).then(() => {
-      draining = undefined;
-    });
+    draining = run
+      .catch(() => undefined)
+      .then(() => {
+        draining = undefined;
+      });
     return draining;
   }
 
@@ -319,7 +354,10 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
   function describeRejection(rejection: unknown): string {
     try {
       return isErrorValue(rejection)
-        ? `${String((rejection as Error).name)}: ${String((rejection as Error).message)}`.slice(0, 200)
+        ? `${String((rejection as Error).name)}: ${String((rejection as Error).message)}`.slice(
+            0,
+            200,
+          )
         : renderLabel(rejection).slice(0, 200);
     } catch {
       return '[unrenderable]';
@@ -382,7 +420,8 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
         allRejections: true,
         onUnhandled: (_id, rejection) => {
           // The SDK's tracker replaces RN's development warning; keep one.
-          if (env.dev) env.warn(`[everframe] unhandled promise rejection: ${describeRejection(rejection)}`);
+          if (env.dev)
+            env.warn(`[everframe] unhandled promise rejection: ${describeRejection(rejection)}`);
           capture(rejection, 'unhandledrejection', false);
         },
         onHandled: () => undefined,
@@ -419,14 +458,27 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
         device = env.readDevice(resolved.device);
       } catch {
         device = {
-          os: 'Vega OS', osVersion: '', screenSize: { width: 0, height: 0 }, pixelRatio: 1, locale: 'und', timezone: 'UTC',
+          os: 'Vega OS',
+          osVersion: '',
+          screenSize: { width: 0, height: 0 },
+          pixelRatio: 1,
+          locale: 'und',
+          timezone: 'UTC',
         };
       }
       if (!resolved.storage && env.dev) {
-        env.warn('[everframe] no storage passed to init(); a crash that cannot be sent before the app stops is lost');
+        env.warn(
+          '[everframe] no storage passed to init(); a crash that cannot be sent before the app stops is lost',
+        );
       }
       binding = outboxBinding(resolved);
-      outbox = createOutbox({ storage: resolved.storage, now: env.now, warn: env.warn, binding, debug });
+      outbox = createOutbox({
+        storage: resolved.storage,
+        now: env.now,
+        warn: env.warn,
+        binding,
+        debug,
+      });
       phase = 'running';
       try {
         installErrorHandler();

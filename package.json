@@ -10,7 +10,7 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint",
+    "lint": "pnpm format:check && turbo run lint",
     "clean": "turbo run clean",
     "check:publish": "turbo run check:publish",
     "build:packages": "turbo run build --filter='./packages/*' --filter='!@everframe/sdk-android'",
@@ -27,7 +27,9 @@
     "gen-web-config": "pnpm --filter examples-react-web gen-web-config",
     "gen-rn-config": "pnpm --filter examples-react-native sync-env",
     "gen-ios-config": "pnpm --filter @everframe/example-ios-native-marker gen-ios-config",
-    "gen-android-config": "pnpm --filter @everframe/example-android-compose-marker gen-android-config"
+    "gen-android-config": "pnpm --filter @everframe/example-android-compose-marker gen-android-config",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.0",
@@ -39,7 +41,8 @@
     "size-limit": "^11.0.0",
     "turbo": "^2.3.0",
     "typescript": "^5.6.0",
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0",
+    "prettier": "3.8.3"
   },
   "pnpm": {
     "overrides": {

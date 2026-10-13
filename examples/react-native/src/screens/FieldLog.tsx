@@ -8,15 +8,7 @@
 // scrolling, so App.tsx must NOT wrap it in a ScrollView.
 
 import React, { useCallback, useState } from 'react';
-import {
-  Platform,
-  Pressable,
-  SectionList,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Platform, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useEverframeScreen } from '@everframe/react-native';
 import { ARCHIVE, ARCHIVE_TOTAL, type ArchiveRecord } from '../data/archive';
 import { SPECIMENS } from '../data/specimens';
@@ -113,8 +105,8 @@ export function FieldLog(): React.JSX.Element {
           </Text>
           <Text style={[type.display, styles.title]}>Field log</Text>
           <Text style={[type.muted, styles.lede]}>
-            What you saw, where. Below your live log sits two seasons of archive — scroll deep,
-            the replay recorder is watching.
+            What you saw, where. Below your live log sits two seasons of archive — scroll deep, the
+            replay recorder is watching.
           </Text>
           <View style={styles.addRow}>
             <TextInput
@@ -136,7 +128,8 @@ export function FieldLog(): React.JSX.Element {
               style={({ pressed, focused }) => [
                 styles.addButton,
                 (pressed || focused) && styles.addButtonPressed,
-              ]}>
+              ]}
+            >
               <Text style={styles.addButtonText}>Add</Text>
             </Pressable>
           </View>
@@ -160,13 +153,15 @@ export function FieldLog(): React.JSX.Element {
                 styles.checkbox,
                 item.entry.confirmed && styles.checkboxChecked,
                 (pressed || focused) && styles.rowFocused,
-              ]}>
+              ]}
+            >
               {item.entry.confirmed ? <Text style={styles.checkboxMark}>✓</Text> : null}
             </Pressable>
             <View style={styles.logBody}>
               <Text
                 style={[type.body, item.entry.confirmed && styles.logNoteConfirmed]}
-                numberOfLines={3}>
+                numberOfLines={3}
+              >
                 {item.entry.note}
               </Text>
               <Text style={type.monoNote}>{item.entry.site}</Text>
@@ -178,7 +173,8 @@ export function FieldLog(): React.JSX.Element {
               style={({ pressed, focused }) => [
                 styles.deleteButton,
                 (pressed || focused) && styles.rowFocused,
-              ]}>
+              ]}
+            >
               <Text style={styles.deleteText}>Delete</Text>
             </Pressable>
           </View>

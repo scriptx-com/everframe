@@ -34,9 +34,11 @@ const storedUser = (client: EverframeClient): UserMetadata | null =>
 
 describe('projectUserMetadata', () => {
   it('keeps exactly the three known string fields', () => {
-    expect(
-      projectUserMetadata({ id: 'u_1', email: 'a@b.com', displayName: 'A' }),
-    ).toEqual({ id: 'u_1', email: 'a@b.com', displayName: 'A' });
+    expect(projectUserMetadata({ id: 'u_1', email: 'a@b.com', displayName: 'A' })).toEqual({
+      id: 'u_1',
+      email: 'a@b.com',
+      displayName: 'A',
+    });
   });
 
   it('drops extra properties, including nested objects and arrays', () => {

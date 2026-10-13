@@ -16,7 +16,10 @@ beforeEach(() => {
   // As in init.spec.ts: a dev API listening on INGEST_URL must not change the outcome.
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    vi.fn(
+      async () =>
+        new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    ),
   );
 });
 
@@ -54,7 +57,10 @@ describe('web release health is removed', () => {
       throw new Error('IndexedDB must not be opened');
     });
     vi.stubGlobal('indexedDB', { open });
-    const leftover = { sdkKey: 'pk_test', releaseHealth: { enabled: true } } as unknown as WebEverframeConfig;
+    const leftover = {
+      sdkKey: 'pk_test',
+      releaseHealth: { enabled: true },
+    } as unknown as WebEverframeConfig;
     handles.push(init(leftover));
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(open).not.toHaveBeenCalled();

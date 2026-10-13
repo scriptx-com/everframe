@@ -50,7 +50,9 @@ function parseEnv(text) {
 const SRC_VAR = 'EVERFRAME_KEY_RN';
 
 if (!existsSync(rootEnvPath)) {
-  console.error(`[sync-env] ${rootEnvPath} not found. Copy .env.example → .env and set ${SRC_VAR} to the React Native app's SDK key.`);
+  console.error(
+    `[sync-env] ${rootEnvPath} not found. Copy .env.example → .env and set ${SRC_VAR} to the React Native app's SDK key.`,
+  );
   process.exit(1);
 }
 
@@ -63,7 +65,7 @@ if (!/^(evf_live_|txx_live_).{32}$/.test(key)) {
       `           Required: 'evf_live_' prefix (9 chars) + 32-char body = 41 chars total; legacy 'txx_live_' also accepted.\n` +
       `           Got: '${key}' (${key.length} chars).\n` +
       `           Create a 'React Native' app in the dashboard (http://localhost:8787/admin/),\n` +
-      `           generate its SDK key, and paste it as ${SRC_VAR}=evf_live_… in the repo-root .env.`
+      `           generate its SDK key, and paste it as ${SRC_VAR}=evf_live_… in the repo-root .env.`,
   );
   process.exit(1);
 }

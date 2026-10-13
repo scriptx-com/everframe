@@ -52,7 +52,10 @@ describe('useEverframeScreen', () => {
   it('re-marks when the name changes', () => {
     const { rerender } = render(<Probe name="Home" />);
     rerender(<Probe name="Settings" />);
-    expect(seen).toEqual([['Home', undefined], ['Settings', undefined]]);
+    expect(seen).toEqual([
+      ['Home', undefined],
+      ['Settings', undefined],
+    ]);
   });
 });
 

@@ -8,15 +8,26 @@ import type { ReporterApi, ThreadSummary } from '../src/reporter/api.js';
 import type { ThreadClientState } from '../src/reporter/thread-client.js';
 
 const TOKEN = 'evr_' + 'a'.repeat(43);
-const OPEN: ThreadSummary = { id: 't1', status: 'open', reportTitle: 'Crash', createdAt: '2026-08-01T00:00:00.000Z', lastMessageAt: null, unreadCount: 3 };
+const OPEN: ThreadSummary = {
+  id: 't1',
+  status: 'open',
+  reportTitle: 'Crash',
+  createdAt: '2026-08-01T00:00:00.000Z',
+  lastMessageAt: null,
+  unreadCount: 3,
+};
 
 function memoryStore(initial: string | null = TOKEN) {
   let value = initial;
   return {
     randomBytes: (n: number) => new Uint8Array(n).fill(1),
     load: async () => value,
-    save: async (t: string) => { value = t; },
-    clear: async () => { value = null; },
+    save: async (t: string) => {
+      value = t;
+    },
+    clear: async () => {
+      value = null;
+    },
     _get: () => value,
   };
 }
@@ -25,9 +36,16 @@ function memoryStore(initial: string | null = TOKEN) {
 function manualScheduler() {
   const queue: Array<{ fn: () => void; ms: number }> = [];
   return {
-    schedule: (fn: () => void, ms: number) => { queue.push({ fn, ms }); return queue.length; },
+    schedule: (fn: () => void, ms: number) => {
+      queue.push({ fn, ms });
+      return queue.length;
+    },
     cancel: () => {},
-    fireNext: () => { const j = queue.shift(); j?.fn(); return j?.ms; },
+    fireNext: () => {
+      const j = queue.shift();
+      j?.fn();
+      return j?.ms;
+    },
     queued: () => queue.length,
     lastDelay: () => queue[queue.length - 1]?.ms,
   };
@@ -36,7 +54,10 @@ function manualScheduler() {
 function apiReturning(threads: ThreadSummary[]): ReporterApi {
   return {
     listThreads: vi.fn(async () => ({ kind: 'ok' as const, threads, etag: '"e1"' })),
-    listMessages: vi.fn(), postMessage: vi.fn(), markRead: vi.fn(), deleteThread: vi.fn(),
+    listMessages: vi.fn(),
+    postMessage: vi.fn(),
+    markRead: vi.fn(),
+    deleteThread: vi.fn(),
   } as unknown as ReporterApi;
 }
 
@@ -44,10 +65,21 @@ function clientWith(api: ReporterApi, over: Record<string, unknown> = {}) {
   const sched = manualScheduler();
   let nowMs = 0;
   const client = createThreadClient({
-    api, credentials: memoryStore(), isEnabled: () => true,
-    now: () => nowMs, schedule: sched.schedule, cancel: sched.cancel, ...over,
+    api,
+    credentials: memoryStore(),
+    isEnabled: () => true,
+    now: () => nowMs,
+    schedule: sched.schedule,
+    cancel: sched.cancel,
+    ...over,
   });
-  return { client, sched, setNow: (v: number) => { nowMs = v; } };
+  return {
+    client,
+    sched,
+    setNow: (v: number) => {
+      nowMs = v;
+    },
+  };
 }
 
 describe('createThreadClient polling', () => {
@@ -57,11 +89,11 @@ describe('createThreadClient polling', () => {
     const seen: number[] = [];
     client.subscribe((s) => seen.push(s.unreadCount));
     client.startPolling();
-    sched.fireNext();                       // the immediate (0ms) tick
+    sched.fireNext(); // the immediate (0ms) tick
     await vi.waitFor(() => expect(client.list()).toHaveLength(2));
     expect(client.unreadCount()).toBe(4);
     expect(seen.at(-1)).toBe(4);
-    expect(sched.lastDelay()).toBe(POLL_FLOOR_MS);   // next tick armed at the floor
+    expect(sched.lastDelay()).toBe(POLL_FLOOR_MS); // next tick armed at the floor
   });
 
   it('enforces the 60s floor on pollIntervalMs', () => {
@@ -72,7 +104,8 @@ describe('createThreadClient polling', () => {
   });
 
   it('sends the cached etag and keeps state on 304', async () => {
-    const listThreads = vi.fn()
+    const listThreads = vi
+      .fn()
       .mockResolvedValueOnce({ kind: 'ok', threads: [OPEN], etag: '"e1"' })
       .mockResolvedValueOnce({ kind: 'not-modified' });
     const api = { ...apiReturning([]), listThreads } as unknown as ReporterApi;
@@ -80,10 +113,10 @@ describe('createThreadClient polling', () => {
     client.startPolling();
     sched.fireNext();
     await vi.waitFor(() => expect(client.list()).toHaveLength(1));
-    sched.fireNext();                       // second tick → 304
+    sched.fireNext(); // second tick → 304
     await vi.waitFor(() => expect(listThreads).toHaveBeenCalledTimes(2));
     expect(listThreads.mock.calls[1]).toEqual([TOKEN, '"e1"']);
-    expect(client.list()).toHaveLength(1);  // unchanged
+    expect(client.list()).toHaveLength(1); // unchanged
   });
 
   it('idles to zero: stops scheduling when a poll returns no open threads; wake() re-arms', async () => {
@@ -92,7 +125,7 @@ describe('createThreadClient polling', () => {
     client.startPolling();
     sched.fireNext();
     await vi.waitFor(() => expect(client.list()).toHaveLength(1));
-    expect(sched.queued()).toBe(0);         // nothing re-armed
+    expect(sched.queued()).toBe(0); // nothing re-armed
     client.wake();
     expect(sched.queued()).toBe(1);
   });
@@ -115,18 +148,21 @@ describe('createThreadClient polling', () => {
 
   it('401 invalid_device_token clears the stored token and resets state silently', async () => {
     const store = memoryStore();
-    const listThreads = vi.fn(async () => { throw new ReporterApiError('invalid_device_token', 401); });
+    const listThreads = vi.fn(async () => {
+      throw new ReporterApiError('invalid_device_token', 401);
+    });
     const api = { ...apiReturning([]), listThreads } as unknown as ReporterApi;
     const { client, sched } = clientWith(api, { credentials: store });
     client.startPolling();
     sched.fireNext();
     await vi.waitFor(() => expect(store._get()).toBeNull());
     expect(client.getState().threads).toEqual([]);
-    expect(sched.queued()).toBe(0);         // polling stopped
+    expect(sched.queued()).toBe(0); // polling stopped
   });
 
   it('401 replies_disabled stops polling and marks state read-only with threads closed', async () => {
-    const listThreads = vi.fn()
+    const listThreads = vi
+      .fn()
       .mockResolvedValueOnce({ kind: 'ok', threads: [OPEN], etag: null })
       .mockRejectedValueOnce(new ReporterApiError('replies_disabled', 401));
     const api = { ...apiReturning([]), listThreads } as unknown as ReporterApi;
@@ -145,7 +181,8 @@ describe('createThreadClient polling', () => {
   // replies can never be noticed again, because pollOnce() short-circuits
   // on readOnly forever. wake() must clear the latch and re-arm polling.
   it('wake() clears the replies_disabled latch and re-arms polling; a healthy server refreshes with readOnly false', async () => {
-    const listThreads = vi.fn()
+    const listThreads = vi
+      .fn()
       .mockResolvedValueOnce({ kind: 'ok', threads: [OPEN], etag: null })
       .mockRejectedValueOnce(new ReporterApiError('replies_disabled', 401))
       .mockResolvedValueOnce({ kind: 'ok', threads: [OPEN], etag: null });
@@ -157,20 +194,21 @@ describe('createThreadClient polling', () => {
     sched.fireNext();
     await vi.waitFor(() => expect(client.getState().readOnly).toBe(true));
     expect(client.list()[0]?.status).toBe('closed');
-    expect(sched.queued()).toBe(0);          // polling stopped, latched
+    expect(sched.queued()).toBe(0); // polling stopped, latched
 
     client.wake();
-    expect(client.getState().readOnly).toBe(false);   // latch cleared optimistically
-    expect(sched.queued()).toBe(1);                    // re-armed
+    expect(client.getState().readOnly).toBe(false); // latch cleared optimistically
+    expect(sched.queued()).toBe(1); // re-armed
 
     sched.fireNext();
     await vi.waitFor(() => expect(listThreads).toHaveBeenCalledTimes(3));
     expect(client.getState().readOnly).toBe(false);
-    expect(client.list()[0]?.status).toBe('open');     // the next successful list is authoritative
+    expect(client.list()[0]?.status).toBe('open'); // the next successful list is authoritative
   });
 
   it('wake() re-arms after the latch, but a still-disabled server re-latches on the next 401', async () => {
-    const listThreads = vi.fn()
+    const listThreads = vi
+      .fn()
       .mockResolvedValueOnce({ kind: 'ok', threads: [OPEN], etag: null })
       .mockRejectedValueOnce(new ReporterApiError('replies_disabled', 401))
       .mockRejectedValueOnce(new ReporterApiError('replies_disabled', 401));
@@ -187,8 +225,8 @@ describe('createThreadClient polling', () => {
     expect(sched.queued()).toBe(1);
 
     sched.fireNext();
-    await vi.waitFor(() => expect(client.getState().readOnly).toBe(true));   // re-latched
-    expect(sched.queued()).toBe(0);          // stopped again
+    await vi.waitFor(() => expect(client.getState().readOnly).toBe(true)); // re-latched
+    expect(sched.queued()).toBe(0); // stopped again
   });
 
   // Regression: the latch's cached ETag hashes the server's list JSON, which
@@ -201,7 +239,8 @@ describe('createThreadClient polling', () => {
   // cached etag the moment the latch engages, since that's the moment the
   // local view (all threads forced closed) diverges from the server's.
   it('drops the cached ETag when the replies_disabled latch engages, so the post-wake() poll is a full 200 not a stale 304', async () => {
-    const listThreads = vi.fn()
+    const listThreads = vi
+      .fn()
       .mockResolvedValueOnce({ kind: 'ok', threads: [OPEN], etag: '"real-etag"' })
       .mockRejectedValueOnce(new ReporterApiError('replies_disabled', 401))
       .mockResolvedValueOnce({ kind: 'ok', threads: [OPEN], etag: '"real-etag"' });
@@ -221,12 +260,14 @@ describe('createThreadClient polling', () => {
     // as If-None-Match — it must ask for a full list.
     expect(listThreads.mock.calls[2]).toEqual([TOKEN, null]);
     expect(client.getState().readOnly).toBe(false);
-    expect(client.list()[0]?.status).toBe('open');   // the 200 corrected the forced-closed status
-    expect(sched.queued()).toBe(1);                  // still armed, not idled
+    expect(client.list()[0]?.status).toBe('open'); // the 200 corrected the forced-closed status
+    expect(sched.queued()).toBe(1); // still armed, not idled
   });
 
   it('429 delays the next tick by retryAfter instead of the base interval', async () => {
-    const listThreads = vi.fn(async () => { throw new ReporterApiError('rate_limit_exceeded', 429, 90); });
+    const listThreads = vi.fn(async () => {
+      throw new ReporterApiError('rate_limit_exceeded', 429, 90);
+    });
     const api = { ...apiReturning([]), listThreads } as unknown as ReporterApi;
     const { client, sched } = clientWith(api);
     client.startPolling();
@@ -235,7 +276,8 @@ describe('createThreadClient polling', () => {
   });
 
   it('network errors keep cadence and keep cached state (fail-closed)', async () => {
-    const listThreads = vi.fn()
+    const listThreads = vi
+      .fn()
       .mockResolvedValueOnce({ kind: 'ok', threads: [OPEN], etag: null })
       .mockRejectedValueOnce(new ReporterApiError('network_error', null));
     const api = { ...apiReturning([]), listThreads } as unknown as ReporterApi;
@@ -246,7 +288,7 @@ describe('createThreadClient polling', () => {
     sched.fireNext();
     await vi.waitFor(() => expect(listThreads).toHaveBeenCalledTimes(2));
     expect(client.list()).toHaveLength(1);
-    expect(sched.queued()).toBe(1);         // still armed
+    expect(sched.queued()).toBe(1); // still armed
   });
 
   it('refresh() polls immediately even between ticks', async () => {
@@ -267,32 +309,40 @@ describe('createThreadClient polling', () => {
   });
 
   it('regression: a scheduled tick firing while refresh() is in flight does not orphan the poll loop', async () => {
-    let resolveSecond: ((v: { kind: 'ok'; threads: ThreadSummary[]; etag: string | null }) => void) | undefined;
-    const listThreads = vi.fn()
-      .mockResolvedValueOnce({ kind: 'ok', threads: [OPEN], etag: null })       // startPolling's immediate tick
-      .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve; })) // refresh(), held open
-      .mockResolvedValue({ kind: 'ok', threads: [OPEN], etag: null });          // any tick after recovery
+    let resolveSecond:
+      | ((v: { kind: 'ok'; threads: ThreadSummary[]; etag: string | null }) => void)
+      | undefined;
+    const listThreads = vi
+      .fn()
+      .mockResolvedValueOnce({ kind: 'ok', threads: [OPEN], etag: null }) // startPolling's immediate tick
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecond = resolve;
+          }),
+      ) // refresh(), held open
+      .mockResolvedValue({ kind: 'ok', threads: [OPEN], etag: null }); // any tick after recovery
     const api = { ...apiReturning([]), listThreads } as unknown as ReporterApi;
     const { client, sched } = clientWith(api);
 
     client.startPolling();
-    sched.fireNext();                                     // establishes state, arms the next tick
+    sched.fireNext(); // establishes state, arms the next tick
     await vi.waitFor(() => expect(client.list()).toHaveLength(1));
-    expect(sched.queued()).toBe(1);                        // next scheduled tick is armed
+    expect(sched.queued()).toBe(1); // next scheduled tick is armed
 
-    const refreshPromise = client.refresh();               // second listThreads call hangs, in flight
+    const refreshPromise = client.refresh(); // second listThreads call hangs, in flight
     await vi.waitFor(() => expect(listThreads).toHaveBeenCalledTimes(2));
 
-    sched.fireNext();                                       // the already-armed tick fires WHILE refresh() is in flight
-    expect(sched.queued()).toBe(0);                         // its slot is consumed, not (yet) re-armed
-    expect(listThreads).toHaveBeenCalledTimes(2);            // the racing tick must not run a concurrent poll
+    sched.fireNext(); // the already-armed tick fires WHILE refresh() is in flight
+    expect(sched.queued()).toBe(0); // its slot is consumed, not (yet) re-armed
+    expect(listThreads).toHaveBeenCalledTimes(2); // the racing tick must not run a concurrent poll
 
     resolveSecond?.({ kind: 'ok', threads: [OPEN], etag: null });
     await refreshPromise;
 
     await vi.waitFor(() => expect(sched.queued()).toBe(1)); // loop re-armed once the in-flight poll settles
 
-    sched.fireNext();                                        // a subsequent tick still polls normally
+    sched.fireNext(); // a subsequent tick still polls normally
     await vi.waitFor(() => expect(listThreads).toHaveBeenCalledTimes(3));
   });
 });
@@ -477,7 +527,9 @@ describe('createThreadClient gate ON->OFF transition (finding 1, round 8)', () =
 
     gate.on = false; // admin disables replies mid-session; the shared gate flips
     let notifyCount = 0;
-    client.subscribe(() => { notifyCount++; });
+    client.subscribe(() => {
+      notifyCount++;
+    });
     sched.fireNext(); // the next poll tick observes the OFF gate
     await vi.waitFor(() => expect(client.getState().readOnly).toBe(true));
     expect(client.list()[0]?.status).toBe('closed');
@@ -543,7 +595,9 @@ describe('createThreadClient gate ON->OFF transition (finding 1, round 8)', () =
     expect(sched.queued()).toBe(1);
 
     let notifyCount = 0;
-    client.subscribe(() => { notifyCount++; });
+    client.subscribe(() => {
+      notifyCount++;
+    });
     sched.fireNext(); // still off -> re-latches
     await vi.waitFor(() => expect(client.getState().readOnly).toBe(true));
     expect(notifyCount).toBe(1); // exactly one notify for the re-latch, not repeated
@@ -570,7 +624,12 @@ describe('createThreadClient shutdown (finding 6)', () => {
     expect(api.listThreads).not.toHaveBeenCalled();
     expect(sched.queued()).toBe(0);
     expect(client.getState()).toEqual({
-      enabled: false, readOnly: false, threads: [], unreadCount: 0, pending: [], cooldownUntilMs: null,
+      enabled: false,
+      readOnly: false,
+      threads: [],
+      unreadCount: 0,
+      pending: [],
+      cooldownUntilMs: null,
     });
   });
 
@@ -595,7 +654,12 @@ describe('createThreadClient shutdown (finding 6)', () => {
 
     expect(seen).toHaveLength(1);
     expect(seen[0]).toEqual({
-      enabled: false, readOnly: false, threads: [], unreadCount: 0, pending: [], cooldownUntilMs: null,
+      enabled: false,
+      readOnly: false,
+      threads: [],
+      unreadCount: 0,
+      pending: [],
+      cooldownUntilMs: null,
     });
 
     // Every path that used to trigger notify() is now a guarded no-op post

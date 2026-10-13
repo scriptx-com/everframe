@@ -35,7 +35,10 @@ const T2: ThreadSummary = {
   unreadCount: 0,
 };
 
-function fakeFacade(threads: ThreadSummary[] = [T1, T2], stateOver: Partial<ThreadClientState> = {}) {
+function fakeFacade(
+  threads: ThreadSummary[] = [T1, T2],
+  stateOver: Partial<ThreadClientState> = {},
+) {
   const state: ThreadClientState = {
     enabled: true,
     readOnly: false,
@@ -61,7 +64,14 @@ function fakeFacade(threads: ThreadSummary[] = [T1, T2], stateOver: Partial<Thre
 
 describe('InboxDialog list view', () => {
   it('renders one row per thread with title fallback, status chip, and unread dot', () => {
-    render(<InboxDialog open onClose={() => {}} threads={fakeFacade() as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog
+        open
+        onClose={() => {}}
+        threads={fakeFacade() as never}
+        onNewReport={() => {}}
+      />,
+    );
     expect(screen.getByText('Login crash')).toBeInTheDocument();
     expect(screen.getByText(/Report from/)).toBeInTheDocument(); // null title fallback
     expect(screen.getByText('Closed')).toBeInTheDocument();
@@ -70,7 +80,14 @@ describe('InboxDialog list view', () => {
 
   it('shows the empty state with a New report button', () => {
     const onNewReport = vi.fn();
-    render(<InboxDialog open onClose={() => {}} threads={fakeFacade([]) as never} onNewReport={onNewReport} />);
+    render(
+      <InboxDialog
+        open
+        onClose={() => {}}
+        threads={fakeFacade([]) as never}
+        onNewReport={onNewReport}
+      />,
+    );
     expect(screen.getByText('No reports yet.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'New report' }));
     expect(onNewReport).toHaveBeenCalled();
@@ -85,7 +102,12 @@ describe('InboxDialog list view', () => {
 
   it('renders nothing when closed', () => {
     const { container } = render(
-      <InboxDialog open={false} onClose={() => {}} threads={fakeFacade() as never} onNewReport={() => {}} />,
+      <InboxDialog
+        open={false}
+        onClose={() => {}}
+        threads={fakeFacade() as never}
+        onNewReport={() => {}}
+      />,
     );
     expect(container.querySelector('.everframe-modal')).toBeNull();
   });
@@ -95,14 +117,32 @@ describe('InboxDialog thread view', () => {
   it('renders message bodies as escaped text with no linkification', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash',
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
       messages: [
-        { id: 'm1', authorKind: 'team', authorName: 'Acme Support', body: '<img src=x onerror=alert(1)>', createdAt: '2026-08-01T01:00:00.000Z' },
-        { id: 'm2', authorKind: 'team', authorName: 'Acme Support', body: 'see https://evil.example', createdAt: '2026-08-01T01:01:00.000Z' },
+        {
+          id: 'm1',
+          authorKind: 'team',
+          authorName: 'Acme Support',
+          body: '<img src=x onerror=alert(1)>',
+          createdAt: '2026-08-01T01:00:00.000Z',
+        },
+        {
+          id: 'm2',
+          authorKind: 'team',
+          authorName: 'Acme Support',
+          body: 'see https://evil.example',
+          createdAt: '2026-08-01T01:01:00.000Z',
+        },
       ],
-      pending: [], truncation: false, fresh: true,
+      pending: [],
+      truncation: false,
+      fresh: true,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     expect(await screen.findByText('<img src=x onerror=alert(1)>')).toBeInTheDocument();
     expect(document.querySelector('.everframe-inbox-msg img')).toBeNull();
@@ -112,15 +152,39 @@ describe('InboxDialog thread view', () => {
   it('shows the author name (Support fallback when null) for team/system messages, and no name for reporter messages', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash',
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
       messages: [
-        { id: 'm1', authorKind: 'team', authorName: null, body: 'hi there', createdAt: '2026-08-01T01:00:00.000Z' },
-        { id: 'm2', authorKind: 'team', authorName: 'Acme Support', body: 'hello', createdAt: '2026-08-01T01:01:00.000Z' },
-        { id: 'm3', authorKind: 'reporter', authorName: null, body: 'thanks', createdAt: '2026-08-01T01:02:00.000Z' },
+        {
+          id: 'm1',
+          authorKind: 'team',
+          authorName: null,
+          body: 'hi there',
+          createdAt: '2026-08-01T01:00:00.000Z',
+        },
+        {
+          id: 'm2',
+          authorKind: 'team',
+          authorName: 'Acme Support',
+          body: 'hello',
+          createdAt: '2026-08-01T01:01:00.000Z',
+        },
+        {
+          id: 'm3',
+          authorKind: 'reporter',
+          authorName: null,
+          body: 'thanks',
+          createdAt: '2026-08-01T01:02:00.000Z',
+        },
       ],
-      pending: [], truncation: false, fresh: true,
+      pending: [],
+      truncation: false,
+      fresh: true,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     expect(await screen.findByText('Support')).toBeInTheDocument();
     expect(screen.getByText('Acme Support')).toBeInTheDocument();
@@ -132,9 +196,17 @@ describe('InboxDialog thread view', () => {
   it('caps the composer at MESSAGE_BODY_MAX, disables Send while empty, and sends + clears on click', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: false, fresh: true,
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
+      pending: [],
+      truncation: false,
+      fresh: true,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     const textarea = (await screen.findByPlaceholderText('Write a reply…')) as HTMLTextAreaElement;
     expect(textarea).toHaveAttribute('maxLength', String(MESSAGE_BODY_MAX));
@@ -150,14 +222,34 @@ describe('InboxDialog thread view', () => {
   it('renders a Sending… marker for a pending send and a Retry button for a failed one', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [],
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
       pending: [
-        { localId: 'local-1', threadId: 't1', body: 'still sending', state: 'sending', attempts: 0, createdAt: '2026-08-01T01:00:00.000Z' },
-        { localId: 'local-2', threadId: 't1', body: 'gave up', state: 'failed', attempts: 3, createdAt: '2026-08-01T01:01:00.000Z' },
+        {
+          localId: 'local-1',
+          threadId: 't1',
+          body: 'still sending',
+          state: 'sending',
+          attempts: 0,
+          createdAt: '2026-08-01T01:00:00.000Z',
+        },
+        {
+          localId: 'local-2',
+          threadId: 't1',
+          body: 'gave up',
+          state: 'failed',
+          attempts: 3,
+          createdAt: '2026-08-01T01:01:00.000Z',
+        },
       ],
-      truncation: false, fresh: true,
+      truncation: false,
+      fresh: true,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     expect(await screen.findByText('Sending…')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
@@ -173,13 +265,31 @@ describe('InboxDialog thread view', () => {
   it('does not render an enabled Retry on a closed/read-only thread — the failed message stays visible without one', async () => {
     const facade = fakeFacade([T1, T2], { readOnly: true });
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'closed', reportTitle: 'Login crash', messages: [],
+      id: 't1',
+      status: 'closed',
+      reportTitle: 'Login crash',
+      messages: [],
       pending: [
-        { localId: 'local-2', threadId: 't1', body: 'gave up', state: 'failed', attempts: 3, createdAt: '2026-08-01T01:01:00.000Z' },
+        {
+          localId: 'local-2',
+          threadId: 't1',
+          body: 'gave up',
+          state: 'failed',
+          attempts: 3,
+          createdAt: '2026-08-01T01:01:00.000Z',
+        },
       ],
-      truncation: false, fresh: true,
+      truncation: false,
+      fresh: true,
     });
-    render(<ThreadView threads={facade as never} threadId="t1" onBack={() => {}} onNewReport={() => {}} />);
+    render(
+      <ThreadView
+        threads={facade as never}
+        threadId="t1"
+        onBack={() => {}}
+        onNewReport={() => {}}
+      />,
+    );
     expect(await screen.findByText('gave up')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
     expect(screen.getByText(/Not sent\./)).toBeInTheDocument();
@@ -190,13 +300,31 @@ describe('InboxDialog thread view', () => {
   it('does not render an enabled Retry on a closed thread even when the client is not globally read-only', async () => {
     const facade = fakeFacade([T1, T2], { readOnly: false });
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'closed', reportTitle: 'Login crash', messages: [],
+      id: 't1',
+      status: 'closed',
+      reportTitle: 'Login crash',
+      messages: [],
       pending: [
-        { localId: 'local-3', threadId: 't1', body: 'no longer welcome', state: 'failed', attempts: 4, createdAt: '2026-08-01T01:02:00.000Z' },
+        {
+          localId: 'local-3',
+          threadId: 't1',
+          body: 'no longer welcome',
+          state: 'failed',
+          attempts: 4,
+          createdAt: '2026-08-01T01:02:00.000Z',
+        },
       ],
-      truncation: false, fresh: true,
+      truncation: false,
+      fresh: true,
     });
-    render(<ThreadView threads={facade as never} threadId="t1" onBack={() => {}} onNewReport={() => {}} />);
+    render(
+      <ThreadView
+        threads={facade as never}
+        threadId="t1"
+        onBack={() => {}}
+        onNewReport={() => {}}
+      />,
+    );
     expect(await screen.findByText('no longer welcome')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
@@ -204,9 +332,17 @@ describe('InboxDialog thread view', () => {
   it('replaces the composer with a closed notice for a closed thread, but keeps delete available', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't2', status: 'closed', reportTitle: null, messages: [], pending: [], truncation: false, fresh: true,
+      id: 't2',
+      status: 'closed',
+      reportTitle: null,
+      messages: [],
+      pending: [],
+      truncation: false,
+      fresh: true,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText(/Report from/));
     expect(await screen.findByText('This conversation is closed.')).toBeInTheDocument();
     expect(screen.queryByPlaceholderText('Write a reply…')).toBeNull();
@@ -216,9 +352,17 @@ describe('InboxDialog thread view', () => {
   it('disables the composer with a cooldown notice (not error-styled) while cooldownUntilMs is in the future', async () => {
     const facade = fakeFacade([T1, T2], { cooldownUntilMs: Date.now() + 30_000 });
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: false, fresh: true,
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
+      pending: [],
+      truncation: false,
+      fresh: true,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     const textarea = await screen.findByPlaceholderText('Write a reply…');
     expect(textarea).toBeDisabled();
@@ -243,9 +387,22 @@ describe('InboxDialog thread view', () => {
       const deadline = Date.now() + 5_000;
       const facade = fakeFacade([T1, T2], { cooldownUntilMs: deadline });
       (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: false, fresh: true,
+        id: 't1',
+        status: 'open',
+        reportTitle: 'Login crash',
+        messages: [],
+        pending: [],
+        truncation: false,
+        fresh: true,
       });
-      render(<ThreadView threads={facade as never} threadId="t1" onBack={() => {}} onNewReport={() => {}} />);
+      render(
+        <ThreadView
+          threads={facade as never}
+          threadId="t1"
+          onBack={() => {}}
+          onNewReport={() => {}}
+        />,
+      );
       // Flush the async `threads.get()` load (a real microtask — fake
       // macrotask timers don't affect it) without relying on findBy*'s
       // internal (real-timer-based) polling.
@@ -296,13 +453,31 @@ describe('InboxDialog thread view', () => {
       const deadline = Date.now() + 5_000;
       const facade = fakeFacade([T1, T2], { cooldownUntilMs: deadline });
       (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: 't1', status: 'open', reportTitle: 'Login crash', messages: [],
+        id: 't1',
+        status: 'open',
+        reportTitle: 'Login crash',
+        messages: [],
         pending: [
-          { localId: 'local-2', threadId: 't1', body: 'gave up', state: 'failed', attempts: 3, createdAt: '2026-08-01T01:01:00.000Z' },
+          {
+            localId: 'local-2',
+            threadId: 't1',
+            body: 'gave up',
+            state: 'failed',
+            attempts: 3,
+            createdAt: '2026-08-01T01:01:00.000Z',
+          },
         ],
-        truncation: false, fresh: true,
+        truncation: false,
+        fresh: true,
       });
-      render(<ThreadView threads={facade as never} threadId="t1" onBack={() => {}} onNewReport={() => {}} />);
+      render(
+        <ThreadView
+          threads={facade as never}
+          threadId="t1"
+          onBack={() => {}}
+          onNewReport={() => {}}
+        />,
+      );
       await act(async () => {
         await Promise.resolve();
         await Promise.resolve();
@@ -325,13 +500,23 @@ describe('InboxDialog thread view', () => {
   it('delete confirm states the non-erasure copy exactly and, on confirm, deletes then returns to the list', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: false, fresh: true,
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
+      pending: [],
+      truncation: false,
+      fresh: true,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this conversation' }));
     expect(
-      await screen.findByText('Deletes this conversation for you. The report you sent is not deleted.'),
+      await screen.findByText(
+        'Deletes this conversation for you. The report you sent is not deleted.',
+      ),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Delete conversation' }));
     await waitFor(() => expect(facade.delete).toHaveBeenCalledWith('t1'));
@@ -342,10 +527,18 @@ describe('InboxDialog thread view', () => {
   it('a failed delete shows a non-fatal retry notice and stays on the thread instead of navigating back', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: false, fresh: true,
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
+      pending: [],
+      truncation: false,
+      fresh: true,
     });
     (facade.delete as ReturnType<typeof vi.fn>).mockResolvedValue(false);
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this conversation' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete conversation' }));
@@ -358,9 +551,17 @@ describe('InboxDialog thread view', () => {
   it('shows a truncated notice when the thread detail reports older messages were dropped', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: 'older-dropped', fresh: true,
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
+      pending: [],
+      truncation: 'older-dropped',
+      fresh: true,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     expect(await screen.findByText('Earlier messages not shown.')).toBeInTheDocument();
   });
@@ -368,12 +569,22 @@ describe('InboxDialog thread view', () => {
   it('shows a different notice, and does not mark read, when the hard page ceiling was hit (truncation: incomplete)', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: 'incomplete', fresh: true,
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
+      pending: [],
+      truncation: 'incomplete',
+      fresh: true,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     expect(
-      await screen.findByText("This conversation couldn't fully load — some messages may be missing."),
+      await screen.findByText(
+        "This conversation couldn't fully load — some messages may be missing.",
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText('Earlier messages not shown.')).toBeNull();
     // Finding 2 (PR review round 2): 'incomplete' means we cannot vouch the
@@ -390,9 +601,17 @@ describe('InboxDialog thread view', () => {
   it('does not mark read when the loaded detail is not fresh (a cached fallback after a transient failure)', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: false, fresh: false,
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
+      pending: [],
+      truncation: false,
+      fresh: false,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     // The view still renders normally — a stale cached view is still shown.
     await screen.findByRole('button', { name: 'Send a follow-up report' });
@@ -403,9 +622,17 @@ describe('InboxDialog thread view', () => {
   it('marks read for a fresh load whose truncation is older-dropped (the latest messages ARE shown)', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: 'older-dropped', fresh: true,
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
+      pending: [],
+      truncation: 'older-dropped',
+      fresh: true,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     await waitFor(() => expect(facade.markRead).toHaveBeenCalledWith('t1'));
   });
@@ -417,10 +644,14 @@ describe('InboxDialog thread view', () => {
   it('navigates back to the list when get() resolves null (a vanished thread), instead of hanging on Loading…', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     // Back at the list — the thread view (and its perpetual spinner) is gone.
-    await waitFor(() => expect(screen.queryByRole('button', { name: '← Your reports' })).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: '← Your reports' })).toBeNull(),
+    );
     expect(screen.queryByText('Loading…')).toBeNull();
     expect(screen.getByText('Login crash')).toBeInTheDocument();
   });
@@ -428,10 +659,18 @@ describe('InboxDialog thread view', () => {
   it('the follow-up button calls onNewReport', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: false, fresh: true,
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
+      pending: [],
+      truncation: false,
+      fresh: true,
     });
     const onNewReport = vi.fn();
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={onNewReport} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={onNewReport} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     fireEvent.click(await screen.findByRole('button', { name: 'Send a follow-up report' }));
     expect(onNewReport).toHaveBeenCalled();
@@ -440,7 +679,13 @@ describe('InboxDialog thread view', () => {
   it('shows no follow-up button without onNewReport (crash-only session)', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: false, fresh: true,
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
+      pending: [],
+      truncation: false,
+      fresh: true,
     });
     render(<InboxDialog open onClose={() => {}} threads={facade as never} />);
     fireEvent.click(await screen.findByText('Login crash'));
@@ -451,9 +696,17 @@ describe('InboxDialog thread view', () => {
   it('a back button returns from the thread view to the list', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: false, fresh: true,
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
+      pending: [],
+      truncation: false,
+      fresh: true,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     fireEvent.click(await screen.findByRole('button', { name: '← Your reports' }));
     expect(screen.queryByRole('button', { name: '← Your reports' })).toBeNull();
@@ -465,9 +718,17 @@ describe('InboxDialog thread view', () => {
   it('calls markRead exactly once per mount after a successful load', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 't1', status: 'open', reportTitle: 'Login crash', messages: [], pending: [], truncation: false, fresh: true,
+      id: 't1',
+      status: 'open',
+      reportTitle: 'Login crash',
+      messages: [],
+      pending: [],
+      truncation: false,
+      fresh: true,
     });
-    render(<InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />);
+    render(
+      <InboxDialog open onClose={() => {}} threads={facade as never} onNewReport={() => {}} />,
+    );
     fireEvent.click(await screen.findByText('Login crash'));
     await waitFor(() => expect(facade.markRead).toHaveBeenCalledTimes(1));
     expect(facade.markRead).toHaveBeenCalledWith('t1');
@@ -534,7 +795,14 @@ describe('ThreadView — Finding 3 (PR review round 7): notification during an i
       notify = cb;
       return () => {};
     });
-    render(<ThreadView threads={facade as never} threadId="t1" onBack={() => {}} onNewReport={() => {}} />);
+    render(
+      <ThreadView
+        threads={facade as never}
+        threadId="t1"
+        onBack={() => {}}
+        onNewReport={() => {}}
+      />,
+    );
     await waitFor(() => expect(facade.get).toHaveBeenCalledTimes(1));
 
     // A notification (e.g. the send confirmation) arrives while the load is
@@ -568,7 +836,14 @@ describe('ThreadView — Finding 3 (PR review round 7): notification during an i
       notify = cb;
       return () => {};
     });
-    render(<ThreadView threads={facade as never} threadId="t1" onBack={() => {}} onNewReport={() => {}} />);
+    render(
+      <ThreadView
+        threads={facade as never}
+        threadId="t1"
+        onBack={() => {}}
+        onNewReport={() => {}}
+      />,
+    );
     await waitFor(() => expect(facade.get).toHaveBeenCalledTimes(1));
 
     act(() => {
@@ -600,7 +875,12 @@ describe('ThreadView — Finding 3 (PR review round 7): notification during an i
       return () => {};
     });
     const { unmount } = render(
-      <ThreadView threads={facade as never} threadId="t1" onBack={() => {}} onNewReport={() => {}} />,
+      <ThreadView
+        threads={facade as never}
+        threadId="t1"
+        onBack={() => {}}
+        onNewReport={() => {}}
+      />,
     );
     await waitFor(() => expect(facade.get).toHaveBeenCalledTimes(1));
 
@@ -621,7 +901,14 @@ describe('ThreadView — Finding 3 (PR review round 7): notification during an i
   it('a load with no notifications during it does not trigger an extra call', async () => {
     const facade = fakeFacade();
     (facade.get as ReturnType<typeof vi.fn>).mockResolvedValue(confirmedDetail);
-    render(<ThreadView threads={facade as never} threadId="t1" onBack={() => {}} onNewReport={() => {}} />);
+    render(
+      <ThreadView
+        threads={facade as never}
+        threadId="t1"
+        onBack={() => {}}
+        onNewReport={() => {}}
+      />,
+    );
     await waitFor(() => expect(facade.get).toHaveBeenCalledTimes(1));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(facade.get).toHaveBeenCalledTimes(1);

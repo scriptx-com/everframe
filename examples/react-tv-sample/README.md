@@ -58,9 +58,9 @@ they prefer; the SDK only exposes `companion.pairUrl: string | null`.
 
 ## File listing
 
-| File                | Role                                                  |
-| ------------------- | ----------------------------------------------------- |
-| `index.html`        | 1280×720 viewport hint for smart-TV targets           |
-| `src/main.tsx`      | React 19 entry point                                  |
-| `src/App.tsx`       | Subscribes to `companion.state` + `companion.pairUrl` |
-| `vite.config.ts`    | `base: '/'` for Tizen/WebOS packaged-app deployment   |
+| File             | Role                                                  |
+| ---------------- | ----------------------------------------------------- |
+| `index.html`     | 1280×720 viewport hint for smart-TV targets           |
+| `src/main.tsx`   | React 19 entry point                                  |
+| `src/App.tsx`    | Subscribes to `companion.state` + `companion.pairUrl` |
+| `vite.config.ts` | `base: '/'` for Tizen/WebOS packaged-app deployment   |

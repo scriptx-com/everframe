@@ -27,7 +27,11 @@ export const CONSOLE_ENTRY_CAP = 1024;
 export const ENTRY_OVERHEAD = 64;
 
 const STRUCTURAL_KINDS: ReadonlySet<Breadcrumb['kind']> = new Set([
-  'navigation', 'tap', 'lifecycle', 'error', 'custom',
+  'navigation',
+  'tap',
+  'lifecycle',
+  'error',
+  'custom',
 ]);
 
 /** Structural kinds are cheap and always-keep-first; console/network are trimmable. */
@@ -49,7 +53,7 @@ export function isStructural(kind: Breadcrumb['kind']): boolean {
  */
 export function truncateMiddle(
   message: string,
-  cap: number
+  cap: number,
 ): { message: string; truncated: boolean } {
   if (message.length <= cap) return { message, truncated: false };
   const half = Math.floor(cap / 2);
@@ -124,7 +128,7 @@ export const MAX_TRIMMED_ENTRIES = 121;
  */
 export function trimBreadcrumbs(
   crumbs: readonly Breadcrumb[],
-  opts: TrimOptions = {}
+  opts: TrimOptions = {},
 ): Breadcrumb[] {
   const budget = opts.byteBudget ?? BREADCRUMB_BYTE_BUDGET;
   const consoleCap = opts.consoleEntryCap ?? CONSOLE_ENTRY_CAP;
@@ -211,6 +215,6 @@ export function trimBreadcrumbs(
   }
 
   return [...entries.filter((e) => kept.has(e)), ...markers].sort(
-    (a, b) => a.t - b.t || a.seq - b.seq
+    (a, b) => a.t - b.t || a.seq - b.seq,
   );
 }

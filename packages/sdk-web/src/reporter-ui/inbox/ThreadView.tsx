@@ -36,7 +36,12 @@ export interface ThreadViewProps {
  * The Modal primitive has no header slot, so the "back to list" affordance
  * lives at the top of this view's own body instead.
  */
-export function ThreadView({ threads, threadId, onBack, onNewReport }: ThreadViewProps): JSX.Element {
+export function ThreadView({
+  threads,
+  threadId,
+  onBack,
+  onNewReport,
+}: ThreadViewProps): JSX.Element {
   const [detail, setDetail] = useState<ThreadDetail | null>(null);
   const [clientState, setClientState] = useState<ThreadClientState>(() => threads.getState());
   const [body, setBody] = useState('');
@@ -222,11 +227,16 @@ export function ThreadView({ threads, threadId, onBack, onNewReport }: ThreadVie
                   <span className="everframe-inbox-msg-author">{m.authorName ?? 'Support'}</span>
                 ) : null}
                 <p className="everframe-inbox-msg-body">{m.body}</p>
-                <span className="everframe-inbox-msg-time">{new Date(m.createdAt).toLocaleString()}</span>
+                <span className="everframe-inbox-msg-time">
+                  {new Date(m.createdAt).toLocaleString()}
+                </span>
               </div>
             ))}
             {detail.pending.map((p) => (
-              <div key={p.localId} className="everframe-inbox-msg everframe-inbox-msg-mine everframe-inbox-pending">
+              <div
+                key={p.localId}
+                className="everframe-inbox-msg everframe-inbox-msg-mine everframe-inbox-pending"
+              >
                 <p className="everframe-inbox-msg-body">{p.body}</p>
                 {p.state === 'sending' ? (
                   <span className="everframe-inbox-msg-time">Sending…</span>
@@ -282,7 +292,11 @@ export function ThreadView({ threads, threadId, onBack, onNewReport }: ThreadVie
                   You're sending too fast — try again in a moment.
                 </p>
               ) : null}
-              <Button variant="primary" onClick={handleSend} disabled={trimmedEmpty || cooldownActive}>
+              <Button
+                variant="primary"
+                onClick={handleSend}
+                disabled={trimmedEmpty || cooldownActive}
+              >
                 Send
               </Button>
             </div>

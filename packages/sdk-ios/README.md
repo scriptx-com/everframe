@@ -497,7 +497,7 @@ auto-capture, so a mixed app reads as one coherent trail
 (`RootViewController → Checkout → ConfirmationViewController`) rather than two
 interleaved ones. The chain is global and chronological — a tab switch
 correctly reads `TabA → TabB` — the first screen emits nothing (there is
-nothing to come *from*) but still seeds the next transition, and a repeated
+nothing to come _from_) but still seeds the next transition, and a repeated
 screen is suppressed rather than logged. Blank names are dropped, and the call
 is a no-op before `start()` or while the `navigation` kind is disabled, so it
 is safe to call unconditionally.

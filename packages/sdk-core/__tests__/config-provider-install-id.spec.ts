@@ -72,8 +72,12 @@ describe('config provider: install identifier', () => {
     await provider.refresh();
     await provider.refresh();
     expect(fetchImpl).toHaveBeenCalledTimes(2);
-    expect(String((fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[0])).toContain('installId=id1');
-    expect(String((fetchImpl.mock.calls[1] as unknown as [string, RequestInit])[0])).toContain('installId=id2');
+    expect(String((fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[0])).toContain(
+      'installId=id1',
+    );
+    expect(String((fetchImpl.mock.calls[1] as unknown as [string, RequestInit])[0])).toContain(
+      'installId=id2',
+    );
   });
 
   it('still fetches when the supplier throws — this read is the kill switch', async () => {

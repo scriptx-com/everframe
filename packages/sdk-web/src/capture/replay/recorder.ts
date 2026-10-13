@@ -223,7 +223,8 @@ export function windowFromAnchor(frames: readonly BufferEvent[], cutoffTs: numbe
 }
 
 function documentVisibility(): PageVisibility | undefined {
-  if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return undefined;
+  if (typeof document === 'undefined' || typeof document.addEventListener !== 'function')
+    return undefined;
   return {
     hidden: () => document.visibilityState === 'hidden',
     subscribe(onChange) {
@@ -469,7 +470,9 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
       // dynamically. Leaving their classes alone lets removeRef release the
       // entire subtree, including expanded display:contents children.
       // For other refs, restore only classes this recorder actually added.
-      restoreMasks = applyReplayMaskClasses(els.filter((el) => el.closest(`[${SENSITIVE_ATTR}]`) === null));
+      restoreMasks = applyReplayMaskClasses(
+        els.filter((el) => el.closest(`[${SENSITIVE_ATTR}]`) === null),
+      );
     }
     const myGeneration = ++startGeneration;
     let mirror: ReplayNodeMirror | undefined;
@@ -479,7 +482,8 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
         // A stopped rrweb instance may emit late, after a new visible window
         // has opened. Those events must never anchor or enter its fresh history.
         if (myGeneration !== startGeneration) return;
-        const safe = !REDACTION_DISABLED && mirror ? filterReplayEvent(event as BufferEvent, mirror) : event;
+        const safe =
+          !REDACTION_DISABLED && mirror ? filterReplayEvent(event as BufferEvent, mirror) : event;
         if (safe) handleEmit(safe, isCheckout);
       },
       // rrweb evaluates this per node on every snapshot and mutation, so an
@@ -501,11 +505,7 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
         if (inert() || frozen || myGeneration !== startGeneration) {
           __traceReplay('recorder.rrwebSkipped', {
             reason:
-              myGeneration !== startGeneration
-                ? 'superseded'
-                : inert()
-                  ? 'disabled'
-                  : 'frozen',
+              myGeneration !== startGeneration ? 'superseded' : inert() ? 'disabled' : 'frozen',
           });
           return;
         }
@@ -648,15 +648,24 @@ export function createReplayRecorder(deps: ReplayRecorderDeps = {}): ReplayRecor
       // Replay the anchor and pre-window mutations in their original order at
       // offset zero. They reconstruct the held DOM, without exporting idle time
       // before the configured window or backdating any later event.
-      const events = windowFromAnchor(all.filter((event) => event.timestamp <= capturedEnd), windowStart);
+      const events = windowFromAnchor(
+        all.filter((event) => event.timestamp <= capturedEnd),
+        windowStart,
+      );
       if (events.length === 0) {
         __traceReplay('recorder.snapshot', { result: 'no_anchor', frames: all.length });
         return Promise.resolve(null);
       }
       // rrweb Custom events are non-mutating but extend the real Replayer timeline.
       // Append only to this independent window; later reports keep the original events.
-      events.push({ type: 5, timestamp: capturedEnd, data: { tag: 'everframe-error-end', payload: {} } });
-      return yieldToHost().then(() => encodeWindow(checkpointWindow(events, windowStart), { op: 'snapshot', frames: all.length }));
+      events.push({
+        type: 5,
+        timestamp: capturedEnd,
+        data: { tag: 'everframe-error-end', payload: {} },
+      });
+      return yieldToHost().then(() =>
+        encodeWindow(checkpointWindow(events, windowStart), { op: 'snapshot', frames: all.length }),
+      );
     },
 
     stop(): void {

@@ -194,9 +194,7 @@ describe('F18: periodic config re-read (web kill-switch parity)', () => {
 
     await fetch('https://api.test/c');
     await flushMicrotasks();
-    expect(
-      buf().size,
-    ).toBe(2); // recovered immediately via the successful wake refresh, not the next periodic tick
+    expect(buf().size).toBe(2); // recovered immediately via the successful wake refresh, not the next periodic tick
   });
 
   it('the periodic interval is cancelled by kill() — no further config fetches after kill', async () => {
@@ -213,7 +211,9 @@ describe('F18: periodic config re-read (web kill-switch parity)', () => {
     client.init({ sdkKey: 'k' });
 
     await adapter.__initReplay();
-    const configCallsAfterInit = fetchMock.mock.calls.filter((c) => urlOf(c[0]).includes('/api/config')).length;
+    const configCallsAfterInit = fetchMock.mock.calls.filter((c) =>
+      urlOf(c[0]).includes('/api/config'),
+    ).length;
     expect(configCallsAfterInit).toBe(1);
 
     client.kill();
@@ -223,7 +223,9 @@ describe('F18: periodic config re-read (web kill-switch parity)', () => {
     await vi.advanceTimersByTimeAsync(DEFAULT_CONFIG_TTL_MS * 5);
     await flushMicrotasks();
 
-    const configCallsAfterKill = fetchMock.mock.calls.filter((c) => urlOf(c[0]).includes('/api/config')).length;
+    const configCallsAfterKill = fetchMock.mock.calls.filter((c) =>
+      urlOf(c[0]).includes('/api/config'),
+    ).length;
     expect(configCallsAfterKill).toBe(configCallsAfterInit); // no additional ticks fired
   });
 

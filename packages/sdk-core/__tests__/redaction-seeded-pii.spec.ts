@@ -37,28 +37,31 @@ describe('PRIV-03: zero leakage on seeded-PII fixture', () => {
   it.each([
     ['everframe', 'evr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
     ['everframe', 'txr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
-  ] as const)('masks %s reporter bearer credentials captured in network headers', (family, deviceToken) => {
-    const seeded = buildSeededPIIEnvelope();
-    (seeded.payload as { network: unknown }).network = [
-      {
-        method: 'GET',
-        url: 'https://everframe.dev/api/reporter/threads',
-        status: 200,
-        startedAt: 1500,
-        headers: {
-          [`x-${family}-device-token`]: deviceToken,
-          [`x-${family}-identity-token`]: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig',
-          'content-type': 'application/json',
+  ] as const)(
+    'masks %s reporter bearer credentials captured in network headers',
+    (family, deviceToken) => {
+      const seeded = buildSeededPIIEnvelope();
+      (seeded.payload as { network: unknown }).network = [
+        {
+          method: 'GET',
+          url: 'https://everframe.dev/api/reporter/threads',
+          status: 200,
+          startedAt: 1500,
+          headers: {
+            [`x-${family}-device-token`]: deviceToken,
+            [`x-${family}-identity-token`]: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig',
+            'content-type': 'application/json',
+          },
         },
-      },
-    ];
-    const { envelope } = applyRedaction(seeded, {});
-    const headers = (envelope.payload.network as Array<{ headers: Record<string, string> }>)[0]!
-      .headers;
-    expect(headers[`x-${family}-device-token`]).toBe('[REDACTED]');
-    expect(headers[`x-${family}-identity-token`]).toBe('[REDACTED]');
-    expect(headers['content-type']).toBe('application/json');
-  });
+      ];
+      const { envelope } = applyRedaction(seeded, {});
+      const headers = (envelope.payload.network as Array<{ headers: Record<string, string> }>)[0]!
+        .headers;
+      expect(headers[`x-${family}-device-token`]).toBe('[REDACTED]');
+      expect(headers[`x-${family}-identity-token`]).toBe('[REDACTED]');
+      expect(headers['content-type']).toBe('application/json');
+    },
+  );
 
   it('JWT shape inline match in log message → [REDACTED:JWT]', () => {
     const seeded = buildSeededPIIEnvelope();
@@ -90,9 +93,7 @@ describe('PRIV-03: zero leakage on seeded-PII fixture', () => {
   it('customer customRule replaces query-string token via urlParam pattern', () => {
     const seeded = buildSeededPIIEnvelope();
     const { envelope } = applyRedaction(seeded, {
-      customRules: [
-        { type: 'urlParam', match: /(api_key=)[^&]+/g, replacement: '$1[REDACTED]' },
-      ],
+      customRules: [{ type: 'urlParam', match: /(api_key=)[^&]+/g, replacement: '$1[REDACTED]' }],
     });
     const url = (envelope.payload.network as Array<{ url: string }>)[0]!.url;
     expect(url).not.toContain(TEST_PII.queryToken);

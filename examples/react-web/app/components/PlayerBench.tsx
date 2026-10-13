@@ -49,9 +49,20 @@ const RATES = [0.5, 1, 1.5, 2] as const;
 
 /** Events that can change anything the readout or scrub bar shows. */
 const SYNC_EVENTS = [
-  'loadedmetadata', 'durationchange', 'timeupdate', 'progress', 'play', 'pause',
-  'playing', 'waiting', 'seeking', 'seeked', 'ratechange', 'volumechange',
-  'emptied', 'ended',
+  'loadedmetadata',
+  'durationchange',
+  'timeupdate',
+  'progress',
+  'play',
+  'pause',
+  'playing',
+  'waiting',
+  'seeking',
+  'seeked',
+  'ratechange',
+  'volumechange',
+  'emptied',
+  'ended',
 ] as const;
 
 function bufferedAhead(el: HTMLMediaElement): number {
@@ -101,7 +112,13 @@ function fmtTime(s: number): string {
 }
 
 export function PlayerBench({
-  title, state, note, testid, videoRef, extraControls, children,
+  title,
+  state,
+  note,
+  testid,
+  videoRef,
+  extraControls,
+  children,
 }: PlayerBenchProps) {
   const [st, setSt] = useState<ElementState | null>(null);
 
@@ -114,7 +131,8 @@ export function PlayerBench({
     let buffering = false;
     const sync = (ev?: Event) => {
       if (ev?.type === 'waiting') buffering = true;
-      else if (ev?.type === 'playing' || ev?.type === 'pause' || ev?.type === 'emptied') buffering = false;
+      else if (ev?.type === 'playing' || ev?.type === 'pause' || ev?.type === 'emptied')
+        buffering = false;
       setSt(readState(el, buffering));
     };
     for (const name of SYNC_EVENTS) el.addEventListener(name, sync);
@@ -147,25 +165,60 @@ export function PlayerBench({
 
       <div className="player-bench-controls">
         <div className="btn-row">
-          <button type="button" className="btn btn-primary btn-small" data-testid={`${testid}-play`}
-            onClick={() => { el()?.play().catch(() => undefined); }}>
+          <button
+            type="button"
+            className="btn btn-primary btn-small"
+            data-testid={`${testid}-play`}
+            onClick={() => {
+              el()
+                ?.play()
+                .catch(() => undefined);
+            }}
+          >
             Play
           </button>
-          <button type="button" className="btn btn-small" data-testid={`${testid}-pause`}
-            onClick={() => el()?.pause()}>
+          <button
+            type="button"
+            className="btn btn-small"
+            data-testid={`${testid}-pause`}
+            onClick={() => el()?.pause()}
+          >
             Pause
           </button>
-          <button type="button" className="btn btn-small" data-testid={`${testid}-stop`}
-            onClick={() => { const v = el(); if (!v) return; v.pause(); seekTo(seekableRange(v)[0]); }}>
+          <button
+            type="button"
+            className="btn btn-small"
+            data-testid={`${testid}-stop`}
+            onClick={() => {
+              const v = el();
+              if (!v) return;
+              v.pause();
+              seekTo(seekableRange(v)[0]);
+            }}
+          >
             Stop
           </button>
           <span className="player-bench-sep" aria-hidden="true" />
-          <button type="button" className="btn btn-small" data-testid={`${testid}-back`}
-            onClick={() => { const v = el(); if (v) seekTo(v.currentTime - 10); }}>
+          <button
+            type="button"
+            className="btn btn-small"
+            data-testid={`${testid}-back`}
+            onClick={() => {
+              const v = el();
+              if (v) seekTo(v.currentTime - 10);
+            }}
+          >
             −10s
           </button>
-          <button type="button" className="btn btn-small" data-testid={`${testid}-fwd`}
-            onClick={() => { const v = el(); if (v) seekTo(v.currentTime + 10); }}>
+          <button
+            type="button"
+            className="btn btn-small"
+            data-testid={`${testid}-fwd`}
+            onClick={() => {
+              const v = el();
+              if (v) seekTo(v.currentTime + 10);
+            }}
+          >
             +10s
           </button>
           <span className="player-bench-sep" aria-hidden="true" />
@@ -174,13 +227,28 @@ export function PlayerBench({
             <select
               data-testid={`${testid}-rate`}
               value={st?.rate ?? 1}
-              onChange={(e) => { const v = el(); if (v) v.playbackRate = Number(e.target.value); }}
+              onChange={(e) => {
+                const v = el();
+                if (v) v.playbackRate = Number(e.target.value);
+              }}
             >
-              {RATES.map((r) => <option key={r} value={r}>{r}×</option>)}
+              {RATES.map((r) => (
+                <option key={r} value={r}>
+                  {r}×
+                </option>
+              ))}
             </select>
           </label>
-          <button type="button" className="chip" aria-pressed={st?.muted ?? true} data-testid={`${testid}-mute`}
-            onClick={() => { const v = el(); if (v) v.muted = !v.muted; }}>
+          <button
+            type="button"
+            className="chip"
+            aria-pressed={st?.muted ?? true}
+            data-testid={`${testid}-mute`}
+            onClick={() => {
+              const v = el();
+              if (v) v.muted = !v.muted;
+            }}
+          >
             {st?.muted === false ? 'Sound on' : 'Muted'}
           </button>
         </div>
@@ -203,10 +271,13 @@ export function PlayerBench({
             <>
               {fmtTime(st.currentTime)} / {fmtTime(st.duration)}
               {' · '}readyState {st.readyState}
-              {' · '}{st.buffering ? 'buffering' : st.paused ? 'paused' : 'playing'}
+              {' · '}
+              {st.buffering ? 'buffering' : st.paused ? 'paused' : 'playing'}
               {' · '}buffered +{st.bufferedAheadS.toFixed(1)}s
             </>
-          ) : 'no element'}
+          ) : (
+            'no element'
+          )}
         </p>
 
         {extraControls ? <div className="player-bench-extra">{extraControls}</div> : null}

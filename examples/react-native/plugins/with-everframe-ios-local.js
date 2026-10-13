@@ -103,9 +103,7 @@ function readCanonicalSdkVersion(sdkRoot) {
   const contents = fs.readFileSync(podspecPath, 'utf8');
   const match = contents.match(/spec\.version\s*=\s*"([^"]+)"/);
   if (!match) {
-    throw new Error(
-      `[with-everframe-ios-local] could not parse spec.version from ${podspecPath}`,
-    );
+    throw new Error(`[with-everframe-ios-local] could not parse spec.version from ${podspecPath}`);
   }
   return match[1];
 }
@@ -181,13 +179,10 @@ function ensureXcframeworks(sdkRoot) {
   const flagFramework = path.join(sdkRoot, 'dist', 'EverframeKit.xcframework');
   const buildScript = path.join(sdkRoot, 'scripts', 'build-xcframework.sh');
   const configFile = path.join(sdkRoot, 'dist', '.xcframework-config');
-  const wantConfig =
-    process.env.EVERFRAME_XCFRAMEWORK_CONFIGURATION || 'Debug';
+  const wantConfig = process.env.EVERFRAME_XCFRAMEWORK_CONFIGURATION || 'Debug';
 
   if (!fs.existsSync(buildScript)) {
-    throw new Error(
-      `[with-everframe-ios-local] expected build script at ${buildScript}`,
-    );
+    throw new Error(`[with-everframe-ios-local] expected build script at ${buildScript}`);
   }
 
   const buildReason = (() => {
@@ -292,9 +287,7 @@ function injectOverride(contents, nativeVersion) {
   const re = /(target\s+['"][^'"]+['"]\s+do\s*\n)/;
   const match = cleaned.match(re);
   if (!match) {
-    throw new Error(
-      `[with-everframe-ios-local] could not locate target block in Podfile`,
-    );
+    throw new Error(`[with-everframe-ios-local] could not locate target block in Podfile`);
   }
 
   const overrideBlock =
@@ -430,9 +423,7 @@ function withDevIngestInfoPlist(config) {
     const url = process.env.EVERFRAME_DEV_INGEST_URL || 'http://localhost:8787';
     cfg.modResults.EverframeDevIngestURL = url;
     // eslint-disable-next-line no-console
-    console.log(
-      `[with-everframe-ios-local] Info.plist EverframeDevIngestURL=${url}`,
-    );
+    console.log(`[with-everframe-ios-local] Info.plist EverframeDevIngestURL=${url}`);
     return cfg;
   });
 }
@@ -443,10 +434,7 @@ function withEverframeIosLocal(config) {
     'ios',
     async (cfg) => {
       const exampleRoot = cfg.modRequest.projectRoot;
-      const podfilePath = path.join(
-        cfg.modRequest.platformProjectRoot,
-        'Podfile',
-      );
+      const podfilePath = path.join(cfg.modRequest.platformProjectRoot, 'Podfile');
 
       // Opt-out for release / smoke-test runs against the *published*
       // Everframe pod on CocoaPods Trunk. Set `EVERFRAME_LOCAL_IOS=0` in
@@ -457,9 +445,7 @@ function withEverframeIosLocal(config) {
       const usePublished = process.env.EVERFRAME_LOCAL_IOS === '0';
 
       if (!fs.existsSync(podfilePath)) {
-        throw new Error(
-          `[with-everframe-ios-local] expected Podfile at ${podfilePath}`,
-        );
+        throw new Error(`[with-everframe-ios-local] expected Podfile at ${podfilePath}`);
       }
       const original = fs.readFileSync(podfilePath, 'utf8');
 

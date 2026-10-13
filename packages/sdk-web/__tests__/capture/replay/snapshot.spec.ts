@@ -20,22 +20,30 @@ const INCR = 3;
 const testGzip = async (input: Uint8Array): Promise<Uint8Array> =>
   new Uint8Array(gzipSync(Buffer.from(input)));
 const decode = (bytes: Uint8Array) =>
-  JSON.parse(gunzipSync(Buffer.from(bytes)).toString('utf8')) as Array<{ type: number; timestamp: number }>;
+  JSON.parse(gunzipSync(Buffer.from(bytes)).toString('utf8')) as Array<{
+    type: number;
+    timestamp: number;
+  }>;
 
-function harness(opts: {
-  now?: number;
-  gzip?: (input: Uint8Array) => Promise<Uint8Array>;
-  yieldToHost?: () => Promise<void>;
-  mirror?: { getNode(id: number): Node | null };
-} = {}) {
+function harness(
+  opts: {
+    now?: number;
+    gzip?: (input: Uint8Array) => Promise<Uint8Array>;
+    yieldToHost?: () => Promise<void>;
+    mirror?: { getNode(id: number): Node | null };
+  } = {},
+) {
   let emit: ((e: unknown, isCheckout?: boolean) => void) | undefined;
   let clock = opts.now ?? 100_000;
   const rec = createReplayRecorder({
     importRrweb: async () => ({
-      record: Object.assign((o: Record<string, unknown>) => {
-        emit = o['emit'] as typeof emit;
-        return () => undefined;
-      }, opts.mirror ? { mirror: opts.mirror } : {}),
+      record: Object.assign(
+        (o: Record<string, unknown>) => {
+          emit = o['emit'] as typeof emit;
+          return () => undefined;
+        },
+        opts.mirror ? { mirror: opts.mirror } : {},
+      ),
     }),
     now: () => 0,
     freezeNow: () => clock,
@@ -44,7 +52,8 @@ function harness(opts: {
   });
   return {
     rec,
-    emit: (type: number, timestamp: number, data: unknown = {}) => emit!({ type, timestamp, data }, type === FULL),
+    emit: (type: number, timestamp: number, data: unknown = {}) =>
+      emit!({ type, timestamp, data }, type === FULL),
     setNow: (t: number) => {
       clock = t;
     },
@@ -65,21 +74,47 @@ describe('replay snapshot (non-destructive)', () => {
     h.emit(FULL, 80_000);
     h.emit(INCR, 90_000);
     const capture = await h.rec.snapshot();
-    expect(capture).toMatchObject({ format: 'rrweb', durationMs: 20_000, contentType: 'application/octet-stream' });
-    expect(decode(capture!.bytes).map((e) => e.timestamp)).toEqual([80_000, 80_000, 90_000, 100_000]);
+    expect(capture).toMatchObject({
+      format: 'rrweb',
+      durationMs: 20_000,
+      contentType: 'application/octet-stream',
+    });
+    expect(decode(capture!.bytes).map((e) => e.timestamp)).toEqual([
+      80_000, 80_000, 90_000, 100_000,
+    ]);
     expect(h.rec.__diagnostics()).toMatchObject({ recording: true, frozen: false, frames: 3 });
     h.emit(INCR, 95_000);
     expect(h.rec.__size).toBe(4);
     // A later bug report still gets everything, the snapshot's frames included.
     h.rec.freeze();
-    expect(decode((await h.rec.takeFrozen())!.bytes).map((e) => e.timestamp)).toEqual([80_000, 80_000, 90_000, 95_000]);
+    expect(decode((await h.rec.takeFrozen())!.bytes).map((e) => e.timestamp)).toEqual([
+      80_000, 80_000, 90_000, 95_000,
+    ]);
   });
 
   it('real Replayer retains a full-snapshot-only idle tail and isolates a later report', async () => {
     const h = harness();
     await started(h);
     h.emit(META, 80_000, { href: 'https://example.test', width: 800, height: 600 });
-    h.emit(FULL, 80_000, { node: { type: 0, id: 1, childNodes: [{ type: 2, id: 2, tagName: 'html', attributes: {}, childNodes: [{ type: 2, id: 3, tagName: 'head', attributes: {}, childNodes: [] }, { type: 2, id: 4, tagName: 'body', attributes: {}, childNodes: [] }] }] }, initialOffset: { top: 0, left: 0 } });
+    h.emit(FULL, 80_000, {
+      node: {
+        type: 0,
+        id: 1,
+        childNodes: [
+          {
+            type: 2,
+            id: 2,
+            tagName: 'html',
+            attributes: {},
+            childNodes: [
+              { type: 2, id: 3, tagName: 'head', attributes: {}, childNodes: [] },
+              { type: 2, id: 4, tagName: 'body', attributes: {}, childNodes: [] },
+            ],
+          },
+        ],
+      },
+      initialOffset: { top: 0, left: 0 },
+    });
     const pending = h.rec.snapshot();
     h.setNow(110_000);
     h.emit(5, 110_000, { tag: 'later-report', payload: {} });
@@ -91,48 +126,111 @@ describe('replay snapshot (non-destructive)', () => {
     // jsdom omits iframe.sandbox; model its reflected token list without
     // bypassing rrweb's protected-document checks.
     const sandbox = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'sandbox');
-    Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', { configurable: true,
-      get() { return (this.getAttribute('sandbox') ?? '').split(/\s+/).filter(Boolean); } });
-    const player = new Replayer(events as ConstructorParameters<typeof Replayer>[0], { root: document.body });
-    const later = new Replayer(decode(report!.bytes) as ConstructorParameters<typeof Replayer>[0], { root: document.body });
+    Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', {
+      configurable: true,
+      get() {
+        return (this.getAttribute('sandbox') ?? '').split(/\s+/).filter(Boolean);
+      },
+    });
+    const player = new Replayer(events as ConstructorParameters<typeof Replayer>[0], {
+      root: document.body,
+    });
+    const later = new Replayer(decode(report!.bytes) as ConstructorParameters<typeof Replayer>[0], {
+      root: document.body,
+    });
     try {
-      await new Promise(resolve => setTimeout(resolve, 10));
-      expect(player.getMetaData()).toMatchObject({ startTime: 80_000, endTime: 100_000, totalTime: 20_000 });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(player.getMetaData()).toMatchObject({
+        startTime: 80_000,
+        endTime: 100_000,
+        totalTime: 20_000,
+      });
       player.pause(20_000);
       expect(player.getCurrentTime()).toBe(20_000);
       expect(later.getMetaData()).toMatchObject({ endTime: 110_000, totalTime: 30_000 });
-      expect(decode(report!.bytes).filter(e => e.timestamp === 100_000)).toEqual([]);
-    } finally { player.destroy(); later.destroy(); h.rec.kill();
+      expect(decode(report!.bytes).filter((e) => e.timestamp === 100_000)).toEqual([]);
+    } finally {
+      player.destroy();
+      later.destroy();
+      h.rec.kill();
       if (sandbox) Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', sandbox);
-      else Reflect.deleteProperty(HTMLIFrameElement.prototype, 'sandbox'); }
+      else Reflect.deleteProperty(HTMLIFrameElement.prototype, 'sandbox');
+    }
   });
 
   it('exports seekable movement after removing sensitive-only batches and preserving mixed timing', async () => {
-    document.body.innerHTML = '<p id="safe">Public</p><div data-everframe-sensitive><span id="private">Private</span></div>';
-    const h = harness({ mirror: { getNode: id => id === 5 ? document.querySelector('#safe') : id === 6 ? document.querySelector('#private') : null } });
+    document.body.innerHTML =
+      '<p id="safe">Public</p><div data-everframe-sensitive><span id="private">Private</span></div>';
+    const h = harness({
+      mirror: {
+        getNode: (id) =>
+          id === 5
+            ? document.querySelector('#safe')
+            : id === 6
+              ? document.querySelector('#private')
+              : null,
+      },
+    });
     await started(h);
     h.emit(META, 80_000, { href: 'https://example.test', width: 800, height: 600 });
-    h.emit(FULL, 80_000, { node: { type: 0, id: 1, childNodes: [{ type: 2, id: 2, tagName: 'html', attributes: {}, childNodes: [{ type: 2, id: 3, tagName: 'head', attributes: {}, childNodes: [] }, { type: 2, id: 4, tagName: 'body', attributes: {}, childNodes: [{ type: 2, id: 5, tagName: 'p', attributes: { id: 'safe' }, childNodes: [] }] }] }] }, initialOffset: { top: 0, left: 0 } });
+    h.emit(FULL, 80_000, {
+      node: {
+        type: 0,
+        id: 1,
+        childNodes: [
+          {
+            type: 2,
+            id: 2,
+            tagName: 'html',
+            attributes: {},
+            childNodes: [
+              { type: 2, id: 3, tagName: 'head', attributes: {}, childNodes: [] },
+              {
+                type: 2,
+                id: 4,
+                tagName: 'body',
+                attributes: {},
+                childNodes: [
+                  { type: 2, id: 5, tagName: 'p', attributes: { id: 'safe' }, childNodes: [] },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      initialOffset: { top: 0, left: 0 },
+    });
     h.emit(INCR, 90_000, { source: 1, positions: [{ id: 6, x: 12, y: 20, timeOffset: -100 }] });
     const publicPosition = { id: 5, x: 25, y: 30, timeOffset: -50 };
-    h.emit(INCR, 95_000, { source: 1, positions: [{ id: 6, x: 13, y: 20, timeOffset: -100 }, publicPosition] });
+    h.emit(INCR, 95_000, {
+      source: 1,
+      positions: [{ id: 6, x: 13, y: 20, timeOffset: -100 }, publicPosition],
+    });
     const capture = (await h.rec.snapshot())!;
     const events = decode(capture.bytes);
     const sandbox = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'sandbox');
-    Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', { configurable: true,
-      get() { return (this.getAttribute('sandbox') ?? '').split(/\s+/).filter(Boolean); } });
-    const player = new Replayer(events as ConstructorParameters<typeof Replayer>[0], { root: document.body });
+    Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', {
+      configurable: true,
+      get() {
+        return (this.getAttribute('sandbox') ?? '').split(/\s+/).filter(Boolean);
+      },
+    });
+    const player = new Replayer(events as ConstructorParameters<typeof Replayer>[0], {
+      root: document.body,
+    });
     try {
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       expect(() => player.pause(20_000)).not.toThrow();
       // Replayer mutates its input with internal delay bookkeeping; inspect
       // the original encoded bytes for the exact surviving timestamp/offset.
-      expect(decode(capture.bytes).filter(event => event.type === INCR)).toEqual([
+      expect(decode(capture.bytes).filter((event) => event.type === INCR)).toEqual([
         { type: INCR, timestamp: 95_000, data: { source: 1, positions: [publicPosition] } },
       ]);
       expect(player.getCurrentTime()).toBe(20_000);
     } finally {
-      player.destroy(); h.rec.kill(); document.body.innerHTML = '';
+      player.destroy();
+      h.rec.kill();
+      document.body.innerHTML = '';
       if (sandbox) Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', sandbox);
       else Reflect.deleteProperty(HTMLIFrameElement.prototype, 'sandbox');
     }
@@ -142,12 +240,25 @@ describe('replay snapshot (non-destructive)', () => {
     let now = 1_000_000;
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(now);
-    document.body.innerHTML = '<p id="held">Initial</p><div id="scrolled" style="overflow:scroll;height:20px"><div style="height:1000px">Visible lower content</div></div>';
-    window.eval(readFileSync(new NodeURL('../../../../../node_modules/rrweb/umd/rrweb.js', import.meta.url), 'utf8'));
-    const rec = createReplayRecorder({ importRrweb: async () => (window as any).rrweb, gzip: testGzip });
+    document.body.innerHTML =
+      '<p id="held">Initial</p><div id="scrolled" style="overflow:scroll;height:20px"><div style="height:1000px">Visible lower content</div></div>';
+    window.eval(
+      readFileSync(
+        new NodeURL('../../../../../node_modules/rrweb/umd/rrweb.js', import.meta.url),
+        'utf8',
+      ),
+    );
+    const rec = createReplayRecorder({
+      importRrweb: async () => (window as any).rrweb,
+      gzip: testGzip,
+    });
     const sandbox = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'sandbox');
-    Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', { configurable: true,
-      get() { return (this.getAttribute('sandbox') ?? '').split(/\s+/).filter(Boolean); } });
+    Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', {
+      configurable: true,
+      get() {
+        return (this.getAttribute('sandbox') ?? '').split(/\s+/).filter(Boolean);
+      },
+    });
     let player: Replayer | undefined;
     try {
       rec.start(30);
@@ -156,16 +267,17 @@ describe('replay snapshot (non-destructive)', () => {
       vi.setSystemTime(now);
       document.querySelector('#held')!.firstChild!.textContent = 'Held before cutoff';
       const scrolled = document.querySelector('#scrolled')!;
-      scrolled.scrollTop = 240; scrolled.scrollLeft = 12;
+      scrolled.scrollTop = 240;
+      scrolled.scrollLeft = 12;
       scrolled.dispatchEvent(new Event('scroll'));
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       now += 3_600_000;
       vi.setSystemTime(now);
       const pending = rec.snapshot();
       now += 1_000;
       vi.setSystemTime(now);
       document.querySelector('#held')!.firstChild!.textContent = 'Later report only';
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       rec.freeze();
       const capture = (await pending)!;
       expect(capture.durationMs).toBe(30_000);
@@ -174,18 +286,28 @@ describe('replay snapshot (non-destructive)', () => {
       expect(JSON.stringify(events)).not.toContain('Later report only');
       const report = decode((await rec.takeFrozen())!.bytes);
       expect(JSON.stringify(report)).toContain('Later report only');
-      expect(report.some(e => e.timestamp === 1_001_000)).toBe(true);
-      player = new Replayer(events as ConstructorParameters<typeof Replayer>[0], { root: document.body });
-      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(report.some((e) => e.timestamp === 1_001_000)).toBe(true);
+      player = new Replayer(events as ConstructorParameters<typeof Replayer>[0], {
+        root: document.body,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
       player.pause(0);
       expect(player.getMetaData().totalTime).toBe(30_000);
-      expect(player.iframe.contentDocument!.querySelector('#held')!.textContent).toBe('Held before cutoff');
+      expect(player.iframe.contentDocument!.querySelector('#held')!.textContent).toBe(
+        'Held before cutoff',
+      );
       expect(player.iframe.contentDocument!.querySelector('#scrolled')!.scrollTop).toBe(240);
       expect(player.iframe.contentDocument!.querySelector('#scrolled')!.scrollLeft).toBe(12);
       player.pause(30_000);
-      expect(player.iframe.contentDocument!.querySelector('#held')!.textContent).toBe('Held before cutoff');
+      expect(player.iframe.contentDocument!.querySelector('#held')!.textContent).toBe(
+        'Held before cutoff',
+      );
     } finally {
-      player?.destroy(); rec.kill(); vi.useRealTimers(); vi.restoreAllMocks(); document.body.innerHTML = '';
+      player?.destroy();
+      rec.kill();
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+      document.body.innerHTML = '';
       if (sandbox) Object.defineProperty(HTMLIFrameElement.prototype, 'sandbox', sandbox);
       else Reflect.deleteProperty(HTMLIFrameElement.prototype, 'sandbox');
     }
@@ -201,11 +323,14 @@ describe('replay snapshot (non-destructive)', () => {
     h.emit(FULL, 72_000);
     h.emit(INCR, 95_000);
     // 30 s ending at 100 000 starts at 70 000: the snapshot at 50 000 covers it.
-    expect(decode((await h.rec.snapshot())!.bytes).map((e) => e.timestamp))
-      .toEqual([70_000, 70_000, 70_000, 72_000, 72_000, 95_000, 100_000]);
+    expect(decode((await h.rec.snapshot())!.bytes).map((e) => e.timestamp)).toEqual([
+      70_000, 70_000, 70_000, 72_000, 72_000, 95_000, 100_000,
+    ]);
     // 30 s ending at 110 000 starts at 80 000: the snapshot at 72 000 covers it.
     h.setNow(110_000);
-    expect(decode((await h.rec.snapshot())!.bytes).map((e) => e.timestamp)).toEqual([80_000, 80_000, 95_000, 110_000]);
+    expect(decode((await h.rec.snapshot())!.bytes).map((e) => e.timestamp)).toEqual([
+      80_000, 80_000, 95_000, 110_000,
+    ]);
     expect(h.rec.__size).toBe(6); // the buffer itself was not pruned
   });
 
@@ -225,17 +350,23 @@ describe('replay snapshot (non-destructive)', () => {
 
   it('keeps an independent copy while a bug report freezes and exports the full history', async () => {
     let release!: () => void;
-    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     let encodingStarted!: () => void;
-    const encoding = new Promise<void>((resolve) => { encodingStarted = resolve; });
+    const encoding = new Promise<void>((resolve) => {
+      encodingStarted = resolve;
+    });
     let exports = 0;
-    const h = harness({ gzip: async (bytes) => {
-      if (++exports === 1) {
-        encodingStarted();
-        await gate;
-      }
-      return testGzip(bytes);
-    } });
+    const h = harness({
+      gzip: async (bytes) => {
+        if (++exports === 1) {
+          encodingStarted();
+          await gate;
+        }
+        return testGzip(bytes);
+      },
+    });
     await started(h);
     h.emit(META, 80_000);
     h.emit(FULL, 80_000);
@@ -248,7 +379,9 @@ describe('replay snapshot (non-destructive)', () => {
     expect(decode(report!.bytes).map((e) => e.timestamp)).toEqual([80_000, 80_000, 90_000, 95_000]);
     expect(h.rec.__diagnostics()).toMatchObject({ frozen: true, frames: 4 });
     release();
-    expect(decode((await pending)!.bytes).map((e) => e.timestamp)).toEqual([80_000, 80_000, 90_000, 100_000]);
+    expect(decode((await pending)!.bytes).map((e) => e.timestamp)).toEqual([
+      80_000, 80_000, 90_000, 100_000,
+    ]);
     expect(h.rec.__diagnostics()).toMatchObject({ frozen: true, frames: 4 });
   });
 
@@ -257,9 +390,10 @@ describe('replay snapshot (non-destructive)', () => {
     let release!: () => void;
     const h = harness({
       gzip,
-      yieldToHost: () => new Promise<void>((resolve) => {
-        release = resolve;
-      }),
+      yieldToHost: () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
     });
     await started(h);
     h.emit(FULL, 90_000);
@@ -309,7 +443,9 @@ describe('replay snapshot (non-destructive)', () => {
 
   it('windowFromAnchor keeps the Meta event that sizes the player', () => {
     const frames = [
-      { type: META, timestamp: 10 }, { type: FULL, timestamp: 10 }, { type: INCR, timestamp: 20 },
+      { type: META, timestamp: 10 },
+      { type: FULL, timestamp: 10 },
+      { type: INCR, timestamp: 20 },
     ];
     expect(windowFromAnchor(frames, 0)).toEqual(frames);
     expect(windowFromAnchor([{ type: INCR, timestamp: 1 }], 0)).toEqual([]);

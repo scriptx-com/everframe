@@ -36,8 +36,8 @@ export function Home(): React.JSX.Element {
       <Text style={[type.muted, styles.lede]}>
         Elytra is a small insect field guide that exists so the Everframe reporter has something
         real to capture: tabs to switch, lists to scroll, plates to screenshot, and seeded PII to
-        redact. Wander around, then file a bug about a bug — the report button floats in the
-        corner of every tab.
+        redact. Wander around, then file a bug about a bug — the report button floats in the corner
+        of every tab.
       </Text>
 
       <ErrorTests />
@@ -90,7 +90,8 @@ export function Home(): React.JSX.Element {
           style={({ pressed, focused }) => [
             styles.hookButton,
             (pressed || focused) && styles.hookButtonPressed,
-          ]}>
+          ]}
+        >
           <Text style={styles.hookButtonText}>Open reporter via useEverframe().open()</Text>
         </Pressable>
       </View>

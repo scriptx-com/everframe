@@ -13,7 +13,19 @@ export interface SanitizedSource {
 }
 
 const UNKNOWN: SanitizedSource = { src: 'unknown', protocol: 'unknown' };
-const PROGRESSIVE_EXT = new Set(['mp4', 'm4v', 'webm', 'ogg', 'ogv', 'mov', 'mp3', 'aac', 'm4a', 'wav', 'flac']);
+const PROGRESSIVE_EXT = new Set([
+  'mp4',
+  'm4v',
+  'webm',
+  'ogg',
+  'ogv',
+  'mov',
+  'mp3',
+  'aac',
+  'm4a',
+  'wav',
+  'flac',
+]);
 
 export function protocolForPath(pathname: string): SourceProtocol {
   const dot = pathname.lastIndexOf('.');
@@ -39,12 +51,16 @@ export function sanitizeSource(
   if (raw.startsWith('data:')) return { src: 'data:', protocol: 'unknown' };
   let url: URL;
   try {
-    url = new URL(raw, opts.baseURI ?? (typeof document !== 'undefined' ? document.baseURI : undefined));
+    url = new URL(
+      raw,
+      opts.baseURI ?? (typeof document !== 'undefined' ? document.baseURI : undefined),
+    );
   } catch {
     return UNKNOWN;
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return UNKNOWN;
-  const src = opts.keepQuery === true ? `${url.origin}${url.pathname}${url.search}` : originAndPath(url);
+  const src =
+    opts.keepQuery === true ? `${url.origin}${url.pathname}${url.search}` : originAndPath(url);
   return { src, protocol: protocolForPath(url.pathname) };
 }
 
@@ -111,14 +127,32 @@ function unicodeWordCharRe(): RegExp | null {
  */
 function isWordCharFallback(ch: string): boolean {
   const c = ch.charCodeAt(0);
-  if (c < 0x80) return (c >= 0x30 && c <= 0x39) || (c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a) || c === 0x5f;
+  if (c < 0x80)
+    return (
+      (c >= 0x30 && c <= 0x39) || (c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a) || c === 0x5f
+    );
   if (/\s/.test(ch)) return false;
-  if (c <= 0xbf) return c === 0xaa || c === 0xb2 || c === 0xb3 || c === 0xb5 || c === 0xb9 || c === 0xba || (c >= 0xbc && c <= 0xbe);
+  if (c <= 0xbf)
+    return (
+      c === 0xaa ||
+      c === 0xb2 ||
+      c === 0xb3 ||
+      c === 0xb5 ||
+      c === 0xb9 ||
+      c === 0xba ||
+      (c >= 0xbc && c <= 0xbe)
+    );
   if (c === 0xd7 || c === 0xf7) return false;
   if (c >= 0x2000 && c <= 0x206f) return false; // general punctuation
   if (c >= 0x2190 && c <= 0x2bff) return false; // arrows, math, technical, shapes
   if (c >= 0x3000 && c <= 0x303f) return c >= 0x3005 && c <= 0x3007; // CJK punctuation (々〆〇 are word)
-  if ((c >= 0xff01 && c <= 0xff0f) || (c >= 0xff1a && c <= 0xff20) || (c >= 0xff3b && c <= 0xff40) || (c >= 0xff5b && c <= 0xff65)) return false;
+  if (
+    (c >= 0xff01 && c <= 0xff0f) ||
+    (c >= 0xff1a && c <= 0xff20) ||
+    (c >= 0xff3b && c <= 0xff40) ||
+    (c >= 0xff5b && c <= 0xff65)
+  )
+    return false;
   return true;
 }
 

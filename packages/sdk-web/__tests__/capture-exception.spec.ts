@@ -23,27 +23,31 @@ beforeEach(() => {
   attemptBytes = [];
   ingestStatuses = [];
   completedIngestStatuses = [];
-  vi.stubGlobal('fetch', vi.fn(async (url: unknown, options?: RequestInit) => {
-    let status = 200;
-    if (String(url).endsWith('/api/ingest')) {
-      const body = options?.body as FormData;
-      const rawEnvelope = await (body.get('envelope') as Blob).text();
-      attemptBytes.push(new TextEncoder().encode(rawEnvelope));
-      const envelope = ReportEnvelope.parse(JSON.parse(rawEnvelope));
-      attempts.push(envelope);
-      // Ingest is idempotent by reportId. Startup and immediate drains can overlap.
-      if (!sent.some(event => event.reportId === envelope.reportId)) sent.push(envelope);
-      if (attempts.length === 1 && firstIngestResponseGate) {
-        firstIngestReached?.();
-        await firstIngestResponseGate;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: unknown, options?: RequestInit) => {
+      let status = 200;
+      if (String(url).endsWith('/api/ingest')) {
+        const body = options?.body as FormData;
+        const rawEnvelope = await (body.get('envelope') as Blob).text();
+        attemptBytes.push(new TextEncoder().encode(rawEnvelope));
+        const envelope = ReportEnvelope.parse(JSON.parse(rawEnvelope));
+        attempts.push(envelope);
+        // Ingest is idempotent by reportId. Startup and immediate drains can overlap.
+        if (!sent.some((event) => event.reportId === envelope.reportId)) sent.push(envelope);
+        if (attempts.length === 1 && firstIngestResponseGate) {
+          firstIngestReached?.();
+          await firstIngestResponseGate;
+        }
+        status = ingestStatuses.shift() ?? 200;
+        completedIngestStatuses.push(status);
       }
-      status = ingestStatuses.shift() ?? 200;
-      completedIngestStatuses.push(status);
-    }
-    return new Response(JSON.stringify({ status: 'received' }), {
-      status, headers: { 'Content-Type': 'application/json' },
-    });
-  }));
+      return new Response(JSON.stringify({ status: 'received' }), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }),
+  );
 });
 
 afterEach(() => {
@@ -52,7 +56,9 @@ afterEach(() => {
   firstIngestResponseGate = undefined;
   releaseFirstIngestResponse = undefined;
   for (const attempt of attempts) {
-    expect(attempt.payload.crash).toEqual(sent.find(event => event.reportId === attempt.reportId)!.payload.crash);
+    expect(attempt.payload.crash).toEqual(
+      sent.find((event) => event.reportId === attempt.reportId)!.payload.crash,
+    );
   }
   handle?.destroy();
   handle = undefined;
@@ -77,9 +83,18 @@ describe('captureException', () => {
   it('sends an immutable redacted details snapshot and reuses it for retries', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     ingestStatuses.push(503, 200);
-    const reachedFirstIngest = new Promise<void>((resolve) => { firstIngestReached = resolve; });
-    firstIngestResponseGate = new Promise<void>((resolve) => { releaseFirstIngestResponse = resolve; });
-    handle = init({ sdkKey: 'pk_test', appName: 'shop', appVersion: '2.1', appBuild: 'web-abc123' });
+    const reachedFirstIngest = new Promise<void>((resolve) => {
+      firstIngestReached = resolve;
+    });
+    firstIngestResponseGate = new Promise<void>((resolve) => {
+      releaseFirstIngestResponse = resolve;
+    });
+    handle = init({
+      sdkKey: 'pk_test',
+      appName: 'shop',
+      appVersion: '2.1',
+      appBuild: 'web-abc123',
+    });
     handle.setUser({ id: 'user-1' });
     handle.addBreadcrumb({ message: 'Opened checkout' });
     const metadata = { retry: 2, accessToken: 'synthetic' };
@@ -133,26 +148,32 @@ describe('captureException', () => {
     });
     expect(sent[0]!.payload.crash!.message).toBe('Card [REDACTED:CC] failed');
     expect(sent[0]!.payload.crash!.causeChain).toEqual({
-      causes: [{
-        exceptionType: 'TypeError',
-        message: 'inner [REDACTED:CC]',
-        frames: [{ raw: 'at charge (payments.js:2:8)' }],
-        framesTruncated: false,
-      }],
+      causes: [
+        {
+          exceptionType: 'TypeError',
+          message: 'inner [REDACTED:CC]',
+          frames: [{ raw: 'at charge (payments.js:2:8)' }],
+          framesTruncated: false,
+        },
+      ],
       truncated: false,
     });
-    expect(sent[0]!.payload.breadcrumbs?.some(b => b.message === 'Opened checkout')).toBe(true);
+    expect(sent[0]!.payload.breadcrumbs?.some((b) => b.message === 'Opened checkout')).toBe(true);
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
-      console.log(`TASK3_RETRY_RECEIPT ${JSON.stringify({
-        acceptedEnvelopeBytes: acceptedBytes!.byteLength,
-        acceptedEnvelopeSha256: createHash('sha256').update(acceptedBytes!).digest('hex'),
-        attemptEnvelopeSha256: attemptBytes.map(bytes => createHash('sha256').update(bytes).digest('hex')),
-        reportId: attempts[0]!.reportId,
-        idempotencyIdentity: attempts.map(attempt => attempt.reportId),
-        completedStatuses: completedIngestStatuses,
-        retainedCauseMessage: attempts[1]!.payload.crash!.causeChain!.causes[0]!.message,
-      })}`);
+      console.log(
+        `TASK3_RETRY_RECEIPT ${JSON.stringify({
+          acceptedEnvelopeBytes: acceptedBytes!.byteLength,
+          acceptedEnvelopeSha256: createHash('sha256').update(acceptedBytes!).digest('hex'),
+          attemptEnvelopeSha256: attemptBytes.map((bytes) =>
+            createHash('sha256').update(bytes).digest('hex'),
+          ),
+          reportId: attempts[0]!.reportId,
+          idempotencyIdentity: attempts.map((attempt) => attempt.reportId),
+          completedStatuses: completedIngestStatuses,
+          retainedCauseMessage: attempts[1]!.payload.crash!.causeChain!.causes[0]!.message,
+        })}`,
+      );
     }
   });
 
@@ -208,7 +229,9 @@ describe('captureException', () => {
   it('drops a cause email address cut by the redaction scan limit', async () => {
     handle = init({ sdkKey: 'pk_test', redaction: { maskInputs: ['email'] } });
     // Redacted tokens shrink the text, so the cut address would fit the message cap.
-    const before = `eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(250)}.${'S'.repeat(13)} `.repeat(28).padEnd(8_177, 'p');
+    const before = `eyJhbGciOiJIUzI1NiJ9.${'A'.repeat(250)}.${'S'.repeat(13)} `
+      .repeat(28)
+      .padEnd(8_177, 'p');
 
     handle.captureException(failureWithCause(new TypeError(`${before} john.doe@example.com tail`)));
 
@@ -219,15 +242,19 @@ describe('captureException', () => {
   });
 
   it.each(['kill', 'destroy'] as const)(
-    'persists nothing when capture-option proxy work triggers %s', async action => {
+    'persists nothing when capture-option proxy work triggers %s',
+    async (action) => {
       handle = init({ sdkKey: 'pk_test' });
-      const options = new Proxy({}, {
-        getPrototypeOf() {
-          if (action === 'kill') handle!.kill();
-          else handle!.destroy();
-          return Object.prototype;
+      const options = new Proxy(
+        {},
+        {
+          getPrototypeOf() {
+            if (action === 'kill') handle!.kill();
+            else handle!.destroy();
+            return Object.prototype;
+          },
         },
-      });
+      );
 
       expect(() => handle!.captureException(failure(), options)).not.toThrow();
 
@@ -249,7 +276,10 @@ describe('captureException', () => {
     await vi.waitFor(() => expect(sent).toHaveLength(2));
 
     expect(sent[1]!.payload.crash!.fingerprint).toBe(firstFingerprint);
-    expect(sent.map(event => event.payload.crash!.details!.context)).toEqual(['checkout', 'payment']);
+    expect(sent.map((event) => event.payload.crash!.details!.context)).toEqual([
+      'checkout',
+      'payment',
+    ]);
   });
 
   it('keeps the raw outer fingerprint stable across independent cause-only changes', async () => {
@@ -264,13 +294,17 @@ describe('captureException', () => {
     await vi.waitFor(() => expect(sent).toHaveLength(2));
 
     expect(sent[1]!.payload.crash!.fingerprint).toBe(firstFingerprint);
-    expect(sent.map(event => event.payload.crash!.causeChain?.causes[0]?.message))
-      .toEqual(['first cause', 'second cause']);
+    expect(sent.map((event) => event.payload.crash!.causeChain?.causes[0]?.message)).toEqual([
+      'first cause',
+      'second cause',
+    ]);
     if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
-      console.log(`TASK3_FINGERPRINT_RECEIPT ${JSON.stringify({
-        fingerprint: firstFingerprint,
-        causeMessages: sent.map(event => event.payload.crash!.causeChain?.causes[0]?.message),
-      })}`);
+      console.log(
+        `TASK3_FINGERPRINT_RECEIPT ${JSON.stringify({
+          fingerprint: firstFingerprint,
+          causeMessages: sent.map((event) => event.payload.crash!.causeChain?.causes[0]?.message),
+        })}`,
+      );
     }
   });
 
@@ -299,11 +333,13 @@ describe('captureException', () => {
     expect(sent[0]!.payload.crash!.frames[0]!.raw).toContain('successor');
     expect(sent[0]!.payload.crash!.causeChain).toBeUndefined();
     if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
-      console.log(`TASK3_DESCRIPTOR_OWNERSHIP_RECEIPT ${JSON.stringify({
-        staleSent: 0,
-        causeDescriptorCalls,
-        acceptedSuccessor: sent[0]!.payload.crash!.frames[0]!.raw,
-      })}`);
+      console.log(
+        `TASK3_DESCRIPTOR_OWNERSHIP_RECEIPT ${JSON.stringify({
+          staleSent: 0,
+          causeDescriptorCalls,
+          acceptedSuccessor: sent[0]!.payload.crash!.frames[0]!.raw,
+        })}`,
+      );
     }
   });
 
@@ -325,18 +361,22 @@ describe('captureException', () => {
     });
     old = handle;
 
-    expect(() => old.captureException(failureWithCause(new TypeError('stale cause')))).not.toThrow();
+    expect(() =>
+      old.captureException(failureWithCause(new TypeError('stale cause'))),
+    ).not.toThrow();
     handle.captureException(failure('successorAfterRedactor'));
 
     await vi.waitFor(() => expect(sent).toHaveLength(1));
     expect(redactorCalls).toBe(1);
     expect(sent[0]!.payload.crash!.frames[0]!.raw).toContain('successorAfterRedactor');
     if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
-      console.log(`TASK3_REDACTOR_OWNERSHIP_RECEIPT ${JSON.stringify({
-        staleSent: 0,
-        redactorCalls,
-        acceptedSuccessor: sent[0]!.payload.crash!.frames[0]!.raw,
-      })}`);
+      console.log(
+        `TASK3_REDACTOR_OWNERSHIP_RECEIPT ${JSON.stringify({
+          staleSent: 0,
+          redactorCalls,
+          acceptedSuccessor: sent[0]!.payload.crash!.frames[0]!.raw,
+        })}`,
+      );
     }
   });
 
@@ -344,7 +384,10 @@ describe('captureException', () => {
     const errorConstructor = Error as ErrorConstructor & {
       prepareStackTrace?: (error: Error, frames: unknown[]) => unknown;
     };
-    const previousFormatter = Object.getOwnPropertyDescriptor(errorConstructor, 'prepareStackTrace');
+    const previousFormatter = Object.getOwnPropertyDescriptor(
+      errorConstructor,
+      'prepareStackTrace',
+    );
     handle = init({ sdkKey: 'pk_old' });
     const old = handle;
     let formatterCalls = 0;
@@ -381,16 +424,19 @@ describe('captureException', () => {
     expect(formatterCalls).toBe(1);
     expect(sent[0]!.payload.crash!.frames[0]!.raw).toContain('successorAfterFormatter');
     if (process.env['EVERFRAME_TASK3_RECEIPTS'] === '1') {
-      console.log(`TASK3_FORMATTER_OWNERSHIP_RECEIPT ${JSON.stringify({
-        staleSent: 0,
-        formatterCalls,
-        acceptedSuccessor: sent[0]!.payload.crash!.frames[0]!.raw,
-      })}`);
+      console.log(
+        `TASK3_FORMATTER_OWNERSHIP_RECEIPT ${JSON.stringify({
+          staleSent: 0,
+          formatterCalls,
+          acceptedSuccessor: sent[0]!.payload.crash!.frames[0]!.raw,
+        })}`,
+      );
     }
   });
 
   it.each(['explicit-first', 'automatic-first'] as const)(
-    'reports the same error object once across capture paths (%s)', async order => {
+    'reports the same error object once across capture paths (%s)',
+    async (order) => {
       handle = init({ sdkKey: 'pk_test' });
       const error = failure();
       const automatic = () => window.onerror?.(error.message, 'app.js', 1, 250, error);
@@ -404,7 +450,8 @@ describe('captureException', () => {
       handle.captureException(failure('anotherFunction'));
       await vi.waitFor(() => expect(sent).toHaveLength(2));
       expect(sent[0]!.payload.crash).toMatchObject({
-        handled: order === 'explicit-first', fatal: false,
+        handled: order === 'explicit-first',
+        fatal: false,
       });
     },
   );
@@ -423,7 +470,8 @@ describe('captureException', () => {
   });
 
   it.each(['disabled', 'crash-disabled', 'killed', 'destroyed'] as const)(
-    'does not capture after %s', async mode => {
+    'does not capture after %s',
+    async (mode) => {
       handle = init({
         sdkKey: 'pk_test',
         ...(mode === 'disabled' ? { disabled: true } : {}),
@@ -465,7 +513,9 @@ describe('captureException', () => {
     handle.captureException('checkout unavailable');
     await vi.waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]!.payload.crash).toMatchObject({
-      message: 'checkout unavailable', handled: true, fatal: false,
+      message: 'checkout unavailable',
+      handled: true,
+      fatal: false,
     });
   });
 
@@ -483,8 +533,12 @@ describe('captureException', () => {
   it('survives hostile thrown values and can still report the next error', async () => {
     handle = init({ sdkKey: 'pk_test' });
     const hostile = {
-      toJSON() { throw new Error('serialization unavailable'); },
-      toString() { throw new Error('string conversion unavailable'); },
+      toJSON() {
+        throw new Error('serialization unavailable');
+      },
+      toString() {
+        throw new Error('string conversion unavailable');
+      },
     };
     expect(() => handle!.captureException(hostile)).not.toThrow();
     handle.captureException(failure());

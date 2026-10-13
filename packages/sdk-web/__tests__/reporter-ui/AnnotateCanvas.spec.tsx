@@ -55,9 +55,7 @@ describe('<AnnotateCanvas>', () => {
 
   it('lazy-loads react-konva on mount; renders Stage once ready', async () => {
     const blob = new Blob([new Uint8Array([0, 1])], { type: 'image/png' });
-    const { findByTestId } = render(
-      <AnnotateCanvas imageBlob={blob} onChange={() => undefined} />,
-    );
+    const { findByTestId } = render(<AnnotateCanvas imageBlob={blob} onChange={() => undefined} />);
     await waitFor(async () => {
       const stage = await findByTestId('annotate-canvas-stage');
       expect(stage).toBeInTheDocument();
@@ -69,18 +67,14 @@ describe('<AnnotateCanvas> — overhaul toolbar', () => {
   const blob = new Blob([new Uint8Array([0, 1])], { type: 'image/png' });
 
   it('renders highlighter, rect, and ellipse tool buttons', async () => {
-    const { findByTestId } = render(
-      <AnnotateCanvas imageBlob={blob} onChange={() => undefined} />,
-    );
+    const { findByTestId } = render(<AnnotateCanvas imageBlob={blob} onChange={() => undefined} />);
     expect(await findByTestId('tool-highlighter')).toBeInTheDocument();
     expect(await findByTestId('tool-rect')).toBeInTheDocument();
     expect(await findByTestId('tool-ellipse')).toBeInTheDocument();
   });
 
   it('activating a shape tool marks its button active and shows the style row', async () => {
-    const { findByTestId } = render(
-      <AnnotateCanvas imageBlob={blob} onChange={() => undefined} />,
-    );
+    const { findByTestId } = render(<AnnotateCanvas imageBlob={blob} onChange={() => undefined} />);
     const rectBtn = await findByTestId('tool-rect');
     fireEvent.click(rectBtn);
     expect(rectBtn.className).toContain('everframe-tool-btn-active');
@@ -89,23 +83,32 @@ describe('<AnnotateCanvas> — overhaul toolbar', () => {
   });
 
   it('undo/redo start disabled with no history', async () => {
-    const { findByTestId } = render(
-      <AnnotateCanvas imageBlob={blob} onChange={() => undefined} />,
-    );
+    const { findByTestId } = render(<AnnotateCanvas imageBlob={blob} onChange={() => undefined} />);
     expect(await findByTestId('tool-undo')).toBeDisabled();
     expect(await findByTestId('tool-redo')).toBeDisabled();
   });
 
   it('seeds from initialAnnotations (id-based) and reports them via onChange', async () => {
     const seeded = [
-      { id: 'seed1', kind: 'rect', x: 1, y: 1, width: 5, height: 5, color: '#FF3B30', thickness: 4 },
+      {
+        id: 'seed1',
+        kind: 'rect',
+        x: 1,
+        y: 1,
+        width: 5,
+        height: 5,
+        color: '#FF3B30',
+        thickness: 4,
+      },
     ] as const;
     const onChange = vi.fn();
     render(
       <AnnotateCanvas
         imageBlob={blob}
         onChange={onChange}
-        initialAnnotations={seeded as unknown as Parameters<typeof AnnotateCanvas>[0]['initialAnnotations']}
+        initialAnnotations={
+          seeded as unknown as Parameters<typeof AnnotateCanvas>[0]['initialAnnotations']
+        }
       />,
     );
     await waitFor(() => {
@@ -120,9 +123,7 @@ describe('<AnnotateCanvas> — selection editing', () => {
   const blob = new Blob([new Uint8Array([0, 1])], { type: 'image/png' });
 
   it('renders pointer tool first and a delete button disabled without selection', async () => {
-    const { findByTestId } = render(
-      <AnnotateCanvas imageBlob={blob} onChange={() => undefined} />,
-    );
+    const { findByTestId } = render(<AnnotateCanvas imageBlob={blob} onChange={() => undefined} />);
     const pointer = await findByTestId('tool-pointer');
     expect(pointer).toBeInTheDocument();
     const del = await findByTestId('tool-delete');
@@ -138,9 +139,7 @@ describe('<AnnotateCanvas> — selection editing', () => {
   });
 
   it('switching to the pointer tool marks it active', async () => {
-    const { findByTestId } = render(
-      <AnnotateCanvas imageBlob={blob} onChange={() => undefined} />,
-    );
+    const { findByTestId } = render(<AnnotateCanvas imageBlob={blob} onChange={() => undefined} />);
     const pointer = await findByTestId('tool-pointer');
     fireEvent.click(pointer);
     expect(pointer.className).toContain('everframe-tool-btn-active');
@@ -151,9 +150,7 @@ describe('<AnnotateCanvas> — text tool', () => {
   const blob = new Blob([new Uint8Array([0, 1])], { type: 'image/png' });
 
   it('renders a text tool button that activates the tool', async () => {
-    const { findByTestId } = render(
-      <AnnotateCanvas imageBlob={blob} onChange={() => undefined} />,
-    );
+    const { findByTestId } = render(<AnnotateCanvas imageBlob={blob} onChange={() => undefined} />);
     const btn = await findByTestId('tool-text');
     fireEvent.click(btn);
     expect(btn.className).toContain('everframe-tool-btn-active');
@@ -180,9 +177,7 @@ describe('<AnnotateCanvas> — small-crop upscaling', () => {
     // effect ignores. So scale = min(1024 / 1, MAX_UPSCALE) = 4, and the
     // Stage mock (which spreads props onto a div) should render width="4".
     const blob = new Blob([new Uint8Array([0, 1])], { type: 'image/png' });
-    const { findByTestId } = render(
-      <AnnotateCanvas imageBlob={blob} onChange={() => undefined} />,
-    );
+    const { findByTestId } = render(<AnnotateCanvas imageBlob={blob} onChange={() => undefined} />);
     const stage = await findByTestId('konva-stage');
     await waitFor(() => {
       expect(stage.getAttribute('width')).toBe('4');

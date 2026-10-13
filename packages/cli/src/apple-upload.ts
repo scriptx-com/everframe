@@ -1,26 +1,25 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { dirname } from "node:path";
+import { dirname } from 'node:path';
 import {
   collectAppleBuild,
   readAppleBinaryImages,
   withPath,
   type AppleBinaryInput,
   type CollectedAppleBuild,
-} from "./apple-build.js";
-import { collectDsymBuild } from "./dsym.js";
-import { checkedRealPath } from "./manifest.js";
-import { BUDGET_EXHAUSTED, uploadCollectedBuild, type UploadDependencies } from "./upload.js";
-import type { BuildUploadStatus } from "@everframe/protocol";
+} from './apple-build.js';
+import { collectDsymBuild } from './dsym.js';
+import { checkedRealPath } from './manifest.js';
+import { BUDGET_EXHAUSTED, uploadCollectedBuild, type UploadDependencies } from './upload.js';
+import type { BuildUploadStatus } from '@everframe/protocol';
 
 async function verify(build: CollectedAppleBuild) {
   for (const binary of build.binaries)
     await withPath(binary.path, async () => {
       if (
-        JSON.stringify(await readAppleBinaryImages(binary.path)) !==
-        JSON.stringify(binary.images)
+        JSON.stringify(await readAppleBinaryImages(binary.path)) !== JSON.stringify(binary.images)
       )
-        throw new Error("source_map_changed");
+        throw new Error('source_map_changed');
     });
   for (const artifact of build.artifacts) {
     const entry = artifact.manifest.artifacts[0]!;
@@ -31,7 +30,7 @@ async function verify(build: CollectedAppleBuild) {
       const current = await collectDsymBuild({ dwarfPath: path });
       await checkedRealPath(root, path);
       if (current.manifest.artifacts[0]!.mapSha256 !== entry.mapSha256)
-        throw new Error("source_map_changed");
+        throw new Error('source_map_changed');
     });
   }
 }
@@ -46,12 +45,12 @@ export async function uploadAppleBuild(
     /** Build integrations: upload every matched file, then report misses and failures. */
     lenient?: boolean;
   },
-  dependencies: UploadDependencies = {}
+  dependencies: UploadDependencies = {},
 ): Promise<{
   artifacts: BuildUploadStatus[];
-  images: CollectedAppleBuild["images"];
-  uncovered: CollectedAppleBuild["uncovered"];
-  missingRequired: CollectedAppleBuild["missingRequired"];
+  images: CollectedAppleBuild['images'];
+  uncovered: CollectedAppleBuild['uncovered'];
+  missingRequired: CollectedAppleBuild['missingRequired'];
   warnings: string[];
   /** Lenient mode: files the service did not accept, with the reason. */
   failed: Array<{ path: string; message: string }>;
@@ -77,12 +76,12 @@ export async function uploadAppleBuild(
             root: dirname(path),
             deleteAfterUpload: false,
           },
-          dependencies
-        )
+          dependencies,
+        ),
       );
     } catch (error) {
       // One rejected file must not cost the others; the time budget stops all.
-      const message = error instanceof Error ? error.message : "upload_failed";
+      const message = error instanceof Error ? error.message : 'upload_failed';
       if (!options.lenient || message === BUDGET_EXHAUSTED) throw error;
       failed.push({ path, message });
     }

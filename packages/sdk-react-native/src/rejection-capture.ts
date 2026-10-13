@@ -1,14 +1,21 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 /** Detached acceptance state. It must never reference its original error. */
-export interface CaptureIdentity { accepted: boolean }
+export interface CaptureIdentity {
+  accepted: boolean;
+}
 export interface PreparedRejection {
   readonly payload: string;
   readonly key: string;
   readonly identity?: CaptureIdentity;
 }
-export type RejectionOutcome = 'accepted' | 'duplicate' | 'allowance' | 'inactive'
-  | 'native-refused' | 'capture-failed';
+export type RejectionOutcome =
+  | 'accepted'
+  | 'duplicate'
+  | 'allowance'
+  | 'inactive'
+  | 'native-refused'
+  | 'capture-failed';
 
 const VALUE_KEY = 'UnhandledValue:value-';
 /** Non-Error reasons may spend at most this many of a mount's 10 automatic keys. */
@@ -23,8 +30,13 @@ export function captureKey(facts: { exceptionType: string; framesRaw: string[] }
  * reported value. Digit runs are ignored, as in frames, so one call site's ids
  * and counts share a key.
  */
-export function rejectionKey(facts: { exceptionType: string; message: string; framesRaw: string[] }): string {
-  if (facts.exceptionType !== 'UnhandledValue' || facts.framesRaw.length > 0) return captureKey(facts);
+export function rejectionKey(facts: {
+  exceptionType: string;
+  message: string;
+  framesRaw: string[];
+}): string {
+  if (facts.exceptionType !== 'UnhandledValue' || facts.framesRaw.length > 0)
+    return captureKey(facts);
   const value = facts.message.replace(/\d+/g, '#');
   let hash = 0x811c9dc5;
   for (let i = 0; i < value.length; i++) hash = Math.imul(hash ^ value.charCodeAt(i), 0x01000193);

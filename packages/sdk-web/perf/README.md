@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
 # Vitals perf harness
 
 Re-runs the measurement that produced [PR #169](https://github.com/scriptx-com/everframe/pull/169)'s
@@ -100,16 +101,16 @@ Chromium 147.0.7727.15 (Playwright 1.59.1's bundled build), headless, on the
 `MODES=off,on` (default). Table pasted verbatim from the historical perf
 command's own printed output.
 
-| | vitals **off** | vitals **on** |
-|---|---|---|
-| Long tasks (> 50 ms) observed in 60 s | 0 | 0 |
-| Trace `RunTask`s > 50 ms | 0 | 0 |
-| JS time attributed to the SDK bundle in 60 s | 0.1 ms | 9.5 ms |
-| Longest single SDK function call | 0.05 ms | 3.48 ms |
-| Heap after forced GC, start → end | +13.5 KB | +48.4 KB |
-| Sampled peak heap | 8.96 MB | 8.91 MB |
-| Vitals POSTs seen by the stub | 0 (0 B) | 3 (4475 B) |
-| **Vitals-attributable steady-state heap growth (on − off)** | — | **+35.0 KB** |
+|                                                             | vitals **off** | vitals **on** |
+| ----------------------------------------------------------- | -------------- | ------------- |
+| Long tasks (> 50 ms) observed in 60 s                       | 0              | 0             |
+| Trace `RunTask`s > 50 ms                                    | 0              | 0             |
+| JS time attributed to the SDK bundle in 60 s                | 0.1 ms         | 9.5 ms        |
+| Longest single SDK function call                            | 0.05 ms        | 3.48 ms       |
+| Heap after forced GC, start → end                           | +13.5 KB       | +48.4 KB      |
+| Sampled peak heap                                           | 8.96 MB        | 8.91 MB       |
+| Vitals POSTs seen by the stub                               | 0 (0 B)        | 3 (4475 B)    |
+| **Vitals-attributable steady-state heap growth (on − off)** | —              | **+35.0 KB**  |
 
 Gate: **passes** — 0 long tasks in either mode (both the in-page
 `longtask` observer and the trace's `RunTask` attribution agree), and the
@@ -130,17 +131,17 @@ memory churn, not an SDK leak), so `hls − hls-off` is the only reading that
 isolates the SDK's own contribution. Table pasted verbatim from the historical
 perf command's own printed output.
 
-| | vitals **off** | vitals **on** | vitals **on** (hls) | vitals **off** (hls) |
-|---|---|---|---|---|
-| Long tasks (> 50 ms) observed in 60 s | 0 | 0 | 0 | 0 |
-| Trace `RunTask`s > 50 ms | 0 | 0 | 0 | 0 |
-| JS time attributed to the SDK bundle in 60 s | 0.2 ms | 11.3 ms | 7.2 ms | 1.5 ms |
-| Longest single SDK function call | 0.19 ms | 2.14 ms | 1.59 ms | 0.34 ms |
-| Heap after forced GC, start → end | +13.5 KB | +51.6 KB | -169.8 KB | -186.6 KB |
-| Sampled peak heap | 9.16 MB | 9.24 MB | 37.04 MB | 25.42 MB |
-| Vitals POSTs seen by the stub | 0 (0 B) | 3 (5895 B) | 3 (5326 B) | 0 (0 B) |
-| **Vitals-attributable steady-state heap growth (on − off)** | — | **+38.2 KB** | — | — |
-| **Vitals-attributable steady-state heap growth (hls − hls-off)** | — | — | **+16.8 KB** | — |
+|                                                                  | vitals **off** | vitals **on** | vitals **on** (hls) | vitals **off** (hls) |
+| ---------------------------------------------------------------- | -------------- | ------------- | ------------------- | -------------------- |
+| Long tasks (> 50 ms) observed in 60 s                            | 0              | 0             | 0                   | 0                    |
+| Trace `RunTask`s > 50 ms                                         | 0              | 0             | 0                   | 0                    |
+| JS time attributed to the SDK bundle in 60 s                     | 0.2 ms         | 11.3 ms       | 7.2 ms              | 1.5 ms               |
+| Longest single SDK function call                                 | 0.19 ms        | 2.14 ms       | 1.59 ms             | 0.34 ms              |
+| Heap after forced GC, start → end                                | +13.5 KB       | +51.6 KB      | -169.8 KB           | -186.6 KB            |
+| Sampled peak heap                                                | 9.16 MB        | 9.24 MB       | 37.04 MB            | 25.42 MB             |
+| Vitals POSTs seen by the stub                                    | 0 (0 B)        | 3 (5895 B)    | 3 (5326 B)          | 0 (0 B)              |
+| **Vitals-attributable steady-state heap growth (on − off)**      | —              | **+38.2 KB**  | —                   | —                    |
+| **Vitals-attributable steady-state heap growth (hls − hls-off)** | —              | —             | **+16.8 KB**        | —                    |
 
 Gate: **passes**, including with a real adaptive stream. 0 long tasks in all
 four modes. The webm-only vitals-attributable delta (+38.2 KB) is in line

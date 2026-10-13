@@ -75,13 +75,13 @@ Automation testIDs: `trigger-handled-error`, `trigger-handled-hook-error`,
 Everframe has two recognition tiers, and the two sample apps demonstrate one
 each on purpose:
 
-| | this app | `examples/react-web` |
-|---|---|---|
-| API | `setUser({ id, email, displayName })` | `setIdentityToken(() => …)` |
-| Backed by | nothing | a short-lived JWT its own backend signs |
-| Needs a backend | no | yes |
-| Dashboard shows | badged **Unverified** | plain, verified |
-| Can unlock a person's conversations on another device | never | yes |
+|                                                       | this app                              | `examples/react-web`                    |
+| ----------------------------------------------------- | ------------------------------------- | --------------------------------------- |
+| API                                                   | `setUser({ id, email, displayName })` | `setIdentityToken(() => …)`             |
+| Backed by                                             | nothing                               | a short-lived JWT its own backend signs |
+| Needs a backend                                       | no                                    | yes                                     |
+| Dashboard shows                                       | badged **Unverified**                 | plain, verified                         |
+| Can unlock a person's conversations on another device | never                                 | yes                                     |
 
 `setUser` is an **assertion, not a credential**. Anyone able to run this app's
 code — or holding its publishable SDK key, which ships inside the bundle —
@@ -113,7 +113,7 @@ Companion tab for phone-assisted reporting; Android TV opens the native reporter
 > and remains separate from the error-capture checks here. One sample app
 > is only one cell of the 5×2 coexistence matrix.
 > The matrix `Everframe × {Sentry, Bugsnag, Datadog, New Relic, Crashlytics}
-> × {iOS, Android}` moved to Phase 7 hardening (ROADMAP Phase 7 criterion 6,
+× {iOS, Android}` moved to Phase 7 hardening (ROADMAP Phase 7 criterion 6,
 > 2026-05-11).
 
 > **Why Expo?** The sample is an integration testbed, not a production app.
@@ -295,24 +295,24 @@ The flow proves: launch → host button visible → tap → reporter modal opens
 
 ## File map
 
-| File | Purpose |
-|------|---------|
-| `app.json` | Expo config — bundle ids, plugins, `newArchEnabled: true` |
+| File                                  | Purpose                                                                      |
+| ------------------------------------- | ---------------------------------------------------------------------------- |
+| `app.json`                            | Expo config — bundle ids, plugins, `newArchEnabled: true`                    |
 | `plugins/with-everframe-workspace.js` | Config plugin — injects Android `includeBuild` for workspace composite-build |
-| `index.js` | Expo entry — `registerRootComponent(App)` |
-| `src/App.tsx` | Root — `<EverframeProvider>` mount + configure-on-mount |
-| `src/screens/Home.tsx` | Open Reporter button + submitted label |
-| `src/screens/Form.tsx` | `<EverframeSensitive>` redaction demo |
-| `babel.config.js` | `babel-preset-expo` + `@everframe/babel-plugin-displayname` (Pitfall P11) |
-| `metro.config.js` | `expo/metro-config` + pnpm-workspace-aware resolver |
-| `maestro/reporter-smoke.yaml` | Maestro flow: launch + reporter + submit |
-| `.gitignore` | Excludes generated `ios/` + `android/` from git |
+| `index.js`                            | Expo entry — `registerRootComponent(App)`                                    |
+| `src/App.tsx`                         | Root — `<EverframeProvider>` mount + configure-on-mount                      |
+| `src/screens/Home.tsx`                | Open Reporter button + submitted label                                       |
+| `src/screens/Form.tsx`                | `<EverframeSensitive>` redaction demo                                        |
+| `babel.config.js`                     | `babel-preset-expo` + `@everframe/babel-plugin-displayname` (Pitfall P11)    |
+| `metro.config.js`                     | `expo/metro-config` + pnpm-workspace-aware resolver                          |
+| `maestro/reporter-smoke.yaml`         | Maestro flow: launch + reporter + submit                                     |
+| `.gitignore`                          | Excludes generated `ios/` + `android/` from git                              |
 
 Generated (not committed):
 
-| Dir | Source of truth |
-|-----|------------------|
-| `ios/` | `app.json` → `expo-build-properties` + RN autolinking |
+| Dir        | Source of truth                                             |
+| ---------- | ----------------------------------------------------------- |
+| `ios/`     | `app.json` → `expo-build-properties` + RN autolinking       |
 | `android/` | `app.json` → `with-everframe-workspace.js` + RN autolinking |
 
 ## Readable stack traces

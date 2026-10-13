@@ -1,11 +1,6 @@
 {
   "androidApi": 26,
-  "abis": [
-    "armeabi-v7a",
-    "arm64-v8a",
-    "x86",
-    "x86_64"
-  ],
+  "abis": ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"],
   "openssl": {
     "version": "3.5.9",
     "url": "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz",

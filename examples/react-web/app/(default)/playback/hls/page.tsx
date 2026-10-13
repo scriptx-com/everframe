@@ -61,7 +61,10 @@ function HlsBench({ url, name, title, kind, note, testid }: HlsBenchProps) {
     };
   }, [mode]);
 
-  useTrackPlayer(ref, useMemo(() => (hls ? { hls, name } : { name }), [hls, name]));
+  useTrackPlayer(
+    ref,
+    useMemo(() => (hls ? { hls, name } : { name }), [hls, name]),
+  );
 
   // loadSource() must run AFTER useTrackPlayer's own effect has attached:
   // hls.js fires its manifest-loading event synchronously from loadSource(),
@@ -82,9 +85,10 @@ function HlsBench({ url, name, title, kind, note, testid }: HlsBenchProps) {
     setAuto(i === -1);
   };
 
-  const state = mode === 'native'
-    ? `native HLS · ${kind} · no integration`
-    : `hls.js${hls ? ` ${Hls.version}` : ''} · ${kind}${levels.length ? ` · ${levels.length} levels` : ''}`;
+  const state =
+    mode === 'native'
+      ? `native HLS · ${kind} · no integration`
+      : `hls.js${hls ? ` ${Hls.version}` : ''} · ${kind}${levels.length ? ` · ${levels.length} levels` : ''}`;
 
   return (
     <PlayerBench
@@ -97,8 +101,16 @@ function HlsBench({ url, name, title, kind, note, testid }: HlsBenchProps) {
         mode === 'mse' && levels.length > 0 ? (
           <div className="btn-row" data-testid={`${testid}-levels`}>
             <span className="player-bench-label">Level</span>
-            <button type="button" className="chip" aria-pressed={auto} onClick={() => pickLevel(-1)}>
-              Auto{auto && currentLevel >= 0 && levels[currentLevel] ? ` (${levels[currentLevel].height}p)` : ''}
+            <button
+              type="button"
+              className="chip"
+              aria-pressed={auto}
+              onClick={() => pickLevel(-1)}
+            >
+              Auto
+              {auto && currentLevel >= 0 && levels[currentLevel]
+                ? ` (${levels[currentLevel].height}p)`
+                : ''}
             </button>
             {levels.map((l, i) => (
               <button
@@ -138,10 +150,9 @@ export default function HlsPlaybackPage() {
         HLS
       </h1>
       <p className="lede">
-        Two players, one session. The VOD manifest has several levels — pin
-        one to force a <code>bitrate_change</code>; the live stream is the
-        only place the seekable window moves under you. On Safari both fall
-        back to the browser's own HLS with no integration attached.
+        Two players, one session. The VOD manifest has several levels — pin one to force a{' '}
+        <code>bitrate_change</code>; the live stream is the only place the seekable window moves
+        under you. On Safari both fall back to the browser's own HLS with no integration attached.
       </p>
 
       <div className="player-bench-grid">

@@ -41,9 +41,7 @@ test('seeded PII never reaches the envelope from a Vue host', async ({ page }) =
   // Both forms: redaction normalises before matching.
   expect(envelopeJson).not.toContain('4111-1111-1111-1111');
   expect(envelopeJson).not.toContain('4111111111111111');
-  expect(envelopeJson).not.toContain(
-    'Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.fake-signature',
-  );
+  expect(envelopeJson).not.toContain('Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.fake-signature');
 
   // Guard against the assertion passing because nothing was captured: the
   // envelope must actually be an envelope.

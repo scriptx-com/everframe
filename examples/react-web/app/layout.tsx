@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
 
 export const metadata = {
-  title: "Everframe Web SDK Example",
-  description: "Dogfood + Playwright fixture for @everframe/react",
+  title: 'Everframe Web SDK Example',
+  description: 'Dogfood + Playwright fixture for @everframe/react',
 };
 
 /**

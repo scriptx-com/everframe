@@ -27,7 +27,10 @@ export function extractCrashFacts(err: unknown): CrashFacts {
     const exceptionType = (err.name || 'Error').slice(0, MAX_TYPE);
     const message = String(err.message ?? '').slice(0, MAX_MESSAGE);
     const stack = typeof err.stack === 'string' ? err.stack : '';
-    let lines = stack.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    let lines = stack
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
     const first = lines[0];
     if (first !== undefined && (first === exceptionType || first.startsWith(`${exceptionType}:`))) {
       lines = lines.slice(1);

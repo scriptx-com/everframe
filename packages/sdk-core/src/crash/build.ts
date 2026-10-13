@@ -64,16 +64,20 @@ export interface BuildCrashEnvelopeInput {
   user?: UserMetadata | null;
 }
 
-export function buildCrashEnvelope(
-  input: BuildCrashEnvelopeInput,
-): { envelope: ReportEnvelope; fingerprint: string } {
+export function buildCrashEnvelope(input: BuildCrashEnvelopeInput): {
+  envelope: ReportEnvelope;
+  fingerprint: string;
+} {
   // Redaction replacements (e.g. SSN `123-45-6789` -> `[REDACTED:SSN]`, or
   // arbitrary-length web customRules substitutions) can EXPAND text past the
   // protocol caps that extract.ts already enforced pre-redaction. Re-slice
   // post-redaction so an expanding replacement can never grow the envelope
   // past what Zod's ReportEnvelope schema allows (message <= MAX_MESSAGE,
   // frames[].raw <= MAX_RAW) — otherwise the whole envelope is rejected.
-  const bareMessage = redactStringContent(input.facts.message, input.redaction).slice(0, MAX_MESSAGE);
+  const bareMessage = redactStringContent(input.facts.message, input.redaction).slice(
+    0,
+    MAX_MESSAGE,
+  );
   const message = input.componentStack
     ? withComponentStack(bareMessage, redactStringContent(input.componentStack, input.redaction))
     : bareMessage;

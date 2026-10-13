@@ -5,7 +5,12 @@
 // HermesInternal's rejection tracker, fetch and AsyncStorage.
 import { z } from 'zod';
 import { ReportEnvelope } from '@everframe/protocol';
-import type { ErrorUtilsLike, HermesInternalLike, RejectionTrackerOptions, VegaEnvironment } from '../src/client.js';
+import type {
+  ErrorUtilsLike,
+  HermesInternalLike,
+  RejectionTrackerOptions,
+  VegaEnvironment,
+} from '../src/client.js';
 import type { AsyncStorageLike } from '../src/config.js';
 import { OUTBOX_KEY, type OutboxItem } from '../src/outbox.js';
 import { readDevice } from '../src/device.js';
@@ -23,7 +28,10 @@ export function vegaStack(header: string, fn = 'onPress', line = 41237): string 
   ].join('\n');
 }
 
-export function vegaError(message: string, opts: { name?: string; fn?: string; line?: number } = {}): Error {
+export function vegaError(
+  message: string,
+  opts: { name?: string; fn?: string; line?: number } = {},
+): Error {
   const error = new Error(message);
   if (opts.name) error.name = opts.name;
   error.stack = vegaStack(`${opts.name ?? 'Error'}: ${message}`, opts.fn, opts.line);
@@ -40,11 +48,15 @@ export interface FakeStorage extends AsyncStorageLike {
   failWrites: boolean;
 }
 
-export function createStorage(opts: { deferLoad?: boolean; initial?: OutboxItem[] } = {}): FakeStorage {
+export function createStorage(
+  opts: { deferLoad?: boolean; initial?: OutboxItem[] } = {},
+): FakeStorage {
   const data = new Map<string, string>();
   if (opts.initial) data.set(OUTBOX_KEY, JSON.stringify(opts.initial));
   let release: () => void = () => undefined;
-  const loadGate = opts.deferLoad ? new Promise<void>((resolve) => (release = resolve)) : Promise.resolve();
+  const loadGate = opts.deferLoad
+    ? new Promise<void>((resolve) => (release = resolve))
+    : Promise.resolve();
   const storage: FakeStorage = {
     data,
     writes: [],
@@ -112,16 +124,27 @@ export interface SentRequest {
 }
 
 export interface FakeFetch {
-  (url: string, init: { method: string; headers: Record<string, string>; body: string }): Promise<{ status: number }>;
+  (
+    url: string,
+    init: { method: string; headers: Record<string, string>; body: string },
+  ): Promise<{ status: number }>;
   requests: SentRequest[];
   /** Status codes returned in order; the last one repeats. `0` throws a network error. */
   statuses: number[];
 }
 
 export function createFetch(statuses: number[] = [200], order: string[] = []): FakeFetch {
-  const fetch = (async (url: string, init: { method: string; headers: Record<string, string>; body: string }) => {
+  const fetch = (async (
+    url: string,
+    init: { method: string; headers: Record<string, string>; body: string },
+  ) => {
     order.push('fetch');
-    fetch.requests.push({ url, headers: init.headers, body: init.body, envelope: JSON.parse(init.body) });
+    fetch.requests.push({
+      url,
+      headers: init.headers,
+      body: init.body,
+      envelope: JSON.parse(init.body),
+    });
     const status = fetch.statuses.length > 1 ? fetch.statuses.shift()! : fetch.statuses[0]!;
     if (status === 0) throw new TypeError('Network request failed');
     return { status };
@@ -139,7 +162,9 @@ export interface Harness {
   warnings: string[];
 }
 
-export function createEnv(overrides: Partial<VegaEnvironment> & { statuses?: number[]; order?: string[] } = {}): Harness {
+export function createEnv(
+  overrides: Partial<VegaEnvironment> & { statuses?: number[]; order?: string[] } = {},
+): Harness {
   const order = overrides.order ?? [];
   const errorUtils = createErrorUtils(order);
   const hermes = createHermes();
@@ -172,5 +197,6 @@ const Strict = (ReportEnvelope as unknown as z.ZodObject<z.ZodRawShape>).catchal
 
 export function expectValidEnvelope(envelope: unknown): void {
   const result = Strict.safeParse(envelope);
-  if (!result.success) throw new Error(`envelope rejected: ${JSON.stringify(result.error.issues, null, 2)}`);
+  if (!result.success)
+    throw new Error(`envelope rejected: ${JSON.stringify(result.error.issues, null, 2)}`);
 }

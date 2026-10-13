@@ -4,7 +4,12 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { createLocalStorageOutbox } from '../../src/outbox/localStorage.js';
 
 const metadata = { sdkKey: 'key-A' };
-const replay = { format: 'rrweb' as const, bytes: new Uint8Array([1, 2]), contentType: 'application/octet-stream', durationMs: 1000 };
+const replay = {
+  format: 'rrweb' as const,
+  bytes: new Uint8Array([1, 2]),
+  contentType: 'application/octet-stream',
+  durationMs: 1000,
+};
 async function tab() {
   vi.resetModules();
   const parts = await import('../../src/transport/error-replay-parts.js');
@@ -14,14 +19,31 @@ async function tab() {
 async function enqueue(parts: Awaited<ReturnType<typeof tab>>['parts']) {
   const outbox = createLocalStorageOutbox()!;
   const hold = parts.markErrorReplayPending('shared');
-  await outbox.enqueue({ reportId: 'shared', enqueuedAt: Date.now(), attempts: 0,
-    payload: new TextEncoder().encode(JSON.stringify({ reportId: 'shared', source: 'error', attachments: [], captureControl: {} })),
-    metadata: { ...metadata, ...(hold as unknown as Record<string, string>) } });
+  await outbox.enqueue({
+    reportId: 'shared',
+    enqueuedAt: Date.now(),
+    attempts: 0,
+    payload: new TextEncoder().encode(
+      JSON.stringify({ reportId: 'shared', source: 'error', attachments: [], captureControl: {} }),
+    ),
+    metadata: { ...metadata, ...(hold as unknown as Record<string, string>) },
+  });
   return outbox;
 }
-const request = (outbox: ReturnType<typeof createLocalStorageOutbox>, fetch: typeof globalThis.fetch) =>
-  ({ outbox: outbox!, config: { sdkKey: 'key-A' }, sdkVersion: 'test', retryScheduleMs: [], fetch });
-afterEach(() => { localStorage.clear(); vi.useRealTimers(); });
+const request = (
+  outbox: ReturnType<typeof createLocalStorageOutbox>,
+  fetch: typeof globalThis.fetch,
+) => ({
+  outbox: outbox!,
+  config: { sdkKey: 'key-A' },
+  sdkVersion: 'test',
+  retryScheduleMs: [],
+  fetch,
+});
+afterEach(() => {
+  localStorage.clear();
+  vi.useRealTimers();
+});
 
 it('another isolated page cannot steal a shared error while the owner exports its replay', async () => {
   const a = await tab();
@@ -29,7 +51,8 @@ it('another isolated page cannot steal a shared error while the owner exports it
   const b = await tab();
   const sent: FormData[] = [];
   const fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
-    sent.push(init!.body as FormData); return new Response('{}', { status: 200 });
+    sent.push(init!.body as FormData);
+    return new Response('{}', { status: 200 });
   });
   const bOutbox = createLocalStorageOutbox()!;
   await b.drainOutbox(request(bOutbox, fetch));
@@ -57,14 +80,28 @@ it('a reloaded page wakes at the persisted deadline after the recording page die
   expect(await outbox.list()).toEqual([]);
 });
 
-it.each(['Infinity', 'NaN', String(Date.now() + 100_000)])('does not honor an invalid or extended persisted hold %s', async until => {
-  const b = await tab();
-  const outbox = createLocalStorageOutbox()!;
-  await outbox.enqueue({ reportId: 'invalid-hold', enqueuedAt: Date.now(), attempts: 0,
-    payload: new TextEncoder().encode(JSON.stringify({ reportId: 'invalid-hold', source: 'error', attachments: [], captureControl: {} })),
-    metadata: { ...metadata, errorReplayOwner: 'dead-owner', errorReplayUntil: until } });
-  const fetch = vi.fn(async () => new Response('{}', { status: 200 }));
-  await b.drainOutbox(request(outbox, fetch));
-  expect(fetch).toHaveBeenCalledTimes(1);
-  expect(await outbox.list()).toEqual([]);
-});
+it.each(['Infinity', 'NaN', String(Date.now() + 100_000)])(
+  'does not honor an invalid or extended persisted hold %s',
+  async (until) => {
+    const b = await tab();
+    const outbox = createLocalStorageOutbox()!;
+    await outbox.enqueue({
+      reportId: 'invalid-hold',
+      enqueuedAt: Date.now(),
+      attempts: 0,
+      payload: new TextEncoder().encode(
+        JSON.stringify({
+          reportId: 'invalid-hold',
+          source: 'error',
+          attachments: [],
+          captureControl: {},
+        }),
+      ),
+      metadata: { ...metadata, errorReplayOwner: 'dead-owner', errorReplayUntil: until },
+    });
+    const fetch = vi.fn(async () => new Response('{}', { status: 200 }));
+    await b.drainOutbox(request(outbox, fetch));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(await outbox.list()).toEqual([]);
+  },
+);

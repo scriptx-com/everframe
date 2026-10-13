@@ -24,7 +24,13 @@ describe('Breadcrumb schema', () => {
 
   it('enumerates exactly the seven kinds', () => {
     expect(BreadcrumbKind.options).toEqual([
-      'navigation', 'tap', 'console', 'network', 'lifecycle', 'error', 'custom',
+      'navigation',
+      'tap',
+      'console',
+      'network',
+      'lifecycle',
+      'error',
+      'custom',
     ]);
   });
 
@@ -48,8 +54,12 @@ describe('Breadcrumb schema', () => {
 
   it('parses a trim marker (droppedCount discriminator)', () => {
     const marker = {
-      t: 1751884800001, seq: 3, kind: 'console', level: 'info',
-      message: '+42 console hidden', data: { droppedCount: 42 },
+      t: 1751884800001,
+      seq: 3,
+      kind: 'console',
+      level: 'info',
+      message: '+42 console hidden',
+      data: { droppedCount: 42 },
     };
     expect(Breadcrumb.safeParse(marker).success).toBe(true);
   });

@@ -9,15 +9,20 @@ import { describe, expect, it, vi } from 'vitest';
 import { createEverframePlugin } from '../src/plugin.js';
 
 // unplugin's Vite types may resolve to a different Vite major than the one under test.
-const plugin = (options: Parameters<ReturnType<typeof createEverframePlugin>['vite']>[0], deps: Parameters<typeof createEverframePlugin>[0]) =>
-  createEverframePlugin(deps).vite(options) as unknown as PluginOption;
+const plugin = (
+  options: Parameters<ReturnType<typeof createEverframePlugin>['vite']>[0],
+  deps: Parameters<typeof createEverframePlugin>[0],
+) => createEverframePlugin(deps).vite(options) as unknown as PluginOption;
 
 const APP = '00000000-0000-4000-8000-000000000000';
 
 async function app(): Promise<string> {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'evf-vite-')));
   await writeFile(join(root, 'index.html'), '<script type="module" src="/main.js"></script>');
-  await writeFile(join(root, 'main.js'), 'export function boom() { throw new Error("x"); }\nboom();\n');
+  await writeFile(
+    join(root, 'main.js'),
+    'export function boom() { throw new Error("x"); }\nboom();\n',
+  );
   return root;
 }
 
@@ -28,7 +33,12 @@ describe('vite', () => {
     await build({
       root,
       logLevel: 'silent',
-      plugins: [plugin({ appId: APP, buildId: 'b1', deleteAfterUpload: false }, { env: { EVERFRAME_API_TOKEN: 't' }, upload })],
+      plugins: [
+        plugin(
+          { appId: APP, buildId: 'b1', deleteAfterUpload: false },
+          { env: { EVERFRAME_API_TOKEN: 't' }, upload },
+        ),
+      ],
     });
     const assets = await readdir(join(root, 'dist', 'assets'));
     const js = assets.find((f) => f.endsWith('.js'))!;
@@ -37,7 +47,9 @@ describe('vite', () => {
     expect(code).toMatch(/globalThis\.__EVERFRAME_BUILD__=\{"?buildId"?:"b1"\}/);
     expect(code).not.toContain('sourceMappingURL');
     expect(assets).toContain(`${js}.map`);
-    expect(upload).toHaveBeenCalledWith(expect.objectContaining({ buildId: 'b1', root: join(root, 'dist') }));
+    expect(upload).toHaveBeenCalledWith(
+      expect.objectContaining({ buildId: 'b1', root: join(root, 'dist') }),
+    );
   });
 
   it('keeps source-map positions aligned after the banner is prepended', async () => {
@@ -46,7 +58,12 @@ describe('vite', () => {
       root,
       logLevel: 'silent',
       build: { minify: false },
-      plugins: [plugin({ appId: APP, buildId: 'b1', deleteAfterUpload: false }, { env: { EVERFRAME_API_TOKEN: 't' }, upload: vi.fn().mockResolvedValue({}) })],
+      plugins: [
+        plugin(
+          { appId: APP, buildId: 'b1', deleteAfterUpload: false },
+          { env: { EVERFRAME_API_TOKEN: 't' }, upload: vi.fn().mockResolvedValue({}) },
+        ),
+      ],
     });
     const dir = join(root, 'dist', 'assets');
     const js = (await readdir(dir)).find((f) => f.endsWith('.js'))!;
@@ -78,7 +95,12 @@ describe('vite', () => {
       root,
       logLevel: 'silent',
       build: { sourcemap: true },
-      plugins: [plugin({ appId: APP, deleteAfterUpload: false }, { env: { EVERFRAME_API_TOKEN: 't' }, upload: vi.fn().mockResolvedValue({}) })],
+      plugins: [
+        plugin(
+          { appId: APP, deleteAfterUpload: false },
+          { env: { EVERFRAME_API_TOKEN: 't' }, upload: vi.fn().mockResolvedValue({}) },
+        ),
+      ],
     });
     const js = (await readdir(join(root, 'dist', 'assets'))).find((f) => f.endsWith('.js'))!;
     expect(await readFile(join(root, 'dist', 'assets', js), 'utf8')).toContain('sourceMappingURL');
@@ -91,7 +113,12 @@ describe('vite', () => {
     const builder = await createBuilder({
       root,
       logLevel: 'silent',
-      plugins: [plugin({ appId: APP, buildId: 'b1', deleteAfterUpload: false }, { env: { EVERFRAME_API_TOKEN: 't' }, upload })],
+      plugins: [
+        plugin(
+          { appId: APP, buildId: 'b1', deleteAfterUpload: false },
+          { env: { EVERFRAME_API_TOKEN: 't' }, upload },
+        ),
+      ],
       environments: {
         client: { build: { outDir: join(root, 'dist', 'client') } },
         ssr: { build: { ssr: join(root, 'server.js'), outDir: join(root, 'dist', 'server') } },
@@ -99,18 +126,32 @@ describe('vite', () => {
     });
     await builder.buildApp();
     expect(upload).toHaveBeenCalledTimes(1);
-    expect(upload).toHaveBeenCalledWith(expect.objectContaining({ root: join(root, 'dist', 'client') }));
+    expect(upload).toHaveBeenCalledWith(
+      expect.objectContaining({ root: join(root, 'dist', 'client') }),
+    );
     const server = await readdir(join(root, 'dist', 'server'));
     expect(server.some((f) => f.endsWith('.map'))).toBe(false);
-    expect(await readFile(join(root, 'dist', 'server', server.find((f) => /\.m?js$/.test(f))!), 'utf8')).not.toContain('__EVERFRAME_BUILD__');
+    expect(
+      await readFile(join(root, 'dist', 'server', server.find((f) => /\.m?js$/.test(f))!), 'utf8'),
+    ).not.toContain('__EVERFRAME_BUILD__');
   });
 
   it('re-enables a shared plugin instance for a client build after an SSR build', async () => {
     const root = await app();
     const upload = vi.fn().mockResolvedValue({});
     const instance = createEverframePlugin({ env: { EVERFRAME_API_TOKEN: 't' }, upload });
-    const make = () => instance.vite({ appId: APP, buildId: 'b1', deleteAfterUpload: false }) as unknown as PluginOption;
-    await build({ root, logLevel: 'silent', build: { ssr: join(root, 'main.js'), outDir: 'dist-ssr' }, plugins: [make()] });
+    const make = () =>
+      instance.vite({
+        appId: APP,
+        buildId: 'b1',
+        deleteAfterUpload: false,
+      }) as unknown as PluginOption;
+    await build({
+      root,
+      logLevel: 'silent',
+      build: { ssr: join(root, 'main.js'), outDir: 'dist-ssr' },
+      plugins: [make()],
+    });
     expect(upload).not.toHaveBeenCalled();
     await build({ root, logLevel: 'silent', plugins: [make()] });
     expect(upload).toHaveBeenCalledTimes(1);
@@ -123,14 +164,20 @@ describe('vite', () => {
     const upload = vi.fn();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      await build({ root, logLevel: 'silent', plugins: [plugin({ appId: undefined }, { env: { EVERFRAME_API_TOKEN: 't' }, upload })] });
+      await build({
+        root,
+        logLevel: 'silent',
+        plugins: [plugin({ appId: undefined }, { env: { EVERFRAME_API_TOKEN: 't' }, upload })],
+      });
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('appId'));
     } finally {
       warn.mockRestore();
     }
     const assets = await readdir(join(root, 'dist', 'assets'));
     expect(assets.some((f) => f.endsWith('.map'))).toBe(false);
-    expect(await readFile(join(root, 'dist', 'assets', assets.find((f) => f.endsWith('.js'))!), 'utf8')).not.toContain('__EVERFRAME_BUILD__');
+    expect(
+      await readFile(join(root, 'dist', 'assets', assets.find((f) => f.endsWith('.js'))!), 'utf8'),
+    ).not.toContain('__EVERFRAME_BUILD__');
     expect(upload).not.toHaveBeenCalled();
   });
 

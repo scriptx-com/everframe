@@ -1,7 +1,17 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -29,7 +39,9 @@ function app(options: { exitCode?: number; pnpm?: boolean } = {}) {
   roots.push(root);
   mkdirSync(join(root, 'ios'));
   const linked = join(root, 'node_modules/@everframe/cli');
-  const cli = options.pnpm ? join(root, 'node_modules/.pnpm/@everframe+cli@9.9.9/node_modules/@everframe/cli') : linked;
+  const cli = options.pnpm
+    ? join(root, 'node_modules/.pnpm/@everframe+cli@9.9.9/node_modules/@everframe/cli')
+    : linked;
   mkdirSync(join(cli, 'scripts'), { recursive: true });
   mkdirSync(join(cli, 'dist'));
   copyFileSync(SCRIPT, join(cli, 'scripts/xcode-upload.sh'));
@@ -41,12 +53,19 @@ function app(options: { exitCode?: number; pnpm?: boolean } = {}) {
     `require('node:fs').writeFileSync(${JSON.stringify(record)}, JSON.stringify(process.argv.slice(2)));\nprocess.exit(${options.exitCode ?? 0});\n`,
   );
   mkdirSync(dirname(linked), { recursive: true });
-  if (options.pnpm) symlinkSync('../.pnpm/@everframe+cli@9.9.9/node_modules/@everframe/cli', linked);
+  if (options.pnpm)
+    symlinkSync('../.pnpm/@everframe+cli@9.9.9/node_modules/@everframe/cli', linked);
   // The generated phase line, as Xcode runs it: bash -c with the phase's shell.
   const line = xcodePhaseScript(APP);
   const run = (env: Record<string, string>) =>
     spawnSync('/bin/bash', ['-c', line], {
-      env: { PATH: process.env.PATH!, SRCROOT: join(root, 'ios'), CONFIGURATION: 'Release', NODE_BINARY: process.execPath, ...env },
+      env: {
+        PATH: process.env.PATH!,
+        SRCROOT: join(root, 'ios'),
+        CONFIGURATION: 'Release',
+        NODE_BINARY: process.execPath,
+        ...env,
+      },
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -54,13 +73,17 @@ function app(options: { exitCode?: number; pnpm?: boolean } = {}) {
     root,
     srcroot: join(root, 'ios'),
     run,
-    args: () => (existsSync(record) ? (JSON.parse(readFileSync(record, 'utf8')) as string[]) : undefined),
+    args: () =>
+      existsSync(record) ? (JSON.parse(readFileSync(record, 'utf8')) as string[]) : undefined,
   };
 }
 
 describe('scripts/xcode-upload.sh', () => {
   it('ships in the package without a bin of its own, so npx still finds the one `everframe` bin', () => {
-    const pkg = JSON.parse(readFileSync(join(PACKAGE, 'package.json'), 'utf8')) as { files: string[]; bin: Record<string, string> };
+    const pkg = JSON.parse(readFileSync(join(PACKAGE, 'package.json'), 'utf8')) as {
+      files: string[];
+      bin: Record<string, string>;
+    };
     expect(pkg.files).toContain('scripts');
     expect(pkg.bin).toEqual({ everframe: './dist/index.js' });
   });
@@ -78,26 +101,39 @@ describe('scripts/xcode-upload.sh', () => {
     expect(h.args()).toEqual(['xcode', 'build-phase', '--app-id', APP]);
   });
 
-  it.each([{ CONFIGURATION: 'Debug' }, { SKIP_BUNDLING: '1' }])('skips %o before Node, even when strict and Node is missing', (env) => {
-    const h = app();
-    const result = h.run({ ...env, NODE_BINARY: '/nonexistent/node', EVERFRAME_SYMBOLS_STRICT: '1' });
-    expect(result.status).toBe(0);
-    expect(result.stdout.trim()).toBe(XCODE_DEBUG_SKIP);
-    expect(result.stderr).toBe('');
-    expect(h.args()).toBeUndefined();
-  });
+  it.each([{ CONFIGURATION: 'Debug' }, { SKIP_BUNDLING: '1' }])(
+    'skips %o before Node, even when strict and Node is missing',
+    (env) => {
+      const h = app();
+      const result = h.run({
+        ...env,
+        NODE_BINARY: '/nonexistent/node',
+        EVERFRAME_SYMBOLS_STRICT: '1',
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout.trim()).toBe(XCODE_DEBUG_SKIP);
+      expect(result.stderr).toBe('');
+      expect(h.args()).toBeUndefined();
+    },
+  );
 
   it("takes NODE_BINARY from the project's .xcode.env files, .xcode.env.local last", () => {
     const h = app();
     writeFileSync(join(h.srcroot, '.xcode.env'), 'export NODE_BINARY=/nonexistent/node\n');
-    writeFileSync(join(h.srcroot, '.xcode.env.local'), `export NODE_BINARY="${process.execPath}"\n`);
+    writeFileSync(
+      join(h.srcroot, '.xcode.env.local'),
+      `export NODE_BINARY="${process.execPath}"\n`,
+    );
     expect(h.run({ NODE_BINARY: '' }).status).toBe(0);
     expect(h.args()).toEqual(['xcode', 'build-phase', '--app-id', APP]);
   });
 
   it('tolerates unset variables in the .xcode.env files', () => {
     const h = app();
-    writeFileSync(join(h.srcroot, '.xcode.env'), 'export EVERFRAME_TEST_FROM_ENV="$EVERFRAME_TEST_NEVER_SET"\n');
+    writeFileSync(
+      join(h.srcroot, '.xcode.env'),
+      'export EVERFRAME_TEST_FROM_ENV="$EVERFRAME_TEST_NEVER_SET"\n',
+    );
     const result = h.run({});
     expect(result.stderr).not.toContain('unbound variable');
     expect(result.status).toBe(0);
@@ -136,7 +172,9 @@ describe('scripts/xcode-upload.sh', () => {
     const h = app({ exitCode: 3 });
     const lenient = h.run({});
     expect(lenient.status).toBe(0);
-    expect(lenient.stdout.trim()).toBe(`warning: everframe: @everframe/cli stopped with exit status 3. ${CONTINUES}`);
+    expect(lenient.stdout.trim()).toBe(
+      `warning: everframe: @everframe/cli stopped with exit status 3. ${CONTINUES}`,
+    );
     const strict = h.run({ EVERFRAME_SYMBOLS_STRICT: '1' });
     expect(strict.status).toBe(3);
     expect(strict.stdout).not.toContain('warning:');
@@ -148,21 +186,34 @@ describe('scripts/xcode-upload.sh', () => {
     const result = h.run({});
     expect(result.status).toBe(0);
     expect(result.stderr).toContain('Cannot find module');
-    expect(result.stdout).toContain('warning: everframe: @everframe/cli stopped with exit status 1.');
+    expect(result.stdout).toContain(
+      'warning: everframe: @everframe/cli stopped with exit status 1.',
+    );
   });
 
-  it.each([{}, { CONFIGURATION: 'Debug' }])('fails the build when @everframe/cli is not installed (%o)', (env) => {
-    const h = app();
-    rmSync(join(h.root, 'node_modules'), { recursive: true });
-    const result = h.run(env);
-    expect(result.status).toBe(127);
-    expect(result.stderr).toContain('node_modules/@everframe/cli/scripts/xcode-upload.sh: No such file or directory');
-  });
+  it.each([{}, { CONFIGURATION: 'Debug' }])(
+    'fails the build when @everframe/cli is not installed (%o)',
+    (env) => {
+      const h = app();
+      rmSync(join(h.root, 'node_modules'), { recursive: true });
+      const result = h.run(env);
+      expect(result.status).toBe(127);
+      expect(result.stderr).toContain(
+        'node_modules/@everframe/cli/scripts/xcode-upload.sh: No such file or directory',
+      );
+    },
+  );
 
   describe('with the built CLI', () => {
     const run = (env: Record<string, string>) =>
       spawnSync('/bin/bash', [SCRIPT, '--app-id', APP], {
-        env: { PATH: process.env.PATH!, SRCROOT: '/nonexistent/ios', CONFIGURATION: 'Release', NODE_BINARY: process.execPath, ...env },
+        env: {
+          PATH: process.env.PATH!,
+          SRCROOT: '/nonexistent/ios',
+          CONFIGURATION: 'Release',
+          NODE_BINARY: process.execPath,
+          ...env,
+        },
         encoding: 'utf8',
       });
 

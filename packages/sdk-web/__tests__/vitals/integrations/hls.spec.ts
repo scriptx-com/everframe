@@ -9,10 +9,23 @@ type Emitted = { type: string; data?: Record<string, unknown>; t?: number };
 function fakeHls(over: Record<string, unknown> = {}) {
   const handlers = new Map<string, Array<(...a: unknown[]) => void>>();
   const hls = {
-    on(name: string, fn: (...a: unknown[]) => void) { handlers.set(name, [...(handlers.get(name) ?? []), fn]); },
-    off(name: string, fn: (...a: unknown[]) => void) { handlers.set(name, (handlers.get(name) ?? []).filter((h) => h !== fn)); },
-    fire(name: string, data?: unknown) { for (const h of handlers.get(name) ?? []) h(name, data); },
-    handlerCount() { let n = 0; for (const l of handlers.values()) n += l.length; return n; },
+    on(name: string, fn: (...a: unknown[]) => void) {
+      handlers.set(name, [...(handlers.get(name) ?? []), fn]);
+    },
+    off(name: string, fn: (...a: unknown[]) => void) {
+      handlers.set(
+        name,
+        (handlers.get(name) ?? []).filter((h) => h !== fn),
+      );
+    },
+    fire(name: string, data?: unknown) {
+      for (const h of handlers.get(name) ?? []) h(name, data);
+    },
+    handlerCount() {
+      let n = 0;
+      for (const l of handlers.values()) n += l.length;
+      return n;
+    },
     levels: [
       { bitrate: 800_000, width: 640, height: 360 },
       { bitrate: 3_000_000, width: 1920, height: 1080 },
@@ -33,7 +46,10 @@ function attach(hls: ReturnType<typeof fakeHls>, clock = { t: 1000 }) {
   const integ = hlsIntegration(hls);
   const ctx: PlayerIntegrationContext = {
     element: {},
-    emit: (type, data, t) => emitted.push(data === undefined ? { type } : t === undefined ? { type, data } : { type, data, t }),
+    emit: (type, data, t) =>
+      emitted.push(
+        data === undefined ? { type } : t === undefined ? { type, data } : { type, data, t },
+      ),
     now: () => clock.t,
   };
   integ.attach(ctx);
@@ -56,13 +72,23 @@ describe('hlsIntegration', () => {
     hls.fire(HLS_EVENTS.LEVEL_LOADED, { details: { live: true } });
     hls.fire(HLS_EVENTS.LEVEL_LOADED, { details: { live: true } });
     expect(emitted.filter((e) => e.type === 'source_change')).toEqual([
-      { type: 'source_change', data: { src: 'https://cdn.example.com/live/main.m3u8?token=1', protocol: 'hls', live: true } },
+      {
+        type: 'source_change',
+        data: {
+          src: 'https://cdn.example.com/live/main.m3u8?token=1',
+          protocol: 'hls',
+          live: true,
+        },
+      },
     ]);
   });
 
   it('emits source_change immediately when attached after the manifest already loaded (late attach)', () => {
     const { emitted } = attach(fakeHls());
-    expect(emitted[0]).toEqual({ type: 'source_change', data: { src: 'https://cdn.example.com/live/main.m3u8?token=1', protocol: 'hls' } });
+    expect(emitted[0]).toEqual({
+      type: 'source_change',
+      data: { src: 'https://cdn.example.com/live/main.m3u8?token=1', protocol: 'hls' },
+    });
   });
 
   it('measures manifestMs and firstFragmentMs with ctx.now() and exposes them via startupTimings()', () => {
@@ -93,22 +119,36 @@ describe('hlsIntegration', () => {
     hls.fire(HLS_EVENTS.LEVEL_SWITCHED, { level: 0 });
     hls.fire(HLS_EVENTS.LEVEL_SWITCHED, { level: 9 }); // unknown level → nothing
     expect(emitted.filter((e) => e.type === 'bitrate_change')).toEqual([
-      { type: 'bitrate_change', data: { bitrate: 3_000_000, width: 1920, height: 1080, level: 1, reason: 'abr' } },
-      { type: 'bitrate_change', data: { bitrate: 800_000, width: 640, height: 360, level: 0, reason: 'manual' } },
+      {
+        type: 'bitrate_change',
+        data: { bitrate: 3_000_000, width: 1920, height: 1080, level: 1, reason: 'abr' },
+      },
+      {
+        type: 'bitrate_change',
+        data: { bitrate: 800_000, width: 640, height: 360, level: 0, reason: 'manual' },
+      },
     ]);
   });
 
   it('emits drm from config.drmSystems at manifest load, once', () => {
-    const hls = fakeHls({ levels: [], config: { emeEnabled: true, drmSystems: { 'com.widevine.alpha': { licenseUrl: 'x' } } } });
+    const hls = fakeHls({
+      levels: [],
+      config: { emeEnabled: true, drmSystems: { 'com.widevine.alpha': { licenseUrl: 'x' } } },
+    });
     const { emitted } = attach(hls);
     hls.fire(HLS_EVENTS.MANIFEST_LOADED, {});
     hls.fire(HLS_EVENTS.MANIFEST_LOADED, {});
     hls.fire(HLS_EVENTS.KEY_LOADED, { keyInfo: { decryptdata: { method: 'AES-128' } } });
-    expect(emitted.filter((e) => e.type === 'drm')).toEqual([{ type: 'drm', data: { keySystem: 'com.widevine.alpha' } }]);
+    expect(emitted.filter((e) => e.type === 'drm')).toEqual([
+      { type: 'drm', data: { keySystem: 'com.widevine.alpha' } },
+    ]);
   });
 
   it('re-emits drm after a fresh hlsManifestLoading — a reused instance can switch protection across loads', () => {
-    const hls = fakeHls({ levels: [], config: { emeEnabled: true, drmSystems: { 'com.widevine.alpha': { licenseUrl: 'x' } } } });
+    const hls = fakeHls({
+      levels: [],
+      config: { emeEnabled: true, drmSystems: { 'com.widevine.alpha': { licenseUrl: 'x' } } },
+    });
     const { emitted } = attach(hls);
     hls.fire(HLS_EVENTS.MANIFEST_LOADED, {}); // first load: widevine, from config
 
@@ -129,11 +169,18 @@ describe('hlsIntegration', () => {
   });
 
   it('falls back to widevineLicenseUrl, then to the AES-128 key method', () => {
-    const a = fakeHls({ levels: [], config: { emeEnabled: true, widevineLicenseUrl: 'https://lic' } });
-    const ra = attach(a); a.fire(HLS_EVENTS.MANIFEST_LOADED, {});
-    expect(ra.emitted.filter((e) => e.type === 'drm')).toEqual([{ type: 'drm', data: { keySystem: 'com.widevine.alpha' } }]);
+    const a = fakeHls({
+      levels: [],
+      config: { emeEnabled: true, widevineLicenseUrl: 'https://lic' },
+    });
+    const ra = attach(a);
+    a.fire(HLS_EVENTS.MANIFEST_LOADED, {});
+    expect(ra.emitted.filter((e) => e.type === 'drm')).toEqual([
+      { type: 'drm', data: { keySystem: 'com.widevine.alpha' } },
+    ]);
     const b = fakeHls({ levels: [] });
-    const rb = attach(b); b.fire(HLS_EVENTS.MANIFEST_LOADED, {});
+    const rb = attach(b);
+    b.fire(HLS_EVENTS.MANIFEST_LOADED, {});
     // Fix wave item 4 — no key system in `b`'s config (it has none at all),
     // so MANIFEST_LOADED emits the tentative `none` fallback first; the
     // real hlsKeyLoaded below still fires and supersedes it (readers take
@@ -148,10 +195,18 @@ describe('hlsIntegration', () => {
   it('maps hlsError to error with code/fatal/detail', () => {
     const hls = fakeHls();
     const { emitted } = attach(hls);
-    hls.fire(HLS_EVENTS.ERROR, { type: 'networkError', details: 'fragLoadError', fatal: false, reason: 'timeout' });
+    hls.fire(HLS_EVENTS.ERROR, {
+      type: 'networkError',
+      details: 'fragLoadError',
+      fatal: false,
+      reason: 'timeout',
+    });
     hls.fire(HLS_EVENTS.ERROR, { type: 'mediaError', details: 'bufferStalledError', fatal: true });
     expect(emitted.filter((e) => e.type === 'error')).toEqual([
-      { type: 'error', data: { message: 'fragLoadError', code: 'networkError', fatal: false, detail: 'timeout' } },
+      {
+        type: 'error',
+        data: { message: 'fragLoadError', code: 'networkError', fatal: false, detail: 'timeout' },
+      },
       { type: 'error', data: { message: 'bufferStalledError', code: 'mediaError', fatal: true } },
     ]);
   });
@@ -159,7 +214,12 @@ describe('hlsIntegration', () => {
   it('snapshot() reads the current level and bandwidth estimate; tolerates a missing level', () => {
     const hls = fakeHls();
     const { integ } = attach(hls);
-    expect(integ.snapshot?.()).toEqual({ bitrate: 3_000_000, width: 1920, height: 1080, bandwidthEstimate: 6_500_000 });
+    expect(integ.snapshot?.()).toEqual({
+      bitrate: 3_000_000,
+      width: 1920,
+      height: 1080,
+      bandwidthEstimate: 6_500_000,
+    });
     hls.currentLevel = -1;
     expect(integ.snapshot?.()).toEqual({ bandwidthEstimate: 6_500_000 });
   });
@@ -188,7 +248,9 @@ describe('hlsIntegration', () => {
     const { emitted } = attach(hls);
     hls.fire(HLS_EVENTS.MANIFEST_LOADED, {});
     hls.fire(HLS_EVENTS.MANIFEST_LOADED, {}); // must not double-emit the fallback
-    expect(emitted.filter((e) => e.type === 'drm')).toEqual([{ type: 'drm', data: { keySystem: 'none' } }]);
+    expect(emitted.filter((e) => e.type === 'drm')).toEqual([
+      { type: 'drm', data: { keySystem: 'none' } },
+    ]);
   });
 
   it('a real hlsKeyLoaded after the "none" fallback still fires — the fallback does not pre-empt it', () => {
@@ -215,10 +277,15 @@ describe('hlsIntegration', () => {
   });
 
   it('does not emit the "none" fallback when a config-declared key system is present', () => {
-    const hls = fakeHls({ levels: [], config: { emeEnabled: true, drmSystems: { 'com.widevine.alpha': { licenseUrl: 'x' } } } });
+    const hls = fakeHls({
+      levels: [],
+      config: { emeEnabled: true, drmSystems: { 'com.widevine.alpha': { licenseUrl: 'x' } } },
+    });
     const { emitted } = attach(hls);
     hls.fire(HLS_EVENTS.MANIFEST_LOADED, {});
-    expect(emitted.filter((e) => e.type === 'drm')).toEqual([{ type: 'drm', data: { keySystem: 'com.widevine.alpha' } }]);
+    expect(emitted.filter((e) => e.type === 'drm')).toEqual([
+      { type: 'drm', data: { keySystem: 'com.widevine.alpha' } },
+    ]);
   });
 
   // codex round 1, item 1 — hlsLevelSwitched reads hls.levels/autoLevelEnabled
@@ -230,7 +297,9 @@ describe('hlsIntegration', () => {
     const { emitted } = attach(hls);
     Object.defineProperty(hls, 'levels', {
       configurable: true,
-      get() { throw new Error('duck-typed instance is broken'); },
+      get() {
+        throw new Error('duck-typed instance is broken');
+      },
     });
     expect(() => hls.fire(HLS_EVENTS.LEVEL_SWITCHED, { level: 0 })).not.toThrow();
     expect(emitted.filter((e) => e.type === 'bitrate_change')).toEqual([]);

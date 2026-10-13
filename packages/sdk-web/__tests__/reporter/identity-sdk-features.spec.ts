@@ -39,7 +39,9 @@ describe('web adapter — identity capability negotiation', () => {
     adapters.push(adapter);
     await adapter.__initReplay();
 
-    const configCall = fetchMock.mock.calls.find((c) => urlOf(c[0] as RequestInfo | URL).includes('/api/config'));
+    const configCall = fetchMock.mock.calls.find((c) =>
+      urlOf(c[0] as RequestInfo | URL).includes('/api/config'),
+    );
     expect(configCall).toBeDefined();
     const headers = configCall![1]?.headers as Record<string, string>;
     const features = headers['X-Everframe-SDK-Features']!.split(',').map((s) => s.trim());

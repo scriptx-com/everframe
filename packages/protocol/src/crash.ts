@@ -29,8 +29,12 @@ export const CrashFrame = z
 export const JsBundleMetadata = z.object({
   engine: z.literal('hermes'),
   platform: z.enum(['android', 'ios', 'vega']).meta({ title: 'JsBundlePlatform' }),
-  buildId: z.string().min(1).max(200)
-    .regex(/\S/u).regex(/^(?:[^\u0000\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/u),
+  buildId: z
+    .string()
+    .min(1)
+    .max(200)
+    .regex(/\S/u)
+    .regex(/^(?:[^\u0000\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/u),
   bundleName: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/),
 });
 export type JsBundleMetadata = z.infer<typeof JsBundleMetadata>;
@@ -38,19 +42,23 @@ export type JsBundleMetadata = z.infer<typeof JsBundleMetadata>;
 export const JvmMappingId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$(?![\s\S])/);
 export type JvmMappingId = z.infer<typeof JvmMappingId>;
 
-export const JvmCause = z.object({
-  exceptionType: z.string().max(256),
-  message: z.string().max(4096),
-  frames: z.array(CrashFrame).max(32),
-  framesTruncated: z.boolean(),
-}).meta({ id: 'JvmCause', title: 'JvmCause' });
+export const JvmCause = z
+  .object({
+    exceptionType: z.string().max(256),
+    message: z.string().max(4096),
+    frames: z.array(CrashFrame).max(32),
+    framesTruncated: z.boolean(),
+  })
+  .meta({ id: 'JvmCause', title: 'JvmCause' });
 export type JvmCause = z.infer<typeof JvmCause>;
 
-export const JvmCrashMetadata = z.object({
-  mappingId: JvmMappingId.optional(),
-  causes: z.array(JvmCause).max(8),
-  causesTruncated: z.boolean(),
-}).meta({ id: 'JvmCrashMetadata', title: 'JvmCrashMetadata' });
+export const JvmCrashMetadata = z
+  .object({
+    mappingId: JvmMappingId.optional(),
+    causes: z.array(JvmCause).max(8),
+    causesTruncated: z.boolean(),
+  })
+  .meta({ id: 'JvmCrashMetadata', title: 'JvmCrashMetadata' });
 export type JvmCrashMetadata = z.infer<typeof JvmCrashMetadata>;
 
 export const CrashPayload = z
@@ -79,11 +87,26 @@ export const CrashPayload = z
   })
   .passthrough()
   .superRefine((value, ctx) => {
-    if (value.androidNative && (value.native || value.handled || value.fatal !== true || value.androidNative.frames.length !== value.frames.length)) {
-      ctx.addIssue({ code: 'custom', path: ['androidNative'], message: 'Android native evidence requires one fatal unhandled crash and matching display frames' });
+    if (
+      value.androidNative &&
+      (value.native ||
+        value.handled ||
+        value.fatal !== true ||
+        value.androidNative.frames.length !== value.frames.length)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['androidNative'],
+        message:
+          'Android native evidence requires one fatal unhandled crash and matching display frames',
+      });
     }
     if (value.native && value.native.frames.length !== value.frames.length) {
-      ctx.addIssue({ code: 'custom', path: ['native', 'frames'], message: 'Native and display frame counts must match' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['native', 'frames'],
+        message: 'Native and display frame counts must match',
+      });
     }
   });
 

@@ -78,9 +78,7 @@ function configResponse(replies: boolean, reportHotkeyBinding?: string): Respons
       replayDurationSec: 30,
       samplingRate: 1,
       ...(replies ? { replies: { enabled: true } } : {}),
-      ...(reportHotkeyBinding
-        ? { reportHotkey: { binding: reportHotkeyBinding } }
-        : {}),
+      ...(reportHotkeyBinding ? { reportHotkey: { binding: reportHotkeyBinding } } : {}),
     }),
     { status: 200, headers: { 'Content-Type': 'application/json' } },
   );
@@ -309,16 +307,12 @@ describe('destroy()', () => {
     type Reg = [type: string, fn: unknown];
     const added: Reg[] = [];
     const removed: Reg[] = [];
-    vi.spyOn(window, 'addEventListener').mockImplementation(
-      ((type: string, fn: unknown) => {
-        added.push([type, fn]);
-      }) as unknown as typeof window.addEventListener,
-    );
-    vi.spyOn(window, 'removeEventListener').mockImplementation(
-      ((type: string, fn: unknown) => {
-        removed.push([type, fn]);
-      }) as unknown as typeof window.removeEventListener,
-    );
+    vi.spyOn(window, 'addEventListener').mockImplementation(((type: string, fn: unknown) => {
+      added.push([type, fn]);
+    }) as unknown as typeof window.addEventListener);
+    vi.spyOn(window, 'removeEventListener').mockImplementation(((type: string, fn: unknown) => {
+      removed.push([type, fn]);
+    }) as unknown as typeof window.removeEventListener);
 
     const CYCLES = 3;
     for (let i = 0; i < CYCLES; i++) init(config).destroy();
@@ -469,9 +463,7 @@ describe('dashboard-owned report hotkey', () => {
     await flush(10);
     expect(islandHandlers).toHaveLength(0);
 
-    window.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'R', altKey: true, bubbles: true }),
-    );
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'R', altKey: true, bubbles: true }));
     await vi.waitFor(() => expect(islandHandlers).toHaveLength(1));
   });
 });

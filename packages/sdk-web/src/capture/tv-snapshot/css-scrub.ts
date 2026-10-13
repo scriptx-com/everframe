@@ -280,7 +280,8 @@ function stripComments(s: string): string {
 /** The decoded value of a CSS string literal (quotes included in `literal`). */
 function cssStringValue(literal: string): string {
   const quote = literal[0]!;
-  const body = literal.length > 1 && literal.endsWith(quote) ? literal.slice(1, -1) : literal.slice(1);
+  const body =
+    literal.length > 1 && literal.endsWith(quote) ? literal.slice(1, -1) : literal.slice(1);
   return unescape(body, true);
 }
 
@@ -310,7 +311,8 @@ function sanitizeCssUrl(raw: string, ctx: CssScrubContext): string | null {
 
 // ── exception checks ──────────────────────────────────────────────────────
 
-const GRID_CELL_RE = /^(?:\.+|-?[_a-zA-Z\u0080-\uFFFF][-_a-zA-Z0-9\u0080-\uFFFF]*|--[-_a-zA-Z0-9\u0080-\uFFFF]*)$/;
+const GRID_CELL_RE =
+  /^(?:\.+|-?[_a-zA-Z\u0080-\uFFFF][-_a-zA-Z0-9\u0080-\uFFFF]*|--[-_a-zA-Z0-9\u0080-\uFFFF]*)$/;
 
 function validGridAreaString(literal: string): boolean {
   if (literal.length > MAX_GRID_STRING_LENGTH) return false;
@@ -378,7 +380,8 @@ function scrubSelector(selector: string, ctx: CssScrubContext): string | null {
     }
     if (c === '[' && ctx.masked) {
       const close = findTopLevel(selector, i + 1, ']');
-      if (close >= selector.length || !allowedAttributeSelector(selector.slice(i + 1, close))) return null;
+      if (close >= selector.length || !allowedAttributeSelector(selector.slice(i + 1, close)))
+        return null;
       i = close + 1;
       continue;
     }
@@ -424,7 +427,12 @@ function scrubImageSet(args: string, ctx: CssScrubContext): string | null {
 }
 
 /** A declaration value (or an at-rule prelude), or null when the whole thing must go. */
-function scrubValue(prop: string, value: string, ctx: CssScrubContext, block: DeclarationBlock | null): string | null {
+function scrubValue(
+  prop: string,
+  value: string,
+  ctx: CssScrubContext,
+  block: DeclarationBlock | null,
+): string | null {
   const fontNames = prop === 'font-family' || prop === 'font';
   const gridAreas = prop === 'grid-template-areas' || prop === 'grid-template' || prop === 'grid';
   const fontSrc = block === 'font-face' && prop === 'src';
@@ -439,7 +447,9 @@ function scrubValue(prop: string, value: string, ctx: CssScrubContext, block: De
       const [end, closed] = scanString(value, i);
       if (!closed) return null;
       if (
-        ctx.masked && !fontNames && !(gridAreas && validGridAreaString(value.slice(i, end))) &&
+        ctx.masked &&
+        !fontNames &&
+        !(gridAreas && validGridAreaString(value.slice(i, end))) &&
         !(prop === 'content' && isAllowedContentString(cssStringValue(value.slice(i, end))))
       ) {
         return null;
@@ -581,7 +591,9 @@ type SupportsFn = (property: string, value: string) => boolean;
 
 function engineSupports(): SupportsFn | null {
   const css = (globalScope() as { CSS?: { supports?: unknown } }).CSS;
-  return css !== undefined && typeof css.supports === 'function' ? (css.supports as SupportsFn).bind(css) : null;
+  return css !== undefined && typeof css.supports === 'function'
+    ? (css.supports as SupportsFn).bind(css)
+    : null;
 }
 
 // @font-face descriptor VALUES (masked pages): tight patterns over short,
@@ -593,8 +605,15 @@ const FONT_ANGLE_RE = /^-?(?:\d{1,4}(?:\.\d{1,6})?|\.\d{1,6})(?:deg|grad|rad|tur
 const UNICODE_RANGE_RE = /^u\+[0-9a-f?]{1,6}(?:-[0-9a-f]{1,6})?$/;
 const FONT_DISPLAY = new Set(['auto', 'block', 'swap', 'fallback', 'optional']);
 const FONT_STRETCH_KEYWORDS = new Set([
-  'normal', 'ultra-condensed', 'extra-condensed', 'condensed', 'semi-condensed',
-  'semi-expanded', 'expanded', 'extra-expanded', 'ultra-expanded',
+  'normal',
+  'ultra-condensed',
+  'extra-condensed',
+  'condensed',
+  'semi-condensed',
+  'semi-expanded',
+  'expanded',
+  'extra-expanded',
+  'ultra-expanded',
 ]);
 const METRIC_OVERRIDES = new Set(['ascent-override', 'descent-override', 'line-gap-override']);
 
@@ -671,10 +690,16 @@ function isValidDeclaration(block: DeclarationBlock, prop: string, value: string
   return KNOWN_PROPERTIES.has(prop.replace(VENDOR_PREFIX_RE, ''));
 }
 
-function validDeclarationMemo(ctx: CssScrubContext, block: DeclarationBlock, prop: string, value: string): boolean {
+function validDeclarationMemo(
+  ctx: CssScrubContext,
+  block: DeclarationBlock,
+  prop: string,
+  value: string,
+): boolean {
   const memo = ctx.validity;
   const key = `${block}|${prop}|${value}`;
-  if (memo === undefined || key.length > SCRUB_MEMO_MAX_KEY) return isValidDeclaration(block, prop, value);
+  if (memo === undefined || key.length > SCRUB_MEMO_MAX_KEY)
+    return isValidDeclaration(block, prop, value);
   const hit = memo.get(key);
   if (hit !== undefined) return hit;
   const valid = isValidDeclaration(block, prop, value);
@@ -723,8 +748,34 @@ const MAX_CSS_VALUE_DIGITS = 12;
 const MAX_CSS_VALUE_FREE_DIGITS = 8;
 const MAX_NUMBER_PART_DIGITS = 4;
 const CSS_UNITS = new Set([
-  'px', 'em', 'rem', 'ex', 'ch', 'vw', 'vh', 'vmin', 'vmax', 'cm', 'mm', 'q', 'in', 'pt', 'pc',
-  'deg', 'grad', 'rad', 'turn', 's', 'ms', 'hz', 'khz', 'dpi', 'dpcm', 'dppx', 'x', 'fr',
+  'px',
+  'em',
+  'rem',
+  'ex',
+  'ch',
+  'vw',
+  'vh',
+  'vmin',
+  'vmax',
+  'cm',
+  'mm',
+  'q',
+  'in',
+  'pt',
+  'pc',
+  'deg',
+  'grad',
+  'rad',
+  'turn',
+  's',
+  'ms',
+  'hz',
+  'khz',
+  'dpi',
+  'dpcm',
+  'dppx',
+  'x',
+  'fr',
 ]);
 
 /** What one value (fallbacks included) has used of its allowances. */
@@ -806,7 +857,13 @@ function chargeToken(b: ValueBudget): boolean {
  * A value list from s[i] to the end of `s` or, when `inFn`, to the `)` that
  * closes it → the index of that stop, or -1.
  */
-function parseValueList(s: string, i: number, b: ValueBudget, depth: number, inFn: boolean): number {
+function parseValueList(
+  s: string,
+  i: number,
+  b: ValueBudget,
+  depth: number,
+  inFn: boolean,
+): number {
   if (depth > MAX_CSS_VALUE_DEPTH) return -1;
   let j = i;
   for (;;) {
@@ -868,7 +925,12 @@ function parseVar(s: string, i: number, b: ValueBudget, depth: number): number {
     }
     j++;
   }
-  if (j === nameStart || b.digits > MAX_CSS_VALUE_DIGITS || b.freeDigits > MAX_CSS_VALUE_FREE_DIGITS) return -1;
+  if (
+    j === nameStart ||
+    b.digits > MAX_CSS_VALUE_DIGITS ||
+    b.freeDigits > MAX_CSS_VALUE_FREE_DIGITS
+  )
+    return -1;
   j = skipSpaces(s, j);
   if (s[j] === ')') return j + 1;
   if (s[j] !== ',') return -1;
@@ -929,7 +991,13 @@ function parseCalcOperand(s: string, i: number, b: ValueBudget, depth: number): 
  * comma or space/slash separated, each range-checked; a var() argument stands
  * for any number of channels (then only the count ≤ 4 is checked).
  */
-function parseColorFunction(s: string, i: number, b: ValueBudget, depth: number, kind: 'rgb' | 'hsl'): number {
+function parseColorFunction(
+  s: string,
+  i: number,
+  b: ValueBudget,
+  depth: number,
+  kind: 'rgb' | 'hsl',
+): number {
   if (depth > MAX_CSS_VALUE_DEPTH) return -1;
   const args: Array<ParsedNumber | null> = [];
   let j = i;
@@ -1019,18 +1087,26 @@ function varFallbacksSafe(value: string): boolean {
 const MAX_CONTENT_VALUE_LENGTH = 256;
 
 function isPrivateUse(cp: number): boolean {
-  return (cp >= 0xe000 && cp <= 0xf8ff) || (cp >= 0xf0000 && cp <= 0xffffd) || (cp >= 0x100000 && cp <= 0x10fffd);
+  return (
+    (cp >= 0xe000 && cp <= 0xf8ff) ||
+    (cp >= 0xf0000 && cp <= 0xffffd) ||
+    (cp >= 0x100000 && cp <= 0x10fffd)
+  );
 }
 
 /** One symbol-like character: ASCII punctuation/space, Latin-1 punctuation, ×, ÷, and the punctuation/arrow/shape/symbol blocks. */
 function isSymbolChar(cp: number): boolean {
   if (cp < 0x80) {
-    const letterOrDigit = (cp >= 0x30 && cp <= 0x39) || (cp >= 0x41 && cp <= 0x5a) || (cp >= 0x61 && cp <= 0x7a);
+    const letterOrDigit =
+      (cp >= 0x30 && cp <= 0x39) || (cp >= 0x41 && cp <= 0x5a) || (cp >= 0x61 && cp <= 0x7a);
     return !letterOrDigit && (cp >= 0x20 || cp === 0x0a || cp === 0x09) && cp !== 0x7f;
   }
   return (
-    (cp >= 0xa0 && cp <= 0xbf) || cp === 0xd7 || cp === 0xf7 ||
-    (cp >= 0x2000 && cp <= 0x2bff) || (cp >= 0x3000 && cp <= 0x303f)
+    (cp >= 0xa0 && cp <= 0xbf) ||
+    cp === 0xd7 ||
+    cp === 0xf7 ||
+    (cp >= 0x2000 && cp <= 0x2bff) ||
+    (cp >= 0x3000 && cp <= 0x303f)
   );
 }
 
@@ -1084,7 +1160,8 @@ function isAllowedContentValue(value: string): boolean {
       if (arg === '') return false;
       if (arg[0] === '"' || arg[0] === "'") {
         const [stop, closed] = scanString(arg, 0);
-        if (!closed || stop !== arg.length || !isAllowedContentString(cssStringValue(arg))) return false;
+        if (!closed || stop !== arg.length || !isAllowedContentString(cssStringValue(arg)))
+          return false;
       } else if (!startsIdent(arg, 0) || consumeIdent(arg, 0)[0] !== arg.length) {
         return false;
       }
@@ -1153,7 +1230,14 @@ function scrubPrelude(prelude: string, ctx: CssScrubContext): string | null {
 }
 
 const RULE_LIST_AT_RULES = new Set([
-  'media', 'supports', 'layer', 'container', 'scope', 'starting-style', 'keyframes', '-webkit-keyframes',
+  'media',
+  'supports',
+  'layer',
+  'container',
+  'scope',
+  'starting-style',
+  'keyframes',
+  '-webkit-keyframes',
 ]);
 
 function scrubAtStatement(prelude: string, ctx: CssScrubContext): string {
@@ -1197,8 +1281,10 @@ function scrubAtBlock(prelude: string, body: string, ctx: CssScrubContext, depth
   if (name === 'counter-style' && ctx.masked) return '';
   const cleanPrelude = scrubPrelude(prelude, ctx);
   if (cleanPrelude === null) return '';
-  if (name === 'page' || name === 'counter-style') return `${cleanPrelude}{${scrubDeclarations(body, ctx, name)}}`;
-  if (RULE_LIST_AT_RULES.has(name)) return `${cleanPrelude}{${scrubRuleList(body, ctx, depth + 1)}}`;
+  if (name === 'page' || name === 'counter-style')
+    return `${cleanPrelude}{${scrubDeclarations(body, ctx, name)}}`;
+  if (RULE_LIST_AT_RULES.has(name))
+    return `${cleanPrelude}{${scrubRuleList(body, ctx, depth + 1)}}`;
   return ''; // @document, @property, @font-feature-values, @font-palette-values, unknown
 }
 

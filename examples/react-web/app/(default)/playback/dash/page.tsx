@@ -65,7 +65,10 @@ export default function DashPlaybackPage() {
     };
   }, []);
 
-  useTrackPlayer(ref, useMemo(() => (player ? { shaka: player, name: 'dash' } : { name: 'dash' }), [player]));
+  useTrackPlayer(
+    ref,
+    useMemo(() => (player ? { shaka: player, name: 'dash' } : { name: 'dash' }), [player]),
+  );
 
   // load() must run AFTER useTrackPlayer's effect has attached — Shaka fires
   // `loading` from load(), and the integration's startup baseline is set on
@@ -99,9 +102,8 @@ export default function DashPlaybackPage() {
         DASH
       </h1>
       <p className="lede">
-        One multi-rendition manifest through Shaka Player. Pin a variant to
-        force a <code>quality_change</code>; hand control back to ABR and
-        watch it pick one itself.
+        One multi-rendition manifest through Shaka Player. Pin a variant to force a{' '}
+        <code>quality_change</code>; hand control back to ABR and watch it pick one itself.
       </p>
 
       <PlayerBench
@@ -114,7 +116,12 @@ export default function DashPlaybackPage() {
           variants.length > 0 ? (
             <div className="btn-row" data-testid="dash-variants">
               <span className="player-bench-label">Variant</span>
-              <button type="button" className="chip" aria-pressed={auto} onClick={() => pickVariant(null)}>
+              <button
+                type="button"
+                className="chip"
+                aria-pressed={auto}
+                onClick={() => pickVariant(null)}
+              >
                 Auto{auto && active ? ` (${active.height}p)` : ''}
               </button>
               {variants.map((t) => (
@@ -133,7 +140,15 @@ export default function DashPlaybackPage() {
         }
       >
         {/* eslint-disable-next-line jsx-a11y/media-has-caption -- third-party test stream */}
-        <video ref={ref} controls muted playsInline width={640} height={360} data-testid="dash-video" />
+        <video
+          ref={ref}
+          controls
+          muted
+          playsInline
+          width={640}
+          height={360}
+          data-testid="dash-video"
+        />
       </PlayerBench>
     </main>
   );

@@ -134,7 +134,10 @@ function shadow(): ShadowRoot {
  * the click a user actually performs.
  */
 async function fabWithThread(): Promise<HTMLButtonElement> {
-  localStorage.setItem(scopedReporterTokenStorageKey('txx_live_island_failure'), `evr_${'0'.repeat(36)}`);
+  localStorage.setItem(
+    scopedReporterTokenStorageKey('txx_live_island_failure'),
+    `evr_${'0'.repeat(36)}`,
+  );
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {

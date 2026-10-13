@@ -173,7 +173,12 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
       if (kind === 'upgraded' && admittedKinds.has('crashOnly')) admittedKinds.add('upgraded');
       if (!admittedKinds.has(kind)) {
         if (!(samplingDraw < replaySamplingRate(getConfig(), kind))) {
-          __traceReplay('lifecycle.tryStart', { from, started: false, reason: 'sampled_out', kind });
+          __traceReplay('lifecycle.tryStart', {
+            from,
+            started: false,
+            reason: 'sampled_out',
+            kind,
+          });
           return false;
         }
         admittedKinds.add(kind);

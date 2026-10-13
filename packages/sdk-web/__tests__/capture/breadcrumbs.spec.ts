@@ -111,8 +111,7 @@ describe('describeEventTarget', () => {
   });
 
   it('reads NOTHING but the tag from a masked subtree — id/role never leak', () => {
-    document.body.innerHTML =
-      `<div id="wrap"><button id="ssn-123-45-6789" role="button">pay</button></div>`;
+    document.body.innerHTML = `<div id="wrap"><button id="ssn-123-45-6789" role="button">pay</button></div>`;
     const masked = [document.querySelector('#wrap')!];
     const d = describeEventTarget(document.querySelector('button')!, masked);
     expect(d).toEqual({ label: '[masked]', masked: true, meta: { tag: 'button' } });
@@ -125,9 +124,7 @@ describe('installTapCrumbs', () => {
     document.body.innerHTML = `<button id="go">Go</button>`;
     const { crumbs, sink } = collect();
     uninstalls.push(installTapCrumbs(sink, allOn, () => []));
-    document
-      .querySelector('#go')!
-      .dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    document.querySelector('#go')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     expect(crumbs).toHaveLength(1);
     expect(crumbs[0]).toMatchObject({
       kind: 'tap',
@@ -148,7 +145,13 @@ describe('installTapCrumbs', () => {
     expect(crumbs).toHaveLength(1);
 
     const gated: BreadcrumbInput[] = [];
-    uninstalls.push(installTapCrumbs((i) => gated.push(i), () => false, () => []));
+    uninstalls.push(
+      installTapCrumbs(
+        (i) => gated.push(i),
+        () => false,
+        () => [],
+      ),
+    );
     document.querySelector('#k')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     expect(gated).toHaveLength(0);
   });

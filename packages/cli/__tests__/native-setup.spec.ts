@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -20,7 +27,7 @@ import {
 } from '../src/native-setup/index.js';
 
 const APP = '00000000-0000-4000-8000-000000000000';
-const GRADLE = "apply plugin: \"com.android.application\"\n\nandroid {\n}\n";
+const GRADLE = 'apply plugin: "com.android.application"\n\nandroid {\n}\n';
 const loadProject = () => {
   const project = xcode.project(join(__dirname, 'fixtures/ios/project.pbxproj'));
   project.parseSync();
@@ -35,7 +42,8 @@ const THIN_GRADLE = [
 ].join('\n');
 
 const ONE_LINE = `/bin/bash "\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`;
-const DSYM_INPUT = '"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"';
+const DSYM_INPUT =
+  '"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"';
 
 describe('xcodePhaseScript', () => {
   it('is one line that runs the upload script shipped in @everframe/cli', () => {
@@ -74,7 +82,10 @@ describe('xcodeUploadScriptPath', () => {
   it('finds the CLI in the app root', () => {
     const root = tree();
     install(root);
-    expect(xcodeUploadScriptPath(join(root, 'ios'))).toEqual({ path: DEFAULT_XCODE_UPLOAD_SCRIPT, installed: true });
+    expect(xcodeUploadScriptPath(join(root, 'ios'))).toEqual({
+      path: DEFAULT_XCODE_UPLOAD_SCRIPT,
+      installed: true,
+    });
   });
 
   it('finds a CLI hoisted to a monorepo root, and prefers the nearest one', () => {
@@ -96,14 +107,23 @@ describe('xcodeUploadScriptPath', () => {
     mkdirSync(join(store, 'scripts'), { recursive: true });
     writeFileSync(join(store, 'scripts/xcode-upload.sh'), '#!/bin/bash\n');
     mkdirSync(join(root, 'node_modules/@everframe'));
-    symlinkSync('../.pnpm/@everframe+cli@9.9.9/node_modules/@everframe/cli', join(root, 'node_modules/@everframe/cli'));
-    expect(xcodeUploadScriptPath(join(root, 'ios'))).toEqual({ path: DEFAULT_XCODE_UPLOAD_SCRIPT, installed: true });
+    symlinkSync(
+      '../.pnpm/@everframe+cli@9.9.9/node_modules/@everframe/cli',
+      join(root, 'node_modules/@everframe/cli'),
+    );
+    expect(xcodeUploadScriptPath(join(root, 'ios'))).toEqual({
+      path: DEFAULT_XCODE_UPLOAD_SCRIPT,
+      installed: true,
+    });
   });
 
   it('skips an installed CLI without the script and falls back to the standard path', () => {
     const root = tree();
     mkdirSync(join(root, 'node_modules/@everframe/cli/dist'), { recursive: true });
-    expect(xcodeUploadScriptPath(join(root, 'ios'))).toEqual({ path: DEFAULT_XCODE_UPLOAD_SCRIPT, installed: false });
+    expect(xcodeUploadScriptPath(join(root, 'ios'))).toEqual({
+      path: DEFAULT_XCODE_UPLOAD_SCRIPT,
+      installed: false,
+    });
   });
 
   it('returns a path xcodePhaseScript accepts', () => {
@@ -111,13 +131,17 @@ describe('xcodeUploadScriptPath', () => {
     install(root);
     const deep = join(root, 'a/b/c');
     mkdirSync(join(deep, 'ios'), { recursive: true });
-    expect(() => xcodePhaseScript(APP, xcodeUploadScriptPath(join(deep, 'ios')).path)).not.toThrow();
+    expect(() =>
+      xcodePhaseScript(APP, xcodeUploadScriptPath(join(deep, 'ios')).path),
+    ).not.toThrow();
   });
 });
 
 describe('patchAppBuildGradle', () => {
   it('inserts the plugin and app id after the application plugin, nothing else', () => {
-    expect(patchAppBuildGradle(GRADLE, APP)).toBe(`apply plugin: "com.android.application"\n${THIN_GRADLE}\n\nandroid {\n}\n`);
+    expect(patchAppBuildGradle(GRADLE, APP)).toBe(
+      `apply plugin: "com.android.application"\n${THIN_GRADLE}\n\nandroid {\n}\n`,
+    );
   });
 
   it('is idempotent', () => {
@@ -143,9 +167,9 @@ describe('patchXcodeProject', () => {
     const project = loadProject();
     patchXcodeProject(project, APP);
     patchXcodeProject(project, APP);
-    const phases = Object.entries(project.hash.project.objects.PBXShellScriptBuildPhase ?? {}).filter(
-      ([key, value]) => key.endsWith('_comment') && value === XCODE_PHASE_NAME,
-    );
+    const phases = Object.entries(
+      project.hash.project.objects.PBXShellScriptBuildPhase ?? {},
+    ).filter(([key, value]) => key.endsWith('_comment') && value === XCODE_PHASE_NAME);
     expect(phases).toHaveLength(1);
     const settings = appBuildSettings(project);
     expect(settings.length).toBeGreaterThan(0);
@@ -178,7 +202,8 @@ describe('patchXcodeProject', () => {
       '\t\t};',
       '',
     ].join('\n');
-    const settings = '\t\t\t\tSOURCEMAP_FILE = "$(DERIVED_FILE_DIR)/main.jsbundle.map";\n\t\t\t\tENABLE_USER_SCRIPT_SANDBOXING = NO;\n';
+    const settings =
+      '\t\t\t\tSOURCEMAP_FILE = "$(DERIVED_FILE_DIR)/main.jsbundle.map";\n\t\t\t\tENABLE_USER_SCRIPT_SANDBOXING = NO;\n';
     expect(after).toContain(reference);
     expect(after).toContain(phase);
     expect(after.split(settings)).toHaveLength(3); // Debug and Release
@@ -194,7 +219,9 @@ describe('patchXcodeProject', () => {
     patchXcodeProject(project, APP);
     patchXcodeProject(project, other);
     const section = project.hash.project.objects.PBXShellScriptBuildPhase ?? {};
-    const keys = Object.keys(section).filter((key) => section[`${key}_comment`] === XCODE_PHASE_NAME);
+    const keys = Object.keys(section).filter(
+      (key) => section[`${key}_comment`] === XCODE_PHASE_NAME,
+    );
     expect(keys).toHaveLength(1);
     const script = (section[keys[0]!] as { shellScript: string }).shellScript;
     expect(script).toContain(other);
@@ -203,12 +230,22 @@ describe('patchXcodeProject', () => {
 
   it('rewrites an earlier phase of the same name in place instead of adding a second one', () => {
     const project = loadProject();
-    project.addBuildPhase([], 'PBXShellScriptBuildPhase', XCODE_PHASE_NAME, project.getFirstTarget().uuid, {
-      shellPath: '/bin/bash',
-      shellScript: 'echo one\necho two\necho three',
-      inputPaths: ['"$(EVERFRAME_DSYM_INPUT)"', '"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"'],
-    });
-    patchXcodeProject(project, APP, '${SRCROOT}/../../node_modules/@everframe/cli/scripts/xcode-upload.sh');
+    project.addBuildPhase(
+      [],
+      'PBXShellScriptBuildPhase',
+      XCODE_PHASE_NAME,
+      project.getFirstTarget().uuid,
+      {
+        shellPath: '/bin/bash',
+        shellScript: 'echo one\necho two\necho three',
+        inputPaths: ['"$(EVERFRAME_DSYM_INPUT)"', '"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"'],
+      },
+    );
+    patchXcodeProject(
+      project,
+      APP,
+      '${SRCROOT}/../../node_modules/@everframe/cli/scripts/xcode-upload.sh',
+    );
     expect(phaseScripts(project)).toEqual([
       `"/bin/bash \\"\${SRCROOT}/../../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id \\"${APP}\\""`,
     ]);
@@ -261,22 +298,38 @@ function phaseScripts(project: ReturnType<typeof loadProject>): string[] {
 
 function appBuildSettings(project: ReturnType<typeof loadProject>): Array<Record<string, string>> {
   const target = project.getFirstTarget().firstTarget as { buildConfigurationList: string };
-  const lists = project.pbxXCConfigurationList() as Record<string, { buildConfigurations?: Array<{ value: string }> }>;
-  const configs = project.pbxXCBuildConfigurationSection() as Record<string, { buildSettings?: Record<string, string> }>;
-  return (lists[target.buildConfigurationList]?.buildConfigurations ?? []).map((ref) => configs[ref.value]!.buildSettings!);
+  const lists = project.pbxXCConfigurationList() as Record<
+    string,
+    { buildConfigurations?: Array<{ value: string }> }
+  >;
+  const configs = project.pbxXCBuildConfigurationSection() as Record<
+    string,
+    { buildSettings?: Record<string, string> }
+  >;
+  return (lists[target.buildConfigurationList]?.buildConfigurations ?? []).map(
+    (ref) => configs[ref.value]!.buildSettings!,
+  );
 }
 
 describe('patchRootBuildGradle', () => {
-  const ROOT = "buildscript {\n  dependencies {\n    classpath('com.android.tools.build:gradle')\n    classpath('com.facebook.react:react-native-gradle-plugin')\n  }\n}\n";
+  const ROOT =
+    "buildscript {\n  dependencies {\n    classpath('com.android.tools.build:gradle')\n    classpath('com.facebook.react:react-native-gradle-plugin')\n  }\n}\n";
   it('adds the pinned Everframe Gradle plugin after the React Native plugin classpath, once', () => {
     const out = patchRootBuildGradle(ROOT);
     expect(out).toContain(`    classpath("${EVERFRAME_GRADLE_PLUGIN}")`);
-    expect(out.indexOf('react-native-gradle-plugin')).toBeLessThan(out.indexOf('dev.everframe:gradle-plugin'));
+    expect(out.indexOf('react-native-gradle-plugin')).toBeLessThan(
+      out.indexOf('dev.everframe:gradle-plugin'),
+    );
     expect(patchRootBuildGradle(out)).toBe(out);
   });
   it('pins the Gradle plugin released with this CLI, on the shared version line', () => {
-    const { version } = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')) as { version: string };
-    const properties = readFileSync(join(__dirname, '../../sdk-android/android/gradle.properties'), 'utf8');
+    const { version } = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')) as {
+      version: string;
+    };
+    const properties = readFileSync(
+      join(__dirname, '../../sdk-android/android/gradle.properties'),
+      'utf8',
+    );
     expect(EVERFRAME_GRADLE_PLUGIN).toBe(`dev.everframe:gradle-plugin:${version}`);
     expect(/^everframeVersion=(.+)$/m.exec(properties)![1]!.trim()).toBe(version);
   });

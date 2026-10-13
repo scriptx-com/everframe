@@ -32,11 +32,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const {
-  withAndroidManifest,
-  withDangerousMod,
-  withInfoPlist,
-} = require('@expo/config-plugins');
+const { withAndroidManifest, withDangerousMod, withInfoPlist } = require('@expo/config-plugins');
 
 // Marker line: makes a re-run idempotent and tells a reader who wrote this.
 const EXCLUDE_MARKER =
@@ -80,14 +76,9 @@ function withTVAutolinkExclusions(config) {
   return withDangerousMod(config, [
     'ios',
     async (cfg) => {
-      const podfilePath = path.join(
-        cfg.modRequest.platformProjectRoot,
-        'Podfile',
-      );
+      const podfilePath = path.join(cfg.modRequest.platformProjectRoot, 'Podfile');
       if (!fs.existsSync(podfilePath)) {
-        throw new Error(
-          `[with-everframe-tv-prebuild] expected Podfile at ${podfilePath}`,
-        );
+        throw new Error(`[with-everframe-tv-prebuild] expected Podfile at ${podfilePath}`);
       }
       const original = fs.readFileSync(podfilePath, 'utf8');
       if (original.includes(EXCLUDE_MARKER)) return cfg;
@@ -110,8 +101,7 @@ function withTVAutolinkExclusions(config) {
         podfilePath,
         original.replace(
           anchor,
-          `${indent}'--platform',\n${indent}'ios',\n` +
-            `${indent}${EXCLUDE_MARKER}\n${added}\n$2`,
+          `${indent}'--platform',\n${indent}'ios',\n` + `${indent}${EXCLUDE_MARKER}\n${added}\n$2`,
         ),
         'utf8',
       );
@@ -135,9 +125,7 @@ function withEverframeTVPrebuild(config) {
   config = withInfoPlist(config, (cfg) => {
     if (Array.isArray(cfg.modResults.UIRequiredDeviceCapabilities)) {
       cfg.modResults.UIRequiredDeviceCapabilities =
-        cfg.modResults.UIRequiredDeviceCapabilities.filter(
-          (k) => k !== 'arm64' && k !== 'armv7'
-        );
+        cfg.modResults.UIRequiredDeviceCapabilities.filter((k) => k !== 'arm64' && k !== 'armv7');
     }
     // PLAN-TV-H: force RCTNewArchEnabled=true on tvOS.
     cfg.modResults.RCTNewArchEnabled = true;
@@ -154,7 +142,7 @@ function withEverframeTVPrebuild(config) {
     const manifest = cfg.modResults.manifest;
     manifest['uses-feature'] = manifest['uses-feature'] ?? [];
     const hasLeanback = manifest['uses-feature'].some(
-      (f) => f.$ && f.$['android:name'] === 'android.software.leanback'
+      (f) => f.$ && f.$['android:name'] === 'android.software.leanback',
     );
     if (!hasLeanback) {
       manifest['uses-feature'].push({

@@ -342,7 +342,13 @@ export function createClient(adapter: PlatformAdapter): EverframeClient {
       state.extra = { kind: 'value', value: budgetExtraObjectOrWarn('setExtra', value) };
     },
     captureException(error: unknown, options?: CaptureExceptionOptions): void {
-      if (state.killed || !state.config || state.config.disabled || state.config.crashReporting?.disabled) return;
+      if (
+        state.killed ||
+        !state.config ||
+        state.config.disabled ||
+        state.config.crashReporting?.disabled
+      )
+        return;
       adapter.captureException?.(error, options);
     },
     addBreadcrumb(input: AddBreadcrumbInput): void {
@@ -354,8 +360,7 @@ export function createClient(adapter: PlatformAdapter): EverframeClient {
           : 'custom';
       // Coerce-never-throw: an invalid level is dropped (not passed through),
       // so a JS caller can never produce a crumb that fails envelope validation.
-      const level =
-        input.level && LEVELS.includes(input.level) ? input.level : undefined;
+      const level = input.level && LEVELS.includes(input.level) ? input.level : undefined;
       state.breadcrumbs.add({
         kind,
         message: input.message,
@@ -468,7 +473,11 @@ export function createClient(adapter: PlatformAdapter): EverframeClient {
         handlers.captureException(error, options);
       } catch (err) {
         // Reporting a failure must stay safe even if the host's diagnostic callback fails.
-        try { onError(err); } catch { /* swallow */ }
+        try {
+          onError(err);
+        } catch {
+          /* swallow */
+        }
       }
     },
     kill: safeWrap(handlers.kill, { name: 'kill', onError }),
@@ -478,14 +487,14 @@ export function createClient(adapter: PlatformAdapter): EverframeClient {
       } | null>,
     },
     threads: {
-      list: safeWrap(
-        () => threadsOrNull()?.list() ?? inertThreads.list(),
-        { name: 'threads.list', onError },
-      ) as () => ThreadSummary[],
-      get: safeWrap(
-        async (id: string) => (await threadsOrNull()?.get(id)) ?? null,
-        { name: 'threads.get', onError },
-      ) as (threadId: string) => Promise<ThreadDetail | null>,
+      list: safeWrap(() => threadsOrNull()?.list() ?? inertThreads.list(), {
+        name: 'threads.list',
+        onError,
+      }) as () => ThreadSummary[],
+      get: safeWrap(async (id: string) => (await threadsOrNull()?.get(id)) ?? null, {
+        name: 'threads.get',
+        onError,
+      }) as (threadId: string) => Promise<ThreadDetail | null>,
       reply: safeWrap(
         async (id: string, body: string) => {
           await threadsOrNull()?.reply(id, body);
@@ -529,14 +538,14 @@ export function createClient(adapter: PlatformAdapter): EverframeClient {
         },
         { name: 'threads.delete', onError },
       ) as (threadId: string) => Promise<boolean>,
-      unreadCount: safeWrap(
-        () => threadsOrNull()?.unreadCount() ?? inertThreads.unreadCount(),
-        { name: 'threads.unreadCount', onError },
-      ) as () => number,
-      getState: safeWrap(
-        () => threadsOrNull()?.getState() ?? inertThreads.getState(),
-        { name: 'threads.getState', onError },
-      ) as () => ThreadClientState,
+      unreadCount: safeWrap(() => threadsOrNull()?.unreadCount() ?? inertThreads.unreadCount(), {
+        name: 'threads.unreadCount',
+        onError,
+      }) as () => number,
+      getState: safeWrap(() => threadsOrNull()?.getState() ?? inertThreads.getState(), {
+        name: 'threads.getState',
+        onError,
+      }) as () => ThreadClientState,
       subscribe: safeWrap(
         (cb: (s: ThreadClientState) => void) => threadsOrNull()?.subscribe(cb) ?? (() => {}),
         { name: 'threads.subscribe', onError },

@@ -25,10 +25,15 @@ afterEach(() => {
 
 function capture() {
   const snapshots: SnapshotNode[] = [];
-  stop = record(buildRecordOptions({ durationSec: 30, emit(event) {
-    const e = event as { type: number; data: { node: SnapshotNode } };
-    if (e.type === 2) snapshots.push(e.data.node);
-  } }));
+  stop = record(
+    buildRecordOptions({
+      durationSec: 30,
+      emit(event) {
+        const e = event as { type: number; data: { node: SnapshotNode } };
+        if (e.type === 2) snapshots.push(e.data.node);
+      },
+    }),
+  );
   record.takeFullSnapshot();
   return { snapshots, latest: () => snapshots[snapshots.length - 1]! };
 }
@@ -50,20 +55,28 @@ describe('rrweb snapshot compatibility and hot paths', () => {
     }
     parent.textContent = 'Visible content';
     const buffer = createRollingBuffer({ durationSec: 30 });
-    stop = record(buildRecordOptions({ durationSec: 30, emit(event) {
-      buffer.push(event as BufferEvent);
-    } }));
+    stop = record(
+      buildRecordOptions({
+        durationSec: 30,
+        emit(event) {
+          buffer.push(event as BufferEvent);
+        },
+      }),
+    );
     record.takeFullSnapshot();
-    expect(buffer.frames().some(event => event.type === 2)).toBe(true);
+    expect(buffer.frames().some((event) => event.type === 2)).toBe(true);
     expect(buffer.capBreached()).toBe(false);
     expect(buffer.byteSize()).toBeLessThan(100000);
   });
 
   it('captures URL-free inline styles without resolving the document URL for every element', () => {
-    document.body.innerHTML = '<div id="card" style="color: red; transform: translateX(10px)">Card</div>';
+    document.body.innerHTML =
+      '<div id="card" style="color: red; transform: translateX(10px)">Card</div>';
     const setAttribute = vi.spyOn(HTMLAnchorElement.prototype, 'setAttribute');
     const { latest } = capture();
-    expect(find(latest(), 'card')?.attributes?.style).toBe('color: red; transform: translateX(10px)');
+    expect(find(latest(), 'card')?.attributes?.style).toBe(
+      'color: red; transform: translateX(10px)',
+    );
     // Resolving the base URL mutates rrweb's detached anchor. It is unnecessary
     // for styles without url(), and is repeated hundreds of times on the TV.
     expect(setAttribute.mock.calls.filter(([name]) => name === 'href')).toHaveLength(0);
@@ -73,10 +86,14 @@ describe('rrweb snapshot compatibility and hot paths', () => {
     document.head.innerHTML = '<base href="https://example.test/first/page.html">';
     document.body.innerHTML = '<div id="card" style="background: url(../poster.png)"></div>';
     const { latest } = capture();
-    expect(find(latest(), 'card')?.attributes?.style).toBe('background: url(https://example.test/poster.png)');
+    expect(find(latest(), 'card')?.attributes?.style).toBe(
+      'background: url(https://example.test/poster.png)',
+    );
     document.querySelector('base')!.href = 'https://example.test/second/nested/page.html';
     record.takeFullSnapshot();
-    expect(find(latest(), 'card')?.attributes?.style).toBe('background: url(https://example.test/second/poster.png)');
+    expect(find(latest(), 'card')?.attributes?.style).toBe(
+      'background: url(https://example.test/second/poster.png)',
+    );
   });
 
   it('captures changed CSS rules and inline styles on subsequent checkouts', () => {
@@ -84,7 +101,10 @@ describe('rrweb snapshot compatibility and hot paths', () => {
     document.body.innerHTML = '<div id="card" class="card" style="opacity: 1">Card</div>';
     const { latest } = capture();
     expect(find(latest(), 'theme')?.attributes?._cssText).toContain('color: red');
-    (document.querySelector('style')!.sheet!.cssRules[0] as CSSStyleRule).style.setProperty('color', 'blue');
+    (document.querySelector('style')!.sheet!.cssRules[0] as CSSStyleRule).style.setProperty(
+      'color',
+      'blue',
+    );
     document.getElementById('card')!.setAttribute('style', 'opacity: 0.5');
     record.takeFullSnapshot();
     expect(find(latest(), 'theme')?.attributes?._cssText).toContain('color: blue');

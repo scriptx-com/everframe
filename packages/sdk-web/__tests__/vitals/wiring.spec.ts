@@ -453,9 +453,7 @@ describe('setupVitals — identity wiring (Fix round, Important)', () => {
       // `init.ts`/`provider.tsx` (or from the collector) fails here.
       sendSpy.mockClear();
       window.dispatchEvent(new Event('pagehide')); // flushNow -> one more summary
-      const later = sendSpy.mock.calls.find(
-        (c) => (c[0] as { kind?: string }).kind === 'summary',
-      )!;
+      const later = sendSpy.mock.calls.find((c) => (c[0] as { kind?: string }).kind === 'summary')!;
       expect((later[1] as { identityToken?: string }).identityToken).toBe(jwt);
       expect(holder.peek(Date.now())).toBe(jwt);
 
@@ -594,7 +592,7 @@ describe('__getActiveVitals()', () => {
   // would carry a stale sessionId. Driven here via real fake-timer elapsed
   // time (the collector's own `now: () => Date.now()` dep), not a mocked
   // collector, so this exercises the REAL rotation path end to end.
-  it('is a LIVE getter — reflects the collector\'s own idle-gap rotation, not a value captured once at start', () => {
+  it("is a LIVE getter — reflects the collector's own idle-gap rotation, not a value captured once at start", () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     vi.useFakeTimers();
     try {
@@ -655,9 +653,7 @@ describe('__getActiveVitals()', () => {
       // like the real adapter would) landed under the NEW sessionId's
       // recent() — not lost, and not left attributed to the old session.
       const recent = active.recent();
-      expect(
-        recent.some((e) => e.kind === 'player' && e.type === 'play'),
-      ).toBe(true);
+      expect(recent.some((e) => e.kind === 'player' && e.type === 'play')).toBe(true);
 
       handle.destroy();
     } finally {
@@ -852,7 +848,9 @@ describe('setupVitals — phase 4 public API', () => {
     const h = trackPlayer({ element: el, name: 'main', integration: integ });
     expect(h.id).toBe('p1');
     const handle = startEnabled();
-    expect(Array.from(adapterDeps!.registered!)).toEqual([{ element: el, name: 'main', integration: integ }]);
+    expect(Array.from(adapterDeps!.registered!)).toEqual([
+      { element: el, name: 'main', integration: integ },
+    ]);
     expect(adapterDeps!.playerIdFor!(el)).toBe('p1');
     handle.destroy();
   });
@@ -878,9 +876,15 @@ describe('setupVitals — phase 4 public API', () => {
     const el = document.createElement('video');
     const hls = { on() {}, off() {} };
     trackPlayer({ element: el, hls });
-    expect(trackPlayerSpy).toHaveBeenCalledWith(el, expect.objectContaining({ integration: expect.objectContaining({ library: 'hls.js' }) }));
+    expect(trackPlayerSpy).toHaveBeenCalledWith(
+      el,
+      expect.objectContaining({ integration: expect.objectContaining({ library: 'hls.js' }) }),
+    );
     trackPlayer({ element: el, shaka: { addEventListener() {}, removeEventListener() {} } });
-    expect(trackPlayerSpy).toHaveBeenLastCalledWith(el, expect.objectContaining({ integration: expect.objectContaining({ library: 'shaka' }) }));
+    expect(trackPlayerSpy).toHaveBeenLastCalledWith(
+      el,
+      expect.objectContaining({ integration: expect.objectContaining({ library: 'shaka' }) }),
+    );
     handle.destroy();
   });
 
@@ -906,8 +910,17 @@ describe('setupVitals — phase 4 public API', () => {
     h.track('big', { blob: 'y'.repeat(5000) });
     trackVitals('', undefined);
     const recent = __getActiveVitals()!.recent();
-    expect(recent).toContainEqual(expect.objectContaining({ kind: 'custom', name: 'cdn.switch', data: { to: 'b' }, playerId: 'p1' }));
-    expect(recent).toContainEqual(expect.objectContaining({ kind: 'custom', name: 'big', truncated: true, playerId: 'p1' }));
+    expect(recent).toContainEqual(
+      expect.objectContaining({
+        kind: 'custom',
+        name: 'cdn.switch',
+        data: { to: 'b' },
+        playerId: 'p1',
+      }),
+    );
+    expect(recent).toContainEqual(
+      expect.objectContaining({ kind: 'custom', name: 'big', truncated: true, playerId: 'p1' }),
+    );
     expect(recent).toContainEqual(expect.objectContaining({ kind: 'custom', name: 'custom' }));
     expect(recent.some((e) => e.kind === 'custom' && e.name === 'before.start')).toBe(false);
     handle.destroy();
@@ -989,9 +1002,7 @@ describe('setupVitals — phase 4 public API', () => {
   });
 
   it('trackPlayer({ element: null }) never throws and leaves no registry entry behind', () => {
-    expect(() =>
-      trackPlayer({ element: null as unknown as HTMLMediaElement }),
-    ).not.toThrow();
+    expect(() => trackPlayer({ element: null as unknown as HTMLMediaElement })).not.toThrow();
     const handle = startEnabled();
     expect(Array.from(adapterDeps!.registered!)).toEqual([]);
     handle.destroy();
@@ -1044,8 +1055,9 @@ describe('setupVitals — phase 4 public API', () => {
     // the iframe's own `HTMLMediaElement` is a DIFFERENT constructor from
     // this window's, so round 5's `instanceof HTMLMediaElement` check would
     // have rejected `iframeVideo` outright.
-    const iframeHTMLMediaElement = (iframe.contentWindow as unknown as { HTMLMediaElement: typeof HTMLMediaElement })
-      .HTMLMediaElement;
+    const iframeHTMLMediaElement = (
+      iframe.contentWindow as unknown as { HTMLMediaElement: typeof HTMLMediaElement }
+    ).HTMLMediaElement;
     expect(iframeHTMLMediaElement).not.toBe(HTMLMediaElement);
     expect(iframeVideo instanceof iframeHTMLMediaElement).toBe(true);
     expect(iframeVideo instanceof HTMLMediaElement).toBe(false);
@@ -1132,8 +1144,7 @@ describe('setupVitals — phase 4 public API', () => {
   // plain-object impersonator above and the DIV above both still get
   // rejected.
   it('accepts a genuine XHTML video element with a lowercase tagName (over-rejection fix)', () => {
-    const xhtml =
-      '<html xmlns="http://www.w3.org/1999/xhtml"><body><video></video></body></html>';
+    const xhtml = '<html xmlns="http://www.w3.org/1999/xhtml"><body><video></video></body></html>';
     const xhtmlDoc = new DOMParser().parseFromString(xhtml, 'application/xhtml+xml');
     const xhtmlVideo = xhtmlDoc.querySelector('video')!;
     // Sanity check this test actually exercises the lowercase-tagName gap.
@@ -1171,7 +1182,7 @@ describe('setupVitals — phase 4 public API', () => {
   // Review round finding — `detach()`'s no-throw property must be its OWN
   // guarantee, not inherited from `untrackPlayer` -> `unbind` (which isn't
   // itself wrapped in safeWrap).
-  it('handle.detach() never throws, even when the live adapter\'s untrackPlayer throws', () => {
+  it("handle.detach() never throws, even when the live adapter's untrackPlayer throws", () => {
     const handle = startEnabled();
     const el = document.createElement('video');
     const h = trackPlayer({ element: el });

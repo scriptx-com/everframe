@@ -77,7 +77,7 @@ function redactData(value: unknown, config: RedactionConfig, depth: number): unk
   if (depth >= MAX_DATA_DEPTH) return DEPTH_TRUNCATION_SENTINEL;
   if (Array.isArray(value)) return value.map((v) => redactData(v, config, depth + 1));
   return Object.fromEntries(
-    Object.entries(value).map(([k, v]) => [k, redactData(v, config, depth + 1)])
+    Object.entries(value).map(([k, v]) => [k, redactData(v, config, depth + 1)]),
   );
 }
 

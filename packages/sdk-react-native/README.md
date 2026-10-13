@@ -517,15 +517,15 @@ inside a native view and never reaches JS.
 - `captureSourceQuery` — keep the query string on `source_change.src`
   (default `false`: signed CDN URLs carry tokens in the query).
 
-**Reconfiguring.** A Provider remount with the *same* config does not restart
-the SDK: both native sides compare the incoming config against the *installed*
+**Reconfiguring.** A Provider remount with the _same_ config does not restart
+the SDK: both native sides compare the incoming config against the _installed_
 one and skip the start entirely. A **changed** config does restart it (on iOS,
 except a change confined to `releaseHealth` or the loaded bundle; see
 [Release health](#release-health)) — and a
 start supersedes the running SDK, detaching every player integration it had
 announced. **Limitation:** players tracked before that restart stay untracked
 until their screens remount; nothing re-registers them automatically. Two React
-instances in one process are *not* coordinated either: if a second one starts
+instances in one process are _not_ coordinated either: if a second one starts
 the SDK under the first, the first instance's players stay untracked until its
 own screens remount.
 
@@ -570,7 +570,7 @@ adapter has subscribed — and `onLoadStart` is what arms the adapter's startup
 clock, so the first source's startup latency is simply never seen. Deferring
 the load until after the adapter subscribed puts the first `onLoadStart` back
 where it can be observed. Without this, everything else still works; only the
-*first* `startup` measurement is missing (later source changes are fine).
+_first_ `startup` measurement is missing (later source changes are fine).
 
 Options: `name`, `libraryVersion`, and `captureErrors` (default `false` — see
 Limitations). `onBandwidthUpdate` is read per platform: on iOS its `bitrate`
@@ -580,7 +580,7 @@ the `bandwidthEstimate` stat (with `quality_change` for the accompanying
 rendition size) and never as a bitrate.
 
 `onProgress` is read per platform too. The `bufferAheadMs` stat is always the
-media time buffered *ahead of the playhead*: on Android `bufferDuration` is
+media time buffered _ahead of the playhead_: on Android `bufferDuration` is
 already that, on iOS it is the buffered range's absolute end position, so the
 adapter subtracts `currentTime` from it.
 
@@ -663,7 +663,7 @@ dropped, not forwarded.
   `captureErrors` is off by default.
 - **`rate_change` was not observed from react-native-video v7 on Android** in
   our Android emulator smoke — `onPlaybackRateChange` never arrived there.
-  Note that the library *does* forward ExoPlayer's
+  Note that the library _does_ forward ExoPlayer's
   `onPlaybackParametersChanged`, so this is a "not seen in our smoke run"
   result, not a proven library gap; a host that changes playback speed
   explicitly may well see it. Nothing on the adapter side gates it either way.
@@ -738,7 +738,7 @@ subscription?.remove();
 ```
 
 > If you have seen the older `new TVEventHandler(); handler.enable(cmp, cb);
-> handler.disable()` shape elsewhere — that class-based API was removed in
+handler.disable()` shape elsewhere — that class-based API was removed in
 > RN-tvos 0.85.x. Always read the version installed in your `node_modules`.
 
 #### Apple TV: long-press Play/Pause

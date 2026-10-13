@@ -39,7 +39,10 @@ export interface BlankCheckRegion {
  * canvas, detached engine) — callers must treat that as NOT blank, so a
  * missing capability never discards a real screenshot.
  */
-export function isCanvasBlank(canvas: HTMLCanvasElement, region?: BlankCheckRegion): boolean | null {
+export function isCanvasBlank(
+  canvas: HTMLCanvasElement,
+  region?: BlankCheckRegion,
+): boolean | null {
   try {
     const sample = document.createElement('canvas');
     sample.width = BLANK_SAMPLE_WIDTH;
@@ -49,7 +52,17 @@ export function isCanvasBlank(canvas: HTMLCanvasElement, region?: BlankCheckRegi
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, BLANK_SAMPLE_WIDTH, BLANK_SAMPLE_HEIGHT);
     if (region) {
-      ctx.drawImage(canvas, region.sx, region.sy, region.sw, region.sh, 0, 0, BLANK_SAMPLE_WIDTH, BLANK_SAMPLE_HEIGHT);
+      ctx.drawImage(
+        canvas,
+        region.sx,
+        region.sy,
+        region.sw,
+        region.sh,
+        0,
+        0,
+        BLANK_SAMPLE_WIDTH,
+        BLANK_SAMPLE_HEIGHT,
+      );
     } else {
       ctx.drawImage(canvas, 0, 0, BLANK_SAMPLE_WIDTH, BLANK_SAMPLE_HEIGHT);
     }

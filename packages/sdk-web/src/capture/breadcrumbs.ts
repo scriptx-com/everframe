@@ -172,7 +172,13 @@ export function installLifecycleCrumbs(sink: CrumbSink, gate: KindGate): () => v
 
 /** Elements we treat as the tap target when found within 5 ancestor hops. */
 const INTERACTIVE_TAGS = new Set([
-  'button', 'a', 'input', 'select', 'textarea', 'summary', 'label',
+  'button',
+  'a',
+  'input',
+  'select',
+  'textarea',
+  'summary',
+  'label',
 ]);
 const MAX_LABEL_CHARS = 48;
 

@@ -15,12 +15,11 @@ import type { CompanionBadgeServerConfig } from '@everframe/sdk-core';
 let _serverConfig: CompanionBadgeServerConfig | undefined;
 const _subs = new Set<() => void>();
 
-export function __setCompanionBadgeServerConfig(
-  cfg: CompanionBadgeServerConfig | undefined,
-): void {
-  const changed = _serverConfig?.enabled !== cfg?.enabled
-    || _serverConfig?.position !== cfg?.position
-    || (_serverConfig === undefined) !== (cfg === undefined);
+export function __setCompanionBadgeServerConfig(cfg: CompanionBadgeServerConfig | undefined): void {
+  const changed =
+    _serverConfig?.enabled !== cfg?.enabled ||
+    _serverConfig?.position !== cfg?.position ||
+    (_serverConfig === undefined) !== (cfg === undefined);
   _serverConfig = cfg;
   if (changed) for (const fn of _subs) fn();
 }
@@ -31,5 +30,7 @@ export function __getCompanionBadgeServerConfig(): CompanionBadgeServerConfig | 
 
 export function __subscribeCompanionBadgeServerConfig(fn: () => void): () => void {
   _subs.add(fn);
-  return () => { _subs.delete(fn); };
+  return () => {
+    _subs.delete(fn);
+  };
 }

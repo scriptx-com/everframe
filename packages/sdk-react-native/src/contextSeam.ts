@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { emptyReportDeliveryStatus, type ReportDeliveryStatus } from "./report-delivery-status.js";
+import { emptyReportDeliveryStatus, type ReportDeliveryStatus } from './report-delivery-status.js';
 import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-capture-status.js';
 //
 // Module-level context seam. The top-level `open()` convenience MUST work
@@ -19,7 +19,10 @@ import {
 } from './reporter/types.js';
 import type { CaptureExceptionOptions, ExtraResolver } from '@everframe/sdk-core';
 import type { EverframeUserSpec } from './NativeEverframe.js';
-import { emptyPromiseRejectionStatus, type PromiseRejectionStatus } from './promise-rejection-types.js';
+import {
+  emptyPromiseRejectionStatus,
+  type PromiseRejectionStatus,
+} from './promise-rejection-types.js';
 
 export { EverframeNotMountedError, EverframeReporterDisabledError };
 
@@ -115,12 +118,17 @@ let __currentContext: EverframeContextValue | null = null;
 let __contextEpoch: object = {};
 
 /** Internal mount identity, including remounts of the same runtime object. */
-export function __getContextEpoch(): object { return __contextEpoch; }
+export function __getContextEpoch(): object {
+  return __contextEpoch;
+}
 
 /** Bounded coverage status only; does not install an observer or report delivery. */
 export function getPromiseRejectionStatus(): PromiseRejectionStatus {
   try {
-    return __currentContext?.getPromiseRejectionStatus() ?? emptyPromiseRejectionStatus('not-mounted', 'no-mount');
+    return (
+      __currentContext?.getPromiseRejectionStatus() ??
+      emptyPromiseRejectionStatus('not-mounted', 'no-mount')
+    );
   } catch {
     return emptyPromiseRejectionStatus('install-failed', 'hook-install');
   }
@@ -145,8 +153,8 @@ export function open(): Promise<ReporterResult> {
   if (!ctx) {
     return Promise.reject(
       new EverframeNotMountedError(
-        'EverframeProvider not mounted; wrap your root with <EverframeProvider>.'
-      )
+        'EverframeProvider not mounted; wrap your root with <EverframeProvider>.',
+      ),
     );
   }
   return ctx.open();
@@ -156,9 +164,7 @@ export function open(): Promise<ReporterResult> {
 export function setExtra(value: string): void;
 export function setExtra(value: Record<string, unknown>): void;
 export function setExtra(resolve: ExtraResolver): void;
-export function setExtra(
-  value: string | Record<string, unknown> | ExtraResolver,
-): void {
+export function setExtra(value: string | Record<string, unknown> | ExtraResolver): void {
   if (typeof value === 'function') {
     __currentContext?.setExtra(value);
   } else if (typeof value === 'string') {
@@ -208,8 +214,14 @@ export function captureException(error: unknown, options?: CaptureExceptionOptio
 
 /** Detached local admission snapshot. Does not query native delivery or install hooks. */
 export function getErrorCaptureStatus(): ErrorCaptureStatus {
-  try { return __currentContext?.getErrorCaptureStatus() ?? emptyErrorCaptureStatus('not-mounted', 'no-mount'); }
-  catch { return emptyErrorCaptureStatus('not-mounted', 'no-mount'); }
+  try {
+    return (
+      __currentContext?.getErrorCaptureStatus() ??
+      emptyErrorCaptureStatus('not-mounted', 'no-mount')
+    );
+  } catch {
+    return emptyErrorCaptureStatus('not-mounted', 'no-mount');
+  }
 }
 
 /** Cached native delivery observations, independent of JS admission. */
@@ -217,6 +229,10 @@ export function getReportDeliveryStatus(): ReportDeliveryStatus {
   const owner = __currentContext;
   try {
     const status = owner?.getReportDeliveryStatus();
-    return owner === __currentContext && status ? status : emptyReportDeliveryStatus('not-mounted', 'no-mount');
-  } catch { return emptyReportDeliveryStatus('unavailable', 'native-call-failed'); }
+    return owner === __currentContext && status
+      ? status
+      : emptyReportDeliveryStatus('not-mounted', 'no-mount');
+  } catch {
+    return emptyReportDeliveryStatus('unavailable', 'native-call-failed');
+  }
 }

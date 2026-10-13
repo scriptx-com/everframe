@@ -1,23 +1,54 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, it, expect, vi } from 'vitest';
-import { createThreadClient, MAX_SEND_ATTEMPTS, MESSAGE_FETCH_WINDOW } from '../src/reporter/thread-client.js';
+import {
+  createThreadClient,
+  MAX_SEND_ATTEMPTS,
+  MESSAGE_FETCH_WINDOW,
+} from '../src/reporter/thread-client.js';
 import { ReporterApiError } from '../src/reporter/api.js';
 import type { ReporterApi, ThreadSummary, ThreadMessage } from '../src/reporter/api.js';
 
 const TOKEN = 'evr_' + 'a'.repeat(43);
-const OPEN: ThreadSummary = { id: 't1', status: 'open', reportTitle: 'Crash', createdAt: '2026-08-01T00:00:00.000Z', lastMessageAt: null, unreadCount: 2 };
-const TEAM_MSG: ThreadMessage = { id: 'm1', authorKind: 'team', authorName: 'Acme Support', body: 'On it', createdAt: '2026-08-01T01:00:00.000Z' };
+const OPEN: ThreadSummary = {
+  id: 't1',
+  status: 'open',
+  reportTitle: 'Crash',
+  createdAt: '2026-08-01T00:00:00.000Z',
+  lastMessageAt: null,
+  unreadCount: 2,
+};
+const TEAM_MSG: ThreadMessage = {
+  id: 'm1',
+  authorKind: 'team',
+  authorName: 'Acme Support',
+  body: 'On it',
+  createdAt: '2026-08-01T01:00:00.000Z',
+};
 
 function memoryStore() {
   let value: string | null = TOKEN;
-  return { randomBytes: (n: number) => new Uint8Array(n), load: async () => value, save: async (t: string) => { value = t; }, clear: async () => { value = null; } };
+  return {
+    randomBytes: (n: number) => new Uint8Array(n),
+    load: async () => value,
+    save: async (t: string) => {
+      value = t;
+    },
+    clear: async () => {
+      value = null;
+    },
+  };
 }
 
 function makeApi(overrides: Partial<Record<keyof ReporterApi, unknown>> = {}): ReporterApi {
   return {
     listThreads: vi.fn(async () => ({ kind: 'ok', threads: [OPEN], etag: null })),
-    listMessages: vi.fn(async () => ({ status: 'open', messages: [TEAM_MSG], nextCursor: null, hasMore: false })),
+    listMessages: vi.fn(async () => ({
+      status: 'open',
+      messages: [TEAM_MSG],
+      nextCursor: null,
+      hasMore: false,
+    })),
     postMessage: vi.fn(async () => ({ id: 'srv-1' })),
     markRead: vi.fn(async () => undefined),
     deleteThread: vi.fn(async () => undefined),
@@ -27,8 +58,12 @@ function makeApi(overrides: Partial<Record<keyof ReporterApi, unknown>> = {}): R
 
 function make(api: ReporterApi, nowRef = { ms: 0 }) {
   const client = createThreadClient({
-    api, credentials: memoryStore(), isEnabled: () => true,
-    now: () => nowRef.ms, schedule: () => 0, cancel: () => {},
+    api,
+    credentials: memoryStore(),
+    isEnabled: () => true,
+    now: () => nowRef.ms,
+    schedule: () => 0,
+    cancel: () => {},
   });
   return client;
 }
@@ -75,12 +110,17 @@ function manualScheduler() {
 describe('thread client messages', () => {
   it('get() walks pages and merges confirmed local sends without duplicates', async () => {
     const page1 = { status: 'open', messages: [TEAM_MSG], nextCursor: 'c1', hasMore: true };
-    const page2 = { status: 'open', messages: [{ ...TEAM_MSG, id: 'm2' }], nextCursor: null, hasMore: false };
+    const page2 = {
+      status: 'open',
+      messages: [{ ...TEAM_MSG, id: 'm2' }],
+      nextCursor: null,
+      hasMore: false,
+    };
     const listMessages = vi.fn().mockResolvedValueOnce(page1).mockResolvedValueOnce(page2);
     const client = make(makeApi({ listMessages }));
     await client.refresh();
     const detail = await client.get('t1');
-    expect((listMessages.mock.calls[1] as unknown[])?.[2]).toBe('c1');     // cursor echoed opaquely
+    expect((listMessages.mock.calls[1] as unknown[])?.[2]).toBe('c1'); // cursor echoed opaquely
     expect(detail!.messages.map((m) => m.id)).toEqual(['m1', 'm2']);
     expect(detail!.reportTitle).toBe('Crash');
   });
@@ -91,19 +131,25 @@ describe('thread client messages', () => {
     const states: number[] = [];
     client.subscribe((s) => states.push(s.pending.length));
     await client.reply('t1', 'hello');
-    expect(states[0]).toBe(1);                            // optimistic push notified first
-    expect(client.getState().pending).toHaveLength(0);    // confirmed → pending drained
+    expect(states[0]).toBe(1); // optimistic push notified first
+    expect(client.getState().pending).toHaveLength(0); // confirmed → pending drained
     const detail = await client.get('t1');
-    expect(detail!.messages.some((m) => m.id === 'srv-1' && m.body === 'hello' && m.authorKind === 'reporter')).toBe(true);
+    expect(
+      detail!.messages.some(
+        (m) => m.id === 'srv-1' && m.body === 'hello' && m.authorKind === 'reporter',
+      ),
+    ).toBe(true);
   });
 
   it('failed sends survive: attempts accumulate on poll ticks, then flip to failed; retryMessage revives', async () => {
-    const postMessage = vi.fn(async () => { throw new ReporterApiError('network_error', null); });
+    const postMessage = vi.fn(async () => {
+      throw new ReporterApiError('network_error', null);
+    });
     const client = make(makeApi({ postMessage }));
     await client.refresh();
-    await client.reply('t1', 'hello');                    // attempt 1 fails
+    await client.reply('t1', 'hello'); // attempt 1 fails
     expect(client.getState().pending[0]?.state).toBe('sending');
-    for (let i = 1; i < MAX_SEND_ATTEMPTS; i++) await client.refresh();  // retried per tick
+    for (let i = 1; i < MAX_SEND_ATTEMPTS; i++) await client.refresh(); // retried per tick
     expect(client.getState().pending[0]?.state).toBe('failed');
     expect(postMessage).toHaveBeenCalledTimes(MAX_SEND_ATTEMPTS);
 
@@ -122,23 +168,25 @@ describe('thread client messages', () => {
   // initial POST fails, then exactly THREE refresh()-driven poll attempts
   // occur (4 postMessage calls total) before the message flips to 'failed'.
   it('pins the send-retry cadence: 1 initial POST + exactly 3 poll retries (4 total) before failed', async () => {
-    const postMessage = vi.fn(async () => { throw new ReporterApiError('network_error', null); });
+    const postMessage = vi.fn(async () => {
+      throw new ReporterApiError('network_error', null);
+    });
     const client = make(makeApi({ postMessage }));
     await client.refresh();
 
-    await client.reply('t1', 'hello');                     // attempt #1 (initial POST) fails
+    await client.reply('t1', 'hello'); // attempt #1 (initial POST) fails
     expect(postMessage).toHaveBeenCalledTimes(1);
     expect(client.getState().pending[0]?.state).toBe('sending');
 
-    await client.refresh();                                 // poll retry #1 (attempt #2) fails
+    await client.refresh(); // poll retry #1 (attempt #2) fails
     expect(postMessage).toHaveBeenCalledTimes(2);
     expect(client.getState().pending[0]?.state).toBe('sending');
 
-    await client.refresh();                                 // poll retry #2 (attempt #3) fails
+    await client.refresh(); // poll retry #2 (attempt #3) fails
     expect(postMessage).toHaveBeenCalledTimes(3);
     expect(client.getState().pending[0]?.state).toBe('sending');
 
-    await client.refresh();                                 // poll retry #3 (attempt #4) fails
+    await client.refresh(); // poll retry #3 (attempt #4) fails
     expect(postMessage).toHaveBeenCalledTimes(4);
     expect(client.getState().pending[0]?.state).toBe('failed');
 
@@ -172,12 +220,20 @@ describe('thread client messages', () => {
     const postMessage = vi.fn(async () => ({ id: 'srv-1' }));
     const api = makeApi({ postMessage });
     const client = createThreadClient({
-      api, credentials: noTokenStore, isEnabled: () => true,
-      now: () => 0, schedule: () => 0, cancel: () => {},
+      api,
+      credentials: noTokenStore,
+      isEnabled: () => true,
+      now: () => 0,
+      schedule: () => 0,
+      cancel: () => {},
     });
     await client.reply('t1', 'hi');
     expect(client.getState().pending).toHaveLength(1);
-    expect(client.getState().pending[0]).toMatchObject({ threadId: 't1', body: 'hi', state: 'failed' });
+    expect(client.getState().pending[0]).toMatchObject({
+      threadId: 't1',
+      body: 'hi',
+      state: 'failed',
+    });
     expect(postMessage).not.toHaveBeenCalled();
   });
 
@@ -186,14 +242,22 @@ describe('thread client messages', () => {
     const store = {
       randomBytes: (n: number) => new Uint8Array(n),
       load: async () => token,
-      save: async (t: string) => { token = t; },
-      clear: async () => { token = null; },
+      save: async (t: string) => {
+        token = t;
+      },
+      clear: async () => {
+        token = null;
+      },
     };
     const postMessage = vi.fn(async () => ({ id: 'srv-2' }));
     const api = makeApi({ postMessage });
     const client = createThreadClient({
-      api, credentials: store, isEnabled: () => true,
-      now: () => 0, schedule: () => 0, cancel: () => {},
+      api,
+      credentials: store,
+      isEnabled: () => true,
+      now: () => 0,
+      schedule: () => 0,
+      cancel: () => {},
     });
     await client.reply('t1', 'hi');
     expect(client.getState().pending[0]?.state).toBe('failed');
@@ -208,17 +272,19 @@ describe('thread client messages', () => {
 
   it('429 on send sets a cooldown, consumes no attempt, and pauses retries until it passes', async () => {
     const nowRef = { ms: 0 };
-    const postMessage = vi.fn(async () => { throw new ReporterApiError('rate_limit_exceeded', 429, 30); });
+    const postMessage = vi.fn(async () => {
+      throw new ReporterApiError('rate_limit_exceeded', 429, 30);
+    });
     const client = make(makeApi({ postMessage }), nowRef);
     await client.refresh();
     await client.reply('t1', 'hello');
     expect(client.getState().cooldownUntilMs).toBe(30_000);
     expect(client.getState().pending[0]).toMatchObject({ state: 'sending', attempts: 0 });
-    await client.refresh();                                // still cooling down
+    await client.refresh(); // still cooling down
     expect(postMessage).toHaveBeenCalledTimes(1);
     nowRef.ms = 31_000;
     (postMessage as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ id: 'srv-3' });
-    await client.refresh();                                // cooldown over → retried
+    await client.refresh(); // cooldown over → retried
     expect(client.getState().pending).toHaveLength(0);
   });
 
@@ -231,19 +297,30 @@ describe('thread client messages', () => {
   // retried A early, straight back into the server's rate limit. A success
   // must never clear a cooldown established by a DIFFERENT, still-future
   // 429 — only an already-expired deadline may be cleared.
-  it('a concurrent successful send does not erase another send\'s still-future 429 cooldown', async () => {
+  it("a concurrent successful send does not erase another send's still-future 429 cooldown", async () => {
     const nowRef = { ms: 0 };
     let rejectA!: (err: unknown) => void;
     let resolveB!: (v: { id: string }) => void;
-    const postMessage = vi.fn()
-      .mockImplementationOnce(() => new Promise<{ id: string }>((_resolve, reject) => { rejectA = reject; }))
-      .mockImplementationOnce(() => new Promise<{ id: string }>((resolve) => { resolveB = resolve; }));
+    const postMessage = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ id: string }>((_resolve, reject) => {
+            rejectA = reject;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ id: string }>((resolve) => {
+            resolveB = resolve;
+          }),
+      );
     const client = make(makeApi({ postMessage }), nowRef);
     await client.refresh();
 
-    const replyA = client.reply('t1', 'A');           // POST A in flight
+    const replyA = client.reply('t1', 'A'); // POST A in flight
     await vi.waitFor(() => expect(postMessage).toHaveBeenCalledTimes(1));
-    const replyB = client.reply('t2', 'B');            // POST B in flight concurrently (different localId)
+    const replyB = client.reply('t2', 'B'); // POST B in flight concurrently (different localId)
     await vi.waitFor(() => expect(postMessage).toHaveBeenCalledTimes(2));
 
     // A settles first: a 429 with a long (hour-scale) retryAfter.
@@ -262,7 +339,9 @@ describe('thread client messages', () => {
     // A following poll must not retry A early — it's still cooling down.
     await client.refresh();
     expect(postMessage).toHaveBeenCalledTimes(2);
-    expect(client.getState().pending.find((p) => p.body === 'A')).toMatchObject({ state: 'sending' });
+    expect(client.getState().pending.find((p) => p.body === 'A')).toMatchObject({
+      state: 'sending',
+    });
 
     // Once the deadline genuinely passes, the next poll retries A normally.
     nowRef.ms = 3600 * 1000;
@@ -280,28 +359,37 @@ describe('thread client messages', () => {
   // reply. Send and read cooldowns must be tracked independently; the public
   // cooldownUntilMs stays SEND-only (what ThreadView's composer consumes).
   it('a send 429 with a long retryAfter does not block get() from fetching the (separately-bucketed) read path', async () => {
-    const postMessage = vi.fn(async () => { throw new ReporterApiError('rate_limit_exceeded', 429, 3600); });
-    const listMessages = vi.fn(async () => ({ status: 'open', messages: [TEAM_MSG], nextCursor: null, hasMore: false }));
+    const postMessage = vi.fn(async () => {
+      throw new ReporterApiError('rate_limit_exceeded', 429, 3600);
+    });
+    const listMessages = vi.fn(async () => ({
+      status: 'open',
+      messages: [TEAM_MSG],
+      nextCursor: null,
+      hasMore: false,
+    }));
     const client = make(makeApi({ postMessage, listMessages }));
     await client.refresh();
-    await client.reply('t1', 'hello');                    // rmsg 429: hourly send cooldown
+    await client.reply('t1', 'hello'); // rmsg 429: hourly send cooldown
     expect(client.getState().cooldownUntilMs).toBe(3600 * 1000);
 
-    const detail = await client.get('t1');                // rmread is a separate bucket
-    expect(listMessages).toHaveBeenCalledTimes(1);         // NOT short-circuited by the send cooldown
+    const detail = await client.get('t1'); // rmread is a separate bucket
+    expect(listMessages).toHaveBeenCalledTimes(1); // NOT short-circuited by the send cooldown
     expect(detail!.messages.some((m) => m.id === 'm1')).toBe(true);
   });
 
   // Reverse coupling: a message-read 429 must not suppress reply()'s POST.
   it('a read 429 does not block reply() from sending on the (separately-bucketed) send path', async () => {
-    const listMessages = vi.fn(async () => { throw new ReporterApiError('rate_limit_exceeded', 429, 60); });
+    const listMessages = vi.fn(async () => {
+      throw new ReporterApiError('rate_limit_exceeded', 429, 60);
+    });
     const postMessage = vi.fn(async () => ({ id: 'srv-1' }));
     const client = make(makeApi({ listMessages, postMessage }));
     await client.refresh();
-    await client.get('t1');                                // rmread 429: sets only the read cooldown
-    expect(client.getState().cooldownUntilMs).toBeNull();   // public (send) cooldown untouched
+    await client.get('t1'); // rmread 429: sets only the read cooldown
+    expect(client.getState().cooldownUntilMs).toBeNull(); // public (send) cooldown untouched
 
-    await client.reply('t1', 'hello');                      // rmsg is a separate bucket
+    await client.reply('t1', 'hello'); // rmsg is a separate bucket
     expect(postMessage).toHaveBeenCalledTimes(1);
     expect(client.getState().pending).toHaveLength(0);
   });
@@ -315,7 +403,9 @@ describe('thread client messages', () => {
   // actual POST to the next poll tick, same as an ordinary queued send.
   it('retryMessage() during an active send cooldown does not POST — it requeues and a later poll sends it once the cooldown lifts', async () => {
     const nowRef = { ms: 0 };
-    const postMessage = vi.fn(async () => { throw new ReporterApiError('network_error', null); });
+    const postMessage = vi.fn(async () => {
+      throw new ReporterApiError('network_error', null);
+    });
     const client = make(makeApi({ postMessage }), nowRef);
     await client.refresh();
 
@@ -327,7 +417,9 @@ describe('thread client messages', () => {
     const localIdA = client.getState().pending[0]!.localId;
 
     // An unrelated send (B) now 429s, establishing the shared send cooldown.
-    (postMessage as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new ReporterApiError('rate_limit_exceeded', 429, 30));
+    (postMessage as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new ReporterApiError('rate_limit_exceeded', 429, 30),
+    );
     await client.reply('t1', 'B');
     expect(client.getState().cooldownUntilMs).toBe(30_000);
     const callsBeforeRetry = postMessage.mock.calls.length;
@@ -336,7 +428,7 @@ describe('thread client messages', () => {
     // still active, must NOT POST.
     await client.retryMessage(localIdA);
     expect(postMessage.mock.calls.length).toBe(callsBeforeRetry); // no new POST
-    expect(client.getState().cooldownUntilMs).toBe(30_000);        // cooldown untouched
+    expect(client.getState().cooldownUntilMs).toBe(30_000); // cooldown untouched
     const requeuedA = client.getState().pending.find((p) => p.localId === localIdA);
     expect(requeuedA).toMatchObject({ state: 'sending', attempts: 0 }); // queued, not left 'failed'
 
@@ -356,9 +448,10 @@ describe('thread client messages', () => {
   // moment one is established.
   it('a mid-batch 429 stops retryPendingSends immediately: the rest of the queue stays unattempted until the cooldown passes', async () => {
     const nowRef = { ms: 0 };
-    const postMessage = vi.fn()
-      .mockRejectedValueOnce(new ReporterApiError('network_error', null))   // reply('a') initial attempt
-      .mockRejectedValueOnce(new ReporterApiError('network_error', null));  // reply('b') initial attempt
+    const postMessage = vi
+      .fn()
+      .mockRejectedValueOnce(new ReporterApiError('network_error', null)) // reply('a') initial attempt
+      .mockRejectedValueOnce(new ReporterApiError('network_error', null)); // reply('b') initial attempt
     const client = make(makeApi({ postMessage }), nowRef);
     await client.refresh();
     await client.reply('t1', 'a');
@@ -370,12 +463,12 @@ describe('thread client messages', () => {
     // be attempted in the same tick.
     postMessage.mockRejectedValueOnce(new ReporterApiError('rate_limit_exceeded', 429, 30));
     await client.refresh();
-    expect(postMessage).toHaveBeenCalledTimes(3);           // exactly one POST this tick
+    expect(postMessage).toHaveBeenCalledTimes(3); // exactly one POST this tick
     expect(client.getState().cooldownUntilMs).toBe(30_000);
     const [msgA, msgB] = client.getState().pending;
     expect(msgA?.state).toBe('sending');
     expect(msgB?.state).toBe('sending');
-    expect(msgB?.attempts).toBe(1);                          // untouched this tick
+    expect(msgB?.attempts).toBe(1); // untouched this tick
 
     // A later tick, after the cooldown elapses, attempts both — including
     // the one that was skipped.
@@ -391,7 +484,8 @@ describe('thread client messages', () => {
   // — otherwise the remaining queued messages get POSTed against an
   // endpoint we already know just 401'd everything.
   it('a mid-batch replies_disabled stops retryPendingSends immediately: the rest of the queue is never attempted', async () => {
-    const postMessage = vi.fn()
+    const postMessage = vi
+      .fn()
       .mockRejectedValueOnce(new ReporterApiError('network_error', null))
       .mockRejectedValueOnce(new ReporterApiError('network_error', null));
     const client = make(makeApi({ postMessage }));
@@ -402,7 +496,7 @@ describe('thread client messages', () => {
 
     postMessage.mockRejectedValueOnce(new ReporterApiError('replies_disabled', 401));
     await client.refresh();
-    expect(postMessage).toHaveBeenCalledTimes(3);            // only the first queued message attempted
+    expect(postMessage).toHaveBeenCalledTimes(3); // only the first queued message attempted
     expect(client.getState().readOnly).toBe(true);
     // Finding 3 (round 9, PR review): replies_disabled permanently closes
     // every conversation, so a queued 'sending' entry can never succeed —
@@ -413,7 +507,7 @@ describe('thread client messages', () => {
     const [msgA, msgB] = client.getState().pending;
     expect(msgA?.state).toBe('failed');
     expect(msgB?.state).toBe('failed');
-    expect(msgB?.attempts).toBe(1);                          // attempt count untouched by the latch
+    expect(msgB?.attempts).toBe(1); // attempt count untouched by the latch
   });
 
   // Finding 3 (round 9, PR review): disabling replies permanently closes
@@ -424,8 +518,12 @@ describe('thread client messages', () => {
   // show the transition applies to ANY 'sending' entry present when the
   // latch engages, not just the one whose own request happened to 401.
   it('the replies_disabled latch fails every queued "sending" entry, preserving its body, instead of leaving it stuck', async () => {
-    const postMessage = vi.fn(async () => { throw new ReporterApiError('rate_limit_exceeded', 429, 30); });
-    const markRead = vi.fn(async () => { throw new ReporterApiError('replies_disabled', 401); });
+    const postMessage = vi.fn(async () => {
+      throw new ReporterApiError('rate_limit_exceeded', 429, 30);
+    });
+    const markRead = vi.fn(async () => {
+      throw new ReporterApiError('replies_disabled', 401);
+    });
     const client = make(makeApi({ postMessage, markRead }));
     await client.refresh();
     await client.reply('t1', 'still queued'); // 429s: stays 'sending', never itself hits replies_disabled
@@ -452,9 +550,14 @@ describe('thread client messages', () => {
   it('a send latched by replies_disabled WHILE its own POST is still in flight is not resurrected to "sending" when that POST later settles transiently', async () => {
     let rejectPost!: (err: unknown) => void;
     const postMessage = vi.fn(
-      () => new Promise<{ id: string }>((_resolve, reject) => { rejectPost = reject; }),
+      () =>
+        new Promise<{ id: string }>((_resolve, reject) => {
+          rejectPost = reject;
+        }),
     );
-    const markRead = vi.fn(async () => { throw new ReporterApiError('replies_disabled', 401); });
+    const markRead = vi.fn(async () => {
+      throw new ReporterApiError('replies_disabled', 401);
+    });
     const client = make(makeApi({ postMessage, markRead }));
     await client.refresh();
 
@@ -465,7 +568,9 @@ describe('thread client messages', () => {
     // A DIFFERENT call engages the latch while the POST above is still in flight.
     await client.markRead('t1');
     expect(client.getState().readOnly).toBe(true);
-    expect(client.getState().pending.find((p) => p.localId === localId)).toMatchObject({ state: 'failed' });
+    expect(client.getState().pending.find((p) => p.localId === localId)).toMatchObject({
+      state: 'failed',
+    });
 
     // The in-flight POST now settles with an ordinary transient error.
     rejectPost(new ReporterApiError('network_error', null));
@@ -473,7 +578,8 @@ describe('thread client messages', () => {
 
     // Must stay terminal — not resurrected to 'sending' — with no further POST.
     expect(client.getState().pending.find((p) => p.localId === localId)).toMatchObject({
-      state: 'failed', body: 'hello',
+      state: 'failed',
+      body: 'hello',
     });
     expect(postMessage).toHaveBeenCalledTimes(1);
   });
@@ -485,8 +591,12 @@ describe('thread client messages', () => {
   // write traffic at all, so retryMessage() must no-op (no POST, entry
   // stays 'failed') once the latch has engaged.
   it('retryMessage() no-ops (no POST) once the replies_disabled latch has engaged, leaving the entry failed', async () => {
-    const postMessage = vi.fn(async () => { throw new ReporterApiError('rate_limit_exceeded', 429, 30); });
-    const markRead = vi.fn(async () => { throw new ReporterApiError('replies_disabled', 401); });
+    const postMessage = vi.fn(async () => {
+      throw new ReporterApiError('rate_limit_exceeded', 429, 30);
+    });
+    const markRead = vi.fn(async () => {
+      throw new ReporterApiError('replies_disabled', 401);
+    });
     const client = make(makeApi({ postMessage, markRead }));
     await client.refresh();
     await client.reply('t1', 'still queued'); // 429s: stays 'sending', no attempt consumed
@@ -500,7 +610,8 @@ describe('thread client messages', () => {
     await client.retryMessage(localId);
     expect(postMessage.mock.calls.length).toBe(callsBefore); // no new POST
     expect(client.getState().pending.find((p) => p.localId === localId)).toMatchObject({
-      state: 'failed', body: 'still queued',
+      state: 'failed',
+      body: 'still queued',
     });
   });
 
@@ -509,7 +620,9 @@ describe('thread client messages', () => {
   // global readOnly latch — every future attempt on it would 409 again, so
   // Retry must not fire a doomed POST there either.
   it('retryMessage() no-ops (no POST) on a thread that is locally closed, leaving the entry failed', async () => {
-    const postMessage = vi.fn(async () => { throw new ReporterApiError('thread_closed', 409); });
+    const postMessage = vi.fn(async () => {
+      throw new ReporterApiError('thread_closed', 409);
+    });
     const client = make(makeApi({ postMessage }));
     await client.refresh();
     await client.reply('t1', 'hello'); // 409s: fails the send and closes the thread locally
@@ -521,12 +634,15 @@ describe('thread client messages', () => {
     await client.retryMessage(localId);
     expect(postMessage).not.toHaveBeenCalled();
     expect(client.getState().pending.find((p) => p.localId === localId)).toMatchObject({
-      state: 'failed', body: 'hello',
+      state: 'failed',
+      body: 'hello',
     });
   });
 
   it('409 thread_closed fails the send and closes the thread locally', async () => {
-    const postMessage = vi.fn(async () => { throw new ReporterApiError('thread_closed', 409); });
+    const postMessage = vi.fn(async () => {
+      throw new ReporterApiError('thread_closed', 409);
+    });
     const client = make(makeApi({ postMessage }));
     await client.refresh();
     await client.reply('t1', 'hello');
@@ -545,7 +661,9 @@ describe('thread client messages', () => {
   // it like thread_closed/thread_not_found: fail immediately, no attempt
   // accounting, no further POSTs.
   it('invalid_input fails the send immediately — exactly one POST, no transient retries', async () => {
-    const postMessage = vi.fn(async () => { throw new ReporterApiError('invalid_input', 400); });
+    const postMessage = vi.fn(async () => {
+      throw new ReporterApiError('invalid_input', 400);
+    });
     const client = make(makeApi({ postMessage }));
     await client.refresh();
     await client.reply('t1', 'hello');
@@ -559,7 +677,9 @@ describe('thread client messages', () => {
   });
 
   it('get() on 404 drops the thread quietly and returns null', async () => {
-    const listMessages = vi.fn(async () => { throw new ReporterApiError('thread_not_found', 404); });
+    const listMessages = vi.fn(async () => {
+      throw new ReporterApiError('thread_not_found', 404);
+    });
     const client = make(makeApi({ listMessages }));
     await client.refresh();
     expect(await client.get('t1')).toBeNull();
@@ -580,7 +700,9 @@ describe('thread client messages', () => {
   // hides a conversation that still exists server-side, and with the cached
   // ETag retained, subsequent polls 304 and never resurrect it.
   it('deleteThread on a network_error keeps the thread and all local state, and rethrows for the caller to retry', async () => {
-    const deleteThread = vi.fn(async () => { throw new ReporterApiError('network_error', null); });
+    const deleteThread = vi.fn(async () => {
+      throw new ReporterApiError('network_error', null);
+    });
     const client = make(makeApi({ deleteThread }));
     await client.refresh();
     expect(client.list()).toHaveLength(1);
@@ -590,7 +712,9 @@ describe('thread client messages', () => {
   });
 
   it('deleteThread on a 404 (thread_not_found) drops the thread locally, same as a successful delete', async () => {
-    const deleteThread = vi.fn(async () => { throw new ReporterApiError('thread_not_found', 404); });
+    const deleteThread = vi.fn(async () => {
+      throw new ReporterApiError('thread_not_found', 404);
+    });
     const client = make(makeApi({ deleteThread }));
     await client.refresh();
     await client.deleteThread('t1');
@@ -604,15 +728,17 @@ describe('thread client messages', () => {
   // signal failure (rethrow) so the facade can resolve `false` — `true`
   // must keep meaning "the conversation is really gone locally".
   it('deleteThread on replies_disabled latches read-only but rethrows and keeps the thread listed (does not silently succeed)', async () => {
-    const deleteThread = vi.fn(async () => { throw new ReporterApiError('replies_disabled', 401); });
+    const deleteThread = vi.fn(async () => {
+      throw new ReporterApiError('replies_disabled', 401);
+    });
     const client = make(makeApi({ deleteThread }));
     await client.refresh();
     expect(client.list()).toHaveLength(1);
     await expect(client.deleteThread('t1')).rejects.toBeInstanceOf(ReporterApiError);
-    expect(client.list()).toHaveLength(1);          // NOT dropped locally
+    expect(client.list()).toHaveLength(1); // NOT dropped locally
     expect(client.list()[0]?.id).toBe('t1');
     expect(client.list()[0]?.status).toBe('closed'); // latch still forces closed
-    expect(client.getState().readOnly).toBe(true);   // latch still engages
+    expect(client.getState().readOnly).toBe(true); // latch still engages
   });
 
   // invalid_device_token is the one auth-failure code where "true" (the row
@@ -620,7 +746,9 @@ describe('thread client messages', () => {
   // local thread list as part of the token reset, so this row is genuinely
   // gone too — deleteThread must NOT rethrow here.
   it('deleteThread on invalid_device_token wipes all local threads (including this one) and does not throw', async () => {
-    const deleteThread = vi.fn(async () => { throw new ReporterApiError('invalid_device_token', 401); });
+    const deleteThread = vi.fn(async () => {
+      throw new ReporterApiError('invalid_device_token', 401);
+    });
     const client = make(makeApi({ deleteThread }));
     await client.refresh();
     expect(client.list()).toHaveLength(1);
@@ -643,13 +771,21 @@ describe('thread client messages', () => {
     const store = {
       randomBytes: (n: number) => new Uint8Array(n),
       load: async () => token,
-      save: async (t: string) => { token = t; },
-      clear: async () => { token = null; },
+      save: async (t: string) => {
+        token = t;
+      },
+      clear: async () => {
+        token = null;
+      },
     };
     const deleteThread = vi.fn(async () => undefined);
     const client = createThreadClient({
-      api: makeApi({ deleteThread }), credentials: store, isEnabled: () => true,
-      now: () => 0, schedule: () => 0, cancel: () => {},
+      api: makeApi({ deleteThread }),
+      credentials: store,
+      isEnabled: () => true,
+      now: () => 0,
+      schedule: () => 0,
+      cancel: () => {},
     });
     await client.refresh(); // populates the cached row while the token is still available
     expect(client.list()).toHaveLength(1);
@@ -666,7 +802,8 @@ describe('thread client messages', () => {
   // detail and prefer it over that fallback.
   it('get() falls back to the last successfully fetched detail (not the degraded sentBuffer-only view) on a later transient failure', async () => {
     const page1 = [TEAM_MSG, { ...TEAM_MSG, id: 'm2' }];
-    const listMessages = vi.fn()
+    const listMessages = vi
+      .fn()
       .mockResolvedValueOnce({ status: 'open', messages: page1, nextCursor: null, hasMore: false })
       .mockRejectedValueOnce(new ReporterApiError('network_error', null));
     const client = make(makeApi({ listMessages }));
@@ -688,8 +825,14 @@ describe('thread client messages', () => {
   // confirmed by a server echo here).
   it('a confirmed reply survives a failing reconciliation read: fallbackDetail merges sentBuffer into the cached view', async () => {
     const postMessage = vi.fn(async () => ({ id: 'sent-1' }));
-    const listMessages = vi.fn()
-      .mockResolvedValueOnce({ status: 'open', messages: [TEAM_MSG], nextCursor: null, hasMore: false }) // establishes cached ['m1']
+    const listMessages = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 'open',
+        messages: [TEAM_MSG],
+        nextCursor: null,
+        hasMore: false,
+      }) // establishes cached ['m1']
       .mockRejectedValueOnce(new ReporterApiError('network_error', null)); // reconciliation read fails
     const client = make(makeApi({ postMessage, listMessages }));
     await client.refresh();
@@ -706,7 +849,16 @@ describe('thread client messages', () => {
     // No duplicate once a later successful walk echoes the send back.
     listMessages.mockResolvedValueOnce({
       status: 'open',
-      messages: [TEAM_MSG, { id: 'sent-1', authorKind: 'reporter', authorName: null, body: 'hello', createdAt: '2026-08-01T02:00:00.000Z' }],
+      messages: [
+        TEAM_MSG,
+        {
+          id: 'sent-1',
+          authorKind: 'reporter',
+          authorName: null,
+          body: 'hello',
+          createdAt: '2026-08-01T02:00:00.000Z',
+        },
+      ],
       nextCursor: null,
       hasMore: false,
     });
@@ -752,7 +904,12 @@ describe('thread client messages', () => {
   });
 
   it('get() on a short thread (single page) is not truncated and fresh', async () => {
-    const listMessages = vi.fn(async () => ({ status: 'open', messages: [TEAM_MSG], nextCursor: null, hasMore: false }));
+    const listMessages = vi.fn(async () => ({
+      status: 'open',
+      messages: [TEAM_MSG],
+      nextCursor: null,
+      hasMore: false,
+    }));
     const client = make(makeApi({ listMessages }));
     await client.refresh();
     const detail = await client.get('t1');
@@ -767,12 +924,19 @@ describe('thread client messages', () => {
   // boolean as 'older-dropped') so ThreadView can suppress mark-read.
   it('get() reports truncation:"incomplete" when the hard page ceiling is hit before hasMore:false', async () => {
     // MESSAGE_FETCH_PAGE_HARD_CAP pages, every one still reporting hasMore:true.
-    const listMessages = vi.fn(async (): Promise<{ status: 'open'; messages: ThreadMessage[]; nextCursor: string; hasMore: true }> => ({
-      status: 'open',
-      messages: [TEAM_MSG],
-      nextCursor: 'more',
-      hasMore: true,
-    }));
+    const listMessages = vi.fn(
+      async (): Promise<{
+        status: 'open';
+        messages: ThreadMessage[];
+        nextCursor: string;
+        hasMore: true;
+      }> => ({
+        status: 'open',
+        messages: [TEAM_MSG],
+        nextCursor: 'more',
+        hasMore: true,
+      }),
+    );
     const client = make(makeApi({ listMessages }));
     await client.refresh();
     const detail = await client.get('t1');
@@ -786,8 +950,14 @@ describe('thread client messages', () => {
   // (ThreadView) can gate mark-read correctly.
   it('get() marks a failed fetch fresh:false, even the cached-fallback and sentBuffer-only-fallback paths', async () => {
     // First call succeeds (establishes a cached lastDetail); second call fails.
-    const listMessages = vi.fn()
-      .mockResolvedValueOnce({ status: 'open', messages: [TEAM_MSG], nextCursor: null, hasMore: false })
+    const listMessages = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 'open',
+        messages: [TEAM_MSG],
+        nextCursor: null,
+        hasMore: false,
+      })
       .mockRejectedValueOnce(new ReporterApiError('network_error', null));
     const client = make(makeApi({ listMessages }));
     await client.refresh();
@@ -799,7 +969,9 @@ describe('thread client messages', () => {
 
     // A thread with a summary but no prior successful get() falls back to
     // the sentBuffer-only view — also not fresh.
-    const listMessages2 = vi.fn(async () => { throw new ReporterApiError('network_error', null); });
+    const listMessages2 = vi.fn(async () => {
+      throw new ReporterApiError('network_error', null);
+    });
     const client2 = make(makeApi({ listMessages: listMessages2 }));
     await client2.refresh(); // populates the thread summary, no get() yet
     await client2.reply('t1', 'hi'); // seeds sentBuffer via a confirmed send
@@ -853,7 +1025,12 @@ describe('thread client messages', () => {
 
     // A later get() (window now excludes it via a small, unrelated page)
     // must not resurrect it either — the buffer entry was pruned for good.
-    listMessages.mockResolvedValueOnce({ status: 'open', messages: [TEAM_MSG], nextCursor: null, hasMore: false });
+    listMessages.mockResolvedValueOnce({
+      status: 'open',
+      messages: [TEAM_MSG],
+      nextCursor: null,
+      hasMore: false,
+    });
     const later = await client.get('t1');
     expect(later!.messages.some((m) => m.id === 'echo-1')).toBe(false);
   });
@@ -869,8 +1046,14 @@ describe('thread client messages', () => {
   // threads, ETag cleared, polling stopped) but hand back the cached detail
   // instead of null.
   it('get() returns the cached closed detail (not null) when replies_disabled fires mid-fetch, and the next get() makes no further doomed read', async () => {
-    const listMessages = vi.fn()
-      .mockResolvedValueOnce({ status: 'open', messages: [TEAM_MSG], nextCursor: null, hasMore: false })
+    const listMessages = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 'open',
+        messages: [TEAM_MSG],
+        nextCursor: null,
+        hasMore: false,
+      })
       .mockRejectedValueOnce(new ReporterApiError('replies_disabled', 401));
     const client = make(makeApi({ listMessages }));
     await client.refresh();
@@ -899,7 +1082,9 @@ describe('thread client messages', () => {
   // rather than null, once the latch engages, as long as the reporter still
   // has a summary for it.
   it('get() falls back to the sentBuffer-only shape (still not null) under the replies_disabled latch when nothing was ever cached', async () => {
-    const listMessages = vi.fn(async () => { throw new ReporterApiError('replies_disabled', 401); });
+    const listMessages = vi.fn(async () => {
+      throw new ReporterApiError('replies_disabled', 401);
+    });
     const client = make(makeApi({ listMessages }));
     await client.refresh(); // populates the thread summary, no successful get() yet
     const detail = await client.get('t1');
@@ -914,8 +1099,14 @@ describe('thread client messages', () => {
   // returning null (unlike replies_disabled, where the identity is still
   // valid and the thread is merely read-only).
   it('get() still returns null when invalid_device_token fires mid-fetch — the identity is gone, not just read-only', async () => {
-    const listMessages = vi.fn()
-      .mockResolvedValueOnce({ status: 'open', messages: [TEAM_MSG], nextCursor: null, hasMore: false })
+    const listMessages = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 'open',
+        messages: [TEAM_MSG],
+        nextCursor: null,
+        hasMore: false,
+      })
       .mockRejectedValueOnce(new ReporterApiError('invalid_device_token', 401));
     const client = make(makeApi({ listMessages }));
     await client.refresh();
@@ -1064,9 +1255,36 @@ describe('thread client messages', () => {
     expect(resumed!.fresh).toBe(true);
     expect(resumed!.truncation).toBe(false);
     expect(resumed!.messages.map((m) => m.id)).toEqual([
-      'p0-0', 'p0-1', 'p0-2', 'p0-3', 'p0-4', 'p0-5', 'p0-6', 'p0-7', 'p0-8', 'p0-9',
-      'p1-0', 'p1-1', 'p1-2', 'p1-3', 'p1-4', 'p1-5', 'p1-6', 'p1-7', 'p1-8', 'p1-9',
-      'p2-0', 'p2-1', 'p2-2', 'p2-3', 'p2-4', 'p2-5', 'p2-6', 'p2-7', 'p2-8', 'p2-9',
+      'p0-0',
+      'p0-1',
+      'p0-2',
+      'p0-3',
+      'p0-4',
+      'p0-5',
+      'p0-6',
+      'p0-7',
+      'p0-8',
+      'p0-9',
+      'p1-0',
+      'p1-1',
+      'p1-2',
+      'p1-3',
+      'p1-4',
+      'p1-5',
+      'p1-6',
+      'p1-7',
+      'p1-8',
+      'p1-9',
+      'p2-0',
+      'p2-1',
+      'p2-2',
+      'p2-3',
+      'p2-4',
+      'p2-5',
+      'p2-6',
+      'p2-7',
+      'p2-8',
+      'p2-9',
     ]);
     // Total reads: TOTAL_PAGES successful + the one 429, no doubled
     // restart-from-zero walk.
@@ -1098,7 +1316,8 @@ describe('thread client messages', () => {
       nextCursor,
       hasMore,
     });
-    const listMessages = vi.fn()
+    const listMessages = vi
+      .fn()
       // First get(): walk all 3 pages successfully — a complete cache.
       .mockResolvedValueOnce(page(0, true, 'c1'))
       .mockResolvedValueOnce(page(1, true, 'c2'))
@@ -1156,7 +1375,8 @@ describe('thread client messages', () => {
       nextCursor,
       hasMore,
     });
-    const listMessages = vi.fn()
+    const listMessages = vi
+      .fn()
       // First get(): the thread has exactly 2 pages right now; the walk
       // completes and caches pages 0-1.
       .mockResolvedValueOnce(page(0, true, 'c1'))
@@ -1194,12 +1414,15 @@ describe('thread client messages', () => {
   it('regression: a poll-driven retry never double-sends a message whose POST is already in flight', async () => {
     let resolvePost!: (v: { id: string }) => void;
     const postMessage = vi.fn(
-      () => new Promise<{ id: string }>((resolve) => { resolvePost = resolve; }),
+      () =>
+        new Promise<{ id: string }>((resolve) => {
+          resolvePost = resolve;
+        }),
     );
     const client = make(makeApi({ postMessage }));
     await client.refresh();
 
-    const replyPromise = client.reply('t1', 'hello');       // POST in flight, not yet resolved
+    const replyPromise = client.reply('t1', 'hello'); // POST in flight, not yet resolved
     await vi.waitFor(() => expect(postMessage).toHaveBeenCalledTimes(1));
 
     // A scheduled tick (or an explicit refresh()) racing the still-pending
@@ -1212,8 +1435,8 @@ describe('thread client messages', () => {
     resolvePost({ id: 'srv-once' });
     await replyPromise;
 
-    expect(postMessage).toHaveBeenCalledTimes(1);            // still exactly once
-    expect(client.getState().pending).toHaveLength(0);        // confirmed exactly once
+    expect(postMessage).toHaveBeenCalledTimes(1); // still exactly once
+    expect(client.getState().pending).toHaveLength(0); // confirmed exactly once
     const detail = await client.get('t1');
     expect(detail!.messages.filter((m) => m.id === 'srv-once')).toHaveLength(1);
   });
@@ -1259,8 +1482,12 @@ describe('read cooldown recovery wake (finding 2, round 10 PR review)', () => {
     const nowRef = { ms: 0 };
     const sched = manualScheduler();
     const client = createThreadClient({
-      api: makeApi({ listMessages }), credentials: memoryStore(), isEnabled: () => true,
-      now: () => nowRef.ms, schedule: sched.schedule, cancel: sched.cancel,
+      api: makeApi({ listMessages }),
+      credentials: memoryStore(),
+      isEnabled: () => true,
+      now: () => nowRef.ms,
+      schedule: sched.schedule,
+      cancel: sched.cancel,
     });
     await client.refresh();
 
@@ -1299,8 +1526,12 @@ describe('read cooldown recovery wake (finding 2, round 10 PR review)', () => {
     const nowRef = { ms: 0 };
     const sched = manualScheduler();
     const client = createThreadClient({
-      api: makeApi({ listMessages }), credentials: memoryStore(), isEnabled: () => true,
-      now: () => nowRef.ms, schedule: sched.schedule, cancel: sched.cancel,
+      api: makeApi({ listMessages }),
+      credentials: memoryStore(),
+      isEnabled: () => true,
+      now: () => nowRef.ms,
+      schedule: sched.schedule,
+      cancel: sched.cancel,
     });
     await client.refresh();
 
@@ -1318,8 +1549,12 @@ describe('read cooldown recovery wake (finding 2, round 10 PR review)', () => {
     const nowRef = { ms: 0 };
     const sched = manualScheduler();
     const client = createThreadClient({
-      api: makeApi({ listMessages }), credentials: memoryStore(), isEnabled: () => true,
-      now: () => nowRef.ms, schedule: sched.schedule, cancel: sched.cancel,
+      api: makeApi({ listMessages }),
+      credentials: memoryStore(),
+      isEnabled: () => true,
+      now: () => nowRef.ms,
+      schedule: sched.schedule,
+      cancel: sched.cancel,
     });
     await client.refresh();
     await client.get('t1'); // arms the wake
@@ -1377,8 +1612,12 @@ describe('read cooldown wake vs. a hidden tab (round-10 re-review, Issue A)', ()
     const nowRef = { ms: 0 };
     const sched = manualScheduler();
     const client = createThreadClient({
-      api: makeApi({ listMessages }), credentials: memoryStore(), isEnabled: () => true,
-      now: () => nowRef.ms, schedule: sched.schedule, cancel: sched.cancel,
+      api: makeApi({ listMessages }),
+      credentials: memoryStore(),
+      isEnabled: () => true,
+      now: () => nowRef.ms,
+      schedule: sched.schedule,
+      cancel: sched.cancel,
     });
     await client.refresh();
 
@@ -1424,8 +1663,12 @@ describe('read cooldown wake vs. a hidden tab (round-10 re-review, Issue A)', ()
     const nowRef = { ms: 0 };
     const sched = manualScheduler();
     const client = createThreadClient({
-      api: makeApi({ listMessages }), credentials: memoryStore(), isEnabled: () => true,
-      now: () => nowRef.ms, schedule: sched.schedule, cancel: sched.cancel,
+      api: makeApi({ listMessages }),
+      credentials: memoryStore(),
+      isEnabled: () => true,
+      now: () => nowRef.ms,
+      schedule: sched.schedule,
+      cancel: sched.cancel,
     });
     await client.refresh();
     await client.get('t1'); // 429s: arms the wake for a 30s deadline
@@ -1469,8 +1712,12 @@ describe('read cooldown wake vs. an auth-failure latch (round-10 re-review, Issu
     const nowRef = { ms: 0 };
     const sched = manualScheduler();
     const client = createThreadClient({
-      api: makeApi({ listMessages, markRead }), credentials: memoryStore(), isEnabled: () => true,
-      now: () => nowRef.ms, schedule: sched.schedule, cancel: sched.cancel,
+      api: makeApi({ listMessages, markRead }),
+      credentials: memoryStore(),
+      isEnabled: () => true,
+      now: () => nowRef.ms,
+      schedule: sched.schedule,
+      cancel: sched.cancel,
     });
     await client.refresh();
     await client.get('t1'); // 429s: arms the read-cooldown wake
@@ -1499,8 +1746,12 @@ describe('read cooldown wake vs. an auth-failure latch (round-10 re-review, Issu
     const nowRef = { ms: 0 };
     const sched = manualScheduler();
     const client = createThreadClient({
-      api: makeApi({ listMessages, markRead }), credentials: memoryStore(), isEnabled: () => true,
-      now: () => nowRef.ms, schedule: sched.schedule, cancel: sched.cancel,
+      api: makeApi({ listMessages, markRead }),
+      credentials: memoryStore(),
+      isEnabled: () => true,
+      now: () => nowRef.ms,
+      schedule: sched.schedule,
+      cancel: sched.cancel,
     });
     await client.refresh();
     await client.get('t1'); // 429s: arms the read-cooldown wake

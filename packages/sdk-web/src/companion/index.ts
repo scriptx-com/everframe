@@ -23,12 +23,7 @@ export { announce } from './announce.js';
 export type { AnnounceResult, AnnounceDeviceBlock } from './announce.js';
 
 export { createRelayWSClient } from './ws-client.js';
-export type {
-  RelayWSClient,
-  RelayWSClientOpts,
-  RelayMessage,
-  ReportSubmit,
-} from './ws-client.js';
+export type { RelayWSClient, RelayWSClientOpts, RelayMessage, ReportSubmit } from './ws-client.js';
 
 export { handleReportRequest } from './capture-bridge.js';
 export type { ReportCounts } from './capture-bridge.js';

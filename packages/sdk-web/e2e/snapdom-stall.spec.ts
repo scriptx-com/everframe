@@ -28,7 +28,9 @@ type Adapter = {
   __lastScreenshotRenderer?: string;
 };
 
-test('snapDOM never holds its ellipsis rewrite of live text across the stalled clone', async ({ page }) => {
+test('snapDOM never holds its ellipsis rewrite of live text across the stalled clone', async ({
+  page,
+}) => {
   test.setTimeout(60_000);
   const release = await openStalled(page);
   const r = await page.evaluate(async () => {
@@ -56,7 +58,9 @@ test('snapDOM never holds its ellipsis rewrite of live text across the stalled c
   expect(r.intactNow).toBe(true);
 });
 
-test('an element the app replaces while a capture waits behind a stalled one is masked', async ({ page }) => {
+test('an element the app replaces while a capture waits behind a stalled one is masked', async ({
+  page,
+}) => {
   test.setTimeout(60_000);
   const release = await openStalled(page);
   const r = await page.evaluate(async () => {
@@ -87,15 +91,25 @@ test('an element the app replaces while a capture waits behind a stalled one is 
       Array.from(ctx.getImageData(Math.round(x * scale), Math.round(y * scale), 1, 1).data);
     return {
       renderer: a.__lastScreenshotRenderer,
-      samples: [px(b.left + 8, b.top + b.height / 2), px(b.left + b.width / 2, b.top + b.height / 2), px(b.right - 8, b.top + b.height / 2)],
+      samples: [
+        px(b.left + 8, b.top + b.height / 2),
+        px(b.left + b.width / 2, b.top + b.height / 2),
+        px(b.right - 8, b.top + b.height / 2),
+      ],
     };
   });
   release();
   expect(['snapdom', 'modern-screenshot']).toContain(r.renderer);
-  for (const s of r.samples) expect(s.slice(0, 3).every((v) => v <= 40), JSON.stringify(s)).toBe(true);
+  for (const s of r.samples)
+    expect(
+      s.slice(0, 3).every((v) => v <= 40),
+      JSON.stringify(s),
+    ).toBe(true);
 });
 
-test('an element the app replaces DURING a stalled snapDOM clone is masked in that same capture', async ({ page }) => {
+test('an element the app replaces DURING a stalled snapDOM clone is masked in that same capture', async ({
+  page,
+}) => {
   test.setTimeout(60_000);
   const release = await openStalled(page);
   const r = await page.evaluate(async () => {
@@ -126,15 +140,25 @@ test('an element the app replaces DURING a stalled snapDOM clone is masked in th
       Array.from(ctx.getImageData(Math.round(x * scale), Math.round(y * scale), 1, 1).data);
     return {
       renderer: a.__lastScreenshotRenderer,
-      samples: [px(b.left + 8, b.top + b.height / 2), px(b.left + b.width / 2, b.top + b.height / 2), px(b.right - 8, b.top + b.height / 2)],
+      samples: [
+        px(b.left + 8, b.top + b.height / 2),
+        px(b.left + b.width / 2, b.top + b.height / 2),
+        px(b.right - 8, b.top + b.height / 2),
+      ],
     };
   });
   release();
   expect(r.renderer).toBe('snapdom');
-  for (const s of r.samples) expect(s.slice(0, 3).every((v) => v <= 40), JSON.stringify(s)).toBe(true);
+  for (const s of r.samples)
+    expect(
+      s.slice(0, 3).every((v) => v <= 40),
+      JSON.stringify(s),
+    ).toBe(true);
 });
 
-test('snapDOM never restyles the live page: outlined root and content-visibility element untouched', async ({ page }) => {
+test('snapDOM never restyles the live page: outlined root and content-visibility element untouched', async ({
+  page,
+}) => {
   test.setTimeout(60_000);
   const release = await openStalled(page);
   const r = await page.evaluate(async () => {
@@ -142,13 +166,17 @@ test('snapDOM never restyles the live page: outlined root and content-visibility
     const cv = document.getElementById('cv')!;
     const records: string[] = [];
     const mo = new MutationObserver((list) => {
-      for (const m of list) records.push(`${(m.target as Element).id || (m.target as Element).tagName}:${m.attributeName}`);
+      for (const m of list)
+        records.push(
+          `${(m.target as Element).id || (m.target as Element).tagName}:${m.attributeName}`,
+        );
     });
     mo.observe(document.body, { attributes: true, attributeFilter: ['style'] });
     mo.observe(cv, { attributes: true, attributeFilter: ['style'] });
     let dirtyDuring = 0;
     const iv = setInterval(() => {
-      if (document.body.getAttribute('style') !== null || cv.getAttribute('style') !== null) dirtyDuring++;
+      if (document.body.getAttribute('style') !== null || cv.getAttribute('style') !== null)
+        dirtyDuring++;
     }, 4);
     const started = performance.now();
     await a.captureScreenshot();

@@ -6,7 +6,12 @@
 // produce exactly this JSON; this side proves the zod schemas accept it.
 import { describe, it, expect } from 'vitest';
 import fixture from './fixtures/vitals-ios.v1.json' with { type: 'json' };
-import { MAX_CUSTOM_DATA_BYTES, VitalsIngestBody, VitalsIngestRequest, VitalsPlayerEventType } from '../src/vitals.js';
+import {
+  MAX_CUSTOM_DATA_BYTES,
+  VitalsIngestBody,
+  VitalsIngestRequest,
+  VitalsPlayerEventType,
+} from '../src/vitals.js';
 
 describe('iOS vitals fixture parity (TS)', () => {
   it('chunk validates as VitalsIngestBody and round-trips', () => {
@@ -22,7 +27,11 @@ describe('iOS vitals fixture parity (TS)', () => {
     expect(() => VitalsIngestRequest.parse({ payload: fixture.chunk })).not.toThrow();
   });
   it('fixture exercises every player event type except dropped_frames', () => {
-    const seen = new Set(fixture.chunk.entries.filter((e) => e.kind === 'player').map((e) => (e as { type: string }).type));
+    const seen = new Set(
+      fixture.chunk.entries
+        .filter((e) => e.kind === 'player')
+        .map((e) => (e as { type: string }).type),
+    );
     for (const t of VitalsPlayerEventType.options) {
       if (t === 'dropped_frames') continue;
       expect(seen.has(t), `missing ${t}`).toBe(true);
@@ -37,8 +46,9 @@ describe('iOS vitals fixture parity (TS)', () => {
   it('Swift-produced numeric custom entries sit inside the custom-data cap', () => {
     expect(VitalsIngestBody.parse(fixture.numericCustom)).toEqual(fixture.numericCustom);
     for (const e of fixture.numericCustom.entries) {
-      expect(Buffer.byteLength(JSON.stringify((e as { data: unknown }).data) ?? '', 'utf8'))
-        .toBeLessThanOrEqual(MAX_CUSTOM_DATA_BYTES);
+      expect(
+        Buffer.byteLength(JSON.stringify((e as { data: unknown }).data) ?? '', 'utf8'),
+      ).toBeLessThanOrEqual(MAX_CUSTOM_DATA_BYTES);
     }
     // The untouched one is one byte under the cap, so the boundary is really being tested.
     const fits = (fixture.numericCustom.entries[0] as { data: unknown }).data;
@@ -47,9 +57,14 @@ describe('iOS vitals fixture parity (TS)', () => {
     expect((fixture.numericCustom.entries[1] as { truncated?: boolean }).truncated).toBe(true);
   });
   it('the payload the second entry was cut from would be rejected uncut', () => {
-    const uncut = { ...(fixture.numericCustom.entries[1] as object), data: Array<number>(100).fill(1e20) };
+    const uncut = {
+      ...(fixture.numericCustom.entries[1] as object),
+      data: Array<number>(100).fill(1e20),
+    };
     const body = { ...fixture.numericCustom, entries: [uncut] };
-    expect(Buffer.byteLength(JSON.stringify(uncut.data), 'utf8')).toBeGreaterThan(MAX_CUSTOM_DATA_BYTES);
+    expect(Buffer.byteLength(JSON.stringify(uncut.data), 'utf8')).toBeGreaterThan(
+      MAX_CUSTOM_DATA_BYTES,
+    );
     expect(() => VitalsIngestBody.parse(body)).toThrow();
   });
   it('dims carry the ios and tvos platforms', () => {

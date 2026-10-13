@@ -72,9 +72,18 @@ import {
   type ReplayDebugSources,
 } from './debug/seam.js';
 import { INGEST_URL } from './constants.js';
-import { captureScreenshot, applyMaskRectsToBlob, type ScreenshotRenderer } from './capture/screenshot.js';
+import {
+  captureScreenshot,
+  applyMaskRectsToBlob,
+  type ScreenshotRenderer,
+} from './capture/screenshot.js';
 import { isTvUserAgent } from './capture/capture-profile.js';
-import { boundedTvFallbackShot, imageShot, type ShotCapture, type ShotCaptureOptions } from './capture/shot-capture.js';
+import {
+  boundedTvFallbackShot,
+  imageShot,
+  type ShotCapture,
+  type ShotCaptureOptions,
+} from './capture/shot-capture.js';
 import { DEGRADED_REASONS, type DegradedReason } from './internal/degraded-reasons.js';
 import { captureHostScreenshot } from './capture/host-visual.js';
 import { installConsolePatcher } from './capture/logs.js';
@@ -135,7 +144,11 @@ import { globalScope } from './internal/global-scope.js';
 import { resolveAppBuild } from './build-identity.js';
 import { resolveDebugBuild } from './debug-build.js';
 import { detectWebRuntimePlatform, ReleaseHealthSubjectSchema } from '@everframe/protocol';
-import { acquireWebHealth, revokeWebHealth, type WebHealthLease } from './release-health/runtime.js';
+import {
+  acquireWebHealth,
+  revokeWebHealth,
+  type WebHealthLease,
+} from './release-health/runtime.js';
 
 /**
  * The structural slice of sdk-core's `IdentityTokenHolder` that this adapter
@@ -772,7 +785,9 @@ export function createWebPlatformAdapter(
   // adapter-only unit tests), which reads as "no user set".
   let userGet: (() => UserMetadata | null) | undefined;
   let healthLease: WebHealthLease | undefined;
-  const runtimePlatform = detectWebRuntimePlatform(typeof navigator === "undefined" ? "" : navigator.userAgent);
+  const runtimePlatform = detectWebRuntimePlatform(
+    typeof navigator === 'undefined' ? '' : navigator.userAgent,
+  );
   /**
    * Read the host's live `setUser` value, never throwing. Every consumer is on
    * a path (the crash sink) where an exception would cost the whole report, so
@@ -1035,9 +1050,11 @@ export function createWebPlatformAdapter(
 
     configProvider = createConfigProvider({
       fetchImpl:
-        typeof fetch !== 'undefined' ? fetch.bind(globalScope()) : (async () => {
-          throw new Error('no fetch');
-        }),
+        typeof fetch !== 'undefined'
+          ? fetch.bind(globalScope())
+          : async () => {
+              throw new Error('no fetch');
+            },
       configUrl: baseConfigUrl,
       sdkKey: _config.sdkKey,
       ...(installIdProvider ? { installIdProvider } : {}),
@@ -1078,26 +1095,29 @@ export function createWebPlatformAdapter(
     const hostReplay = _config.visualCapture?.replay;
     // A renderer-owned screenshot must never be paired with rrweb's DOM replay:
     // rrweb cannot prove Flutter canvas or HTML platform-view redaction.
-    const recorder = hostReplay ?? (_config.visualCapture ? {
-      start: () => undefined,
-      freeze: () => undefined,
-      discardAndResume: () => undefined,
-      takeFrozen: async () => null,
-      stop: () => undefined,
-    } : createReplayRecorder({
-      sensitiveElements: () => sensitiveRegistry.snapshotElements(),
-      ...(_config.redaction ? { redaction: _config.redaction } : {}),
-    }));
+    const recorder =
+      hostReplay ??
+      (_config.visualCapture
+        ? {
+            start: () => undefined,
+            freeze: () => undefined,
+            discardAndResume: () => undefined,
+            takeFrozen: async () => null,
+            stop: () => undefined,
+          }
+        : createReplayRecorder({
+            sensitiveElements: () => sensitiveRegistry.snapshotElements(),
+            ...(_config.redaction ? { redaction: _config.redaction } : {}),
+          }));
     const lifecycle = createReplayLifecycle({
       adapter: { replay: recorder },
       getConfig: (): ReplayConfig => provider.get(),
       locallyDisabled: _config.sessionReplay?.disabled === true,
       // `sessionReplay.disabled` above still wins in every kind.
-      sessionKind: () =>
-        !crashOnly ? 'report' : upgradedByCompanion ? 'upgraded' : 'crashOnly',
+      sessionKind: () => (!crashOnly ? 'report' : upgradedByCompanion ? 'upgraded' : 'crashOnly'),
     });
     replayLifecycle = lifecycle;
-    replayRecorder = _config.visualCapture ? undefined : recorder as ReplayRecorder;
+    replayRecorder = _config.visualCapture ? undefined : (recorder as ReplayRecorder);
 
     applyLiveConfig = (): void => {
       // Codex round-1 fix B, finding 2 (partial by ruling — no owner/
@@ -1131,9 +1151,7 @@ export function createWebPlatformAdapter(
         /* swallow — DEFE-02 */
       }
       try {
-        publishReportHotkey(
-          provider.get().reportHotkey?.binding ?? DEFAULT_REPORT_HOTKEY_BINDING,
-        );
+        publishReportHotkey(provider.get().reportHotkey?.binding ?? DEFAULT_REPORT_HOTKEY_BINDING);
       } catch {
         /* swallow — DEFE-02 */
       }
@@ -1166,8 +1184,8 @@ export function createWebPlatformAdapter(
           // replayDurationSec is re-read live off the config provider.
           const ring = createResourceRing({
             windowMs: () =>
-              (getResourcesServerConfig(provider.get())?.windowSec ??
-                DEFAULT_RESOURCE_WINDOW_SEC) * 1000,
+              (getResourcesServerConfig(provider.get())?.windowSec ?? DEFAULT_RESOURCE_WINDOW_SEC) *
+              1000,
           });
           resourceRing = ring;
           stopResourceSampler = startResourceSampler({ onSample: (s) => ring.push(s) });
@@ -1310,9 +1328,11 @@ export function createWebPlatformAdapter(
     const provider = configProvider;
     const reporterApi = createReporterApi({
       fetchImpl:
-        typeof fetch !== 'undefined' ? fetch.bind(globalScope()) : (async () => {
-          throw new Error('no fetch');
-        }),
+        typeof fetch !== 'undefined'
+          ? fetch.bind(globalScope())
+          : async () => {
+              throw new Error('no fetch');
+            },
       baseUrl: INGEST_URL,
       sdkKey: _config.sdkKey,
       // Reporter identity recognition (spec 2026-08-06) — every /api/reporter/*
@@ -1370,7 +1390,9 @@ export function createWebPlatformAdapter(
   // deliberate contrast to replay's fail-closed OFF).
   const breadcrumbsConfig = (): BreadcrumbsConfig => {
     try {
-      return configProvider ? getBreadcrumbsConfig(configProvider.get()) : BREADCRUMBS_CONFIG_DEFAULT;
+      return configProvider
+        ? getBreadcrumbsConfig(configProvider.get())
+        : BREADCRUMBS_CONFIG_DEFAULT;
     } catch {
       return BREADCRUMBS_CONFIG_DEFAULT;
     }
@@ -1543,10 +1565,10 @@ export function createWebPlatformAdapter(
           // that arrives before `handlingCrash`/throttle state is consulted.
           if (reportingKilled) return;
           const crashReportId = generateReportId();
-          if (!handlingCrash && mechanism !== 'captureException') healthLease?.fail(mechanism, crashReportId);
+          if (!handlingCrash && mechanism !== 'captureException')
+            healthLease?.fail(mechanism, crashReportId);
           const ownership = reportingOwnership;
-          const stillOwned = (): boolean =>
-            !reportingKilled && reportingOwnership === ownership;
+          const stillOwned = (): boolean => !reportingKilled && reportingOwnership === ownership;
           // Once accepted, persistence and delivery answer to consent only: a
           // provider release in between (see `consentRevocations`) is not a
           // reason to drop the report of the crash that caused it.
@@ -1562,8 +1584,10 @@ export function createWebPlatformAdapter(
           if (handlingCrash) return;
           handlingCrash = true;
           try {
-            const errorObject = error !== null && (typeof error === 'object' || typeof error === 'function')
-              ? error : undefined;
+            const errorObject =
+              error !== null && (typeof error === 'object' || typeof error === 'function')
+                ? error
+                : undefined;
             // A framework handler may report and then rethrow the same object.
             // The first accepted capture determines its classification.
             if (errorObject && capturedErrors.has(errorObject)) return;
@@ -1574,7 +1598,7 @@ export function createWebPlatformAdapter(
             try {
               causeChain = extractCrashCauseChain(
                 error,
-                value => redactStringContent(value, crashRedaction),
+                (value) => redactStringContent(value, crashRedaction),
                 stillOwned,
               );
             } catch {
@@ -1603,7 +1627,9 @@ export function createWebPlatformAdapter(
               source: uncaughtReact ? 'crash' : 'error',
               handled,
               fatal: uncaughtReact !== undefined,
-              ...(uncaughtReact?.componentStack ? { componentStack: uncaughtReact.componentStack } : {}),
+              ...(uncaughtReact?.componentStack
+                ? { componentStack: uncaughtReact.componentStack }
+                : {}),
               occurredAt: new Date().toISOString(),
               reportId: crashReportId,
               submittedAt: new Date().toISOString(),
@@ -1618,8 +1644,13 @@ export function createWebPlatformAdapter(
               app: {
                 name: _config.appName ?? 'unknown',
                 version: _config.appVersion ?? '0.0.0',
-                ...((build) => (build !== undefined ? { build } : {}))(resolveAppBuild(_config.appBuild)),
-                debug: resolveDebugBuild(_config.debugBuild, typeof location === 'undefined' ? null : location),
+                ...((build) => (build !== undefined ? { build } : {}))(
+                  resolveAppBuild(_config.appBuild),
+                ),
+                debug: resolveDebugBuild(
+                  _config.debugBuild,
+                  typeof location === 'undefined' ? null : location,
+                ),
               },
               ...(typeof window !== 'undefined' ? { route: window.location.pathname } : {}),
               redaction: crashRedaction,
@@ -1709,8 +1740,16 @@ export function createWebPlatformAdapter(
               snapshot: liveRecorder ? () => liveRecorder.snapshot() : undefined,
             });
             if (replayOutcome) {
-              Object.assign(item.metadata, markErrorReplayPending(item.reportId, { owner: errorReplayOwner, sdkKey: _config.sdkKey }));
-              item.metadata['errorReplayUntil'] = String(item.enqueuedAt + ERROR_REPLAY_DEADLINE_MS);
+              Object.assign(
+                item.metadata,
+                markErrorReplayPending(item.reportId, {
+                  owner: errorReplayOwner,
+                  sdkKey: _config.sdkKey,
+                }),
+              );
+              item.metadata['errorReplayUntil'] = String(
+                item.enqueuedAt + ERROR_REPLAY_DEADLINE_MS,
+              );
             }
             // Persist first (durable if the tab dies), then ship immediately —
             // "next launch" may never come for a closed tab. The replay never
@@ -1805,10 +1844,7 @@ export function createWebPlatformAdapter(
     // Codex round-3 finding 1 (P1) — CLAIM (not "resize"): this drops whatever
     // the previous instance left in the page-global buffers and re-opens
     // admission for this one. See `__claimCaptureBuffers`.
-    __claimCaptureBuffers(
-      _config.console?.maxEntries ?? 100,
-      _config.network?.maxEntries ?? 100,
-    );
+    __claimCaptureBuffers(_config.console?.maxEntries ?? 100, _config.network?.maxEntries ?? 100);
     uninstallers.push(
       installConsolePatcher({
         ...(_config.console?.levels ? { levels: _config.console.levels } : {}),
@@ -1834,7 +1870,9 @@ export function createWebPlatformAdapter(
     uninstallers.push(installNavigationCrumbs(forwardingCrumbSink, forwardingCrumbGate));
     uninstallers.push(installLifecycleCrumbs(forwardingCrumbSink, forwardingCrumbGate));
     uninstallers.push(
-      installTapCrumbs(forwardingCrumbSink, forwardingCrumbGate, () => sensitiveRegistry.snapshotElements()),
+      installTapCrumbs(forwardingCrumbSink, forwardingCrumbGate, () =>
+        sensitiveRegistry.snapshotElements(),
+      ),
     );
 
     // PIPE-02 — install window 'online' drain listener; plan 03-07 wires the actual drain.
@@ -1948,7 +1986,9 @@ export function createWebPlatformAdapter(
     });
   };
 
-  const staleTvShot = (): ShotCapture => ({ degradedReason: DEGRADED_REASONS.screenshot_unavailable });
+  const staleTvShot = (): ShotCapture => ({
+    degradedReason: DEGRADED_REASONS.screenshot_unavailable,
+  });
 
   const noteShot = (shot: ShotCapture): ShotCapture => {
     lastDegradedReason = shot.degradedReason as DegradedReason | undefined;
@@ -1960,7 +2000,9 @@ export function createWebPlatformAdapter(
   // on-device capture under the SAME bounds as the snapshot path's own
   // fallback: a weak profile or a page above 3000 elements is unavailable
   // rather than a multi-second snapDOM run on TV silicon.
-  const tvShot = (started: ReturnType<typeof startTvShot> = startTvShot()): Promise<ShotCapture> => {
+  const tvShot = (
+    started: ReturnType<typeof startTvShot> = startTvShot(),
+  ): Promise<ShotCapture> => {
     const ownership = reportingOwnership;
     return started
       .then(
@@ -2001,8 +2043,13 @@ export function createWebPlatformAdapter(
     shot.catch(() => undefined);
     const pre = { at: Date.now(), shot };
     tvPreCapture = pre;
-    const snapshotted = started.then((s) => s.snapshotted, () => undefined);
-    const ceiling = new Promise<void>((resolve) => setTimeout(resolve, TV_PRE_CAPTURE_OPEN_CEILING_MS));
+    const snapshotted = started.then(
+      (s) => s.snapshotted,
+      () => undefined,
+    );
+    const ceiling = new Promise<void>((resolve) =>
+      setTimeout(resolve, TV_PRE_CAPTURE_OPEN_CEILING_MS),
+    );
     void Promise.race([snapshotted, ceiling]).then(() => {
       // kill() while the snapshot was being taken: the reporter stays shut,
       // exactly as `__openReporter` refuses to open on a killed client. The
@@ -2120,8 +2167,7 @@ export function createWebPlatformAdapter(
         }
       }),
     resolveSensitiveRects: (): Rect[] => sensitiveRegistry.snapshot(),
-    applyMaskPlan: (image: Blob, plan: Rect[]): Promise<Blob> =>
-      applyMaskRectsToBlob(image, plan),
+    applyMaskPlan: (image: Blob, plan: Rect[]): Promise<Blob> => applyMaskRectsToBlob(image, plan),
     ...(outbox ? { outbox } : {}),
     ...(reporterCredentials ? { reporterCredentials } : {}),
     ...(threadClient ? { threads: threadClient } : {}),
@@ -2250,19 +2296,35 @@ export function createWebPlatformAdapter(
         if (!healthLease) revokeWebHealth(INGEST_URL, _config.sdkKey);
         return;
       }
-      if (_config.disabled || _config.crashReporting?.disabled ||
-          resolveDebugBuild(_config.debugBuild, typeof location === 'undefined' ? null : location)) {
+      if (
+        _config.disabled ||
+        _config.crashReporting?.disabled ||
+        resolveDebugBuild(_config.debugBuild, typeof location === 'undefined' ? null : location)
+      ) {
         revokeWebHealth(INGEST_URL, _config.sdkKey);
         return;
       }
       if (!_config.appVersion) return;
       try {
         const id = readUser()?.id;
-        const subject = ReleaseHealthSubjectSchema.safeParse(id ? { kind: 'provided', id } : { kind: 'anonymous' });
-        healthLease = acquireWebHealth({ endpoint: INGEST_URL, sdkKey: _config.sdkKey, sdkVersion,
-          platform: runtimePlatform, app: { version: _config.appVersion, build: resolveAppBuild(_config.appBuild) ?? null, debug: false },
-          subject: subject.success ? subject.data : { kind: 'anonymous' } });
-      } catch { /* health must never prevent host initialization */ }
+        const subject = ReleaseHealthSubjectSchema.safeParse(
+          id ? { kind: 'provided', id } : { kind: 'anonymous' },
+        );
+        healthLease = acquireWebHealth({
+          endpoint: INGEST_URL,
+          sdkKey: _config.sdkKey,
+          sdkVersion,
+          platform: runtimePlatform,
+          app: {
+            version: _config.appVersion,
+            build: resolveAppBuild(_config.appBuild) ?? null,
+            debug: false,
+          },
+          subject: subject.success ? subject.data : { kind: 'anonymous' },
+        });
+      } catch {
+        /* health must never prevent host initialization */
+      }
     },
     __setUserGetter: (get: () => UserMetadata | null): void => {
       userGet = get;
@@ -2359,7 +2421,8 @@ export function createWebPlatformAdapter(
       ownWindowListenerUninstallers.length = 0;
     },
     onKill: (reason?: 'release'): void => {
-      if (reason === 'release') healthLease?.release(); else healthLease?.revoke();
+      if (reason === 'release') healthLease?.release();
+      else healthLease?.revoke();
       // F17/F18 (round-4 review) — see PlatformAdapter.onKill's doc comment.
       // Order matters only in that this must be synchronous and idempotent-
       // safe: `killed` flips first so any code below (there is none today)

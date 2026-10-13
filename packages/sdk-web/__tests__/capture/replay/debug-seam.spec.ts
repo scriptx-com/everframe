@@ -78,7 +78,11 @@ describe('replay debug seam', () => {
   it('reads back trace entries recorded by the lifecycle', () => {
     const adapter = makeAdapter(true);
     adapter.__replayLifecycle?.freeze(); // guarded no-op from IDLE — still traced
-    expect(seam()?.replayTrace().map((e) => e.ev)).toContain('lifecycle.freeze');
+    expect(
+      seam()
+        ?.replayTrace()
+        .map((e) => e.ev),
+    ).toContain('lifecycle.freeze');
   });
 
   // The seam handed back `configProvider.get()` by reference, so a page script
@@ -145,7 +149,7 @@ describe('replay debug seam', () => {
     expect(() => makeAdapter(true)).not.toThrow();
   });
 
-  it('leaves the page\'s own property intact when it cannot install', () => {
+  it("leaves the page's own property intact when it cannot install", () => {
     Object.defineProperty(globalThis, DEBUG_GLOBAL_KEY, {
       value: 'taken',
       writable: false,

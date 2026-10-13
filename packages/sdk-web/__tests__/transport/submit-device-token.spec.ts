@@ -50,13 +50,19 @@ const baseDeps = {
 };
 
 function makeResponseFetch(bodyObj: Record<string, unknown>): ReturnType<typeof vi.fn> {
-  return vi.fn(async () => new Response(JSON.stringify({
-    status: 'received',
-    eventId: 'e1',
-    deliveryCount: 0,
-    idempotent: false,
-    ...bodyObj,
-  }), { status: 200, headers: { 'content-type': 'application/json' } }));
+  return vi.fn(
+    async () =>
+      new Response(
+        JSON.stringify({
+          status: 'received',
+          eventId: 'e1',
+          deliveryCount: 0,
+          idempotent: false,
+          ...bodyObj,
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+  );
 }
 
 describe('submitReportFromDraft — device token', () => {
@@ -69,7 +75,9 @@ describe('submitReportFromDraft — device token', () => {
     const store: ReporterCredentialStore = {
       randomBytes: (n: number) => new Uint8Array(n).fill(7),
       load: async () => null, // no token yet -> SDK mints
-      save: async (t: string) => { saved.push(t); },
+      save: async (t: string) => {
+        saved.push(t);
+      },
       clear: async () => {},
     };
     const fetchImpl = makeResponseFetch({ thread: { id: 't9' } });
@@ -78,7 +86,10 @@ describe('submitReportFromDraft — device token', () => {
       fetch: fetchImpl as unknown as typeof globalThis.fetch,
       credentials: store,
     });
-    const call = fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
+    const call = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      { headers: Record<string, string> },
+    ];
     const headers = call[1].headers;
     expect(headers['X-Everframe-Device-Token']).toMatch(/^evr_[A-Za-z0-9_-]{43}$/); // minted via ensureDeviceToken
     expect(saved).toHaveLength(1); // ensureDeviceToken persisted the mint
@@ -103,8 +114,12 @@ describe('submitReportFromDraft — device token', () => {
 
   it('never fails a submit when ensureDeviceToken throws', async () => {
     const store: ReporterCredentialStore = {
-      randomBytes: () => { throw new Error('no CSPRNG'); },
-      load: async () => { throw new Error('denied'); },
+      randomBytes: () => {
+        throw new Error('no CSPRNG');
+      },
+      load: async () => {
+        throw new Error('denied');
+      },
       save: async () => {},
       clear: async () => {},
     };
@@ -115,7 +130,10 @@ describe('submitReportFromDraft — device token', () => {
       credentials: store,
     });
     expect(result.ok).toBe(true);
-    const call = fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
+    const call = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      { headers: Record<string, string> },
+    ];
     expect(call[1].headers['X-Everframe-Device-Token']).toBeUndefined();
   });
 
@@ -125,7 +143,10 @@ describe('submitReportFromDraft — device token', () => {
       ...baseDeps,
       fetch: fetchImpl as unknown as typeof globalThis.fetch,
     });
-    const call = fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
+    const call = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      { headers: Record<string, string> },
+    ];
     expect(call[1].headers['X-Everframe-Device-Token']).toBeUndefined();
   });
 
@@ -154,7 +175,10 @@ describe('submitReportFromDraft — device token', () => {
     // nothing exists to persist into since the seam itself is null — the
     // fix must not conjure a store to write to just because the server
     // echoed a thread/device block.
-    const call = fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
+    const call = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      { headers: Record<string, string> },
+    ];
     expect(call[1].headers['X-Everframe-Device-Token']).toBeUndefined();
   });
 
@@ -175,7 +199,10 @@ describe('submitReportFromDraft — device token', () => {
       fetch: fetchImpl as unknown as typeof globalThis.fetch,
       credentials: null,
     });
-    const call = fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
+    const call = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      { headers: Record<string, string> },
+    ];
     expect(call[1].headers['X-Everframe-Replies-Opt-Out']).toBe('1');
   });
 
@@ -192,7 +219,10 @@ describe('submitReportFromDraft — device token', () => {
       fetch: fetchImpl as unknown as typeof globalThis.fetch,
       credentials: store,
     });
-    const call = fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
+    const call = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      { headers: Record<string, string> },
+    ];
     expect('X-Everframe-Replies-Opt-Out' in call[1].headers).toBe(false);
   });
 });
@@ -221,7 +251,9 @@ describe('drainOutbox — device token rotation propagates within a batch', () =
     const store: ReporterCredentialStore = {
       randomBytes: (n: number) => new Uint8Array(n).fill(7),
       load: async () => stored,
-      save: async (t: string) => { stored = t; },
+      save: async (t: string) => {
+        stored = t;
+      },
       clear: async () => {},
     };
     const outbox: OutboxAdapter = createInMemoryOutbox();
@@ -244,10 +276,7 @@ describe('drainOutbox — device token rotation propagates within a batch', () =
     const fetchImpl = vi.fn(async () => {
       const isFirstCall = callIndex === 0;
       callIndex += 1;
-      const body =
-        isFirstCall
-          ? { thread: { id: 't1' }, device: { token: rotatedToken } }
-          : {};
+      const body = isFirstCall ? { thread: { id: 't1' }, device: { token: rotatedToken } } : {};
       return new Response(
         JSON.stringify({
           status: 'received',
@@ -272,8 +301,12 @@ describe('drainOutbox — device token rotation propagates within a batch', () =
     expect(result.submitted).toBe(2);
     expect(fetchImpl.mock.calls).toHaveLength(2);
 
-    const firstHeaders = (fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }])[1].headers;
-    const secondHeaders = (fetchImpl.mock.calls[1] as unknown as [string, { headers: Record<string, string> }])[1].headers;
+    const firstHeaders = (
+      fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }]
+    )[1].headers;
+    const secondHeaders = (
+      fetchImpl.mock.calls[1] as unknown as [string, { headers: Record<string, string> }]
+    )[1].headers;
 
     // First item presents the original (possibly revoked) token — that's what
     // triggered the server to mint a replacement in the first place.
@@ -291,7 +324,9 @@ describe('drainOutbox — device token rotation propagates within a batch', () =
     const store: ReporterCredentialStore = {
       randomBytes: (n: number) => new Uint8Array(n).fill(7),
       load: async () => stored,
-      save: async (t: string) => { stored = t; },
+      save: async (t: string) => {
+        stored = t;
+      },
       clear: async () => {},
     };
     const outbox: OutboxAdapter = createInMemoryOutbox();
@@ -310,10 +345,18 @@ describe('drainOutbox — device token rotation propagates within a batch', () =
       metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
 
-    const fetchImpl = vi.fn(async () => new Response(
-      JSON.stringify({ status: 'received', eventId: 'e1', deliveryCount: 0, idempotent: false }),
-      { status: 200, headers: { 'content-type': 'application/json' } },
-    ));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: 'received',
+            eventId: 'e1',
+            deliveryCount: 0,
+            idempotent: false,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
 
     await drainOutbox({
       outbox,
@@ -324,8 +367,12 @@ describe('drainOutbox — device token rotation propagates within a batch', () =
       credentials: store,
     });
 
-    const firstHeaders = (fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }])[1].headers;
-    const secondHeaders = (fetchImpl.mock.calls[1] as unknown as [string, { headers: Record<string, string> }])[1].headers;
+    const firstHeaders = (
+      fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }]
+    )[1].headers;
+    const secondHeaders = (
+      fetchImpl.mock.calls[1] as unknown as [string, { headers: Record<string, string> }]
+    )[1].headers;
     expect(firstHeaders['X-Everframe-Device-Token']).toBe(originalToken);
     expect(secondHeaders['X-Everframe-Device-Token']).toBe(originalToken);
     expect(stored).toBe(originalToken);
@@ -366,16 +413,26 @@ describe('drainOutbox — replies opt-out header', () => {
   }
 
   it('sends X-Everframe-Replies-Opt-Out: 1 on a drained item when the local veto is active', async () => {
-    const fetchImpl = vi.fn(async () => new Response(
-      JSON.stringify({ status: 'received', eventId: 'e1', deliveryCount: 0, idempotent: false }),
-      { status: 200, headers: { 'content-type': 'application/json' } },
-    ));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: 'received',
+            eventId: 'e1',
+            deliveryCount: 0,
+            idempotent: false,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
     await drainOneItem({
       fetchImpl,
       driveConfig: { ...config, replies: { disabled: true } },
       credentials: null,
     });
-    const headers = (fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }])[1].headers;
+    const headers = (
+      fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }]
+    )[1].headers;
     expect(headers['X-Everframe-Replies-Opt-Out']).toBe('1');
   });
 
@@ -386,12 +443,22 @@ describe('drainOutbox — replies opt-out header', () => {
       save: async () => {},
       clear: async () => {},
     };
-    const fetchImpl = vi.fn(async () => new Response(
-      JSON.stringify({ status: 'received', eventId: 'e1', deliveryCount: 0, idempotent: false }),
-      { status: 200, headers: { 'content-type': 'application/json' } },
-    ));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: 'received',
+            eventId: 'e1',
+            deliveryCount: 0,
+            idempotent: false,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
     await drainOneItem({ fetchImpl, driveConfig: config, credentials: store });
-    const headers = (fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }])[1].headers;
+    const headers = (
+      fetchImpl.mock.calls[0] as unknown as [string, { headers: Record<string, string> }]
+    )[1].headers;
     expect('X-Everframe-Replies-Opt-Out' in headers).toBe(false);
   });
 });
@@ -426,7 +493,9 @@ describe('drainOutbox — per-item app scoping (round-6 Finding 1)', () => {
       reportId: 'r-b',
       enqueuedAt: 1,
       attempts: 0,
-      payload: new TextEncoder().encode(JSON.stringify({ reportId: 'r-b', protocolVersion: '1.0' })),
+      payload: new TextEncoder().encode(
+        JSON.stringify({ reportId: 'r-b', protocolVersion: '1.0' }),
+      ),
       metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: APP_B_KEY },
     });
     // Enqueued by app A (a DIFFERENT app than the one currently mounted).
@@ -434,7 +503,9 @@ describe('drainOutbox — per-item app scoping (round-6 Finding 1)', () => {
       reportId: 'r-a',
       enqueuedAt: 2,
       attempts: 0,
-      payload: new TextEncoder().encode(JSON.stringify({ reportId: 'r-a', protocolVersion: '1.0' })),
+      payload: new TextEncoder().encode(
+        JSON.stringify({ reportId: 'r-a', protocolVersion: '1.0' }),
+      ),
       metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: APP_A_KEY },
     });
     return outbox;
@@ -446,15 +517,25 @@ describe('drainOutbox — per-item app scoping (round-6 Finding 1)', () => {
     const storeB: ReporterCredentialStore = {
       randomBytes: (n: number) => new Uint8Array(n).fill(7),
       load: async () => storedB,
-      save: async (t: string) => { storedB = t; },
+      save: async (t: string) => {
+        storedB = t;
+      },
       clear: async () => {},
     };
     const outbox = await seedTwoAppOutbox();
 
-    const fetchImpl = vi.fn(async () => new Response(
-      JSON.stringify({ status: 'received', eventId: 'e1', deliveryCount: 0, idempotent: false }),
-      { status: 200, headers: { 'content-type': 'application/json' } },
-    ));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: 'received',
+            eventId: 'e1',
+            deliveryCount: 0,
+            idempotent: false,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
 
     const result = await drainOutbox({
       outbox,
@@ -494,7 +575,9 @@ describe('drainOutbox — per-item app scoping (round-6 Finding 1)', () => {
     const storeB: ReporterCredentialStore = {
       randomBytes: (n: number) => new Uint8Array(n).fill(7),
       load: async () => storedB,
-      save: async (t: string) => { storedB = t; },
+      save: async (t: string) => {
+        storedB = t;
+      },
       clear: async () => {},
     };
     const outbox: OutboxAdapter = createInMemoryOutbox();
@@ -503,22 +586,27 @@ describe('drainOutbox — per-item app scoping (round-6 Finding 1)', () => {
       reportId: 'r-a',
       enqueuedAt: 1,
       attempts: 0,
-      payload: new TextEncoder().encode(JSON.stringify({ reportId: 'r-a', protocolVersion: '1.0' })),
+      payload: new TextEncoder().encode(
+        JSON.stringify({ reportId: 'r-a', protocolVersion: '1.0' }),
+      ),
       metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: APP_A_KEY },
     });
 
     const foreignMintedToken = 'evr_' + 'f'.repeat(43);
-    const fetchImpl = vi.fn(async () => new Response(
-      JSON.stringify({
-        status: 'received',
-        eventId: 'e1',
-        deliveryCount: 0,
-        idempotent: false,
-        thread: { id: 't-orphan' },
-        device: { token: foreignMintedToken },
-      }),
-      { status: 200, headers: { 'content-type': 'application/json' } },
-    ));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: 'received',
+            eventId: 'e1',
+            deliveryCount: 0,
+            idempotent: false,
+            thread: { id: 't-orphan' },
+            device: { token: foreignMintedToken },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
 
     const result = await drainOutbox({
       outbox,
@@ -564,16 +652,19 @@ describe('drainOutbox — provisionedThreadIds (round-6 Finding 2)', () => {
       payload: new TextEncoder().encode(JSON.stringify({ reportId: 'r1', protocolVersion: '1.0' })),
       metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
-    const fetchImpl = vi.fn(async () => new Response(
-      JSON.stringify({
-        status: 'received',
-        eventId: 'e1',
-        deliveryCount: 0,
-        idempotent: false,
-        thread: { id: 't-new' },
-      }),
-      { status: 200, headers: { 'content-type': 'application/json' } },
-    ));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: 'received',
+            eventId: 'e1',
+            deliveryCount: 0,
+            idempotent: false,
+            thread: { id: 't-new' },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
     const result = await drainOutbox({
       outbox,
       config,
@@ -594,10 +685,18 @@ describe('drainOutbox — provisionedThreadIds (round-6 Finding 2)', () => {
       payload: new TextEncoder().encode(JSON.stringify({ reportId: 'r1', protocolVersion: '1.0' })),
       metadata: { url: `${INGEST_URL}/api/ingest`, sdkKey: config.sdkKey },
     });
-    const fetchImpl = vi.fn(async () => new Response(
-      JSON.stringify({ status: 'received', eventId: 'e1', deliveryCount: 0, idempotent: false }),
-      { status: 200, headers: { 'content-type': 'application/json' } },
-    ));
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: 'received',
+            eventId: 'e1',
+            deliveryCount: 0,
+            idempotent: false,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
     const result = await drainOutbox({
       outbox,
       config,

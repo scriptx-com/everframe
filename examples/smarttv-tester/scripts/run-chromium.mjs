@@ -114,7 +114,8 @@ function waitForServer(target, timeoutMs = 30_000) {
         resolve();
       });
       req.on('error', () => {
-        if (Date.now() - started > timeoutMs) reject(new Error(`server at ${target} never came up`));
+        if (Date.now() - started > timeoutMs)
+          reject(new Error(`server at ${target} never came up`));
         else setTimeout(attempt, 300);
       });
     };
@@ -154,7 +155,13 @@ log(`launching Chromium ${version} at ${url}`);
 // bundles automatically ("incorrect executable format").
 const chromium = spawn(
   'arch',
-  ['-x86_64', bin, `--user-data-dir=${path.join(os.tmpdir(), `everframe-chromium-${version}`)}`, '--no-first-run', url],
+  [
+    '-x86_64',
+    bin,
+    `--user-data-dir=${path.join(os.tmpdir(), `everframe-chromium-${version}`)}`,
+    '--no-first-run',
+    url,
+  ],
   { stdio: 'ignore', detached: !server },
 );
 

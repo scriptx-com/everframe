@@ -1,19 +1,25 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { defineConfig } from "tsup";
-import { buildConstants } from "./build-constants";
+import { defineConfig } from 'tsup';
+import { buildConstants } from './build-constants';
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/manifest.ts", "src/upload.ts", "src/hermes.ts", "src/native-setup/index.ts"],
-  format: ["esm"],
+  entry: [
+    'src/index.ts',
+    'src/manifest.ts',
+    'src/upload.ts',
+    'src/hermes.ts',
+    'src/native-setup/index.ts',
+  ],
+  format: ['esm'],
   // protocol is private: true and never reaches npm, so its types and code
   // are inlined (see sdk-react-native/tsup.config.ts for why dts needs resolve).
-  dts: { resolve: ["@everframe/protocol"] },
+  dts: { resolve: ['@everframe/protocol'] },
   clean: true,
   sourcemap: false,
-  target: "node22",
-  outDir: "dist",
-  noExternal: ["@everframe/protocol", "zod"],
-  banner: { js: "#!/usr/bin/env node" },
+  target: 'node22',
+  outDir: 'dist',
+  noExternal: ['@everframe/protocol', 'zod'],
+  banner: { js: '#!/usr/bin/env node' },
   define: buildConstants(),
 });

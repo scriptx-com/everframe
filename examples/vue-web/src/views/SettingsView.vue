@@ -57,8 +57,8 @@ function killSdk(): void {
     <section class="card">
       <h2>Consent — kill()</h2>
       <p>
-        Stops this instance capturing or submitting anything further. A reporter that is
-        already open discards on Send. There is no undo — reload the page.
+        Stops this instance capturing or submitting anything further. A reporter that is already
+        open discards on Send. There is no undo — reload the page.
       </p>
       <button type="button" data-testid="kill-sdk" :disabled="killed" @click="killSdk">
         Kill the SDK

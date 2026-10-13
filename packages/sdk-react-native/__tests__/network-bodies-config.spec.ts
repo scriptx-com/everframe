@@ -5,11 +5,15 @@ import { __extractBridgeConfigForTesting as extract } from '../src/runtime.js';
 
 describe('networkBodies config flattening', () => {
   it('flattens disabled:true to the flat bridge flag', () => {
-    expect(extract({ sdkKey: 'k', networkBodies: { disabled: true } }).networkBodiesDisabled).toBe(true);
+    expect(extract({ sdkKey: 'k', networkBodies: { disabled: true } }).networkBodiesDisabled).toBe(
+      true,
+    );
   });
 
   it('flattens disabled:false to false', () => {
-    expect(extract({ sdkKey: 'k', networkBodies: { disabled: false } }).networkBodiesDisabled).toBe(false);
+    expect(extract({ sdkKey: 'k', networkBodies: { disabled: false } }).networkBodiesDisabled).toBe(
+      false,
+    );
   });
 
   it('omits the flag entirely when networkBodies is absent', () => {

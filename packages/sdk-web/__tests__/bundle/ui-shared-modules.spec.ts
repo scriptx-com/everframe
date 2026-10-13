@@ -42,7 +42,10 @@ describe('dist/ui.js shares stateful modules with dist/index.js', () => {
   it('inlines none of the shared modules', async () => {
     const { inputs } = await buildUi();
     for (const mod of UI_SHARED_MODULES) {
-      expect(inputs.some((f) => f.endsWith(`src/${mod}.ts`)), mod).toBe(false);
+      expect(
+        inputs.some((f) => f.endsWith(`src/${mod}.ts`)),
+        mod,
+      ).toBe(false);
     }
   });
 

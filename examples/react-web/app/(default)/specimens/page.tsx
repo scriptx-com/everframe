@@ -4,11 +4,11 @@
 // Specimens — the catalog grid. Filter chips + card links exercise click
 // breadcrumbs and client-side navigation; the SVG plates give the screenshot
 // pipeline real imagery to capture.
-"use client";
-import { useState } from "react";
-import Link from "next/link";
-import { SPECIMENS, ORDERS } from "../../lib/specimens";
-import { SpecimenPlate } from "../../components/SpecimenPlate";
+'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { SPECIMENS, ORDERS } from '../../lib/specimens';
+import { SpecimenPlate } from '../../components/SpecimenPlate';
 
 export default function SpecimensPage() {
   const [order, setOrder] = useState<string | null>(null);
@@ -19,11 +19,16 @@ export default function SpecimensPage() {
       <p className="eyebrow">Catalog · {SPECIMENS.length} plates</p>
       <h1 className="display">Specimens</h1>
       <p className="lede">
-        Eight residents of Baltic meadows and old oak woods, drawn as archival
-        plates. Filter by order, open a plate for the field notes.
+        Eight residents of Baltic meadows and old oak woods, drawn as archival plates. Filter by
+        order, open a plate for the field notes.
       </p>
 
-      <div className="btn-row" style={{ marginBottom: 28 }} role="group" aria-label="Filter by order">
+      <div
+        className="btn-row"
+        style={{ marginBottom: 28 }}
+        role="group"
+        aria-label="Filter by order"
+      >
         <button
           className="chip"
           aria-pressed={order === null}

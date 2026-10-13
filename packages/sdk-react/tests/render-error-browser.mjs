@@ -57,13 +57,18 @@ const server = createServer(async (req, res) => {
     return;
   }
   res.setHeader('Content-Type', 'text/html');
-  res.end('<!doctype html><div id="root"></div><script type="module">import * as host from "/bundle.js";window.host=host;</script>');
+  res.end(
+    '<!doctype html><div id="root"></div><script type="module">import * as host from "/bundle.js";window.host=host;</script>',
+  );
 });
 await new Promise((done) => server.listen(0, '127.0.0.1', done));
 const endpoint = `http://127.0.0.1:${server.address().port}`;
 
 const reactAlias = reactRoot
-  ? { react: resolve(reactRoot, 'node_modules/react'), 'react-dom': resolve(reactRoot, 'node_modules/react-dom') }
+  ? {
+      react: resolve(reactRoot, 'node_modules/react'),
+      'react-dom': resolve(reactRoot, 'node_modules/react-dom'),
+    }
   : {};
 
 async function bundleFor(mode) {
@@ -82,7 +87,10 @@ async function bundleFor(mode) {
       '@everframe/sdk-core': resolve('../sdk-core/src/index.ts'),
       '@everframe/protocol': resolve('../protocol/src/index.ts'),
     },
-    define: { __EVERFRAME_INGEST_URL__: JSON.stringify(endpoint), 'process.env.NODE_ENV': JSON.stringify(mode) },
+    define: {
+      __EVERFRAME_INGEST_URL__: JSON.stringify(endpoint),
+      'process.env.NODE_ENV': JSON.stringify(mode),
+    },
   });
   return result.outputFiles[0].text;
 }
@@ -133,7 +141,10 @@ try {
       // React's own behaviour is unchanged: the root is unmounted and the
       // page sees the uncaught error.
       assert.equal(await page.evaluate(() => document.getElementById('root').innerHTML), '', label);
-      assert(pageErrors.some((message) => message.startsWith('smoke js-')), `${label}: page error`);
+      assert(
+        pageErrors.some((message) => message.startsWith('smoke js-')),
+        `${label}: page error`,
+      );
       // React 18's development build runs renders it retries and effects
       // inside a fake DOM event (invokeGuardedCallback), so the browser
       // reports those errors to window.onerror before any boundary sees
@@ -147,7 +158,9 @@ try {
       if (react18Dev && scenario === 'effect') {
         assert.equal(reportIds(fatal).length, 0, label);
         assert.equal(reportIds(nonFatal).length, 1, label);
-        results.push({ label: `${label}: non-fatal, as React 18 development builds always reported it` });
+        results.push({
+          label: `${label}: non-fatal, as React 18 development builds always reported it`,
+        });
         await context.close();
         continue;
       }
@@ -161,7 +174,13 @@ try {
       assert.equal(crash.fatal, true, label);
       assert.equal(crash.handled, false, label);
       assert.equal(crash.mechanism, 'onerror', label);
-      assert.match(crash.message, new RegExp(`^smoke js-\\w+: ${component}\\n\\nThis error is located at:\\n\\s+at ${component}\\b`), label);
+      assert.match(
+        crash.message,
+        new RegExp(
+          `^smoke js-\\w+: ${component}\\n\\nThis error is located at:\\n\\s+at ${component}\\b`,
+        ),
+        label,
+      );
       assert.match(crash.message, /\n\s+at CrashHost\b/, label);
       assert.equal(envelope.reporter.title, `Error: ${crash.message.split('\n')[0]}`, label);
       // A render error's own top frame is the component; an effect's is the
@@ -186,12 +205,18 @@ try {
       await page.reload();
       await page.waitForFunction(() => !!window.host);
       await page.evaluate(() => window.host.mount());
-      const deliveredFatal = () => crashes().filter((row) => row.status === 200 && row.envelope.payload.crash.fatal === true);
+      const deliveredFatal = () =>
+        crashes().filter((row) => row.status === 200 && row.envelope.payload.crash.fatal === true);
       await waitFor(() => deliveredFatal().length > 0, `${mode} offline: delivered after reload`);
-      const fatalIds = reportIds(crashes().filter(({ envelope }) => envelope.payload.crash.fatal === true));
+      const fatalIds = reportIds(
+        crashes().filter(({ envelope }) => envelope.payload.crash.fatal === true),
+      );
       assert.equal(fatalIds.length, 1);
       const queued = fatalIds[0];
-      results.push({ label: `${mode} render, send failed, delivered after reload`, reportId: queued });
+      results.push({
+        label: `${mode} render, send failed, delivered after reload`,
+        reportId: queued,
+      });
       await context.close();
     }
 
@@ -212,7 +237,10 @@ try {
       assert.equal(envelope.payload.crash.fatal, false);
       assert.equal(envelope.payload.crash.message, 'smoke js-handler: onJsHandler');
       assert.equal(await page.locator('#ready').count(), 1);
-      results.push({ label: `${mode} handler: non-fatal error, app still mounted`, reportId: envelope.reportId });
+      results.push({
+        label: `${mode} handler: non-fatal error, app still mounted`,
+        reportId: envelope.reportId,
+      });
       await context.close();
     }
 
@@ -231,14 +259,25 @@ try {
       // DOM event, so the browser reports even a caught render error to
       // window.onerror. That pre-existing non-fatal report is the only one
       // allowed here; nothing fatal.
-      assert(sent.every(({ envelope }) => envelope.payload.crash.fatal === false), `${mode} host boundary: nothing fatal`);
-      if (mode === 'production' || !reactVersion.value.startsWith('18.')) assert.equal(sent.length, 0, `${mode} host boundary: nothing sent`);
+      assert(
+        sent.every(({ envelope }) => envelope.payload.crash.fatal === false),
+        `${mode} host boundary: nothing fatal`,
+      );
+      if (mode === 'production' || !reactVersion.value.startsWith('18.'))
+        assert.equal(sent.length, 0, `${mode} host boundary: nothing sent`);
       results.push({ label: `${mode} host boundary inside the provider: ${sent.length} reports` });
       await context.close();
     }
   }
 
-  await writeFile(resolve(output, 'proof.json'), JSON.stringify({ browser: browser.version(), react: reactRoot ?? 'workspace', results }, null, 2));
+  await writeFile(
+    resolve(output, 'proof.json'),
+    JSON.stringify(
+      { browser: browser.version(), react: reactRoot ?? 'workspace', results },
+      null,
+      2,
+    ),
+  );
   for (const { label } of results) console.log(`ok  ${label}`);
   console.log(`PASS: ${results.length} checks in Chromium ${browser.version()}`);
 } finally {

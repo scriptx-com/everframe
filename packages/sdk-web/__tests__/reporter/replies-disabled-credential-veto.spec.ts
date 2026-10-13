@@ -66,9 +66,9 @@ describe('replies.disabled vetoes the credential seam (Finding 2)', () => {
 
     beforeEach(() => {
       localStorage.clear();
-      fetchMock = vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ status: 'received' }), { status: 200 }),
-      );
+      fetchMock = vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ status: 'received' }), { status: 200 }));
       vi.stubGlobal('fetch', fetchMock);
     });
     afterEach(() => vi.unstubAllGlobals());
@@ -83,9 +83,14 @@ describe('replies.disabled vetoes the credential seam (Finding 2)', () => {
       window.onerror?.('veto-path', 'a.ts', 1, 1, err);
 
       await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
-      const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string> | Headers | undefined;
+      const headers = fetchMock.mock.calls[0]?.[1]?.headers as
+        | Record<string, string>
+        | Headers
+        | undefined;
       const tokenHeader =
-        headers instanceof Headers ? headers.get('X-Everframe-Device-Token') : headers?.['X-Everframe-Device-Token'];
+        headers instanceof Headers
+          ? headers.get('X-Everframe-Device-Token')
+          : headers?.['X-Everframe-Device-Token'];
       expect(tokenHeader).toBeFalsy();
       // No token was ever minted/persisted through the vetoed seam.
       expect(localStorage.getItem(scopedReporterTokenStorageKey('pk_test'))).toBeNull();

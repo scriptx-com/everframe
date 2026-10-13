@@ -17,8 +17,9 @@ describe('generated Everframe protocol identity', () => {
     '%s prefixes every public protocol declaration with Everframe',
     (file) => {
       const source = readFileSync(path.join(swiftRoot, file), 'utf8');
-      const declarations = [...source.matchAll(/^public (?:struct|enum|class) (\w+)/gmu)]
-        .map((match) => match[1]);
+      const declarations = [...source.matchAll(/^public (?:struct|enum|class) (\w+)/gmu)].map(
+        (match) => match[1],
+      );
       expect(declarations.length).toBeGreaterThan(0);
       expect(declarations.filter((name) => !name?.startsWith('Everframe'))).toEqual([]);
     },

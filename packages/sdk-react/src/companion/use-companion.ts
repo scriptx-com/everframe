@@ -51,11 +51,10 @@ export function useCompanion(): {
   const [attachedUserName, setAttachedUserName] = useState<string | null>(
     api.getAttachedUserName(),
   );
-  const [resolvedName, setResolvedName] = useState<string | null>(
-    api.getResolvedName(),
+  const [resolvedName, setResolvedName] = useState<string | null>(api.getResolvedName());
+  const [attachChallenge, setAttachChallenge] = useState<CompanionAttachChallenge | null>(
+    api.getAttachChallenge(),
   );
-  const [attachChallenge, setAttachChallenge] =
-    useState<CompanionAttachChallenge | null>(api.getAttachChallenge());
   const [running, setRunning] = useState<boolean>(__getCompanionRunning());
 
   useEffect(() => {

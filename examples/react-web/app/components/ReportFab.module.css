@@ -21,7 +21,11 @@
   border: 1px solid #0e3038;
   background: #12333c;
   color: #a7dceb;
-  font: 500 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font:
+    500 14px/1 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
   cursor: pointer;
   box-shadow:
     0 2px 6px rgba(14, 48, 56, 0.25),

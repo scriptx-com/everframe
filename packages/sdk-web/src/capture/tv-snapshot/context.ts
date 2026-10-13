@@ -8,7 +8,11 @@
 // here: it travels only as the FullSnapshot's `initialOffset`. Every value is
 // clamped to the protocol's bounds so the server never rejects a snapshot for
 // an odd window. LAZY (tv-snapshot chunk).
-import { MAX_RENDER_VIEWPORT_EDGE, type DomSnapshotContext, type DomSnapshotV1 } from '@everframe/protocol';
+import {
+  MAX_RENDER_VIEWPORT_EDGE,
+  type DomSnapshotContext,
+  type DomSnapshotV1,
+} from '@everframe/protocol';
 
 export type DomSnapshotDoc = DomSnapshotV1;
 export type { DomSnapshotContext };
@@ -72,13 +76,19 @@ function fontSummary(doc: Document): DomSnapshotContext['fonts'] {
   const failed = new Set<string>();
   try {
     fonts.forEach((face) => {
-      if (face.status === 'loaded' && loaded.size < MAX_FONT_NAMES) loaded.add(familyName(String(face.family)));
-      if (face.status === 'error' && failed.size < MAX_FONT_NAMES) failed.add(familyName(String(face.family)));
+      if (face.status === 'loaded' && loaded.size < MAX_FONT_NAMES)
+        loaded.add(familyName(String(face.family)));
+      if (face.status === 'error' && failed.size < MAX_FONT_NAMES)
+        failed.add(familyName(String(face.family)));
     });
   } catch {
     /* a broken FontFaceSet only costs the font list */
   }
-  return { status: fonts.status === 'loading' ? 'loading' : 'loaded', loaded: [...loaded], failed: [...failed] };
+  return {
+    status: fonts.status === 'loading' ? 'loading' : 'loaded',
+    loaded: [...loaded],
+    failed: [...failed],
+  };
 }
 
 /** A viewport edge as the protocol accepts it: an integer in 1..MAX_RENDER_VIEWPORT_EDGE. */
@@ -92,7 +102,11 @@ function devicePixelRatio(win: Window): number {
   return typeof dpr === 'number' && Number.isFinite(dpr) && dpr > 0 ? Math.min(MAX_DPR, dpr) : 1;
 }
 
-export function buildSnapshotContext(win: Window, doc: Document, focusedId: number | null): DomSnapshotContext {
+export function buildSnapshotContext(
+  win: Window,
+  doc: Document,
+  focusedId: number | null,
+): DomSnapshotContext {
   const userAgent = String(win.navigator.userAgent).slice(0, MAX_USER_AGENT_LENGTH);
   return {
     dpr: devicePixelRatio(win),
@@ -102,7 +116,9 @@ export function buildSnapshotContext(win: Window, doc: Document, focusedId: numb
     focusedId,
     media: {
       prefersColorScheme: query(win, '(prefers-color-scheme: dark)') ? 'dark' : 'light',
-      prefersReducedMotion: query(win, '(prefers-reduced-motion: reduce)') ? 'reduce' : 'no-preference',
+      prefersReducedMotion: query(win, '(prefers-reduced-motion: reduce)')
+        ? 'reduce'
+        : 'no-preference',
       forcedColors: query(win, '(forced-colors: active)') ? 'active' : 'none',
     },
     viewport: { width: viewportEdge(win.innerWidth), height: viewportEdge(win.innerHeight) },

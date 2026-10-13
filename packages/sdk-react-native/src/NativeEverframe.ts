@@ -85,9 +85,9 @@
 //   the companion `reportRequested`/`signalCompanionReportRequestReady`
 //   handshake below exactly), bounded and fail-open; see both methods' own
 //   doc comments.
-import type { TurboModule } from "react-native";
-import { TurboModuleRegistry } from "react-native";
-import type { UnsafeObject } from "./codegen-types";
+import type { TurboModule } from 'react-native';
+import { TurboModuleRegistry } from 'react-native';
+import type { UnsafeObject } from './codegen-types';
 
 /**
  * Geometry rect crossing the bridge. Flat-object only; codegen cannot express
@@ -330,12 +330,7 @@ export interface Spec extends TurboModule {
    * (no-op pre-start / while killed). `data` is typed `UnsafeObject` — the
    * documented codegen escape hatch for freeform objects (see file header).
    */
-  addBreadcrumb(
-    message: string,
-    kind?: string,
-    level?: string,
-    data?: UnsafeObject,
-  ): void;
+  addBreadcrumb(message: string, kind?: string, level?: string, data?: UnsafeObject): void;
 
   /**
    * Navigation screen marker (spec 2026-07-14 — the D-decision for this
@@ -381,12 +376,7 @@ export interface Spec extends TurboModule {
   // crosses here. Unknown/duplicate/detached tokens are silent no-ops.
 
   /** Register a remote player. A token already live is ignored. */
-  trackPlayer(
-    token: string,
-    library: string,
-    name?: string,
-    libraryVersion?: string,
-  ): void;
+  trackPlayer(token: string, library: string, name?: string, libraryVersion?: string): void;
   /** `handle.detach()` + drop the token. Native emits `player_detach`. */
   detachPlayer(token: string): void;
   /**
@@ -396,12 +386,7 @@ export interface Spec extends TurboModule {
    * enum); the native context's `emit` refuses anything outside
    * `VitalsPlayerEventType`. `data` is the `UnsafeObject` escape hatch.
    */
-  recordPlayerEvent(
-    token: string,
-    type: string,
-    t: number,
-    data?: UnsafeObject,
-  ): void;
+  recordPlayerEvent(token: string, type: string, t: number, data?: UnsafeObject): void;
   /**
    * Refresh the native snapshot cache: `{ bufferAheadMs, bandwidthEstimate?,
    * bitrate?, width?, height?, droppedFrames? }`. `droppedFrames` is
@@ -477,4 +462,4 @@ export interface Spec extends TurboModule {
   setUser(user?: UnsafeObject): void;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>("Everframe");
+export default TurboModuleRegistry.getEnforcing<Spec>('Everframe');

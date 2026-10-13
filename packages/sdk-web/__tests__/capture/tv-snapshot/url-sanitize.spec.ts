@@ -15,16 +15,24 @@ const BASE = 'https://app.example.test/tv/';
 
 describe('sanitizeHttpUrl', () => {
   it('removes credentials, query and fragment, keeping origin + path', () => {
-    expect(sanitizeHttpUrl('https://alice:secret@cdn.example.test:8443/p/poster.png?access_token=T#x', BASE))
-      .toBe('https://cdn.example.test:8443/p/poster.png');
+    expect(
+      sanitizeHttpUrl(
+        'https://alice:secret@cdn.example.test:8443/p/poster.png?access_token=T#x',
+        BASE,
+      ),
+    ).toBe('https://cdn.example.test:8443/p/poster.png');
   });
   it('resolves relative URLs against the base', () => {
     expect(sanitizeHttpUrl('img/a.png?t=1', BASE)).toBe('https://app.example.test/tv/img/a.png');
   });
-  it.each(['javascript:alert(1)', 'blob:https://app.example.test/1', 'file:///etc/passwd', 'ws://x.test/', 'data:image/png;base64,AA==', ''])(
-    'refuses %s',
-    (raw) => expect(sanitizeHttpUrl(raw, BASE)).toBeNull(),
-  );
+  it.each([
+    'javascript:alert(1)',
+    'blob:https://app.example.test/1',
+    'file:///etc/passwd',
+    'ws://x.test/',
+    'data:image/png;base64,AA==',
+    '',
+  ])('refuses %s', (raw) => expect(sanitizeHttpUrl(raw, BASE)).toBeNull());
 });
 
 describe('fragments and data URLs', () => {
@@ -42,22 +50,31 @@ describe('fragments and data URLs', () => {
 
 describe('sanitizeSrcset', () => {
   it('cleans every candidate and keeps valid descriptors', () => {
-    expect(sanitizeSrcset('https://a:b@cdn.example.test/1.png?t=S 1x, https://cdn.example.test/2.png?t=S 2x', BASE))
-      .toBe('https://cdn.example.test/1.png 1x, https://cdn.example.test/2.png 2x');
+    expect(
+      sanitizeSrcset(
+        'https://a:b@cdn.example.test/1.png?t=S 1x, https://cdn.example.test/2.png?t=S 2x',
+        BASE,
+      ),
+    ).toBe('https://cdn.example.test/1.png 1x, https://cdn.example.test/2.png 2x');
   });
   it('drops candidates with unsafe URLs or bogus descriptors, null when none survive', () => {
-    expect(sanitizeSrcset('javascript:x 1x, https://cdn.example.test/w.png 300w', BASE)).toBe('https://cdn.example.test/w.png 300w');
+    expect(sanitizeSrcset('javascript:x 1x, https://cdn.example.test/w.png 300w', BASE)).toBe(
+      'https://cdn.example.test/w.png 300w',
+    );
     expect(sanitizeSrcset('https://cdn.example.test/a.png Alice', BASE)).toBeNull();
   });
 });
 
 describe('sanitizeMetaHref', () => {
   it('keeps origin + path only', () => {
-    expect(sanitizeMetaHref('https://alice:pw@app.example.test/path/x?access_token=T#code=C')).toBe('https://app.example.test/path/x');
+    expect(sanitizeMetaHref('https://alice:pw@app.example.test/path/x?access_token=T#code=C')).toBe(
+      'https://app.example.test/path/x',
+    );
   });
   it('keeps scheme + path for a packaged file:// app (Review Focus 3)', () => {
-    expect(sanitizeMetaHref('file:///media/developer/apps/usr/palm/applications/com.x/index.html?x=1#y'))
-      .toBe('file:///media/developer/apps/usr/palm/applications/com.x/index.html');
+    expect(
+      sanitizeMetaHref('file:///media/developer/apps/usr/palm/applications/com.x/index.html?x=1#y'),
+    ).toBe('file:///media/developer/apps/usr/palm/applications/com.x/index.html');
   });
   it('returns an empty string for an unparseable href', () => {
     expect(sanitizeMetaHref('not a url')).toBe('');
@@ -72,7 +89,9 @@ describe('parser-equivalent classification (hardening)', () => {
     expect(fragmentId('\t#play\n')).toBe('play');
   });
   it('strips credentials from protocol-relative URLs', () => {
-    expect(sanitizeHttpUrl('//bob:pw@cdn.example.test/x.png?k=1', BASE)).toBe('https://cdn.example.test/x.png');
+    expect(sanitizeHttpUrl('//bob:pw@cdn.example.test/x.png?k=1', BASE)).toBe(
+      'https://cdn.example.test/x.png',
+    );
   });
   it('refuses relative URLs when the base is not http(s) or is empty', () => {
     expect(sanitizeHttpUrl('img/a.png', 'file:///apps/x/index.html')).toBeNull();
@@ -82,12 +101,17 @@ describe('parser-equivalent classification (hardening)', () => {
 
 describe('sanitizeSrcset (HTML parsing algorithm)', () => {
   it('splits candidates separated by a bare comma', () => {
-    expect(sanitizeSrcset('https://cdn.example.test/1.png?t=S 1x,https://cdn.example.test/2.png?t=S 2x', BASE))
-      .toBe('https://cdn.example.test/1.png 1x, https://cdn.example.test/2.png 2x');
+    expect(
+      sanitizeSrcset(
+        'https://cdn.example.test/1.png?t=S 1x,https://cdn.example.test/2.png?t=S 2x',
+        BASE,
+      ),
+    ).toBe('https://cdn.example.test/1.png 1x, https://cdn.example.test/2.png 2x');
   });
   it('keeps commas inside a URL and drops the query after them', () => {
-    expect(sanitizeSrcset('https://cdn.example.test/w_100,h_50/a.png?sig=S 1.5x, b.png .5x', BASE))
-      .toBe('https://cdn.example.test/w_100,h_50/a.png 1.5x, https://app.example.test/tv/b.png .5x');
+    expect(
+      sanitizeSrcset('https://cdn.example.test/w_100,h_50/a.png?sig=S 1.5x, b.png .5x', BASE),
+    ).toBe('https://cdn.example.test/w_100,h_50/a.png 1.5x, https://app.example.test/tv/b.png .5x');
   });
   it('drops multi-token descriptors', () => {
     expect(sanitizeSrcset('https://cdn.example.test/a.png 300w 2x', BASE)).toBeNull();
@@ -111,7 +135,9 @@ describe('documentFragmentId (rrweb-absolutized CSS fragments)', () => {
     expect(documentFragmentId('https://app.example.test/tv/#clip', PAGE)).toBe('clip');
     expect(documentFragmentId('https://app.example.test/tv/home#clip', PAGE)).toBe('clip');
     expect(documentFragmentId(' https://app.example.test/tv/?q=1#grad%201 ', PAGE)).toBe('grad 1');
-    expect(documentFragmentId('file:///apps/com.x/#clip', 'file:///apps/com.x/index.html')).toBe('clip');
+    expect(documentFragmentId('file:///apps/com.x/#clip', 'file:///apps/com.x/index.html')).toBe(
+      'clip',
+    );
   });
   it('rejects other documents, empty fragments and bare fragments', () => {
     expect(documentFragmentId('https://app.example.test/tv/sprite.svg#clip', PAGE)).toBeNull();
@@ -147,10 +173,14 @@ describe('srcset scrubbing stays linear (S18)', () => {
     expect(performance.now() - started).toBeLessThan(1000);
   });
   it('still percent-encodes trailing commas of a URL', () => {
-    expect(sanitizeSrcset('https://cdn.example.test/a,,?q=S 1x', BASE)).toBe('https://cdn.example.test/a%2C%2C 1x');
+    expect(sanitizeSrcset('https://cdn.example.test/a,,?q=S 1x', BASE)).toBe(
+      'https://cdn.example.test/a%2C%2C 1x',
+    );
     expect(sanitizeSrcset('https://cdn.example.test/a,,', BASE)).toBe('https://cdn.example.test/a');
   });
   it('refuses a srcset longer than the cap', () => {
-    expect(sanitizeSrcset(`https://cdn.example.test/a.png${' '.repeat(MAX_SRCSET_LENGTH)} 1x`, BASE)).toBeNull();
+    expect(
+      sanitizeSrcset(`https://cdn.example.test/a.png${' '.repeat(MAX_SRCSET_LENGTH)} 1x`, BASE),
+    ).toBeNull();
   });
 });

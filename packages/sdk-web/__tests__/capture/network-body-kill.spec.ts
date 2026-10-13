@@ -76,8 +76,12 @@ function wireClient(appFetchImpl: (input: RequestInfo | URL) => Promise<Response
 
 describe('F17: post-kill capture on web', () => {
   it('(a) capture → kill → post-kill fetch → buffer stays empty', async () => {
-    const { adapter, client, buf } = wireClient(async () =>
-      new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }),
+    const { adapter, client, buf } = wireClient(
+      async () =>
+        new Response('{"ok":true}', {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     );
     await adapter.__initReplay(); // resolves config ON, sampling passes (rate 1)
 
@@ -127,8 +131,9 @@ describe('F17: post-kill capture on web', () => {
 
   it('a fresh request after kill() never even reaches the buffer sink (enabled() gate, not just the buffer guard)', async () => {
     const sinkCalls: number[] = [];
-    const { adapter, client } = wireClient(async () =>
-      new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
+    const { adapter, client } = wireClient(
+      async () =>
+        new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
     );
     // Instrument the real buffer's add() to prove enabled() itself gated
     // this request (not merely the buffer swallowing an attempted append).
@@ -547,8 +552,12 @@ describe('F42 (round-9 review): a captured body must never leak to a different a
   });
 
   it('same-adapter happy path: no swap, capture is unaffected', async () => {
-    const { adapter, client, buf } = wireClient(async () =>
-      new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }),
+    const { adapter, client, buf } = wireClient(
+      async () =>
+        new Response('{"ok":true}', {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     );
     await adapter.__initReplay();
 

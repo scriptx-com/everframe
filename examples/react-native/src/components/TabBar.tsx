@@ -61,7 +61,8 @@ export function TabBar({
               styles.tab,
               isActive && styles.tabActive,
               (pressed || focused) && styles.tabFocused,
-            ]}>
+            ]}
+          >
             <Text style={[styles.label, isActive && styles.labelActive]}>{label}</Text>
           </Pressable>
         );

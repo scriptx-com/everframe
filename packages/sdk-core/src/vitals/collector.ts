@@ -135,10 +135,7 @@ export interface VitalsCollectorDeps {
    * `sendSummary` for why it travels with the body instead of being fetched
    * again by the transport.
    */
-  send(
-    body: VitalsChunk | SessionSummary,
-    opts: { beacon: boolean; identityToken?: string },
-  ): void;
+  send(body: VitalsChunk | SessionSummary, opts: { beacon: boolean; identityToken?: string }): void;
   /** Injected uuid source — used for the initial session and idle rotations. */
   newSessionId(): string;
   flushIntervalMs?: number;
@@ -266,9 +263,10 @@ const MAX_RING_ENTRIES = 800;
  * `addEntry`'s oversized-entry comment below, without destroying a payload
  * that easily fits the ordinary budget.
  */
-function boundPlayerEventData(
-  data: Record<string, unknown> | undefined
-): { data?: Record<string, unknown>; truncated?: boolean } {
+function boundPlayerEventData(data: Record<string, unknown> | undefined): {
+  data?: Record<string, unknown>;
+  truncated?: boolean;
+} {
   const bounded = boundStructuredJson(data, MAX_PLAYER_EVENT_DATA_BYTES);
   return {
     ...(bounded.data !== undefined ? { data: bounded.data } : {}),
@@ -531,11 +529,11 @@ export function createVitalsCollector(deps: VitalsCollectorDeps): VitalsCollecto
    * sending it and letting the server discard it, minus the bytes. So the
    * delivery problem stays solved: a dropped value adds none.
    */
-  function boundClaimedUser(u: {
+  function boundClaimedUser(u: { id?: string; email?: string; displayName?: string }): {
     id?: string;
     email?: string;
     displayName?: string;
-  }): { id?: string; email?: string; displayName?: string } {
+  } {
     const out: { id?: string; email?: string; displayName?: string } = {};
     if (u.id !== undefined && u.id.length <= USER_SUBJECT_MAX) out.id = u.id;
     if (u.email !== undefined && u.email.length <= USER_ATTR_MAX) out.email = u.email;
@@ -628,7 +626,7 @@ export function createVitalsCollector(deps: VitalsCollectorDeps): VitalsCollecto
     const claimed = tokenRejected ? undefined : claimedUser(identity);
     send(
       claimed ? { ...summary, seq: summarySeq, user: claimed } : { ...summary, seq: summarySeq },
-      token !== undefined ? { beacon, identityToken: token } : { beacon }
+      token !== undefined ? { beacon, identityToken: token } : { beacon },
     );
     summarySeq++;
     // Reset AFTER the send, matching this file's send-then-advance
@@ -855,7 +853,7 @@ export function createVitalsCollector(deps: VitalsCollectorDeps): VitalsCollecto
       // accumulating — see `bumpSummaryCadence`.
       bumpSummaryCadence();
     },
-    { name: 'VitalsCollector.tick' }
+    { name: 'VitalsCollector.tick' },
   );
 
   let timer: ReturnType<typeof setInterval> | null = setIntervalFn(tick, flushIntervalMs);
@@ -880,7 +878,7 @@ export function createVitalsCollector(deps: VitalsCollectorDeps): VitalsCollecto
         if (stopped) return;
         addEntry({ kind: 'sample', ...s });
       },
-      { name: 'VitalsCollector.recordSample' }
+      { name: 'VitalsCollector.recordSample' },
     ),
 
     recordPlayerEvent: safeWrap(
@@ -896,7 +894,7 @@ export function createVitalsCollector(deps: VitalsCollectorDeps): VitalsCollecto
         const { data, ...rest } = e;
         addEntry({ kind: 'player', ...rest, ...boundPlayerEventData(data) });
       },
-      { name: 'VitalsCollector.recordPlayerEvent' }
+      { name: 'VitalsCollector.recordPlayerEvent' },
     ),
 
     recordCustom: safeWrap(
@@ -904,7 +902,7 @@ export function createVitalsCollector(deps: VitalsCollectorDeps): VitalsCollecto
         if (stopped) return;
         addEntry({ kind: 'custom', ...e });
       },
-      { name: 'VitalsCollector.recordCustom' }
+      { name: 'VitalsCollector.recordCustom' },
     ),
 
     recent: safeWrap(
@@ -912,7 +910,7 @@ export function createVitalsCollector(deps: VitalsCollectorDeps): VitalsCollecto
         pruneRing(now() - windowMs);
         return ring.slice();
       },
-      { name: 'VitalsCollector.recent' }
+      { name: 'VitalsCollector.recent' },
     ) as (windowMs?: number) => VitalsEntry[],
 
     flushNow: safeWrap(
@@ -922,7 +920,7 @@ export function createVitalsCollector(deps: VitalsCollectorDeps): VitalsCollecto
         sendChunk(beacon);
         sendSummary(false, beacon);
       },
-      { name: 'VitalsCollector.flushNow' }
+      { name: 'VitalsCollector.flushNow' },
     ),
 
     stop: safeWrap(
@@ -941,7 +939,7 @@ export function createVitalsCollector(deps: VitalsCollectorDeps): VitalsCollecto
           }
         }
       },
-      { name: 'VitalsCollector.stop' }
+      { name: 'VitalsCollector.stop' },
     ),
   };
 }

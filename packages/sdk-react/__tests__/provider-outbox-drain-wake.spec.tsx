@@ -52,7 +52,11 @@ function AdapterProbe({ onAdapter }: { onAdapter: (threads: ThreadClient | undef
 }
 
 function urlOf(input: RequestInfo | URL): string {
-  return typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+  return typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.href
+      : (input as Request).url;
 }
 
 async function seedOutboxItem(reportId: string, sdkKey: string): Promise<void> {
@@ -113,7 +117,11 @@ describe('round-6 Finding 2: outbox-drain-provisioned thread wakes the poller', 
     const seen: ThreadClient[] = [];
     render(
       <EverframeProvider config={config}>
-        <AdapterProbe onAdapter={(threads) => { if (threads) seen.push(threads); }} />
+        <AdapterProbe
+          onAdapter={(threads) => {
+            if (threads) seen.push(threads);
+          }}
+        />
       </EverframeProvider>,
     );
     const threads = seen[0];
@@ -132,7 +140,11 @@ describe('round-6 Finding 2: outbox-drain-provisioned thread wakes the poller', 
     const seen: ThreadClient[] = [];
     render(
       <EverframeProvider config={config}>
-        <AdapterProbe onAdapter={(threads) => { if (threads) seen.push(threads); }} />
+        <AdapterProbe
+          onAdapter={(threads) => {
+            if (threads) seen.push(threads);
+          }}
+        />
       </EverframeProvider>,
     );
     const threads = seen[0];
@@ -152,7 +164,11 @@ describe('round-6 Finding 2: outbox-drain-provisioned thread wakes the poller', 
     const seen: ThreadClient[] = [];
     render(
       <EverframeProvider config={config}>
-        <AdapterProbe onAdapter={(threads) => { if (threads) seen.push(threads); }} />
+        <AdapterProbe
+          onAdapter={(threads) => {
+            if (threads) seen.push(threads);
+          }}
+        />
       </EverframeProvider>,
     );
     const threads = seen[0];
