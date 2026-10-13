@@ -165,11 +165,15 @@ export async function main(
       }
       const appId = parsed.values["app-id"];
       if (!appId) throw new Error("missing_required_option");
-      const { files, metroHint } = await setupReactNative({
+      const { files, metroHint, uploadScript } = await setupReactNative({
         projectRoot: resolve(parsed.values.project),
         appId,
       });
       for (const file of files) console.log(file.changed ? `Updated ${file.path}` : `No changes: ${file.path}`);
+      if (uploadScript && !uploadScript.installed)
+        console.warn(
+          `warning: no installed @everframe/cli with scripts/xcode-upload.sh was found from this app, so the Xcode phase runs ${uploadScript.path}. Install @everframe/cli in the app (npm install --save-dev @everframe/cli) and run this command again; a Release build fails until the script exists.`,
+        );
       console.log("Add to metro.config.js:");
       console.log(metroHint);
       return 0;

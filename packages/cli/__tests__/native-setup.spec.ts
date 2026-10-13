@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import xcode from 'xcode';
 import {
+  DEFAULT_XCODE_UPLOAD_SCRIPT,
   EVERFRAME_GRADLE_PLUGIN,
   patchAppBuildGradle,
   patchRootBuildGradle,
@@ -16,6 +16,7 @@ import {
   SYMBOLS_PHASE_INPUTS,
   XCODE_PHASE_NAME,
   xcodePhaseScript,
+  xcodeUploadScriptPath,
 } from '../src/native-setup/index.js';
 
 const APP = '00000000-0000-4000-8000-000000000000';
@@ -33,86 +34,84 @@ const THIN_GRADLE = [
   '// @generated end everframe-build-artifacts',
 ].join('\n');
 
+const ONE_LINE = `"\${SRCROOT}/../node_modules/@everframe/cli/scripts/xcode-upload.sh" --app-id "${APP}"`;
+const DSYM_INPUT = '"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"';
+
 describe('xcodePhaseScript', () => {
-  const script = xcodePhaseScript(APP);
-  const run = (env: Record<string, string>) =>
-    spawnSync('bash', ['-c', script], { env: { PATH: process.env.PATH!, ...env }, encoding: 'utf8' });
-  /** An app root with ios/ and a fake Node that resolves the CLI and records how it was run. */
-  const app = (resolves: boolean) => {
-    const root = mkdtempSync(join(tmpdir(), 'everframe-phase-'));
-    mkdirSync(join(root, 'ios'));
-    const node = join(root, 'node');
-    writeFileSync(
-      node,
-      `#!/bin/bash\nif [ "$1" = "--print" ]; then ${resolves ? `pwd -P > "${root}/cwd"; echo /fake/cli.js; exit 0` : 'echo "Error: Cannot find module" >&2; exit 1'}; fi\necho "$@" > "${root}/args"\nexit 7\n`,
-    );
-    chmodSync(node, 0o755);
-    return { root, node, srcroot: join(root, 'ios') };
-  };
-
-  it('is six lines that hand the work to `everframe xcode build-phase`', () => {
-    expect(script.split('\n')).toHaveLength(6);
-    expect(script).toContain(`"\${NODE_BINARY:-node}" "$EVERFRAME_CLI_JS" xcode build-phase --app-id "${APP}"`);
-    expect(script).not.toContain('exec ');
-    expect(script).not.toContain('EVERFRAME_API_TOKEN');
-    expect(script).not.toContain('upload-hermes');
+  it('is one line that runs the upload script shipped in @everframe/cli', () => {
+    expect(xcodePhaseScript(APP)).toBe(ONE_LINE);
+    expect(xcodePhaseScript(APP, DEFAULT_XCODE_UPLOAD_SCRIPT)).toBe(ONE_LINE);
   });
 
-  it('resolves the CLI with Node from the app root and runs it', () => {
-    const { root, node, srcroot } = app(true);
-    expect(run({ SRCROOT: srcroot, NODE_BINARY: node, EVERFRAME_SYMBOLS_STRICT: '1' }).status).toBe(7);
-    expect(readFileSync(join(root, 'args'), 'utf8').trim()).toBe(`/fake/cli.js xcode build-phase --app-id ${APP}`);
-    expect(readFileSync(join(root, 'cwd'), 'utf8').trim()).toBe(realpathSync(root));
+  it('takes a hoisted script path', () => {
+    const hoisted = '${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh';
+    expect(xcodePhaseScript(APP, hoisted)).toBe(`"${hoisted}" --app-id "${APP}"`);
   });
 
-  it("takes NODE_BINARY from the project's .xcode.env files", () => {
-    const { root, node, srcroot } = app(true);
-    writeFileSync(join(srcroot, '.xcode.env'), 'export NODE_BINARY=/nonexistent/node\n');
-    writeFileSync(join(srcroot, '.xcode.env.local'), `export NODE_BINARY="${node}"\n`);
-    expect(run({ SRCROOT: srcroot, EVERFRAME_SYMBOLS_STRICT: '1' }).status).toBe(7);
-    expect(readFileSync(join(root, 'args'), 'utf8')).toContain('xcode build-phase');
-  });
-
-  it('warns and continues when Node or the CLI is missing, and fails when strict', () => {
-    const { node, srcroot } = app(false);
-    for (const env of [{ NODE_BINARY: node }, { NODE_BINARY: '/nonexistent/node' }]) {
-      const lenient = run({ SRCROOT: srcroot, ...env });
-      expect(lenient.status).toBe(0);
-      expect(lenient.stdout).toContain('warning: everframe: could not run @everframe/cli with Node');
-      expect(lenient.stderr).not.toContain('Cannot find module');
-    }
-    expect(run({ SRCROOT: srcroot, NODE_BINARY: node, EVERFRAME_SYMBOLS_STRICT: '1' }).status).toBe(1);
-    expect(run({ SRCROOT: srcroot, NODE_BINARY: node, EVERFRAME_SYMBOLS_STRICT: 'true' }).status).toBe(1);
-  });
-
-  it('warns and continues when an incomplete install makes the CLI fail before it runs, and fails when strict', () => {
-    // A real Node and an installed @everframe/cli whose own dependency is missing.
-    const root = mkdtempSync(join(tmpdir(), 'everframe-broken-cli-'));
-    mkdirSync(join(root, 'ios'));
-    const cli = join(root, 'node_modules/@everframe/cli');
-    mkdirSync(join(cli, 'dist'), { recursive: true });
-    writeFileSync(join(cli, 'package.json'), JSON.stringify({ name: '@everframe/cli', main: 'dist/index.js' }));
-    writeFileSync(join(cli, 'dist/index.js'), "require('everframe-missing-dependency');\n");
-    const env = { SRCROOT: join(root, 'ios'), NODE_BINARY: process.execPath, CONFIGURATION: 'Release' };
-    const lenient = run(env);
-    expect(lenient.status).toBe(0);
-    expect(lenient.stderr).toContain('everframe-missing-dependency');
-    expect(lenient.stdout).toContain('warning: everframe: could not run @everframe/cli with Node from');
-    expect(lenient.stdout).toContain('(exit status 1); build artifacts were not uploaded and the build continues.');
-    const strict = run({ ...env, EVERFRAME_SYMBOLS_STRICT: '1' });
-    expect(strict.status).toBe(1);
-    expect(strict.stdout).not.toContain('warning:');
-  });
-
-  it.each([{ CONFIGURATION: 'Debug' }, { SKIP_BUNDLING: '1' }])('skips %o before Node, even when strict and Node is missing', (env) => {
-    const result = run({ ...env, SRCROOT: '/nonexistent/ios', NODE_BINARY: '/nonexistent/node', EVERFRAME_SYMBOLS_STRICT: '1' });
-    expect(result.status).toBe(0);
-    expect(result.stdout.trim()).toBe('everframe: Debug build, skipping artifact upload');
-    expect(result.stderr).not.toContain('nonexistent');
+  it.each([
+    '/abs/node_modules/@everframe/cli/scripts/xcode-upload.sh',
+    '${SRCROOT}/node_modules/@everframe/cli/scripts/xcode-upload.sh',
+    '${SRCROOT}/../x"; rm -rf /; "/node_modules/@everframe/cli/scripts/xcode-upload.sh',
+    '${SRCROOT}/../node_modules/@everframe/cli/scripts/other.sh',
+  ])('rejects any other script path: %s', (path) => {
+    expect(() => xcodePhaseScript(APP, path)).toThrow(/invalid_upload_script_path/);
   });
 
   it('rejects a non-uuid app id', () => {
     expect(() => xcodePhaseScript('x"; rm -rf /')).toThrow(/must be an Everframe application UUID/);
+  });
+});
+
+describe('xcodeUploadScriptPath', () => {
+  /** Installs a package folder with the script at `dir/node_modules/@everframe/cli`. */
+  const install = (dir: string) => {
+    const scripts = join(dir, 'node_modules/@everframe/cli/scripts');
+    mkdirSync(scripts, { recursive: true });
+    writeFileSync(join(scripts, 'xcode-upload.sh'), '#!/bin/bash\n');
+  };
+  const tree = () => realpathSync(mkdtempSync(join(tmpdir(), 'everframe-script-path-')));
+
+  it('finds the CLI in the app root', () => {
+    const root = tree();
+    install(root);
+    expect(xcodeUploadScriptPath(join(root, 'ios'))).toEqual({ path: DEFAULT_XCODE_UPLOAD_SCRIPT, installed: true });
+  });
+
+  it('finds a CLI hoisted to a monorepo root, and prefers the nearest one', () => {
+    const root = tree();
+    install(root);
+    const app = join(root, 'apps/mobile');
+    mkdirSync(join(app, 'ios'), { recursive: true });
+    expect(xcodeUploadScriptPath(join(app, 'ios'))).toEqual({
+      path: '${SRCROOT}/../../../node_modules/@everframe/cli/scripts/xcode-upload.sh',
+      installed: true,
+    });
+    install(app);
+    expect(xcodeUploadScriptPath(join(app, 'ios')).path).toBe(DEFAULT_XCODE_UPLOAD_SCRIPT);
+  });
+
+  it('keeps a pnpm symlink instead of the versioned store path behind it', () => {
+    const root = tree();
+    const store = join(root, 'node_modules/.pnpm/@everframe+cli@9.9.9/node_modules/@everframe/cli');
+    mkdirSync(join(store, 'scripts'), { recursive: true });
+    writeFileSync(join(store, 'scripts/xcode-upload.sh'), '#!/bin/bash\n');
+    mkdirSync(join(root, 'node_modules/@everframe'));
+    symlinkSync('../.pnpm/@everframe+cli@9.9.9/node_modules/@everframe/cli', join(root, 'node_modules/@everframe/cli'));
+    expect(xcodeUploadScriptPath(join(root, 'ios'))).toEqual({ path: DEFAULT_XCODE_UPLOAD_SCRIPT, installed: true });
+  });
+
+  it('skips an installed CLI without the script and falls back to the standard path', () => {
+    const root = tree();
+    mkdirSync(join(root, 'node_modules/@everframe/cli/dist'), { recursive: true });
+    expect(xcodeUploadScriptPath(join(root, 'ios'))).toEqual({ path: DEFAULT_XCODE_UPLOAD_SCRIPT, installed: false });
+  });
+
+  it('returns a path xcodePhaseScript accepts', () => {
+    const root = tree();
+    install(root);
+    const deep = join(root, 'a/b/c');
+    mkdirSync(join(deep, 'ios'), { recursive: true });
+    expect(() => xcodePhaseScript(APP, xcodeUploadScriptPath(join(deep, 'ios')).path)).not.toThrow();
   });
 });
 
@@ -153,6 +152,42 @@ describe('patchXcodeProject', () => {
     for (const s of settings) expect(s.SOURCEMAP_FILE).toBe(SOURCEMAP_FILE_VALUE);
   });
 
+  it('writes exactly the one-line phase, the dSYM input and two settings', () => {
+    const before = readFileSync(join(__dirname, 'fixtures/ios/project.pbxproj'), 'utf8');
+    const project = loadProject();
+    patchXcodeProject(project, APP);
+    const after: string = project.writeSync();
+    const id = /\t([0-9A-F]{24}) \/\* Upload Everframe Build Artifacts \*\/,\n/.exec(after)![1];
+    const reference = `\t\t\t\t${id} /* Upload Everframe Build Artifacts */,\n`;
+    const phase = [
+      `\t\t${id} /* Upload Everframe Build Artifacts */ = {`,
+      '\t\t\tisa = PBXShellScriptBuildPhase;',
+      '\t\t\tbuildActionMask = 2147483647;',
+      '\t\t\tfiles = (',
+      '\t\t\t);',
+      '\t\t\trunOnlyForDeploymentPostprocessing = 0;',
+      '\t\t\tname = "Upload Everframe Build Artifacts";',
+      '\t\t\tinputPaths = (',
+      `\t\t\t\t${DSYM_INPUT},`,
+      '\t\t\t);',
+      '\t\t\toutputPaths = (',
+      '\t\t\t);',
+      '\t\t\tshellPath = /bin/bash;',
+      `\t\t\tshellScript = "${ONE_LINE.replace(/"/g, '\\"')}";`,
+      '\t\t\talwaysOutOfDate = 1;',
+      '\t\t};',
+      '',
+    ].join('\n');
+    const settings = '\t\t\t\tSOURCEMAP_FILE = "$(DERIVED_FILE_DIR)/main.jsbundle.map";\n\t\t\t\tENABLE_USER_SCRIPT_SANDBOXING = NO;\n';
+    expect(after).toContain(reference);
+    expect(after).toContain(phase);
+    expect(after.split(settings)).toHaveLength(3); // Debug and Release
+    expect(after.replace(reference, '').replace(phase, '').split(settings).join('')).toBe(before);
+    // One reference, the 16-line phase and two settings in each of the two configurations.
+    expect(after.split('\n').length - before.split('\n').length).toBe(21);
+    expect(after).not.toContain('EVERFRAME_DSYM_INPUT');
+  });
+
   it('replaces the phase script when the app id changes', () => {
     const other = '11111111-1111-4111-8111-111111111111';
     const project = loadProject();
@@ -166,26 +201,44 @@ describe('patchXcodeProject', () => {
     expect(script).not.toContain(APP);
   });
 
-  it('orders the RN phase after dSYM generation and runs it every build', () => {
+  it('rewrites an earlier phase of the same name in place instead of adding a second one', () => {
+    const project = loadProject();
+    project.addBuildPhase([], 'PBXShellScriptBuildPhase', XCODE_PHASE_NAME, project.getFirstTarget().uuid, {
+      shellPath: '/bin/bash',
+      shellScript: 'echo one\necho two\necho three',
+      inputPaths: ['"$(EVERFRAME_DSYM_INPUT)"', '"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"'],
+    });
+    patchXcodeProject(project, APP, '${SRCROOT}/../../node_modules/@everframe/cli/scripts/xcode-upload.sh');
+    expect(phaseScripts(project)).toEqual([
+      `"\\"\${SRCROOT}/../../node_modules/@everframe/cli/scripts/xcode-upload.sh\\" --app-id \\"${APP}\\""`,
+    ]);
+    const section = project.hash.project.objects.PBXShellScriptBuildPhase ?? {};
+    const key = Object.keys(section).find((k) => section[`${k}_comment`] === XCODE_PHASE_NAME)!;
+    expect((section[key] as { inputPaths: string[] }).inputPaths).toEqual([DSYM_INPUT]);
+  });
+
+  it('orders the phase after dSYM generation and runs it every build', () => {
     const project = loadProject();
     patchXcodeProject(project, APP);
     const section = project.hash.project.objects.PBXShellScriptBuildPhase ?? {};
     const key = Object.keys(section).find((k) => section[`${k}_comment`] === XCODE_PHASE_NAME)!;
     const phase = section[key] as { inputPaths: string[]; alwaysOutOfDate: number };
-    expect(phase.inputPaths).toEqual(SYMBOLS_PHASE_INPUTS);
+    expect(phase.inputPaths).toEqual([DSYM_INPUT]);
+    expect(SYMBOLS_PHASE_INPUTS).toEqual([DSYM_INPUT]);
     expect(String(phase.alwaysOutOfDate)).toBe('1');
   });
 
-  it('turns off script sandboxing and declares inputs that exist in Debug and Release', () => {
+  it('turns off script sandboxing and writes no other Everframe setting', () => {
     const project = loadProject();
     patchXcodeProject(project, APP);
+    expect(SYMBOLS_BUILD_SETTINGS).toEqual({ ENABLE_USER_SCRIPT_SANDBOXING: 'NO' });
     for (const s of appBuildSettings(project)) {
       expect(s.ENABLE_USER_SCRIPT_SANDBOXING).toBe('NO');
-      for (const [key, value] of Object.entries(SYMBOLS_BUILD_SETTINGS)) expect(s[key]).toBe(value);
+      expect(Object.keys(s).filter((key) => key.startsWith('EVERFRAME_'))).toEqual([]);
     }
   });
 
-  it('writes the short script', () => {
+  it('writes the one-line script', () => {
     const project = loadProject();
     patchXcodeProject(project, APP);
     expect(phaseScripts(project)).toEqual([`"${xcodePhaseScript(APP).replace(/"/g, '\\"')}"`]);

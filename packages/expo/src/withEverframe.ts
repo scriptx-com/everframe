@@ -6,6 +6,7 @@ import {
   patchAppBuildGradle,
   patchRootBuildGradle,
   patchXcodeProject,
+  xcodeUploadScriptPath,
   type XcodeProjectLike,
 } from '@everframe/cli/native-setup';
 
@@ -28,14 +29,15 @@ export function applyAndroidProject<T extends { language: string; contents: stri
   return { ...gradle, contents: patchRootBuildGradle(gradle.contents) };
 }
 
-export function applyIos(project: XcodeProjectLike, appId: string): void {
-  patchXcodeProject(project, appId);
+/** `iosRoot` is the folder that holds the `.xcodeproj`; the phase's script path is found from it. */
+export function applyIos(project: XcodeProjectLike, appId: string, iosRoot: string): void {
+  patchXcodeProject(project, appId, xcodeUploadScriptPath(iosRoot).path);
 }
 
 /**
  * Sets up build-artifact uploads in Gradle and Xcode. The generated lines only apply the
- * dev.everframe Gradle plugin with the app id and run `everframe xcode build-phase`; the upload
- * logic ships in those packages.
+ * dev.everframe Gradle plugin with the app id and run the upload script shipped in
+ * `@everframe/cli`; the upload logic ships in those packages.
  */
 export const withEverframe: ConfigPlugin<WithEverframeOptions> = (config, { appId }) => {
   config = withProjectBuildGradle(config, (mod) => {
@@ -47,7 +49,7 @@ export const withEverframe: ConfigPlugin<WithEverframeOptions> = (config, { appI
     return mod;
   });
   return withXcodeProject(config, (mod) => {
-    applyIos(mod.modResults as unknown as XcodeProjectLike, appId);
+    applyIos(mod.modResults as unknown as XcodeProjectLike, appId, mod.modRequest.platformProjectRoot);
     return mod;
   });
 };

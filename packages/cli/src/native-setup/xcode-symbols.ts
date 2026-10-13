@@ -4,20 +4,14 @@ import { checkedAppId, sandboxCheck } from "./script.js";
 
 export const SYMBOLS_PHASE_NAME = "Upload Everframe Symbols";
 /**
- * Declared inputs order the phase after dSYM generation and Info.plist
- * processing. The dSYM path is only an input where the build makes one:
- * EVERFRAME_DSYM_INPUT picks a per-format setting at build time, so a
- * `dwarf` (Debug) build declares the Info.plist instead of a dSYM that never
- * exists, which Xcode would fail as a missing build input.
+ * The dSYM is the phase's one input. Without it Xcode schedules dSYM generation after the last
+ * Run Script phase, so the phase would only ever see the previous build's dSYM. With it, Xcode
+ * runs the phase after dsymutil. A `dwarf` (Debug) build never writes the file, and Xcode runs
+ * the phase without it.
  */
-export const SYMBOLS_PHASE_INPUTS = ['"$(EVERFRAME_DSYM_INPUT)"', '"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"'];
+export const SYMBOLS_PHASE_INPUTS = ['"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"'];
 /** Written to every configuration of a target that runs an Everframe phase. */
 export const SYMBOLS_BUILD_SETTINGS: Readonly<Record<string, string>> = {
-  EVERFRAME_DSYM_INPUT: '"$(EVERFRAME_DSYM_INPUT_$(DEBUG_INFORMATION_FORMAT:c99extidentifier))"',
-  EVERFRAME_DSYM_INPUT_dwarf_with_dsym:
-    '"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(EXECUTABLE_NAME)"',
-  EVERFRAME_DSYM_INPUT_dwarf: '"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"',
-  EVERFRAME_DSYM_INPUT_: '"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"',
   ENABLE_USER_SCRIPT_SANDBOXING: "NO",
 };
 const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
