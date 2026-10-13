@@ -162,7 +162,10 @@ export function installConsolePatcher(opts: ConsolePatcherOptions = {}): () => v
       ...(err?.stack ? { data: { stackDigest: err.stack } } : {}),
     });
     try {
-      opts.crashSink?.(err ?? errMessage, 'onerror');
+      // Resource-load events are not unhandled JavaScript exceptions.
+      if (typeof msg === 'string' || err || (typeof ErrorEvent !== 'undefined' && msg instanceof ErrorEvent)) {
+        opts.crashSink?.(err ?? errMessage, 'onerror');
+      }
     } catch {
       /* swallow — DEFE-02: crash capture must never break the page */
     }

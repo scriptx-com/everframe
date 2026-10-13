@@ -48,12 +48,12 @@ describe('combined Apple diagnostics and Android health contracts', () => {
       sessionPolicy: 'foreground-v1',
       coverage: { policy: 'android-sdk-segment-v1', sampleRate: 1, priorQueueLosses: null, queueLossAccounting: 'unavailable' } };
     const record = { schemaVersion: 5, recordId: processId, phase: 'start', sequence: 0, elapsedMs: 0, capturedAt: start, exposure };
-    const parsed = protocol.ReleaseHealthRecordSchema.parse(record);
+    const parsed = protocol.NativeReleaseHealthRecordSchema.parse(record);
     expect(parsed).toEqual(record);
     // The start carries the pointer's identity field for field, so a crash links to it.
     const { exposureId, processLaunchId, startedAt, app, loadedBuildId, loadedBundleStatus } = parsed.exposure;
     expect({ exposureId, processLaunchId, startedAt, app, loadedBuildId, loadedBundleStatus }).toEqual(pointer());
-    expect(protocol.ReleaseHealthRecordSchema.safeParse({ ...record, outcome: 'healthy' }).success).toBe(false);
-    expect(protocol.ReleaseHealthRecordSchema.safeParse({ ...record, exposure: { ...exposure, loadedBundleStatus: 'known' } }).success).toBe(false);
+    expect(protocol.NativeReleaseHealthRecordSchema.safeParse({ ...record, outcome: 'healthy' }).success).toBe(false);
+    expect(protocol.NativeReleaseHealthRecordSchema.safeParse({ ...record, exposure: { ...exposure, loadedBundleStatus: 'known' } }).success).toBe(false);
   });
 });

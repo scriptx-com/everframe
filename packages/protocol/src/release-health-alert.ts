@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { z } from 'zod';
+import { ReleaseHealthPlatformSchema } from './web-runtime-platform.js';
 import { RELEASE_HEALTH_APP_TEXT_MAX } from './release-health.js';
 
 const text = (maximum: number) => z.string().min(1).max(maximum)
@@ -30,7 +31,7 @@ export const ReleaseHealthThresholdEventSchema = z.object({
   schemaVersion: z.literal(RELEASE_HEALTH_ALERT_SCHEMA_VERSION), createdAt: instant,
   data: z.object({
     projectId: z.uuid(), ruleId: z.uuid(), version: text(RELEASE_HEALTH_APP_TEXT_MAX),
-    platforms: z.array(z.enum(['android', 'ios'])).min(1).max(2),
+    platforms: z.array(ReleaseHealthPlatformSchema).min(1).max(8),
     window: z.object({ days: z.literal(WINDOW_DAYS), from: instant, to: instant }).strict(),
     observedAt: instant,
     target: ReleaseHealthAlertTargetSchema,

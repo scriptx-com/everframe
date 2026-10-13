@@ -134,6 +134,8 @@ import { captureUserSnapshot } from './internal/user-snapshot.js';
 import { globalScope } from './internal/global-scope.js';
 import { resolveAppBuild } from './build-identity.js';
 import { resolveDebugBuild } from './debug-build.js';
+import { detectWebRuntimePlatform, ReleaseHealthSubjectSchema } from '@everframe/protocol';
+import { acquireWebHealth, revokeWebHealth, type WebHealthLease } from './release-health/runtime.js';
 
 /**
  * The structural slice of sdk-core's `IdentityTokenHolder` that this adapter
@@ -356,6 +358,8 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    * block or throw.
    */
   __setUserGetter(get: () => UserMetadata | null): void;
+  /** Start once the committed host has bound its user getter. */
+  __startReleaseHealth(): void;
   /**
    * Resolves the token to present on THIS submit/reporter call, if any —
    * gated on the LIVE `identity.enabled` config value read from the same
@@ -767,6 +771,8 @@ export function createWebPlatformAdapter(
   // after createClient, same as the holder above. Undefined until then (and in
   // adapter-only unit tests), which reads as "no user set".
   let userGet: (() => UserMetadata | null) | undefined;
+  let healthLease: WebHealthLease | undefined;
+  const runtimePlatform = detectWebRuntimePlatform(typeof navigator === "undefined" ? "" : navigator.userAgent);
   /**
    * Read the host's live `setUser` value, never throwing. Every consumer is on
    * a path (the crash sink) where an exception would cost the whole report, so
@@ -1536,6 +1542,8 @@ export function createWebPlatformAdapter(
           // This is the FIRST check on purpose: it must hold even for a crash
           // that arrives before `handlingCrash`/throttle state is consulted.
           if (reportingKilled) return;
+          const crashReportId = generateReportId();
+          if (!handlingCrash && mechanism !== 'captureException') healthLease?.fail(mechanism, crashReportId);
           const ownership = reportingOwnership;
           const stillOwned = (): boolean =>
             !reportingKilled && reportingOwnership === ownership;
@@ -1597,12 +1605,12 @@ export function createWebPlatformAdapter(
               fatal: uncaughtReact !== undefined,
               ...(uncaughtReact?.componentStack ? { componentStack: uncaughtReact.componentStack } : {}),
               occurredAt: new Date().toISOString(),
-              reportId: generateReportId(),
+              reportId: crashReportId,
               submittedAt: new Date().toISOString(),
               sdk: {
                 name: sdkName,
                 version: sdkVersion,
-                platform: 'web',
+                platform: runtimePlatform,
                 formFactor: inferFormFactor(device),
               },
               breadcrumbs: breadcrumbBufferGet?.()?.snapshot() ?? [],
@@ -2234,6 +2242,28 @@ export function createWebPlatformAdapter(
     __setIdentityTokenHolder: (get: () => IdentityTokenHolderLike | undefined): void => {
       identityTokenHolderGet = get;
     },
+    __startReleaseHealth: (): void => {
+      if (reportingKilled) {
+        // A committed provider can be killed by a child effect before acquiring
+        // its lease. Withdraw the prior mount's work only at this commit seam;
+        // stale adapters with a lease remain subject to its ownership check.
+        if (!healthLease) revokeWebHealth(INGEST_URL, _config.sdkKey);
+        return;
+      }
+      if (_config.disabled || _config.crashReporting?.disabled ||
+          resolveDebugBuild(_config.debugBuild, typeof location === 'undefined' ? null : location)) {
+        revokeWebHealth(INGEST_URL, _config.sdkKey);
+        return;
+      }
+      if (!_config.appVersion) return;
+      try {
+        const id = readUser()?.id;
+        const subject = ReleaseHealthSubjectSchema.safeParse(id ? { kind: 'provided', id } : { kind: 'anonymous' });
+        healthLease = acquireWebHealth({ endpoint: INGEST_URL, sdkKey: _config.sdkKey, sdkVersion,
+          platform: runtimePlatform, app: { version: _config.appVersion, build: resolveAppBuild(_config.appBuild) ?? null, debug: false },
+          subject: subject.success ? subject.data : { kind: 'anonymous' } });
+      } catch { /* health must never prevent host initialization */ }
+    },
     __setUserGetter: (get: () => UserMetadata | null): void => {
       userGet = get;
     },
@@ -2329,6 +2359,7 @@ export function createWebPlatformAdapter(
       ownWindowListenerUninstallers.length = 0;
     },
     onKill: (reason?: 'release'): void => {
+      if (reason === 'release') healthLease?.release(); else healthLease?.revoke();
       // F17/F18 (round-4 review) — see PlatformAdapter.onKill's doc comment.
       // Order matters only in that this must be synchronous and idempotent-
       // safe: `killed` flips first so any code below (there is none today)

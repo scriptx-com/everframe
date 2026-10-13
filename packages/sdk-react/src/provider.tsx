@@ -383,6 +383,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     // them back without reviving what the explicit kill closed.
     if (explicitlyKilled()) {
       ctxValue.adapter.__rebindCrumbHooks({ revive: false });
+      ctxValue.adapter.__startReleaseHealth();
       return;
     }
     ctxValue.adapter.__setBreadcrumbBuffer(
@@ -398,6 +399,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
       () => __internalClientState.get(ctxValue.client)?.user ?? null,
     );
     ctxValue.adapter.__rebindCrumbHooks();
+    ctxValue.adapter.__startReleaseHealth();
   }, [ctxValue]);
 
   // Session Vitals (spec 2026-09-01), react half — Codex round-1 finding S1.

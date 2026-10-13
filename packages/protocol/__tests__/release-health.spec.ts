@@ -182,7 +182,7 @@ describe('native exposure pointer', () => {
 
 describe('retired release-health exports', () => {
   it.each([
-    'ReleaseHealthRecordV1Schema', 'ReleaseHealthRecordV3Schema', 'WebReleaseHealthExposureSchema',
+    'ReleaseHealthRecordV1Schema', 'ReleaseHealthRecordV3Schema',
     'ReleaseHealthAlertCohortSchema', 'ReleaseHealthRateThresholdEventSchema',
   ])('%s is gone', name => {
     expect(name in protocol).toBe(false);

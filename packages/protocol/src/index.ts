@@ -89,3 +89,7 @@ export {
   RELEASE_HEALTH_ALERT_SCHEMA_VERSION, ReleaseHealthAlertTargetSchema, ReleaseHealthThresholdEventSchema,
 } from './release-health-alert.js';
 export type { ReleaseHealthAlertTarget, ReleaseHealthThresholdEvent } from './release-health-alert.js';
+
+export * from './web-runtime-platform.js';
+export { NativeReleaseHealthRecordSchema, NativeReleaseHealthExposureSchema, WebReleaseHealthRecordSchema, WebReleaseHealthExposureSchema, WEB_RELEASE_HEALTH_SCHEMA_VERSION } from './release-health.js';
+export type { NativeReleaseHealthRecord, NativeReleaseHealthExposure, WebReleaseHealthRecord, WebReleaseHealthExposure } from './release-health.js';

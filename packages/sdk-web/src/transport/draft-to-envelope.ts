@@ -25,6 +25,7 @@ import { stampActiveVitals } from '../vitals/stamp-active-vitals.js';
 import { stampResources } from '../resources/stamp.js';
 import { resolveAppBuild } from '../build-identity.js';
 import { resolveDebugBuild } from '../debug-build.js';
+import { detectWebRuntimePlatform } from '@everframe/protocol';
 
 /** One baked (or raw) screenshot shot bound for a single attachment (report-window overhaul). */
 export interface BundleScreenshot {
@@ -373,7 +374,7 @@ export function draftToEnvelope(
     sdk: {
       name: sdkName,
       version: sdkVersion,
-      platform: 'web',
+      platform: detectWebRuntimePlatform(bundle.metadata?.userAgent ?? ''),
       formFactor: inferFormFactor(bundle.metadata),
     },
     reporter: { title: draft.title, description: draft.description, ...(user ? { user } : {}) },
