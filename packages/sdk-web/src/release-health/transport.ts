@@ -6,10 +6,12 @@ const destination = (endpoint: string, sdkKey: string) => JSON.stringify([endpoi
 export function createWebHealthTransport(journal: WebHealthJournal) {
   let running: Promise<void> | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let attempt = 0, rerun = false;
+  let attempt = 0, rerun = false, keepalive = false, notBefore = 0;
   const revoked = new Set<string>();
   const active = new Map<string, AbortController>();
   const flush = (options: { keepalive?: boolean } = {}): Promise<void> => {
+    keepalive ||= options.keepalive === true;
+    if (Date.now() < notBefore) return running ?? Promise.resolve();
     if (timer) { clearTimeout(timer); timer=undefined; }
     if (running) { rerun=true; return running; }
     running = (async () => {
@@ -24,7 +26,7 @@ export function createWebHealthTransport(journal: WebHealthJournal) {
           let timeout: ReturnType<typeof setTimeout> | undefined;
           try {
             const init: RequestInit={method:'POST',headers:{Authorization:`Bearer ${item.sdkKey}`,'Content-Type':'application/json'},body:JSON.stringify(item.record),signal:controller?.signal ?? null};
-            if(options.keepalive && typeof Request!=='undefined' && 'keepalive' in Request.prototype) init.keepalive=true;
+            if(keepalive && typeof Request!=='undefined' && 'keepalive' in Request.prototype) init.keepalive=true;
             let request: Promise<Response>;
             try { request=fetch(item.endpoint.replace(/\/$/,'')+'/api/ingest/release-health',init); }
             catch { delete init.keepalive; request=fetch(item.endpoint.replace(/\/$/,'')+'/api/ingest/release-health',init); }
@@ -37,7 +39,9 @@ export function createWebHealthTransport(journal: WebHealthJournal) {
           } catch { /* keep immutable records for retry; never reject into the host */ }
           finally { if(timeout)clearTimeout(timeout);active.delete(key); }
         }
-      } while(rerun);
+      } while(rerun && retryAfter === 0);
+      notBefore = Date.now() + retryAfter;
+      keepalive = false;
       if(journal.list(new Date()).length) {
         const delay=Math.max(retryAfter,[1000,5000,30000,300000][Math.min(attempt++,3)]!);
         timer=setTimeout(()=>{timer=undefined;void flush();},Math.min(delay,2147483647));

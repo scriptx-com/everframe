@@ -31,3 +31,22 @@ it('drops permanent rejection and retains rate-limited records until Retry-After
  const t=createWebHealthTransport(j);await t.flush();await vi.advanceTimersByTimeAsync(9999);expect(j.list(at)).toHaveLength(1);
  await vi.advanceTimersByTimeAsync(1);expect(j.list(at)).toEqual([]);
 });
+it('honors Retry-After when another lifecycle flush arrives', async () => {
+ vi.useFakeTimers();vi.setSystemTime(at);
+ const j=createWebHealthJournal(null);j.put({endpoint:'https://example.test',sdkKey:'key',record:createWebHealthSession(exposure()).start()});
+ const fetcher=vi.fn(async()=>new Response('{}',{status:429,headers:{'Retry-After':'10'}}));vi.stubGlobal('fetch',fetcher);
+ const t=createWebHealthTransport(j);await t.flush();await t.flush();expect(fetcher).toHaveBeenCalledTimes(1);
+ await vi.advanceTimersByTimeAsync(10000);expect(fetcher).toHaveBeenCalledTimes(2);
+ t.revoke('https://example.test','key');
+});
+it('uses keepalive for exit records queued while the start is in flight', async () => {
+ vi.useFakeTimers();vi.setSystemTime(at);
+ const j=createWebHealthJournal(null),session=createWebHealthSession(exposure());
+ j.put({endpoint:'https://example.test',sdkKey:'key',record:session.start()});
+ let resolve!: (response:Response)=>void;
+ const fetcher=vi.fn().mockImplementationOnce(()=>new Promise(r=>{resolve=r;})).mockResolvedValue(new Response('{}',{status:201}));vi.stubGlobal('fetch',fetcher);
+ const t=createWebHealthTransport(j), pending=t.flush();
+ j.put({endpoint:'https://example.test',sdkKey:'key',record:session.complete(at)!});void t.flush({keepalive:true});
+ resolve(new Response('{}',{status:201}));await pending;
+ expect(fetcher.mock.calls[1]?.[1].keepalive).toBe(true);
+});

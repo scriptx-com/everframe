@@ -111,7 +111,7 @@ There is no separate web release-health option.
 A crash-free session has an observed completion and no qualifying crash. Native
 apps use foreground sessions; web apps use page sessions.
 
-A session starts when your app comes to the foreground and ends when it goes to
+A native session starts when your app comes to the foreground and ends when it goes to
 the background. A session that reaches the background is **completed**. A
 session **crashed** when the app crashed during it, from any of these causes:
 
@@ -163,12 +163,12 @@ These don't count as crashes:
 
 - a crash after the app went to the background, because its session had
   already completed;
-- a handled error or a promise rejection. The SDK reports those under Errors
-  instead.
+- a handled error or a handled promise rejection. Unhandled rejections count
+  as crashes on web.
 
 "Last 7 days" and "Last 30 days" are rolling periods that end now. The daily
-chart uses UTC days. Web apps don't report sessions, because a browser tab
-can't report how it ended; their problems show up under Errors.
+chart uses UTC days. The platform filter covers iOS, Android, Web, Tizen, webOS,
+Vega, Vidaa and TitanOS.
 
 ## Unknown outcomes
 

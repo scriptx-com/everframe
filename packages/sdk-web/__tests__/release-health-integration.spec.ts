@@ -27,3 +27,10 @@ it('counts non-Error unhandled rejections and preserves webOS attribution',async
 it.each([{debugBuild:true},{disabled:true},{crashReporting:{disabled:true}},{appVersion:undefined}])('honors collection veto %j',async patch=>{
  handles.push(init({sdkKey:'key-'+crypto.randomUUID(),appVersion:'1.2.3',debugBuild:false,...patch} as any));await settle();expect(records).toEqual([]);
 });
+it('does not treat resource error events or invalid versions as health failures', async () => {
+ handles.push(init({sdkKey:'key-'+crypto.randomUUID(),appVersion:'12.3.5',debugBuild:false}));
+ await settle();window.onerror?.(new Event('error'));await settle();
+ expect(records.map(r=>r.phase)).toEqual(['start']);
+ handles.push(init({sdkKey:'key-'+crypto.randomUUID(),appVersion:'   ',debugBuild:false}));
+ await settle();expect(records).toHaveLength(1);
+});
