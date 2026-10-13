@@ -28,6 +28,10 @@ const changed = (change: (value: any) => void): unknown => {
 };
 
 describe('release_health.threshold_reached 2.0', () => {
+  it('accepts web and native platforms in one alert', () => {
+    expect(ReleaseHealthThresholdEventSchema.safeParse(changed(v => { v.data.platforms = ['android', 'ios', 'titanos', 'tizen', 'vega', 'vidaa', 'web', 'webos']; })).success).toBe(true);
+  });
+
   it('is event schema 2.0', () => {
     expect(RELEASE_HEALTH_ALERT_SCHEMA_VERSION).toBe('2.0');
   });
@@ -61,7 +65,7 @@ describe('release_health.threshold_reached 2.0', () => {
     ['platforms out of order', (v: any) => { v.data.platforms = ['ios', 'android']; }],
     ['a repeated platform', (v: any) => { v.data.platforms = ['ios', 'ios']; }],
     ['no platforms', (v: any) => { v.data.platforms = []; }],
-    ['the web platform', (v: any) => { v.data.platforms = ['android', 'web']; }],
+    ['an unsupported platform', (v: any) => { v.data.platforms = ['android', 'roku']; }],
     ['schema version 1.2', (v: any) => { v.schemaVersion = '1.2'; }],
     ['an extra cohort', (v: any) => { v.data.cohort = { platform: 'android' }; }],
     ['an extra appId', (v: any) => { v.data.appId = v.data.projectId; }],
