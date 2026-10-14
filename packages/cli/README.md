@@ -388,8 +388,13 @@ Detached checkouts omit the branch; unavailable status is unknown, not clean.
 `elf`, and `r8` upload commands accept `--commit <full-sha>`. An override with a
 different commit drops recorded branch/dirty facts. Legacy staged records without
 provenance stay unknown; delayed staged uploads never read the uploader's HEAD.
-Direct uploads detect Git at invocation from the working directory (Xcode build
-uploads use `SRCROOT` when supplied), so use `--commit` when uploading older files.
+Direct single-artifact uploads detect Git at invocation from the working directory,
+so use `--commit` when uploading older files. Aggregate native `dsym upload-build`
+and `elf upload-build` commands (including Xcode/Gradle integration) leave source
+provenance unknown by default: their symbols may include reused or vendor binaries.
+Use `--commit` only when every selected artifact belongs to that source commit;
+otherwise upload each known artifact with its own explicit commit. Automatic
+per-artifact native source attribution remains follow-up work.
 
 The service must support the additive `vcs` manifest field before using these
 tooling versions. Older clients remain supported by the updated service. Deploy
