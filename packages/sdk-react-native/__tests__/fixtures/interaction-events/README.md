@@ -36,9 +36,14 @@ Android TV after rebuilding native code, not only reloading Metro.
    context from its AppState callback. Native classification must remain warm, and
    late context must not alter an emitted launch or create a second one. This is
    app-attribution evidence, not a delivered push notification.
-8. Begin a synthetic request and pending text/scroll, then **Sign out** before they
-   settle. Resolve the old request: no old-owner result may reappear. Unchanged refs
-   stay revoked. **Remount hosts** to recover, edit again, and capture fresh evidence.
+8. Begin a synthetic request and pending text/scroll, then invoke the native SDK's
+   `setIdentityToken(nil)` (Apple) or `setIdentityToken(null)` (Android) through the
+   host integration or a development debugger before they settle. React Native
+   does not expose that identity API. **Clear user metadata** calls `setUser()`;
+   it is not identity sign-out and does not revoke pending work. After native
+   sign-out, resolve the old request: no old-owner result may reappear. Unchanged
+   helper refs stay revoked. **Remount hosts** to recover, edit again, and capture
+   fresh evidence. Label debugger-driven identity changes in the evidence.
 9. **Capture evidence** submits a handled fixture error through the real SDK.
    Record exact SDK/app commits, runtime, helper mode and actual stored envelopes.
    Run the interaction JSON schema over stored events and scan all payload fields.

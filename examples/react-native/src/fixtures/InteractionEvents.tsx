@@ -80,7 +80,7 @@ export default function InteractionEventsFixture() {
       void observePermissionRequest('android.permission.CAMERA', () => PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA))
         .then(result => setStatus(`Android camera result: ${result}`), () => setStatus('Android camera request failed'));
     }} />}
-    <Button id="fixture-signout" title="Sign out while work is pending" onPress={() => { setUser(); setStatus('Signed out; remount hosts to renew helpers'); }} />
+    <Button id="fixture-clear-user" title="Clear user metadata" onPress={() => { setUser(); setStatus('User metadata cleared; identity and pending work are unchanged'); }} />
     <Button id="fixture-late-context" title="Supply late launch context" onPress={() => recordLaunchContext({ trigger: 'notification', arguments: { campaign: 'late-fixture' } })} />
     <Button id="fixture-capture" title="Capture evidence" onPress={() => {
       const ordinal = ++captures.current;
