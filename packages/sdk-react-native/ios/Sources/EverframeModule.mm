@@ -63,6 +63,30 @@
 #import "EverframeRN-Swift.h"
 #endif
 
+#import <React/RCTViewComponentView.h>
+#import <react/renderer/components/view/ViewProps.h>
+#import <react/renderer/components/view/accessibilityPropsConversions.h>
+#import <objc/runtime.h>
+
+// Fabric clears props and reuses component views. Invalidate before reuse begins.
+@interface RCTViewComponentView (EverframeInteractionTarget)
+@end
+@implementation RCTViewComponentView (EverframeInteractionTarget)
+- (void)ef_target_prepareForRecycle {
+  [RnInteractionTargetRegistration invalidateView:self];
+  [self ef_target_prepareForRecycle];
+}
+@end
+
+static NSDictionary *EFInteractionHints(UIView *view) {
+  if (![view isKindOfClass:RCTViewComponentView.class]) return nil;
+  const auto props = std::static_pointer_cast<const facebook::react::ViewProps>([(RCTViewComponentView *)view props]);
+  if (!props) return nil;
+  const std::string role = props->role != facebook::react::Role::None
+    ? facebook::react::toString(props->role) : props->accessibilityRole;
+  return @{ @"testId": @(props->testId.c_str()), @"role": @(role.c_str()) };
+}
+
 @implementation EverframeModule {
   // Strong ref to the bridge so we can look up RCTUIManager later.
   __weak RCTBridge *_bridge;
@@ -73,6 +97,7 @@
   // and let either one's `-invalidate` tear down the other's players. Android's
   // module has always held its registry as an instance field; this matches it.
   RemoteVitalsBridge *_vitals;
+  RnInteractionTargetRegistration *_interactionTargets;
   // D1 fix (stale-teardown identity guard, spec 2026-09-17 setExtra-resolver).
   // Snapshot of `[EverframeBridge currentExtraResolveHookGeneration]` taken
   // right after THIS instance's most recent `-configureSync:` call — see
@@ -84,6 +109,8 @@
   NSInteger _extraResolveHookGeneration;
 }
 
+@synthesize viewRegistry_DEPRECATED = _viewRegistry_DEPRECATED;
+
 RCT_EXPORT_MODULE(Everframe)
 
 - (instancetype)init {
@@ -91,6 +118,13 @@ RCT_EXPORT_MODULE(Everframe)
     // Cheap: the registry allocates one lock and an empty map, nothing more —
     // which is also why `+requiresMainQueueSetup` can stay NO.
     _vitals = [RemoteVitalsBridge new];
+    _interactionTargets = [RnInteractionTargetRegistration new];
+    [_interactionTargets installAdapter:^NSDictionary *(UIView *view) { return EFInteractionHints(view); }];
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+      method_exchangeImplementations(class_getInstanceMethod(RCTViewComponentView.class, @selector(prepareForRecycle)),
+                                     class_getInstanceMethod(RCTViewComponentView.class, @selector(ef_target_prepareForRecycle)));
+    });
   }
   return self;
 }
@@ -225,6 +259,7 @@ RCT_EXPORT_MODULE(Everframe)
   // hand back to `resetExtraResolverForTeardown:`. See that method's doc
   // comment on EverframeBridge.swift for the race this closes.
   _extraResolveHookGeneration = [EverframeBridge currentExtraResolveHookGeneration];
+  if (err == nil) [_interactionTargets onStarted];
   // Codex round-5 — nothing re-registers the live players here any more. `renewAll()` raced
   // the runtime's deferred-registration drain (it could detach the replacement it had just
   // installed) and only ever reached THIS module instance's registry. The replacement is two
@@ -250,6 +285,21 @@ RCT_EXPORT_MODULE(Everframe)
       resolve(result ?: @{});
     }
   }];
+}
+
+- (NSNumber *)setInteractionTarget:(double)viewTag
+                    registrationId:(NSString *)registrationId
+                         generation:(double)generation
+                         annotation:(NSDictionary *)annotation {
+  __weak RCTViewRegistry *registry = _viewRegistry_DEPRECATED;
+  return @([_interactionTargets setTarget:viewTag registrationId:registrationId generation:generation annotation:annotation
+                                 resolve:^UIView *(NSNumber *tag) {
+    @try { return [registry viewForReactTag:tag]; } @catch (NSException *exception) { return nil; }
+  }]);
+}
+
+- (NSNumber *)clearInteractionTarget:(NSString *)registrationId generation:(double)generation {
+  return @([_interactionTargets clearTarget:registrationId generation:generation]);
 }
 
 // MARK: - registerSensitiveRect(viewTag, rect)
@@ -397,6 +447,7 @@ RCT_EXPORT_MODULE(Everframe)
 // Provider's configure-on-mount, so clearing there would drop legitimate
 // registrations that had already landed.
 - (void)invalidate {
+  [_interactionTargets close];
   [_vitals reset];
   // Review finding F4 (spec 2026-09-17 setExtra-resolver) — see
   // `EverframeBridge.resetExtraResolverForTeardown`'s doc comment for why

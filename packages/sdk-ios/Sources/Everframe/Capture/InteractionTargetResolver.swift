@@ -82,9 +82,15 @@ struct InteractionTargetSnapshot {
         if let id { target["testId"] = id }
         if let container = container(view) { target["container"] = container }
         if let screen = InteractionTargetScreenState.current() { target["screen"] = screen }
+        if let annotation = InteractionTargetRegistry.lookup(view) {
+            target.merge(annotation) { _, value in value }
+            if annotation["name"] != nil { target["nameFrom"] = "annotation" }
+            else if source == "testId", let override = annotation["testId"] { target["name"] = override }
+        }
+        let resolvedName = target["name"] as? String ?? name
         var data: [String: Any] = ["control": String(describing: type(of: view)), "target": target]
-        if let id { data["id"] = id }
-        return .init(label: interactionTargetText(name, max: 48) ?? "view", data: BreadcrumbRingBuffer.coerceHostData(data))
+        if let id = target["testId"] { data["id"] = id }
+        return .init(label: interactionTargetText(resolvedName, max: 48) ?? "view", data: BreadcrumbRingBuffer.coerceHostData(data))
     }
 
     static func descendantText(_ view: UIView, maxDepth: Int = 6) -> String? {

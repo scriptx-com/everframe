@@ -1211,6 +1211,9 @@ public final class Everframe: @unchecked Sendable {
         // header comment; guarded by
         // `EnvelopeUserTests.testAReportInTheNextProjectShipsNoneOfThePreviousProjectsBreadcrumbs`
         // and `...testTheNextProjectStartsWithNoneOfThePreviousProjectsNetworkRows`.
+        #if canImport(UIKit)
+        InteractionTargetRegistry.reset()
+        #endif
         InteractionTargetScreenState.reset()
         BreadcrumbRingBuffer.shared.clear()
         NetworkRingBuffer.shared.clear()
@@ -2420,6 +2423,9 @@ public final class Everframe: @unchecked Sendable {
     /// signed in — that draw is a process-lifetime decision, unrelated to
     /// who the current user is).
     private static func clearCapturedEvidenceBuffers() {
+        #if canImport(UIKit)
+        InteractionTargetRegistry.reset()
+        #endif
         InteractionTargetScreenState.reset()
         BreadcrumbRingBuffer.shared.clear()
         NetworkBodyRingBuffer.shared.clear()
