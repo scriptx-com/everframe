@@ -1,0 +1,41 @@
+packages/sdk-ios/Tests/EverframeTests/InteractionEventSanitizerTests.swift
+  s_46e1aa7e76c6a2::t_ef527391bbd253 1-73,86
+  s_46e1aa7e76c6a2::t_986d47f5c5a36d 74-85
+packages/sdk-ios/Tests/EverframeTests/InteractionEventPolicyTests.swift
+  s_46e1aa7e76c6a2::t_ef527391bbd253 1-23
+packages/sdk-ios/Tests/EverframeTests/InteractionEventRecorderTests.swift
+  s_46e1aa7e76c6a2::t_6b6c5b41729349 74,88,128-148
+  s_46e1aa7e76c6a2::t_ef527391bbd253 1-73,75-87,89-127,149-151
+packages/sdk-android/android/everframe-core/build.gradle.kts
+  s_46e1aa7e76c6a2::t_986d47f5c5a36d 119-121
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventSanitizer.swift
+  s_46e1aa7e76c6a2::t_35cac5ef1e49d8 1-152
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventPolicy.swift
+  s_46e1aa7e76c6a2::t_35cac5ef1e49d8 1-58
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionEventSanitizerTest.kt
+  s_46e1aa7e76c6a2::t_986d47f5c5a36d 93-105
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventRecorder.swift
+  s_46e1aa7e76c6a2::t_4ccd57903a6bb6 1-254
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbRingBuffer.swift
+  s_46e1aa7e76c6a2::t_034578286d6f2b 71-79,82,147-152,156-161,171,175-179,182-184,186,200,206,236-237,248-252,263-264
+packages/sdk-ios/Sources/Everframe/Config/EverframeConfig.swift
+  s_46e1aa7e76c6a2::t_2e5bec9f7a0dba 41
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_46e1aa7e76c6a2::t_ea7b26da134cb0 1290-1292
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "145a8e9c8b2b03e85da265af35bf0782ffcd69fe",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
