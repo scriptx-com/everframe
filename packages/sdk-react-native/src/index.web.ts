@@ -54,3 +54,30 @@ export function useEverframeTarget<T>(
 ): import('react').RefCallback<T> {
   return noopTargetRef;
 }
+
+export type {
+  InteractionHookOptions,
+  HelperType,
+  ControlChangeInput,
+  ScrollInput,
+} from './interactions/registration.js';
+export type { InteractionPolicyOptions } from './interactions/policy.js';
+const noopInteraction = () => {};
+/** Native semantic helpers are inert on the browser entry. */
+export function useEverframeInteraction<T>(
+  _options?: import('./interactions/registration.js').InteractionHookOptions,
+) {
+  return {
+    ref: noopTargetRef as import('react').RefCallback<T>,
+    textChanged: noopInteraction as (
+      text: string,
+      options?: { composing?: boolean; reason?: 'change' | 'end' | 'submit' },
+    ) => void,
+    controlChanged: noopInteraction as (
+      change: import('./interactions/registration.js').ControlChangeInput,
+    ) => void,
+    scrollSettled: noopInteraction as (
+      change: import('./interactions/registration.js').ScrollInput,
+    ) => void,
+  };
+}

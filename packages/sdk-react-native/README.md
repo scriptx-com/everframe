@@ -902,3 +902,71 @@ Fabric view registry, so masked descendants stay excluded from target labels.
 Call after the provider mounts. State is redacted, bounded, and frozen with report
 evidence. See [State API](../../docs/state.md) for lifecycle, privacy, limits and
 native recovery freshness.
+
+## Semantic interaction evidence
+
+On iOS, Android and their TV variants, supported native controls record text edits,
+control changes and completed scroll gestures automatically. Existing taps and
+reporting continue to work without hooks. Programmatic text/control updates do not
+represent user interaction. TV focus movement only counts as scrolling when the
+native content offset changes.
+
+Text evidence contains its UTF-16 length by default. Secure or sensitive fields
+produce no text evidence, including length. To permit a value locally, configure
+an exact native `testID`:
+
+```tsx
+<EverframeProvider config={{
+  sdkKey: 'txx_…',
+  interactions: { valueTestIds: ['search-input'] },
+}}>
+  <App />
+</EverframeProvider>
+```
+
+Optional values are redacted and limited to 256 UTF-16 units. Allowlisting a name
+only in hook metadata never grants permission: the live native host must carry
+that exact `testID`. Setting `interactions: { disabled: true }` disables these
+semantic events without changing existing tap/error capture.
+
+Use `useEverframeInteraction` for an opaque custom control or a semantic action
+that native observation cannot identify. It returns a ref for the existing host
+and explicit methods; it adds no wrapper or app handler. For example:
+
+```tsx
+import { useEverframeInteraction } from '@everframe/react-native';
+import { Pressable, Text, type View } from 'react-native';
+
+function RecentSort({ setSort }: { setSort: (value: string) => void }) {
+  const interaction = useEverframeInteraction<View>({
+    target: { testId: 'sort-recent', name: 'Recent sort' },
+    helperTypes: ['control_change'],
+  });
+  return <Pressable testID="sort-recent" ref={interaction.ref} onPress={() => {
+    setSort('recent');
+    interaction.controlChanged({ control: 'picker', optionId: 'recent' });
+  }}><Text>Recent</Text></Pressable>;
+}
+```
+
+The other methods are `textChanged(text, { composing?, reason? })` and
+`scrollSettled({ axis, direction, item? })`. Text reasons are `change`, `end` or
+`submit`; composition never forwards a value. Text helpers require both matching
+`target.testId` metadata and the allowlisted native `testID` to forward values.
+Only call helpers from user-interaction callbacks. Do not call them for programmatic
+state updates. Compose the returned ref with any existing app ref.
+
+`helperTypes` defaults to an empty list. Only explicitly selected types suppress
+the corresponding automatic observer, after native attachment succeeds. Existing
+tap evidence is preserved. Missing providers, unsupported refs, older native
+binaries and the web entry safely leave helpers inactive.
+
+Clearing evidence, signing out or changing native capture configuration revokes
+pending work. A queued callback keeps its original ownership and cannot renew it.
+An unchanged mounted hook does not replay old metadata; a fresh committed host
+attachment or metadata change can register again.
+
+Text coalesces after 750 ms of inactivity, editing end, submission or safe report
+freeze. Scrolls coalesce at gesture completion or after 200 ms of inactivity.
+Semantic events share a 20-per-10-second budget; text and scroll also share a
+one-per-second budget per host. Values are bounded again after final redaction.

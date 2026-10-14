@@ -109,3 +109,23 @@ export function normalizeInteractionPolicy(input: unknown): InteractionPolicy {
     return defaults(true);
   }
 }
+
+export interface InteractionPolicyOptions {
+  disabled?: boolean;
+  valueTestIds?: readonly string[];
+  urlRules?: readonly {
+    origin: string;
+    queryKeys?: readonly string[];
+    routes?: readonly string[];
+    literalPaths?: readonly string[];
+  }[];
+  launchArgumentKeys?: readonly string[];
+}
+/** Never evaluate a host accessor while deciding value permissions. */
+export function interactionPolicyForConfig(config: unknown): InteractionPolicy {
+  try {
+    return normalizeInteractionPolicy(own(config, 'interactions'));
+  } catch {
+    return defaults(true);
+  }
+}

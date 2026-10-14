@@ -116,3 +116,12 @@ export type {
 
 export { useEverframeTarget, type InteractionTargetAnnotation } from './useEverframeTarget.js';
 export type { StateValue } from './state.js';
+
+export {
+  useEverframeInteraction,
+  type InteractionHookOptions,
+  type HelperType,
+  type ControlChangeInput,
+  type ScrollInput,
+} from './useEverframeInteraction.js';
+export type { InteractionPolicyOptions } from './interactions/policy.js';
