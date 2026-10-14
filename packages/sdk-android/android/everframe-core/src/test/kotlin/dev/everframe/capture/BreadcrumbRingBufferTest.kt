@@ -79,6 +79,44 @@ class BreadcrumbRingBufferTest {
         resetBreadcrumbState()
     }
 
+    @Test fun interactionTargetFieldsAreBoundedAfterRedaction() {
+        val buf = BreadcrumbRingBuffer(maxCount = 10, honorsKillGate = false)
+        val name = "123-45-6789;".repeat(20)
+        val role = "123-45-6789;".repeat(5)
+        val fields = mapOf("name" to name, "testId" to name, "role" to role)
+        val target = fields + mapOf("screen" to name, "nameFrom" to "annotation", "container" to (fields + mapOf("index" to 0, "count" to 5)))
+        val data = BreadcrumbRingBuffer.coerceHostData(mapOf("target" to target, "custom" to mapOf("name" to name)))
+        buf.add(kind = BreadcrumbKind.Tap, message = "tap", data = data)
+        buf.add(kind = BreadcrumbKind.Custom, message = "custom", data = data)
+        buf.freeze()
+        val crumbs = buf.takeFrozen()!!
+        val stored = crumbs[0].data!!["target"] as JsonObject
+        val container = stored["container"] as JsonObject
+        val cappedName = "[REDACTED:SSN];".repeat(17) + "["
+        val cappedRole = "[REDACTED:SSN];".repeat(4) + "[RED"
+        for (map in listOf(stored, container)) {
+            assertEquals(JsonPrimitive(cappedName), map["name"])
+            assertEquals(JsonPrimitive(cappedName), map["testId"])
+            assertEquals(JsonPrimitive(cappedRole), map["role"])
+        }
+        assertEquals(JsonPrimitive(cappedName), stored["screen"])
+        assertEquals(JsonPrimitive("annotation"), stored["nameFrom"])
+        assertEquals(JsonPrimitive(0), container["index"])
+        assertEquals(JsonPrimitive(5), container["count"])
+        assertEquals(JsonPrimitive("[REDACTED:SSN];".repeat(20)), (crumbs[0].data!!["custom"] as JsonObject)["name"])
+        assertEquals(JsonPrimitive("[REDACTED:SSN];".repeat(20)), (crumbs[1].data!!["target"] as JsonObject)["name"])
+    }
+
+    @Test fun redactedInteractionTargetDoesNotSplitSurrogatePair() {
+        val buf = BreadcrumbRingBuffer(maxCount = 10, honorsKillGate = false)
+        // 17 redactions expand to 255 units; the emoji then straddles unit 256.
+        val name = "123-45-6789;".repeat(17) + "😀tail"
+        buf.add(kind = BreadcrumbKind.Tap, message = "tap", data = BreadcrumbRingBuffer.coerceHostData(mapOf("target" to mapOf("name" to name, "nameFrom" to "text"))))
+        buf.freeze()
+        val stored = buf.takeFrozen()!!.single().data!!["target"] as JsonObject
+        assertEquals(JsonPrimitive("[REDACTED:SSN];".repeat(17)), stored["name"])
+    }
+
     // MARK: - t / seq stamping
 
     @Test

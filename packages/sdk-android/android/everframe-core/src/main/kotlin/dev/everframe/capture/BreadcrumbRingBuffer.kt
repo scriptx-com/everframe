@@ -130,8 +130,29 @@ class BreadcrumbRingBuffer internal constructor(
          * — it is never truncated at depth 0 (0 < maxDataDepth), so the object
          * branch above always returns a JsonObject here.
          */
-        private fun redactDataForStorage(data: JsonObject): JsonObject =
-            redactElement(data, 0) as? JsonObject ?: JsonObject(emptyMap())
+        private fun redactDataForStorage(data: JsonObject, interactionTarget: Boolean): JsonObject {
+            val redacted = redactElement(data, 0) as? JsonObject ?: return JsonObject(emptyMap())
+            // Replacement tokens can expand strings. Bound only the tap descriptor,
+            // leaving custom breadcrumbs and unrelated host data unrestricted.
+            val target = redacted["target"] as? JsonObject
+            if (!interactionTarget || target == null) return redacted
+            val bounded = boundTargetFields(target, listOf("name", "testId", "role", "screen")).toMutableMap()
+            (target["container"] as? JsonObject)?.let {
+                bounded["container"] = boundTargetFields(it, listOf("name", "testId", "role"))
+            }
+            return JsonObject(redacted + ("target" to JsonObject(bounded)))
+        }
+
+        private fun boundTargetFields(fields: JsonObject, keys: List<String>): JsonObject {
+            val result = fields.toMutableMap()
+            for (key in keys) {
+                val value = fields[key] as? JsonPrimitive ?: continue
+                if (!value.isString) continue
+                val bounded = targetText(value.content, if (key == "role") 64 else 256)
+                if (bounded == null) result.remove(key) else result[key] = JsonPrimitive(bounded)
+            }
+            return JsonObject(result)
+        }
 
         /**
          * `Everframe.addBreadcrumb(data:)` coercion: host-supplied `Map<String, Any?>`
@@ -252,7 +273,7 @@ class BreadcrumbRingBuffer internal constructor(
         if (!isKindEnabled(kind)) return
 
         val capped = capMessage(RedactionEngine.redact(message))
-        val redactedData = data?.let { redactDataForStorage(it) }
+        val redactedData = data?.let { redactDataForStorage(it, interactionTarget = kind == BreadcrumbKind.Tap) }
 
         lock.withLock {
             if (owner != null && owner != evidenceGeneration) return@withLock

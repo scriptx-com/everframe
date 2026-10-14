@@ -114,6 +114,46 @@ struct BreadcrumbRingBufferTests {
 
     // MARK: - redaction (mask-before-bytes)
 
+    @Test func interactionTargetFieldsAreBoundedAfterRedaction() {
+        let buf = BreadcrumbRingBuffer(maxCount: 10, honorsKillGate: false)
+        let name = String(repeating: "123-45-6789;", count: 20)
+        let role = String(repeating: "123-45-6789;", count: 5)
+        let fields: [String: Any] = ["name": name, "testId": name, "role": role]
+        var target = fields
+        target["screen"] = name; target["nameFrom"] = "annotation"
+        target["container"] = fields.merging(["index": 0, "count": 5]) { _, new in new }
+        let data = jsonAnyDict(["target": target, "custom": ["name": name]])
+        buf.add(kind: .tap, message: "tap", data: data)
+        buf.add(kind: .custom, message: "custom", data: data)
+        let crumbs = buf.snapshot()
+        let stored = crumbs[0].data?["target"]?.value as? [String: Any] ?? [:]
+        let container = stored["container"] as? [String: Any] ?? [:]
+        let cappedName = String(repeating: "[REDACTED:ssn-us];", count: 14) + "[RED"
+        let cappedRole = String(repeating: "[REDACTED:ssn-us];", count: 3) + "[REDACTED:"
+        for map in [stored, container] {
+            #expect(map["name"] as? String == cappedName)
+            #expect(map["testId"] as? String == cappedName)
+            #expect(map["role"] as? String == cappedRole)
+        }
+        #expect(stored["screen"] as? String == cappedName)
+        #expect(stored["nameFrom"] as? String == "annotation")
+        #expect((container["count"] as? NSNumber)?.intValue == 5)
+        #expect((container["index"] as? NSNumber)?.intValue == 0)
+        let customData = crumbs[0].data?["custom"]?.value as? [String: Any]
+        let customTarget = crumbs[1].data?["target"]?.value as? [String: Any]
+        #expect((customData?["name"] as? String)?.utf16.count == 360)
+        #expect((customTarget?["name"] as? String)?.utf16.count == 360)
+    }
+
+    @Test func redactedInteractionTargetDoesNotSplitSurrogatePair() {
+        let buf = BreadcrumbRingBuffer(maxCount: 10, honorsKillGate: false)
+        // 14 redactions expand to 252 units; the emoji then straddles unit 256.
+        let name = String(repeating: "123-45-6789;", count: 14) + "abc😀tail"
+        buf.add(kind: .tap, message: "tap", data: jsonAnyDict(["target": ["name": name, "nameFrom": "text"]]))
+        let stored = buf.snapshot()[0].data?["target"]?.value as? [String: Any]
+        #expect(stored?["name"] as? String == String(repeating: "[REDACTED:ssn-us];", count: 14) + "abc")
+    }
+
     @Test func redactsMessageAndDataStringBeforeBuffering() {
         let buf = BreadcrumbRingBuffer(maxCount: 10, honorsKillGate: false)
         let data = jsonAnyDict(["nested": ["v": jwt]])

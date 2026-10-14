@@ -135,7 +135,7 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         preLockHook?()
 
         let capped = Self.capMessage(Self.redactor.redact(message))
-        let redactedData = data.map { Self.redactDataForStorage($0) }
+        let redactedData = data.map { Self.redactDataForStorage($0, interactionTarget: kind == .tap) }
 
         lock.lock(); defer { lock.unlock() }
         if honorsKillGate, !Everframe.shared.captureGate { return }
@@ -235,13 +235,32 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         return (String(decoding: units.prefix(maxMessageChars), as: UTF16.self), true)
     }
 
-    private static func redactDataForStorage(_ data: [String: EverframeJSONAny]) -> [String: EverframeJSONAny] {
+    private static func redactDataForStorage(_ data: [String: EverframeJSONAny], interactionTarget: Bool) -> [String: EverframeJSONAny] {
         let unwrapped: [String: Any] = data.mapValues { $0.value }
         // The top-level dict is itself the depth-0 subject (mirrors buffer.ts
         // `redactData(input.data, redaction, 0)`) — it is never truncated at
         // depth 0 (0 < maxDataDepth), so the dict branch below always returns.
-        guard let redacted = redactAny(unwrapped, depth: 0) as? [String: Any] else { return [:] }
+        guard var redacted = redactAny(unwrapped, depth: 0) as? [String: Any] else { return [:] }
+        // Redaction replacements can grow strings beyond the producer's limits.
+        // Only tap target fields have these bounds; arbitrary host data does not.
+        if interactionTarget, var target = redacted["target"] as? [String: Any] {
+            target = boundTargetFields(target, keys: ["name", "testId", "role", "screen"])
+            if let container = target["container"] as? [String: Any] {
+                target["container"] = boundTargetFields(container, keys: ["name", "testId", "role"])
+            }
+            redacted["target"] = target
+        }
         return mintJSONAny(redacted)
+    }
+
+    private static func boundTargetFields(_ fields: [String: Any], keys: [String]) -> [String: Any] {
+        var result = fields
+        for key in keys {
+            if let value = fields[key] as? String {
+                result[key] = interactionTargetText(value, max: key == "role" ? 64 : 256)
+            }
+        }
+        return result
     }
 
     private static func redactAny(_ value: Any, depth: Int) -> Any {

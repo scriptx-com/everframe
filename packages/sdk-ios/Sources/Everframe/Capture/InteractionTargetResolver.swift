@@ -75,7 +75,7 @@ struct InteractionTargetSnapshot {
         let role = interactionTargetText(hints?.role, max: 64) ?? nativeRole(view)
         let id = interactionTargetText(hints?.testId) ?? interactionTargetText(view.accessibilityIdentifier)
         let accessibility = interactionTargetText(hints?.name ?? view.accessibilityLabel)
-        let directText = interactionTargetText((view as? UIButton)?.currentTitle) ?? interactionTargetText((view as? UILabel)?.text)
+        let directText = visibleText(view)
         let text = directText ?? ((accessibility == nil) ? descendantText(view) : nil)
         let name = accessibility ?? text ?? id ?? interactionTargetText(String(describing: type(of: view))) ?? "view"
         let source = accessibility != nil ? "accessibility" : text != nil ? "text" : id != nil ? "testId" : "className"
@@ -95,15 +95,30 @@ struct InteractionTargetSnapshot {
         return .init(label: interactionTargetText(resolvedName, max: 48) ?? "view", data: BreadcrumbRingBuffer.coerceHostData(data))
     }
 
+    /// Read the selected text host as well as descendant text hosts. Fabric's
+    /// accessibilityLabel can aggregate inline views, so use its own attributedText.
+    private static func visibleText(_ view: UIView) -> String? {
+        guard !view.isHidden, view.alpha > 0, !SensitiveRectRegistry.isSensitive(view), !(view is UITextInput) else { return nil }
+        if let button = view as? UIButton { return interactionTargetText(button.currentTitle) }
+        if let label = view as? UILabel { return interactionTargetText(label.text) }
+        let className = String(describing: type(of: view))
+        if className == "RCTParagraphComponentView" {
+            // RN's public introspection property, guarded without a core RN dependency.
+            guard view.responds(to: NSSelectorFromString("attributedText")),
+                  let text = view.value(forKey: "attributedText") as? NSAttributedString else { return nil }
+            return interactionTargetText(text.string)
+        }
+        if className == "RCTTextView" { return interactionTargetText(view.accessibilityLabel) }
+        return nil
+    }
+
     static func descendantText(_ view: UIView, maxDepth: Int = 6) -> String? {
         var visits = 0
         func walk(_ node: UIView, depth: Int) -> String? {
             guard depth <= maxDepth, visits < 64 else { return nil }
             visits += 1
             guard !node.isHidden, node.alpha > 0, !SensitiveRectRegistry.isSensitive(node), !(node is UITextInput) else { return nil }
-            if let label = node as? UILabel, let text = interactionTargetText(label.text) { return text }
-            if ["RCTParagraphComponentView", "RCTTextView"].contains(String(describing: type(of: node))),
-               let text = interactionTargetText(node.accessibilityLabel) { return text }
+            if let text = visibleText(node) { return text }
             for child in node.subviews {
                 if visits >= 64 { break }
                 if let text = walk(child, depth: depth + 1) { return text }

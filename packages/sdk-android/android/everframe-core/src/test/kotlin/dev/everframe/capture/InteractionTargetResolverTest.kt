@@ -43,6 +43,21 @@ class InteractionTargetResolverTest {
             if (candidate === view) InteractionTargetViewHints(testId = id, role = role) else null
         }
     }
+    @Test fun automaticAndAnnotatedTargetsStayBoundedAfterRedaction() {
+        try {
+            for (annotated in listOf(false, true)) {
+                sharedBreadcrumbBuffer.clear()
+                val view = Button(context).apply { text = "123-45-6789;".repeat(20) }
+                if (annotated) InteractionTargetRegistry.set(view, "redaction", 1, mapOf("name" to view.text.toString()))
+                TapBreadcrumbAdapter.recordTap(view)
+                sharedBreadcrumbBuffer.freeze()
+                val stored = sharedBreadcrumbBuffer.takeFrozen()!!.single().data!!["target"]!!.jsonObject
+                assertEquals(JsonPrimitive("[REDACTED:SSN];".repeat(17) + "["), stored["name"])
+                assertEquals(JsonPrimitive(if (annotated) "annotation" else "text"), stored["nameFrom"])
+            }
+        } finally { InteractionTargetRegistry.reset() }
+    }
+
     @Test fun imageTapResolvesPosterOwnerInsteadOfImageClass() {
         val parent = FrameLayout(context).apply { isClickable = true; contentDescription = "Low Orbit" }
         val image = ImageView(context); parent.addView(image)

@@ -193,6 +193,44 @@ struct InteractionTargetResolverTests {
             #expect(card.reads == 0); #expect(list.reads == 0)
         }
     }
+    @Test(arguments: [false, true]) func selectedFrameworkTextKeepsVisibleName(actionable: Bool) {
+        withState {
+            let paragraph = RCTParagraphComponentView()
+            paragraph.attributedText = NSAttributedString(string: "Read more")
+            paragraph.accessibilityLabel = "SECRET inline label"
+            paragraph.accessibilityTraits = actionable ? .link : .staticText
+            paragraph.accessibilityIdentifier = "article-link"
+            let dispose = InteractionTargetViewAdapters.register { view in
+                view === paragraph ? .init(name: "", actionable: actionable) : nil
+            }
+            defer { dispose() }
+            let snapshot = InteractionTargetResolver.resolve(paragraph)
+            let fields = snapshot.data["target"]?.value as? [String: Any]
+            #expect(fields?["name"] as? String == "Read more")
+            #expect(fields?["nameFrom"] as? String == "text")
+            TapBreadcrumbAdapter.recordTap(sender: paragraph, eventTimestamp: 42, snapshot: snapshot)
+            #expect(BreadcrumbRingBuffer.shared.snapshot().last?.message == "tap Read more")
+            SensitiveRectRegistry.mark(paragraph)
+            #expect(target(paragraph)["masked"] as? Bool == true)
+        }
+    }
+
+    @Test(arguments: [false, true]) func capturedTargetStaysBoundedAfterRedaction(annotated: Bool) {
+        withState {
+            let view = UIButton()
+            view.setTitle(String(repeating: "123-45-6789;", count: 20), for: .normal)
+            if annotated {
+                InteractionTargetRegistry.set(view: view, registrationId: "redaction", generation: 1,
+                                              annotation: ["name": view.currentTitle!])
+            }
+            defer { InteractionTargetRegistry.reset() }
+            TapBreadcrumbAdapter.recordTap(sender: view, eventTimestamp: 42)
+            let stored = BreadcrumbRingBuffer.shared.snapshot().last?.data?["target"]?.value as? [String: Any]
+            #expect(stored?["name"] as? String == String(repeating: "[REDACTED:ssn-us];", count: 14) + "[RED")
+            #expect(stored?["nameFrom"] as? String == (annotated ? "annotation" : "text"))
+        }
+    }
+
     @Test func annotationRoleSelectsPlainPressableAncestor() {
         withState {
             let card = UIView(), image = UIImageView(); card.addSubview(image)
@@ -219,6 +257,13 @@ struct InteractionTargetResolverTests {
         }
     }
 
+}
+// Fabric exposes attributedText separately from its potentially aggregated label.
+// Core cannot import RN; exercise the same runtime-class boundary as the installed view.
+@MainActor private final class RCTParagraphComponentView: UIView {
+    @objc var attributedText: NSAttributedString?
+    override init(frame: CGRect) { super.init(frame: frame); addSubview(UIView()) }
+    required init?(coder: NSCoder) { fatalError("unused") }
 }
 @MainActor private final class AggregateLabelView: UIView {
     var reads = 0
