@@ -1,0 +1,25 @@
+examples/react-native/src/App.tsx
+  s_46e1aa7e76c6a2::t_834d750681dfcb 35
+examples/react-native/src/fixtures/InteractionEvents.tsx
+  s_46e1aa7e76c6a2::t_693ad1e7bba322 1-87
+packages/sdk-react-native/__tests__/fixtures/interaction-events/App.tsx
+  s_46e1aa7e76c6a2::t_fa845ed8d60d3c 3-4
+packages/sdk-react-native/__tests__/fixtures/interaction-events/README.md
+  s_46e1aa7e76c6a2::t_16a110576073f1 52-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bb554892374aaa335f9ca648c2a51a90dcf96590",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
