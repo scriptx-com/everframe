@@ -129,8 +129,31 @@ data class App (
     val build: String? = null,
     val debug: Boolean? = null,
     val name: String,
-    val version: String
+    val version: String,
+    val jsBundle: JSBundle? = null
 )
+
+@Serializable
+data class JSBundle (
+    @SerialName("buildId")
+    val buildID: String,
+
+    val bundleName: String,
+    val engine: Engine,
+    val platform: JSBundlePlatform
+)
+
+@Serializable
+enum class Engine(val value: String) {
+    @SerialName("hermes") Hermes("hermes");
+}
+
+@Serializable
+enum class JSBundlePlatform(val value: String) {
+    @SerialName("android") Android("android"),
+    @SerialName("ios") Ios("ios"),
+    @SerialName("vega") Vega("vega");
+}
 
 @Serializable
 data class Device (
@@ -439,28 +462,6 @@ data class Frame (
     val line: Long? = null,
     val raw: String
 )
-
-@Serializable
-data class JSBundle (
-    @SerialName("buildId")
-    val buildID: String,
-
-    val bundleName: String,
-    val engine: Engine,
-    val platform: JSBundlePlatform
-)
-
-@Serializable
-enum class Engine(val value: String) {
-    @SerialName("hermes") Hermes("hermes");
-}
-
-@Serializable
-enum class JSBundlePlatform(val value: String) {
-    @SerialName("android") Android("android"),
-    @SerialName("ios") Ios("ios"),
-    @SerialName("vega") Vega("vega");
-}
 
 @Serializable
 data class JVMCrashMetadata (

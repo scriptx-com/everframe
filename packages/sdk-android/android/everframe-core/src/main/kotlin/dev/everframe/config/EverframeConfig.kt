@@ -8,6 +8,27 @@
 // mobile shake-to-report is the narrow exception; `bubble` remains a hint only.
 package dev.everframe.config
 
+/** Loaded RN identity captured with the report session; never inferred from native version. */
+data class LoadedJsBundle private constructor(val buildId: String, val bundleName: String) {
+    val metadata: dev.everframe.protocol.generated.JSBundle
+        get() = dev.everframe.protocol.generated.JSBundle(buildId, bundleName,
+            dev.everframe.protocol.generated.Engine.Hermes, dev.everframe.protocol.generated.JSBundlePlatform.Android)
+    companion object {
+        fun create(buildId: String?, bundleName: String?): LoadedJsBundle? {
+            if (buildId == null || buildId.isBlank() || buildId.length > 200 || buildId.contains('\u0000') ||
+                bundleName == null || !Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,127}").matches(bundleName)) return null
+            var index = 0
+            while (index < buildId.length) {
+                val char = buildId[index++]
+                if (char.isHighSurrogate()) {
+                    if (index >= buildId.length || !buildId[index++].isLowSurrogate()) return null
+                } else if (char.isLowSurrogate()) return null
+            }
+            return LoadedJsBundle(buildId, bundleName)
+        }
+    }
+}
+
 // MARK: - Config
 
 data class EverframeConfig(
@@ -120,6 +141,7 @@ data class EverframeConfig(
      * vitals, release health and companion are unchanged. Flat `Boolean` veto, like [shakeToReportEnabled].
      */
     val reporterEnabled: Boolean = true,
+    val loadedJsBundle: LoadedJsBundle? = null,
 )
 
 /**

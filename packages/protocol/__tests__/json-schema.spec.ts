@@ -73,6 +73,11 @@ describe('Hermes build identity schema parity', () => {
     envelope.payload.crash.jsBundle.buildId = buildId;
     expect(ReportEnvelope.safeParse(envelope).success).toBe(accepted);
     expect(validate(envelope)).toBe(accepted);
+    // The ordinary-report path uses the same UTF-16 identity contract.
+    const manual = structuredClone(minimal) as Record<string, any>;
+    manual.context.app.jsBundle = envelope.payload.crash.jsBundle;
+    expect(ReportEnvelope.safeParse(manual).success).toBe(accepted);
+    expect(validate(manual)).toBe(accepted);
   });
 });
 

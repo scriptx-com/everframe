@@ -290,6 +290,8 @@ class EverframeModule(
                 release = sdkVersion,
                 capture = CaptureConfig(networkBodies = !networkBodiesDisabled, crash = !crashReportingDisabled),
                 installIdentifierEnabled = !installIdentifierDisabled,
+                loadedJsBundle = dev.everframe.config.LoadedJsBundle.create(
+                    opts.takeIfHasString("jsBundleBuildId"), opts.takeIfHasString("jsBundleName")),
                 releaseHealth = parseReleaseHealth(opts),
                 // The JS facade always sends React Native's `__DEV__` (or the host's override). A missing
                 // or null key stays null so the native SDK decides for itself, as for any other caller.

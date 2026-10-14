@@ -13,7 +13,7 @@ import {
   INFERRED_TERMINATION_FINGERPRINTS,
   INFERRED_TERMINATION_MECHANISM,
 } from './inferred-termination.js';
-import { CrashPayload } from './crash.js';
+import { CrashPayload, JsBundleMetadata } from './crash.js';
 import { NetworkBodyEntrySchema } from './network-body.js';
 import { VitalsEntry, MAX_ENVELOPE_VITALS_ENTRIES } from './vitals.js';
 import { ResourceSample, MAX_RESOURCE_SAMPLES } from './resources.js';
@@ -180,6 +180,8 @@ export const ReportEnvelope = z
             name: z.string(),
             version: z.string(),
             build: z.string().optional(),
+            /** Exact bundle loaded when this report was captured, independent of release health. */
+            jsBundle: JsBundleMetadata.optional(),
             /** True when the SDK detected a debug or development build (or `debugBuild` was set).
              * The server never creates a release from a debug build. Absent means a release build. */
             debug: z.boolean().optional(),

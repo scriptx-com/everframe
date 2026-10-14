@@ -60,8 +60,14 @@ it.each([39, 41, 63, 65])('rejects abbreviated or malformed %i-character commits
 });
 it.each([
   { commit: 'g'.repeat(40) },
+  { commit: 'a'.repeat(40) + '\n' },
+  { commit: 'a'.repeat(40), branch: 'release\n' },
+  { commit: 'a'.repeat(40), branch: 'release\r' },
   { commit: 'a'.repeat(40), branch: 'x'.repeat(256) },
   { commit: 'a'.repeat(40), branch: 'a\nb' },
+  { commit: 'a'.repeat(40), branch: 'a\u0085b' },
+  { commit: 'a'.repeat(40), branch: '\ud800' },
+  { commit: 'a'.repeat(40), branch: '\udfff' },
   { commit: 'a'.repeat(40), dirty: 'false' },
 ])('rejects malformed provenance %j', (vcs) => {
   expect(() => parseManifest({ ...manifests[0], vcs })).toThrow();
@@ -85,4 +91,11 @@ it('preserves unknown dirty and 64-character commits through staging', () => {
       ...map,
     }),
   ).toHaveProperty('vcs', { commit: 'b'.repeat(64) });
+});
+
+it('accepts Unicode branch names with valid surrogate pairs', () => {
+  expect(
+    parseManifest({ ...manifests[0], vcs: { commit: 'a'.repeat(40), branch: 'release/🚀' } }).vcs
+      ?.branch,
+  ).toBe('release/🚀');
 });

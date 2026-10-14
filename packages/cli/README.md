@@ -374,6 +374,8 @@ parsing has synthetic coverage only.
 
 ## Source commit provenance
 
+Current React Native SDKs attach the loaded Hermes bundle identity to ordinary feedback reports as well as crashes. Release-health monitoring can be disabled; the report still resolves the exact uploaded bundle, including OTA updates sharing a native version/build.
+
 React Native iOS/Android builds record an optional Git commit, branch, and dirty
 status. Metro captures these before writing staging files; collection and upload
 preserve that snapshot, including Expo exports and OTA updates. Keep `.everframe/`

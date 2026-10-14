@@ -404,11 +404,13 @@ public extension EverframeContext {
 public struct EverframeApp: Codable {
     public let build: String?
     public let debug: Bool?
+    public let jsBundle: EverframeJSBundle?
     public let name, version: String
 
-    public init(build: String?, debug: Bool?, name: String, version: String) {
+    public init(build: String?, debug: Bool?, jsBundle: EverframeJSBundle? = nil, name: String, version: String) {
         self.build = build
         self.debug = debug
+        self.jsBundle = jsBundle
         self.name = name
         self.version = version
     }
@@ -435,12 +437,14 @@ public extension EverframeApp {
     func with(
         build: String?? = nil,
         debug: Bool?? = nil,
+        jsBundle: EverframeJSBundle?? = nil,
         name: String? = nil,
         version: String? = nil
     ) -> EverframeApp {
         return EverframeApp(
             build: build ?? self.build,
             debug: debug ?? self.debug,
+            jsBundle: jsBundle ?? self.jsBundle,
             name: name ?? self.name,
             version: version ?? self.version
         )
@@ -453,6 +457,77 @@ public extension EverframeApp {
     func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
         return String(data: try self.jsonData(), encoding: encoding)
     }
+}
+
+// MARK: - EverframeJSBundle
+public struct EverframeJSBundle: Codable {
+    public let buildID: String
+    public let bundleName: String
+    public let engine: EverframeEngine
+    public let platform: EverframeJSBundlePlatform
+
+    public enum CodingKeys: String, CodingKey {
+        case buildID = "buildId"
+        case bundleName, engine, platform
+    }
+
+    public init(buildID: String, bundleName: String, engine: EverframeEngine, platform: EverframeJSBundlePlatform) {
+        self.buildID = buildID
+        self.bundleName = bundleName
+        self.engine = engine
+        self.platform = platform
+    }
+}
+
+// MARK: EverframeJSBundle convenience initializers and mutators
+
+public extension EverframeJSBundle {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeJSBundle.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        buildID: String? = nil,
+        bundleName: String? = nil,
+        engine: EverframeEngine? = nil,
+        platform: EverframeJSBundlePlatform? = nil
+    ) -> EverframeJSBundle {
+        return EverframeJSBundle(
+            buildID: buildID ?? self.buildID,
+            bundleName: bundleName ?? self.bundleName,
+            engine: engine ?? self.engine,
+            platform: platform ?? self.platform
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum EverframeEngine: String, Codable {
+    case hermes = "hermes"
+}
+
+public enum EverframeJSBundlePlatform: String, Codable {
+    case android = "android"
+    case ios = "ios"
+    case vega = "vega"
 }
 
 // MARK: - EverframeDevice
@@ -1294,7 +1369,7 @@ public struct EverframeCrash: Codable {
     public let occurredAt: Date
     public let threadName: String?
 
-    public init(androidNative: EverframeAndroidNativeCrashMetadata?, causeChain: EverframeCrashCauseChain?, details: EverframeCrashDetails?, exceptionType: String, fatal: Bool?, fingerprint: String, frames: [EverframeFrame], handled: Bool, jsBundle: EverframeJSBundle?, jvm: EverframeJVMCrashMetadata?, mechanism: String, message: String, native: EverframeNativeCrashMetadata?, occurredAt: Date, threadName: String?) {
+    public init(androidNative: EverframeAndroidNativeCrashMetadata?, causeChain: EverframeCrashCauseChain?, details: EverframeCrashDetails?, exceptionType: String, fatal: Bool?, fingerprint: String, frames: [EverframeFrame], handled: Bool, jsBundle: EverframeJSBundle? = nil, jvm: EverframeJVMCrashMetadata?, mechanism: String, message: String, native: EverframeNativeCrashMetadata?, occurredAt: Date, threadName: String?) {
         self.androidNative = androidNative
         self.causeChain = causeChain
         self.details = details
@@ -1808,77 +1883,6 @@ public extension EverframeFrame {
     func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
         return String(data: try self.jsonData(), encoding: encoding)
     }
-}
-
-// MARK: - EverframeJSBundle
-public struct EverframeJSBundle: Codable {
-    public let buildID: String
-    public let bundleName: String
-    public let engine: EverframeEngine
-    public let platform: EverframeJSBundlePlatform
-
-    public enum CodingKeys: String, CodingKey {
-        case buildID = "buildId"
-        case bundleName, engine, platform
-    }
-
-    public init(buildID: String, bundleName: String, engine: EverframeEngine, platform: EverframeJSBundlePlatform) {
-        self.buildID = buildID
-        self.bundleName = bundleName
-        self.engine = engine
-        self.platform = platform
-    }
-}
-
-// MARK: EverframeJSBundle convenience initializers and mutators
-
-public extension EverframeJSBundle {
-    init(data: Data) throws {
-        self = try newJSONDecoder().decode(EverframeJSBundle.self, from: data)
-    }
-
-    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
-        guard let data = json.data(using: encoding) else {
-            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
-        }
-        try self.init(data: data)
-    }
-
-    init(fromURL url: URL) throws {
-        try self.init(data: try Data(contentsOf: url))
-    }
-
-    func with(
-        buildID: String? = nil,
-        bundleName: String? = nil,
-        engine: EverframeEngine? = nil,
-        platform: EverframeJSBundlePlatform? = nil
-    ) -> EverframeJSBundle {
-        return EverframeJSBundle(
-            buildID: buildID ?? self.buildID,
-            bundleName: bundleName ?? self.bundleName,
-            engine: engine ?? self.engine,
-            platform: platform ?? self.platform
-        )
-    }
-
-    func jsonData() throws -> Data {
-        return try newJSONEncoder().encode(self)
-    }
-
-    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
-        return String(data: try self.jsonData(), encoding: encoding)
-    }
-}
-
-public enum EverframeEngine: String, Codable {
-    case hermes = "hermes"
-}
-
-public enum EverframeJSBundlePlatform: String, Codable {
-    case android = "android"
-    case ios = "ios"
-    case vega = "vega"
 }
 
 // MARK: - EverframeJVMCrashMetadata

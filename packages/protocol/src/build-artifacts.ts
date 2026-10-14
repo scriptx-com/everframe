@@ -17,7 +17,7 @@ export const BuildVcsSchema = z
       .string()
       .min(1)
       .max(255)
-      .regex(/^[^\u0000-\u001f\u007f]+$/u)
+      .regex(/^(?:[^\u0000-\u001f\u007f-\u009f\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])+$/)
       .optional(),
     dirty: z.boolean().optional(),
   })

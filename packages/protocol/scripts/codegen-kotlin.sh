@@ -145,8 +145,19 @@ if (!exposureAppMatch || !exposureAppMatch[1].includes('    val build: String? =
 }
 rewritten = rewritten.replace(exposureAppPattern, exposureAppMatch[0].replace(
   '    val build: String? = null,', '    @Required\n    val build: String? = null,'));
+// Append optional app identity to preserve existing positional constructors.
+const appPattern = /data class App \(\n([\s\S]*?)\n\)/;
+const appMatch = rewritten.match(appPattern);
+if (!appMatch) throw new Error('codegen-kotlin: App block missing');
+const appProperties = appMatch[1].split('\n');
+const bundleIndex = appProperties.indexOf('    val jsBundle: JSBundle? = null,');
+if (bundleIndex < 0) throw new Error('codegen-kotlin: App.jsBundle missing');
+appProperties.splice(bundleIndex, 1);
+appProperties[appProperties.length - 1] += ',';
+appProperties.push('    val jsBundle: JSBundle? = null');
+rewritten = rewritten.replace(appPattern, `data class App (\n${appProperties.join('\n')}\n)`);
 // The pointer's app must not take the envelope app's published name.
-if (!/\n@Serializable\ndata class App \(\n    val build: String\? = null,\n    val debug: Boolean\? = null,\n    val name: String,\n    val version: String\n\)/.test(rewritten)) {
+if (!/\n@Serializable\ndata class App \(\n    val build: String\? = null,\n    val debug: Boolean\? = null,\n    val name: String,\n    val version: String,\n    val jsBundle: JSBundle\? = null\n\)/.test(rewritten)) {
   throw new Error('codegen-kotlin: App was renamed or reshaped');
 }
 const formatPattern = /@Serializable\nenum class Format\(val value: String\) \{[\s\S]*?\n\}\n/u;

@@ -550,6 +550,7 @@ public enum ReporterSubmission {
             annotations: allAnnotationsJSON,
             redactions: allRedactionsJSON,
             extra: extra,
+            jsBundle: cfg.loadedJsBundle?.metadata,
             userExtra: userExtra,
             breadcrumbs: frozenBreadcrumbs,
             networkBodies: frozenBodies,

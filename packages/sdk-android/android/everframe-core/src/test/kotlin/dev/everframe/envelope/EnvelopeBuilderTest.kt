@@ -37,6 +37,18 @@ import java.util.UUID
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
 class EnvelopeBuilderTest {
+    @Test
+    fun manualReportCarriesLoadedBundleWithoutCrashPayload() {
+        val bundle = dev.everframe.config.LoadedJsBundle.create("ota-A", "index.android.bundle")!!
+        val encoded = EnvelopeBuilder().buildEncoded(sdkVersion = "1.0.0", formFactor = "phone", jsBundle = bundle.metadata)
+        val report = Json { ignoreUnknownKeys = true }.decodeFromString<ReportEnvelope>(encoded.bytes.decodeToString())
+        assertEquals("ota-A", report.context.app.jsBundle?.buildID)
+        assertEquals(dev.everframe.protocol.generated.JSBundlePlatform.Android, report.context.app.jsBundle?.platform)
+        assertNull(report.payload.crash)
+        assertNull(dev.everframe.config.LoadedJsBundle.create(" ", "main.jsbundle"))
+        assertNull(dev.everframe.config.LoadedJsBundle.create("ota", "../bundle"))
+    }
+
 
     @Before
     fun setUp() {

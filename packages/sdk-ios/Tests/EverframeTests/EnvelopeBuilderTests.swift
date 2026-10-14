@@ -10,6 +10,23 @@ import Foundation
 @testable import EverframeProtocol
 
 struct EnvelopeBuilderTests {
+    @Test func manualReportCarriesLoadedBundleWithoutCrashPayload() throws {
+        let bundle = LoadedJsBundle(buildId: "ota-A", bundleName: "main.jsbundle")!
+        let (bytes, _) = try makeBuilder().buildEncoded(reportId: UUID(), sdkVersion: "1.0.0", jsBundle: bundle.metadata)
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+        let report = try decoder.decode(EverframeReportEnvelope.self, from: bytes)
+        #expect(report.context.app.jsBundle?.buildID == "ota-A")
+        #expect(report.context.app.jsBundle?.platform == .ios)
+        #expect(report.payload.crash == nil)
+        #expect(LoadedJsBundle(buildId: " ", bundleName: "main.jsbundle") == nil)
+        #expect(LoadedJsBundle(buildId: "ota", bundleName: "../bundle") == nil)
+        var a = EverframeConfig(sdkKey: "key")
+        var b = a
+        a.loadedJsBundle = bundle
+        b.loadedJsBundle = LoadedJsBundle(buildId: "ota-B", bundleName: "main.jsbundle")
+        #expect(a != b)
+    }
+
     #if os(tvOS)
     @Test func tvReportsDefaultToTVPlatformAndFormFactor() throws {
         for extra: [String: String] in [[:], ["sdk.platform": "invalid", "sdk.formFactor": "invalid"]] {

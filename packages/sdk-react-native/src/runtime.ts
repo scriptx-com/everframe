@@ -830,12 +830,16 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   // Release health is on unless `enabled` is explicitly false. Every off path below sends
   // `releaseHealthEnabled: false`, because both bridges read a missing field as on. An untyped `null`
   // option is off too, matching `releaseHealth = null` on the native SDKs.
+  const bundle = captureJsBundleMetadata(config.jsBundle);
+  if (bundle) {
+    bridge.jsBundleBuildId = bundle.buildId;
+    bridge.jsBundleName = bundle.bundleName;
+  }
   const health = config.releaseHealth;
   const healthSetExplicitly = health !== undefined;
   if (health === null || health?.enabled === false) {
     bridge.releaseHealthEnabled = false;
   } else {
-    const bundle = captureJsBundleMetadata(config.jsBundle);
     const rejected: string[] = [];
     if (!bundle || !validReleaseHealthText(bundle.buildId, 200))
       rejected.push('jsBundle (no valid Hermes bundle identity)');
