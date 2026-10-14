@@ -1,0 +1,9 @@
+[
+  {"scenario":"poster","target":{"testId":"poster-low-orbit","role":"button","name":"Low Orbit","nameFrom":"accessibility","screen":"Home"}},
+  {"scenario":"continue-watching","target":{"testId":"card-low-orbit","role":"button","name":"Low Orbit, episode 2","nameFrom":"accessibility","container":{"testId":"home-continue","name":"Continue watching","role":"list","index":1,"count":3},"screen":"Home"}},
+  {"scenario":"tab","target":{"testId":"tab-home","role":"tab","name":"Home","nameFrom":"text"}},
+  {"scenario":"remote","target":{"testId":"poster-low-orbit","role":"button","name":"Low Orbit","nameFrom":"accessibility","container":{"name":"Originals","role":"list","index":4,"count":12}}},
+  {"scenario":"unknown","target":{}},
+  {"scenario":"masked","target":{"role":"button","masked":true}},
+  {"scenario":"annotation","target":{"name":"Play Low Orbit","nameFrom":"annotation","container":{"testId":"home-originals","name":"Originals","role":"list","index":0,"count":12}}}
+]
