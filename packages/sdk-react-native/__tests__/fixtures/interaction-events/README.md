@@ -1,0 +1,51 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+# Installed interaction evidence fixture
+
+Build the public React Native example in development with
+`EXPO_PUBLIC_EVERFRAME_INTERACTION_FIXTURE=1`, a dedicated local SDK key and the
+matching native SDK artifacts. The fixture has no embedded key or destination.
+`EXPO_PUBLIC_EVERFRAME_INTERACTION_HELPERS=0` starts with helper refs detached;
+all native testIDs and screen tracking remain. Repeat on iOS, Android, tvOS and
+Android TV after rebuilding native code, not only reloading Metro.
+
+1. Edit `search-input`, pause at least 750 ms, then finish/submit. Only this exact
+   native ID permits a bounded redacted value. Repeat with paste and an IME;
+   composing text must not produce an intermediate value or a false completed edit.
+2. Edit `private-input`, `secure-input` and `masked-input` using distinct sentinel
+   strings. Private input may report length but no value. Secure/masked hosts must
+   report neither text events nor lengths. Scan the entire captured envelope for
+   sentinels, not just its breadcrumbs.
+3. Change the native switch on phones. Use the custom checkbox and sort picker
+   on each runtime: those custom semantics are helper-only, so helper-off captures
+   still show taps but must not invent their control state.
+4. Scroll the horizontal title rail with touch/momentum or TV remote movement.
+   One settled gesture produces at most one summary, subject to admission limits.
+   Focus movement without an offset change must not produce a scroll event.
+5. Open the fixture link. Its private path, query and fragment must be absent;
+   only the declared `/:id` template and allowlisted campaign survive. Open the
+   same URL again: a distinct subsequent native delivery is a distinct observation.
+6. Begin the **synthetic permission** request and resolve it. These buttons test
+   result mapping; they do not display an OS dialog. On Android phones, the separate
+   camera button invokes `PermissionsAndroid.request`. Its CAMERA declaration is
+   added only to development fixture prebuilds, never to ordinary sample/TV builds
+   or Nocturne. Inspect the actual prompt/result separately; cached grants are not
+   prompt evidence. iOS/TV synthetic results are not proof of an OS permission API.
+7. Background and foreground. The fixture supplies explicit **simulated** notification
+   context from its AppState callback. Native classification must remain warm, and
+   late context must not alter an emitted launch or create a second one. This is
+   app-attribution evidence, not a delivered push notification.
+8. Begin a synthetic request and pending text/scroll, then **Sign out** before they
+   settle. Resolve the old request: no old-owner result may reappear. Unchanged refs
+   stay revoked. **Remount hosts** to recover, edit again, and capture fresh evidence.
+9. **Capture evidence** submits a handled fixture error through the real SDK.
+   Record exact SDK/app commits, runtime, helper mode and actual stored envelopes.
+   Run the interaction JSON schema over stored events and scan all payload fields.
+
+The form keeps existing app callbacks; helpers are called before state changes.
+Search remains native-owned in both modes, preserving IME and optional value
+observations. Other fields exercise helper-owned structural summaries.
+The title rail keeps automatic native scroll observation in both modes. Synthetic
+permission/attribution cases and unsupported controls must remain labelled in any
+validation report. Never label a local collector envelope as a production report.

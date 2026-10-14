@@ -8,6 +8,8 @@ import android.os.SystemClock
 import android.text.method.PasswordTransformationMethod
 import android.view.View
 import android.widget.TextView
+import android.widget.EditText
+import android.view.inputmethod.BaseInputConnection
 import dev.everframe.Everframe
 import java.lang.ref.WeakReference
 import java.util.UUID
@@ -56,10 +58,13 @@ internal class InteractionEventRecorder(
         val input = runCatching { Json.parseToJsonElement(json) as? JsonObject }.getOrNull() ?: return null
         val type = input.string("type") ?: return null
         val sourceScreen = InteractionTargetScreenState.current()
+        // Never inspect UI under the breadcrumb lock or retain a JS value while waiting for UI validation.
+        val candidate = buffer.withInteractionLock { registrations[id]?.owner }
+        val privacyVerified = candidate != null && Looper.myLooper() == Looper.getMainLooper() && live(candidate) && !nativeComposing(candidate)
         return buffer.withInteractionLock {
-            if (!enabled() || lease != token || prepared.size >= 64) return@withInteractionLock null
+            if (!enabled() || lease != token) return@withInteractionLock null
             if (type == "launch_context") {
-                if (id.isNotEmpty() || generation != 0L) return@withInteractionLock null
+                if (id.isNotEmpty() || generation != 0L || prepared.size >= 64) return@withInteractionLock null
                 val previous = pending.firstOrNull { it.event.string("type") == "launch" && current(it.owner) && it.deadline > clock() } ?: return@withInteractionLock null
                 val fields = previous.event.toMutableMap()
                 input["trigger"]?.let { fields["trigger"] = it }; input["arguments"]?.let { fields["arguments"] = it }
@@ -87,8 +92,14 @@ internal class InteractionEventRecorder(
                 fields["reason"] = JsonPrimitive(if (phase == "change") "idle" else phase)
                 if (composing) fields.remove("value")
             }
-            val allowedId = if (type != "text_edit" || owner.host?.get() is TextView) owner.liveTestId else null
+            val allowedId = if (privacyVerified && candidate === entry?.owner && (type != "text_edit" || owner.host?.get() is TextView)) owner.liveTestId else null
             val event = InteractionEventSanitizer.sanitize(JsonObject(fields), policy, allowedId) ?: return@withInteractionLock null
+            if (type == "text_edit" && phase == "change") {
+                val superseded = prepared.filter { it.observation?.phase == "change" && it.observation?.event?.string("type") == type && it.observation?.owner?.registrationId == owner.registrationId && it.observation?.owner?.generation == owner.generation }
+                prepared.removeAll(superseded); superseded.forEach { it.observation = null }
+            }
+            if (type in setOf("text_edit", "scroll")) boundSummaryHostsLocked(owner)
+            if (prepared.size >= 64) return@withInteractionLock null
             PreparedInteraction(InteractionObservation(owner, event, phase, composing)).also { prepared.add(it) }
         }
     }
@@ -172,28 +183,23 @@ internal class InteractionEventRecorder(
         if (!live(owner)) return false
         val localPolicy = buffer.withInteractionLock { if (current(owner)) policy else null } ?: return false
         if (observation.phase !in setOf("change", "end", "submit")) return false
+        val composing = observation.composing || (type == "text_edit" && nativeComposing(owner))
         val input = observation.event.toMutableMap()
         if (type == "text_edit") {
             input["reason"] = JsonPrimitive(if (observation.phase == "change") "idle" else observation.phase)
-            if (observation.composing) input.remove("value")
+            if (composing) input.remove("value")
         }
         val event = InteractionEventSanitizer.sanitize(JsonObject(input), localPolicy,
             owner.liveTestId.takeIf { type != "text_edit" || owner.host?.get() is TextView }) ?: return false
         val now = clock()
         val delay = when (type) { "text_edit" -> 750L; "scroll" -> 200L; "launch" -> if (observation.deferLaunch) 250L else 0L; else -> 0L }
-        val shouldPend = delay != 0L && (observation.phase == "change" || observation.composing)
+        val shouldPend = delay != 0L && (observation.phase == "change" || composing)
         val accepted = buffer.withInteractionLock {
             if (!current(owner) || !buffer.isKindEnabled(InteractionEventSanitizer.kind(type))) return@withInteractionLock false
             pending.removeAll { it.owner.host?.get() === owner.host?.get() && it.event.string("type") == type }
             if (shouldPend) {
-                // A maximum of 32 hosts, even when one host has both text and scroll work.
-                val hosts = pending.mapNotNull { it.owner.host?.get() }.distinct()
-                val view = owner.host?.get()
-                if (view !in hosts && hosts.size >= 32) {
-                    val oldest = pending.firstOrNull { it.owner.host?.get() != null }?.owner?.host?.get()
-                    pending.removeAll { it.owner.host != null && (it.owner.host.get() == null || it.owner.host.get() === oldest) }
-                }
-                pending.add(Pending(owner, event, now + delay, observation.composing))
+                boundSummaryHostsLocked(owner)
+                pending.add(Pending(owner, event, now + delay, composing))
                 true
             } else admitLocked(owner, event, now)
         }
@@ -202,6 +208,17 @@ internal class InteractionEventRecorder(
         return accepted
     }
 
+    /** UI-queued and delayed text/scroll share one host bound; eviction never emits. */
+    private fun boundSummaryHostsLocked(owner: InteractionOwner) {
+        val view = owner.host?.get() ?: return
+        val summaries = prepared.filter { it.observation?.event?.string("type") in setOf("text_edit", "scroll") }
+        val hosts = (pending.mapNotNull { it.owner.host?.get() } + summaries.mapNotNull { it.observation?.owner?.host?.get() }).distinct()
+        if (view in hosts || hosts.size < 32) return
+        val oldest = hosts.first()
+        pending.removeAll { it.owner.host?.get() === oldest }
+        val removed = summaries.filter { it.observation?.owner?.host?.get() === oldest }
+        prepared.removeAll(removed); removed.forEach { it.observation = null }
+    }
     private fun armTimer() {
         val timer = buffer.withInteractionLock {
             if (timerArmed) return@withInteractionLock null
@@ -340,6 +357,10 @@ internal class InteractionEventRecorder(
         if (owner.host == null) return true
         val view = owner.host.get() ?: return false
         return safeHost(view) && runCatching { view.id == owner.hostId && testId(view) == owner.liveTestId }.getOrDefault(false)
+    }
+    private fun nativeComposing(owner: InteractionOwner): Boolean {
+        val text = (owner.host?.get() as? EditText)?.text ?: return false
+        return BaseInputConnection.getComposingSpanStart(text) >= 0 || text.getSpans(0,text.length,Any::class.java).any { text.getSpanFlags(it) and android.text.Spanned.SPAN_COMPOSING != 0 }
     }
     private fun safeHost(view: View): Boolean = Looper.myLooper() == Looper.getMainLooper() && runCatching {
         view.isAttachedToWindow && !InteractionTargetResolver.sensitiveAncestry(view) &&

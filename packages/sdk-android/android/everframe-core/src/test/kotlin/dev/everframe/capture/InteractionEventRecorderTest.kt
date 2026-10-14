@@ -43,6 +43,45 @@ class InteractionEventRecorderTest {
     private fun observe(view: EditText, phase: String = "change", composing: Boolean = false) = recorder.observe(
         InteractionObservation(recorder.owner(view)!!, text(), phase, composing))
 
+    @Test fun preparedAndDelayedSummariesShareThe32HostBound() {
+        val lease = recorder.lease()!!
+        repeat(17) { observe(field()) }
+        val cells = (0 until 16).map { index ->
+            val view = field(); val id = "queued-$index"
+            assertTrue(recorder.register(view,id,1,lease,setOf("text_edit")))
+            recorder.prepare(lease,id,1,"""{"type":"text_edit","source":"app","observedAt":1,"length":6}""")!!
+        }
+        assertEquals(32,recorder.pendingCount + cells.count { it.observation != null })
+    }
+    @Test fun bridgeCannotRetainValuesWithoutCurrentMainThreadPrivacyProof() {
+        val view = field()
+        // Resource IDs provide native identity without relying on annotation normalization.
+        view.id = android.R.id.input
+        recorder.configure(InteractionEventPolicy.parse("""{"valueTestIds":["input"]}""")); val lease = recorder.lease()!!
+        assertTrue(recorder.register(view,"A",1,lease,setOf("text_edit")))
+        val json = """{"type":"text_edit","source":"app","observedAt":1,"length":6,"value":"SECRET","phase":"end"}"""
+        var queued: PreparedInteraction? = null
+        val thread = Thread { queued = recorder.prepare(lease,"A",1,json) }; thread.start(); thread.join()
+        assertFalse(queued?.observation?.event.toString().contains("SECRET"))
+        view.transformationMethod = android.text.method.PasswordTransformationMethod.getInstance()
+        val secure = recorder.prepare(lease,"A",1,json)
+        assertFalse(secure?.observation?.event.toString().contains("SECRET"))
+        if (secure != null) assertFalse(recorder.recordPrepared(secure))
+    }
+    @Test fun helperCannotFlushNativeComposingTextAndQueuedChangesKeepLatest() {
+        val view = field(); val lease = recorder.lease()!!
+        assertTrue(recorder.register(view,"A",1,lease,setOf("text_edit")))
+        view.setText("composing")
+        view.text.setSpan(Any(),0,view.text.length,android.text.Spanned.SPAN_COMPOSING)
+        val json = """{"type":"text_edit","source":"app","observedAt":1,"length":9,"phase":"end"}"""
+        assertTrue(recorder.recordPrepared(recorder.prepare(lease,"A",1,json)!!))
+        recorder.flushReadyForFreeze(); assertEquals(0,buffer.size)
+        view.text.clearSpans()
+        repeat(1000) { index -> recorder.prepare(lease,"A",1,"""{"type":"text_edit","source":"app","observedAt":1,"length":$index}""") }
+        val last = recorder.prepare(lease,"A",1,"""{"type":"text_edit","source":"app","observedAt":1,"length":1000}""")
+        assertNotNull(last); assertTrue(recorder.recordPrepared(last!!)); now = 750; recorder.flushDue()
+        assertEquals(1000,buffer.snapshotForReport().single().data!!["interaction"]!!.jsonObject["length"]!!.jsonPrimitive.int)
+    }
     @Test fun bridgeCapturesSourceAtCallAndClearErasesQueueCell() {
         val view = field(); val lease = recorder.lease()!!
         InteractionTargetScreenState.recordExplicit("Mounted")

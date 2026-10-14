@@ -51,10 +51,15 @@ final class InteractionEventRecorder: @unchecked Sendable {
         guard json.utf8.count <= 8192, let data = json.data(using: .utf8),
               let input = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any], let type = input["type"] as? String else { return nil }
         let sourceScreen = InteractionTargetScreenState.current()
+        // UI inspection stays outside the buffer lock; values never wait in a queue for privacy proof.
+        let candidate = buffer.withInteractionLock { registrations[id]?.owner }
+        let privacyVerified = Thread.isMainThread ? MainActor.assumeIsolated {
+            candidate.map { live($0) && !nativeComposing($0) } ?? false
+        } : false
         return buffer.withInteractionLock {
-            guard enabledLocked(), lease == token, prepared.count < 64 else { return nil }
+            guard enabledLocked(), lease == token else { return nil }
             if type == "launch_context" {
-                guard id.isEmpty, generation == 0,
+                guard id.isEmpty, generation == 0, prepared.count < 64,
                       let previous = pending.first(where: { $0.event["type"] as? String == "launch" && currentLocked($0.owner) && $0.deadline > clock() }),
                       let index = pending.firstIndex(where: { $0 === previous }) else { return nil }
                 var fields = previous.event
@@ -82,8 +87,14 @@ final class InteractionEventRecorder: @unchecked Sendable {
             let composing = interactionBool(input["composing"]) == true
             var fields = input
             if type == "text_edit" { fields["reason"] = phase == "change" ? "idle" : phase; if composing { fields.removeValue(forKey: "value") } }
-            let valueId = type != "text_edit" || owner.host is UITextField || owner.host is UITextView ? owner.liveTestId : nil
+            let valueId = privacyVerified && candidate === registrations[id]?.owner && (type != "text_edit" || owner.host is UITextField || owner.host is UITextView) ? owner.liveTestId : nil
             guard let event = InteractionEventSanitizer.sanitize(fields, policy: policy, liveTestId: valueId) else { return nil }
+            if type == "text_edit", phase == "change" {
+                let superseded = prepared.filter { $0.observation?.phase == "change" && $0.observation?.event["type"] as? String == type && $0.observation?.owner.registrationId == owner.registrationId && $0.observation?.owner.generation == owner.generation }
+                prepared.removeAll { cell in superseded.contains { $0 === cell } }; superseded.forEach { $0.observation = nil }
+            }
+            if ["text_edit", "scroll"].contains(type) { boundSummaryHostsLocked(owner) }
+            guard prepared.count < 64 else { return nil }
             let item = PreparedInteraction(.init(owner: owner, event: event, phase: phase, composing: composing))
             prepared.append(item); return item
         }
@@ -166,29 +177,36 @@ final class InteractionEventRecorder: @unchecked Sendable {
               ["text_edit", "control_change", "scroll"].contains(type) == owner.hasHost,
               live(owner), ["change", "end", "submit"].contains(observation.phase),
               let policy = buffer.withInteractionLock({ currentLocked(owner) ? self.policy : nil }) else { return false }
+        let composing = observation.composing || (type == "text_edit" && nativeComposing(owner))
         var input = observation.event
         if type == "text_edit" {
             input["reason"] = observation.phase == "change" ? "idle" : observation.phase
-            if observation.composing { input.removeValue(forKey: "value") }
+            if composing { input.removeValue(forKey: "value") }
         }
         let valueId = type != "text_edit" || owner.host is UITextField || owner.host is UITextView ? owner.liveTestId : nil
         guard let event = InteractionEventSanitizer.sanitize(input, policy: policy, liveTestId: valueId) else { return false }
         let delay = type == "text_edit" ? 750.0 : type == "scroll" ? 200.0 : type == "launch" && observation.deferLaunch ? 250.0 : 0
-        let shouldPend = delay != 0 && (observation.phase == "change" || observation.composing)
+        let shouldPend = delay != 0 && (observation.phase == "change" || composing)
         let now = clock()
         let result: Bool? = buffer.withInteractionLock {
             guard currentLocked(owner), buffer.interactionKindEnabledLocked(InteractionEventSanitizer.kind(type)) else { return false }
             pending.removeAll { $0.owner.host === owner.host && $0.event["type"] as? String == type }
             guard shouldPend else { return nil }
-            let hosts = Set(pending.compactMap { $0.owner.host.map(ObjectIdentifier.init) })
-            if let host = owner.host, !hosts.contains(ObjectIdentifier(host)), hosts.count >= 32 {
-                let oldest = pending.first(where: { $0.owner.host != nil })?.owner.host
-                pending.removeAll { $0.owner.hasHost && ($0.owner.host == nil || $0.owner.host === oldest) }
-            }
-            pending.append(Pending(owner, event, now + delay, observation.composing)); return true
+            boundSummaryHostsLocked(owner)
+            pending.append(Pending(owner, event, now + delay, composing)); return true
         }
         if result == true { armTimer() }
         return result ?? admit(owner, event: event, now: now)
+    }
+    /// UI-queued and delayed text/scroll share one host bound; eviction never emits.
+    private func boundSummaryHostsLocked(_ owner: InteractionOwner) {
+        guard let host = owner.host else { return }
+        let summaries = prepared.filter { ["text_edit", "scroll"].contains($0.observation?.event["type"] as? String ?? "") }
+        let hosts = pending.compactMap { $0.owner.host } + summaries.compactMap { $0.observation?.owner.host }
+        guard !hosts.contains(where: { $0 === host }), Set(hosts.map(ObjectIdentifier.init)).count >= 32, let oldest = hosts.first else { return }
+        pending.removeAll { $0.owner.host === oldest }
+        let removed = summaries.filter { $0.observation?.owner.host === oldest }
+        prepared.removeAll { cell in removed.contains { $0 === cell } }; removed.forEach { $0.observation = nil }
     }
     private func armTimer() {
         let timer: (String, Double)? = buffer.withInteractionLock {
@@ -311,6 +329,11 @@ final class InteractionEventRecorder: @unchecked Sendable {
         guard owner.hasHost else { return true }
         guard let view = owner.host else { return false }
         return safeHost(view) && view.tag == owner.hostTag && testId(view) == owner.liveTestId
+    }
+    @MainActor private func nativeComposing(_ owner: InteractionOwner) -> Bool {
+        if let field = owner.host as? UITextField { return field.markedTextRange != nil }
+        if let field = owner.host as? UITextView { return field.markedTextRange != nil }
+        return false
     }
     @MainActor private func safeHost(_ view: UIView) -> Bool {
         view.window != nil && !InteractionTargetResolver.sensitiveAncestry(view) &&

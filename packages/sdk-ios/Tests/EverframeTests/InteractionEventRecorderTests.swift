@@ -18,6 +18,46 @@ import Testing
             _ = recorder.observe(.init(owner: owner, event: interactionEvent("text_edit", ["length": 6, "value": "SECRET"]), phase: phase, composing: composing))
         }
     }
+    @Test func preparedAndDelayedSummariesShareThe32HostBound() throws {
+        let f = Fixture(), lease = try #require(f.recorder.lease())
+        for _ in 0..<17 { try f.text(f.field()) }
+        var cells: [PreparedInteraction] = []
+        for index in 0..<16 {
+            let view = f.field(), id = "queued-\(index)"
+            #expect(f.recorder.register(view: view, id: id, generation: 1, lease: lease, types: ["text_edit"]))
+            cells.append(try #require(f.recorder.prepare(lease: lease, id: id, generation: 1, json: #"{"type":"text_edit","source":"app","observedAt":1,"length":6}"#)))
+        }
+        #expect(f.recorder.pendingCount + cells.filter { $0.observation != nil }.count == 32)
+    }
+    @Test func queuedValuesRequireCurrentMainThreadPrivacyProof() async throws {
+        let f = Fixture(), view = f.field(); view.accessibilityIdentifier = "search"
+        f.recorder.configure(.parse(#"{"valueTestIds":["search"]}"#)); let lease = try #require(f.recorder.lease())
+        #expect(f.recorder.register(view: view, id: "A", generation: 1, lease: lease, types: ["text_edit"]))
+        let recorder = f.recorder
+        let json = #"{"type":"text_edit","source":"app","observedAt":1,"length":6,"value":"SECRET","phase":"end"}"#
+        let retained = await Task.detached { String(describing: recorder.prepare(lease: lease, id: "A", generation: 1, json: json)?.observation?.event) }.value
+        #expect(!retained.contains("SECRET"))
+        view.isSecureTextEntry = true
+        let secure = f.recorder.prepare(lease: lease, id: "A", generation: 1, json: json)
+        let secureRetained = String(describing: secure?.observation?.event)
+        #expect(!secureRetained.contains("SECRET"))
+        if let secure { #expect(!f.recorder.recordPrepared(secure)) }
+    }
+    @Test func nativeCompositionAndQueuedBurstCannotProduceIntermediateOrStaleText() throws {
+        let f = Fixture(), view = f.field(), lease = try #require(f.recorder.lease())
+        view.becomeFirstResponder(); view.setMarkedText("composing", selectedRange: NSRange(location: 9, length: 0))
+        #expect(view.markedTextRange != nil)
+        #expect(f.recorder.register(view: view, id: "A", generation: 1, lease: lease, types: ["text_edit"]))
+        let json = #"{"type":"text_edit","source":"app","observedAt":1,"length":9,"phase":"end"}"#
+        let item = try #require(f.recorder.prepare(lease: lease, id: "A", generation: 1, json: json))
+        #expect(f.recorder.recordPrepared(item)); f.recorder.flushReadyForFreeze(); #expect(f.buffer.size == 0)
+        view.unmarkText()
+        for index in 0..<1000 { _ = f.recorder.prepare(lease: lease, id: "A", generation: 1, json: "{\"type\":\"text_edit\",\"source\":\"app\",\"observedAt\":1,\"length\":\(index)}") }
+        let last = try #require(f.recorder.prepare(lease: lease, id: "A", generation: 1, json: #"{"type":"text_edit","source":"app","observedAt":1,"length":1000}"#))
+        #expect(f.recorder.recordPrepared(last)); f.now = 750; f.recorder.flushDue()
+        let event = f.buffer.snapshot().last?.data?["interaction"]?.value as? [String: Any]
+        #expect(interactionNumber(event?["length"]) == 1000)
+    }
     @Test func queuedBridgeObservationsEraseOnRevocationAndOldRuntimeCannotCloseNew() throws {
         let f = Fixture(), first = f.recorder.openRuntime()
         let lease = try #require(f.recorder.lease())
