@@ -1,0 +1,51 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventRecorder.kt
+  s_46e1aa7e76c6a2::t_c45acf70c3710b 44-98,104,107,127,147-153,215-226,232-235,238,240-241,254,346-347,351-357,362
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionEventRecorderTest.kt
+  s_46e1aa7e76c6a2::t_81e0c50702644f 46-71
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventRecorder.swift
+  s_46e1aa7e76c6a2::t_86e3c1beb904c1 38,44-95,100-101,127,142-147,236-246,248,254-256,259,261-262,275,307-311,317-323,328
+packages/sdk-ios/Tests/EverframeTests/InteractionEventRecorderTests.swift
+  s_46e1aa7e76c6a2::t_2bd89627e16d62 21-73
+packages/sdk-react-native/__tests__/rbridge-no-surface.test.ts
+  s_46e1aa7e76c6a2::t_e6e3aaff9b689d 82-85
+packages/sdk-react-native/__tests__/spec-shape.test.ts
+  s_46e1aa7e76c6a2::t_dedefa2c9d541b 23,27,32,34,41,161-172
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_46e1aa7e76c6a2::t_bf1fae7f76df3c 110-114,126-127,331,651,830-838
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/RnInteractionEventObserver.kt
+  s_46e1aa7e76c6a2::t_d5542a3afdb005 20,32,63-64
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/RnInteractionEventRegistration.kt
+  s_46e1aa7e76c6a2::t_aa5fca03e41f23 1-100
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/InteractionEventBridgeTest.kt
+  s_46e1aa7e76c6a2::t_f259187c8418a1 1-112
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_46e1aa7e76c6a2::t_14247486aef519 74-75,87
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_46e1aa7e76c6a2::t_d3fdc7779d4555 77,82-95,117,138,269,324-339,481
+packages/sdk-react-native/ios/Sources/RnInteractionEventRegistration.swift
+  s_46e1aa7e76c6a2::t_a74b7a7aa7b791 1-102
+packages/sdk-react-native/ios/Tests/InteractionEventBridgeTests.swift
+  s_46e1aa7e76c6a2::t_de178df7ad50ac 1-62
+packages/sdk-react-native/ios/Tests/InteractionObserverTests.swift
+  s_46e1aa7e76c6a2::t_0b1675f473e323 1-36
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_46e1aa7e76c6a2::t_f3f5a3df7d9c8e 108-109,292-302
+packages/sdk-react-native/vitest.setup.ts
+  s_46e1aa7e76c6a2::t_732400122930a7 26-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "28d4209ccd1683d385b8c8cab8f9b1198b95fa17",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
