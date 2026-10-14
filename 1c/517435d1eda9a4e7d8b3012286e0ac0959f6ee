@@ -1,0 +1,37 @@
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventRecorder.swift
+  s_46e1aa7e76c6a2::t_f0f533edab6c2b 28-29,37-39,41,209,226,247,255-257,260-267
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionTextAdapterTest.kt
+  s_46e1aa7e76c6a2::t_2daa7c34e2a8a1 68,77-112
+  s_46e1aa7e76c6a2::t_d30a0d5d1eb367 8,47-67
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionTextAdapter.kt
+  s_46e1aa7e76c6a2::t_77ea83109b7850 21
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnInteractionEventObserverTest.kt
+  s_46e1aa7e76c6a2::t_176a0ad7a72ddc 8,94-106
+  s_46e1aa7e76c6a2::t_4b7f03194fcbde 107
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventRecorder.kt
+  s_46e1aa7e76c6a2::t_77ea83109b7850 37-38,47-48,209,232,323,333-335,337-346
+packages/sdk-react-native/README.md
+  s_46e1aa7e76c6a2::t_176a0ad7a72ddc 970-975
+packages/sdk-ios/Tests/EverframeTests/InteractionTextAdapterTests.swift
+  s_46e1aa7e76c6a2::t_0e1b6862f91776 64,68-70,72-73
+  s_46e1aa7e76c6a2::t_d30a0d5d1eb367 35-53
+  s_46e1aa7e76c6a2::t_2daa7c34e2a8a1 65-67,71,74-89
+packages/sdk-ios/Sources/Everframe/Capture/InteractionTextAdapter.swift
+  s_46e1aa7e76c6a2::t_f0f533edab6c2b 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1c517435d1eda9a4e7d8b3012286e0ac0959f6ee",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
