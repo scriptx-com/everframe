@@ -1,0 +1,79 @@
+packages/cli/README.md
+  s_9f07b45163d76f::t_e594a9fe6a642e 374-397
+packages/cli/__tests__/apple-command.spec.ts
+  s_7cc24f3632eed5::t_098a04d9441c7f 101-103,107
+packages/cli/__tests__/apple-upload.spec.ts
+  s_9f07b45163d76f::t_282a54e267a5f1 274-307
+packages/cli/__tests__/elf-upload-build.spec.ts
+  s_9f07b45163d76f::t_71b639ae042e93 282-315
+packages/cli/__tests__/hermes.spec.ts
+  s_7cc24f3632eed5::t_7ca738a1e09676 202-203,224
+packages/cli/__tests__/provenance-command.spec.ts
+  s_9f07b45163d76f::t_77a837811e995e 1-66
+packages/cli/__tests__/staged-provenance.spec.ts
+  s_9f07b45163d76f::t_8cc3c8ad10eff5 1-103
+packages/cli/package.json
+  s_7cc24f3632eed5::t_b35e7a9f6fbb7c 67-68
+packages/cli/src/apple-command.ts
+  s_7cc24f3632eed5::t_dd12bf5dda1cef 3,49,118-122
+packages/cli/src/apple-upload.ts
+  s_7cc24f3632eed5::t_953364b3e6feac 3,41,69
+packages/cli/src/dsym.ts
+  s_7cc24f3632eed5::t_e52780daf2b1e9 3,12,45
+packages/cli/src/elf-command.ts
+  s_7cc24f3632eed5::t_e99ca170c71868 3,48,106-110
+packages/cli/src/elf-upload.ts
+  s_7cc24f3632eed5::t_8954637de301de 3,16,44
+packages/cli/src/elf.ts
+  s_7cc24f3632eed5::t_8f3a2edb23a0b5 3,12,45
+packages/cli/src/expo-export.ts
+  s_7cc24f3632eed5::t_aa61ca5abd15a6 36
+packages/cli/src/hermes.ts
+  s_7cc24f3632eed5::t_a11c42583feacc 5,10,66
+packages/cli/src/index.ts
+  s_7cc24f3632eed5::t_e4fc034cff7a0c 3,67-68,209,225,312,326-333,359,373-380,398,415-423,483,524,548-552
+packages/cli/src/r8.ts
+  s_7cc24f3632eed5::t_2476942273562f 3,10,31
+packages/cli/src/staged-upload.ts
+  s_7cc24f3632eed5::t_c4469e3a5f4755 3,12,31
+packages/cli/tsup.config.ts
+  s_7cc24f3632eed5::t_5362f3c3cea678 17,22
+packages/expo/README.md
+  s_9f07b45163d76f::t_fe76e10ae0b4d6 107-130
+packages/metro/README.md
+  s_9f07b45163d76f::t_d1693f969b3fea 37-60
+packages/metro/__tests__/with-everframe.spec.ts
+  s_9f07b45163d76f::t_c9956259502034 130-164
+packages/metro/package.json
+  s_7cc24f3632eed5::t_a7d01de787e8f2 44-45
+packages/metro/src/index.ts
+  s_9f07b45163d76f::t_1c10753dede4c2 3,18-19,39-42,51,59
+packages/metro/tsup.config.ts
+  s_7cc24f3632eed5::t_ef133f76fdcc58 10,15
+pnpm-lock.yaml
+  s_7cc24f3632eed5::t_aa5f97f378c2e7 1-2,395-397,449-451
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c5c444ee8f96559ab242ab14e6ba4c7a8637d50a",
+  "prompts": {},
+  "sessions": {
+    "s_7cc24f3632eed5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a0c-b3ea-7772-8e51-05eec0b284d9",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_9f07b45163d76f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a17-43ef-7a40-a52a-38d4dd907381",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
