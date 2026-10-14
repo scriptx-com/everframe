@@ -1,0 +1,21 @@
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRuntime.swift
+  s_7cc24f3632eed5::t_40407b52c365f3 37-51,131-151,153,170-183,213,256,261,265-266,275,282
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRuntimeTests.swift
+  s_7cc24f3632eed5::t_c9133e452cb384 22-24,97-130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c2834503faae86b3d5e35d33db7922f680219eb8",
+  "prompts": {},
+  "sessions": {
+    "s_7cc24f3632eed5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a0c-b3ea-7772-8e51-05eec0b284d9",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
