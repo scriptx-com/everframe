@@ -1,0 +1,72 @@
+packages/sdk-react-native/__tests__/interaction-launch.spec.ts
+  s_46e1aa7e76c6a2::t_0adc640dcae45f 1-21
+  s_46e1aa7e76c6a2::t_9bda678b0e812a 22-57
+packages/sdk-react-native/__tests__/interaction-links.spec.ts
+  s_46e1aa7e76c6a2::t_0adc640dcae45f 1-45
+  s_46e1aa7e76c6a2::t_9bcb9c422d4e9b 46-129
+packages/sdk-react-native/__tests__/interaction-permissions.spec.ts
+  s_46e1aa7e76c6a2::t_0adc640dcae45f 1-48
+  s_46e1aa7e76c6a2::t_c86890062118c1 49-108
+packages/sdk-android/android/everframe-core/build.gradle.kts
+  s_46e1aa7e76c6a2::t_9a4da663f2ec00 239
+packages/sdk-android/android/everframe-core/src/main/AndroidManifest.xml
+  s_46e1aa7e76c6a2::t_7bfbec9824db5d 9-10,12-17
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventRecorder.kt
+  s_46e1aa7e76c6a2::t_8274b7d8d97749 34,61-69,71,107,183,193-194,293-296
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventSanitizer.kt
+  s_46e1aa7e76c6a2::t_049d7703abbe0a 8-10,42,156-158,160,164-165,167,177-191
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionLaunchAdapter.kt
+  s_46e1aa7e76c6a2::t_b7fb1363c2a60e 20,27,37,41,44,46
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionProcessInitializer.kt
+  s_46e1aa7e76c6a2::t_d843380eccadae 1-32
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionEventSanitizerTest.kt
+  s_46e1aa7e76c6a2::t_42c6feeac4a2a5 22-28
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionLaunchAdapterTest.kt
+  s_46e1aa7e76c6a2::t_ef0723c0bbfc10 14-35,38,40,43,48
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionProcessInitializerTest.kt
+  s_46e1aa7e76c6a2::t_d5a0d7305700ae 1-27
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventRecorder.swift
+  s_46e1aa7e76c6a2::t_e3109539ee3e32 27,56-67,69,107,176,185-186,211-214
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventSanitizer.swift
+  s_46e1aa7e76c6a2::t_8020d787626836 31,123,126-130,132,140-141
+packages/sdk-ios/Sources/Everframe/Capture/InteractionLaunchAdapter.swift
+  s_46e1aa7e76c6a2::t_a4eca798ba350d 35,37
+packages/sdk-ios/Tests/EverframeTests/InteractionEventSanitizerTests.swift
+  s_46e1aa7e76c6a2::t_3a73cc0527ddd9 13-18
+packages/sdk-ios/Tests/EverframeTests/InteractionLaunchAdapterTests.swift
+  s_46e1aa7e76c6a2::t_b0f0ad02bbba02 9-26,31,34,38,44
+packages/sdk-react-native/README.md
+  s_46e1aa7e76c6a2::t_70617b5939b65d 973-994
+packages/sdk-react-native/src/index.ts
+  s_46e1aa7e76c6a2::t_7206df8506bc08 128-130
+packages/sdk-react-native/src/index.web.ts
+  s_46e1aa7e76c6a2::t_30a9c92577affc 84-96
+packages/sdk-react-native/src/interactions/launch.ts
+  s_46e1aa7e76c6a2::t_be877839927912 1-43
+packages/sdk-react-native/src/interactions/links.ts
+  s_46e1aa7e76c6a2::t_c1029e82cecfdc 1-118
+packages/sdk-react-native/src/interactions/operation.ts
+  s_46e1aa7e76c6a2::t_629991dcf924fc 1-64
+packages/sdk-react-native/src/interactions/permissions.ts
+  s_46e1aa7e76c6a2::t_abd641916a80cb 1-57
+packages/sdk-react-native/src/runtime.ts
+  s_46e1aa7e76c6a2::t_e45f3ccafa821a 1,690-693
+packages/sdk-react-native/vitest.setup.ts
+  s_46e1aa7e76c6a2::t_08c09e681ef209 53-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "09cea0f572940403b50f4ff3f4cef0c365403129",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
