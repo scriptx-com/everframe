@@ -1,0 +1,33 @@
+packages/sdk-ios/Sources/Everframe/Capture/InteractionScrollAdapter.swift
+  s_46e1aa7e76c6a2::t_95b1b72b813807 49-50
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbTapNavAdapters.swift
+  s_46e1aa7e76c6a2::t_aa069372ff6eaf 128-129,546
+packages/sdk-ios/Tests/EverframeTests/InteractionScrollAdapterTests.swift
+  s_46e1aa7e76c6a2::t_2161b5253d62bf 9-14
+packages/sdk-ios/Sources/Everframe/Capture/InteractionControlAdapter.swift
+  s_46e1aa7e76c6a2::t_aa069372ff6eaf 8,15-36,39-65,73-120,129
+  s_46e1aa7e76c6a2::t_eee7a34b203ff3 66-72
+packages/sdk-ios/Tests/EverframeTests/InteractionControlAdapterTests.swift
+  s_46e1aa7e76c6a2::t_2c3fcdf7426c05 59-70
+  s_46e1aa7e76c6a2::t_8a9c3b46e49eb1 10-58
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventRecorder.swift
+  s_46e1aa7e76c6a2::t_eee7a34b203ff3 130-137
+examples/react-native/src/fixtures/InteractionEvents.tsx
+  s_46e1aa7e76c6a2::t_d1a4b9a6b0a58d 85-91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4b9ba523253afed27e5f3679dd996d9e882b326f",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
