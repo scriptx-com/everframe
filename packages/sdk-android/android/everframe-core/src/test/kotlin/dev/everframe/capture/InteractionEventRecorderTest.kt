@@ -43,6 +43,32 @@ class InteractionEventRecorderTest {
     private fun observe(view: EditText, phase: String = "change", composing: Boolean = false) = recorder.observe(
         InteractionObservation(recorder.owner(view)!!, text(), phase, composing))
 
+    @Test fun bridgeCapturesSourceAtCallAndClearErasesQueueCell() {
+        val view = field(); val lease = recorder.lease()!!
+        InteractionTargetScreenState.recordExplicit("Mounted")
+        assertTrue(recorder.register(view,"A",1,lease,setOf("text_edit")))
+        InteractionTargetScreenState.recordExplicit("Source")
+        val json = """{"type":"text_edit","source":"app","observedAt":1,"length":6,"phase":"end"}"""
+        val item = recorder.prepare(lease,"A",1,json)!!
+        InteractionTargetScreenState.recordExplicit("Destination")
+        assertTrue(recorder.recordPrepared(item))
+        assertEquals(JsonPrimitive("Source"),(buffer.snapshotForReport().last().data!!["target"] as JsonObject)["screen"])
+        val queued = recorder.prepare(lease,"A",1,json)!!
+        assertTrue(recorder.clearRegistration("A",2)); assertNull(queued.observation)
+        InteractionTargetScreenState.reset()
+    }
+    @Test fun observerMetadataHasSeparateOwnershipAndCannotGrantValuePermission() {
+        val view = field(); recorder.configure(InteractionEventPolicy.parse("""{"valueTestIds":["allowed"]}""")); val lease = recorder.lease()!!
+        val options = """{"target":{"name":"Search control","testId":"allowed","screen":"forged"},"helperTypes":[]}"""
+        assertTrue(recorder.beginRegistration("A",1,lease,options))
+        assertTrue(recorder.completeRegistration(view,"A",1,lease,emptySet()))
+        val owner = recorder.owner(view)!!
+        assertEquals(JsonPrimitive("Search control"),owner.target!!["name"])
+        assertNotEquals(JsonPrimitive("forged"),owner.target["screen"])
+        assertFalse(recorder.allowsValue(owner,"text_edit"))
+        assertTrue(recorder.clearRegistration("A",2))
+        assertNotEquals(JsonPrimitive("Search control"),recorder.owner(view)!!.target!!["name"])
+    }
     @Test fun thirtyThirdPendingHostEvictsWithoutEmission() {
         repeat(33) { observe(field()) }
         assertEquals(32, recorder.pendingCount)

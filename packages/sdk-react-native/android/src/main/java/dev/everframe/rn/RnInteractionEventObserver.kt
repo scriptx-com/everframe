@@ -17,7 +17,7 @@ import dev.everframe.capture.InteractionControlAdapter
 import dev.everframe.capture.InteractionScrollAdapter
 
 /** Observes before JS dispatch. Never reads protected event payloads or replaces app callbacks. */
-internal class RnInteractionEventObserver(private val resolve: (Int, Int) -> View?) : EventDispatcherListener, AutoCloseable {
+internal class RnInteractionEventObserver(private val resolve: (Int, Int) -> View?, private val active: () -> Boolean = { true }) : EventDispatcherListener, AutoCloseable {
     private var dispatcher: EventDispatcher? = null
     @Volatile private var closed = false
     fun attach(value: EventDispatcher) {
@@ -29,7 +29,7 @@ internal class RnInteractionEventObserver(private val resolve: (Int, Int) -> Vie
     }
     override fun onEventDispatch(event: Event<*>) {
         // Queuing an event would acquire ownership after a possible clear and retain raw payload.
-        if (closed || Looper.myLooper() != Looper.getMainLooper()) return
+        if (closed || !active() || Looper.myLooper() != Looper.getMainLooper()) return
         runCatching {
             val name = event.getEventName()
             if (name !in names) return
@@ -60,8 +60,8 @@ internal class RnInteractionEventObserver(private val resolve: (Int, Int) -> Vie
     companion object {
         private val names = setOf("topChange", "topEndEditing", "topSubmitEditing", "topScrollBeginDrag", "topScroll", "topScrollEndDrag", "topMomentumScrollEnd")
         private val scrollHosts = setOf("com.facebook.react.views.scroll.ReactScrollView", "com.facebook.react.views.scroll.ReactHorizontalScrollView")
-        fun install(context: ReactApplicationContext): RnInteractionEventObserver {
-            val observer = RnInteractionEventObserver { tag, _ -> UIManagerHelper.getUIManagerForReactTag(context, tag)?.resolveView(tag) }
+        fun install(context: ReactApplicationContext, active: () -> Boolean): RnInteractionEventObserver {
+            val observer = RnInteractionEventObserver({ tag, _ -> UIManagerHelper.getUIManagerForReactTag(context, tag)?.resolveView(tag) }, active)
             observer.refresh(context)
             return observer
         }

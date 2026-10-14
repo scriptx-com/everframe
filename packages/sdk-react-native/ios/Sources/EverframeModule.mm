@@ -74,9 +74,24 @@
 @implementation RCTViewComponentView (EverframeInteractionTarget)
 - (void)ef_target_prepareForRecycle {
   [RnInteractionTargetRegistration invalidateView:self];
+  [RnInteractionEventRegistration invalidateView:self];
   [self ef_target_prepareForRecycle];
 }
 @end
+
+// Fabric exposes the native TextInput/Switch accessibility element publicly.
+// Never reach into component-private ivars or replace their delegates.
+static UIView *EFInteractionHost(UIView *view) {
+  if ([view isKindOfClass:RCTViewComponentView.class]) {
+    NSObject *element = [(RCTViewComponentView *)view accessibilityElement];
+    if ([element isKindOfClass:UITextField.class] || [element isKindOfClass:UITextView.class]
+#if !TARGET_OS_TV
+        || [element isKindOfClass:UISwitch.class] || [element isKindOfClass:UISlider.class]
+#endif
+        || [element isKindOfClass:UIScrollView.class]) return (UIView *)element;
+  }
+  return view;
+}
 
 static NSDictionary *EFInteractionHints(UIView *view) {
   if (![view isKindOfClass:RCTViewComponentView.class]) return nil;
@@ -99,6 +114,7 @@ static NSDictionary *EFInteractionHints(UIView *view) {
   // module has always held its registry as an instance field; this matches it.
   RemoteVitalsBridge *_vitals;
   RnInteractionTargetRegistration *_interactionTargets;
+  RnInteractionEventRegistration *_interactionEvents;
   // D1 fix (stale-teardown identity guard, spec 2026-09-17 setExtra-resolver).
   // Snapshot of `[EverframeBridge currentExtraResolveHookGeneration]` taken
   // right after THIS instance's most recent `-configureSync:` call — see
@@ -119,6 +135,7 @@ RCT_EXPORT_MODULE(Everframe)
     // Cheap: the registry allocates one lock and an empty map, nothing more —
     // which is also why `+requiresMainQueueSetup` can stay NO.
     _vitals = [RemoteVitalsBridge new];
+    _interactionEvents = [RnInteractionEventRegistration new];
     _interactionTargets = [RnInteractionTargetRegistration new];
     [_interactionTargets installAdapter:^NSDictionary *(UIView *view) { return EFInteractionHints(view); }];
     static dispatch_once_t once;
@@ -249,6 +266,7 @@ RCT_EXPORT_MODULE(Everframe)
                      jsBundleBuildId:opts.jsBundleBuildId()
                         jsBundleName:opts.jsBundleName()
                     reporterDisabled:reporterDisabled
+                    interactionsJson:opts.interactionsJson()
                                error:&err];
   if (err != nil) {
     // A refused configuration is logged; JS keeps its mount either way.
@@ -301,6 +319,22 @@ RCT_EXPORT_MODULE(Everframe)
 
 - (NSNumber *)clearInteractionTarget:(NSString *)registrationId generation:(double)generation {
   return @([_interactionTargets clearTarget:registrationId generation:generation]);
+}
+
+- (NSString *)getInteractionLease { return [_interactionEvents lease]; }
+- (NSNumber *)setInteractionObserver:(double)viewTag id:(NSString *)identifier generation:(double)generation
+                               lease:(NSString *)lease optionsJson:(NSString *)optionsJson {
+  __weak RCTViewRegistry *registry = _viewRegistry_DEPRECATED;
+  return @([_interactionEvents setObserver:viewTag id:identifier generation:generation lease:lease optionsJson:optionsJson
+    resolve:^UIView *(NSNumber *tag) {
+      @try { return [registry viewForReactTag:tag]; } @catch (NSException *exception) { return nil; }
+    } host:^UIView *(UIView *view) { return EFInteractionHost(view); }]);
+}
+- (NSNumber *)clearInteractionObserver:(NSString *)identifier generation:(double)generation {
+  return @([_interactionEvents clearObserver:identifier generation:generation]);
+}
+- (NSNumber *)recordInteraction:(NSString *)lease id:(NSString *)identifier generation:(double)generation eventJson:(NSString *)eventJson {
+  return @([_interactionEvents record:lease id:identifier generation:generation eventJson:eventJson]);
 }
 
 // MARK: - registerSensitiveRect(viewTag, rect)
@@ -444,6 +478,7 @@ RCT_EXPORT_MODULE(Everframe)
 // Provider's configure-on-mount, so clearing there would drop legitimate
 // registrations that had already landed.
 - (void)invalidate {
+  [_interactionEvents close];
   [_interactionTargets close];
   [_vitals reset];
   // Review finding F4 (spec 2026-09-17 setExtra-resolver) — see

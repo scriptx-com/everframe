@@ -20,21 +20,25 @@ import {
 import type { Spec, ConfigOpts } from '../src/NativeEverframe.js';
 
 describe('NativeEverframe TurboModule spec (post D-05/D-07 flip)', () => {
-  it('exposes exactly the 20 locked methods — no more, no fewer', () => {
+  it('exposes exactly the 24 locked methods — no more, no fewer', () => {
     expect(Object.keys(NativeEverframe).sort()).toEqual([
       'addBreadcrumb',
       'captureHandledException',
+      'clearInteractionObserver',
       'clearInteractionTarget',
       'clearStateSync',
       'configureSync',
       'detachPlayer',
+      'getInteractionLease',
       'openReporter',
+      'recordInteraction',
       'recordPlayerEvent',
       'recordScreen',
       'registerSensitiveRect',
       'reportCrash',
       'setExtra',
       'setExtraResolverActive',
+      'setInteractionObserver',
       'setInteractionTarget',
       'setStateSync',
       'setUser',
@@ -153,4 +157,16 @@ it('interaction target ownership methods are synchronous booleans', () => {
   expectTypeOf<Spec['setInteractionTarget']>().returns.toEqualTypeOf<boolean>();
   expectTypeOf<Spec['clearInteractionTarget']>().parameters.toEqualTypeOf<[string, number]>();
   expectTypeOf<Spec['clearInteractionTarget']>().returns.toEqualTypeOf<boolean>();
+});
+
+it('interaction observation bridge has explicit revocable ownership', () => {
+  expectTypeOf<Spec['getInteractionLease']>().returns.toEqualTypeOf<string>();
+  expectTypeOf<Spec['setInteractionObserver']>().parameters.toEqualTypeOf<
+    [number, string, number, string, string]
+  >();
+  expectTypeOf<Spec['clearInteractionObserver']>().parameters.toEqualTypeOf<[string, number]>();
+  expectTypeOf<Spec['recordInteraction']>().parameters.toEqualTypeOf<
+    [string, string, number, string]
+  >();
+  expectTypeOf<ConfigOpts['interactionsJson']>().toEqualTypeOf<string | undefined>();
 });

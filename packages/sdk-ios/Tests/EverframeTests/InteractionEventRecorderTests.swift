@@ -18,6 +18,59 @@ import Testing
             _ = recorder.observe(.init(owner: owner, event: interactionEvent("text_edit", ["length": 6, "value": "SECRET"]), phase: phase, composing: composing))
         }
     }
+    @Test func queuedBridgeObservationsEraseOnRevocationAndOldRuntimeCannotCloseNew() throws {
+        let f = Fixture(), first = f.recorder.openRuntime()
+        let lease = try #require(f.recorder.lease())
+        let json = #"{"type":"permission","source":"app","observedAt":1,"permission":"camera","phase":"result","result":"granted"}"#
+        let item = try #require(f.recorder.prepare(lease: lease, id: "", generation: 0, json: json))
+        f.buffer.clear()
+        #expect(item.observation == nil); #expect(!f.recorder.recordPrepared(item))
+        #expect(f.recorder.prepare(lease: lease, id: "", generation: 0, json: json) == nil)
+        let second = f.recorder.openRuntime(), next = try #require(f.recorder.lease())
+        f.recorder.closeRuntime(first); #expect(f.recorder.ownsRuntime(second)); #expect(f.recorder.lease() == next)
+        let fresh = try #require(f.recorder.prepare(lease: next, id: "", generation: 0, json: json))
+        #expect(f.recorder.recordPrepared(fresh)); #expect(f.buffer.size == 1)
+    }
+    @Test func bridgeQueueRequiresHelperOwnershipAndDoesNotRetainUnallowedValues() throws {
+        let f = Fixture(), view = f.field(), lease = try #require(f.recorder.lease())
+        #expect(f.recorder.register(view: view, id: "A", generation: 1, lease: lease, types: ["text_edit"]))
+        let json = #"{"type":"text_edit","source":"app","observedAt":1,"length":6,"value":"SECRET","phase":"end"}"#
+        let item = try #require(f.recorder.prepare(lease: lease, id: "A", generation: 1, json: json))
+        let retained = String(describing: item.observation?.event)
+        #expect(!retained.contains("SECRET"))
+        #expect(f.recorder.prepare(lease: lease, id: "", generation: 0, json: json) == nil)
+        #expect(f.recorder.prepare(lease: lease, id: "A", generation: 1, json: String(repeating: "x", count: 8193)) == nil)
+        view.isSecureTextEntry = true
+        #expect(!f.recorder.recordPrepared(item)); #expect(f.buffer.size == 0)
+    }
+    @Test func bridgeCapturesSourceScreenWhenCalledAndClearErasesQueuedValue() throws {
+        let f = Fixture(), view = f.field(), lease = try #require(f.recorder.lease())
+        InteractionTargetScreenState.recordExplicit("Mounted")
+        #expect(f.recorder.register(view: view, id: "A", generation: 1, lease: lease, types: ["text_edit"]))
+        InteractionTargetScreenState.recordExplicit("Source")
+        let json = #"{"type":"text_edit","source":"app","observedAt":1,"length":6,"phase":"end"}"#
+        let item = try #require(f.recorder.prepare(lease: lease, id: "A", generation: 1, json: json))
+        InteractionTargetScreenState.recordExplicit("Destination")
+        #expect(f.recorder.recordPrepared(item))
+        let target = f.buffer.snapshot().last?.data?["target"]?.value as? [String: Any]
+        #expect(target?["screen"] as? String == "Source")
+        let queued = try #require(f.recorder.prepare(lease: lease, id: "A", generation: 1, json: json))
+        #expect(f.recorder.clearRegistration(id: "A", generation: 2)); #expect(queued.observation == nil)
+        InteractionTargetScreenState.reset()
+    }
+    @Test func observerMetadataBelongsToItsRegistrationAndNeverGrantsValuePermission() throws {
+        let f = Fixture(), view = f.field()
+        f.recorder.configure(.parse(#"{"valueTestIds":["allowed"]}"#)); let lease = try #require(f.recorder.lease())
+        let options = #"{"target":{"name":"Search control","testId":"allowed","screen":"forged"},"helperTypes":[]}"#
+        #expect(f.recorder.beginRegistration(id: "A", generation: 1, lease: lease, optionsJson: options))
+        #expect(f.recorder.completeRegistration(view: view, id: "A", generation: 1, lease: lease, types: []))
+        let owner = try #require(f.recorder.owner(view: view))
+        #expect(owner.target?["name"] as? String == "Search control")
+        #expect(owner.target?["screen"] as? String != "forged")
+        #expect(!f.recorder.allowsValue(owner, type: "text_edit"))
+        #expect(f.recorder.clearRegistration(id: "A", generation: 2))
+        #expect(f.recorder.owner(view: view)?.target?["name"] as? String != "Search control")
+    }
     @Test func pendingPressureEvictsWithoutEmission() throws {
         let f = Fixture()
         for _ in 0..<33 { try f.text(f.field()) }
