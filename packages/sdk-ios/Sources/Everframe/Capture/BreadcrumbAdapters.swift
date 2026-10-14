@@ -286,6 +286,10 @@ enum BreadcrumbAdapters {
     static func install() {
         #if canImport(UIKit)
         LifecycleBreadcrumbObserver.shared.install()
+        Task { @MainActor in
+            InteractionTextAdapter.shared.install()
+            InteractionLaunchAdapter.shared.install()
+        }
         #endif
         // Native fatal recording must never chain a Swift callback that locks
         // or allocates after other threads are suspended. Healthy handled-error

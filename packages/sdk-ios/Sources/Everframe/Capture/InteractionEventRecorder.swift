@@ -47,6 +47,8 @@ final class InteractionEventRecorder: @unchecked Sendable {
     private var hostTimes: [ObjectIdentifier: HostTime] = [:]
     private var registrations: [String: Registration] = [:], generations: [String: UInt64] = [:], pendingRegistrations: [String: UInt64] = [:]
     private var registrationOverflow = false, timerArmed = false
+    private var revocationListeners: [() -> Void] = []
+    func onRevoked(_ listener: @escaping () -> Void) { buffer.withInteractionLock { revocationListeners.append(listener) } }
 
     init(buffer: BreadcrumbRingBuffer, clock: @escaping () -> Double = { ProcessInfo.processInfo.systemUptime * 1000 },
          schedule: @escaping (Double, @escaping () -> Void) -> Void = { delay, action in DispatchQueue.main.asyncAfter(deadline: .now() + delay / 1000, execute: action) }) {
@@ -71,6 +73,7 @@ final class InteractionEventRecorder: @unchecked Sendable {
         token = UUID().uuidString
         pending.removeAll(); semanticTimes.removeAll(); lifecycleTimes.removeAll(); hostTimes.removeAll()
         registrations.removeAll(); generations.removeAll(); pendingRegistrations.removeAll(); registrationOverflow = false; timerArmed = false
+        revocationListeners.forEach { $0() }
     }
     @MainActor func owner(view: UIView? = nil, lease requested: String? = nil) -> InteractionOwner? {
         let lease = requested ?? self.lease()
@@ -131,6 +134,7 @@ final class InteractionEventRecorder: @unchecked Sendable {
         guard let item = buffer.withInteractionLock({ pending.first { $0.owner.host === host && $0.event["type"] as? String == type } }) else { return }
         flush(item, reason: reason)
     }
+    func cancel(host: UIView, type: String) { buffer.withInteractionLock { pending.removeAll { $0.owner.host === host && $0.event["type"] as? String == type } } }
     @MainActor func flushDue() {
         let now = clock(), ready = buffer.withInteractionLock { pending.filter { $0.deadline <= clock() } }
         for item in ready { flush(item, reason: "idle", now: now) }
