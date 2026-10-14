@@ -13,7 +13,13 @@ import { EverframeProvider } from '@everframe/react-native';
 import InteractionTargetsFixture from './src/fixtures/InteractionTargets';
 
 // Explicit local-validation entry; no credentials or destination are baked into the fixture.
-const Root = __DEV__ && process.env.EXPO_PUBLIC_EVERFRAME_TARGET_FIXTURE === '1'
-  ? () => React.createElement(EverframeProvider, {config:{sdkKey:process.env.EXPO_PUBLIC_EVERFRAME_KEY ?? ''}}, React.createElement(InteractionTargetsFixture))
-  : App;
+const Root =
+  __DEV__ && process.env.EXPO_PUBLIC_EVERFRAME_TARGET_FIXTURE === '1'
+    ? () =>
+        React.createElement(
+          EverframeProvider,
+          { config: { sdkKey: process.env.EXPO_PUBLIC_EVERFRAME_KEY ?? '' } },
+          React.createElement(InteractionTargetsFixture),
+        )
+    : App;
 registerRootComponent(Root);

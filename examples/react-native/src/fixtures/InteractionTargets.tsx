@@ -22,7 +22,7 @@ export default function InteractionTargetsFixture() {
     <Pressable testID="target-fixture-replace" onPress={()=>setVersion(v=>v+1)}><Text>Replace host</Text></Pressable>
     <Pressable testID="target-fixture-toggle" onPress={()=>setEnabled(v=>!v)}><Text>Annotations {enabled?'on':'off'}</Text></Pressable>
     <EverframeSensitive><Pressable testID="target-fixture-masked" accessibilityLabel="SECRET-FIXTURE" onPress={()=>setPresses(n=>n+1)}><Text>Masked control</Text></Pressable></EverframeSensitive>
-    <Pressable testID="target-fixture-capture" onPress={()=>everframe.captureException(new Error(`target-fixture-${updated?'updated':'initial'}-${enabled?'on':'off'}`))}><Text>Capture evidence</Text></Pressable>
+    <Pressable testID="target-fixture-capture" onPress={()=>{ everframe.captureException(new Error(`target-fixture-${updated?'updated':'initial'}-${enabled?'on':'off'}`)); console.log('target-fixture-admission',JSON.stringify({js:everframe.getErrorCaptureStatus(),native:everframe.getReportDeliveryStatus()})); }}><Text>Capture evidence</Text></Pressable>
     <Text>Press count: {presses}; container: {updated?'Continue':'Originals'}</Text>
   </View>;
 }

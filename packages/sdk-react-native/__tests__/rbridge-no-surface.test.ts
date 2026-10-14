@@ -72,10 +72,13 @@ describe('RBRIDGE-01: no new JS replay/config/ingest surface on the bridge', () 
       });
     }
 
-    it('declares exactly the 17 locked report methods and no other non-companion report method', () => {
+    it('declares exactly the 19 locked report methods and no other non-companion report method', () => {
       const REPORT_METHODS = [
         'openReporter',
         'registerSensitiveRect',
+        // Interaction target metadata: synchronous ref ownership, no replay controls.
+        'setInteractionTarget',
+        'clearInteractionTarget',
         'setExtra',
         // Spec 2026-09-17 setExtra-resolver — the 11th D-decision, and this
         // test's whole reason to exist: two NEW report methods added
