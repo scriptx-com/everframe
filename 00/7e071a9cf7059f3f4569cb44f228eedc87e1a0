@@ -1,0 +1,35 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionScrollAdapter.kt
+  s_46e1aa7e76c6a2::t_89a78f6b6752ae 74-79
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionScrollAdapterTest.kt
+  s_46e1aa7e76c6a2::t_16fbf347bd8bbf 27-36
+packages/sdk-react-native/__tests__/capture-exception.test.tsx
+  s_46e1aa7e76c6a2::t_b26d4b4034b5da 103-104,106
+packages/sdk-react-native/__tests__/extra-resolver-degrade.spec.ts
+  s_46e1aa7e76c6a2::t_9cd8720d66490b 56
+packages/sdk-react-native/__tests__/extra-resolver.spec.ts
+  s_46e1aa7e76c6a2::t_3d3b19eec5b5d2 70
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/RnInteractionEventRegistration.kt
+  s_46e1aa7e76c6a2::t_c8451a99f0a464 7,24-26,85,88-92,95-119,121-123
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/InteractionEventBridgeTest.kt
+  s_46e1aa7e76c6a2::t_39666c98b5bc23 44-61
+packages/sdk-react-native/ios/Sources/RnInteractionEventRegistration.swift
+  s_46e1aa7e76c6a2::t_8740c9ed72554d 20-25,43-49,95,98-117,119,121,123-124,128-130
+packages/sdk-react-native/ios/Tests/InteractionEventBridgeTests.swift
+  s_46e1aa7e76c6a2::t_93f8196beabffa 25-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "007e071a9cf7059f3f4569cb44f228eedc87e1a0",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
