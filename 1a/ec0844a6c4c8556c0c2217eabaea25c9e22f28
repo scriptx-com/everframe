@@ -1,0 +1,89 @@
+packages/cli/README.md
+  s_9f07b45163d76f::t_ae8910b9b0a291 377-378
+packages/metro/README.md
+  s_9f07b45163d76f::t_611e3e74517f50 40-41
+packages/protocol/__tests__/build-vcs.spec.ts
+  s_7cc24f3632eed5::t_ca0dacb7927458 63-65,68-70,95-101
+packages/protocol/__tests__/generated-identity.spec.ts
+  s_6a84776db660b6::t_fc71184f7a0192 68,77
+packages/protocol/__tests__/json-schema.spec.ts
+  s_9f07b45163d76f::t_8355d4f821ab47 76-80
+packages/protocol/__tests__/manual-bundle.spec.ts
+  s_7cc24f3632eed5::t_d9234ac6e6b053 1-21
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_6a84776db660b6::t_ff096956c0e3ca 558,649-651,1701-2149
+packages/protocol/scripts/codegen-kotlin.sh
+  s_7cc24f3632eed5::t_9a9e1072e182c9 148-158,160
+packages/protocol/scripts/codegen-swift.sh
+  s_7cc24f3632eed5::t_2444609446dc46 52,93
+packages/protocol/src/build-artifacts.ts
+  s_7cc24f3632eed5::t_f30cd35b41a8a3 20
+packages/protocol/src/crash.ts
+  s_7cc24f3632eed5::t_d11dd9e66ccc1d 29-41
+packages/protocol/src/envelope.ts
+  s_7cc24f3632eed5::t_3a5fc5293eb4eb 16,183-184
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionSubmissionComposer.kt
+  s_7cc24f3632eed5::t_7365c08181f734 328
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_6a84776db660b6::t_9ed29185dfd8f4 11-31,144
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/envelope/EnvelopeBuilder.kt
+  s_7cc24f3632eed5::t_04eaab54221c70 225,443
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/envelope/EnvelopeBuilderTest.kt
+  s_7cc24f3632eed5::t_a94c5bea7afc4a 40-51
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_6a84776db660b6::t_225d3e122413a9 132-133,136-157
+packages/sdk-ios/Sources/Everframe/Config/EverframeConfig.swift
+  s_7cc24f3632eed5::t_c0416dcd33b535 8-28,40
+packages/sdk-ios/Sources/Everframe/Envelope/EnvelopeBuilder.swift
+  s_7cc24f3632eed5::t_4e4c8dbe6a1fd4 155,266,321,484
+packages/sdk-ios/Sources/Everframe/Reporter/ReporterSubmission.swift
+  s_7cc24f3632eed5::t_2299514adaa1a4 553
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_6a84776db660b6::t_92ec0cd46b5530 407,410,413,440,447,462-532,1372
+packages/sdk-ios/Tests/EverframeTests/EnvelopeBuilderTests.swift
+  s_7cc24f3632eed5::t_b3d77c37e93c3f 13-29
+packages/sdk-react-native/__tests__/release-health-config.spec.ts
+  s_9f07b45163d76f::t_376e584432e1d6 367,379-400
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_7cc24f3632eed5::t_23a631bd733f9a 293-294
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_7cc24f3632eed5::t_cea92eed915451 71-72,85
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_7cc24f3632eed5::t_ad97c3e049fc2b 214-215
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_7cc24f3632eed5::t_23668229c316aa 233-235
+packages/sdk-react-native/src/runtime.ts
+  s_7cc24f3632eed5::t_2241551177860e 833-837
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1aec0844a6c4c8556c0c2217eabaea25c9e22f28",
+  "prompts": {},
+  "sessions": {
+    "s_6a84776db660b6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a13-fe63-74a3-a140-d90320793f6b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_7cc24f3632eed5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a0c-b3ea-7772-8e51-05eec0b284d9",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_9f07b45163d76f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a17-43ef-7a40-a52a-38d4dd907381",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
