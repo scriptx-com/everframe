@@ -1,0 +1,33 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_77a87d381df89f::t_f827b07c066625 998
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/state/AutomaticStateFacts.kt
+  s_77a87d381df89f::t_f827b07c066625 76
+  s_77a87d381df89f::t_02ce27fd498b70 15,77,79-80
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_77a87d381df89f::t_870b9e7e925645 1287
+packages/sdk-ios/Tests/EverframeTests/StateLifecycleTests.swift
+  s_77a87d381df89f::t_d20633eb091dba 9-12,16
+  s_77a87d381df89f::t_68e66d3f288f34 13-15
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/state/StateLifecycleTest.kt
+  s_77a87d381df89f::t_68e66d3f288f34 29-40
+  s_77a87d381df89f::t_d20633eb091dba 18-28
+packages/sdk-ios/Sources/Everframe/State/AutomaticStateFacts.swift
+  s_77a87d381df89f::t_4f7b5fff943d24 60,72-73
+  s_77a87d381df89f::t_870b9e7e925645 59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c2ed9bad71d990f1b82d00db029683e393fbaef3",
+  "prompts": {},
+  "sessions": {
+    "s_77a87d381df89f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-3920-73e0-8e79-507dabe95fdc",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
