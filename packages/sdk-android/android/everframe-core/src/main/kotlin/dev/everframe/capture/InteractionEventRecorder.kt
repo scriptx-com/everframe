@@ -131,6 +131,10 @@ internal class InteractionEventRecorder(
     private var timerArmed = false
     private val revocationListeners = mutableListOf<() -> Unit>()
     internal fun onRevoked(listener: () -> Unit) = buffer.withInteractionLock { revocationListeners.add(listener) }
+    // No UI reads or recorder calls in retain: adapter insertion shares revoke's lock.
+    internal fun retainIfCurrent(owner: InteractionOwner, retain: () -> Unit): Boolean = buffer.withInteractionLock {
+        if (!current(owner)) false else { retain(); true }
+    }
 
     init {
         buffer.interactionRevocation = { eraseLocked() }

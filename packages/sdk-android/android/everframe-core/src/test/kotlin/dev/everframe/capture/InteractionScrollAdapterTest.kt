@@ -12,6 +12,13 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class) @Config(manifest = Config.NONE)
 class InteractionScrollAdapterTest {
+    @Test fun revocationBetweenCaptureAndRetentionDoesNotRestoreGesture() {
+        val f = InteractionAdapterFixture()
+        val adapter = InteractionScrollAdapter(f.recorder, clock = { f.recorder.revoke(); 0 })
+        val view = View(f.activity).also { f.root.addView(it) }
+        adapter.began(view, "y")
+        assertEquals(0, adapter.retainedHosts)
+    }
     @Test fun dragAndMomentumProduceOneSummaryAndProgrammaticOffsetsProduceNone() {
         val f = InteractionAdapterFixture(); val adapter = InteractionScrollAdapter(f.recorder, clock = { f.now })
         val view = View(f.activity).also { f.root.addView(it) }

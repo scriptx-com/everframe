@@ -38,9 +38,10 @@ class InteractionScrollAdapter internal constructor(
         if (axis !in setOf("x", "y") || recorder.suppresses(view, "scroll")) return
         finished(view)
         val owner = recorder.owner(view) ?: return
-        if (gestures.size >= 32) remove(gestures.first(), cancel = true)
+        if (gestures.size >= 32) gestures.firstOrNull()?.let { remove(it, cancel = true) }
         val position = if (axis == "x") view.scrollX else view.scrollY
-        gestures.add(Gesture(owner, axis, position, position, clock()))
+        val gesture = Gesture(owner, axis, position, position, clock())
+        recorder.retainIfCurrent(owner) { gestures.add(gesture) }
     }
     /** Additive native offset listener, used for remote-driven smooth scrolling. */
     fun remoteBegan(view: View, axis: String) {
