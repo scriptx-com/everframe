@@ -1,0 +1,41 @@
+packages/build-tools/LICENSE
+  s_7cc24f3632eed5::t_f5851a5793add2 1-21
+packages/build-tools/NOTICE
+  s_7cc24f3632eed5::t_4b4cbb4fda182c 1-8
+packages/build-tools/__tests__/vcs.spec.ts
+  s_7cc24f3632eed5::t_8219b183b55e93 1-112
+packages/build-tools/package.json
+  s_7cc24f3632eed5::t_80ebb77d145b52 1-25
+packages/build-tools/src/vcs.ts
+  s_7cc24f3632eed5::t_aeccdebdd72f66 1-68
+packages/build-tools/tsconfig.json
+  s_7cc24f3632eed5::t_e324dc7487ec4b 1-10
+packages/build-tools/tsconfig.test.json
+  s_7cc24f3632eed5::t_2c196616ab5244 1-5
+packages/build-tools/tsup.config.ts
+  s_7cc24f3632eed5::t_45f2dc914c509b 1-10
+packages/build-tools/vitest.config.ts
+  s_7cc24f3632eed5::t_570359a43ab52c 1-7
+packages/protocol/__tests__/build-vcs.spec.ts
+  s_7cc24f3632eed5::t_4e5e9c28928437 1-88
+packages/protocol/src/build-artifacts.ts
+  s_7cc24f3632eed5::t_2e9f3122c664fb 9-26,28,46,71,91,111,191,200,219,230,251,383,403,421,439,472-477,485
+pnpm-lock.yaml
+  s_7cc24f3632eed5::t_fae1826131f5f0 339-351
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "201fea93373dfb3237ddc734a64bf62de98355c6",
+  "prompts": {},
+  "sessions": {
+    "s_7cc24f3632eed5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a0c-b3ea-7772-8e51-05eec0b284d9",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
