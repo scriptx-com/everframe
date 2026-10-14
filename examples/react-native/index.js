@@ -8,5 +8,12 @@
 
 import { registerRootComponent } from 'expo';
 import { App } from './src/App';
+import React from 'react';
+import { EverframeProvider } from '@everframe/react-native';
+import InteractionTargetsFixture from './src/fixtures/InteractionTargets';
 
-registerRootComponent(App);
+// Explicit local-validation entry; no credentials or destination are baked into the fixture.
+const Root = __DEV__ && process.env.EXPO_PUBLIC_EVERFRAME_TARGET_FIXTURE === '1'
+  ? () => React.createElement(EverframeProvider, {config:{sdkKey:process.env.EXPO_PUBLIC_EVERFRAME_KEY ?? ''}}, React.createElement(InteractionTargetsFixture))
+  : App;
+registerRootComponent(Root);

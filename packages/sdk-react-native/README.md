@@ -840,3 +840,52 @@ activity recreation.
 ## License
 
 MIT
+
+### Optional interaction target annotations
+
+Phone taps and TV remote interactions automatically use the available native
+control role, accessibility label, test ID, visible text, and screen marker.
+Reporting and automatic breadcrumbs work without app annotations. Logical
+collection positions are included only when known; mounted children are never
+used as the total item count.
+
+Use `useEverframeTarget` on an existing host to add product names or logical
+collection metadata:
+
+```tsx
+import { useEverframeTarget } from '@everframe/react-native';
+
+const targetRef = useEverframeTarget({
+  testId: 'poster-low-orbit', role: 'button', name: 'Low Orbit',
+  container: { testId: 'home-originals', name: 'Originals', role: 'list', index: 0, count: 12 },
+});
+return <Pressable ref={targetRef} onPress={openTitle}><Text>Low Orbit</Text></Pressable>;
+```
+
+Indices are zero-based logical positions in the collection. An explicit
+container replaces the automatic container as a unit. Updating the annotation
+updates the existing host without waiting for `onLayout`; passing `undefined`
+removes it. Strings are bounded to 256 UTF-16 units (roles: 64). Do not put
+secrets or user-entered values into annotations. Existing sensitive-view masking
+takes precedence and suppresses names, IDs, containers, and screen metadata.
+
+Compose with an existing ref using a stable callback (return no value):
+
+```tsx
+const ref = React.useCallback((node: React.ElementRef<typeof View> | null) => {
+  existingRef.current = node;
+  targetRef(node);
+}, [targetRef]);
+```
+
+Custom components must forward the ref to their native host. For a layout-only
+`View`, use `collapsable={false}` so a host exists. Unsupported custom refs,
+missing providers, and older native binaries fail softly. This feature requires
+a native rebuild to enable annotation registration; it cannot be enabled by a
+JavaScript-only update. The web export accepts the same type and is a no-op.
+No wrapper, `onPress` replacement, or manual breadcrumb is needed.
+
+Native registrations use weak host references and cancel stale ref generations.
+After 4096 distinct registrations in one native session, optional annotations
+fail closed until SDK restart; automatic target extraction continues. This
+bound prevents delayed work from resurrecting evicted registration ownership.

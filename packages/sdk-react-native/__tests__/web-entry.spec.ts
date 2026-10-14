@@ -67,3 +67,15 @@ describe('React Native browser entry', () => {
     expect(webEntry.EverframeSensitive).toBe(webEntry.Sensitive);
   });
 });
+
+it('native target hook is a stable no-op on web with matching annotation fields', () => {
+  const ref = webEntry.useEverframeTarget({
+    name: 'Low Orbit',
+    container: { name: 'Originals', index: 0, count: 12 },
+  });
+  expect(ref).toBe(webEntry.useEverframeTarget(undefined));
+  expect(() => {
+    ref({});
+    ref(null);
+  }).not.toThrow();
+});

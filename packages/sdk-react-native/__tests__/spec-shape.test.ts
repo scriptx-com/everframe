@@ -20,10 +20,11 @@ import {
 import type { Spec, ConfigOpts } from '../src/NativeEverframe.js';
 
 describe('NativeEverframe TurboModule spec (post D-05/D-07 flip)', () => {
-  it('exposes exactly the 16 locked methods — no more, no fewer', () => {
+  it('exposes exactly the 18 locked methods — no more, no fewer', () => {
     expect(Object.keys(NativeEverframe).sort()).toEqual([
       'addBreadcrumb',
       'captureHandledException',
+      'clearInteractionTarget',
       'configureSync',
       'detachPlayer',
       'openReporter',
@@ -33,6 +34,7 @@ describe('NativeEverframe TurboModule spec (post D-05/D-07 flip)', () => {
       'reportCrash',
       'setExtra',
       'setExtraResolverActive',
+      'setInteractionTarget',
       'setUser',
       'signalExtraResolverReady',
       'trackPlayer',
@@ -140,4 +142,13 @@ describe('NativeEverframe TurboModule spec (post D-05/D-07 flip)', () => {
     expectTypeOf<ConfigOpts['vitalsSampleRate']>().toEqualTypeOf<number | undefined>();
     expectTypeOf<ConfigOpts['vitalsCaptureSourceQuery']>().toEqualTypeOf<boolean | undefined>();
   });
+});
+
+it('interaction target ownership methods are synchronous booleans', () => {
+  expectTypeOf<Spec['setInteractionTarget']>().parameters.toEqualTypeOf<
+    [number, string, number, UnsafeObject]
+  >();
+  expectTypeOf<Spec['setInteractionTarget']>().returns.toEqualTypeOf<boolean>();
+  expectTypeOf<Spec['clearInteractionTarget']>().parameters.toEqualTypeOf<[string, number]>();
+  expectTypeOf<Spec['clearInteractionTarget']>().returns.toEqualTypeOf<boolean>();
 });

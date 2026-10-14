@@ -111,3 +111,5 @@ export type {
   ReportTransportOutcome,
   ReportTransportStatus,
 } from './report-delivery-status.js';
+
+export { useEverframeTarget, type InteractionTargetAnnotation } from './useEverframeTarget.js';
