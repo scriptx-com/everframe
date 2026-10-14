@@ -1,0 +1,45 @@
+packages/sdk-react-native/README.md
+  s_46e1aa7e76c6a2::t_0cc1fdd48d08ad 905-972
+packages/sdk-react-native/__tests__/interaction-registration.spec.ts
+  s_46e1aa7e76c6a2::t_bc8799e4dcdd53 1-173
+packages/sdk-react-native/__tests__/use-everframe-interaction.spec.tsx
+  s_eb79cd0a048bfe::t_ea0d593ca97468 1-219
+packages/sdk-react-native/__tests__/web-entry.spec.ts
+  s_46e1aa7e76c6a2::t_d6aed6735e8d6d 82-95
+packages/sdk-react-native/src/index.ts
+  s_46e1aa7e76c6a2::t_e1e63afaaf073b 119-127
+packages/sdk-react-native/src/index.web.ts
+  s_46e1aa7e76c6a2::t_5792cd6516aa28 57-83
+packages/sdk-react-native/src/interactions/policy.ts
+  s_eb79cd0a048bfe::t_ed7cadf6e936b9 112-131
+packages/sdk-react-native/src/interactions/registration.ts
+  s_eb79cd0a048bfe::t_ed98f396d3883b 1-240
+packages/sdk-react-native/src/runtime.ts
+  s_46e1aa7e76c6a2::t_8edfa6882554be 52-56,92,130-131,297,471-474,768-773
+packages/sdk-react-native/src/useEverframeInteraction.ts
+  s_46e1aa7e76c6a2::t_531594268cc30f 1-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e426bafcc202a9df5ec8f78b95e37b102219dd6c",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_eb79cd0a048bfe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13b4b-6dbf-7273-9431-bee25af1347c",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
