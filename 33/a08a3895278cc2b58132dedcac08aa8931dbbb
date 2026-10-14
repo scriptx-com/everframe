@@ -1,0 +1,29 @@
+packages/sdk-ios/Sources/Everframe/Capture/InteractionTargetRegistry.swift
+  s_f3bbf3765b99f4::t_7ce5d0f98037d2 1-106
+packages/sdk-ios/Sources/Everframe/Capture/InteractionTargetResolver.swift
+  s_f3bbf3765b99f4::t_ceb232c2d16b69 85-90,92-93
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_f3bbf3765b99f4::t_508debbf9b8f10 1214-1216,2426-2428
+packages/sdk-ios/Tests/EverframeTests/InteractionTargetRegistryTests.swift
+  s_f3bbf3765b99f4::t_127df30e1d24e6 1-76
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_f3bbf3765b99f4::t_dbc72f3b03acc6 66-89,100,112-113,121-127,262,290-304,450
+packages/sdk-react-native/ios/Sources/RnInteractionTargetRegistration.swift
+  s_f3bbf3765b99f4::t_4f2aa6a20731ad 1-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33a08a3895278cc2b58132dedcac08aa8931dbbb",
+  "prompts": {},
+  "sessions": {
+    "s_f3bbf3765b99f4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a49-28e0-7122-b8e9-07ca3509c69b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
