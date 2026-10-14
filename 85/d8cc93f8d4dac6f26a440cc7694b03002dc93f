@@ -1,0 +1,23 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionTextAdapterTest.kt
+  s_46e1aa7e76c6a2::t_73467314345f8a 69-76,79-95,97-100
+  s_46e1aa7e76c6a2::t_721786dec622d3 77-78,96
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventRecorder.kt
+  s_46e1aa7e76c6a2::t_30c27c6281234d 311-314
+  s_46e1aa7e76c6a2::t_721786dec622d3 47-48,315-327,338-339
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "85d8cc93f8d4dac6f26a440cc7694b03002dc93f",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
