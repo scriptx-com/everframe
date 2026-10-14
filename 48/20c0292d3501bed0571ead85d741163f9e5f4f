@@ -1,0 +1,31 @@
+packages/cli/README.md
+  s_7cc24f3632eed5::t_d250acbefbd35f 391-397
+packages/cli/__tests__/apple-command.spec.ts
+  s_7cc24f3632eed5::t_302bdf1293bf2f 385-404
+packages/cli/__tests__/elf-command.spec.ts
+  s_7cc24f3632eed5::t_d1da5b2152e91e 476-514
+packages/cli/src/apple-command.ts
+  s_7cc24f3632eed5::t_e71f16fadf81cb 3,59-62,122
+packages/cli/src/elf-command.ts
+  s_7cc24f3632eed5::t_26f2d13f4a0d45 3,59-62,110
+packages/expo/README.md
+  s_7cc24f3632eed5::t_ef80001107b315 124-130
+packages/metro/README.md
+  s_7cc24f3632eed5::t_8c295bc26f0987 54-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4820c0292d3501bed0571ead85d741163f9e5f4f",
+  "prompts": {},
+  "sessions": {
+    "s_7cc24f3632eed5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a0c-b3ea-7772-8e51-05eec0b284d9",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
