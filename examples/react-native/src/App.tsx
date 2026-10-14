@@ -32,7 +32,7 @@ import { consoleIntegration } from '@everframe/react-native/integrations/console
 
 import InteractionEventsFixture, {
   fixtureInteractionPolicy,
-} from '../../../packages/sdk-react-native/__tests__/fixtures/interaction-events/App';
+} from './fixtures/InteractionEvents';
 
 import { ReportFab } from './components/ReportFab';
 import { PLAYBACK_SUPPORTED, TabBar, type TabKey } from './components/TabBar';

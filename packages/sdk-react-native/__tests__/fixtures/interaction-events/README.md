@@ -49,3 +49,6 @@ observations. Other fields exercise helper-owned structural summaries.
 The title rail keeps automatic native scroll observation in both modes. Synthetic
 permission/attribution cases and unsupported controls must remain labelled in any
 validation report. Never label a local collector envelope as a production report.
+
+The runnable source is `examples/react-native/src/fixtures/InteractionEvents.tsx`.
+The adjacent `App.tsx` re-exports it for tooling; Metro excludes `__tests__` by default.
