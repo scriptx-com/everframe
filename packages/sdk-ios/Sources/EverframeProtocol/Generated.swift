@@ -663,9 +663,10 @@ public struct EverframePayload: Codable {
     public let recoveredStall: EverframeRecoveredStallEvidence?
     public let redactions: [EverframeJSONAny]?
     public let resources: [EverframeResource]?
+    public let state: EverframeReportState?
     public let vitals: [EverframeVital]?
 
-    public init(annotations: [EverframeJSONAny]?, appleDiagnostic: EverframeAppleDiagnosticEvidence? = nil, breadcrumbs: [EverframeBreadcrumb]?, crash: EverframeCrash?, diagnostic: EverframeDiagnosticEvidence? = nil, extra: String?, focus: EverframeFocus?, inferredTermination: EverframeInferredTerminationEvidence?, logs: [EverframeJSONAny]?, network: [EverframeJSONAny]?, networkBodies: [EverframeNetworkBody]?, recoveredStall: EverframeRecoveredStallEvidence? = nil, redactions: [EverframeJSONAny]?, resources: [EverframeResource]?, vitals: [EverframeVital]?) {
+    public init(annotations: [EverframeJSONAny]?, appleDiagnostic: EverframeAppleDiagnosticEvidence? = nil, breadcrumbs: [EverframeBreadcrumb]?, crash: EverframeCrash?, diagnostic: EverframeDiagnosticEvidence? = nil, extra: String?, focus: EverframeFocus?, inferredTermination: EverframeInferredTerminationEvidence?, logs: [EverframeJSONAny]?, network: [EverframeJSONAny]?, networkBodies: [EverframeNetworkBody]?, recoveredStall: EverframeRecoveredStallEvidence? = nil, redactions: [EverframeJSONAny]?, resources: [EverframeResource]?, state: EverframeReportState? = nil, vitals: [EverframeVital]?) {
         self.annotations = annotations
         self.appleDiagnostic = appleDiagnostic
         self.breadcrumbs = breadcrumbs
@@ -680,6 +681,7 @@ public struct EverframePayload: Codable {
         self.recoveredStall = recoveredStall
         self.redactions = redactions
         self.resources = resources
+        self.state = state
         self.vitals = vitals
     }
 }
@@ -717,6 +719,7 @@ public extension EverframePayload {
         recoveredStall: EverframeRecoveredStallEvidence?? = nil,
         redactions: [EverframeJSONAny]?? = nil,
         resources: [EverframeResource]?? = nil,
+        state: EverframeReportState?? = nil,
         vitals: [EverframeVital]?? = nil
     ) -> EverframePayload {
         return EverframePayload(
@@ -734,6 +737,7 @@ public extension EverframePayload {
             recoveredStall: recoveredStall ?? self.recoveredStall,
             redactions: redactions ?? self.redactions,
             resources: resources ?? self.resources,
+            state: state ?? self.state,
             vitals: vitals ?? self.vitals
         )
     }
@@ -3648,6 +3652,282 @@ public extension EverframeResource {
             extras: extras ?? self.extras,
             mem: mem ?? self.mem,
             t: t ?? self.t
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - EverframeReportState
+public struct EverframeReportState: Codable {
+    public let capturedAt: Double
+    public let changes: [EverframeStateChange]
+    public let checkpoint: EverframeStateCheckpoint?
+    public let current: EverframeStateSnapshot
+    public let droppedChanges: Int
+    public let initial: EverframeStateSnapshot
+    public let startedAt: Double
+
+    public init(capturedAt: Double, changes: [EverframeStateChange], checkpoint: EverframeStateCheckpoint?, current: EverframeStateSnapshot, droppedChanges: Int, initial: EverframeStateSnapshot, startedAt: Double) {
+        self.capturedAt = capturedAt
+        self.changes = changes
+        self.checkpoint = checkpoint
+        self.current = current
+        self.droppedChanges = droppedChanges
+        self.initial = initial
+        self.startedAt = startedAt
+    }
+}
+
+// MARK: EverframeReportState convenience initializers and mutators
+
+public extension EverframeReportState {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeReportState.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        capturedAt: Double? = nil,
+        changes: [EverframeStateChange]? = nil,
+        checkpoint: EverframeStateCheckpoint?? = nil,
+        current: EverframeStateSnapshot? = nil,
+        droppedChanges: Int? = nil,
+        initial: EverframeStateSnapshot? = nil,
+        startedAt: Double? = nil
+    ) -> EverframeReportState {
+        return EverframeReportState(
+            capturedAt: capturedAt ?? self.capturedAt,
+            changes: changes ?? self.changes,
+            checkpoint: checkpoint ?? self.checkpoint,
+            current: current ?? self.current,
+            droppedChanges: droppedChanges ?? self.droppedChanges,
+            initial: initial ?? self.initial,
+            startedAt: startedAt ?? self.startedAt
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - EverframeStateChange
+public struct EverframeStateChange: Codable {
+    public let key: String
+    public let namespace: EverframeStateNamespace
+    public let op: EverframeStateOperation
+    public let seq: Int
+    public let t: Double
+    public let value: EverframeStateValue?
+
+    public init(key: String, namespace: EverframeStateNamespace, op: EverframeStateOperation, seq: Int, t: Double, value: EverframeStateValue?) {
+        self.key = key
+        self.namespace = namespace
+        self.op = op
+        self.seq = seq
+        self.t = t
+        self.value = value
+    }
+}
+
+// MARK: EverframeStateChange convenience initializers and mutators
+
+public extension EverframeStateChange {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeStateChange.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        key: String? = nil,
+        namespace: EverframeStateNamespace? = nil,
+        op: EverframeStateOperation? = nil,
+        seq: Int? = nil,
+        t: Double? = nil,
+        value: EverframeStateValue?? = nil
+    ) -> EverframeStateChange {
+        return EverframeStateChange(
+            key: key ?? self.key,
+            namespace: namespace ?? self.namespace,
+            op: op ?? self.op,
+            seq: seq ?? self.seq,
+            t: t ?? self.t,
+            value: value ?? self.value
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+public enum EverframeStateNamespace: String, Codable {
+    case automatic = "automatic"
+    case custom = "custom"
+}
+
+public enum EverframeStateOperation: String, Codable {
+    case clear = "clear"
+    case stateOperationSet = "set"
+}
+
+public enum EverframeStateValue: Codable {
+    case bool(Bool)
+    case double(Double)
+    case string(String)
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let x = try? container.decode(Bool.self) {
+            self = .bool(x)
+            return
+        }
+        if let x = try? container.decode(Double.self) {
+            self = .double(x)
+            return
+        }
+        if let x = try? container.decode(String.self) {
+            self = .string(x)
+            return
+        }
+        throw DecodingError.typeMismatch(EverframeStateValue.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for EverframeStateValue"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .bool(let x):
+            try container.encode(x)
+        case .double(let x):
+            try container.encode(x)
+        case .string(let x):
+            try container.encode(x)
+        }
+    }
+}
+
+// MARK: - EverframeStateCheckpoint
+public struct EverframeStateCheckpoint: Codable {
+    public let t: Double
+    public let throughSeq: Int
+    public let values: EverframeStateSnapshot
+
+    public init(t: Double, throughSeq: Int, values: EverframeStateSnapshot) {
+        self.t = t
+        self.throughSeq = throughSeq
+        self.values = values
+    }
+}
+
+// MARK: EverframeStateCheckpoint convenience initializers and mutators
+
+public extension EverframeStateCheckpoint {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeStateCheckpoint.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        t: Double? = nil,
+        throughSeq: Int? = nil,
+        values: EverframeStateSnapshot? = nil
+    ) -> EverframeStateCheckpoint {
+        return EverframeStateCheckpoint(
+            t: t ?? self.t,
+            throughSeq: throughSeq ?? self.throughSeq,
+            values: values ?? self.values
+        )
+    }
+
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
+// MARK: - EverframeStateSnapshot
+public struct EverframeStateSnapshot: Codable {
+    public let automatic, custom: [String: EverframeStateValue]
+
+    public init(automatic: [String: EverframeStateValue], custom: [String: EverframeStateValue]) {
+        self.automatic = automatic
+        self.custom = custom
+    }
+}
+
+// MARK: EverframeStateSnapshot convenience initializers and mutators
+
+public extension EverframeStateSnapshot {
+    init(data: Data) throws {
+        self = try newJSONDecoder().decode(EverframeStateSnapshot.self, from: data)
+    }
+
+    init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+
+    init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+
+    func with(
+        automatic: [String: EverframeStateValue]? = nil,
+        custom: [String: EverframeStateValue]? = nil
+    ) -> EverframeStateSnapshot {
+        return EverframeStateSnapshot(
+            automatic: automatic ?? self.automatic,
+            custom: custom ?? self.custom
         )
     }
 

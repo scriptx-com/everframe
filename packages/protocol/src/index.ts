@@ -42,6 +42,7 @@ export {
 } from './dom-snapshot.js';
 export type { ParseDomSnapshotResult } from './dom-snapshot.js';
 export { Breadcrumb, BreadcrumbKind, BreadcrumbLevel } from './breadcrumb.js';
+export * from './state.js';
 // PROTO-03 relay control-frame schema — namespaced to avoid collisions with
 // envelope-side names (e.g. ReportAssembled, ReportSubmit are relay-specific
 // control frames, distinct from any envelope payload concepts).

@@ -189,7 +189,8 @@ data class Payload (
     val diagnostic: DiagnosticEvidence? = null,
     val appleDiagnostic: AppleDiagnosticEvidence? = null,
     val recoveredStall: RecoveredStallEvidence? = null,
-    val inferredTermination: InferredTerminationEvidence? = null
+    val inferredTermination: InferredTerminationEvidence? = null,
+    val state: ReportState? = null
 )
 
 @Serializable
@@ -934,6 +935,80 @@ data class Resource (
     val extras: Map<String, Double>? = null,
     val mem: Double,
     val t: Double
+)
+
+@Serializable
+data class ReportState (
+    val capturedAt: Double,
+    val changes: List<StateChange>,
+    val checkpoint: StateCheckpoint? = null,
+    val current: StateSnapshot,
+    val droppedChanges: Long,
+    val initial: StateSnapshot,
+    val startedAt: Double
+)
+
+@Serializable
+data class StateChange (
+    val key: String,
+    val namespace: StateNamespace,
+    val op: StateOperation,
+    val seq: Long,
+    val t: Double,
+    val value: StateValue? = null
+)
+
+@Serializable
+enum class StateNamespace(val value: String) {
+    @SerialName("automatic") Automatic("automatic"),
+    @SerialName("custom") Custom("custom");
+}
+
+@Serializable
+enum class StateOperation(val value: String) {
+    @SerialName("clear") Clear("clear"),
+    @SerialName("set") Set("set");
+}
+
+@Serializable(with = StateValueSerializer::class)
+sealed class StateValue {
+    data class BoolValue(val value: Boolean) : StateValue()
+    data class DoubleValue(val value: Double) : StateValue()
+    data class StringValue(val value: String) : StateValue()
+}
+
+object StateValueSerializer : KSerializer<StateValue> {
+    override val descriptor: SerialDescriptor = JsonPrimitive.serializer().descriptor
+    override fun serialize(encoder: Encoder, value: StateValue) {
+        val primitive = when (value) {
+            is StateValue.BoolValue -> JsonPrimitive(value.value)
+            is StateValue.DoubleValue -> JsonPrimitive(value.value)
+            is StateValue.StringValue -> JsonPrimitive(value.value)
+        }
+        (encoder as JsonEncoder).encodeJsonElement(primitive)
+    }
+    override fun deserialize(decoder: Decoder): StateValue {
+        val primitive = (decoder as JsonDecoder).decodeJsonElement() as? JsonPrimitive
+            ?: throw SerializationException("State value must be a primitive")
+        if (primitive is JsonNull) throw SerializationException("State value cannot be null")
+        if (primitive.isString) return StateValue.StringValue(primitive.content)
+        primitive.booleanOrNull?.let { return StateValue.BoolValue(it) }
+        primitive.doubleOrNull?.takeIf { it.isFinite() }?.let { return StateValue.DoubleValue(it) }
+        throw SerializationException("Invalid state value")
+    }
+}
+
+@Serializable
+data class StateCheckpoint (
+    val t: Double,
+    val throughSeq: Long,
+    val values: StateSnapshot
+)
+
+@Serializable
+data class StateSnapshot (
+    val automatic: Map<String, StateValue>,
+    val custom: Map<String, StateValue>
 )
 
 @Serializable
