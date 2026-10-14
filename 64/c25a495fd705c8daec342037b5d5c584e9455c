@@ -1,0 +1,45 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbRingBuffer.kt
+  s_f3bbf3765b99f4::t_594807d24f5347 49,266,375
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/EvidenceSequence.kt
+  s_7cc24f3632eed5::t_5595b62a8b2aed 1-9
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/state/StateRecorder.kt
+  s_7cc24f3632eed5::t_c276e10dcbb4f5 1-66
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/state/StateSanitizer.kt
+  s_7cc24f3632eed5::t_b6be909cbf1fd0 1-29
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/state/StateRecorderTest.kt
+  s_7cc24f3632eed5::t_9da0cd0b8da69a 1-68
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbRingBuffer.swift
+  s_7cc24f3632eed5::t_61efa38ce2f5e1 28,69,80,85,88,151
+packages/sdk-ios/Sources/Everframe/Capture/EvidenceSequence.swift
+  s_7cc24f3632eed5::t_97b8d5761a76e7 1-10
+packages/sdk-ios/Sources/Everframe/State/StateRecorder.swift
+  s_7cc24f3632eed5::t_a6853c4eb2d66c 1-81
+packages/sdk-ios/Sources/Everframe/State/StateSanitizer.swift
+  s_7cc24f3632eed5::t_17094fb14d4034 1-38
+packages/sdk-ios/Tests/EverframeTests/StateRecorderTests.swift
+  s_7cc24f3632eed5::t_10eeae99643649 1-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "64c25a495fd705c8daec342037b5d5c584e9455c",
+  "prompts": {},
+  "sessions": {
+    "s_7cc24f3632eed5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a0c-b3ea-7772-8e51-05eec0b284d9",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_f3bbf3765b99f4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a49-28e0-7122-b8e9-07ca3509c69b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
