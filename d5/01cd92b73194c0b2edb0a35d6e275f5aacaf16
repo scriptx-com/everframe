@@ -1,0 +1,41 @@
+packages/sdk-ios/Tests/EverframeTests/InteractionScrollAdapterTests.swift
+  s_46e1aa7e76c6a2::t_99b39f8ff50174 1-34
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbTapNavAdapters.swift
+  s_46e1aa7e76c6a2::t_37a41c85efa099 127-130,132,483,486-487,489,546,548
+packages/sdk-ios/Sources/Everframe/Capture/InteractionLaunchAdapter.swift
+  s_46e1aa7e76c6a2::t_37a41c85efa099 1-32
+  s_46e1aa7e76c6a2::t_69d6bf287f6bd0 33-39
+packages/sdk-ios/Tests/EverframeTests/InteractionTextAdapterTests.swift
+  s_46e1aa7e76c6a2::t_99b39f8ff50174 1-46
+packages/sdk-ios/Tests/EverframeTests/InteractionControlAdapterTests.swift
+  s_46e1aa7e76c6a2::t_99b39f8ff50174 1-35
+packages/sdk-ios/Tests/EverframeTests/InteractionLaunchAdapterTests.swift
+  s_46e1aa7e76c6a2::t_99b39f8ff50174 1-24
+  s_46e1aa7e76c6a2::t_f14eb425a28b34 25-29
+packages/sdk-ios/Sources/Everframe/Capture/InteractionTextAdapter.swift
+  s_46e1aa7e76c6a2::t_37a41c85efa099 1-44
+packages/sdk-ios/Sources/Everframe/Capture/InteractionControlAdapter.swift
+  s_46e1aa7e76c6a2::t_37a41c85efa099 1-42
+packages/sdk-ios/Sources/Everframe/Capture/InteractionScrollAdapter.swift
+  s_46e1aa7e76c6a2::t_37a41c85efa099 1-126
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventRecorder.swift
+  s_46e1aa7e76c6a2::t_37a41c85efa099 50-51,76,137
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbAdapters.swift
+  s_46e1aa7e76c6a2::t_37a41c85efa099 289-292
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d501cd92b73194c0b2edb0a35d6e275f5aacaf16",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
