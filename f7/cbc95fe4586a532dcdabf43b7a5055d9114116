@@ -1,0 +1,45 @@
+packages/sdk-react-native/src/interactions/policy.ts
+  s_46e1aa7e76c6a2::t_5443cbc6a34248 1-87
+  s_46e1aa7e76c6a2::t_e79303e9731527 88-111
+packages/sdk-react-native/__tests__/interaction-policy.spec.ts
+  s_46e1aa7e76c6a2::t_4b91967283bb98 1-42
+  s_46e1aa7e76c6a2::t_451920ccc06a89 43-109
+packages/protocol/src/index.ts
+  s_46e1aa7e76c6a2::t_5443cbc6a34248 45-46
+  s_46e1aa7e76c6a2::t_ac336b378d4753 47-50
+packages/protocol/src/interaction-event.ts
+  s_46e1aa7e76c6a2::t_5443cbc6a34248 1-41
+  s_46e1aa7e76c6a2::t_522652f823e56e 42-120
+packages/protocol/__tests__/interaction-event.spec.ts
+  s_46e1aa7e76c6a2::t_4b91967283bb98 1-5,8-9,19-69
+  s_46e1aa7e76c6a2::t_646e8bed56254c 6-7,10-18
+  s_46e1aa7e76c6a2::t_284db151131169 70-122
+packages/protocol/__tests__/fixtures/interaction-events.v1.json
+  s_46e1aa7e76c6a2::t_62bd4f06f5862b 1-65
+packages/protocol/package.json
+  s_46e1aa7e76c6a2::t_be797634b4a433 18-19,33,36-37
+packages/protocol/schemas-json/interaction-event.v1.schema.json
+  s_46e1aa7e76c6a2::t_7ef133b7fdac9d 1-10391
+packages/protocol/scripts/generate-interaction-event-schema.mjs
+  s_46e1aa7e76c6a2::t_876677eb48d45a 1-13
+packages/protocol/scripts/generate-interaction-target-schema.mjs
+  s_46e1aa7e76c6a2::t_94a20907e810a4 5
+packages/protocol/scripts/json-schema-utf16.mjs
+  s_46e1aa7e76c6a2::t_c4c4e71da2bedc 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f7cbc95fe4586a532dcdabf43b7a5055d9114116",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
