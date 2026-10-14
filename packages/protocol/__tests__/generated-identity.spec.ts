@@ -65,7 +65,7 @@ describe('generated Everframe protocol identity', () => {
     );
     expect(source).toMatch(/\ndata class NativeExposure \(\n {4}val app: NativeExposureApp,\n/u);
     expect(source).toMatch(
-      /\n@Serializable\ndata class App \(\n {4}val build: String\? = null,\n {4}val debug: Boolean\? = null,\n {4}val name: String,\n {4}val version: String\n\)/u,
+      /\n@Serializable\ndata class App \(\n {4}val build: String\? = null,\n {4}val debug: Boolean\? = null,\n {4}val name: String,\n {4}val version: String,\n {4}val jsBundle: JSBundle\? = null\n\)/u,
     );
     // Spelled in two parts so the repository-wide check for the retired field stays clean.
     expect(source).not.toContain('native' + 'BuildId');
@@ -74,7 +74,7 @@ describe('generated Everframe protocol identity', () => {
   it('generated Swift writes the pointer app build as an explicit null and debug and keeps EverframeApp', () => {
     const source = readFileSync(path.join(swiftRoot, 'Generated.swift'), 'utf8');
     expect(source).toContain(
-      'public struct EverframeApp: Codable {\n    public let build: String?\n    public let debug: Bool?\n    public let name, version: String\n',
+      'public struct EverframeApp: Codable {\n    public let build: String?\n    public let debug: Bool?\n    public let jsBundle: EverframeJSBundle?\n    public let name, version: String\n',
     );
     expect(source).toContain('public struct EverframeNativeExposureApp: Codable {');
     expect(source).toContain(

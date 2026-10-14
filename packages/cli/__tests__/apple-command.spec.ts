@@ -98,10 +98,13 @@ it('skips Debug builds before looking for a token and prints why', async () => {
 it('uploads the discovered app, framework and extension from an Xcode build', async () => {
   const f = await xcode();
   const r = recorder();
-  expect(await dsymUploadBuildCommand(['--xcode'], f.env, r.deps)).toBe(0);
+  expect(await dsymUploadBuildCommand(['--xcode', '--commit', 'b'.repeat(40)], f.env, r.deps)).toBe(
+    0,
+  );
   expect(r.upload).toHaveBeenCalledWith(
     {
       appId: APP_ID,
+      vcs: { commit: 'b'.repeat(40) },
       token: 'secret',
       apiUrl: 'https://everframe.dev/api/v1',
       binaries: [
@@ -379,3 +382,23 @@ it("uploads the app's own symbols past a symlink loop in the build products, wit
   );
   expect(strict.upload).not.toHaveBeenCalled();
 });
+
+it('does not assign the app checkout commit to discovered native and vendor symbols', async () => {
+  const f = await xcode({ GITHUB_SHA: 'a'.repeat(40) });
+  const r = recorder();
+  await dsymUploadBuildCommand(['--xcode'], f.env, r.deps);
+  expect(r.upload.mock.calls[0]![0].vcs).toBeUndefined();
+  await dsymUploadBuildCommand(['--xcode', '--commit', 'B'.repeat(40)], f.env, r.deps);
+  expect(r.upload.mock.calls[1]![0].vcs).toEqual({ commit: 'b'.repeat(40) });
+});
+it.each([{}, { EVERFRAME_API_TOKEN: undefined }, { CONFIGURATION: 'Debug' }])(
+  'rejects invalid explicit commits before lenient errors or skips (%j)',
+  async (overrides) => {
+    const f = await xcode(overrides);
+    const r = recorder();
+    await expect(
+      dsymUploadBuildCommand(['--xcode', '--commit', 'abc'], f.env, r.deps),
+    ).rejects.toThrow('invalid_commit');
+    expect(r.upload).not.toHaveBeenCalled();
+  },
+);

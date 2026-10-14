@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import type { BuildVcs } from '@everframe/protocol';
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { open, realpath } from 'node:fs/promises';
@@ -8,6 +9,7 @@ import { DSYM_ASSET_URL, DSYM_MAX_BYTES, parseManifest } from '@everframe/protoc
 import { checkedRealPath, type LocalBuild } from './manifest.js';
 
 export interface CollectDsymBuildOptions {
+  vcs?: BuildVcs | undefined;
   dwarfPath: string;
 }
 
@@ -40,6 +42,7 @@ export async function collectDsymBuild(options: CollectDsymBuildOptions): Promis
     await file.close();
   }
   const manifest = parseManifest({
+    ...(options.vcs && { vcs: options.vcs }),
     version: 4,
     runtime: 'apple',
     platform: 'apple',

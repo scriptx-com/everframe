@@ -68,6 +68,8 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         releaseHealthLoadedBuildId: NSString?,
         releaseHealthUserId: NSString?,
         releaseHealthIncludeDebugBuilds: Bool,
+        jsBundleBuildId: NSString? = nil,
+        jsBundleName: NSString? = nil,
         reporterDisabled: Bool = false
     ) throws {
         configureLock.lock()
@@ -80,6 +82,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         // Polarity flips exactly once, here: JS sends the veto
         // (`networkBodiesDisabled`), native stores the permission.
         var cfg = EverframeConfig(sdkKey: sdkKey as String)
+        cfg.loadedJsBundle = LoadedJsBundle(buildId: jsBundleBuildId as String?, bundleName: jsBundleName as String?)
         cfg.capture.networkBodies = !networkBodiesDisabled
         // Polarity flips exactly once, here: JS sends the veto
         // (`installIdentifierDisabled`), native stores the permission —

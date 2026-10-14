@@ -222,6 +222,7 @@ class EnvelopeBuilder(
         appVersion: String = "0.0.0",
         appBuild: String? = null,
         appDebug: Boolean = false,
+        jsBundle: dev.everframe.protocol.generated.JSBundle? = null,
         deviceModel: String? = null,
         deviceOs: String = "Android",
         deviceOsVersion: String = "0.0",
@@ -439,7 +440,7 @@ class EnvelopeBuilder(
                 uiTree = false,
             ),
             context = ProtocolContext(
-                app = App(build = appBuild, debug = appDebug, name = appName, version = appVersion),
+                app = App(build = appBuild, debug = appDebug, jsBundle = jsBundle, name = appName, version = appVersion),
                 device = Device(
                     locale = deviceLocale,
                     model = deviceModel,

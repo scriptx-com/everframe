@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { detectBuildVcs } from '@everframe/build-tools';
 import { parseArgs } from 'node:util';
 import { realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -62,6 +63,8 @@ const HELP = `Usage:
   everframe r8 upload --app-id <uuid> --mapping-id <id> --mapping <path>
   everframe build collect --staging <dir> --platform <android|ios> --bundle <path> --source-map <path> [--dsym <dir>] [--elf <dir>]
   everframe build verify --staging <dir> --platform <android|ios> [--release] [--allow-missing]
+
+Build provenance: --commit <full-sha> overrides captured or detected source identity.
 
 Environment:
   EVERFRAME_API_TOKEN  API token with artifacts:write scope (required)
@@ -203,6 +206,7 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
         allowPositionals: false,
         strict: true,
         options: {
+          commit: { type: 'string' },
           dist: { type: 'string', default: 'dist' },
           staging: { type: 'string', default: '.everframe' },
           'app-id': { type: 'string' },
@@ -218,6 +222,7 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
       const appId = await resolveExpoAppId(parsed.values['app-id'], env, process.cwd());
       const results = await uploadExpoExport({
         distDir: parsed.values.dist,
+        commit: parsed.values.commit,
         stagingDir: parsed.values.staging,
         appId,
         apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
@@ -304,6 +309,7 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
         allowPositionals: false,
         strict: true,
         options: {
+          commit: { type: 'string' },
           'app-id': { type: 'string' },
           dwarf: { type: 'string' },
           help: { type: 'boolean', short: 'h' },
@@ -317,7 +323,14 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
         dwarfPath = parsed.values.dwarf,
         token = env.EVERFRAME_API_TOKEN;
       if (!appId || !dwarfPath || !token) throw new Error('missing_required_option');
-      const local = await collectDsymBuild({ dwarfPath });
+      const local = await collectDsymBuild({
+        dwarfPath,
+        vcs: detectBuildVcs({
+          projectRoot: process.cwd(),
+          ...(parsed.values.commit !== undefined && { commit: parsed.values.commit }),
+          env,
+        }),
+      });
       const result = await uploadCollectedBuild(local, {
         appId,
         root: dirname(resolve(dwarfPath)),
@@ -343,6 +356,7 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
         allowPositionals: false,
         strict: true,
         options: {
+          commit: { type: 'string' },
           'app-id': { type: 'string' },
           library: { type: 'string' },
           help: { type: 'boolean', short: 'h' },
@@ -356,7 +370,14 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
         libraryPath = parsed.values.library,
         token = env.EVERFRAME_API_TOKEN;
       if (!appId || !libraryPath || !token) throw new Error('missing_required_option');
-      const local = await collectElfBuild({ libraryPath });
+      const local = await collectElfBuild({
+        libraryPath,
+        vcs: detectBuildVcs({
+          projectRoot: process.cwd(),
+          ...(parsed.values.commit !== undefined && { commit: parsed.values.commit }),
+          env,
+        }),
+      });
       const result = await uploadCollectedBuild(local, {
         appId,
         root: dirname(resolve(libraryPath)),
@@ -374,6 +395,7 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
         allowPositionals: false,
         strict: true,
         options: {
+          commit: { type: 'string' },
           'app-id': { type: 'string' },
           'mapping-id': { type: 'string' },
           mapping: { type: 'string' },
@@ -390,7 +412,15 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
       const token = env.EVERFRAME_API_TOKEN;
       if (!appId || !mappingId || !mappingPath || !token)
         throw new Error('missing_required_option');
-      const local = await collectR8Build({ mappingId, mappingPath });
+      const local = await collectR8Build({
+        mappingId,
+        mappingPath,
+        vcs: detectBuildVcs({
+          projectRoot: process.cwd(),
+          ...(parsed.values.commit !== undefined && { commit: parsed.values.commit }),
+          env,
+        }),
+      });
       const result = await uploadCollectedBuild(
         local,
         {
@@ -450,6 +480,7 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
         allowPositionals: false,
         strict: true,
         options: {
+          commit: { type: 'string' },
           'app-id': { type: 'string' },
           build: { type: 'string' },
           platform: { type: 'string' },
@@ -490,6 +521,7 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
         const result = await uploadStagedHermes(
           {
             stagingDir: manifestDir,
+            commit: parsed.values.commit,
             platform,
             appId,
             apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
@@ -513,6 +545,11 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
       )
         throw new Error('missing_required_option');
       const local = await collectHermesBuild({
+        vcs: detectBuildVcs({
+          projectRoot: process.cwd(),
+          ...(parsed.values.commit !== undefined && { commit: parsed.values.commit }),
+          env,
+        }),
         buildId,
         platform,
         bundleName,

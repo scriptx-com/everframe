@@ -473,3 +473,42 @@ it.each([[[]], [['--summary']]])(
     expect(manual.upload.mock.calls[0]![0]).toMatchObject({ lenient: false });
   },
 );
+
+it('does not assign the app checkout commit to discovered native and vendor symbols', async () => {
+  const f = await agp();
+  const r = recorder();
+  const args = ['--binaries-dir', f.shipped, '--symbols-dir', f.symbols];
+  const env = {
+    EVERFRAME_APP_ID: APP_ID,
+    EVERFRAME_API_TOKEN: 'secret',
+    GITHUB_SHA: 'a'.repeat(40),
+  };
+  await elfUploadBuildCommand(args, env, r.deps);
+  expect(r.upload.mock.calls[0]![0].vcs).toBeUndefined();
+  await elfUploadBuildCommand([...args, '--commit', 'B'.repeat(40)], env, r.deps);
+  expect(r.upload.mock.calls[1]![0].vcs).toEqual({ commit: 'b'.repeat(40) });
+});
+it.each(['normal', 'no-token', 'empty'])(
+  'rejects invalid explicit commits before lenient errors or %s skips',
+  async (mode) => {
+    const f = await agp();
+    const r = recorder();
+    const empty = join(f.root, 'empty');
+    await mkdir(empty);
+    await expect(
+      elfUploadBuildCommand(
+        [
+          '--binaries-dir',
+          mode === 'empty' ? empty : f.shipped,
+          '--symbols-dir',
+          f.symbols,
+          '--commit',
+          'abc',
+        ],
+        { EVERFRAME_APP_ID: APP_ID, ...(mode !== 'no-token' && { EVERFRAME_API_TOKEN: 'secret' }) },
+        r.deps,
+      ),
+    ).rejects.toThrow('invalid_commit');
+    expect(r.upload).not.toHaveBeenCalled();
+  },
+);

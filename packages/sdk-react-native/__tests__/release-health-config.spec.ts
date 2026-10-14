@@ -362,9 +362,9 @@ describe('explicit native foreground monitoring configuration', () => {
       { sdkKey: 'key', releaseHealth: { userId: 'u', includeDebugBuilds: true } },
     ];
     void optional;
-    // @ts-expect-error The native SDK reads the app version; there is no build ID to pass.
     const retired: RuntimeConfig = {
       sdkKey: 'key',
+      // @ts-expect-error The native SDK reads the app version; there is no build ID to pass.
       releaseHealth: { enabled: true, nativeBuildId: 'x' },
     };
     void retired;
@@ -376,3 +376,25 @@ describe('explicit native foreground monitoring configuration', () => {
     void build;
   });
 });
+
+// Manual reports need the exact loaded bundle even without health monitoring.
+it.each(['ios', 'android'] as const)(
+  'forwards %s report identity with health disabled and clears missing identity',
+  (platform) => {
+    vi.spyOn(Platform, 'OS', 'get').mockReturnValue(platform);
+    vi.stubGlobal('__EVERFRAME_BUILD__', { buildId: 'ota-A', bundleName: 'main.jsbundle' });
+    expect(extract({ sdkKey: 'key', releaseHealth: { enabled: false } })).toMatchObject({
+      jsBundleBuildId: 'ota-A',
+      jsBundleName: 'main.jsbundle',
+      releaseHealthEnabled: false,
+    });
+    vi.stubGlobal('__EVERFRAME_BUILD__', { buildId: 'ota-B', bundleName: 'main.jsbundle' });
+    expect(extract({ sdkKey: 'key', releaseHealth: { enabled: false } }).jsBundleBuildId).toBe(
+      'ota-B',
+    );
+    vi.stubGlobal('__EVERFRAME_BUILD__', undefined);
+    const missing = extract({ sdkKey: 'key', releaseHealth: { enabled: false } });
+    expect(missing.jsBundleBuildId).toBeUndefined();
+    expect(missing.jsBundleName).toBeUndefined();
+  },
+);

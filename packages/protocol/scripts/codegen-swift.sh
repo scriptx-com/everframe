@@ -49,6 +49,7 @@ for (const [generated, stable] of Object.entries({ DiagnosticAttribution: 'Attri
   DiagnosticProvenance: 'Provenance', DiagnosticScope: 'Scope' })) {
   source = source.replace(new RegExp(`\\bEverframe${generated}\\b`, 'g'), `Everframe${stable}`);
 }
+source = source.replace(/jsBundle: EverframeJSBundle\?,/g, 'jsBundle: EverframeJSBundle? = nil,');
 // Optional diagnostic evidence defaults to nil, so SDK call sites name only what they carry.
 source = source.replace(/diagnostic: EverframeDiagnosticEvidence\?,/g, 'diagnostic: EverframeDiagnosticEvidence? = nil,');
 source = source.replace(/appleDiagnostic: EverframeAppleDiagnosticEvidence\?,/g, 'appleDiagnostic: EverframeAppleDiagnosticEvidence? = nil,');
@@ -89,7 +90,7 @@ source = source.replace(exposureAppPattern, block => block.slice(0, -1) + `
     }
 }`);
 // The pointer's app must not take the envelope app's published name.
-if (!source.includes('public struct EverframeApp: Codable {\n    public let build: String?\n    public let debug: Bool?\n    public let name, version: String\n')) {
+if (!source.includes('public struct EverframeApp: Codable {\n    public let build: String?\n    public let debug: Bool?\n    public let jsBundle: EverframeJSBundle?\n    public let name, version: String\n')) {
   throw new Error('codegen-swift: EverframeApp was renamed or reshaped');
 }
 source = source.replace(/recoveredStall: EverframeRecoveredStallEvidence\?,/g, 'recoveredStall: EverframeRecoveredStallEvidence? = nil,');

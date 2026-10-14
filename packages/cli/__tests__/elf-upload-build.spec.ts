@@ -279,3 +279,37 @@ it.each([false, true])(
     expect(result.stdout + result.stderr).not.toContain('fixture-secret');
   },
 );
+
+it('carries explicit source provenance through the native build command to every upload', async () => {
+  const f = await fixture(),
+    api = server();
+  const manifests: Array<{ vcs?: unknown }> = [];
+  vi.stubGlobal('fetch', async (input: string | URL | Request, init?: RequestInit) => {
+    if (String(input).endsWith('/source-map-builds') && init?.method === 'POST')
+      manifests.push(JSON.parse(String(init.body)));
+    return api.fetcher(input, init);
+  });
+  vi.spyOn(console, 'log').mockImplementation(() => {});
+  const code = await main(
+    [
+      ...[
+        'elf',
+        'upload-build',
+        '--binary',
+        f.binaries[0]!,
+        '--binary',
+        f.binaries[1]!,
+        '--symbols-dir',
+        f.options.symbolsDir,
+      ],
+      '--app-id',
+      'app',
+      '--commit',
+      'b'.repeat(40),
+    ],
+    { EVERFRAME_API_TOKEN: 'fixture-secret', EVERFRAME_API_URL: f.options.apiUrl },
+  );
+  expect(code).toBe(0);
+  expect(manifests).toHaveLength(2);
+  for (const manifest of manifests) expect(manifest.vcs).toEqual({ commit: 'b'.repeat(40) });
+});

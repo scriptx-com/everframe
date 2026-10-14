@@ -5,6 +5,27 @@
 // (Phase 4) and trimmed in Phase 05.1 to remove host-UX trigger config (TV keys
 // and bubbles). Native mobile shake-to-report is the narrow exception.
 import Foundation
+import EverframeProtocol
+
+/// Loaded RN bundle copied into the report's captured configuration.
+public struct LoadedJsBundle: Sendable, Equatable {
+    public let buildId: String
+    public let bundleName: String
+
+    public init?(buildId: String?, bundleName: String?) {
+        guard let buildId, let bundleName,
+              !buildId.isEmpty, buildId.utf16.count <= 200,
+              !buildId.contains("\u{0}"),
+              !buildId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              bundleName.range(of: "\\A[A-Za-z0-9][A-Za-z0-9._-]{0,127}\\z", options: .regularExpression) != nil else { return nil }
+        self.buildId = buildId
+        self.bundleName = bundleName
+    }
+
+    public var metadata: EverframeJSBundle {
+        EverframeJSBundle(buildID: buildId, bundleName: bundleName, engine: .hermes, platform: .ios)
+    }
+}
 
 // MARK: - Config
 
@@ -16,6 +37,7 @@ import Foundation
 /// every stored property by construction and keeps covering new ones. `RedactionConfig`
 /// supplies the one hand-written `==` (see its own note).
 public struct EverframeConfig: Sendable, Equatable {
+    public var loadedJsBundle: LoadedJsBundle? = nil
     public let sdkKey: String
     public let environment: Environment
     public let release: String?

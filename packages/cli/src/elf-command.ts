@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { overrideBuildVcs } from '@everframe/build-tools';
 import { basename, dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 import { adviceFor } from './build-verify.js';
@@ -44,6 +45,7 @@ export async function elfUploadBuildCommand(
     allowPositionals: false,
     strict: true,
     options: {
+      commit: { type: 'string' },
       'app-id': { type: 'string' },
       binary: { type: 'string', multiple: true },
       'binaries-dir': { type: 'string' },
@@ -54,6 +56,10 @@ export async function elfUploadBuildCommand(
       strict: { type: 'boolean', default: false },
     },
   });
+  // An aggregate can contain reused/vendor symbols from unrelated source trees.
+  // Only a caller-supplied source assertion can label the entire set. Validate
+  // usage before any lenient upload handling or build-mode skip.
+  const vcs = overrideBuildVcs(undefined, values.commit);
   const abis = values.abi ?? [];
   for (const abi of abis)
     if (!ANDROID_ABIS.has(abi))
@@ -101,6 +107,7 @@ export async function elfUploadBuildCommand(
         token,
         apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
         binaries,
+        vcs,
         symbolsDir: symbolsDir!,
         projectDirs: values['project-native-dir'],
         lenient: !failHard,

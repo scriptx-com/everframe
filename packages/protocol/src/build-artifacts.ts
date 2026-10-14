@@ -6,7 +6,26 @@
 import { z } from 'zod';
 import { JvmMappingId as JvmMappingIdSchema } from './crash.js';
 
+/** Source identity recorded by build tooling, not inferred from the upload host. */
+export const BuildVcsSchema = z
+  .object({
+    commit: z
+      .string()
+      .regex(/^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/)
+      .transform((value) => value.toLowerCase()),
+    branch: z
+      .string()
+      .min(1)
+      .max(255)
+      .regex(/^(?:[^\u0000-\u001f\u007f-\u009f\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])+$/)
+      .optional(),
+    dirty: z.boolean().optional(),
+  })
+  .strict();
+export type BuildVcs = z.infer<typeof BuildVcsSchema>;
+
 export interface SourceMapManifestV1 {
+  vcs?: BuildVcs;
   version: 1;
   buildId: string;
   artifacts: Array<{
@@ -24,6 +43,7 @@ export interface SourceMapManifestV1 {
 export type HermesBundlePlatform = 'android' | 'ios' | 'vega';
 
 export interface SourceMapManifestV2 {
+  vcs?: BuildVcs;
   version: 2;
   runtime: 'hermes';
   platform: HermesBundlePlatform;
@@ -48,6 +68,7 @@ export const R8_ASSET_URL = 'r8://android/mapping.txt';
 export const R8_MAX_BYTES = 512 * 1024 * 1024;
 
 export interface R8MappingManifestV3 {
+  vcs?: BuildVcs;
   version: 3;
   runtime: 'r8';
   platform: 'android';
@@ -67,6 +88,7 @@ export const DSYM_MAX_BYTES = 512 * 1024 * 1024;
 
 /** Raw DWARF file; image identity is derived from verified bytes by the server. */
 export interface DsymManifestV4 {
+  vcs?: BuildVcs;
   version: 4;
   runtime: 'apple';
   platform: 'apple';
@@ -86,6 +108,7 @@ export const ELF_MAX_BYTES = 64 * 1024 * 1024;
 
 /** Raw unstripped ELF file; image identity is derived from verified bytes by the server. */
 export interface ElfManifestV5 {
+  vcs?: BuildVcs;
   version: 5;
   runtime: 'android-native';
   platform: 'android';
@@ -165,6 +188,7 @@ const ArtifactSchema = z
 const ManifestV1Schema = z
   .object({
     version: z.literal(1),
+    vcs: BuildVcsSchema.optional(),
     buildId: BuildIdSchema,
     artifacts: z.array(ArtifactSchema).max(ARTIFACTS_MAX),
   })
@@ -173,6 +197,7 @@ const ManifestV1Schema = z
 const ManifestV2Schema = z
   .object({
     version: z.literal(2),
+    vcs: BuildVcsSchema.optional(),
     runtime: z.literal('hermes'),
     platform: z.enum(['android', 'ios', 'vega']),
     buildId: BuildIdSchema,
@@ -191,6 +216,7 @@ const R8ArtifactSchema = z
 const ManifestV3Schema = z
   .object({
     version: z.literal(3),
+    vcs: BuildVcsSchema.optional(),
     runtime: z.literal('r8'),
     platform: z.literal('android'),
     buildId: JvmMappingIdSchema,
@@ -201,6 +227,7 @@ const ManifestV3Schema = z
 const ManifestV4Schema = z
   .object({
     version: z.literal(4),
+    vcs: BuildVcsSchema.optional(),
     runtime: z.literal('apple'),
     platform: z.literal('apple'),
     buildId: z.string().length(69),
@@ -221,6 +248,7 @@ const ManifestV4Schema = z
 const ManifestV5Schema = z
   .object({
     version: z.literal(5),
+    vcs: BuildVcsSchema.optional(),
     runtime: z.literal('android-native'),
     platform: z.literal('android'),
     buildId: z.string().length(68),
@@ -352,6 +380,7 @@ export function parseManifest(input: unknown): SourceMapManifest {
       runtime: 'android-native',
       platform: 'android',
       buildId: result.data.buildId,
+      ...(result.data.vcs && { vcs: result.data.vcs }),
       artifacts: [
         {
           url: ELF_ASSET_URL,
@@ -371,6 +400,7 @@ export function parseManifest(input: unknown): SourceMapManifest {
       runtime: 'apple',
       platform: 'apple',
       buildId: result.data.buildId,
+      ...(result.data.vcs && { vcs: result.data.vcs }),
       artifacts: [
         {
           url: DSYM_ASSET_URL,
@@ -388,6 +418,7 @@ export function parseManifest(input: unknown): SourceMapManifest {
       runtime: 'r8',
       platform: 'android',
       buildId: result.data.buildId,
+      ...(result.data.vcs && { vcs: result.data.vcs }),
       artifacts: [
         {
           url: R8_ASSET_URL,
@@ -405,6 +436,7 @@ export function parseManifest(input: unknown): SourceMapManifest {
       runtime: 'hermes',
       platform: result.data.platform,
       buildId: result.data.buildId,
+      ...(result.data.vcs && { vcs: result.data.vcs }),
       artifacts: [
         {
           url: parseHermesAssetUrl(artifact.url, result.data.platform),
@@ -437,7 +469,12 @@ export function parseManifest(input: unknown): SourceMapManifest {
   }
   artifacts.sort((left, right) => (left.url < right.url ? -1 : left.url > right.url ? 1 : 0));
 
-  return { version: 1, buildId: result.data.buildId, artifacts };
+  return {
+    version: 1,
+    buildId: result.data.buildId,
+    ...(result.data.vcs && { vcs: result.data.vcs }),
+    artifacts,
+  };
 }
 
 // Staged build records written to disk between bundling and upload.
@@ -445,6 +482,7 @@ export function parseManifest(input: unknown): SourceMapManifest {
 /** Written by @everframe/metro before hermesc runs; completed by the CLI after. */
 export const StagedBuildPartial = z.object({
   schema: z.literal(1),
+  vcs: BuildVcsSchema.optional(),
   buildId: z
     .string()
     .min(1)

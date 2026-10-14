@@ -127,3 +127,38 @@ describe('withEverframe', () => {
     expect(result).toEqual([]);
   });
 });
+
+it('records one clean Git snapshot before either platform writes staging files', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const { writeFileSync } = await import('node:fs');
+  const git = (...args: string[]) =>
+    execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+  git('init', '-b', 'main');
+  git('config', 'user.name', 'Test');
+  git('config', 'user.email', 'test@example.com');
+  writeFileSync(join(root, 'source'), 'a');
+  git('add', '.');
+  git('commit', '-m', 'source');
+  const commit = git('rev-parse', 'HEAD');
+  withEverframe({}, { projectRoot: root });
+  for (const platform of ['android', 'ios']) {
+    const { buildId } = JSON.parse(
+      readFileSync(join(root, '.everframe', `latest-${platform}.json`), 'utf8'),
+    );
+    expect(
+      JSON.parse(readFileSync(join(root, '.everframe', buildId, 'manifest.partial.json'), 'utf8'))
+        .vcs,
+    ).toEqual({ commit, branch: 'main', dirty: false });
+  }
+});
+it('supports an explicit source commit but does not validate it when disabled', () => {
+  expect(() =>
+    withEverframe({}, { projectRoot: root, enabled: false, commit: 'bad' } as never),
+  ).not.toThrow();
+  withEverframe({}, { projectRoot: root, commit: 'A'.repeat(40) } as never);
+  const { buildId } = JSON.parse(readFileSync(join(root, '.everframe/latest-ios.json'), 'utf8'));
+  expect(
+    JSON.parse(readFileSync(join(root, '.everframe', buildId, 'manifest.partial.json'), 'utf8'))
+      .vcs,
+  ).toEqual({ commit: 'a'.repeat(40) });
+});

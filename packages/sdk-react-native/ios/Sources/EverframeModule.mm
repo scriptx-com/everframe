@@ -211,6 +211,8 @@ RCT_EXPORT_MODULE(Everframe)
           releaseHealthLoadedBuildId:opts.releaseHealthLoadedBuildId()
                  releaseHealthUserId:opts.releaseHealthUserId()
      releaseHealthIncludeDebugBuilds:opts.releaseHealthIncludeDebugBuilds().value_or(false)
+                     jsBundleBuildId:opts.jsBundleBuildId()
+                        jsBundleName:opts.jsBundleName()
                     reporterDisabled:reporterDisabled
                                error:&err];
   if (err != nil) {

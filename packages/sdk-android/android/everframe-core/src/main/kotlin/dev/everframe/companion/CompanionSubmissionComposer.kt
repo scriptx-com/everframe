@@ -325,6 +325,7 @@ object CompanionSubmissionComposer {
                 appVersion = (device["appVersion"] as? String) ?: "0.0.0",
                 appBuild = (device["appBuild"] as? Number)?.toString(),
                 appDebug = device["appDebug"] == "true",
+                jsBundle = cfg.loadedJsBundle?.metadata,
                 deviceOs = (device["os"] as? String) ?: "Android",
                 deviceOsVersion = (device["osVersion"] as? String) ?: "0.0",
                 deviceModel = device["model"] as? String,

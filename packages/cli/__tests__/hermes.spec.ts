@@ -199,6 +199,8 @@ describe('uploadCollectedBuild with Hermes inputs', () => {
           [
             'sourcemaps',
             'upload-hermes',
+            '--commit',
+            'b'.repeat(40),
             '--app-id',
             appId,
             '--build',
@@ -219,6 +221,7 @@ describe('uploadCollectedBuild with Hermes inputs', () => {
         ),
       ).resolves.toBe(0);
       expect(reserved).toEqual({
+        vcs: { commit: 'b'.repeat(40) },
         version: 2,
         runtime: 'hermes',
         platform: 'android',

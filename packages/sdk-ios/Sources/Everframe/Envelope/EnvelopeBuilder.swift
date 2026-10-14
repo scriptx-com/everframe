@@ -152,6 +152,7 @@ public struct EnvelopeBuilder {
         /// nil/empty → `payload.redactions` omitted.
         redactions: [EverframeJSONAny]? = nil,
         extra: [String: String] = [:],
+        jsBundle: EverframeJSBundle? = nil,
         /// Host-supplied opaque metadata string (`EverframePayload.extra`). Distinct
         /// from the `extra:` dict above, which is a typed-mapping side-channel
         /// for `reporter.title`, `context.device.*`, etc. `userExtra` lands
@@ -262,6 +263,7 @@ public struct EnvelopeBuilder {
             annotations: (annotations?.isEmpty == true) ? nil : annotations,
             redactions: (redactions?.isEmpty == true) ? nil : redactions,
             extra: extra,
+            jsBundle: jsBundle,
             userExtra: userExtra,
             trimmedBreadcrumbs: trimmedBreadcrumbs,
             source: source,
@@ -316,6 +318,7 @@ public struct EnvelopeBuilder {
         annotations: [EverframeJSONAny]?,
         redactions: [EverframeJSONAny]?,
         extra: [String: String],
+        jsBundle: EverframeJSBundle?,
         userExtra: String?,
         trimmedBreadcrumbs: [EverframeBreadcrumb]?,
         source: EverframeReportEnvelopeSource?,
@@ -478,6 +481,7 @@ public struct EnvelopeBuilder {
         let app = EverframeApp(
             build: extra["app.build"] ?? bundleBuild,
             debug: extra["app.debug"].map { $0 == "true" } ?? bundleDebug,
+            jsBundle: jsBundle,
             name: extra["app.name"] ?? bundleName,
             version: extra["app.version"] ?? bundleVersion
         )

@@ -371,3 +371,34 @@ are rejected. Use embedded, uncompressed `.debug_info` and `.debug_line`; split,
 separate and compressed core DWARF are unsupported. The service performs full
 DWARF validation. Android ARM32/ARM64/x86/x86_64 are supported; RISC-V64 identity
 parsing has synthetic coverage only.
+
+## Source commit provenance
+
+Current React Native SDKs attach the loaded Hermes bundle identity to ordinary feedback reports as well as crashes. Release-health monitoring can be disabled; the report still resolves the exact uploaded bundle, including OTA updates sharing a native version/build.
+
+React Native iOS/Android builds record an optional Git commit, branch, and dirty
+status. Metro captures these before writing staging files; collection and upload
+preserve that snapshot, including Expo exports and OTA updates. Keep `.everframe/`
+in your Git ignore rules. A missing Git checkout does not stop builds or uploads.
+
+Explicit `withEverframe(config, { commit: '<full-sha>' })` takes precedence over
+local HEAD, then CI fallback (`GITHUB_SHA`, `CI_COMMIT_SHA`, `BITBUCKET_COMMIT`,
+`BUILD_SOURCEVERSION`). Use a full 40- or 64-character hexadecimal commit.
+Detached checkouts omit the branch; unavailable status is unknown, not clean.
+
+`everframe sourcemaps upload-hermes`, `upload-expo-export`, and native `dsym`,
+`elf`, and `r8` upload commands accept `--commit <full-sha>`. An override with a
+different commit drops recorded branch/dirty facts. Legacy staged records without
+provenance stay unknown; delayed staged uploads never read the uploader's HEAD.
+Direct single-artifact uploads detect Git at invocation from the working directory,
+so use `--commit` when uploading older files. Aggregate native `dsym upload-build`
+and `elf upload-build` commands (including Xcode/Gradle integration) leave source
+provenance unknown by default: their symbols may include reused or vendor binaries.
+Use `--commit` only when every selected artifact belongs to that source commit;
+otherwise upload each known artifact with its own explicit commit. Automatic
+per-artifact native source attribution remains follow-up work.
+
+The service must support the additive `vcs` manifest field before using these
+tooling versions. Older clients remain supported by the updated service. Deploy
+server support before publishing the new tooling; do not strip provenance in
+response to an arbitrary upload failure.

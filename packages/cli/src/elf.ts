@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import type { BuildVcs } from '@everframe/protocol';
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { open, realpath } from 'node:fs/promises';
@@ -8,6 +9,7 @@ import { ELF_ASSET_URL, ELF_MAX_BYTES, parseManifest } from '@everframe/protocol
 import { checkedRealPath, type LocalBuild } from './manifest.js';
 
 export interface CollectElfBuildOptions {
+  vcs?: BuildVcs | undefined;
   libraryPath: string;
 }
 
@@ -40,6 +42,7 @@ export async function collectElfBuild(options: CollectElfBuildOptions): Promise<
     await file.close();
   }
   const manifest = parseManifest({
+    ...(options.vcs && { vcs: options.vcs }),
     version: 5,
     runtime: 'android-native',
     platform: 'android',
