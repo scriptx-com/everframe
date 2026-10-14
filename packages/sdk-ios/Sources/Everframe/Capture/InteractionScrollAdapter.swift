@@ -46,7 +46,8 @@ import UIKit
         guard let owner = recorder.owner(view: view) else { return }
         if let oldest = store.all().first, retainedHosts >= 32 { remove(oldest, cancel: true) }
         let position = axis == "x" ? view.contentOffset.x : view.contentOffset.y
-        let gesture = Gesture(view, owner, axis, position, clock()); store.append(gesture)
+        let gesture = Gesture(view, owner, axis, position, clock())
+        guard recorder.retainIfCurrent(owner, { store.append(gesture) }) else { return }
         gesture.observation = view.observe(\.contentOffset, options: [.new]) { [weak self, weak view] _, _ in
             guard Thread.isMainThread, let view else { return }
             MainActor.assumeIsolated { self?.moved(view) }

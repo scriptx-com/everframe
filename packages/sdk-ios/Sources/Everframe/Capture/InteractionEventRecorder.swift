@@ -127,6 +127,14 @@ final class InteractionEventRecorder: @unchecked Sendable {
     private var registrationOverflow = false, timerArmed = false
     private var revocationListeners: [() -> Void] = []
     func onRevoked(_ listener: @escaping () -> Void) { buffer.withInteractionLock { revocationListeners.append(listener) } }
+    // Adapter stores share the revoke boundary: a stale snapshot cannot repopulate
+    // an already-cleared queue. The body must not call back into the recorder/UI.
+    func retainIfCurrent(_ owner: InteractionOwner, _ retain: () -> Void) -> Bool {
+        buffer.withInteractionLock {
+            guard currentLocked(owner) else { return false }
+            retain(); return true
+        }
+    }
 
     init(buffer: BreadcrumbRingBuffer, clock: @escaping () -> Double = { ProcessInfo.processInfo.systemUptime * 1000 },
          schedule: @escaping (Double, @escaping () -> Void) -> Void = { delay, action in DispatchQueue.main.asyncAfter(deadline: .now() + delay / 1000, execute: action) }) {

@@ -7,6 +7,67 @@ import Testing
 
 @MainActor @Suite(.serialized) struct InteractionControlAdapterTests {
     #if !os(tvOS)
+    @Test func deferredSwitchActionUsesTheEndedTouchOwnerOnce() throws {
+        let f = InteractionAdapterFixture(), adapter = InteractionControlAdapter(recorder: f.recorder)
+        let view = f.attach(UISwitch()), touch = NSObject()
+        view.accessibilityIdentifier = "original-toggle"
+        adapter.touch(view, id: ObjectIdentifier(touch), phase: .began, timestamp: 1)
+        adapter.touch(view, id: ObjectIdentifier(touch), phase: .ended, timestamp: 2)
+        view.isOn = true
+        // UIKit's switch dispatch is deferred until after CA commit and has no UIEvent.
+        let change = try #require(adapter.beginAction(view, event: nil))
+        #expect(adapter.complete(change))
+        #expect(f.events.last?["checked"] as? Bool == true)
+        #expect(adapter.beginAction(view, event: nil) == nil)
+    }
+    @Test func switchWithoutLiveEndedTouchCannotRecordProgrammaticAction() throws {
+        var now = 0.0
+        let f = InteractionAdapterFixture(), adapter = InteractionControlAdapter(recorder: f.recorder, clock: { now })
+        let view = f.attach(UISwitch()), touch = NSObject(), id = ObjectIdentifier(touch)
+        view.isOn = true
+        #expect(adapter.beginAction(view, event: nil) == nil)
+        for phase in [UITouch.Phase.cancelled, .ended] {
+            view.isOn = false
+            adapter.touch(view, id: id, phase: .began, timestamp: 1)
+            adapter.touch(view, id: id, phase: phase, timestamp: 2)
+            view.isOn = true
+            if phase == .ended { now += 251 }
+            #expect(adapter.beginAction(view, event: nil) == nil)
+        }
+        view.isOn = false
+        adapter.touch(view, id: id, phase: .began, timestamp: 3)
+        adapter.touch(view, id: id, phase: .ended, timestamp: 4)
+        #expect(adapter.beginAction(view, event: nil) == nil) // unchanged state
+        f.buffer.clear(); view.isOn = true
+        #expect(adapter.retainedTouches == 0)
+        #expect(adapter.beginAction(view, event: nil) == nil)
+        #expect(f.buffer.size == 0)
+    }
+    @Test func deferredSwitchOwnersAreBoundedAndRevokedSynchronously() {
+        let f = InteractionAdapterFixture(), adapter = InteractionControlAdapter(recorder: f.recorder)
+        let views = (0..<40).map { _ in f.attach(UISwitch()) }
+        for view in views { adapter.touch(view, id: ObjectIdentifier(view), phase: .began, timestamp: 1) }
+        #expect(adapter.retainedTouches == 32)
+        f.recorder.revoke()
+        #expect(adapter.retainedTouches == 0)
+        for view in views {
+            adapter.touch(view, id: ObjectIdentifier(view), phase: .ended, timestamp: 2)
+            view.isOn = true
+            #expect(adapter.beginAction(view, event: nil) == nil)
+        }
+    }
+    @Test func revocationBetweenTouchCaptureAndRetentionDoesNotRepopulateStore() {
+        let f = InteractionAdapterFixture()
+        var reads = 0
+        let adapter = InteractionControlAdapter(recorder: f.recorder, clock: {
+            reads += 1
+            if reads == 2 { f.recorder.revoke() }
+            return 0
+        })
+        let view = f.attach(UISwitch())
+        adapter.touch(view, id: ObjectIdentifier(view), phase: .began, timestamp: 1)
+        #expect(adapter.retainedTouches == 0)
+    }
     @Test func finalControlStateAndSourceTargetSurviveAppFocusChange() throws {
         let f = InteractionAdapterFixture(), adapter = InteractionControlAdapter(recorder: f.recorder)
         let view = f.attach(UISwitch()); view.accessibilityIdentifier = "toggle"

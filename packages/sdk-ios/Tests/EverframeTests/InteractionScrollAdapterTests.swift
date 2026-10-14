@@ -6,6 +6,12 @@ import Testing
 @testable import EverframeKit
 
 @MainActor @Suite(.serialized) struct InteractionScrollAdapterTests {
+    @Test func revocationBetweenCaptureAndRetentionDoesNotRestoreGesture() {
+        let f = InteractionAdapterFixture()
+        let adapter = InteractionScrollAdapter(recorder: f.recorder, clock: { f.recorder.revoke(); return 0 })
+        adapter.began(f.attach(UIScrollView()), axis: "y")
+        #expect(adapter.retainedHosts == 0)
+    }
     private final class Delegate: NSObject, UIScrollViewDelegate { var calls = 0; func scrollViewDidScroll(_ scrollView: UIScrollView) { calls += 1 } }
     @Test func gestureAndMomentumCoalesceWithoutReplacingDelegate() {
         let f = InteractionAdapterFixture(), adapter = InteractionScrollAdapter(recorder: f.recorder, clock: { f.now })

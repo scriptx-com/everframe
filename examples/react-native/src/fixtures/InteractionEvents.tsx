@@ -82,6 +82,12 @@ export default function InteractionEventsFixture() {
     }} />}
     <Button id="fixture-signout" title="Sign out while work is pending" onPress={() => { setUser(); setStatus('Signed out; remount hosts to renew helpers'); }} />
     <Button id="fixture-late-context" title="Supply late launch context" onPress={() => recordLaunchContext({ trigger: 'notification', arguments: { campaign: 'late-fixture' } })} />
-    <Button id="fixture-capture" title="Capture evidence" onPress={() => captureException(new Error(`interaction-fixture-${helpers ? 'helpers' : 'automatic'}-${++captures.current}`))} />
+    <Button id="fixture-capture" title="Capture evidence" onPress={() => {
+      const ordinal = ++captures.current;
+      const error = new Error(`interaction-fixture-${helpers ? 'helpers' : 'automatic'}-${ordinal}`);
+      // Each deliberate fixture capture is a separate case at this shared call site.
+      error.name = `InteractionFixtureCapture${ordinal}`;
+      captureException(error);
+    }} />
   </ScrollView>;
 }

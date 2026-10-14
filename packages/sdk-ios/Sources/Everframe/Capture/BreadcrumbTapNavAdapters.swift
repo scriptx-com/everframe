@@ -125,8 +125,8 @@ enum TapBreadcrumbAdapter {
                     return InteractionTargetSnapshot(label: label, data: data, captureRevision: revision)
                 } : nil
                 let control: InteractionControlChange? = Thread.isMainThread ? MainActor.assumeIsolated {
-                    guard let event, event.type == .touches || event.type == .presses, let view = sender as? UIView else { return nil }
-                    return InteractionControlAdapter.shared.begin(view, eventTimestamp: event.timestamp)
+                    guard let view = sender as? UIView else { return nil }
+                    return InteractionControlAdapter.shared.beginAction(view, event: event)
                 } : nil
                 let result = originalFn(app, sel, action, target, sender, event)
                 if let control, Thread.isMainThread { MainActor.assumeIsolated { InteractionControlAdapter.shared.complete(control) } }
@@ -543,6 +543,7 @@ enum WindowTapBreadcrumbAdapter {
                 // Capture immutable evidence before callbacks mutate views, screen, or focus.
                 // Emission stays after delivery so sendAction deduplication remains effective.
                 withDispatchSnapshot(snapshot, eventTimestamp: event.timestamp) {
+                    InteractionControlAdapter.shared.beforeEvent(event, window: window)
                     InteractionScrollAdapter.shared.beforeEvent(event, window: window)
                     originalFn(window, sel, event)
                     InteractionScrollAdapter.shared.afterEvent(event)
