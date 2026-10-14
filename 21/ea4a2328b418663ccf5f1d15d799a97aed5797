@@ -1,0 +1,19 @@
+packages/sdk-react-native/__tests__/rbridge-no-surface.test.ts
+  s_77a87d381df89f::t_4dd7f20ba9398a 75,80-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "21ea4a2328b418663ccf5f1d15d799a97aed5797",
+  "prompts": {},
+  "sessions": {
+    "s_77a87d381df89f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-3920-73e0-8e79-507dabe95fdc",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
