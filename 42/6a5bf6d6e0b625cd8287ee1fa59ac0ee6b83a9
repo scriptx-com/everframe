@@ -1,0 +1,39 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionTargetRegistry.kt
+  s_f3bbf3765b99f4::t_9151c521b27f3c 16,25-39,49,52,65
+  s_f3bbf3765b99f4::t_cc84472e08b0bc 1-15,17-24,40-48,50-51,53-64,66-105
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionTargetResolver.kt
+  s_f3bbf3765b99f4::t_cc84472e08b0bc 10,76-88
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnInteractionTargetRegistrationTest.kt
+  s_f3bbf3765b99f4::t_cf63f3c8ae66c5 1-81
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionTargetRegistryTest.kt
+  s_f3bbf3765b99f4::t_066ef933279b24 82-90
+  s_f3bbf3765b99f4::t_41127cc957d165 1-81,91
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_f3bbf3765b99f4::t_4f190b4b2601eb 958,1538
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionTargetViewAdapter.kt
+  s_f3bbf3765b99f4::t_a7ca87c871b37f 19,21-22,24
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_f3bbf3765b99f4::t_5bddb2d1bba97e 109-114,403,615-616,774-781
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/RnInteractionTargetAdapter.kt
+  s_f3bbf3765b99f4::t_305d5f6c700fe3 1-26
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/RnInteractionTargetRegistration.kt
+  s_f3bbf3765b99f4::t_e2dd60106ebed9 1-64
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_f3bbf3765b99f4::t_d54a1e29162986 282-285
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "426a5bf6d6e0b625cd8287ee1fa59ac0ee6b83a9",
+  "prompts": {},
+  "sessions": {
+    "s_f3bbf3765b99f4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a49-28e0-7122-b8e9-07ca3509c69b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
