@@ -1,0 +1,33 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbRingBuffer.kt
+  s_46e1aa7e76c6a2::t_1f230ca89bd29b 133-155,276
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/BreadcrumbRingBufferTest.kt
+  s_46e1aa7e76c6a2::t_12ddc01167fde3 82-119
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionTargetResolverTest.kt
+  s_46e1aa7e76c6a2::t_e3ead5c739942d 46-60
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbRingBuffer.swift
+  s_46e1aa7e76c6a2::t_583731d0f8f25a 138,238,243-252,256-265
+packages/sdk-ios/Sources/Everframe/Capture/InteractionTargetResolver.swift
+  s_46e1aa7e76c6a2::t_afe7bdd0d5bf33 78,98-114,121
+packages/sdk-ios/Tests/EverframeTests/BreadcrumbRingBufferTests.swift
+  s_46e1aa7e76c6a2::t_88e7b67e21853e 117-156
+packages/sdk-ios/Tests/EverframeTests/InteractionTargetResolverTests.swift
+  s_46e1aa7e76c6a2::t_2efc30f6cff4b3 196-233,261-267
+packages/sdk-ios/Tests/EverframeTests/WindowTapBreadcrumbAdapterTests.swift
+  s_46e1aa7e76c6a2::t_941964d727a07a 17-20,203
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f3821a56859db00f15eac6d4edf46a7fda7fca62",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
