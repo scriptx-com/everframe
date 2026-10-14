@@ -12,7 +12,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
-import dev.everframe.config.EverframeConfig
+import dev.everframe.capture.DeviceMetadata
 import dev.everframe.protocol.generated.StateSnapshot
 import dev.everframe.protocol.generated.StateValue
 import java.util.Locale
@@ -73,11 +73,11 @@ internal class AutomaticStateFacts(private val context: Context, private val own
     override fun onActivitySaveInstanceState(activity: Activity, state: Bundle) { }
     override fun onActivityDestroyed(activity: Activity) { }
     companion object {
-        fun initial(context: Context, config: EverframeConfig): StateSnapshot {
-            val info = try { context.packageManager.getPackageInfo(context.packageName, 0) } catch (_: Exception) { null }
+        fun initial(context: Context): StateSnapshot {
+            val release = DeviceMetadata.appRelease(context, debugBuild = null)
             return StateSnapshot(mapOf(
-                "app.version" to StateValue.StringValue(config.release ?: info?.versionName ?: "unknown"),
-                "app.build" to StateValue.StringValue(info?.let { if (Build.VERSION.SDK_INT >= 28) it.longVersionCode.toString() else it.versionCode.toString() } ?: "unknown"),
+                "app.version" to StateValue.StringValue(release.version),
+                "app.build" to StateValue.StringValue(release.build ?: "unknown"),
                 "os.name" to StateValue.StringValue("Android"), "os.version" to StateValue.StringValue(Build.VERSION.RELEASE ?: "unknown"),
                 "locale" to StateValue.StringValue(Locale.getDefault().toLanguageTag()), "user.status" to StateValue.StringValue("anonymous"),
                 "network.type" to StateValue.StringValue("unknown"), "permission.camera" to StateValue.StringValue("unknown"),

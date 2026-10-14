@@ -15,6 +15,29 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
 class StateLifecycleTest {
+    @Test fun automaticVersionUsesHostPackageInsteadOfSdkRelease() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        info.versionName = "2.7.1"
+        info.versionCode = 271
+        org.robolectric.Shadows.shadowOf(context.packageManager).installPackage(info)
+        Everframe.start(context, EverframeConfig(appId = "test", sdkKey = "txx_live_test1234567890", release = "sdk-version", capture = CaptureConfig(logs = false)))
+        val facts = Everframe.captureSessionSnapshot().state!!.initial.automatic
+        assertEquals(StateValue.StringValue("2.7.1"), facts["app.version"])
+        assertEquals(StateValue.StringValue("271"), facts["app.build"])
+    }
+    @Test fun automaticVersionMatchesReportMetadataForMissingBlankAndPaddedVersions() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        for ((version, expected) in listOf(null to "271", "  " to "271", " 2.7.1 " to "2.7.1")) {
+            val info = context.packageManager.getPackageInfo(context.packageName, 0)
+            info.versionName = version
+            info.versionCode = 271
+            org.robolectric.Shadows.shadowOf(context.packageManager).installPackage(info)
+            val facts = AutomaticStateFacts.initial(context).automatic
+            assertEquals(StateValue.StringValue(expected), facts["app.version"])
+            assertEquals(expected, dev.everframe.capture.DeviceMetadata.collect(context)["appVersion"])
+        }
+    }
     private fun start() = Everframe.start(ApplicationProvider.getApplicationContext(), EverframeConfig(appId = "test", sdkKey = "txx_live_test1234567890", capture = CaptureConfig(logs = false)))
     @After fun cleanup() { Everframe.kill() }
     @Test fun captureIsImmutableAndSessionResetClearsState() {

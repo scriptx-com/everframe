@@ -6,6 +6,14 @@ import EverframeProtocol
 @testable import EverframeKit
 @Suite(.serialized)
 struct StateLifecycleTests {
+    @Test func automaticVersionUsesHostBundleInsteadOfSdkRelease() throws {
+        defer { Everframe.shared.kill() }
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU", release: "sdk-version", capture: CaptureConfig(logs: false)))
+        let facts = try #require(Everframe.shared.captureSessionSnapshot().state).initial.automatic
+        let release = AppRelease.current(debugBuild: nil)
+        #expect(StateSanitizer.equal(facts["app.version"], .string(release.version)))
+        #expect(StateSanitizer.equal(facts["app.build"], .string(release.build ?? "unknown")))
+    }
     private func start() throws {
         try Everframe.shared.start(config: EverframeConfig(sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU", capture: CaptureConfig(logs: false)))
     }

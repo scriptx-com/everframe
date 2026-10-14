@@ -56,7 +56,8 @@ final class AutomaticStateFacts: @unchecked Sendable {
         }
         #endif
     }
-    static func initial(config: EverframeConfig) -> EverframeStateSnapshot {
+    static func initial() -> EverframeStateSnapshot {
+        let release = AppRelease.current(debugBuild: nil)
         #if os(iOS)
         let os = "iOS"
         let unavailable = "unknown"
@@ -68,8 +69,8 @@ final class AutomaticStateFacts: @unchecked Sendable {
         let unavailable = "not-supported"
         #endif
         return EverframeStateSnapshot(automatic: [
-            "app.version": .string(config.release ?? Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"),
-            "app.build": .string(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown"),
+            "app.version": .string(release.version),
+            "app.build": .string(release.build ?? "unknown"),
             "os.name": .string(os), "os.version": .string(ProcessInfo.processInfo.operatingSystemVersionString),
             "locale": .string(Locale.current.identifier), "user.status": .string("anonymous"),
             "network.type": .string("unknown"), "permission.camera": .string(unavailable),

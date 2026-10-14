@@ -1284,7 +1284,7 @@ public final class Everframe: @unchecked Sendable {
         guard _startEpoch == epoch else { stateLock.unlock(); return }
         _config = config
         stateEvidenceGeneration &+= 1
-        stateRecorder.reset(initial: AutomaticStateFacts.initial(config: config), startedAt: Date().timeIntervalSince1970 * 1000)
+        stateRecorder.reset(initial: AutomaticStateFacts.initial(), startedAt: Date().timeIntervalSince1970 * 1000)
         nativeCrashPublishedEpoch = epoch
         // Crash-only sessions (spec 2026-10-12): a crash-only session that starts while the
         // companion is still bonded (a re-start, or a React Native reconfigure with the phone

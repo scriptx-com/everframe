@@ -995,7 +995,7 @@ object Everframe {
         ).takeIf { it.any }
         var startedCrashCapture: dev.everframe.crash.CrashCaptureStart? = null
         var displacedReplay: ReplaySession? = null
-        val initialState = dev.everframe.state.AutomaticStateFacts.initial(context, config)
+        val initialState = dev.everframe.state.AutomaticStateFacts.initial(context)
         val published = stateLock.withLock {
             // Critical 2: the publication re-check. A start that lost the race
             // while running customer teardown above publishes NOTHING — no
