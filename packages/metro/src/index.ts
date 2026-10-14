@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { detectBuildVcs } from '@everframe/build-tools';
 import { deriveBundleName, generateBuildId } from './identity.js';
 import { stagingRoot, writeStagedIdentity } from './staging.js';
 
@@ -14,6 +15,8 @@ export interface WithEverframeOptions {
    */
   enabled?: boolean;
   projectRoot?: string;
+  /** Explicit full source commit; otherwise detected before staging. */
+  commit?: string;
   dev?: boolean;
 }
 
@@ -33,6 +36,10 @@ export function withEverframe<T extends MetroLikeConfig>(
   if (options.enabled === false) return config as WithIdentity<T>;
   const projectRoot = options.projectRoot ?? process.cwd();
   const dev = options.dev ?? false;
+  const vcs = detectBuildVcs({
+    projectRoot,
+    ...(options.commit !== undefined && { commit: options.commit }),
+  });
   const previous = config.serializer?.getPolyfills;
 
   // Staged at config time: Metro crawls the project before calling
@@ -41,6 +48,7 @@ export function withEverframe<T extends MetroLikeConfig>(
   const staged: Record<'android' | 'ios', string> = {
     android: writeStagedIdentity(projectRoot, {
       schema: 1,
+      ...(vcs && { vcs }),
       buildId: generateBuildId(),
       platform: 'android',
       bundleName: deriveBundleName('android'),
@@ -48,6 +56,7 @@ export function withEverframe<T extends MetroLikeConfig>(
     }),
     ios: writeStagedIdentity(projectRoot, {
       schema: 1,
+      ...(vcs && { vcs }),
       buildId: generateBuildId(),
       platform: 'ios',
       bundleName: deriveBundleName('ios'),

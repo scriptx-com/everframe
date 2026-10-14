@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { overrideBuildVcs } from '@everframe/build-tools';
 import { dirname, resolve } from 'node:path';
 import type { BuildUploadStatus } from '@everframe/protocol';
 import { adviceFor } from './build-verify.js';
@@ -8,6 +9,7 @@ import { readComplete, readPointer } from './staging-io.js';
 import { uploadCollectedBuild, type UploadDependencies } from './upload.js';
 
 export interface StagedHermesUploadOptions {
+  commit?: string | undefined;
   stagingDir: string;
   platform: 'android' | 'ios';
   appId: string;
@@ -26,6 +28,7 @@ export async function uploadStagedHermes(
   );
   const local = await collectHermesBuild({
     buildId: staged.buildId,
+    vcs: overrideBuildVcs(staged.vcs, options.commit),
     platform: options.platform,
     bundleName: staged.bundleName,
     bundlePath: staged.bundlePath,

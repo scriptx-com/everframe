@@ -2,10 +2,12 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { open, realpath, stat } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import type { BuildVcs } from '@everframe/protocol';
 import { hermesAssetUrl, parseManifest } from '@everframe/protocol';
 import { checkedRealPath, hashFile, type LocalBuild } from './manifest.js';
 
 export interface CollectHermesBuildOptions {
+  vcs?: BuildVcs | undefined;
   buildId: string;
   /**
    * `vega`: Amazon Vega OS. Its frames carry JavaScript lines and columns, so
@@ -61,6 +63,7 @@ export async function collectHermesBuild(options: CollectHermesBuildOptions): Pr
     throw new Error('vega_bundle_id_mismatch');
   const manifest = parseManifest({
     version: 2,
+    ...(options.vcs && { vcs: options.vcs }),
     runtime: 'hermes',
     platform: options.platform,
     buildId: options.buildId,

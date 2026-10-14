@@ -64,7 +64,8 @@
   "devDependencies": {
     "@everframe/protocol": "workspace:*",
     "@types/node": "^22.0.0",
-    "tsup": "^8.0.0"
+    "tsup": "^8.0.0",
+    "@everframe/build-tools": "workspace:*"
   },
   "repository": {
     "type": "git",

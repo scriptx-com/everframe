@@ -98,10 +98,13 @@ it('skips Debug builds before looking for a token and prints why', async () => {
 it('uploads the discovered app, framework and extension from an Xcode build', async () => {
   const f = await xcode();
   const r = recorder();
-  expect(await dsymUploadBuildCommand(['--xcode'], f.env, r.deps)).toBe(0);
+  expect(await dsymUploadBuildCommand(['--xcode', '--commit', 'b'.repeat(40)], f.env, r.deps)).toBe(
+    0,
+  );
   expect(r.upload).toHaveBeenCalledWith(
     {
       appId: APP_ID,
+      vcs: { commit: 'b'.repeat(40) },
       token: 'secret',
       apiUrl: 'https://everframe.dev/api/v1',
       binaries: [

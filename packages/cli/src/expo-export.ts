@@ -33,6 +33,7 @@ export async function resolveExpoAppId(
 }
 
 export interface ExpoExportOptions {
+  commit?: string | undefined;
   distDir: string;
   stagingDir: string;
   appId: string;

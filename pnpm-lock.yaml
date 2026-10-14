@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
 lockfileVersion: '9.0'
 
 settings:
@@ -390,6 +392,9 @@ importers:
         specifier: 4.3.6
         version: 4.3.6(patch_hash=szurow4zhzyfyo22tumm2pdqcq)
     devDependencies:
+      '@everframe/build-tools':
+        specifier: workspace:*
+        version: link:../build-tools
       '@everframe/protocol':
         specifier: workspace:*
         version: link:../protocol
@@ -441,6 +446,9 @@ importers:
         specifier: 4.3.6
         version: 4.3.6(patch_hash=szurow4zhzyfyo22tumm2pdqcq)
     devDependencies:
+      '@everframe/build-tools':
+        specifier: workspace:*
+        version: link:../build-tools
       '@everframe/protocol':
         specifier: workspace:*
         version: link:../protocol

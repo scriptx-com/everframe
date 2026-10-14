@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { detectBuildVcs } from '@everframe/build-tools';
 import { parseArgs } from 'node:util';
 import type { AppleBinaryInput } from './apple-build.js';
 import {
@@ -45,6 +46,7 @@ export async function dsymUploadBuildCommand(
     allowPositionals: false,
     strict: true,
     options: {
+      commit: { type: 'string' },
       'app-id': { type: 'string' },
       binary: { type: 'string', multiple: true },
       'dsym-dir': { type: 'string', multiple: true },
@@ -113,6 +115,11 @@ export async function dsymUploadBuildCommand(
           token,
           apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
           binaries,
+          vcs: detectBuildVcs({
+            projectRoot: env.SRCROOT ?? process.cwd(),
+            ...(values.commit !== undefined && { commit: values.commit }),
+            env,
+          }),
           dsymDirs: source.dsymDirs,
           lenient: !failHard,
         },

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import type { BuildVcs } from '@everframe/protocol';
 import { dirname } from 'node:path';
 import {
   collectAppleBuild,
@@ -37,6 +38,7 @@ async function verify(build: CollectedAppleBuild) {
 /** A CI gate over independent immutable artifacts, not a multi-file transaction. */
 export async function uploadAppleBuild(
   options: {
+    vcs?: BuildVcs | undefined;
     binaries: AppleBinaryInput[];
     dsymDirs: string[];
     appId: string;
@@ -64,6 +66,7 @@ export async function uploadAppleBuild(
   const artifacts: BuildUploadStatus[] = [],
     failed: Array<{ path: string; message: string }> = [];
   for (const local of build.artifacts) {
+    if (options.vcs) local.manifest.vcs = options.vcs;
     const path = local.mapPaths.values().next().value!;
     try {
       artifacts.push(

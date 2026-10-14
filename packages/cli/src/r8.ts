@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import type { BuildVcs } from '@everframe/protocol';
 import { realpath, stat } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 import { R8_ASSET_URL, R8_MAX_BYTES, parseManifest } from '@everframe/protocol';
 import { checkedRealPath, hashFile, type LocalBuild } from './manifest.js';
 
 export interface CollectR8BuildOptions {
+  vcs?: BuildVcs | undefined;
   mappingId: string;
   mappingPath: string;
 }
@@ -26,6 +28,7 @@ export async function collectR8Build(options: CollectR8BuildOptions): Promise<Lo
     );
 
   const manifest = parseManifest({
+    ...(options.vcs && { vcs: options.vcs }),
     version: 3,
     runtime: 'r8',
     platform: 'android',

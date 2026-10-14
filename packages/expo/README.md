@@ -104,3 +104,27 @@ Never substitute the native version when a bundle identifier is missing.
 
 Expo update behavior is defined by the [Updates SDK](https://docs.expo.dev/versions/latest/sdk/updates/)
 and [Updates v1 protocol](https://docs.expo.dev/technical-specs/expo-updates-1/).
+
+## Source commit provenance
+
+React Native iOS/Android builds record an optional Git commit, branch, and dirty
+status. Metro captures these before writing staging files; collection and upload
+preserve that snapshot, including Expo exports and OTA updates. Keep `.everframe/`
+in your Git ignore rules. A missing Git checkout does not stop builds or uploads.
+
+Explicit `withEverframe(config, { commit: '<full-sha>' })` takes precedence over
+local HEAD, then CI fallback (`GITHUB_SHA`, `CI_COMMIT_SHA`, `BITBUCKET_COMMIT`,
+`BUILD_SOURCEVERSION`). Use a full 40- or 64-character hexadecimal commit.
+Detached checkouts omit the branch; unavailable status is unknown, not clean.
+
+`everframe sourcemaps upload-hermes`, `upload-expo-export`, and native `dsym`,
+`elf`, and `r8` upload commands accept `--commit <full-sha>`. An override with a
+different commit drops recorded branch/dirty facts. Legacy staged records without
+provenance stay unknown; delayed staged uploads never read the uploader's HEAD.
+Direct uploads detect Git at invocation from the working directory (Xcode build
+uploads use `SRCROOT` when supplied), so use `--commit` when uploading older files.
+
+The service must support the additive `vcs` manifest field before using these
+tooling versions. Older clients remain supported by the updated service. Deploy
+server support before publishing the new tooling; do not strip provenance in
+response to an arbitrary upload failure.

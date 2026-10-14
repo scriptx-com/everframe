@@ -7,10 +7,10 @@ export default defineConfig({
   format: ['esm'],
   // protocol is private: true and never reaches npm, so its types and code
   // are inlined (see sdk-react-native/tsup.config.ts for why dts needs resolve).
-  dts: { resolve: ['@everframe/protocol'] },
+  dts: { resolve: ['@everframe/protocol', '@everframe/build-tools'] },
   clean: true,
   sourcemap: false,
   target: 'node22',
   outDir: 'dist',
-  noExternal: ['@everframe/protocol', 'zod'],
+  noExternal: ['@everframe/protocol', '@everframe/build-tools', 'zod'],
 });

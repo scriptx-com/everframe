@@ -15,7 +15,8 @@
     "@everframe/sdk-ios-marker",
     "@everframe/swc-plugin-displayname",
     "@everframe/vega",
-    "@everframe/web"
+    "@everframe/web",
+    "@everframe/build-tools"
   ],
   "allowedTopLevel": [
     ".changeset",

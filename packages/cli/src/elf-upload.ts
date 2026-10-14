@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import type { BuildVcs } from '@everframe/protocol';
 import { dirname } from 'node:path';
 import type { BuildUploadStatus } from '@everframe/protocol';
 import {
@@ -12,6 +13,7 @@ import { BUDGET_EXHAUSTED, uploadCollectedBuild, type UploadDependencies } from 
 /** Independent immutable uploads: a later failure leaves earlier ready artifacts reusable. */
 export async function uploadAndroidElfBuild(
   options: {
+    vcs?: BuildVcs | undefined;
     binaries: ElfBinaryInput[];
     /** The project's own native build outputs; see collectAndroidElfBuild. */
     projectDirs?: string[] | undefined;
@@ -39,6 +41,7 @@ export async function uploadAndroidElfBuild(
   const artifacts: BuildUploadStatus[] = [],
     failed: Array<{ path: string; message: string }> = [];
   for (const local of build.artifacts) {
+    if (options.vcs) local.manifest.vcs = options.vcs;
     const path = local.mapPaths.values().next().value!;
     try {
       artifacts.push(
