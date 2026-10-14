@@ -1,0 +1,60 @@
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnInteractionEventObserverTest.kt
+  s_46e1aa7e76c6a2::t_3571a344d0d2a5 46-49,95
+  s_46e1aa7e76c6a2::t_4b0e31004513ef 85
+  s_46e1aa7e76c6a2::t_b305b85bd69d82 41
+  s_46e1aa7e76c6a2::t_d2f24682cf1df7 59
+  s_46e1aa7e76c6a2::t_ae5c46ab93eb60 1-40,42-45,50-58,60-84,86-94,96-103
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventPolicy.kt
+  s_46e1aa7e76c6a2::t_4b0e31004513ef 15-17
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbAdapters.kt
+  s_46e1aa7e76c6a2::t_51fc5ca06b1a41 352
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionScrollAdapter.kt
+  s_46e1aa7e76c6a2::t_51fc5ca06b1a41 1-73
+  s_46e1aa7e76c6a2::t_b799ea882ffb8b 74-92
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionLaunchAdapter.kt
+  s_46e1aa7e76c6a2::t_51fc5ca06b1a41 1-46
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/RnInteractionEventObserver.kt
+  s_46e1aa7e76c6a2::t_3571a344d0d2a5 1-26,30-64,66-69
+  s_46e1aa7e76c6a2::t_4b0e31004513ef 27-29,65
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionLaunchAdapterTest.kt
+  s_46e1aa7e76c6a2::t_a6f2e5c7529eb7 1-28
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbTapNavAdapters.kt
+  s_46e1aa7e76c6a2::t_b305b85bd69d82 346-350,366-379
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionControlAdapterTest.kt
+  s_46e1aa7e76c6a2::t_a6f2e5c7529eb7 1-34
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionControlAdapter.kt
+  s_46e1aa7e76c6a2::t_51fc5ca06b1a41 1-32,35-38
+  s_46e1aa7e76c6a2::t_b305b85bd69d82 33-34
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionScrollAdapterTest.kt
+  s_46e1aa7e76c6a2::t_5fcc83480747d3 36,42
+  s_46e1aa7e76c6a2::t_04323d98bec440 38-41,43-59
+  s_46e1aa7e76c6a2::t_a6f2e5c7529eb7 1-35,37,60
+  s_46e1aa7e76c6a2::t_c65770606630ed 61-65
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionEventPolicyTest.kt
+  s_46e1aa7e76c6a2::t_b908b85bcc1a0b 14
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionTextAdapterTest.kt
+  s_46e1aa7e76c6a2::t_a6f2e5c7529eb7 1-54
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventRecorder.kt
+  s_46e1aa7e76c6a2::t_51fc5ca06b1a41 205-207
+  s_46e1aa7e76c6a2::t_2d523d268eaac5 55-56,75
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_46e1aa7e76c6a2::t_4b0e31004513ef 110,408,645
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionTextAdapter.kt
+  s_46e1aa7e76c6a2::t_51fc5ca06b1a41 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0437e8229d061ae8825ec3019b887de5c501f85d",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
