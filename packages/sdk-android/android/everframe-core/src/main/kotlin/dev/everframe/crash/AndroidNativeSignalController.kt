@@ -71,6 +71,41 @@ internal class AndroidNativeSignalController(
         enable(pending.command, epoch, pending.authorization, pending.template, pending.admit)
     }
 
+    /** Disk/encoding failure leaves the existing signal capsule armed. */
+    fun refreshState(epoch: Int): Boolean = synchronized(operations) {
+        val previous = owner ?: return@synchronized false
+        if (!ready(epoch) || !previous.authorization.isAllowed()) return@synchronized false
+        val gate = object : OutboxAuthorization {
+            override fun isAllowed() = revision.get() == previous.command && !erasePending.get() &&
+                exposureGeneration.get() == previous.exposureRevision && previous.authorization.isAllowed()
+        }
+        var touchedProducer = false
+        try {
+            val entry = previous.template()
+            val success = previous.engine.arm(entry, processLaunchId, gate, previous.pointer) { id, key ->
+                touchedProducer = true
+                producer.revoke() && gate.isAllowed() && producer.arm(id, key, producer.generation())
+            }
+            if (success && gate.isAllowed()) {
+                owner = previous.copy(reportId = entry.reportId)
+                // Publication committed. Cleanup can retry later; never roll a
+                // working producer back to an old, possibly retired capsule.
+                runCatching { previous.engine.retireArmed(previous.reportId) }
+                runCatching { cleanup(previous.engine.retainedEpochs()) }
+                return@synchronized true
+            }
+        } catch (_: Exception) { /* Keep the immutable old capsule for restoration. */ }
+        if (touchedProducer) {
+            val restored = runCatching {
+                gate.isAllowed() && previous.engine.rearm(previous.reportId, gate) { id, key ->
+                    producer.revoke() && gate.isAllowed() && producer.arm(id, key, producer.generation())
+                }
+            }.getOrDefault(false)
+            if (!restored) { readyCommand = -1; producer.pause() }
+        }
+        false
+    }
+
     fun ready(epoch: Int): Boolean = owner?.let {
         it.exposureRevision == exposureGeneration.get() && it.epoch == epoch && it.command == revision.get() && readyCommand == it.command && !erasePending.get()
     } == true

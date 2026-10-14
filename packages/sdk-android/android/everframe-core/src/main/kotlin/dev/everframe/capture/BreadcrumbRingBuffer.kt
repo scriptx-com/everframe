@@ -46,6 +46,7 @@ import kotlin.concurrent.withLock
 class BreadcrumbRingBuffer internal constructor(
     maxCount: Int,
     internal val honorsKillGate: Boolean,
+    private val sequence: EvidenceSequence = EvidenceSequence(),
 ) {
     /** Public production constructor — always honors the kill gate. */
     constructor(maxCount: Int = defaultMaxCount) : this(maxCount, true)
@@ -206,7 +207,6 @@ class BreadcrumbRingBuffer internal constructor(
     private val lock = ReentrantLock()
     private val entries = ArrayDeque<Breadcrumb>()
     private var frozen: List<Breadcrumb>? = null
-    private var seq: Long = 0
     private var _maxCount: Int = maxCount
 
     // Config-gating state (Task 1's wire). Defaults match applyConfig(null):
@@ -263,11 +263,10 @@ class BreadcrumbRingBuffer internal constructor(
                 kind = kind,
                 level = level,
                 message = capped.message,
-                seq = seq,
+                seq = sequence.next(),
                 t = System.currentTimeMillis().toDouble(),
                 truncated = if (capped.truncated) true else null,
             )
-            seq += 1
             entries.addLast(crumb)
             if (entries.size > _maxCount) entries.removeFirst()
         }
@@ -373,4 +372,4 @@ class BreadcrumbRingBuffer internal constructor(
  * from `ReplaySession.enableIfConfigured()` on every fresh `/api/config` read
  * (independent of replay ON/OFF).
  */
-val sharedBreadcrumbBuffer = BreadcrumbRingBuffer()
+val sharedBreadcrumbBuffer = BreadcrumbRingBuffer(BreadcrumbRingBuffer.defaultMaxCount, true, EvidenceSequence.shared)

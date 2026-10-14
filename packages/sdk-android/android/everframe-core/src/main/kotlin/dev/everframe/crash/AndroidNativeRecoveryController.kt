@@ -183,6 +183,27 @@ internal class AndroidNativeRecoveryController(
         }
     }
 
+    /** Optional evidence refresh: prepare and persist before replacing the live OS token. */
+    fun refreshState(epoch: Int): Boolean {
+        val owner = synchronized(lock) { active?.takeIf { it.epoch == epoch && it.ready } } ?: return false
+        synchronized(owner.operations) {
+            val generation = exposureGeneration.get()
+            val gate = object : OutboxAuthorization {
+                override fun isAllowed() = active === owner && current(owner) &&
+                    exposureGeneration.get() == generation && owner.authorization.isAllowed()
+            }
+            if (!gate.isAllowed()) return false
+            return try {
+                owner.engine.arm(owner.template(), platform.pid, platform.processName, gate, owner.diagnostics,
+                    processLaunchId, platform.apiLevel, nativeExposure = exposure(epoch), exits = owner.exits,
+                    onReclaimed = ::journalFull, appId = owner.appId, mappingId = owner.mappingId, replacingEvidence = true) { token ->
+                    synchronized(publication) { check(gate.isAllowed()); publish(token) }
+                }
+                gate.isAllowed()
+            } catch (_: Exception) { false }
+        }
+    }
+
     /** Lock-free: an arm holds the lock across journal and Binder IO, and callers poll this on the main thread. */
     fun ready(epoch: Int): Boolean =
         active?.let { it.epoch == epoch && it.ready && current(it) && it.authorization.isAllowed() } == true

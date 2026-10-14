@@ -24,6 +24,7 @@ import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-captur
 // Inlining avoids pulling sdk-react's web-only deps (react-konva, html-to-image)
 // into the RN bundle. Dedupe to sdk-core post-v0.1.0.
 import NativeEverframe from './NativeEverframe.js';
+import { validStateKey, validStateValue } from './state.js';
 import type { ConfigOpts, Rect } from './NativeEverframe.js';
 import { budgetExtra, EXTRA_MAX_CHARS } from '@everframe/sdk-core';
 import type { ExtraResolver } from '@everframe/sdk-core';
@@ -593,6 +594,15 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
         return;
       }
       NativeEverframe.setExtra(budgeted);
+    },
+    setState(key, value) {
+      if (__getCurrentContext() !== runtime || !validStateKey(key) || !validStateValue(value))
+        return;
+      NativeEverframe.setStateSync(key, JSON.stringify(value));
+    },
+    clearState(key) {
+      if (__getCurrentContext() !== runtime || !validStateKey(key)) return;
+      NativeEverframe.clearStateSync(key);
     },
     setUser(user) {
       // External review, finding 2 (Serious) — PROJECT before the bridge, do

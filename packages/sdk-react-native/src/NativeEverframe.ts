@@ -463,6 +463,9 @@ export interface Spec extends TurboModule {
    * credential. It groups reports in the dashboard and does nothing else.
    */
   setUser(user?: UnsafeObject): void;
+  /** Synchronous acknowledgement preserves setState → fatal capture ordering. */
+  setStateSync(key: string, valueJson: string): boolean;
+  clearStateSync(key: string): boolean;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('Everframe');

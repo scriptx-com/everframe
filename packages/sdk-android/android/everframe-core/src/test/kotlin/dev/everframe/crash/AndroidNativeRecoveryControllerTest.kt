@@ -58,6 +58,48 @@ class AndroidNativeRecoveryControllerTest {
         if (!requests.finishRevocation { if (!gate.isAllowed()) false else { controller.retire(1, true) { gate.isAllowed() }; gate.isAllowed() } }) return false
         return if (diagnostics) controller.enableDiagnostics(1, gate, 3000, ::template, admit = admit) else controller.enable(1, gate, 3000, ::template, admit = admit)
     }
+    @Test fun `optional state refresh failure keeps previous OS context`() {
+        val platform = Platform()
+        var fail = false
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        assertTrue(controller.enable(1, allowed, 3000, { if (fail) error("unavailable state") else template() }) { true })
+        val before = platform.registrations.last()
+        fail = true
+        assertFalse(controller.refreshState(1))
+        assertTrue(controller.ready(1))
+        assertArrayEquals(before, platform.registrations.last())
+        fail = false
+        assertTrue(controller.refreshState(1))
+        assertNotEquals(before!!.toList(), platform.registrations.last()!!.toList())
+    }
+    @Test fun `optional state refresh at capacity keeps pending crashes and the live context`() {
+        val exits = ArrayList<AndroidNativeExit>()
+        for (pid in 10 until 17) earlierContext(pid, 1000L + pid) { token ->
+            exits += AndroidNativeExit(pid, "app", 2000, 5, token) { null }
+        }
+        val platform = Platform().apply { this.exits = exits }
+        val reclaimed = ArrayList<Pair<Int, Int>>()
+        val controller = AndroidNativeRecoveryController(::engine, platform,
+            signalCapture = { NativeSignalCapture.PENDING }, onJournalFull = { u, o -> reclaimed += u to o })
+        assertTrue(controller.enableDiagnostics(1, allowed, 3000, ::template) { false })
+        val queue = contexts()
+        val before = queue.snapshotTokens().toSet()
+        val summary = platform.registrations.last()
+        assertEquals(8, before.size)
+        assertFalse(controller.refreshState(1))
+        assertEquals(before, queue.snapshotTokens().toSet())
+        assertArrayEquals(summary, platform.registrations.last())
+        assertTrue(controller.ready(1))
+        assertTrue(reclaimed.isEmpty())
+        // Once recovery has freed a slot, optional state can replace only the
+        // live context; it must not remove any other pending crash.
+        val recovered = before.first { queue.readIfPresent(it)!!.entry.createdAt != 1000L }
+        queue.removeIfPresent(recovered)
+        val pending = before.filter { it != recovered && queue.readIfPresent(it)!!.entry.createdAt != 1000L }.toSet()
+        assertTrue(controller.refreshState(1))
+        assertTrue(queue.snapshotTokens().containsAll(pending))
+        assertEquals(7, queue.snapshotTokens().size)
+    }
     @Test fun `foreground changes refresh the actual OS frozen context and clear before IO`() {
         val platform = Platform()
         val launch = UUID.randomUUID().toString()

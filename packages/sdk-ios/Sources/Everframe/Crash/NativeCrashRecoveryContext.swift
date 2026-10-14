@@ -93,7 +93,7 @@ struct NativeCrashRecoveryContext: Codable, Sendable {
                 collectedAt: collected, exposure: releaseHealthExposure)
             let payload = EverframePayload(annotations: nil, appleDiagnostic: nil, breadcrumbs: nil, crash: crash, diagnostic: nil,
                 extra: nil, focus: nil, inferredTermination: evidence, logs: nil, network: nil, networkBodies: nil,
-                recoveredStall: nil, redactions: nil, resources: nil, vitals: nil)
+                recoveredStall: nil, redactions: nil, resources: nil, state: template.payload.state, vitals: nil)
             let envelope = template.with(attachments: [], payload: payload, reporter: template.reporter.with(user: .some(nil)),
                 reportID: id, sessionID: .some(nil), source: .some(.crash), submittedAt: collected)
             let bytes = try ReleaseHealthDate.encoder().encode(envelope)

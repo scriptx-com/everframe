@@ -32,6 +32,29 @@ final class NativeCrashStartupTests: XCTestCase {
         XCTAssertNil(envelope.payload.breadcrumbs); XCTAssertNil(envelope.payload.vitals)
         XCTAssertNil(envelope.payload.resources); XCTAssertNil(envelope.payload.crash)
     }
+    func testStateTemplateOwnsThePersistedObservation() throws {
+        let recorder = StateRecorder(now: { 1234 })
+        recorder.reset(initial: EverframeStateSnapshot(automatic: [:], custom: [:]), startedAt: 1200)
+        recorder.set("plan", value: .string("free"))
+        let saved = recorder.snapshot(capturedAt: 1234)
+        let context = try NativeCrashStartupContext.make(config: .init(sdkKey: "sdk-A"), user: nil,
+            device: device, endpoint: "https://example.invalid", state: saved)
+        recorder.set("plan", value: .string("premium"))
+        let restored = try NativeCrashRecoveryContext.decode(context.encoded())
+        let state = try XCTUnwrap(EverframeReportEnvelope(data: restored.envelopeTemplate).payload.state)
+        XCTAssertTrue(StateSanitizer.equal(state.current.custom["plan"], .string("free")))
+        XCTAssertEqual(state.capturedAt, 1234)
+    }
+    func testOversizedOptionalStateCannotPreventNativeArming() throws {
+        let recorder = StateRecorder(now: { 1234 })
+        recorder.reset(initial: EverframeStateSnapshot(automatic: [:], custom: [:]), startedAt: 1200)
+        for i in 0..<30 { recorder.set("key\(i)", value: .string(String(repeating: "x", count: 240))) }
+        for i in 0..<500 { recorder.set("key0", value: .string(String(repeating: "y", count: 230) + "\(i)")) }
+        let state = try XCTUnwrap(recorder.snapshot(capturedAt: 1234))
+        let context = try NativeCrashStartupContext.make(config: .init(sdkKey: "sdk-A"), user: nil,
+            device: device, endpoint: "https://example.invalid", state: state)
+        XCTAssertLessThanOrEqual(context.envelopeTemplate.count, 32768)
+    }
     func testAnonymousContextDoesNotInventUserAndUsesOriginalAppVersion() throws {
         let context = try NativeCrashStartupContext.make(config: .init(sdkKey: "sdk-A"), user: nil, device: device, endpoint: "https://example.invalid")
         let envelope = try EverframeReportEnvelope(data: context.envelopeTemplate)

@@ -7,7 +7,7 @@ import EverframeProtocol
 /// or host metadata callbacks are read while building the persisted template.
 enum NativeCrashStartupContext {
     static func make(config: EverframeConfig, user: EFUser?, device: DeviceMetadata,
-                     endpoint: String, releaseHealthExposure: EverframeNativeExposure? = nil) throws -> NativeCrashRecoveryContext {
+                     endpoint: String, releaseHealthExposure: EverframeNativeExposure? = nil, state: EverframeReportState? = nil) throws -> NativeCrashRecoveryContext {
         let policy = try NativeCrashRedactionSnapshot.capture(config: config.redaction)
         var fields: [String: String] = [
             "app.name": device.bundleIdentifier ?? "unknown",
@@ -30,9 +30,14 @@ enum NativeCrashStartupContext {
         // redacts the recovered crash record's own strings.
         let placeholder = UUID(uuidString: "00000000-0000-4000-8000-000000000000")!
         let built = try EnvelopeBuilder(vitalsStamp: { nil }).buildEncoded(
-            reportId: placeholder, sdkVersion: Everframe.SDK_VERSION, extra: fields, source: .crash)
-        let envelope = try EverframeReportEnvelope(data: built.bytes).with(submittedAt: Date(timeIntervalSince1970: 0))
+            reportId: placeholder, sdkVersion: Everframe.SDK_VERSION, extra: fields, state: state, source: .crash)
+        var envelope = try EverframeReportEnvelope(data: built.bytes).with(submittedAt: Date(timeIntervalSince1970: 0))
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601; encoder.outputFormatting = [.sortedKeys]
+        // The whole recovery template has its own 32 KiB cap. Optional state
+        // must never prevent crash capture from arming when metadata fills it.
+        if try encoder.encode(envelope).count > 32 * 1024 {
+            envelope = envelope.with(payload: envelope.payload.with(state: .some(nil)))
+        }
         return try NativeCrashRecoveryContext(sdkKey: config.sdkKey, endpoint: endpoint, identitySubject: nil,
             envelopeTemplate: encoder.encode(envelope), redaction: policy, releaseHealthExposure: releaseHealthExposure)
     }

@@ -38,6 +38,7 @@
 // Degrading to anonymous is the correct failure mode: recognition must never
 // fail or delay a report, and losing attribution is always preferable to
 // attributing to the wrong person or — as here — the wrong project.
+import EverframeProtocol
 import Foundation
 
 /// A self-declared user (`setUser`, spec 2026-08-12) snapshotted at a submit
@@ -124,6 +125,12 @@ public struct EFCapturedUser {
 /// the user it is ATTRIBUTED to were never taken from two different sessions;
 /// it is not a claim that `start()` installs a whole session atomically.
 public struct EFCapturedSession {
+    private let capturedState: EverframeReportState?
+    private let stateGeneration: UInt64
+    public var state: EverframeReportState? {
+        Everframe.shared.stateEvidenceIsCurrent(stateGeneration) ? capturedState : nil
+    }
+
     /// The user snapshot, with its own `startEpoch` and `resolve()`.
     public let user: EFCapturedUser
 
@@ -221,11 +228,13 @@ public struct EFCapturedSession {
         user: EFCapturedUser,
         config: EverframeConfig?,
         killGeneration: UInt64,
-        configGeneration: UInt64
+        configGeneration: UInt64,
+        state: EverframeReportState? = nil, stateGeneration: UInt64 = 0
     ) {
         self.user = user
         self.config = config
         self.killGeneration = killGeneration
         self.configGeneration = configGeneration
+        self.capturedState = state; self.stateGeneration = stateGeneration
     }
 }

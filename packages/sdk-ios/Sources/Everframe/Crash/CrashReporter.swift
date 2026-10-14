@@ -471,6 +471,7 @@ public enum CrashReporter {
                 sdkName: sdkName,
                 sdkVersion: Everframe.SDK_VERSION,
                 extra: extra,
+                state: captured.state,
                 breadcrumbs: BreadcrumbRingBuffer.shared.snapshot(),
                 // Report EverframeResource Window (spec 2026-09-05) — same style as
                 // breadcrumbs above: the live ring's snapshot, unconditional.

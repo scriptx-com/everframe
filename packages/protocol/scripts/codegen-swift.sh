@@ -50,6 +50,7 @@ for (const [generated, stable] of Object.entries({ DiagnosticAttribution: 'Attri
   source = source.replace(new RegExp(`\\bEverframe${generated}\\b`, 'g'), `Everframe${stable}`);
 }
 source = source.replace(/jsBundle: EverframeJSBundle\?,/g, 'jsBundle: EverframeJSBundle? = nil,');
+source = source.replace(/state: EverframeReportState\?,/g, 'state: EverframeReportState? = nil,');
 // Optional diagnostic evidence defaults to nil, so SDK call sites name only what they carry.
 source = source.replace(/diagnostic: EverframeDiagnosticEvidence\?,/g, 'diagnostic: EverframeDiagnosticEvidence? = nil,');
 source = source.replace(/appleDiagnostic: EverframeAppleDiagnosticEvidence\?,/g, 'appleDiagnostic: EverframeAppleDiagnosticEvidence? = nil,');

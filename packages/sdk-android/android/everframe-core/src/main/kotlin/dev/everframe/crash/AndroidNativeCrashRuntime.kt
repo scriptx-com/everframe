@@ -40,6 +40,7 @@ internal object AndroidNativeCrashRuntime {
 
     /** Lifecycle clear is independent of durable context replacement. */
     fun invalidateExposure() { controller?.invalidateExposure() }
+    fun refreshState(epoch: Int) { controller?.refreshState(epoch) }
     fun refreshExposure(epoch: Int) { controller?.refreshExposure(epoch) }
 
     /** Test seam replacing the ActivityManager/Keystore-backed owner. Never set in production. */
@@ -87,6 +88,7 @@ internal object AndroidNativeCrashRuntime {
             val device = DeviceMetadata.collect(context, captured.config?.debugBuild)
             val encoded = EnvelopeBuilder(vitalsStamp = { null }).buildEncoded(
                 reportId = UUID.randomUUID(), sdkVersion = Everframe.SDK_VERSION,
+                state = Everframe.captureSessionSnapshot().takeIf { it.user.startEpoch == epoch }?.state,
                 formFactor = DeviceMetadata.formFactor(device), appName = context.packageName,
                 appVersion = device["appVersion"] as? String ?: "0.0.0",
                 appBuild = device["appBuild"]?.toString(), appDebug = device["appDebug"] == "true", deviceModel = device["model"] as? String,

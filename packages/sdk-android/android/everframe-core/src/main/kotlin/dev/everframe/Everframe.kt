@@ -97,6 +97,60 @@ object Everframe {
     // ---------------- State (ReentrantLock-protected) ----------------
 
     private val stateLock = ReentrantLock()
+    private val stateRecorder = dev.everframe.state.StateRecorder()
+    private var stateFacts: dev.everframe.state.AutomaticStateFacts? = null
+    private var stateEvidenceGeneration = 0L
+    internal fun stateEvidenceIsCurrent(generation: Long): Boolean = stateLock.withLock { captureGate && stateEvidenceGeneration == generation }
+    private var stateRefreshRunning = false
+    private var stateRefreshRevision = 0L
+    private val stateRefreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private fun scheduleStateRefresh() {
+        val launch = stateLock.withLock {
+            stateRefreshRevision += 1
+            if (stateRefreshRunning || !captureGate || _config?.capture?.crash != true) false
+            else { stateRefreshRunning = true; true }
+        }
+        if (!launch) return
+        stateRefreshScope.launch {
+            while (true) {
+                val (revision, epoch) = stateLock.withLock { stateRefreshRevision to _startEpoch }
+                runCatching {
+                    dev.everframe.crash.AndroidNativeCrashRuntime.refreshState(epoch)
+                    dev.everframe.crash.AndroidNativeSignalRuntime.refreshState(epoch)
+                }
+                val again = stateLock.withLock {
+                    if (captureGate && stateRefreshRevision != revision) true
+                    else { stateRefreshRunning = false; false }
+                }
+                if (!again) break
+            }
+        }
+    }
+    @JvmStatic fun setState(key: String, value: dev.everframe.protocol.generated.StateValue): Boolean {
+        val changed = stateLock.withLock { captureGate && stateRecorder.set(key, value) }
+        if (changed) scheduleStateRefresh()
+        return changed
+    }
+    @JvmStatic fun clearState(key: String): Boolean {
+        val changed = stateLock.withLock { captureGate && stateRecorder.clear(key) }
+        if (changed) scheduleStateRefresh()
+        return changed
+    }
+    internal fun applyAutomaticState(owner: Int, values: Map<String, dev.everframe.protocol.generated.StateValue>) {
+        val changed = stateLock.withLock {
+            if (captureGate && _startEpoch == owner && _publishedStartEpoch == owner) {
+                var changed = false
+                values.forEach { (key, value) -> changed = stateRecorder.set(key, value, dev.everframe.protocol.generated.StateNamespace.Automatic) || changed }
+                changed
+            } else false
+        }
+        if (changed) scheduleStateRefresh()
+    }
+    private fun startStateFacts(context: Context, epoch: Int) {
+        val facts = dev.everframe.state.AutomaticStateFacts(context.applicationContext, epoch, ::applyAutomaticState)
+        stateLock.withLock { if (captureGate && _startEpoch == epoch) { stateFacts?.stop(); stateFacts = facts } else facts.stop() }
+    }
+
     private var _config: EverframeConfig? = null
     private var _user: TXUser? = null
 
@@ -384,6 +438,8 @@ object Everframe {
                 config = _config,
                 killGeneration = _killGeneration,
                 captureConsent = captureGate,
+                capturedState = if (captureGate) stateRecorder.snapshot(System.currentTimeMillis().toDouble()) else null,
+                stateGeneration = stateEvidenceGeneration,
             )
         }
 
@@ -939,6 +995,7 @@ object Everframe {
         ).takeIf { it.any }
         var startedCrashCapture: dev.everframe.crash.CrashCaptureStart? = null
         var displacedReplay: ReplaySession? = null
+        val initialState = dev.everframe.state.AutomaticStateFacts.initial(context)
         val published = stateLock.withLock {
             // Critical 2: the publication re-check. A start that lost the race
             // while running customer teardown above publishes NOTHING — no
@@ -960,6 +1017,8 @@ object Everframe {
             sharedNetworkBuffer.rotate(epoch)
 
             _config = config
+            stateEvidenceGeneration += 1
+            stateRecorder.reset(initialState, System.currentTimeMillis().toDouble())
             _publishedStartEpoch = epoch
             // Crash-only sessions: a bond upgrades one session only. The next one starts at its own kind,
             // except that a crash-only session starting while companion is still bonded (a re-start, or a
@@ -1026,6 +1085,7 @@ object Everframe {
         // re-check above. Nothing was published and nothing was built.
         displacedReplay?.teardown()
         if (!published) return
+        startStateFacts(context, epoch)
         dev.everframe.companion.CompanionBadgeServerConfigSignal.publish(null) { currentStartEpochVolatile() == epoch }
         dev.everframe.config.BrandingServerConfigSignal.publish(null) { currentStartEpochVolatile() == epoch }
         dev.everframe.config.BrandingInlineTheme.publish(config.theme) { currentStartEpochVolatile() == epoch }
@@ -1442,6 +1502,8 @@ object Everframe {
                 dev.everframe.diagnostics.RecoveredStallRuntime.boundary()
                 dev.everframe.diagnostics.ReportDiagnostics.shared.retireGeneration(_startEpoch)
                 captureGate = false
+                stateEvidenceGeneration += 1
+                stateRecorder.erase(); stateFacts?.stop(); stateFacts = null
                 _config = null
                 _crashOnlyUpgraded = false
                 _user = null
@@ -1533,6 +1595,19 @@ object Everframe {
      * unrelated to who the current user is).
      */
     private fun clearCapturedEvidenceBuffers() {
+        stateLock.withLock {
+            stateEvidenceGeneration += 1
+            dev.everframe.crash.AndroidNativeCrashRuntime.invalidateExposure()
+            dev.everframe.crash.AndroidNativeSignalRuntime.invalidateExposure()
+            val automatic = stateRecorder.snapshot(System.currentTimeMillis().toDouble())?.current?.automatic.orEmpty()
+            if (captureGate) stateRecorder.reset(dev.everframe.protocol.generated.StateSnapshot(automatic, emptyMap()), System.currentTimeMillis().toDouble())
+            else stateRecorder.erase()
+        }
+        val stateEpoch = currentStartEpochVolatile()
+        stateRefreshScope.launch {
+            dev.everframe.crash.AndroidNativeCrashRuntime.refreshExposure(stateEpoch)
+            dev.everframe.crash.AndroidNativeSignalRuntime.refreshExposure(stateEpoch)
+        }
         sharedBreadcrumbBuffer.clear()
         sharedNetworkBodyBuffer.clear()
         sharedNetworkBuffer.clear()
@@ -1941,7 +2016,13 @@ object Everframe {
     fun setUser(user: TXUser?) {
         txGuardVoid("setUser") {
             if (!captureGate) return@txGuardVoid
-            stateLock.withLock { _user = user }
+            val changed = stateLock.withLock {
+                if (captureGate) {
+                    _user = user
+                    stateRecorder.set("user.status", dev.everframe.protocol.generated.StateValue.StringValue(if (user == null) "anonymous" else "identified"), dev.everframe.protocol.generated.StateNamespace.Automatic)
+                } else false
+            }
+            if (changed) scheduleStateRefresh()
         }
     }
 
@@ -2297,7 +2378,8 @@ object Everframe {
     /** Bind the reporter-open owner and immutable ancillary values before the reporter mounts. */
     @JvmStatic
     fun __replayFreeze(): FrozenReportCapture = synchronized(reportCaptureCoordinator) {
-        _replaySession?.freezeOwnedCapture() ?: FrozenReportCapture.empty(currentStartEpochVolatile())
+        val captured = captureSessionSnapshot()
+        (_replaySession?.freezeOwnedCapture() ?: FrozenReportCapture.empty(currentStartEpochVolatile())).withState(captured)
     }
 
     @JvmStatic

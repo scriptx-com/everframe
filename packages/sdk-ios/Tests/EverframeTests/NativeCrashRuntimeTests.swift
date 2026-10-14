@@ -19,8 +19,11 @@ final class NativeCrashRuntimeTests: XCTestCase {
                 self.duringInstall?()
                 return self.installResult
             }, disable: { self.lock.withLock { self.enabled = false } }, publish: { id in
-                self.lock.withLock { self.identifiers.append(id); self.enabled = true }
-                return true
+                XCTAssertTrue(Thread.isMainThread, "native enable requires main admission")
+                return self.lock.withLock {
+                    guard Thread.isMainThread, !self.enabled else { return false } // Match both native publication requirements.
+                    self.identifiers.append(id); self.enabled = true; return true
+                }
             })
         }
     }
@@ -56,6 +59,74 @@ final class NativeCrashRuntimeTests: XCTestCase {
             })
         let result = await current.refresh(ticket: current.invalidate(), context: { context })
         XCTAssertTrue(result)
+    }
+    func testOptionalStateRefreshFailureLeavesPreviousContextArmed() async throws {
+        let recorder = Recorder()
+        let runtime = self.runtime(recorder)
+        let ticket = runtime.invalidate()
+        let context = try NativeRecoveryTestData.context()
+        let armed = await runtime.refresh(ticket: ticket, context: { context })
+        XCTAssertTrue(armed)
+        let failed = await runtime.refresh(ticket: ticket, replacingEvidence: true, context: { throw CocoaError(.fileWriteOutOfSpace) })
+        XCTAssertFalse(failed)
+        XCTAssertTrue(recorder.enabled)
+        XCTAssertEqual(recorder.identifiers.count, 1)
+        let replaced = await runtime.refresh(ticket: ticket, replacingEvidence: true, context: { context })
+        XCTAssertTrue(replaced)
+        XCTAssertEqual(recorder.identifiers.count, 2)
+        _ = runtime.invalidate()
+        let stale = await runtime.refresh(ticket: ticket, replacingEvidence: true, context: { context })
+        XCTAssertFalse(stale)
+        XCTAssertFalse(recorder.enabled)
+    }
+    func testOptionalRefreshRetiresContextsUnderRealDisabledGateContract() async throws {
+        let probe = Recorder(), key = key
+        var adapter = probe.adapter
+        adapter.retainedContextIdentifiers = {
+            probe.lock.withLock { probe.enabled ? nil : Set(probe.identifiers.suffix(1)) }
+        }
+        let current = NativeCrashRuntime(rootURL: root, outbox: outbox, recorder: adapter, keyProvider: { key })
+        let ticket = current.invalidate()
+        for index in 0..<300 {
+            let context = try NativeRecoveryTestData.context(owner: "key-\(index)")
+            let result = await current.refresh(ticket: ticket, replacingEvidence: true, context: { context })
+            XCTAssertTrue(result, "refresh \(index)")
+        }
+        XCTAssertTrue(probe.enabled)
+    }
+    private final class FailingKey: @unchecked Sendable {
+        let lock = NSLock(), key: Data
+        var fail = false
+        init(_ key: Data) { self.key = key }
+        func rejectWrites() { lock.withLock { fail = true } }
+        func read() throws -> Data {
+            try lock.withLock {
+                if fail { throw CocoaError(.fileWriteOutOfSpace) }
+                return key
+            }
+        }
+    }
+    func testMaintenanceRestoresCaptureBeforeAReplacementWriteFails() async throws {
+        let probe = Recorder(), key = FailingKey(key)
+        var adapter = probe.adapter
+        adapter.retainedContextIdentifiers = {
+            XCTAssertTrue(Thread.isMainThread)
+            key.rejectWrites()
+            return probe.lock.withLock { probe.enabled ? nil : Set(probe.identifiers.suffix(1)) }
+        }
+        let current = NativeCrashRuntime(rootURL: root, outbox: outbox, recorder: adapter, keyProvider: { try key.read() })
+        let ticket = current.invalidate()
+        for index in 0..<128 {
+            let context = try NativeRecoveryTestData.context(owner: "key-\(index)")
+            let result = await current.refresh(ticket: ticket, replacingEvidence: true, context: { context })
+            XCTAssertTrue(result)
+        }
+        let previous = probe.identifiers.last
+        let context = try NativeRecoveryTestData.context(owner: "cannot-persist")
+        let result = await current.refresh(ticket: ticket, replacingEvidence: true, context: { context })
+        XCTAssertFalse(result)
+        XCTAssertTrue(probe.enabled, "maintenance must restore capture before fallible disk work")
+        XCTAssertEqual(probe.identifiers.last, previous)
     }
     private final class AdmissionGate: @unchecked Sendable {
         let lock = NSLock(), entered: XCTestExpectation

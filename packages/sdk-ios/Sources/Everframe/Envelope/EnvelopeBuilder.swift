@@ -153,6 +153,7 @@ public struct EnvelopeBuilder {
         redactions: [EverframeJSONAny]? = nil,
         extra: [String: String] = [:],
         jsBundle: EverframeJSBundle? = nil,
+        state: EverframeReportState? = nil,
         /// Host-supplied opaque metadata string (`EverframePayload.extra`). Distinct
         /// from the `extra:` dict above, which is a typed-mapping side-channel
         /// for `reporter.title`, `context.device.*`, etc. `userExtra` lands
@@ -264,6 +265,7 @@ public struct EnvelopeBuilder {
             redactions: (redactions?.isEmpty == true) ? nil : redactions,
             extra: extra,
             jsBundle: jsBundle,
+            state: state,
             userExtra: userExtra,
             trimmedBreadcrumbs: trimmedBreadcrumbs,
             source: source,
@@ -319,6 +321,7 @@ public struct EnvelopeBuilder {
         redactions: [EverframeJSONAny]?,
         extra: [String: String],
         jsBundle: EverframeJSBundle?,
+        state: EverframeReportState?,
         userExtra: String?,
         trimmedBreadcrumbs: [EverframeBreadcrumb]?,
         source: EverframeReportEnvelopeSource?,
@@ -457,6 +460,7 @@ public struct EnvelopeBuilder {
             recoveredStall: nil,
             redactions: redactions,
             resources: resourcesJSON,
+            state: state,
             vitals: vitalsGenerated
         )
 

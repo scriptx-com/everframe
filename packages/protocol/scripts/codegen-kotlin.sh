@@ -40,6 +40,36 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const path = process.argv[2];
 let source = readFileSync(path, 'utf8');
+// quicktype's sealed union uses polymorphic objects, but state values are JSON primitives.
+const stateValuePattern = /@Serializable\nsealed class StateValue \{[\s\S]*?\n\}/;
+if (!stateValuePattern.test(source)) throw new Error('codegen-kotlin: StateValue missing');
+source = source.replace(stateValuePattern, `@Serializable(with = StateValueSerializer::class)
+sealed class StateValue {
+    data class BoolValue(val value: Boolean) : StateValue()
+    data class DoubleValue(val value: Double) : StateValue()
+    data class StringValue(val value: String) : StateValue()
+}
+
+object StateValueSerializer : KSerializer<StateValue> {
+    override val descriptor: SerialDescriptor = JsonPrimitive.serializer().descriptor
+    override fun serialize(encoder: Encoder, value: StateValue) {
+        val primitive = when (value) {
+            is StateValue.BoolValue -> JsonPrimitive(value.value)
+            is StateValue.DoubleValue -> JsonPrimitive(value.value)
+            is StateValue.StringValue -> JsonPrimitive(value.value)
+        }
+        (encoder as JsonEncoder).encodeJsonElement(primitive)
+    }
+    override fun deserialize(decoder: Decoder): StateValue {
+        val primitive = (decoder as JsonDecoder).decodeJsonElement() as? JsonPrimitive
+            ?: throw SerializationException("State value must be a primitive")
+        if (primitive is JsonNull) throw SerializationException("State value cannot be null")
+        if (primitive.isString) return StateValue.StringValue(primitive.content)
+        primitive.booleanOrNull?.let { return StateValue.BoolValue(it) }
+        primitive.doubleOrNull?.takeIf { it.isFinite() }?.let { return StateValue.DoubleValue(it) }
+        throw SerializationException("Invalid state value")
+    }
+}`);
 // Adding a sibling schema must not rename the already published Android types.
 for (const [generated, stable] of Object.entries({ DiagnosticAttribution: 'Attribution',
   PurpleProcess: 'Process', SessionEnum: 'Session', DiagnosticOutcome: 'Outcome',
@@ -89,7 +119,7 @@ const payloadPattern = /data class Payload \(\n([\s\S]*?)\n\)(?=\n\n@Serializabl
 const payloadMatch = rewritten.match(payloadPattern);
 if (!payloadMatch) throw new Error('codegen-kotlin: Payload block shape changed');
 const payloadProperties = payloadMatch[1].split('\n');
-const additions = ['diagnostic', 'appleDiagnostic', 'recoveredStall', 'inferredTermination'];
+const additions = ['diagnostic', 'appleDiagnostic', 'recoveredStall', 'inferredTermination', 'state'];
 for (const name of additions) {
   const index = payloadProperties.findIndex(line => line.trim().startsWith(`val ${name}:`));
   if (index < 0) throw new Error(`codegen-kotlin: Payload.${name} missing`);
@@ -97,7 +127,8 @@ for (const name of additions) {
 }
 const propertiesWithAdditions = [...payloadProperties.map(line => line.replace(/,$/, '')),
   '    val diagnostic: DiagnosticEvidence? = null', '    val appleDiagnostic: AppleDiagnosticEvidence? = null',
-  '    val recoveredStall: RecoveredStallEvidence? = null', '    val inferredTermination: InferredTerminationEvidence? = null'];
+  '    val recoveredStall: RecoveredStallEvidence? = null', '    val inferredTermination: InferredTerminationEvidence? = null',
+  '    val state: ReportState? = null'];
 rewritten = rewritten.replace(payloadPattern, `data class Payload (\n${propertiesWithAdditions.join(',\n')}\n)`);
 for (const [generated, stable] of Object.entries({ DiagnosticAndroid: 'Android',
   TraceClass: 'Trace', TraceEnum: 'RecoveredStallTrace', Clock: 'RecoveredStallClock', Eligibility: 'RecoveredStallEligibility',

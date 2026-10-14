@@ -34,7 +34,7 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
         require(UUID.fromString(entry.reportId).toString()==entry.reportId && entry.envelopeBytes.size<=MAX_CONTEXT)
         require(entry.identitySubject==null && entry.attachmentRefs.isEmpty())
         val root=Json.parseToJsonElement(entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
-        require(root["reportId"]?.jsonPrimitive?.content==entry.reportId && root["payload"]?.jsonObject?.isEmpty()==true)
+        require(root["reportId"]?.jsonPrimitive?.content==entry.reportId && root["payload"]?.jsonObject?.keys?.all { it == "state" } == true)
         require(root["sessionId"]==null || root["sessionId"]==JsonNull)
         require(root["reporter"]?.jsonObject?.get("user")==null || root["reporter"]?.jsonObject?.get("user")==JsonNull)
         return root
@@ -58,6 +58,16 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
             if(token!=null) try { capsules.removeIfPresent(token) } catch(cleanup:Exception) { error.addSuppressed(cleanup) }
             throw error
         } finally { key.fill(0) }
+    }
+
+    /** Restore an already durable capsule after an optional replacement cannot arm. */
+    @Synchronized fun rearm(reportId: String, authorization: OutboxAuthorization, provision: (String, ByteArray) -> Boolean): Boolean {
+        val gate = gate(revision.get(), authorization)
+        if (!gate.isAllowed()) return false
+        val entry = capsules.snapshotTokens().mapNotNull { capsules.readIfPresent(it)?.entry }.firstOrNull { it.reportId == reportId } ?: return false
+        val capsule = Json.parseToJsonElement(entry.envelopeBytes.toString(Charsets.UTF_8)).jsonObject
+        val key = Base64.getDecoder().decode(capsule.getValue("key").jsonPrimitive.content)
+        return try { check(gate); provision(reportId.replace("-", ""), key) && gate.isAllowed() } finally { key.fill(0) }
     }
 
     /** Reader owns a bounded no-follow read and returns null only when no usable record
@@ -188,7 +198,7 @@ internal class AndroidNativeRecordImport(private val capsules:OutboxStore,privat
         // A clock that moved back since the fault never makes submission precede it. The crash-only
         // envelope has no evidence timestamp the protocol compares, but keep the order consistent.
         val submitted=maxOf(nowMs,timestamp)
-        val bytes=JsonObject(frozen+mapOf("source" to JsonPrimitive("crash"),"submittedAt" to JsonPrimitive(Instant.ofEpochMilli(submitted).toString()),"payload" to buildJsonObject { put("crash",crash) })).toString().toByteArray()
+        val bytes=JsonObject(frozen+mapOf("source" to JsonPrimitive("crash"),"submittedAt" to JsonPrimitive(Instant.ofEpochMilli(submitted).toString()),"payload" to buildJsonObject { frozen["payload"]?.jsonObject?.get("state")?.let { put("state", it) }; put("crash",crash) })).toString().toByteArray()
         // The retry window begins when a valid record is first recovered, not when
         // a potentially long-running process armed its crash context.
         return context.copy(createdAt=nowMs,envelopeBytes=bytes,idempotencyKey=digest(bytes))

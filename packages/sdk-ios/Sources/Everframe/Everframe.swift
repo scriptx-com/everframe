@@ -99,23 +99,25 @@ public final class Everframe: @unchecked Sendable {
 
     /// Capture ownership atomically, then do main-actor/device and disk work
     /// outside stateLock. The runtime ticket fences every asynchronous boundary.
-    @discardableResult internal func refreshNativeCrashContext() async -> Bool {
+    @discardableResult internal func refreshNativeCrashContext(replacingState: Bool = false) async -> Bool {
         guard let runtime = nativeCrashRuntime else { return false }
         while !Task.isCancelled {
-            let captured: (UInt64, EverframeConfig, EFUser?, EverframeNativeExposure?)? = stateLock.withLock {
+            let captured: (UInt64, EverframeConfig, EFUser?, EverframeNativeExposure?, EverframeReportState?)? = stateLock.withLock {
                 guard nativeCrashPublishedEpoch == _startEpoch, Self.captureGate,
                       let config = _config, config.capture.crash else { return nil }
-                return (nativeCrashTicket, config, _user, releaseHealthRuntime?.readyPointer)
+                return (nativeCrashTicket, config, _user, releaseHealthRuntime?.readyPointer, stateRecorder.snapshot(capturedAt: Date().timeIntervalSince1970 * 1000))
             }
-            guard let (ticket, config, user, exposure) = captured else { return false }
+            guard let (ticket, config, user, exposure, state) = captured else { return false }
+            let stateBytes = try? state.map { try EnvelopeBuilder.makeJSONEncoder().encode($0) }
             let exposureBytes: Data?
             do { exposureBytes = try exposure.map { try ReleaseHealthDate.encoder().encode($0) } }
             catch { return false }
             let device = await nativeDeviceSnapshot()
-            let armed = await runtime.refresh(ticket: ticket) {
+            let armed = await runtime.refresh(ticket: ticket, replacingEvidence: replacingState) {
                 try NativeCrashStartupContext.make(config: config, user: user, device: device,
                     endpoint: IngestEndpoint.url.absoluteString,
-                    releaseHealthExposure: try exposureBytes.map { try ReleaseHealthDate.decoder().decode(EverframeNativeExposure.self, from: $0) })
+                    releaseHealthExposure: try exposureBytes.map { try ReleaseHealthDate.decoder().decode(EverframeNativeExposure.self, from: $0) },
+                    state: try stateBytes.map { try JSONDecoder().decode(EverframeReportState.self, from: $0) })
             }
             // A user/config change may obsolete this snapshot before recovery
             // starts. The launch tail must await a current attempt rather than
@@ -345,6 +347,62 @@ public final class Everframe: @unchecked Sendable {
     // MARK: - State (NSLock-protected)
 
     private let stateLock = NSLock()
+    private let stateRecorder = StateRecorder()
+    private var stateFacts: AutomaticStateFacts?
+    private var stateEvidenceGeneration: UInt64 = 0
+    internal func stateEvidenceIsCurrent(_ generation: UInt64) -> Bool {
+        stateLock.withLock { Self.captureGate && generation == stateEvidenceGeneration }
+    }
+    private var stateRefreshRunning = false
+    private var stateRefreshRevision: UInt64 = 0
+    /// One healthy-process worker, coalescing writes while an immutable context is persisted.
+    private func scheduleStateRefresh() {
+        let launch = stateLock.withLock { () -> Bool in
+            stateRefreshRevision &+= 1
+            guard !stateRefreshRunning, Self.captureGate, _config?.capture.crash == true else { return false }
+            stateRefreshRunning = true; return true
+        }
+        guard launch else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            while true {
+                let revision = self.stateLock.withLock { self.stateRefreshRevision }
+                _ = await self.refreshNativeCrashContext(replacingState: true)
+                let again = self.stateLock.withLock { () -> Bool in
+                    if Self.captureGate && self.stateRefreshRevision != revision { return true }
+                    self.stateRefreshRunning = false; return false
+                }
+                if !again { return }
+            }
+        }
+    }
+    @discardableResult public func setState(_ key: String, value: EverframeStateValue) -> Bool {
+        let changed = stateLock.withLock { Self.captureGate && stateRecorder.set(key, value: value) }
+        if changed { scheduleStateRefresh() }; return changed
+    }
+    @discardableResult public func clearState(_ key: String) -> Bool {
+        let changed = stateLock.withLock { Self.captureGate && stateRecorder.clear(key) }
+        if changed { scheduleStateRefresh() }; return changed
+    }
+    internal func takeFrozenState(epoch: Int) -> EverframeReportState? {
+        stateLock.withLock { Self.captureGate && epoch == _startEpoch ? stateRecorder.takeFrozen() : nil }
+    }
+    internal func applyAutomaticState(_ values: [String: EverframeStateValue], owner: Int) {
+        let changed = stateLock.withLock { () -> Bool in
+            guard Self.captureGate, _startEpoch == owner, nativeCrashPublishedEpoch == owner else { return false }
+            var changed = false
+            for (key, value) in values { changed = stateRecorder.set(key, value: value, namespace: .automatic) || changed }
+            return changed
+        }
+        if changed && stateLock.withLock({ nativeCrashRuntime?.isArmed(exposureID: releaseHealthRuntime?.readyPointer?.exposureID) == true }) { scheduleStateRefresh() }
+    }
+    private func startStateFacts(epoch: Int) {
+        let facts = AutomaticStateFacts(owner: epoch) { [weak self] owner, values in self?.applyAutomaticState(values, owner: owner) }
+        stateLock.withLock {
+            if Self.captureGate && _startEpoch == epoch { stateFacts?.stop(); stateFacts = facts }
+            else { facts.stop() }
+        }
+    }
     private var _config: EverframeConfig?
     /// Bumped in the SAME `stateLock` section that assigns `_config`, so
     /// "this generation" and "this config" can never be observed apart.
@@ -654,7 +712,9 @@ public final class Everframe: @unchecked Sendable {
             user: EFCapturedUser(user: _user, startEpoch: _startEpoch, identitySubject: identitySubject),
             config: _config,
             killGeneration: _killGeneration,
-            configGeneration: _configGeneration
+            configGeneration: _configGeneration,
+            state: Self.captureGate ? stateRecorder.snapshot(capturedAt: Date().timeIntervalSince1970 * 1000) : nil,
+            stateGeneration: stateEvidenceGeneration
         )
     }
 
@@ -1223,6 +1283,8 @@ public final class Everframe: @unchecked Sendable {
         // while running customer teardown above publishes NOTHING and launches no tail.
         guard _startEpoch == epoch else { stateLock.unlock(); return }
         _config = config
+        stateEvidenceGeneration &+= 1
+        stateRecorder.reset(initial: AutomaticStateFacts.initial(), startedAt: Date().timeIntervalSince1970 * 1000)
         nativeCrashPublishedEpoch = epoch
         // Crash-only sessions (spec 2026-10-12): a crash-only session that starts while the
         // companion is still bonded (a re-start, or a React Native reconfigure with the phone
@@ -1272,6 +1334,7 @@ public final class Everframe: @unchecked Sendable {
         Self.captureGate = true
         publication?(epoch, _configGeneration)
         stateLock.unlock()
+        startStateFacts(epoch: epoch)
 
         #if canImport(UIKit)
         // Round-5 review Finding F23 (continued): request teardown of any
@@ -1615,6 +1678,7 @@ public final class Everframe: @unchecked Sendable {
         guard Self.captureGate else { stateLock.unlock(); return }
         nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
         _user = user
+        stateRecorder.set("user.status", value: .string(user == nil ? "anonymous" : "identified"), namespace: .automatic)
         stateLock.unlock()
         Task { await self.refreshNativeCrashContext() }
     }
@@ -2142,6 +2206,7 @@ public final class Everframe: @unchecked Sendable {
     public func __replayFreeze() {
         _replaySession?.freezeForReporter()
         BreadcrumbRingBuffer.shared.freeze()
+        stateLock.withLock { if Self.captureGate { stateRecorder.freeze(capturedAt: Date().timeIntervalSince1970 * 1000) } }
         // Network-body freeze (network-body-capture spec): same
         // capture-before-reporter ordering as breadcrumbs above — stop
         // accepting the live chain into what THIS report will ship the
@@ -2191,6 +2256,7 @@ public final class Everframe: @unchecked Sendable {
     public func __replayCancel() {
         _replaySession?.cancelForReporter()
         BreadcrumbRingBuffer.shared.discardAndResume()
+        stateRecorder.discardFrozen()
         // Network-body cancel (network-body-capture spec): mirror
         // BreadcrumbRingBuffer above — drop the frozen snapshot so a
         // cancelled/closed reporter doesn't leave a stale freeze sitting
@@ -2240,6 +2306,8 @@ public final class Everframe: @unchecked Sendable {
         nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
         nativeCrashPublishedEpoch = nil
         let killEpoch = bumpStartEpoch()
+        stateEvidenceGeneration &+= 1
+        stateRecorder.erase(); stateFacts?.stop(); stateFacts = nil
         ReportDiagnostics.shared.retireGeneration(epoch: killEpoch)
         // Monotonic and never lowered — this is what makes a revocation
         // survive a later start() that re-opens `captureGate`.
@@ -2482,7 +2550,17 @@ public final class Everframe: @unchecked Sendable {
     /// `setIdentityToken` doc comment) governs regardless of whether
     /// sign-out ever ran in between.
     private func discardCapturedEvidenceForIdentityChange() {
+        stateLock.withLock {
+            stateEvidenceGeneration &+= 1
+            nativeCrashTicket = nativeCrashRuntime?.invalidate() ?? 0
+            if Self.captureGate {
+                let automatic = stateRecorder.snapshot(capturedAt: Date().timeIntervalSince1970 * 1000)?.current.automatic ?? [:]
+                stateRecorder.reset(initial: EverframeStateSnapshot(automatic: automatic, custom: [:]), startedAt: Date().timeIntervalSince1970 * 1000)
+            }
+            else { stateRecorder.erase() }
+        }
         Self.clearCapturedEvidenceBuffers()
+        scheduleStateRefresh()
     }
 
     public let report = ReportAPI()

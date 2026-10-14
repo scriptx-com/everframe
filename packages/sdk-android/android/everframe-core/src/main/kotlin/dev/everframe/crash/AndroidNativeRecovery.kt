@@ -77,7 +77,7 @@ internal class AndroidNativeRecovery(
     fun arm(template: OutboxEntry, pid: Int, processName: String, authorization: OutboxAuthorization,
             diagnostics: Boolean = false, processLaunchId: String = UUID.randomUUID().toString(), apiLevel: Int = 31, nativeExposure: NativeExposurePointer? = null,
             exits: List<AndroidNativeExit> = emptyList(), onReclaimed: (unreportable: Int, oldest: Int) -> Unit = { _, _ -> },
-            appId: String? = null, mappingId: String? = null, register: (ByteArray) -> Unit) {
+            appId: String? = null, mappingId: String? = null, replacingEvidence: Boolean = false, register: (ByteArray) -> Unit) {
         require(UUID.fromString(template.reportId).toString() == template.reportId)
         require(template.identitySubject == null && template.attachmentRefs.isEmpty())
         require(template.envelopeBytes.size <= MAX_CONTEXT_BYTES && pid > 0 && processName.length in 1..256)
@@ -85,7 +85,7 @@ internal class AndroidNativeRecovery(
         require(envelope["reportId"]?.jsonPrimitive?.content == template.reportId)
         require(envelope["reporter"]?.jsonObject?.get("user") == null)
         require(envelope["sessionId"] == null)
-        require(envelope["payload"]?.jsonObject?.isEmpty() == true)
+        require(envelope["payload"]?.jsonObject?.keys?.all { it == "state" } == true)
         require(nativeExposure == null || (nativeExposure.valid() && nativeExposure.processLaunchId == processLaunchId))
         val enriched = diagnostics || nativeExposure != null
         val held = held(exits, pid)
@@ -104,16 +104,25 @@ internal class AndroidNativeRecovery(
             }
         }.toString().toByteArray(Charsets.UTF_8)
         require(context.size <= MAX_CONTEXT_BYTES)
-        val durable = enqueueContext(template.copy(envelopeBytes = context), authorization, held, onReclaimed)
+        val entry = template.copy(envelopeBytes = context)
+        // Optional state must never reclaim a pending crash to replace a healthy
+        // live observation. A full journal leaves the old context/token intact.
+        val durable = if (replacingEvidence) contexts.enqueueSync(entry, authorization)
+            else enqueueContext(entry, authorization, held, onReclaimed)
         try {
             check(authorization.isAllowed())
             register(token(template.reportId))
             check(authorization.isAllowed())
         } catch (failure: Exception) {
+            armed?.let { previous ->
+                contexts.readIfPresent(previous)?.entry?.let { old -> runCatching { if (authorization.isAllowed()) register(token(old.reportId)) } }
+            }
             contexts.removeIfPresent(durable)
             throw failure
         }
+        val previous = armed
         armed = durable
+        if (replacingEvidence) previous?.let { runCatching { contexts.removeIfPresent(it) } }
     }
 
     /** A held context: [reportable] when its process is this one or one OS exit record matches it. */
@@ -348,6 +357,7 @@ internal class AndroidNativeRecovery(
         val bytes = JsonObject(template + mapOf("source" to JsonPrimitive(if (fatal) "crash" else "diagnostic"),
             "submittedAt" to JsonPrimitive(Instant.ofEpochMilli(collectedMs).toString()),
             "payload" to buildJsonObject {
+                template["payload"]?.jsonObject?.get("state")?.let { put("state", it) }
                 if (fatal) put("crash", crash)
                 if (diagnostic != null) put("diagnostic", diagnostic)
             })).toString().toByteArray(Charsets.UTF_8)
