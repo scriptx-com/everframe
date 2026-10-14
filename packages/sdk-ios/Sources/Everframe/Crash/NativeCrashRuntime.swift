@@ -34,6 +34,21 @@ final class NativeCrashRuntime: @unchecked Sendable {
             #endif
         }
     }
+    /// Serialize the complete asynchronous refresh, including main admission. This
+    /// protects prepared contexts while maintenance inventories their references.
+    /// Waiting releases the actor; neither the worker nor synchronous invalidation waits.
+    private actor RefreshGate {
+        private var busy = false
+        private var waiters: [CheckedContinuation<Void, Never>] = []
+        func acquire() async {
+            if !busy { busy = true; return }
+            await withCheckedContinuation { waiters.append($0) }
+        }
+        func release() {
+            if waiters.isEmpty { busy = false } else { waiters.removeFirst().resume() }
+        }
+    }
+    private let refreshGate = RefreshGate()
     private let lock = NSLock()
     private var generation: UInt64 = 0
     private var installed = false
@@ -113,8 +128,29 @@ final class NativeCrashRuntime: @unchecked Sendable {
     }
 
     func refresh(ticket: UInt64, replacingEvidence: Bool = false, context: @escaping @Sendable () throws -> NativeCrashRecoveryContext?) async -> Bool {
+        await refreshGate.acquire()
+        let result = await refreshSerially(ticket: ticket, replacingEvidence: replacingEvidence, context: context)
+        await refreshGate.release()
+        return result
+    }
+
+    private func refreshSerially(ticket: UInt64, replacingEvidence: Bool,
+                                 context: @escaping @Sendable () throws -> NativeCrashRecoveryContext?) async -> Bool {
+        let retained: Set<UUID>? = await withCheckedContinuation { continuation in
+            worker.async {
+                guard self.isCurrent(ticket), self.contextIdentifiers.count >= 128,
+                      replacingEvidence || !self.lock.withLock({ self.publishedTicket == ticket }) else {
+                    continuation.resume(returning: nil); return
+                }
+                // Release the worker before the main hop. Publication enables the
+                // native recorder and must run on main, including restoration.
+                self.scheduleAdmission {
+                    continuation.resume(returning: self.retentionInventoryOnMain(ticket: ticket))
+                }
+            }
+        }
         let prepared: Prepared? = await withCheckedContinuation { continuation in
-            worker.async { continuation.resume(returning: self.prepareOnWorker(ticket: ticket, replacingEvidence: replacingEvidence, context: context)) }
+            worker.async { continuation.resume(returning: self.prepareOnWorker(ticket: ticket, replacingEvidence: replacingEvidence, retained: retained, context: context)) }
         }
         guard let prepared else { return false }
         switch prepared {
@@ -128,6 +164,20 @@ final class NativeCrashRuntime: @unchecked Sendable {
                         identifier: identifier, unlinked: unlinked, exposureID: exposureID, replacingEvidence: replacingEvidence))
                 }
             }
+        }
+    }
+
+    private func retentionInventoryOnMain(ticket: UInt64) -> Set<UUID>? {
+        precondition(Thread.isMainThread)
+        return lock.withLock {
+            guard generation == ticket else { return nil }
+            let previous = publishedIdentifier
+            if previous != nil { recorder.disable() }
+            let retained = recorder.retainedContextIdentifiers()
+            if let previous, !recorder.publish(previous) {
+                recorder.disable(); terminationState?.disarm(); publishedTicket = nil
+            }
+            return retained.map { $0.union(previous.map { [$0] } ?? []).union(publishedUnlinked.map { [$0] } ?? []) }
         }
     }
 
@@ -160,7 +210,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
 
     private func isCurrent(_ ticket: UInt64) -> Bool { lock.withLock { generation == ticket } }
 
-    private func prepareOnWorker(ticket: UInt64, replacingEvidence: Bool, context: @Sendable () throws -> NativeCrashRecoveryContext?) -> Prepared? {
+    private func prepareOnWorker(ticket: UInt64, replacingEvidence: Bool, retained: Set<UUID>?, context: @Sendable () throws -> NativeCrashRecoveryContext?) -> Prepared? {
         guard isCurrent(ticket) else { return nil }
         // A ticket names immutable ownership. Duplicate startup/setUser tails
         // must not close a healthy gate while rebuilding the same snapshot.
@@ -203,17 +253,17 @@ final class NativeCrashRuntime: @unchecked Sendable {
             }
             guard let run else { return nil }
             if replacingEvidence || preparedTicket != ticket { preparedTicket = ticket; preparedIdentifiers = [] }
-            guard let identifier = try contextIdentifier(context, ticket: ticket, recovery: recovery, run: run) else { return nil }
+            guard let identifier = try contextIdentifier(context, ticket: ticket, recovery: recovery, run: run, retained: retained) else { return nil }
             // A pointer-free twin lets a background withdrawal rearm capture without
             // disk work. Without one, that withdrawal waits for a refresh instead.
             let exposureID = context.releaseHealthExposure?.exposureID
             let unlinked = exposureID == nil ? identifier : (try? context.withoutReleaseHealthExposure())
-                .flatMap { try? contextIdentifier($0, ticket: ticket, recovery: recovery, run: run) }
+                .flatMap { try? contextIdentifier($0, ticket: ticket, recovery: recovery, run: run, retained: retained) }
             guard isCurrent(ticket) else { return nil }
             return .context(run.recorderURL, identifier, unlinked: unlinked, exposureID: exposureID)
         } catch {
-            // The gate was closed before work began. Never replace or delete a
-            // current run to work around unavailable keys, capacity, or I/O.
+            // Optional refreshes preserve the old armed context on failure.
+            // Never replace a run to work around unavailable keys, capacity, or I/O.
             return nil
         }
     }
@@ -222,25 +272,14 @@ final class NativeCrashRuntime: @unchecked Sendable {
     /// context that neither the recorder, a pending same-ticket admission nor the
     /// published unlinked context can still reference. Nil means the ticket is stale.
     private func contextIdentifier(_ context: NativeCrashRecoveryContext, ticket: UInt64,
-                                   recovery: NativeCrashRecovery, run: NativeCrashRecovery.Run) throws -> UUID? {
+                                   recovery: NativeCrashRecovery, run: NativeCrashRecovery.Run, retained: Set<UUID>?) throws -> UUID? {
         let bytes = try context.encoded()
         let digest = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
         if let existing = contextIdentifiers[digest] { preparedIdentifiers.insert(existing); return existing }
         if contextIdentifiers.count >= 128 {
-            let retained = lock.withLock { () -> Set<UUID>? in
-                guard generation == ticket else { return nil }
-                // Native retention inventory requires a closed gate. Re-enable the
-                // same durable context before doing any retirement disk work.
-                let previous = publishedIdentifier
-                if previous != nil { recorder.disable() }
-                let current = recorder.retainedContextIdentifiers()
-                if let previous, !recorder.publish(previous) { terminationState?.disarm(); publishedTicket = nil }
-                guard let current else { return nil }
-                return current.union(previous.map { [$0] } ?? []).union(preparedIdentifiers).union(publishedUnlinked.map { [$0] } ?? [])
-            }
             if let retained {
                 do {
-                    let remaining = try recovery.retireUnusedContexts(runID: run.id, keeping: retained)
+                    let remaining = try recovery.retireUnusedContexts(runID: run.id, keeping: retained.union(preparedIdentifiers))
                     contextIdentifiers = contextIdentifiers.filter { remaining.contains($0.value) }
                 } catch {
                     // A partial unlink must not leave cached IDs pointing at
