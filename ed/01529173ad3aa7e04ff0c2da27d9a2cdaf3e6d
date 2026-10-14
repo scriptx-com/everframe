@@ -1,0 +1,45 @@
+examples/react-native/app.json
+  s_46e1aa7e76c6a2::t_f65f846af892f7 37-38
+examples/react-native/plugins/with-interaction-fixture-permission.js
+  s_46e1aa7e76c6a2::t_284015df829383 1-43
+examples/react-native/src/App.tsx
+  s_eb79cd0a048bfe::t_496a21ad8fc4a9 33-36,73,75,126,208-217
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventRecorder.kt
+  s_46e1aa7e76c6a2::t_55b02a32892e26 11-12,61-63,65,67,95,97-102,186,190,196,201-202,211-221,361-364
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionEventRecorderTest.kt
+  s_eb79cd0a048bfe::t_8c3f22cb29d5e6 46-84
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventRecorder.swift
+  s_46e1aa7e76c6a2::t_6727ec42de8a7e 54-58,60,62,90,92-97,180,184,189,195-196,201-210,333-337
+packages/sdk-ios/Tests/EverframeTests/InteractionEventRecorderTests.swift
+  s_eb79cd0a048bfe::t_b53cd1d211cef1 21-60
+packages/sdk-react-native/README.md
+  s_46e1aa7e76c6a2::t_2c3f483c216c92 995-996
+packages/sdk-react-native/__tests__/fixtures/interaction-events/App.tsx
+  s_46e1aa7e76c6a2::t_0b90ee1400a2bf 1-87
+packages/sdk-react-native/__tests__/fixtures/interaction-events/README.md
+  s_46e1aa7e76c6a2::t_93c8a5c94aaba2 1-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ed01529173ad3aa7e04ff0c2da27d9a2cdaf3e6d",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_eb79cd0a048bfe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13b4b-6dbf-7273-9431-bee25af1347c",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
