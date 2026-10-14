@@ -66,6 +66,38 @@ class InteractionTextAdapterTest {
         f.now = 750; f.recorder.flushDue(); f.buffer.clear()
         input.finishComposingText(); adapter.ended(view); assertEquals(0, f.buffer.size)
     }
+    @Test fun imeCanRemoveCompositionAfterSubmittingWithoutAnotherTextCallback() {
+        val f = InteractionAdapterFixture(); val timers = mutableListOf<() -> Unit>()
+        val recorder = InteractionEventRecorder(f.buffer, clock = { f.now }, schedule = { _, action -> timers.add(action) })
+        val adapter = InteractionTextAdapter(recorder); val view = f.field(); view.requestFocus()
+        val input = view.onCreateInputConnection(EditorInfo())!!
+        input.setComposingText("draft", 1); adapter.changed(view)
+        f.now = 750; timers.single().invoke(); assertEquals(0, f.buffer.size)
+        // Android TV's IME dispatches submit before removing composing spans.
+        adapter.ended(view, submit = true)
+        repeat(1000) { adapter.ended(view) }
+        input.finishComposingText(); f.now += 1; timers.last().invoke()
+        val event = f.events().single()
+        assertEquals(5, event["length"]!!.jsonPrimitive.int)
+        assertEquals("submit", event["reason"]!!.jsonPrimitive.content)
+        assertFalse(event.containsKey("value")); assertEquals(2, timers.size)
+    }
+    @Test fun deferredImeCompletionKeepsOriginalRevocationAndNeverPolls() {
+        for (revoke in listOf(false, true)) {
+            val f = InteractionAdapterFixture(); val timers = mutableListOf<() -> Unit>()
+            val recorder = InteractionEventRecorder(f.buffer, clock = { f.now }, schedule = { _, action -> timers.add(action) })
+            val adapter = InteractionTextAdapter(recorder); val view = f.field(); view.requestFocus()
+            val input = view.onCreateInputConnection(EditorInfo())!!
+            input.setComposingText("draft", 1); adapter.changed(view)
+            f.now = 750; timers.single().invoke(); adapter.ended(view)
+            assertEquals(2, timers.size)
+            if (revoke) { f.buffer.clear(); input.finishComposingText() }
+            f.now += 1; timers.last().invoke()
+            repeat(1000) { adapter.ended(view) }
+            assertEquals(0, f.buffer.size); assertEquals(2, timers.size)
+            assertEquals(if (revoke) 0 else 1, recorder.pendingCount)
+        }
+    }
     @Test fun secureMaskAndHelperOwnershipSuppressOnlySemanticText() {
         val f = InteractionAdapterFixture(); val adapter = InteractionTextAdapter(f.recorder); val view = f.field()
         view.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD

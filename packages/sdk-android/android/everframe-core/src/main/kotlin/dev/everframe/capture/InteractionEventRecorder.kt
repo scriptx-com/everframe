@@ -44,8 +44,8 @@ internal class InteractionEventRecorder(
     private val clock: () -> Long = SystemClock::elapsedRealtime,
     private val schedule: (Long, () -> Unit) -> Unit = { delay, action -> Handler(Looper.getMainLooper()).postDelayed({ action() }, delay); Unit },
 ) {
-    private data class Pending(val owner: InteractionOwner, val event: JsonObject, val deadline: Long, val composing: Boolean,
-        val nativeTextEdit: Boolean = false, var dormant: Boolean = false)
+    private data class Pending(val owner: InteractionOwner, val event: JsonObject, var deadline: Long, val composing: Boolean,
+        val nativeTextEdit: Boolean = false, var dormant: Boolean = false, var completionReason: String? = null)
     private var token = UUID.randomUUID().toString()
     private var runtime: String? = null
     private val prepared = mutableListOf<PreparedInteraction>()
@@ -308,8 +308,23 @@ internal class InteractionEventRecorder(
     }
 
     fun complete(host: View, type: String, reason: String) {
-        val item = buffer.withInteractionLock { pending.firstOrNull { it.owner.host?.get() === host && it.event.string("type") == type } } ?: return
-        flush(item, reason)
+        val item = buffer.withInteractionLock {
+            pending.firstOrNull { it.owner.host?.get() === host && it.event.string("type") == type }
+                ?.takeUnless { it.completionReason != null && !it.dormant }
+        } ?: return
+        val firstReason = buffer.withInteractionLock { item.completionReason ?: reason }
+        flush(item, firstReason)
+        buffer.withInteractionLock {
+            if (pending.any { it === item } && current(item.owner) && item.composing && item.nativeTextEdit && item.completionReason == null) {
+                // Some IMEs submit before removing composing spans. Give this same edit
+                // one deferred check on the shared timer, retaining its original owner.
+                // Keeping the reason also prevents duplicate end callbacks from polling.
+                item.completionReason = firstReason
+                item.deadline = clock() + 1
+                item.dormant = false
+            }
+        }
+        armTimer()
     }
     fun cancel(host: View, type: String) = buffer.withInteractionLock {
         pending.removeAll { it.owner.host?.get() === host && it.event.string("type") == type }
@@ -320,8 +335,8 @@ internal class InteractionEventRecorder(
     }
     fun flushDue() {
         val now = clock()
-        val ready = buffer.withInteractionLock { pending.filter { !it.dormant && it.deadline <= now } }
-        for (item in ready) flush(item, "idle")
+        val ready = buffer.withInteractionLock { pending.filter { !it.dormant && it.deadline <= now }.map { it to (it.completionReason ?: "idle") } }
+        for ((item, reason) in ready) flush(item, reason)
     }
     fun flushReadyForFreeze() {
         // Off-main report/crash capture cannot inspect UIKit/Android hosts or wait for JS.
