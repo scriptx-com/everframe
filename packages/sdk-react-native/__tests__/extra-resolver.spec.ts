@@ -67,6 +67,7 @@ vi.mock('react-native', () => {
     NativeEventEmitter: FakeNativeEventEmitter,
     // Non-undefined so `getEmitter()` doesn't take its __DEV__ warning branch.
     NativeModules: { EverframeEventEmitter: {} },
+    Linking: { addEventListener: vi.fn(() => ({ remove: vi.fn() })), getInitialURL: vi.fn(async () => null) },
     Platform: { OS: 'ios' },
     TurboModuleRegistry: {
       getEnforcing: () => nativeMock,

@@ -22,6 +22,35 @@ import UIKit
     private func register(_ generation: Double = 1, lease: String? = nil) -> Bool {
         bridge.setObserver(2, id: "A", generation: generation, lease: lease ?? bridge.lease(), optionsJson: options, resolve: { [weak self] _ in self?.view }, host: { $0 })
     }
+    func testThousandSupersededChangesQueueOneDrainAndKeepLatestSummary() async {
+        bridge.close()
+        var queue: [@MainActor () -> Void] = []
+        bridge = RnInteractionEventRegistration(dispatchRecord: { queue.append($0) })
+        let lease = bridge.lease(); XCTAssertTrue(register()); await drain()
+        for length in 1...1000 {
+            let change = "{\"type\":\"text_edit\",\"source\":\"app\",\"observedAt\":1,\"length\":\(length),\"phase\":\"change\"}"
+            XCTAssertTrue(bridge.record(lease, id: "A", generation: 1, eventJson: change))
+        }
+        XCTAssertEqual(queue.count, 1)
+        while !queue.isEmpty { queue.removeFirst()() }
+        BreadcrumbRingBuffer.shared.freeze()
+        let events = BreadcrumbRingBuffer.shared.takeFrozen()!
+        XCTAssertEqual(events.count, 1)
+        let event = events.first?.data?["interaction"]?.value as? [String: Any]
+        XCTAssertEqual(interactionNumber(event?["length"]), 1000)
+    }
+    func testRepeatedRevocationCannotAccumulateRecordCallbacks() {
+        bridge.close()
+        var queue: [@MainActor () -> Void] = []
+        bridge = RnInteractionEventRegistration(dispatchRecord: { queue.append($0) })
+        for _ in 0..<1000 {
+            XCTAssertTrue(bridge.record(bridge.lease(), id: "", generation: 0, eventJson: permission))
+            BreadcrumbRingBuffer.shared.clear()
+        }
+        XCTAssertEqual(queue.count, 1)
+        while !queue.isEmpty { queue.removeFirst()() }
+        XCTAssertEqual(BreadcrumbRingBuffer.shared.size, 0)
+    }
     func testClearAndLeaseRevocationBeforeMainResolution() async {
         let lease = bridge.lease(); XCTAssertTrue(register(lease: lease)); XCTAssertTrue(bridge.clearObserver("A", generation: 2))
         await drain(); XCTAssertFalse(InteractionEvents.suppresses(view: view, type: "text_edit"))

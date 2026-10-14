@@ -41,6 +41,24 @@ class InteractionEventBridgeTest {
         bridge.close(); drain(); sharedBreadcrumbBuffer.clear()
         Everframe::class.java.getDeclaredField("captureGate").apply { isAccessible=true }.setBoolean(null,false)
     }
+    @Test fun aThousandSupersededChangesQueueOneDrainAndKeepTheLatestSummary() {
+        val lease = bridge.lease(); assertTrue(bridge.set(2.0,"A",1.0,lease,options)); drain()
+        repeat(1000) { index ->
+            val change = """{"type":"text_edit","source":"app","observedAt":1,"length":${index+1},"phase":"change"}"""
+            assertTrue(bridge.record(lease,"A",1.0,change))
+        }
+        assertEquals(1, queue.size)
+        drain(); sharedBreadcrumbBuffer.freeze()
+        assertTrue(sharedBreadcrumbBuffer.takeFrozen()!!.single().data.toString().contains("1000"))
+    }
+    @Test fun repeatedRevocationCannotAccumulateRecordCallbacks() {
+        repeat(1000) {
+            assertTrue(bridge.record(bridge.lease(),"",0.0,permission))
+            sharedBreadcrumbBuffer.clear()
+        }
+        assertEquals(1,queue.size)
+        drain(); assertEquals(0,sharedBreadcrumbBuffer.size)
+    }
     @Test fun clearBeforeResolutionAndLateGenerationNeverAttach() {
         val lease = bridge.lease()
         assertTrue(bridge.set(2.0,"A",1.0,lease,options))

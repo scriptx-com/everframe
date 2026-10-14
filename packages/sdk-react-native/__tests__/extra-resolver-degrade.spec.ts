@@ -53,6 +53,7 @@ vi.mock('react-native', () => {
     NativeEventEmitter: ThrowingNativeEventEmitter,
     // No EverframeEventEmitter entry — the unlinked-pod case.
     NativeModules: {},
+    Linking: { addEventListener: vi.fn(() => ({ remove: vi.fn() })), getInitialURL: vi.fn(async () => null) },
     Platform: { OS: 'ios' },
     TurboModuleRegistry: {
       getEnforcing: () => nativeMock,

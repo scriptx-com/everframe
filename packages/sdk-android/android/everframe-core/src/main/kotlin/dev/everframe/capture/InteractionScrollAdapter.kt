@@ -71,7 +71,12 @@ class InteractionScrollAdapter internal constructor(
         val owner = gesture.owner.get() ?: return
         recorder.observe(InteractionObservation(owner, event))
     }
-    fun endDrag(view: View) { moved(view) }
+    fun endDrag(view: View) {
+        moved(view)
+        // A drag that never changed the offset cannot have momentum. End its
+        // ownership now so a later app scroll cannot become a user gesture.
+        gestures.firstOrNull { it.host.get() === view && !it.moved }?.let { remove(it, cancel = true) }
+    }
     fun finished(view: View) {
         val gesture = gestures.firstOrNull { it.host.get() === view } ?: return
         if (gesture.moved) recorder.complete(view, "scroll", "end")

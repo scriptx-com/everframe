@@ -24,6 +24,16 @@ class InteractionScrollAdapterTest {
         assertEquals("forward", f.events().single()["direction"]!!.jsonPrimitive.content)
         view.scrollTo(0, 200); adapter.moved(view); f.recorder.flushDue(); assertEquals(1, f.buffer.size)
     }
+    @Test fun endedDragWithoutMovementCannotClaimLaterProgrammaticScroll() {
+        val f = InteractionAdapterFixture(); val adapter = InteractionScrollAdapter(f.recorder, clock = { f.now })
+        val view = View(f.activity).also { f.root.addView(it) }
+        adapter.began(view, "y"); adapter.endDrag(view)
+        f.now = 5000
+        view.scrollTo(0, 100); adapter.moved(view)
+        f.now = 6000; f.recorder.flushDue()
+        assertEquals(0, f.buffer.size)
+        assertEquals(0, adapter.retainedHosts)
+    }
     @Test fun remoteFocusAloneDoesNotProveScrollingAndNewGesturesHaveNewOwnership() {
         val f = InteractionAdapterFixture(); val adapter = InteractionScrollAdapter(f.recorder, clock = { f.now })
         val view = View(f.activity).also { f.root.addView(it) }

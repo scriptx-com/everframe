@@ -4,6 +4,7 @@ package dev.everframe.rn
 
 import android.view.View
 import dev.everframe.capture.InteractionEvents
+import dev.everframe.capture.PreparedInteraction
 import java.lang.ref.WeakReference
 import kotlinx.serialization.json.*
 
@@ -20,6 +21,9 @@ internal class RnInteractionEventRegistration(
     val runtime = InteractionEvents.openRuntime()
     private val namespace = "$runtime:"
     private val requests = mutableMapOf<String, Request>()
+    private class PendingRecord(val item: PreparedInteraction, val id: String, val generation: Long)
+    private val records = ArrayDeque<PendingRecord>()
+    private var recordDrainScheduled = false
     @Volatile private var closed = false
     fun active(): Boolean = !closed && InteractionEvents.ownsRuntime(runtime)
     fun lease(): String = if (active()) InteractionEvents.lease() ?: "" else ""
@@ -78,23 +82,44 @@ internal class RnInteractionEventRegistration(
         if (!InteractionEvents.clearRegistration(namespace+id,generation.toLong())) return false
         requests.remove(id)?.let(::detachListener); return true
     }
-    fun record(lease: String, id: String, generation: Double, json: String): Boolean {
+    @Synchronized fun record(lease: String, id: String, generation: Double, json: String): Boolean {
         if (!active() || !integer(generation,9007199254740991.0) || (id.isNotEmpty() && !validId(id))) return false
         val prepared = InteractionEvents.prepare(lease,if (id.isEmpty()) "" else namespace+id,generation.toLong(),json) ?: return false
-        dispatch {
-            try {
-                if (!active()) return@dispatch
-                if (id.isNotEmpty()) synchronized(this) {
-                    val request = requests[id] ?: return@dispatch
-                    val view = request.view?.get() ?: return@dispatch
-                    if (request.generation != generation.toLong() || resolve(request.tag) !== view) return@dispatch
-                }
-                InteractionEvents.recordPrepared(prepared)
-            } finally { InteractionEvents.discardPrepared(prepared) }
-        }
+        // Native coalescing/revocation can empty a prepared cell before main runs.
+        // Bound those cells too, and enqueue only one callback for the mailbox.
+        if (records.size == 64) InteractionEvents.discardPrepared(records.removeFirst().item)
+        records.addLast(PendingRecord(prepared,id,generation.toLong()))
+        if (!recordDrainScheduled) { recordDrainScheduled = true; scheduleRecordDrain() }
         return true
     }
+    private fun scheduleRecordDrain() {
+        val owner = WeakReference(this)
+        dispatch { owner.get()?.drainRecords() }
+    }
+    private fun drainRecords() {
+        // Yield after a bounded batch even if producers keep refilling the mailbox.
+        repeat(64) {
+            synchronized(this) {
+                if (records.isEmpty()) return@repeat
+                val pending = records.removeFirst()
+                try {
+                    if (!active()) return@repeat
+                    if (pending.id.isNotEmpty()) {
+                        val request = requests[pending.id] ?: return@repeat
+                        val view = request.view?.get() ?: return@repeat
+                        if (request.generation != pending.generation || resolve(request.tag) !== view) return@repeat
+                    }
+                    InteractionEvents.recordPrepared(pending.item)
+                } finally { InteractionEvents.discardPrepared(pending.item) }
+            }
+        }
+        synchronized(this) {
+            if (records.isEmpty()) recordDrainScheduled = false else scheduleRecordDrain()
+        }
+    }
     @Synchronized override fun close() {
-        closed = true; requests.values.forEach(::detachListener); requests.clear(); InteractionEvents.closeRuntime(runtime)
+        closed = true
+        records.forEach { InteractionEvents.discardPrepared(it.item) }; records.clear()
+        requests.values.forEach(::detachListener); requests.clear(); InteractionEvents.closeRuntime(runtime)
     }
 }

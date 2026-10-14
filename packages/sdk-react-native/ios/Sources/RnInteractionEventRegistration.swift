@@ -17,7 +17,12 @@ import EverframeKit
     }
     private static let instancesLock = NSLock()
     private static let instances = NSHashTable<RnInteractionEventRegistration>.weakObjects()
-    public override init() {
+    private let dispatchRecord: (@escaping @MainActor () -> Void) -> Void
+    public override convenience init() {
+        self.init(dispatchRecord: { DispatchQueue.main.async(execute: $0) })
+    }
+    init(dispatchRecord: @escaping (@escaping @MainActor () -> Void) -> Void) {
+        self.dispatchRecord = dispatchRecord
         super.init()
         Self.instancesLock.lock(); Self.instances.add(self); Self.instancesLock.unlock()
     }
@@ -35,6 +40,13 @@ import EverframeKit
     private let lock = NSRecursiveLock()
     private let runtime = InteractionEvents.openRuntime()
     private var requests: [String: Request] = [:]
+    private struct PendingRecord {
+        let item: PreparedInteraction
+        let id: String
+        let generation: UInt64
+    }
+    private var records: [PendingRecord] = []
+    private var recordDrainScheduled = false
     private var closed = false
     @objc public var active: Bool { lock.lock(); defer { lock.unlock() }; return !closed && InteractionEvents.ownsRuntime(runtime) }
     @objc public func lease() -> String { active ? InteractionEvents.lease() ?? "" : "" }
@@ -80,23 +92,41 @@ import EverframeKit
         requests.removeValue(forKey: id); return true
     }
     @objc public func record(_ token: String, id: String, generation: Double, eventJson: String) -> Bool {
+        lock.lock(); defer { lock.unlock() }
         guard active, integer(generation, 9_007_199_254_740_991), id.isEmpty || validId(id),
               let item = InteractionEvents.prepare(lease: token, id: id.isEmpty ? "" : key(id), generation: UInt64(generation), json: eventJson) else { return false }
-        DispatchQueue.main.async { [weak self] in
-            defer { InteractionEvents.discardPrepared(item) }
-            guard let self, self.active else { return }
-            if !id.isEmpty {
-                self.lock.lock(); defer { self.lock.unlock() }
-                guard let request = self.requests[id], request.generation == UInt64(generation),
-                      let root = request.root, request.resolve(request.tag) === root, root.window != nil,
-                      let host = request.host, host === root || host.isDescendant(of: root) else { return }
-            }
-            _ = InteractionEvents.recordPrepared(item)
-        }
+        // Coalescing/revocation can empty cells before main runs. Bound those
+        // cells too and keep only one scheduled callback for this mailbox.
+        if records.count == 64 { InteractionEvents.discardPrepared(records.removeFirst().item) }
+        records.append(PendingRecord(item: item, id: id, generation: UInt64(generation)))
+        if !recordDrainScheduled { recordDrainScheduled = true; scheduleRecordDrain() }
         return true
+    }
+    private func scheduleRecordDrain() {
+        dispatchRecord { [weak self] in self?.drainRecords() }
+    }
+    @MainActor private func drainRecords() {
+        // Yield after a bounded batch even if producers keep refilling the mailbox.
+        for _ in 0..<64 {
+            lock.lock(); defer { lock.unlock() }
+            guard !records.isEmpty else { break }
+            let pending = records.removeFirst()
+            defer { InteractionEvents.discardPrepared(pending.item) }
+            guard active else { continue }
+            if !pending.id.isEmpty {
+                guard let request = requests[pending.id], request.generation == pending.generation,
+                      let root = request.root, request.resolve(request.tag) === root, root.window != nil,
+                      let host = request.host, host === root || host.isDescendant(of: root) else { continue }
+            }
+            _ = InteractionEvents.recordPrepared(pending.item)
+        }
+        lock.lock(); defer { lock.unlock() }
+        if records.isEmpty { recordDrainScheduled = false } else { scheduleRecordDrain() }
     }
     @objc public func close() {
         lock.lock(); defer { lock.unlock() }
-        closed = true; requests.removeAll(); InteractionEvents.closeRuntime(runtime)
+        closed = true
+        records.forEach { InteractionEvents.discardPrepared($0.item) }; records.removeAll()
+        requests.removeAll(); InteractionEvents.closeRuntime(runtime)
     }
 }
