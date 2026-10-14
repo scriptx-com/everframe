@@ -68,10 +68,18 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     private var frozen: [EverframeBreadcrumb]?
     private let sequence: EvidenceSequence
     // Separate from sequence numbering: every purge revokes pending input snapshots.
-    private var interactionRevision: UInt64 = 0
+    internal var interactionRevisionLocked: UInt64 = 0
+    internal var interactionRevocation: (() -> Void)?
+    internal var interactionFreeze: (() -> Void)?
+    internal func withInteractionLock<T>(_ body: () -> T) -> T {
+        lock.lock(); defer { lock.unlock() }; return body()
+    }
+    internal func interactionKindEnabledLocked(_ kind: EverframeBreadcrumbKind) -> Bool {
+        configEnabled && configKinds.contains(kind) && (!honorsKillGate || Everframe.shared.captureGate)
+    }
     internal func captureRevision() -> UInt64 {
         lock.lock(); defer { lock.unlock() }
-        return interactionRevision
+        return interactionRevisionLocked
     }
     internal func addInteraction(message: String, data: [String: EverframeJSONAny], captureRevision: UInt64) {
         add(kind: .tap, message: message, level: nil, data: data, captureRevision: captureRevision)
@@ -136,9 +144,21 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         add(kind: kind, message: message, level: level, data: data, captureRevision: nil)
     }
 
+    @discardableResult internal func addObservedInteraction(
+        kind: EverframeBreadcrumbKind, message: String, data: [String: EverframeJSONAny], captureRevision: UInt64,
+        admission: (() -> Bool)? = nil
+    ) -> Bool {
+        store(kind: kind, message: message, level: nil, data: data, captureRevision: captureRevision, observedInteraction: true, admission: admission)
+    }
     private func add(
         kind: EverframeBreadcrumbKind, message: String, level: EverframeLevel?, data: [String: EverframeJSONAny]?, captureRevision: UInt64?
     ) {
+        _ = store(kind: kind, message: message, level: level, data: data, captureRevision: captureRevision)
+    }
+    private func store(
+        kind: EverframeBreadcrumbKind, message: String, level: EverframeLevel?, data: [String: EverframeJSONAny]?, captureRevision: UInt64?,
+        observedInteraction: Bool = false, admission: (() -> Bool)? = nil
+    ) -> Bool {
         // Cheap pre-lock fast path only. A thread that reads the gate open
         // here can still be descheduled before `lock.lock()`, let `kill()`
         // run to completion elsewhere (which flips `captureGate` false and
@@ -148,17 +168,22 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         // same total order `NetworkRingBuffer` and `NetworkBodyRingBuffer`
         // rely on. The window is unusually wide here because redaction runs
         // between the two.
-        if honorsKillGate, !Everframe.shared.captureGate { return }
+        if honorsKillGate, !Everframe.shared.captureGate { return false }
         preLockHook?()
 
         let capped = Self.capMessage(Self.redactor.redact(message))
-        let redactedData = data.map { Self.redactDataForStorage($0, interactionTarget: kind == .tap) }
+        var redactedData = data.map { Self.redactDataForStorage($0, interactionTarget: kind == .tap) }
+        if observedInteraction {
+            guard let data = redactedData, let bounded = InteractionEventSanitizer.storageData(data) else { return false }
+            redactedData = bounded
+        }
 
         lock.lock(); defer { lock.unlock() }
-        if honorsKillGate, !Everframe.shared.captureGate { return }
-        guard configEnabled, configKinds.contains(kind) else { return }
-        if let captureRevision, captureRevision != interactionRevision { return }
+        if honorsKillGate, !Everframe.shared.captureGate { return false }
+        guard configEnabled, configKinds.contains(kind) else { return false }
+        if let captureRevision, captureRevision != interactionRevisionLocked { return false }
 
+        guard admission?() ?? true else { return false }
         let crumb = EverframeBreadcrumb(
             data: redactedData,
             kind: kind,
@@ -172,11 +197,13 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         if entries.count > _maxCount {
             entries.removeFirst(entries.count - _maxCount)
         }
+        return true
     }
 
     /// Snapshot the chain at reporter-open. Idempotent — never a second
     /// snapshot while one is already held.
     public func freeze() {
+        interactionFreeze?()
         lock.lock(); defer { lock.unlock() }
         if frozen == nil { frozen = entries }
     }
@@ -206,7 +233,8 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     /// Zeroize everything (logout / identity change / kill switch).
     public func clear() {
         lock.lock(); defer { lock.unlock() }
-        interactionRevision &+= 1
+        interactionRevisionLocked &+= 1
+        interactionRevocation?()
         entries.removeAll()
         frozen = nil
     }
@@ -217,6 +245,11 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     /// gates every subsequent `add` until a future config re-enables it.
     public func applyConfig(_ cfg: BreadcrumbsConfigWire?) {
         lock.lock(); defer { lock.unlock() }
+        let nextKinds = cfg.map { Set($0.kinds.compactMap { EverframeBreadcrumbKind(rawValue: $0) }) } ?? Self.allKinds()
+        if nextKinds != configKinds || configEnabled != (cfg?.enabled ?? true) {
+            interactionRevisionLocked &+= 1
+            interactionRevocation?()
+        }
         guard let cfg = cfg else {
             configEnabled = true
             configKinds = Self.allKinds()
@@ -227,7 +260,8 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         configKinds = Set(cfg.kinds.compactMap { EverframeBreadcrumbKind(rawValue: $0) })
         setMaxCountLocked(cfg.maxCount)
         if !configEnabled {
-            interactionRevision &+= 1
+            interactionRevisionLocked &+= 1
+            interactionRevocation?()
             entries.removeAll()
             frozen = nil
         }

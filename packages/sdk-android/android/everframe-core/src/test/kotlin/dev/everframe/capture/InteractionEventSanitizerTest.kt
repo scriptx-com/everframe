@@ -90,4 +90,17 @@ class InteractionEventSanitizerTest {
         assertFalse(launch.toString().contains("123-45-6789"))
         assertFalse(link.toString().contains("123-45-6789"))
     }
+
+    @Test fun sharedProtocolCorpusSurvivesActualStorage() {
+        val fixtures = Json.parseToJsonElement(java.io.File(System.getProperty("everframeInteractionCorpus")).readText()).jsonArray
+        val policy = InteractionEventPolicy.parse("""{"launchArgumentKeys":["mode"]}""")
+        val buffer = BreadcrumbRingBuffer(100, false)
+        for (fixture in fixtures) {
+            val event = InteractionEventSanitizer.sanitize(fixture.jsonObject, policy)!!
+            assertTrue(buffer.addObservedInteraction(InteractionEventSanitizer.kind(event.string("type")!!), "Observed", JsonObject(mapOf("interaction" to event)), buffer.captureRevision()))
+        }
+        val stored = JsonArray(buffer.snapshotForReport().map { it.data!!.getValue("interaction") })
+        assertEquals(fixtures.size, stored.size)
+        println("INTERACTION_CORPUS:" + stored)
+    }
 }

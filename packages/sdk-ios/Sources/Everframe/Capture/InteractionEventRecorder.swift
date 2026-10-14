@@ -1,0 +1,254 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+#if canImport(UIKit)
+import UIKit
+import EverframeProtocol
+
+final class InteractionOwner {
+    let lease: String
+    let revision: UInt64
+    weak var host: UIView?
+    let hasHost: Bool
+    let target: [String: Any]?
+    let liveTestId: String?
+    let hostTag: Int?
+    let registrationId: String?
+    let generation: UInt64?
+    init(lease: String, revision: UInt64, host: UIView?, target: [String: Any]?, liveTestId: String?, hostTag: Int?, registrationId: String? = nil, generation: UInt64? = nil) {
+        self.lease = lease; self.revision = revision; self.host = host; self.hasHost = host != nil
+        self.target = target; self.liveTestId = liveTestId; self.hostTag = hostTag; self.registrationId = registrationId; self.generation = generation
+    }
+}
+struct InteractionObservation {
+    let owner: InteractionOwner
+    let event: [String: Any]
+    var phase: String = "change"
+    var composing: Bool = false
+}
+
+/// All mutable state uses the ring's non-recursive lock. Methods suffixed Locked never acquire it.
+final class InteractionEventRecorder: @unchecked Sendable {
+    static let shared = InteractionEventRecorder(buffer: .shared)
+    private final class Pending {
+        let owner: InteractionOwner, event: [String: Any], deadline: Double, composing: Bool
+        init(_ owner: InteractionOwner, _ event: [String: Any], _ deadline: Double, _ composing: Bool) {
+            self.owner = owner; self.event = event; self.deadline = deadline; self.composing = composing
+        }
+    }
+    private struct Registration { let owner: InteractionOwner, types: Set<String> }
+    private struct HostTime { weak var view: UIView?; let time: Double }
+    private let buffer: BreadcrumbRingBuffer
+    private let clock: () -> Double
+    private let schedule: (Double, @escaping () -> Void) -> Void
+    private var token = UUID().uuidString
+    private var policy: InteractionEventPolicy = .parse(nil)
+    private var pending: [Pending] = []
+    private var semanticTimes: [Double] = [], lifecycleTimes: [Double] = []
+    private var hostTimes: [ObjectIdentifier: HostTime] = [:]
+    private var registrations: [String: Registration] = [:], generations: [String: UInt64] = [:], pendingRegistrations: [String: UInt64] = [:]
+    private var registrationOverflow = false, timerArmed = false
+
+    init(buffer: BreadcrumbRingBuffer, clock: @escaping () -> Double = { ProcessInfo.processInfo.systemUptime * 1000 },
+         schedule: @escaping (Double, @escaping () -> Void) -> Void = { delay, action in DispatchQueue.main.asyncAfter(deadline: .now() + delay / 1000, execute: action) }) {
+        self.buffer = buffer; self.clock = clock; self.schedule = schedule
+        buffer.withInteractionLock {
+            buffer.interactionRevocation = { [weak self] in self?.eraseLocked() }
+            buffer.interactionFreeze = { [weak self] in
+                guard Thread.isMainThread else { return }
+                MainActor.assumeIsolated { self?.flushReadyForFreeze() }
+            }
+        }
+    }
+    func configure(_ value: InteractionEventPolicy) { buffer.withInteractionLock { eraseLocked(); policy = value } }
+    func lease() -> String? { buffer.withInteractionLock { enabledLocked() ? token : nil } }
+    func revoke() { buffer.withInteractionLock { eraseLocked() } }
+    var pendingCount: Int { buffer.withInteractionLock { pending.count } }
+    func pendingDebugSnapshot() -> [[String: Any]] { buffer.withInteractionLock { pending.map(\.event) } }
+    private func enabledLocked() -> Bool {
+        !policy.disabled && [EverframeBreadcrumbKind.custom, .lifecycle, .navigation].contains { buffer.interactionKindEnabledLocked($0) }
+    }
+    private func eraseLocked() {
+        token = UUID().uuidString
+        pending.removeAll(); semanticTimes.removeAll(); lifecycleTimes.removeAll(); hostTimes.removeAll()
+        registrations.removeAll(); generations.removeAll(); pendingRegistrations.removeAll(); registrationOverflow = false; timerArmed = false
+    }
+    @MainActor func owner(view: UIView? = nil, lease requested: String? = nil) -> InteractionOwner? {
+        let lease = requested ?? self.lease()
+        guard let lease, let revision = buffer.withInteractionLock({ enabledLocked() && lease == token ? buffer.interactionRevisionLocked : nil }) else { return nil }
+        guard let view else { return InteractionOwner(lease: lease, revision: revision, host: nil, target: nil, liveTestId: nil, hostTag: nil) }
+        guard safeHost(view) else { return nil }
+        let snapshot = InteractionTargetResolver.resolve(view)
+        let target = snapshot.data["target"]?.value as? [String: Any]
+        guard interactionBool(target?["masked"]) != true else { return nil }
+        let safeTarget = (target.map(InteractionEventSanitizer.redact) as? [String: Any]).flatMap(InteractionEventSanitizer.target)
+        let owner = InteractionOwner(lease: lease, revision: revision, host: view, target: safeTarget, liveTestId: testId(view), hostTag: view.tag)
+        return buffer.withInteractionLock { currentLocked(owner) ? owner : nil }
+    }
+    @MainActor func observe(_ observation: InteractionObservation) -> Bool {
+        let owner = observation.owner
+        guard let type = observation.event["type"] as? String,
+              ["text_edit", "control_change", "scroll"].contains(type) == owner.hasHost,
+              live(owner), ["change", "end", "submit"].contains(observation.phase),
+              let policy = buffer.withInteractionLock({ currentLocked(owner) ? self.policy : nil }) else { return false }
+        var input = observation.event
+        if type == "text_edit" {
+            input["reason"] = observation.phase == "change" ? "idle" : observation.phase
+            if observation.composing { input.removeValue(forKey: "value") }
+        }
+        let valueId = type != "text_edit" || owner.host is UITextField || owner.host is UITextView ? owner.liveTestId : nil
+        guard let event = InteractionEventSanitizer.sanitize(input, policy: policy, liveTestId: valueId) else { return false }
+        let delay = type == "text_edit" ? 750.0 : type == "scroll" ? 200.0 : 0
+        let shouldPend = delay != 0 && (observation.phase == "change" || observation.composing)
+        let now = clock()
+        let result: Bool? = buffer.withInteractionLock {
+            guard currentLocked(owner), buffer.interactionKindEnabledLocked(InteractionEventSanitizer.kind(type)) else { return false }
+            pending.removeAll { $0.owner.host === owner.host && $0.event["type"] as? String == type }
+            guard shouldPend else { return nil }
+            let hosts = Set(pending.compactMap { $0.owner.host.map(ObjectIdentifier.init) })
+            if let host = owner.host, !hosts.contains(ObjectIdentifier(host)), hosts.count >= 32 {
+                let oldest = pending.first?.owner.host
+                pending.removeAll { $0.owner.host == nil || $0.owner.host === oldest }
+            }
+            pending.append(Pending(owner, event, now + delay, observation.composing)); return true
+        }
+        if result == true { armTimer() }
+        return result ?? admit(owner, event: event, now: now)
+    }
+    private func armTimer() {
+        let timer: (String, Double)? = buffer.withInteractionLock {
+            guard !timerArmed, let deadline = pending.map(\.deadline).min() else { return nil }
+            timerArmed = true; return (token, max(1, deadline - clock()))
+        }
+        guard let timer else { return }
+        schedule(timer.1) { [weak self] in
+            guard let self else { return }
+            let active = self.buffer.withInteractionLock { if self.token != timer.0 { return false }; self.timerArmed = false; return true }
+            guard active, Thread.isMainThread else { return }
+            MainActor.assumeIsolated { self.flushDue(); self.armTimer() }
+        }
+    }
+    @MainActor func complete(host: UIView, type: String, reason: String) {
+        guard let item = buffer.withInteractionLock({ pending.first { $0.owner.host === host && $0.event["type"] as? String == type } }) else { return }
+        flush(item, reason: reason)
+    }
+    @MainActor func flushDue() {
+        let now = clock(), ready = buffer.withInteractionLock { pending.filter { $0.deadline <= clock() } }
+        for item in ready { flush(item, reason: "idle", now: now) }
+    }
+    @MainActor func flushReadyForFreeze() {
+        let ready = buffer.withInteractionLock { pending }
+        for item in ready { flush(item, reason: "freeze") }
+    }
+    @MainActor private func flush(_ item: Pending, reason: String, now: Double? = nil) {
+        let valid = !item.composing && live(item.owner)
+        let removed = buffer.withInteractionLock {
+            guard let index = pending.firstIndex(where: { $0 === item }) else { return false }
+            pending.remove(at: index); return valid && currentLocked(item.owner)
+        }
+        guard removed else { return }
+        var event = item.event
+        if event["type"] as? String == "text_edit" { event["reason"] = reason }
+        _ = admit(item.owner, event: event, now: now ?? clock())
+    }
+    private func admit(_ owner: InteractionOwner, event: [String: Any], now: Double) -> Bool {
+        guard let type = event["type"] as? String else { return false }
+        var data: [String: Any] = ["interaction": event]; data["target"] = owner.target
+        return buffer.addObservedInteraction(kind: InteractionEventSanitizer.kind(type), message: InteractionEventSanitizer.message(type), data: BreadcrumbRingBuffer.coerceHostData(data), captureRevision: owner.revision) {
+            guard self.currentLocked(owner) else { return false }
+            let semantic = ["text_edit", "control_change", "scroll"].contains(type)
+            self.semanticTimes.removeAll { now - $0 >= 10000 }; self.lifecycleTimes.removeAll { now - $0 >= 10000 }
+            guard semantic ? self.semanticTimes.count < 20 : self.lifecycleTimes.count < 10 else { return false }
+            let limited = type == "text_edit" || type == "scroll"
+            self.hostTimes = self.hostTimes.filter { $0.value.view != nil }
+            if limited, let host = owner.host, let last = self.hostTimes[ObjectIdentifier(host)], now - last.time < 1000 { return false }
+            if semantic { self.semanticTimes.append(now) } else { self.lifecycleTimes.append(now) }
+            if limited, let host = owner.host { self.hostTimes[ObjectIdentifier(host)] = HostTime(view: host, time: now) }
+            return true
+        }
+    }
+    @MainActor func allowsValue(_ owner: InteractionOwner, type: String) -> Bool {
+        guard live(owner), type != "text_edit" || owner.host is UITextField || owner.host is UITextView else { return false }
+        return buffer.withInteractionLock { currentLocked(owner) && owner.liveTestId.map { policy.valueTestIds.contains($0) } == true }
+    }
+    func beginRegistration(id: String, generation: UInt64, lease: String) -> Bool {
+        buffer.withInteractionLock {
+            guard enabledLocked(), lease == token, advanceLocked(id, generation) else { return false }
+            pendingRegistrations[id] = generation; return true
+        }
+    }
+    @MainActor func completeRegistration(view: UIView, id: String, generation: UInt64, lease: String, types: Set<String>) -> Bool {
+        guard types.isSubset(of: ["text_edit", "control_change", "scroll"]), let owner = owner(view: view, lease: lease) else { return false }
+        return buffer.withInteractionLock {
+            guard currentLocked(owner), pendingRegistrations[id] == generation else { return false }
+            pendingRegistrations.removeValue(forKey: id)
+            let displaced = registrations.filter { $0.value.owner.host === view }.map(\.key)
+            for key in displaced { registrations.removeValue(forKey: key); pending.removeAll { $0.owner.registrationId == key } }
+            pending.removeAll { $0.owner.host === view && ($0.event["type"] as? String).map(types.contains) == true }
+            let bound = InteractionOwner(lease: owner.lease, revision: owner.revision, host: view, target: owner.target, liveTestId: owner.liveTestId, hostTag: owner.hostTag, registrationId: id, generation: generation)
+            registrations[id] = Registration(owner: bound, types: types); return true
+        }
+    }
+    @MainActor func register(view: UIView, id: String, generation: UInt64, lease: String, types: Set<String>) -> Bool {
+        beginRegistration(id: id, generation: generation, lease: lease) && completeRegistration(view: view, id: id, generation: generation, lease: lease, types: types)
+    }
+    func clearRegistration(id: String, generation: UInt64) -> Bool { buffer.withInteractionLock { advanceLocked(id, generation) } }
+    private func advanceLocked(_ id: String, _ generation: UInt64) -> Bool {
+        guard !registrationOverflow, InteractionEventPolicy.identifier(id, max: 256), generation <= 9_007_199_254_740_991,
+              generations[id].map({ generation > $0 }) ?? true else { return false }
+        if generations[id] == nil, generations.count >= 4096 {
+            registrationOverflow = true; registrations.removeAll(); pendingRegistrations.removeAll(); pending.removeAll { $0.owner.registrationId != nil }; return false
+        }
+        generations[id] = generation; registrations.removeValue(forKey: id); pendingRegistrations.removeValue(forKey: id)
+        pending.removeAll { $0.owner.registrationId == id }; return true
+    }
+    @MainActor func registeredOwner(id: String, generation: UInt64, lease: String) -> InteractionOwner? {
+        guard let entry = buffer.withInteractionLock({ registrations[id].flatMap { $0.owner.generation == generation && $0.owner.lease == lease && currentLocked($0.owner) ? $0 : nil } }),
+              live(entry.owner), let host = entry.owner.host, let fresh = owner(view: host, lease: lease) else { return nil }
+        return InteractionOwner(lease: fresh.lease, revision: fresh.revision, host: host, target: fresh.target, liveTestId: fresh.liveTestId, hostTag: fresh.hostTag, registrationId: id, generation: generation)
+    }
+    @MainActor func suppresses(view: UIView, type: String) -> Bool {
+        let owners = buffer.withInteractionLock { registrations.values.filter { $0.types.contains(type) && $0.owner.host === view && currentLocked($0.owner) }.map(\.owner) }
+        return owners.contains(where: live)
+    }
+    func helperOwns(_ owner: InteractionOwner, type: String) -> Bool { buffer.withInteractionLock { currentLocked(owner) && owner.registrationId.flatMap { registrations[$0]?.types.contains(type) } == true } }
+    private func currentLocked(_ owner: InteractionOwner) -> Bool {
+        guard enabledLocked(), owner.lease == token, owner.revision == buffer.interactionRevisionLocked else { return false }
+        guard let id = owner.registrationId else { return true }
+        return registrations[id].map { $0.owner.generation == owner.generation && $0.owner.host === owner.host } == true
+    }
+    @MainActor private func live(_ owner: InteractionOwner) -> Bool {
+        guard owner.hasHost else { return true }
+        guard let view = owner.host else { return false }
+        return safeHost(view) && view.tag == owner.hostTag && testId(view) == owner.liveTestId
+    }
+    @MainActor private func safeHost(_ view: UIView) -> Bool {
+        view.window != nil && !InteractionTargetResolver.sensitiveAncestry(view) &&
+            (view as? UITextView)?.isSecureTextEntry != true
+    }
+    @MainActor private func testId(_ view: UIView) -> String? {
+        let raw = InteractionTargetViewAdapters.describe(view)?.testId ?? view.accessibilityIdentifier
+        return raw.flatMap { InteractionEventPolicy.identifier($0, max: 256) ? $0 : nil }
+    }
+}
+
+public final class InteractionCapture {
+    let owner: InteractionOwner
+    init(_ owner: InteractionOwner) { self.owner = owner }
+}
+public enum InteractionEvents {
+    public static func lease() -> String? { InteractionEventRecorder.shared.lease() }
+    @MainActor public static func capture(view: UIView? = nil, lease: String? = nil) -> InteractionCapture? { InteractionEventRecorder.shared.owner(view: view, lease: lease).map(InteractionCapture.init) }
+    @MainActor public static func allowsValue(_ capture: InteractionCapture, type: String) -> Bool { InteractionEventRecorder.shared.allowsValue(capture.owner, type: type) }
+    @MainActor public static func suppresses(view: UIView, type: String) -> Bool { InteractionEventRecorder.shared.suppresses(view: view, type: type) }
+    public static func beginRegistration(id: String, generation: UInt64, lease: String) -> Bool { InteractionEventRecorder.shared.beginRegistration(id: id, generation: generation, lease: lease) }
+    @MainActor public static func completeRegistration(view: UIView, id: String, generation: UInt64, lease: String, types: Set<String>) -> Bool { InteractionEventRecorder.shared.completeRegistration(view: view, id: id, generation: generation, lease: lease, types: types) }
+    public static func clearRegistration(id: String, generation: UInt64) -> Bool { InteractionEventRecorder.shared.clearRegistration(id: id, generation: generation) }
+    @MainActor public static func registeredCapture(id: String, generation: UInt64, lease: String) -> InteractionCapture? { InteractionEventRecorder.shared.registeredOwner(id: id, generation: generation, lease: lease).map(InteractionCapture.init) }
+    public static func helperOwns(_ capture: InteractionCapture, type: String) -> Bool { InteractionEventRecorder.shared.helperOwns(capture.owner, type: type) }
+    @MainActor public static func record(_ capture: InteractionCapture, json: String, phase: String = "change", composing: Bool = false) -> Bool {
+        guard json.utf8.count <= 8192, let data = json.data(using: .utf8), let event = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return false }
+        return InteractionEventRecorder.shared.observe(.init(owner: capture.owner, event: event, phase: phase, composing: composing))
+    }
+    @MainActor public static func complete(view: UIView, type: String, reason: String) { InteractionEventRecorder.shared.complete(host: view, type: type, reason: reason) }
+}
+#endif

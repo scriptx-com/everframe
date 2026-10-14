@@ -116,6 +116,9 @@ android {
                 // does not configure this JVM. Keep one bounded worker.
                 test.maxHeapSize = "2g"
                 test.maxParallelForks = 1
+                val interactionCorpus = rootProject.file("../../protocol/__tests__/fixtures/interaction-events.v1.json")
+                test.inputs.file(interactionCorpus)
+                test.systemProperty("everframeInteractionCorpus", interactionCorpus.absolutePath)
                 val detailsCorpus = rootProject.file("../../protocol/__tests__/fixtures/crash-details-native-parity.json")
                 test.inputs.file(detailsCorpus)
                 test.systemProperty("everframeCrashDetailsCorpus", detailsCorpus.absolutePath)
