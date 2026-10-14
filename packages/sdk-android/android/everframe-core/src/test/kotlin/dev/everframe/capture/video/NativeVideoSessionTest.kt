@@ -69,6 +69,27 @@ class NativeVideoSessionTest {
         })
     private val on = """{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1.0,"nativeVideo":{"framesPerSecond":5}}"""
 
+    @Test fun reporterOpenIncludesPendingNativeTextBeforeIdle() = runBlocking {
+        Everframe.captureGate = true
+        val session = ReplaySession(sdkKey = "k", provider = configProvider({ on }))
+        try {
+            session.refreshConfigNow()
+            val activity = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup().get()
+            val field = android.widget.EditText(activity); activity.setContentView(field)
+            sharedBreadcrumbBuffer.clear()
+            dev.everframe.capture.sharedInteractionRecorder.configure(dev.everframe.capture.InteractionEventPolicy.parse(null))
+            field.setText("draft")
+            dev.everframe.capture.InteractionTextAdapter(dev.everframe.capture.sharedInteractionRecorder).changed(field)
+            assertTrue(sharedBreadcrumbBuffer.snapshotForReport().isEmpty())
+            val capture = session.freezeOwnedCapture()
+            try {
+                val text = capture.takeBreadcrumbs()!!.single().data!!.getValue("interaction") as kotlinx.serialization.json.JsonObject
+                assertEquals(kotlinx.serialization.json.JsonPrimitive("freeze"), text["reason"])
+                assertEquals(kotlinx.serialization.json.JsonPrimitive(5), text["length"])
+            } finally { capture.cancel() }
+        } finally { session.teardown(); sharedBreadcrumbBuffer.clear(); Everframe.captureGate = false }
+    }
+
     @Test fun backgroundAndIdentityChangesPreserveFrozenAuthorizationUntilConsumption() = runBlocking {
         Everframe.captureGate = true
         val session = ReplaySession(sdkKey = "k", provider = configProvider({ on }))

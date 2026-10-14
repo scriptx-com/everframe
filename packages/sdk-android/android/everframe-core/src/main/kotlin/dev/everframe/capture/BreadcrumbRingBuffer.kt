@@ -315,8 +315,12 @@ class BreadcrumbRingBuffer internal constructor(
 
     /** Owner-bound immutable selection; source epoch is checked inside the ring lock. */
     fun snapshotForReport(): List<Breadcrumb> = lock.withLock { entries.toList() }
-    internal fun snapshotForReport(guard: () -> Boolean): List<Breadcrumb>? = lock.withLock {
-        if (guard()) entries.toList() else null
+    internal fun snapshotForReport(guard: () -> Boolean): List<Breadcrumb>? {
+        if (!lock.withLock { guard() }) return null
+        // The reporter's owner-bound path must flush pending interactions too.
+        // UI validation stays outside the ring lock; off-main capture never waits.
+        interactionFreeze?.invoke()
+        return lock.withLock { if (guard()) entries.toList() else null }
     }
 
     /** Snapshot the chain at reporter-open. Idempotent — never a second snapshot while one is already held. */

@@ -43,6 +43,25 @@ class InteractionEventRecorderTest {
     private fun observe(view: EditText, phase: String = "change", composing: Boolean = false) = recorder.observe(
         InteractionObservation(recorder.owner(view)!!, text(), phase, composing))
 
+    @Test fun reporterSnapshotFlushesPendingEditsOnMainOnly() {
+        observe(field())
+        var background: List<dev.everframe.protocol.generated.Breadcrumb>? = null
+        Thread { background = buffer.snapshotForReport { true } }.apply { start(); join() }
+        assertTrue(background!!.isEmpty()); assertEquals(1, recorder.pendingCount)
+        val snapshot = buffer.snapshotForReport { true }!!
+        assertEquals("freeze", snapshot.single().data!!["interaction"]!!.jsonObject["reason"]!!.jsonPrimitive.content)
+        assertEquals(0, recorder.pendingCount)
+    }
+
+    @Test fun reporterSnapshotChecksItsOwnerBeforeAndAfterFlush() {
+        observe(field())
+        assertNull(buffer.snapshotForReport { false }); assertEquals(1, recorder.pendingCount)
+        var current = true
+        val flush = buffer.interactionFreeze!!
+        buffer.interactionFreeze = { flush(); current = false }
+        assertNull(buffer.snapshotForReport { current })
+    }
+
     @Test fun preparedAndDelayedSummariesShareThe32HostBound() {
         val lease = recorder.lease()!!
         repeat(17) { observe(field()) }
