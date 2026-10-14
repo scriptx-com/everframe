@@ -81,4 +81,31 @@ class StateRecorderTest {
         repeat(200) { r.set("key0", StateValue.StringValue("😀".repeat(120) + it)) }
         assertTrue(Json.encodeToString(r.snapshot(1004.0)).toByteArray().size <= 32768)
     }
+    // JSON.stringify expands these doubles to 21-digit integers. The remaining
+    // test values contain no numeric-looking strings; native metadata numbers
+    // are at least as long as their JavaScript representation.
+    private inline fun <reified T> javascriptBytes(value: T): Int = Json.encodeToString(value)
+        .replace("1.0E20", "100000000000000000000").toByteArray(Charsets.UTF_8).size
+    @Test fun largeNumbersRespectJavascriptCustomBudget() {
+        val r = make()
+        repeat(20) { assertTrue(r.set("number$it", StateValue.DoubleValue(1e20))) }
+        repeat(29) { r.set("label$it", StateValue.StringValue("x".repeat(255))) }
+        assertTrue(javascriptBytes(r.snapshot(1003.0)!!.current.custom) <= 8192)
+    }
+    @Test fun numericLookingStringsDoNotConsumeNumberReserve() {
+        val r = make()
+        repeat(30) { assertTrue(r.set("label$it", StateValue.StringValue("1e+20 ".repeat(42)))) }
+        assertEquals(30, r.snapshot(1003.0)!!.current.custom.size)
+    }
+    @Test fun largeNumbersRespectJavascriptInitialAndTotalBudgets() {
+        val values = (0..<20).associate { "number$it" to StateValue.DoubleValue(1e20) } +
+            (0..<29).associate { "label$it" to StateValue.StringValue("x".repeat(255)) }
+        val r = make()
+        r.reset(StateSnapshot(emptyMap(), values), 1000.0)
+        assertTrue(javascriptBytes(r.snapshot(1003.0)!!.initial.custom) <= 8192)
+        repeat(200) {
+            r.set("number0", StateValue.DoubleValue(if (it % 2 == 0) -1e20 else 1e20))
+            assertTrue(javascriptBytes(r.snapshot(1004.0)) <= 32768)
+        }
+    }
 }

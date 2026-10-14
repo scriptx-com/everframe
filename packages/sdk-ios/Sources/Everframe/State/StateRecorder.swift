@@ -18,7 +18,30 @@ final class StateRecorder: @unchecked Sendable {
     private static var empty: EverframeStateSnapshot { EverframeStateSnapshot(automatic: [:], custom: [:]) }
     private static func bytes<T: Encodable>(_ value: T) -> Int {
         let encoder = EnvelopeBuilder.makeJSONEncoder()
-        return (try? encoder.encode(value).count) ?? Int.max
+        guard let data = try? encoder.encode(value) else { return Int.max }
+        // Native encoders may emit 1e+20 where JSON.stringify emits a 21-digit
+        // integer. Reserve 32 ASCII bytes per numeric token, a conservative
+        // bound for a finite IEEE-754 double in JavaScript, including sign and
+        // exponent. Count actual wire bytes too; never pad numbers in strings.
+        let encoded = Array(data)
+        var size = encoded.count
+        var i = 0
+        while i < encoded.count {
+            let c = encoded[i]
+            if c == 34 { // quoted key or string value
+                i += 1
+                while i < encoded.count && encoded[i] != 34 {
+                    i += encoded[i] == 92 ? 2 : 1 // skip escaped characters
+                }
+                i += 1
+            } else if c == 45 || (48...57).contains(c) {
+                let start = i
+                i += 1
+                while i < encoded.count && ((48...57).contains(encoded[i]) || [46, 101, 69, 43, 45].contains(encoded[i])) { i += 1 }
+                size += max(0, 32 - (i - start))
+            } else { i += 1 }
+        }
+        return size
     }
     func reset(initial: EverframeStateSnapshot, startedAt: Double) {
         lock.withLock {

@@ -14,7 +14,30 @@ internal class StateRecorder(private val now: () -> Double = { System.currentTim
     private var frozen: ReportState? = null
     private val customKeys = mutableSetOf<String>()
     private val automaticKeys = mutableSetOf<String>()
-    private inline fun <reified T> bytes(value: T): Int = Json.encodeToString(value).toByteArray(Charsets.UTF_8).size
+    private inline fun <reified T> bytes(value: T): Int = jsonBudget(Json.encodeToString(value))
+    private fun jsonBudget(encoded: String): Int {
+        // Native encoders may emit 1.0E20 where JSON.stringify emits a 21-digit
+        // integer. Reserve 32 ASCII bytes per numeric token, a conservative
+        // bound for a finite IEEE-754 double in JavaScript, including sign and
+        // exponent. Count actual wire bytes too; never pad numbers in strings.
+        var size = encoded.toByteArray(Charsets.UTF_8).size
+        var i = 0
+        while (i < encoded.length) {
+            val c = encoded[i]
+            if (c == '"') {
+                i++
+                while (i < encoded.length && encoded[i] != '"') {
+                    i += if (encoded[i] == '\\') 2 else 1
+                }
+                i++
+            } else if (c == '-' || c in '0'..'9') {
+                val start = i++
+                while (i < encoded.length && (encoded[i] in '0'..'9' || encoded[i] in ".eE+-")) i++
+                size += maxOf(0, 32 - (i - start))
+            } else i++
+        }
+        return size
+    }
     fun reset(initial: StateSnapshot, startedAt: Double) = lock.withLock {
         frozen = null; customKeys.clear(); automaticKeys.clear()
         var safe = StateSnapshot(emptyMap(), emptyMap())

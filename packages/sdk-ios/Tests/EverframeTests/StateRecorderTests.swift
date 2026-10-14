@@ -112,4 +112,33 @@ struct StateRecorderTests {
         for i in 0..<200 { _ = r.set("key0", value: .string(String(repeating: "😀", count: 120) + "\(i)")) }
         #expect(try JSONEncoder().encode(r.snapshot(capturedAt: 1004)).count <= 32768)
     }
+    // JSON.stringify expands this double to a 21-digit integer. All other
+    // values in these fixtures use the same representation or a longer one.
+    private func javascriptBytes<T: Encodable>(_ value: T) throws -> Int {
+        String(decoding: try EnvelopeBuilder.makeJSONEncoder().encode(value), as: UTF8.self)
+            .replacingOccurrences(of: "1e+20", with: "100000000000000000000").utf8.count
+    }
+    @Test func largeNumbersRespectJavascriptCustomBudget() throws {
+        let r = make()
+        for i in 0..<20 { #expect(r.set("number\(i)", value: .double(1e20))) }
+        for i in 0..<29 { _ = r.set("label\(i)", value: .string(String(repeating: "x", count: 255))) }
+        #expect(try javascriptBytes(#require(r.snapshot(capturedAt: 1003)).current.custom) <= 8192)
+    }
+    @Test func numericLookingStringsDoNotConsumeNumberReserve() throws {
+        let r = make()
+        for i in 0..<30 { #expect(r.set("label\(i)", value: .string(String(repeating: "1e+20 ", count: 42)))) }
+        #expect(try #require(r.snapshot(capturedAt: 1003)).current.custom.count == 30)
+    }
+    @Test func largeNumbersRespectJavascriptInitialAndTotalBudgets() throws {
+        var values: [String: EverframeStateValue] = [:]
+        for i in 0..<20 { values["number\(i)"] = .double(1e20) }
+        for i in 0..<29 { values["label\(i)"] = .string(String(repeating: "x", count: 255)) }
+        let r = make()
+        r.reset(initial: EverframeStateSnapshot(automatic: [:], custom: values), startedAt: 1000)
+        #expect(try javascriptBytes(#require(r.snapshot(capturedAt: 1003)).initial.custom) <= 8192)
+        for i in 0..<200 {
+            _ = r.set("number0", value: .double(i % 2 == 0 ? -1e20 : 1e20))
+            #expect(try javascriptBytes(r.snapshot(capturedAt: 1004)) <= 32768)
+        }
+    }
 }
