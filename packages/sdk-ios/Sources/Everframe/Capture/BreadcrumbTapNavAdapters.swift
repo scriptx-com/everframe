@@ -116,18 +116,17 @@ enum TapBreadcrumbAdapter {
         let originalFn = unsafeBitCast(method_getImplementation(method), to: SendActionFn.self)
         let block: @convention(block) (UIApplication, Selector, AnyObject?, AnyObject?, UIEvent?) ->
             Bool = { app, action, target, sender, event in
+                let snapshot: InteractionTargetSnapshot? = Thread.isMainThread ? MainActor.assumeIsolated {
+                    guard BreadcrumbRingBuffer.shared.isKindEnabled(.tap),
+                          !TapBreadcrumbAdapter.isIndirectTextInputAction(sender: sender, event: event)
+                    else { return nil }
+                    let (label, data) = TapBreadcrumbAdapter.deriveLabelAndData(sender: sender)
+                    return InteractionTargetSnapshot(label: label, data: data)
+                } : nil
                 let result = originalFn(app, sel, action, target, sender, event)
-                if Thread.isMainThread {
-                    // `sendAction` is main-thread-only by UIKit's own
-                    // contract; `assumeIsolated` bridges into
-                    // `@MainActor`-isolated state synchronously (no
-                    // `await`) rather than assuming without checking.
+                if let snapshot, Thread.isMainThread {
                     MainActor.assumeIsolated {
-                        guard
-                            !TapBreadcrumbAdapter.isIndirectTextInputAction(
-                                sender: sender, event: event)
-                        else { return }
-                        TapBreadcrumbAdapter.recordTap(sender: sender, eventTimestamp: event?.timestamp)
+                        TapBreadcrumbAdapter.recordTap(sender: sender, eventTimestamp: event?.timestamp, snapshot: snapshot)
                     }
                 }
                 return result
@@ -216,11 +215,11 @@ enum TapBreadcrumbAdapter {
     /// entirely when `.tap` is off); `BreadcrumbRingBuffer.add` gates again
     /// for correctness.
     @MainActor
-    static func recordTap(sender: Any?, eventTimestamp: TimeInterval?) {
+    static func recordTap(sender: Any?, eventTimestamp: TimeInterval?, snapshot: InteractionTargetSnapshot? = nil) {
         guard BreadcrumbRingBuffer.shared.isKindEnabled(.tap) else { return }
         lastActionEventTimestamp = eventTimestamp
-        let (label, data) = deriveLabelAndData(sender: sender)
-        BreadcrumbRingBuffer.shared.add(kind: .tap, message: "tap \(label)", data: data)
+        let value = snapshot ?? { let (label, data) = deriveLabelAndData(sender: sender); return InteractionTargetSnapshot(label: label, data: data) }()
+        BreadcrumbRingBuffer.shared.add(kind: .tap, message: "tap \(value.label)", data: value.data)
     }
 
     /// Pure-ish derivation (only reads UIKit state, never mutates) — kept as
@@ -261,38 +260,8 @@ enum TapBreadcrumbAdapter {
             return (label, BreadcrumbRingBuffer.coerceHostData(["control": className]))
         }
 
-        let className = String(describing: type(of: view))
-        if isSensitiveOrAncestorSensitive(view) {
-            return (
-                "[masked]",
-                BreadcrumbRingBuffer.coerceHostData(["control": className, "masked": true])
-            )
-        }
-
-        var dict: [String: Any] = ["control": className]
-        let identifier = nonEmpty(view.accessibilityIdentifier)
-        if let identifier { dict["id"] = identifier }
-
-        let label =
-            nonEmpty(view.accessibilityLabel)
-            ?? nonEmpty((view as? UIButton)?.currentTitle).map { capUTF16($0, 48) }
-            ?? identifier
-            ?? className
-        return (label, BreadcrumbRingBuffer.coerceHostData(dict))
-    }
-
-    /// Walks `view` then every `.superview` up to the root, per the "sender
-    /// OR an ancestor is sensitive" rule — `SensitiveRectRegistry.isSensitive`
-    /// itself only inspects the single view passed to it, so the walk lives
-    /// here.
-    @MainActor
-    private static func isSensitiveOrAncestorSensitive(_ view: UIView) -> Bool {
-        var current: UIView? = view
-        while let v = current {
-            if SensitiveRectRegistry.isSensitive(v) { return true }
-            current = v.superview
-        }
-        return false
+        let snapshot = InteractionTargetResolver.resolve(view)
+        return (snapshot.label, snapshot.data)
     }
 
     private static func nonEmpty(_ s: String?) -> String? {
@@ -303,9 +272,7 @@ enum TapBreadcrumbAdapter {
     /// UTF-16-unit cap (matches `BreadcrumbRingBuffer`'s own message-capping
     /// convention — JS `.length` parity).
     fileprivate static func capUTF16(_ s: String, _ n: Int) -> String {
-        let units = Array(s.utf16)
-        guard units.count > n else { return s }
-        return String(decoding: units.prefix(n), as: UTF16.self)
+        interactionTargetText(s, max: n) ?? ""
     }
 }
 
@@ -403,6 +370,7 @@ enum NavigationBreadcrumbAdapter {
     @MainActor
     static func recordAppearance(of vc: UIViewController) {
         guard vc.parent is UINavigationController || vc.isBeingPresented else { return }
+        InteractionTargetScreenState.recordNative(String(describing: type(of: vc)))
         recordTransition(toName: String(describing: type(of: vc)))
     }
 
@@ -504,39 +472,33 @@ enum WindowTapBreadcrumbAdapter {
         let sel = #selector(UIWindow.sendEvent(_:))
         let originalFn = unsafeBitCast(method_getImplementation(method), to: SendEventFn.self)
         let block: @convention(block) (UIWindow, UIEvent) -> Void = { window, event in
-            // Call through FIRST — touch delivery (and any UIControl
-            // sendAction dispatch) completes before crumb logic runs.
-            originalFn(window, sel, event)
-            #if os(iOS) && !targetEnvironment(macCatalyst)
-            if Thread.isMainThread, event.type == .motion, event.subtype == .motionShake {
-                MainActor.assumeIsolated {
+            guard Thread.isMainThread else { originalFn(window, sel, event); return }
+            MainActor.assumeIsolated {
+                var snapshot: InteractionTargetSnapshot?
+                var remoteButton: String?
+                if BreadcrumbRingBuffer.shared.isKindEnabled(.tap) {
+                    #if os(tvOS)
+                    if event.type == .presses, let presses = event as? UIPressesEvent,
+                       let ended = presses.allPresses.first(where: { $0.phase == .ended }) {
+                        remoteButton = pressName(ended.type)
+                        snapshot = focusedView(in: window).map { InteractionTargetResolver.resolve($0) }
+                            ?? InteractionTargetSnapshot(label: "screen", data: [:])
+                    }
+                    #endif
+                    if event.type == .touches, let ended = event.allTouches?.first(where: { $0.phase == .ended }) {
+                        let view = ended.view ?? window.hitTest(ended.location(in: window), with: nil) ?? window
+                        snapshot = InteractionTargetResolver.resolve(view)
+                    }
+                }
+                // Capture immutable evidence before callbacks mutate views, screen, or focus.
+                // Emission stays after delivery so sendAction deduplication remains effective.
+                originalFn(window, sel, event)
+                #if os(iOS) && !targetEnvironment(macCatalyst)
+                if event.type == .motion, event.subtype == .motionShake {
                     ShakeToReportTrigger.shared.handleShake()
                 }
-            }
-            #endif
-            #if os(tvOS)
-            if Thread.isMainThread, event.type == .presses,
-               let pressesEvent = event as? UIPressesEvent,
-               let ended = pressesEvent.allPresses.first(where: { $0.phase == .ended }) {
-                MainActor.assumeIsolated {
-                    WindowTapBreadcrumbAdapter.recordEndedPress(
-                        type: ended.type,
-                        focusedView: WindowTapBreadcrumbAdapter.focusedView(in: window),
-                        eventTimestamp: event.timestamp)
-                }
-                return
-            }
-            #endif
-            guard Thread.isMainThread, event.type == .touches,
-                  let ended = event.allTouches?.first(where: { $0.phase == .ended })
-            else { return }
-            let location = ended.location(in: window)
-            MainActor.assumeIsolated {
-                WindowTapBreadcrumbAdapter.recordEndedTouch(
-                    view: ended.view,
-                    location: location,
-                    window: window,
-                    eventTimestamp: event.timestamp)
+                #endif
+                if let snapshot { recordSnapshot(snapshot, eventTimestamp: event.timestamp, remoteButton: remoteButton) }
             }
         }
         method_setImplementation(method, imp_implementationWithBlock(block))
@@ -548,46 +510,27 @@ enum WindowTapBreadcrumbAdapter {
     static func recordEndedTouch(
         view: UIView?, location: CGPoint, window: UIWindow, eventTimestamp: TimeInterval
     ) {
-        guard BreadcrumbRingBuffer.shared.isKindEnabled(.tap) else { return }
-        // A sendAction crumb for this same UIEvent already landed — richer.
-        if TapBreadcrumbAdapter.lastActionEventTimestamp == eventTimestamp { return }
         let target = view ?? window.hitTest(location, with: nil) ?? window
-        let bearer = resolveLabelBearer(from: target)
-        var (label, data) = TapBreadcrumbAdapter.deriveLabelAndData(sender: bearer)
-        // Label degraded to a bare class name (a labelless container — the
-        // "tap RCTViewComponentView" complaint, 2026-07-14): mine the
-        // subtree for its first visible text instead, the same signal
-        // Android's tap labeler uses. Never overrides "[masked]" — a masked
-        // bearer's label is not its class name, so this branch can't fire.
-        if label == String(describing: type(of: bearer)),
-           let mined = descendantText(of: bearer) {
-            label = mined
-        }
-        BreadcrumbRingBuffer.shared.add(kind: .tap, message: "tap \(label)", data: data)
+        recordSnapshot(InteractionTargetResolver.resolve(target), eventTimestamp: eventTimestamp)
     }
 
-    /// First visible text in `view`'s subtree (DFS in paint order,
-    /// depth-capped): a UILabel's text or an RN text leaf's mirrored
-    /// accessibilityLabel. Sensitive subtrees are skipped entirely — mined
-    /// text obeys the same masking rules as every other label source. Capped
-    /// at 48 UTF-16 units (tap-label convention).
+    @MainActor
+    static func recordSnapshot(_ snapshot: InteractionTargetSnapshot, eventTimestamp: TimeInterval, remoteButton: String? = nil) {
+        guard BreadcrumbRingBuffer.shared.isKindEnabled(.tap),
+              TapBreadcrumbAdapter.lastActionEventTimestamp != eventTimestamp else { return }
+        var data = snapshot.data
+        let message: String
+        if let button = remoteButton {
+            guard PressCrumbRateLimiter.shouldRecord(button: button) else { return }
+            data.merge(BreadcrumbRingBuffer.coerceHostData(["inputType": "remote", "button": button])) { _, new in new }
+            message = "press \(button) — \(snapshot.label)"
+        } else { message = "tap \(snapshot.label)" }
+        BreadcrumbRingBuffer.shared.add(kind: .tap, message: message, data: data)
+    }
+
     @MainActor
     static func descendantText(of view: UIView, maxDepth: Int = 6) -> String? {
-        guard maxDepth > 0 else { return nil }
-        for sub in view.subviews {
-            if SensitiveRectRegistry.isSensitive(sub) { continue }
-            if let uiLabel = sub as? UILabel, let t = uiLabel.text, !t.isEmpty {
-                return TapBreadcrumbAdapter.capUTF16(t, 48)
-            }
-            if ["RCTParagraphComponentView", "RCTTextView"].contains(String(describing: type(of: sub))),
-               let t = sub.accessibilityLabel, !t.isEmpty {
-                return TapBreadcrumbAdapter.capUTF16(t, 48)
-            }
-            if let mined = descendantText(of: sub, maxDepth: maxDepth - 1) {
-                return mined
-            }
-        }
-        return nil
+        InteractionTargetResolver.descendantText(view, maxDepth: maxDepth).map { TapBreadcrumbAdapter.capUTF16($0, 48) }
     }
 
     static func pressName(_ type: UIPress.PressType) -> String {
@@ -635,29 +578,9 @@ enum WindowTapBreadcrumbAdapter {
         type: UIPress.PressType, focusedView: UIView?, eventTimestamp: TimeInterval
     ) {
         guard BreadcrumbRingBuffer.shared.isKindEnabled(.tap) else { return }
-        // A select-press on a focused UIControl fires `sendAction` INSIDE
-        // the swizzle's call-through above (UIKit's own remote-activation
-        // path), which already recorded a richer "tap <label>" crumb and
-        // stamped `TapBreadcrumbAdapter.lastActionEventTimestamp` with this
-        // same event's timestamp. Bail here — mirrors
-        // `WindowTapBreadcrumbAdapter.recordEndedTouch`'s identical guard —
-        // so that activation isn't double-crumbed as both a tap and a
-        // press. Arrow/menu/playPause presses never fire `sendAction`, so
-        // they're unaffected — this guard only ever suppresses a genuine
-        // same-event duplicate.
-        if TapBreadcrumbAdapter.lastActionEventTimestamp == eventTimestamp { return }
-        let button = pressName(type)
-        guard PressCrumbRateLimiter.shouldRecord(button: button) else { return }
-        let label = focusedView.map { TapBreadcrumbAdapter.deriveLabelAndData(sender: $0).label }
-            ?? "screen"
-        var dict: [String: Any] = ["inputType": "remote", "button": button]
-        if let focusedView {
-            dict["control"] = String(describing: Swift.type(of: focusedView))
-        }
-        BreadcrumbRingBuffer.shared.add(
-            kind: .tap,
-            message: "press \(button) — \(label)",
-            data: BreadcrumbRingBuffer.coerceHostData(dict))
+        let snapshot = focusedView.map { InteractionTargetResolver.resolve($0) }
+            ?? InteractionTargetSnapshot(label: "screen", data: [:])
+        recordSnapshot(snapshot, eventTimestamp: eventTimestamp, remoteButton: pressName(type))
     }
 
     /// The deepest hit view is often an unlabeled leaf (an RN paragraph

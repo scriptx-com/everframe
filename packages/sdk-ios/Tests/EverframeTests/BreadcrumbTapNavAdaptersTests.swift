@@ -181,7 +181,7 @@ struct BreadcrumbTapNavAdaptersTests {
             #expect(tapCrumbs.count == 1)
             let crumb = tapCrumbs.first
             #expect(crumb?.data?["masked"]?.value as? Bool == true)
-            #expect(crumb?.data?["control"]?.value as? String == "UIButton")
+            #expect(crumb?.data?["control"] == nil)
             #expect(crumb?.data?["id"] == nil)
             // Stringify the whole crumb and confirm the secret title never
             // appears anywhere in it (message OR data).
