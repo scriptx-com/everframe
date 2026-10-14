@@ -1,0 +1,14 @@
+packages/cli/__tests__/provenance-packaging.spec.ts
+  h_af305fd8f2c5c5 1-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "96a7ac55f8cfca340fcc9c74fc04e942dfddc2a5",
+  "prompts": {},
+  "humans": {
+    "h_af305fd8f2c5c5": {
+      "author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
