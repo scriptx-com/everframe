@@ -1,0 +1,53 @@
+.changeset/react-native-interaction-targets.md
+  s_f3bbf3765b99f4::t_45b5068d4f5dc0 1-14
+examples/react-native/index.js
+  s_f3bbf3765b99f4::t_f861a5562e83bb 11-13,15-19
+examples/react-native/src/fixtures/InteractionTargets.tsx
+  s_f3bbf3765b99f4::t_cd03c019bfafde 1-28
+packages/sdk-react-native/README.md
+  s_f3bbf3765b99f4::t_5270f32257a711 843-891
+packages/sdk-react-native/__tests__/fixtures/interaction-targets/App.tsx
+  s_f3bbf3765b99f4::t_3fc115174ad2ea 1-4
+packages/sdk-react-native/__tests__/fixtures/interaction-targets/README.md
+  s_f3bbf3765b99f4::t_bbe3f311c3477f 1-21
+packages/sdk-react-native/__tests__/interaction-target-registration.spec.ts
+  s_f3bbf3765b99f4::t_6a2f4f1c0e43d3 1-78
+packages/sdk-react-native/__tests__/spec-shape.test.ts
+  s_f3bbf3765b99f4::t_55e4a63c7219a9 23,27,37,146-154
+packages/sdk-react-native/__tests__/use-everframe-target.spec.tsx
+  s_f3bbf3765b99f4::t_2aaad586728e18 1-114
+packages/sdk-react-native/__tests__/web-entry.spec.ts
+  s_f3bbf3765b99f4::t_5e9ef094a05119 70-81
+packages/sdk-react-native/src/EverframeProvider.tsx
+  s_f3bbf3765b99f4::t_eb9f9216bdd3a6 15,48-52
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_f3bbf3765b99f4::t_76752943656761 283-288
+packages/sdk-react-native/src/index.ts
+  s_f3bbf3765b99f4::t_a0b102e514de6f 114-115
+packages/sdk-react-native/src/index.web.ts
+  s_f3bbf3765b99f4::t_e137cdce99818e 48-56
+packages/sdk-react-native/src/interaction-target-registration.ts
+  s_f3bbf3765b99f4::t_ea5fa0ce9e25fb 1-66
+packages/sdk-react-native/src/runtime.ts
+  s_f3bbf3765b99f4::t_cdcfcad419c88e 287-288,441-442,461-469,666-667,711
+packages/sdk-react-native/src/useEverframeTarget.ts
+  s_f3bbf3765b99f4::t_763e22b586626d 1-70
+packages/sdk-react-native/vitest.setup.ts
+  s_f3bbf3765b99f4::t_a3e6cac108f234 26-27,52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "390a7501c9b980b301dd8251c5486f548407c13f",
+  "prompts": {},
+  "sessions": {
+    "s_f3bbf3765b99f4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a49-28e0-7122-b8e9-07ca3509c69b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
