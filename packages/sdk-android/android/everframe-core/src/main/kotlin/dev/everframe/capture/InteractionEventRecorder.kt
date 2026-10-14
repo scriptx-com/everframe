@@ -1,0 +1,285 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+package dev.everframe.capture
+
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.text.method.PasswordTransformationMethod
+import android.view.View
+import android.widget.TextView
+import dev.everframe.Everframe
+import java.lang.ref.WeakReference
+import java.util.UUID
+import java.util.WeakHashMap
+import kotlinx.serialization.json.*
+
+/** An observation owns its revision before reading any values; it can never renew itself. */
+internal class InteractionOwner(
+    val lease: String,
+    val revision: Long,
+    val host: WeakReference<View>?,
+    val target: JsonObject?,
+    val liveTestId: String?,
+    val hostId: Int?,
+    val registrationId: String? = null,
+    val generation: Long? = null,
+)
+
+internal data class InteractionObservation(
+    val owner: InteractionOwner,
+    val event: JsonObject,
+    val phase: String = "change",
+    val composing: Boolean = false,
+)
+
+/** Mutable admission state shares the buffer lock; no view access occurs under that lock. */
+internal class InteractionEventRecorder(
+    private val buffer: BreadcrumbRingBuffer,
+    private val clock: () -> Long = SystemClock::elapsedRealtime,
+    private val schedule: (Long, () -> Unit) -> Unit = { delay, action -> Handler(Looper.getMainLooper()).postDelayed({ action() }, delay); Unit },
+) {
+    private data class Pending(val owner: InteractionOwner, val event: JsonObject, val deadline: Long, val composing: Boolean)
+    private var token = UUID.randomUUID().toString()
+    private var policy = InteractionEventPolicy.parse(null)
+    private val pending = ArrayList<Pending>()
+    private val semanticTimes = ArrayDeque<Long>()
+    private val lifecycleTimes = ArrayDeque<Long>()
+    private val hostTimes = WeakHashMap<View, Long>()
+    private data class Registration(val owner: InteractionOwner, val types: Set<String>)
+    private val registrations = mutableMapOf<String, Registration>()
+    private val generations = mutableMapOf<String, Long>()
+    private val pendingRegistrations = mutableMapOf<String, Long>()
+    private var registrationOverflow = false
+    private var timerArmed = false
+
+    init {
+        buffer.interactionRevocation = { eraseLocked() }
+        buffer.interactionFreeze = { flushReadyForFreeze() }
+    }
+
+    fun configure(value: InteractionEventPolicy) = buffer.withInteractionLock {
+        eraseLocked(); policy = value
+    }
+    fun lease(): String? = buffer.withInteractionLock { token.takeIf { enabled() } }
+    fun revoke() = buffer.withInteractionLock { eraseLocked() }
+    private fun enabled() = !policy.disabled && (!buffer.honorsKillGate || Everframe.captureGate) &&
+        listOf("text_edit", "launch", "deep_link").any { buffer.isKindEnabled(InteractionEventSanitizer.kind(it)) }
+    private fun eraseLocked() {
+        token = UUID.randomUUID().toString()
+        pending.clear(); semanticTimes.clear(); lifecycleTimes.clear(); hostTimes.clear()
+        registrations.clear(); generations.clear(); pendingRegistrations.clear(); registrationOverflow = false
+        timerArmed = false
+    }
+    val pendingCount: Int get() = buffer.withInteractionLock { pending.size }
+    internal fun pendingDebugSnapshot(): List<JsonObject> = buffer.withInteractionLock { pending.map { it.event } }
+
+    fun owner(view: View? = null, lease: String? = lease()): InteractionOwner? {
+        if (lease == null) return null
+        val revision = buffer.withInteractionLock { if (!enabled() || lease != token) null else buffer.captureRevision() } ?: return null
+        if (view == null) return InteractionOwner(lease, revision, null, null, null, null)
+        if (!safeHost(view)) return null
+        return try {
+            val snapshot = InteractionTargetResolver.resolve(view)
+            val target = snapshot.data["target"] as? JsonObject
+            if (target?.get("masked") == JsonPrimitive(true)) return null
+            val safeTarget = target?.let { InteractionEventSanitizer.target(InteractionEventSanitizer.redact(it) as JsonObject) }
+            val owner = InteractionOwner(lease, revision, WeakReference(view), safeTarget, testId(view), view.id)
+            buffer.withInteractionLock { owner.takeIf { current(it) } }
+        } catch (_: Exception) { null }
+    }
+
+    fun observe(observation: InteractionObservation): Boolean {
+        val owner = observation.owner
+        val type = observation.event.string("type") ?: return false
+        if ((type in setOf("text_edit", "control_change", "scroll")) != (owner.host != null)) return false
+        if (!live(owner)) return false
+        val localPolicy = buffer.withInteractionLock { if (current(owner)) policy else null } ?: return false
+        if (observation.phase !in setOf("change", "end", "submit")) return false
+        val input = observation.event.toMutableMap()
+        if (type == "text_edit") {
+            input["reason"] = JsonPrimitive(if (observation.phase == "change") "idle" else observation.phase)
+            if (observation.composing) input.remove("value")
+        }
+        val event = InteractionEventSanitizer.sanitize(JsonObject(input), localPolicy,
+            owner.liveTestId.takeIf { type != "text_edit" || owner.host?.get() is TextView }) ?: return false
+        val now = clock()
+        val delay = when (type) { "text_edit" -> 750L; "scroll" -> 200L; else -> 0L }
+        val shouldPend = delay != 0L && (observation.phase == "change" || observation.composing)
+        val accepted = buffer.withInteractionLock {
+            if (!current(owner) || !buffer.isKindEnabled(InteractionEventSanitizer.kind(type))) return@withInteractionLock false
+            pending.removeAll { it.owner.host?.get() === owner.host?.get() && it.event.string("type") == type }
+            if (shouldPend) {
+                // A maximum of 32 hosts, even when one host has both text and scroll work.
+                val hosts = pending.mapNotNull { it.owner.host?.get() }.distinct()
+                val view = owner.host?.get()
+                if (view !in hosts && hosts.size >= 32) {
+                    val oldest = pending.firstOrNull()?.owner?.host?.get()
+                    pending.removeAll { it.owner.host?.get() == null || it.owner.host?.get() === oldest }
+                }
+                pending.add(Pending(owner, event, now + delay, observation.composing))
+                true
+            } else admitLocked(owner, event, now)
+        }
+        // Timers retain the recorder only, never a host, raw value or old observation.
+        if (accepted && shouldPend) armTimer()
+        return accepted
+    }
+
+    private fun armTimer() {
+        val timer = buffer.withInteractionLock {
+            if (timerArmed) return@withInteractionLock null
+            val deadline = pending.minOfOrNull { it.deadline } ?: return@withInteractionLock null
+            timerArmed = true
+            token to (deadline - clock()).coerceAtLeast(1)
+        } ?: return
+        schedule(timer.second) {
+            val active = buffer.withInteractionLock {
+                if (token != timer.first) false else { timerArmed = false; true }
+            }
+            if (active) { flushDue(); armTimer() }
+        }
+    }
+
+    fun allowsValue(owner: InteractionOwner, type: String): Boolean {
+        if (!live(owner) || (type == "text_edit" && owner.host?.get() !is TextView)) return false
+        return buffer.withInteractionLock { current(owner) && owner.liveTestId in policy.valueTestIds }
+    }
+
+    /** Begin/clear are synchronous and view-free, so queued Fabric resolution cannot resurrect a ref. */
+    fun beginRegistration(id: String, generation: Long, lease: String): Boolean = buffer.withInteractionLock {
+        if (!enabled() || lease != token || !advance(id, generation)) return@withInteractionLock false
+        pendingRegistrations[id] = generation
+        true
+    }
+    fun completeRegistration(view: View, id: String, generation: Long, lease: String, types: Set<String>): Boolean {
+        if (types.any { it !in setOf("text_edit", "control_change", "scroll") }) return false
+        val owner = owner(view, lease) ?: return false
+        return buffer.withInteractionLock {
+            if (!current(owner) || pendingRegistrations[id] != generation) return@withInteractionLock false
+            pendingRegistrations.remove(id)
+            val displaced = registrations.filterValues { it.owner.host?.get() === view }.keys.toList()
+            for (key in displaced) { registrations.remove(key); pending.removeAll { it.owner.registrationId == key } }
+            pending.removeAll { it.owner.host?.get() === view && it.event.string("type") in types }
+            registrations[id] = Registration(InteractionOwner(owner.lease, owner.revision, owner.host, owner.target,
+                owner.liveTestId, owner.hostId, id, generation), types.toSet())
+            true
+        }
+    }
+    fun register(view: View, id: String, generation: Long, lease: String, types: Set<String>): Boolean =
+        beginRegistration(id, generation, lease) && completeRegistration(view, id, generation, lease, types)
+    fun clearRegistration(id: String, generation: Long): Boolean = buffer.withInteractionLock { advance(id, generation) }
+    private fun advance(id: String, generation: Long): Boolean {
+        if (registrationOverflow || !InteractionEventPolicy.identifier(id, 256) || generation < 0 || generation > 9007199254740991L || generation <= (generations[id] ?: -1)) return false
+        if (id !in generations && generations.size >= 4096) {
+            registrationOverflow = true; registrations.clear(); pendingRegistrations.clear()
+            pending.removeAll { it.owner.registrationId != null }; return false
+        }
+        generations[id] = generation
+        registrations.remove(id); pendingRegistrations.remove(id)
+        pending.removeAll { it.owner.registrationId == id }
+        return true
+    }
+    fun registeredOwner(id: String, generation: Long, lease: String): InteractionOwner? {
+        val entry = buffer.withInteractionLock { registrations[id]?.takeIf { it.owner.generation == generation && it.owner.lease == lease && current(it.owner) } } ?: return null
+        if (!live(entry.owner)) return null
+        // Resolve the source screen at observation, not when the host was mounted.
+        val fresh = owner(entry.owner.host?.get() ?: return null, lease) ?: return null
+        return InteractionOwner(fresh.lease, fresh.revision, fresh.host, fresh.target, fresh.liveTestId, fresh.hostId, id, generation)
+    }
+    fun suppresses(view: View, type: String): Boolean {
+        val owners = buffer.withInteractionLock { registrations.values.filter { type in it.types && it.owner.host?.get() === view && current(it.owner) }.map { it.owner } }
+        return owners.any { live(it) }
+    }
+    fun helperOwns(owner: InteractionOwner, type: String): Boolean = buffer.withInteractionLock {
+        current(owner) && registrations[owner.registrationId]?.types?.contains(type) == true
+    }
+
+    fun complete(host: View, type: String, reason: String) {
+        val item = buffer.withInteractionLock { pending.firstOrNull { it.owner.host?.get() === host && it.event.string("type") == type } } ?: return
+        flush(item, reason)
+    }
+    fun flushDue() {
+        val now = clock()
+        val ready = buffer.withInteractionLock { pending.filter { it.deadline <= now } }
+        for (item in ready) flush(item, "idle")
+    }
+    fun flushReadyForFreeze() {
+        // Off-main report/crash capture cannot inspect UIKit/Android hosts or wait for JS.
+        if (Looper.myLooper() != Looper.getMainLooper()) return
+        val ready = buffer.withInteractionLock { pending.toList() }
+        for (item in ready) flush(item, "freeze")
+    }
+    private fun flush(item: Pending, reason: String) {
+        val valid = !item.composing && live(item.owner)
+        buffer.withInteractionLock {
+            if (!pending.remove(item) || !valid || !current(item.owner)) return@withInteractionLock
+            val event = if (item.event.string("type") == "text_edit") JsonObject(item.event + ("reason" to JsonPrimitive(reason))) else item.event
+            admitLocked(item.owner, event, clock())
+        }
+    }
+
+    private fun admitLocked(owner: InteractionOwner, event: JsonObject, now: Long): Boolean {
+        if (!current(owner)) return false
+        val type = event.string("type") ?: return false
+        val kind = InteractionEventSanitizer.kind(type)
+        if (!buffer.isKindEnabled(kind)) return false
+        val semantic = type in setOf("text_edit", "control_change", "scroll")
+        val times = if (semantic) semanticTimes else lifecycleTimes
+        while (times.isNotEmpty() && now - times.first() >= 10000) times.removeFirst()
+        if (times.size >= if (semantic) 20 else 10) return false
+        val host = owner.host?.get()
+        val hostLimited = type == "text_edit" || type == "scroll"
+        if (hostLimited && host != null && hostTimes[host]?.let { now - it < 1000 } == true) return false
+        val data = linkedMapOf<String, JsonElement>("interaction" to event)
+        owner.target?.let { data["target"] = it }
+        if (!buffer.addObservedInteraction(kind, InteractionEventSanitizer.message(type), JsonObject(data), owner.revision)) return false
+        times.addLast(now)
+        if (hostLimited && host != null) hostTimes[host] = now
+        return true
+    }
+
+    private fun current(owner: InteractionOwner): Boolean = enabled() && owner.lease == token && owner.revision == buffer.captureRevision() &&
+        (owner.registrationId == null || registrations[owner.registrationId]?.owner?.let { it.generation == owner.generation && it.host?.get() === owner.host?.get() } == true)
+    private fun live(owner: InteractionOwner): Boolean {
+        if (owner.host == null) return true
+        val view = owner.host.get() ?: return false
+        return safeHost(view) && runCatching { view.id == owner.hostId && testId(view) == owner.liveTestId }.getOrDefault(false)
+    }
+    private fun safeHost(view: View): Boolean = Looper.myLooper() == Looper.getMainLooper() && runCatching {
+        view.isAttachedToWindow && !InteractionTargetResolver.sensitiveAncestry(view) &&
+            !(view is TextView && view.transformationMethod is PasswordTransformationMethod)
+    }.getOrDefault(false)
+    private fun testId(view: View): String? {
+        // Annotation normalization may truncate/drop invalid characters. It must never grant
+        // permission to read a value; only the exact ID on the live native host can do that.
+        val raw = InteractionTargetViewAdapters.describe(view)?.testId
+            ?: if (view.id != View.NO_ID) runCatching { view.resources.getResourceEntryName(view.id) }.getOrNull() else null
+        return raw?.takeIf { InteractionEventPolicy.identifier(it, 256) }
+    }
+}
+
+internal val sharedInteractionRecorder by lazy { InteractionEventRecorder(sharedBreadcrumbBuffer) }
+
+/** Opaque observation ownership for native support modules. */
+class InteractionCapture internal constructor(internal val owner: InteractionOwner)
+
+/** Small cross-module surface; leases and native privacy checks remain authoritative. */
+object InteractionEvents {
+    fun lease(): String? = sharedInteractionRecorder.lease()
+    fun capture(view: View? = null, lease: String? = lease()): InteractionCapture? = sharedInteractionRecorder.owner(view, lease)?.let { InteractionCapture(it) }
+    fun allowsValue(capture: InteractionCapture, type: String): Boolean = sharedInteractionRecorder.allowsValue(capture.owner, type)
+    fun suppresses(view: View, type: String): Boolean = sharedInteractionRecorder.suppresses(view, type)
+    fun beginRegistration(id: String, generation: Long, lease: String): Boolean = sharedInteractionRecorder.beginRegistration(id, generation, lease)
+    fun completeRegistration(view: View, id: String, generation: Long, lease: String, types: Set<String>): Boolean = sharedInteractionRecorder.completeRegistration(view, id, generation, lease, types)
+    fun clearRegistration(id: String, generation: Long): Boolean = sharedInteractionRecorder.clearRegistration(id, generation)
+    fun registeredCapture(id: String, generation: Long, lease: String): InteractionCapture? = sharedInteractionRecorder.registeredOwner(id, generation, lease)?.let { InteractionCapture(it) }
+    fun helperOwns(capture: InteractionCapture, type: String): Boolean = sharedInteractionRecorder.helperOwns(capture.owner, type)
+    fun record(capture: InteractionCapture, json: String, phase: String = "change", composing: Boolean = false): Boolean = try {
+        if (json.toByteArray(Charsets.UTF_8).size > 8192) false else {
+            val event = Json.parseToJsonElement(json) as? JsonObject
+            event != null && sharedInteractionRecorder.observe(InteractionObservation(capture.owner, event, phase, composing))
+        }
+    } catch (_: Exception) { false }
+    fun complete(view: View, type: String, reason: String) = sharedInteractionRecorder.complete(view, type, reason)
+}

@@ -1015,6 +1015,7 @@ object Everframe {
             dev.everframe.capture.InteractionTargetRegistry.reset()
             dev.everframe.capture.InteractionTargetScreenState.reset()
             sharedBreadcrumbBuffer.rotate(epoch.toLong())
+            dev.everframe.capture.sharedInteractionRecorder.configure(config.interactions)
             sharedLogBuffer.rotate(epoch.toLong())
             sharedNetworkBuffer.rotate(epoch)
 
