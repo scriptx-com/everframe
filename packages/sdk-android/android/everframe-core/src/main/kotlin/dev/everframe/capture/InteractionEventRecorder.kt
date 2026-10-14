@@ -34,6 +34,8 @@ internal data class InteractionObservation(
     val phase: String = "change",
     val composing: Boolean = false,
     val deferLaunch: Boolean = false,
+    // Set only by the native user-edit adapter, never by helper JSON.
+    val nativeTextEdit: Boolean = false,
 )
 
 /** Mutable admission state shares the buffer lock; no view access occurs under that lock. */
@@ -42,7 +44,8 @@ internal class InteractionEventRecorder(
     private val clock: () -> Long = SystemClock::elapsedRealtime,
     private val schedule: (Long, () -> Unit) -> Unit = { delay, action -> Handler(Looper.getMainLooper()).postDelayed({ action() }, delay); Unit },
 ) {
-    private data class Pending(val owner: InteractionOwner, val event: JsonObject, val deadline: Long, val composing: Boolean)
+    private data class Pending(val owner: InteractionOwner, val event: JsonObject, val deadline: Long, val composing: Boolean,
+        val nativeTextEdit: Boolean = false, var dormant: Boolean = false)
     private var token = UUID.randomUUID().toString()
     private var runtime: String? = null
     private val prepared = mutableListOf<PreparedInteraction>()
@@ -203,7 +206,7 @@ internal class InteractionEventRecorder(
             pending.removeAll { it.owner.host?.get() === owner.host?.get() && it.event.string("type") == type }
             if (shouldPend) {
                 boundSummaryHostsLocked(owner)
-                pending.add(Pending(owner, event, now + delay, composing))
+                pending.add(Pending(owner, event, now + delay, composing, observation.nativeTextEdit))
                 true
             } else admitLocked(owner, event, now)
         }
@@ -226,7 +229,7 @@ internal class InteractionEventRecorder(
     private fun armTimer() {
         val timer = buffer.withInteractionLock {
             if (timerArmed) return@withInteractionLock null
-            val deadline = pending.minOfOrNull { it.deadline } ?: return@withInteractionLock null
+            val deadline = pending.filterNot { it.dormant }.minOfOrNull { it.deadline } ?: return@withInteractionLock null
             timerArmed = true
             token to (deadline - clock()).coerceAtLeast(1)
         } ?: return
@@ -317,7 +320,7 @@ internal class InteractionEventRecorder(
     }
     fun flushDue() {
         val now = clock()
-        val ready = buffer.withInteractionLock { pending.filter { it.deadline <= now } }
+        val ready = buffer.withInteractionLock { pending.filter { !it.dormant && it.deadline <= now } }
         for (item in ready) flush(item, "idle")
     }
     fun flushReadyForFreeze() {
@@ -327,9 +330,20 @@ internal class InteractionEventRecorder(
         for (item in ready) flush(item, "freeze")
     }
     private fun flush(item: Pending, reason: String) {
-        val valid = !item.composing && live(item.owner)
+        val live = live(item.owner)
+        val composing = live && item.event.string("type") == "text_edit" && nativeComposing(item.owner)
+        val nativeComposition = item.composing && item.nativeTextEdit
         buffer.withInteractionLock {
-            if (!pending.remove(item) || !valid || !current(item.owner)) return@withInteractionLock
+            if (item !in pending) return@withInteractionLock
+            if (live && nativeComposition && composing && current(item.owner)) {
+                // Retain only the original edit's metadata within the shared host bound.
+                // A span-only IME commit may have no text callback. End/freeze can finish
+                // this edit later, without polling or renewing its capture revision.
+                item.dormant = true
+                return@withInteractionLock
+            }
+            pending.remove(item)
+            if (!live || composing || (item.composing && !nativeComposition) || !current(item.owner)) return@withInteractionLock
             val event = if (item.event.string("type") == "text_edit") JsonObject(item.event + ("reason" to JsonPrimitive(reason))) else item.event
             admitLocked(item.owner, event, clock())
         }

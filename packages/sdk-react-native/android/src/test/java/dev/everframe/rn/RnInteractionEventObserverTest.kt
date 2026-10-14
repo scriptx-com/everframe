@@ -5,6 +5,7 @@ package dev.everframe.rn
 
 import android.app.Activity
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
 import com.facebook.react.bridge.*
 import com.facebook.react.uimanager.ThemedReactContext
@@ -89,6 +90,20 @@ class RnInteractionEventObserverTest {
         view.isChecked = false
         assertEquals(1, sharedBreadcrumbBuffer.size)
         assertTrue(dispatcher.calls > 0)
+    }
+    @Test fun realInputConnectionCanCommitCompositionWithoutAnotherChangeEvent() {
+        val manager = TextManager(); val view = ReactEditText(context).apply { id = 2 }
+        root.addView(view); views[2] = view; manager.attach(context, view)
+        val input = view.onCreateInputConnection(EditorInfo())!!
+        input.setComposingText("draft", 1)
+        val changes = dispatcher.calls
+        input.finishComposingText()
+        assertEquals(changes, dispatcher.calls)
+        dispatcher.dispatchEvent(NamedEvent(42, "topSubmitEditing"))
+        sharedBreadcrumbBuffer.freeze()
+        val events = sharedBreadcrumbBuffer.takeFrozen()!!
+        assertEquals(1, events.size)
+        assertFalse(events.toString().contains("draft"))
     }
     @Test fun wrongSurfaceUnknownEventsAndDisposedObserverCannotAddEvidence() {
         val view = ReactEditText(context).apply { id = 2 }; root.addView(view); views[2] = view

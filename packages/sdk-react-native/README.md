@@ -967,7 +967,12 @@ An unchanged mounted hook does not replay old metadata; a fresh committed host
 attachment or metadata change can register again.
 
 Text coalesces after 750 ms of inactivity, editing end, submission or safe report
-freeze. Scrolls coalesce at gesture completion or after 200 ms of inactivity.
+freeze. An unfinished native composition retains only the last observed user-edit
+length, without its value. If the keyboard ends composition without another text
+change after the idle check, that summary waits for editing end or safe report
+freeze. Its length describes the observed edit, including when the app later
+replaces the text; it is not a newly sampled final value.
+Scrolls coalesce at gesture completion or after 200 ms of inactivity.
 Semantic events share a 20-per-10-second budget; text and scroll also share a
 one-per-second budget per host. Values are bounded again after final redaction.
 

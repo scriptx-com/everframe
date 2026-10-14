@@ -25,6 +25,8 @@ struct InteractionObservation {
     var phase: String = "change"
     var composing: Bool = false
     var deferLaunch: Bool = false
+    // Set only by the native user-edit adapter, never by helper JSON.
+    var nativeTextEdit: Bool = false
 }
 
 /// All mutable state uses the ring's non-recursive lock. Methods suffixed Locked never acquire it.
@@ -32,8 +34,11 @@ final class InteractionEventRecorder: @unchecked Sendable {
     static let shared = InteractionEventRecorder(buffer: .shared)
     private final class Pending {
         let owner: InteractionOwner, event: [String: Any], deadline: Double, composing: Bool
-        init(_ owner: InteractionOwner, _ event: [String: Any], _ deadline: Double, _ composing: Bool) {
+        let nativeTextEdit: Bool
+        var dormant = false
+        init(_ owner: InteractionOwner, _ event: [String: Any], _ deadline: Double, _ composing: Bool, nativeTextEdit: Bool = false) {
             self.owner = owner; self.event = event; self.deadline = deadline; self.composing = composing
+            self.nativeTextEdit = nativeTextEdit
         }
     }
     private struct Registration { let owner: InteractionOwner, types: Set<String>, annotation: [String: Any]? }
@@ -201,7 +206,7 @@ final class InteractionEventRecorder: @unchecked Sendable {
             pending.removeAll { $0.owner.host === owner.host && $0.event["type"] as? String == type }
             guard shouldPend else { return nil }
             boundSummaryHostsLocked(owner)
-            pending.append(Pending(owner, event, now + delay, composing)); return true
+            pending.append(Pending(owner, event, now + delay, composing, nativeTextEdit: observation.nativeTextEdit)); return true
         }
         if result == true { armTimer() }
         return result ?? admit(owner, event: event, now: now)
@@ -218,7 +223,7 @@ final class InteractionEventRecorder: @unchecked Sendable {
     }
     private func armTimer() {
         let timer: (String, Double)? = buffer.withInteractionLock {
-            guard !timerArmed, let deadline = pending.map(\.deadline).min() else { return nil }
+            guard !timerArmed, let deadline = pending.filter({ !$0.dormant }).map(\.deadline).min() else { return nil }
             timerArmed = true; return (token, max(1, deadline - clock()))
         }
         guard let timer else { return }
@@ -239,7 +244,7 @@ final class InteractionEventRecorder: @unchecked Sendable {
         flush(item, reason: "end")
     }
     @MainActor func flushDue() {
-        let now = clock(), ready = buffer.withInteractionLock { pending.filter { $0.deadline <= clock() } }
+        let now = clock(), ready = buffer.withInteractionLock { pending.filter { !$0.dormant && $0.deadline <= clock() } }
         for item in ready { flush(item, reason: "idle", now: now) }
     }
     @MainActor func flushReadyForFreeze() {
@@ -247,10 +252,19 @@ final class InteractionEventRecorder: @unchecked Sendable {
         for item in ready { flush(item, reason: "freeze") }
     }
     @MainActor private func flush(_ item: Pending, reason: String, now: Double? = nil) {
-        let valid = !item.composing && live(item.owner)
+        let live = live(item.owner)
+        let composing = live && item.event["type"] as? String == "text_edit" && nativeComposing(item.owner)
+        let nativeComposition = item.composing && item.nativeTextEdit
         let removed = buffer.withInteractionLock {
             guard let index = pending.firstIndex(where: { $0 === item }) else { return false }
-            pending.remove(at: index); return valid && currentLocked(item.owner)
+            if live && nativeComposition && composing && currentLocked(item.owner) {
+                // A span-only IME commit may have no text callback. Keep the original
+                // edit's metadata within the shared host bound until end/freeze,
+                // without polling or renewing its capture revision.
+                item.dormant = true; return false
+            }
+            pending.remove(at: index)
+            return live && !composing && (!item.composing || nativeComposition) && currentLocked(item.owner)
         }
         guard removed else { return }
         var event = item.event

@@ -18,7 +18,7 @@ class InteractionTextAdapter internal constructor(private val recorder: Interact
             text.getSpans(0, text.length, Any::class.java).any { text.getSpanFlags(it) and android.text.Spanned.SPAN_COMPOSING != 0 }
         val fields = linkedMapOf("length" to JsonPrimitive(text.length))
         if (!composing && recorder.allowsValue(owner, "text_edit")) fields["value"] = JsonPrimitive(text.toString())
-        recorder.observe(InteractionObservation(owner, nativeInteractionEvent("text_edit", JsonObject(fields)), composing = composing))
+        recorder.observe(InteractionObservation(owner, nativeInteractionEvent("text_edit", JsonObject(fields)), composing = composing, nativeTextEdit = true))
     }.getOrDefault(false)
     fun ended(view: EditText, submit: Boolean = false) {
         if (!recorder.suppresses(view, "text_edit")) recorder.complete(view, "text_edit", if (submit) "submit" else "end")

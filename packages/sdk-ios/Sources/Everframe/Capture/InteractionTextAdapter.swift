@@ -30,7 +30,7 @@ import UIKit
         else { return }
         var fields: [String: Any] = ["length": text.utf16.count]
         if !composing, recorder.allowsValue(owner, type: "text_edit") { fields["value"] = text }
-        _ = recorder.observe(.init(owner: owner, event: nativeInteractionEvent("text_edit", fields), composing: composing))
+        _ = recorder.observe(.init(owner: owner, event: nativeInteractionEvent("text_edit", fields), composing: composing, nativeTextEdit: true))
     }
     func ended(_ view: UIView, submit: Bool = false) {
         guard !recorder.suppresses(view: view, type: "text_edit") else { return }
