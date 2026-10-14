@@ -1,0 +1,42 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionEventRecorderTest.kt
+  s_46e1aa7e76c6a2::t_db7e442c437247 1-57,59-133,178,197
+  s_46e1aa7e76c6a2::t_f6bb63afab3845 58,134-177
+  s_46e1aa7e76c6a2::t_98786baa2ab16f 179-196
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionEventPolicyTest.kt
+  s_46e1aa7e76c6a2::t_db7e442c437247 1-34
+  s_46e1aa7e76c6a2::t_2d88dd63431422 35
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventPolicy.kt
+  s_46e1aa7e76c6a2::t_be024ff4c13e77 1-70
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventSanitizer.kt
+  s_46e1aa7e76c6a2::t_c748186b996243 97,163-164
+  s_46e1aa7e76c6a2::t_be024ff4c13e77 1-96,98-162,165-180
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionEventSanitizerTest.kt
+  s_46e1aa7e76c6a2::t_db7e442c437247 1-25,27-28,30,32-67,71-75,79-83,92-93
+  s_46e1aa7e76c6a2::t_98786baa2ab16f 26,29,31,68-70,76-78,84-91
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventRecorder.kt
+  s_46e1aa7e76c6a2::t_c748186b996243 163,254-256
+  s_46e1aa7e76c6a2::t_be91337d1926b4 1-24,27-48,55-65,68-70,73-103,106-124,126-128,198-241,244-253,257-262
+  s_46e1aa7e76c6a2::t_8dd61ac1104b99 25-26,49-54,66-67,71-72,104-105,125,129-162,164-197,242-243,263-285
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_46e1aa7e76c6a2::t_c4fd9842697beb 1018
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbRingBuffer.kt
+  s_46e1aa7e76c6a2::t_f321f47d743898 229-231,280-282,284-289,292-293,295-299,312,323-325,341,354-358,370
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_46e1aa7e76c6a2::t_aed634f84584bb 145-146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "10d177c821a8b531eb6e86103f402d3e1a6f6199",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
