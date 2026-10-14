@@ -1,0 +1,21 @@
+examples/react-native/src/fixtures/InteractionEvents.tsx
+  s_46e1aa7e76c6a2::t_51980960b2e795 83
+packages/sdk-react-native/__tests__/fixtures/interaction-events/README.md
+  s_46e1aa7e76c6a2::t_51980960b2e795 39-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9646f77c11727a5b597fd40f3f183b5b5fa5352f",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
