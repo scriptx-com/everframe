@@ -1,0 +1,31 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionTargetResolverTest.kt
+  s_f3bbf3765b99f4::t_cdd5a15a49fa9c 169-195
+  s_f3bbf3765b99f4::t_37ed64a467bb35 1-160,196
+  s_f3bbf3765b99f4::t_82a469755231ef 161-168
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionTargetResolver.kt
+  s_f3bbf3765b99f4::t_26b25b5a25d92d 1-163
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionTargetScreenState.kt
+  s_f3bbf3765b99f4::t_26b25b5a25d92d 1-12
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionTargetViewAdapter.kt
+  s_f3bbf3765b99f4::t_26b25b5a25d92d 1-24
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbTapNavAdapters.kt
+  s_f3bbf3765b99f4::t_82a469755231ef 79,158-162,166,170,172-173,252
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_f3bbf3765b99f4::t_cd824cadd416ed 958,1537,1849
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "880996af153a5cb76d52eeb0c68fc6a1e0954d72",
+  "prompts": {},
+  "sessions": {
+    "s_f3bbf3765b99f4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a49-28e0-7122-b8e9-07ca3509c69b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
