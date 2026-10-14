@@ -1,0 +1,57 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbTapNavAdapters.kt
+  s_f3bbf3765b99f4::t_4f81d7731028cd 154,342,344,346-356
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionTargetRegistry.kt
+  s_f3bbf3765b99f4::t_b60b8b1135ac0a 65-68
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionTargetRegistryTest.kt
+  s_f3bbf3765b99f4::t_e4419379d2bc38 45,53-55,93-103
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionTargetResolverTest.kt
+  s_f3bbf3765b99f4::t_156920cd6479c5 196-218
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbTapNavAdapters.swift
+  s_f3bbf3765b99f4::t_3cd30b09ce3ed4 221,450-483,515-521,528,531-533
+packages/sdk-ios/Sources/Everframe/Capture/InteractionTargetRegistry.swift
+  s_f3bbf3765b99f4::t_01ccb05a792e76 72-74
+packages/sdk-ios/Sources/Everframe/Capture/InteractionTargetResolver.swift
+  s_f3bbf3765b99f4::t_bf41b4b96403f6 10-11,65,67,77,133
+packages/sdk-ios/Tests/EverframeTests/InteractionTargetRegistryTests.swift
+  s_f3bbf3765b99f4::t_8c6fc73f9f1145 75-85
+packages/sdk-ios/Tests/EverframeTests/InteractionTargetResolverTests.swift
+  s_f3bbf3765b99f4::t_ca78a1ca9aa7b4 164-228
+packages/sdk-react-native/README.md
+  s_f3bbf3765b99f4::t_7474617a9cfa5d 892-896
+packages/sdk-react-native/__tests__/Sensitive.ios.spec.tsx
+  s_f3bbf3765b99f4::t_c898eef5ad027b 1-51
+packages/sdk-react-native/__tests__/fixtures/interaction-targets/README.md
+  s_f3bbf3765b99f4::t_b19b4d89563088 8-11,25-34
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_f3bbf3765b99f4::t_16039eb6df6ab9 111,115-141,641,643,805-808
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/RnInteractionTargetAdapter.kt
+  s_f3bbf3765b99f4::t_6ac25f2bb73223 7,15-16,19
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/RnInteractionTargetRegistration.kt
+  s_f3bbf3765b99f4::t_03dba835e3724a 21,30,41,49-53,57,64,70
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnInteractionTargetRegistrationTest.kt
+  s_f3bbf3765b99f4::t_c32bf3888cae42 81-105
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_f3bbf3765b99f4::t_857fcc21344e83 87-88,315,319
+packages/sdk-react-native/ios/Sources/RnInteractionTargetRegistration.swift
+  s_f3bbf3765b99f4::t_c0ee830c30c162 34,41-42,55,59-70
+packages/sdk-react-native/ios/Tests/RnInteractionTargetRegistrationTests.swift
+  s_f3bbf3765b99f4::t_84048f43149315 1-48
+packages/sdk-react-native/src/Sensitive.tsx
+  s_f3bbf3765b99f4::t_4b136c629cabd7 92-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "40a34ff79607710e0edd263b110c250ee5f4d23b",
+  "prompts": {},
+  "sessions": {
+    "s_f3bbf3765b99f4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a49-28e0-7122-b8e9-07ca3509c69b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
