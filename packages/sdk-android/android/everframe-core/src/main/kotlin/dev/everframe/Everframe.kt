@@ -955,6 +955,7 @@ object Everframe {
             // Guarded by `EnvelopeUserTest`'s "a report in the next project
             // ships none of the previous project's breadcrumbs" and "the next
             // project starts with none of the previous project's network rows".
+            dev.everframe.capture.InteractionTargetRegistry.reset()
             dev.everframe.capture.InteractionTargetScreenState.reset()
             sharedBreadcrumbBuffer.rotate(epoch.toLong())
             sharedLogBuffer.rotate(epoch.toLong())
@@ -1534,6 +1535,7 @@ object Everframe {
      * unrelated to who the current user is).
      */
     private fun clearCapturedEvidenceBuffers() {
+        dev.everframe.capture.InteractionTargetRegistry.reset()
         dev.everframe.capture.InteractionTargetScreenState.reset()
         sharedBreadcrumbBuffer.clear()
         sharedNetworkBodyBuffer.clear()

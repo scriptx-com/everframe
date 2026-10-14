@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.*
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 internal data class InteractionTargetSnapshot(val label: String, val data: JsonObject)
 
@@ -72,7 +73,19 @@ internal object InteractionTargetResolver {
         InteractionTargetScreenState.current()?.let { target["screen"] = it }
         val data = linkedMapOf<String, Any?>("view" to view.javaClass.simpleName, "target" to target)
         if (id != null) data["id"] = id
-        return InteractionTargetSnapshot(targetText(name, 48) ?: "view", BreadcrumbRingBuffer.coerceHostData(data))
+        val automatic = BreadcrumbRingBuffer.coerceHostData(data)
+        val annotation = InteractionTargetRegistry.lookup(view)
+        if (annotation == null) return InteractionTargetSnapshot(targetText(name, 48) ?: "view", automatic)
+        val mergedTarget = (automatic["target"] as JsonObject).toMutableMap()
+        mergedTarget.putAll(annotation)
+        if (annotation.containsKey("name")) mergedTarget["nameFrom"] = JsonPrimitive("annotation")
+        // A stable-ID override must also update a name derived from that ID.
+        if (annotation.containsKey("testId") && !annotation.containsKey("name") && from == "testId") mergedTarget["name"] = annotation.getValue("testId")
+        val mergedData = automatic.toMutableMap()
+        mergedData["target"] = JsonObject(mergedTarget)
+        mergedTarget["testId"]?.let { mergedData["id"] = it }
+        val mergedName = (mergedTarget["name"] as? JsonPrimitive)?.content ?: name
+        return InteractionTargetSnapshot(targetText(mergedName, 48) ?: "view", JsonObject(mergedData))
     }
 
     private fun descendantText(view: View): String? {

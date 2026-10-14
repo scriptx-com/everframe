@@ -16,9 +16,12 @@ fun interface InteractionTargetViewAdapter {
 }
 object InteractionTargetViewAdapters {
     @Volatile private var adapter: InteractionTargetViewAdapter? = null
+    private var owner: Any? = null
     @Synchronized fun register(value: InteractionTargetViewAdapter): AutoCloseable {
+        val token = Any()
+        owner = token
         adapter = value
-        return AutoCloseable { synchronized(this) { if (adapter === value) adapter = null } }
+        return AutoCloseable { synchronized(this) { if (owner === token) { adapter = null; owner = null } } }
     }
     internal fun describe(view: View): InteractionTargetViewHints? = try { adapter?.describe(view) } catch (_: Throwable) { null }
 }
