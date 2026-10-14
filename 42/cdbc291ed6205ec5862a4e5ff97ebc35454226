@@ -1,0 +1,153 @@
+.changeset/state-mobile-evidence.md
+  s_46e1aa7e76c6a2::t_e71547b428f3e3 1-9
+docs/state.md
+  s_46e1aa7e76c6a2::t_3aa0408222b889 1-73
+examples/react-native/src/App.tsx
+  s_46e1aa7e76c6a2::t_b9ddc263d60f0b 28,30,113-119,138
+packages/protocol/__tests__/fixtures/state.v1.json
+  s_46e1aa7e76c6a2::t_2df447ae27f17b 1-47
+packages/protocol/__tests__/state.spec.ts
+  s_46e1aa7e76c6a2::t_94281224e3b645 1-145
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_46e1aa7e76c6a2::t_e127b2f0b362d0 296-298,807-965
+packages/protocol/scripts/codegen-kotlin.sh
+  s_46e1aa7e76c6a2::t_81ba33e5a5c1c5 43-72,122,130-131
+packages/protocol/scripts/codegen-swift.sh
+  s_46e1aa7e76c6a2::t_a66f5e2422893f 53
+packages/protocol/src/envelope.ts
+  s_46e1aa7e76c6a2::t_15c41d38cd855e 4,143
+packages/protocol/src/index.ts
+  s_46e1aa7e76c6a2::t_124d57192fd3fa 56
+packages/protocol/src/state.ts
+  s_46e1aa7e76c6a2::t_e90f69eca7155d 1-127
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_46e1aa7e76c6a2::t_5d57148a61e759 100-153,441-442,998,1022-1023,1090,1507-1508,1602-1614,2024-2030,2386-2387
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/TXCapturedUser.kt
+  s_46e1aa7e76c6a2::t_b33c53612a38a0 157-158,160-161
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbRingBuffer.kt
+  s_46e1aa7e76c6a2::t_817c52851d3b36 49,294,405
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/EvidenceSequence.kt
+  s_46e1aa7e76c6a2::t_09411f235d3eea 1-9
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/FrozenReportCapture.kt
+  s_46e1aa7e76c6a2::t_7b9e2681a0e5bc 37-48,111
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionSubmissionComposer.kt
+  s_46e1aa7e76c6a2::t_85f43b1826f2eb 367
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeCrashRuntime.kt
+  s_46e1aa7e76c6a2::t_2d77acf86d924f 43,91
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecordImport.kt
+  s_46e1aa7e76c6a2::t_bcf4820b7fb2c6 37,63-72,201
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecovery.kt
+  s_46e1aa7e76c6a2::t_48cf269076e750 80,88,107-111,117-119,123,125,360
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeRecoveryController.kt
+  s_46e1aa7e76c6a2::t_ca305ffc319d08 186-206
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalController.kt
+  s_46e1aa7e76c6a2::t_cc22c8ad2ea671 74-108
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/AndroidNativeSignalRuntime.kt
+  s_46e1aa7e76c6a2::t_620efa75cb2e00 33,101
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_46e1aa7e76c6a2::t_6097a6f2953d6b 585
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/envelope/EnvelopeBuilder.kt
+  s_46e1aa7e76c6a2::t_ba9a5048696d9f 226,468
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/state/AutomaticStateFacts.kt
+  s_46e1aa7e76c6a2::t_e6ad0d5d441089 1-88
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/state/StateRecorder.kt
+  s_46e1aa7e76c6a2::t_42ae2bccdb0f84 1-94
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/state/StateSanitizer.kt
+  s_46e1aa7e76c6a2::t_ba18d59b5c687f 1-29
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeRecoveryControllerTest.kt
+  s_46e1aa7e76c6a2::t_9ee14805e5b0fc 61-102
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/crash/AndroidNativeSignalControllerTest.kt
+  s_46e1aa7e76c6a2::t_0da8c918fcae89 48-74
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/state/StateLifecycleTest.kt
+  s_46e1aa7e76c6a2::t_b1ff4a1d96165b 1-86
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/state/StateRecorderTest.kt
+  s_46e1aa7e76c6a2::t_4e326c91a6714c 1-111
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_46e1aa7e76c6a2::t_f9feeb7abbe706 192-193,940-1013
+packages/sdk-android/android/everframe-protocol/src/test/kotlin/dev/everframe/protocol/StateRoundTripTest.kt
+  s_46e1aa7e76c6a2::t_79d251c9627c9e 1-19
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialog.kt
+  s_46e1aa7e76c6a2::t_3bdbb209351628 583
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbRingBuffer.swift
+  s_46e1aa7e76c6a2::t_e215091d2c4987 28,69,89,94,97,167
+packages/sdk-ios/Sources/Everframe/Capture/EvidenceSequence.swift
+  s_46e1aa7e76c6a2::t_4f109e9eaad642 1-10
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_46e1aa7e76c6a2::t_cf1b06e7aeec64 474
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRecoveryContext.swift
+  s_46e1aa7e76c6a2::t_269fd01eed3964 96
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashRuntime.swift
+  s_46e1aa7e76c6a2::t_df715cf310fd89 37-51,55,97,111,117,130-151,153,164,170-184,196-199,201-204,206,213,217,219,255-256,261,265-266,275,282
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashStartupContext.swift
+  s_46e1aa7e76c6a2::t_4bd4e33d82bc8d 10,33-34,36-40
+packages/sdk-ios/Sources/Everframe/EFCapturedUser.swift
+  s_46e1aa7e76c6a2::t_ed8a6a445cf8f2 41,128-133,231-232,238
+packages/sdk-ios/Sources/Everframe/Envelope/EnvelopeBuilder.swift
+  s_46e1aa7e76c6a2::t_f9c453cb041200 156,268,324,463
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_46e1aa7e76c6a2::t_790a92fa0da5d2 102,105,108,110-111,116,119-120,350-405,715-717,1290-1291,1341,1685,2214,2264,2314-2315,2562-2570,2572
+packages/sdk-ios/Sources/Everframe/Reporter/ReporterSubmission.swift
+  s_46e1aa7e76c6a2::t_a0d33f7c771d42 541-542,556
+packages/sdk-ios/Sources/Everframe/State/AutomaticStateFacts.swift
+  s_46e1aa7e76c6a2::t_df386e1f83d76d 1-80
+packages/sdk-ios/Sources/Everframe/State/StateRecorder.swift
+  s_46e1aa7e76c6a2::t_e0df1fd02487b1 1-108
+packages/sdk-ios/Sources/Everframe/State/StateSanitizer.swift
+  s_46e1aa7e76c6a2::t_0917411d08cb58 1-38
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_46e1aa7e76c6a2::t_87947cccdd0bcb 666,669,684,722,740,3667-3942
+packages/sdk-ios/Tests/EverframeTests/NativeCrashRuntimeTests.swift
+  s_46e1aa7e76c6a2::t_a5a5b815addd26 22-26,63-130
+packages/sdk-ios/Tests/EverframeTests/NativeCrashStartupTests.swift
+  s_46e1aa7e76c6a2::t_0adc110fbd8e14 35-57
+packages/sdk-ios/Tests/EverframeTests/StateLifecycleTests.swift
+  s_46e1aa7e76c6a2::t_e2a893c88bb644 1-76
+packages/sdk-ios/Tests/EverframeTests/StateRecorderTests.swift
+  s_46e1aa7e76c6a2::t_d4bad698dac285 1-170
+packages/sdk-react-native/README.md
+  s_46e1aa7e76c6a2::t_02ee69b842821f 897-904
+packages/sdk-react-native/__tests__/rbridge-no-surface.test.ts
+  s_46e1aa7e76c6a2::t_9c4cb318e38f3a 83-86
+packages/sdk-react-native/__tests__/spec-shape.test.ts
+  s_46e1aa7e76c6a2::t_ae24d57da039c7 23,28,39
+packages/sdk-react-native/__tests__/state.spec.ts
+  s_46e1aa7e76c6a2::t_67218672d13e24 1-70
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_46e1aa7e76c6a2::t_13c7e988d7a13b 666-675
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/StateBridgeTest.kt
+  s_46e1aa7e76c6a2::t_d4ffcf66f648cd 1-30
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_46e1aa7e76c6a2::t_337f74da9b36a0 33,719-725
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_46e1aa7e76c6a2::t_cdffad113b9172 481-487
+packages/sdk-react-native/ios/Tests/StateBridgeTests.swift
+  s_46e1aa7e76c6a2::t_bdde51e22a2fd3 1-20
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_46e1aa7e76c6a2::t_2c07976dc22fa8 475-477
+packages/sdk-react-native/src/contextSeam.ts
+  s_46e1aa7e76c6a2::t_8264f67341247a 3,116-118,243-250
+packages/sdk-react-native/src/index.ts
+  s_46e1aa7e76c6a2::t_76d1936a3f8bf3 37-38,118
+packages/sdk-react-native/src/runtime.ts
+  s_46e1aa7e76c6a2::t_ca16199b783d25 27,611-619
+packages/sdk-react-native/src/state.ts
+  s_46e1aa7e76c6a2::t_41900a1bcebbb0 1-24
+packages/sdk-react-native/vitest.setup.ts
+  s_46e1aa7e76c6a2::t_01d76052a9c23e 36-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "42cdbc291ed6205ec5862a4e5ff97ebc35454226",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
