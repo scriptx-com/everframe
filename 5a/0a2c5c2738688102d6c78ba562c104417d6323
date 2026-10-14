@@ -1,0 +1,25 @@
+examples/react-native/index.js
+  s_f3bbf3765b99f4::t_cc30bbdcf95f03 16-24
+examples/react-native/src/fixtures/InteractionTargets.tsx
+  s_f3bbf3765b99f4::t_e7479124c777bc 25
+packages/sdk-react-native/__tests__/codegen-types-compat.spec.ts
+  s_f3bbf3765b99f4::t_266d4cc68273f0 27
+packages/sdk-react-native/__tests__/rbridge-no-surface.test.ts
+  s_f3bbf3765b99f4::t_d9f74fbae43b0a 75,79-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a0a2c5c2738688102d6c78ba562c104417d6323",
+  "prompts": {},
+  "sessions": {
+    "s_f3bbf3765b99f4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a49-28e0-7122-b8e9-07ca3509c69b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
