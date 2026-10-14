@@ -1,0 +1,37 @@
+packages/protocol/scripts/generate-interaction-target-schema.mjs
+  s_f3bbf3765b99f4::t_19930adca87777 1-20
+  s_f3bbf3765b99f4::t_e7fe08901014b9 21-27
+packages/protocol/src/interaction-target.ts
+  s_f3bbf3765b99f4::t_19930adca87777 1-79
+  s_f3bbf3765b99f4::t_7091a83cfc3c49 80-112
+packages/protocol/__tests__/fixtures/interaction-targets.v1.json
+  s_f3bbf3765b99f4::t_07c4f67f37bb91 1-9
+packages/protocol/__tests__/interaction-target.spec.ts
+  s_f3bbf3765b99f4::t_07c4f67f37bb91 1-65
+  s_f3bbf3765b99f4::t_e7e5442f81f6d9 66-126
+packages/protocol/src/index.ts
+  s_f3bbf3765b99f4::t_19930adca87777 45-46
+  s_f3bbf3765b99f4::t_7d43e365382b5f 47-55
+packages/protocol/README.md
+  s_f3bbf3765b99f4::t_4ea7881731f5ad 80-112
+packages/protocol/package.json
+  s_f3bbf3765b99f4::t_f80dd00cf7f95e 3,17-18,32,34-35
+packages/protocol/schemas-json/interaction-target.v1.schema.json
+  s_f3bbf3765b99f4::t_029ff35e6cb309 1-5548
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5fa0b524232813a6c95b6a22a6dd62d00953f6fb",
+  "prompts": {},
+  "sessions": {
+    "s_f3bbf3765b99f4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a49-28e0-7122-b8e9-07ca3509c69b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
