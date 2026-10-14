@@ -124,8 +124,8 @@ internal object TapBreadcrumbAdapter {
     fun recordTap(view: View) {
         txGuardVoid("TapBreadcrumbAdapter.recordTap") {
             if (!sharedBreadcrumbBuffer.isKindEnabled(BreadcrumbKind.Tap)) return@txGuardVoid
-            val (label, data) = deriveLabelAndData(view)
-            sharedBreadcrumbBuffer.add(kind = BreadcrumbKind.Tap, message = "tap $label", data = data)
+            val snapshot = InteractionTargetResolver.resolve(view)
+            sharedBreadcrumbBuffer.addInteraction(message = "tap ${snapshot.label}", data = snapshot.data, captureRevision = snapshot.captureRevision)
         }
     }
 
@@ -154,15 +154,17 @@ internal object TapBreadcrumbAdapter {
     fun recordRemotePress(keyCode: Int, focused: View?, snapshot: InteractionTargetSnapshot? = focused?.let { InteractionTargetResolver.resolve(it) }) {
         if (!sharedBreadcrumbBuffer.isKindEnabled(BreadcrumbKind.Tap)) return
         val button = REMOTE_KEY_NAMES[keyCode] ?: return
+        val value = snapshot ?: InteractionTargetSnapshot("screen", JsonObject(emptyMap()))
+        if (value.captureRevision != sharedBreadcrumbBuffer.captureRevision()) return
         if (!PressCrumbRateLimiter.shouldRecord(button)) return
-        val label = snapshot?.label ?: "screen"
-        val data = JsonObject(snapshot?.data.orEmpty() + mapOf(
+        val label = value.label
+        val data = JsonObject(value.data + mapOf(
             "inputType" to JsonPrimitive("remote"), "button" to JsonPrimitive(button),
         ))
-        sharedBreadcrumbBuffer.add(
-            kind = BreadcrumbKind.Tap,
+        sharedBreadcrumbBuffer.addInteraction(
             message = "press $button — $label",
             data = data,
+            captureRevision = value.captureRevision,
         )
     }
 

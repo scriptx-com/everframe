@@ -231,6 +231,52 @@ struct InteractionTargetResolverTests {
         }
     }
 
+    @Test func remoteSnapshotCannotRestoreEvidenceAfterSignOut() {
+        withState {
+            let window = UIWindow(), prior = UIButton(), current = UIButton()
+            prior.setTitle("PRIOR_USER_PRIVATE", for: .normal)
+            current.setTitle("Sign in", for: .normal)
+            InteractionTargetScreenState.recordExplicit("PRIOR_USER_SCREEN")
+            _ = WindowTapBreadcrumbAdapter.snapshotForPress(type: .rightArrow, phase: .began, focusedView: prior, window: window)
+            Everframe.shared.setIdentityToken(nil)
+            let stale = WindowTapBreadcrumbAdapter.snapshotForPress(type: .rightArrow, phase: .ended, focusedView: current, window: window)!
+            WindowTapBreadcrumbAdapter.recordSnapshot(stale, eventTimestamp: 1, remoteButton: "right")
+            #expect(BreadcrumbRingBuffer.shared.snapshot().isEmpty)
+            _ = WindowTapBreadcrumbAdapter.snapshotForPress(type: .rightArrow, phase: .began, focusedView: current, window: window)
+            let fresh = WindowTapBreadcrumbAdapter.snapshotForPress(type: .rightArrow, phase: .ended, focusedView: current, window: window)!
+            WindowTapBreadcrumbAdapter.recordSnapshot(fresh, eventTimestamp: 2, remoteButton: "right")
+            #expect(BreadcrumbRingBuffer.shared.snapshot().map(\.message) == ["press right — Sign in"])
+        }
+    }
+
+    @Test func actionCallbackClearingEvidenceRevokesItsSnapshot() {
+        withState {
+            TapBreadcrumbAdapter.install()
+            let button = UIButton(); button.setTitle("PRIOR_USER_PRIVATE", for: .normal)
+            let receiver = SignOutActionReceiver()
+            _ = TapBreadcrumbAdapter.__invokeInstalledSendActionForTesting(
+                action: #selector(SignOutActionReceiver.signOut), target: receiver, sender: button, event: nil)
+            #expect(receiver.calls == 1)
+            #expect(BreadcrumbRingBuffer.shared.snapshot().isEmpty)
+        }
+    }
+
+    @Test func clearDuringMetadataReadRevokesSnapshot() {
+        withState {
+            let view = UIButton()
+            var cleared = false
+            let dispose = InteractionTargetViewAdapters.register { candidate in
+                guard candidate === view else { return nil }
+                if !cleared { cleared = true; BreadcrumbRingBuffer.shared.clear() }
+                return .init(name: "PRIOR_USER_PRIVATE")
+            }
+            defer { dispose() }
+            let snapshot = InteractionTargetResolver.resolve(view)
+            WindowTapBreadcrumbAdapter.recordSnapshot(snapshot, eventTimestamp: 1)
+            #expect(BreadcrumbRingBuffer.shared.snapshot().isEmpty)
+        }
+    }
+
     @Test func annotationRoleSelectsPlainPressableAncestor() {
         withState {
             let card = UIView(), image = UIImageView(); card.addSubview(image)
@@ -264,6 +310,10 @@ struct InteractionTargetResolverTests {
     @objc var attributedText: NSAttributedString?
     override init(frame: CGRect) { super.init(frame: frame); addSubview(UIView()) }
     required init?(coder: NSCoder) { fatalError("unused") }
+}
+@MainActor private final class SignOutActionReceiver: NSObject {
+    var calls = 0
+    @objc func signOut() { calls += 1; Everframe.shared.setIdentityToken(nil) }
 }
 @MainActor private final class AggregateLabelView: UIView {
     var reads = 0

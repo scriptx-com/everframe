@@ -9,29 +9,36 @@ import android.widget.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
-internal data class InteractionTargetSnapshot(val label: String, val data: JsonObject)
+internal data class InteractionTargetSnapshot(
+    val label: String,
+    val data: JsonObject,
+    val captureRevision: Long = sharedBreadcrumbBuffer.captureRevision(),
+)
 
 /** All view access happens synchronously on the input/UI thread. */
 internal object InteractionTargetResolver {
     private val actions = setOf("button", "link", "tab", "switch", "checkbox", "radio", "textfield", "slider")
 
-    fun resolve(view: View): InteractionTargetSnapshot = try {
-        if (sensitiveAncestry(view)) {
-            masked(nativeRole(owner(view, useHints = false)))
-        } else {
-            val targetView = owner(view)
-            // Promotion cannot escape the sensitivity of either lineage.
-            if (sensitiveAncestry(targetView)) masked(nativeRole(targetView)) else describe(targetView)
+    fun resolve(view: View): InteractionTargetSnapshot {
+        val revision = sharedBreadcrumbBuffer.captureRevision()
+        return try {
+            if (sensitiveAncestry(view)) {
+                masked(nativeRole(owner(view, useHints = false)), revision)
+            } else {
+                val targetView = owner(view)
+                // Promotion cannot escape the sensitivity of either lineage.
+                if (sensitiveAncestry(targetView)) masked(nativeRole(targetView), revision) else describe(targetView, revision)
+            }
+        } catch (_: Throwable) {
+            // A failed privacy query cannot make a label safe to read.
+            masked(null, revision)
         }
-    } catch (_: Throwable) {
-        // A failed privacy query cannot make a label safe to read.
-        masked(null)
     }
 
-    private fun masked(role: String?): InteractionTargetSnapshot {
+    private fun masked(role: String?, captureRevision: Long): InteractionTargetSnapshot {
         val target = linkedMapOf<String, Any?>("masked" to true)
         if (role != null) target["role"] = role
-        return InteractionTargetSnapshot("[masked]", BreadcrumbRingBuffer.coerceHostData(mapOf("masked" to true, "target" to target)))
+        return InteractionTargetSnapshot("[masked]", BreadcrumbRingBuffer.coerceHostData(mapOf("masked" to true, "target" to target)), captureRevision)
     }
 
     internal fun sensitiveAncestry(view: View): Boolean {
@@ -57,7 +64,7 @@ internal object InteractionTargetResolver {
         return semantic ?: view
     }
 
-    private fun describe(view: View): InteractionTargetSnapshot {
+    private fun describe(view: View, captureRevision: Long): InteractionTargetSnapshot {
         val hints = InteractionTargetViewAdapters.describe(view)
         val role = targetText(hints?.role, 64) ?: nativeRole(view)
         val id = targetText(hints?.testId) ?: resourceId(view)
@@ -75,7 +82,7 @@ internal object InteractionTargetResolver {
         if (id != null) data["id"] = id
         val automatic = BreadcrumbRingBuffer.coerceHostData(data)
         val annotation = InteractionTargetRegistry.lookup(view)
-        if (annotation == null) return InteractionTargetSnapshot(targetText(name, 48) ?: "view", automatic)
+        if (annotation == null) return InteractionTargetSnapshot(targetText(name, 48) ?: "view", automatic, captureRevision)
         val mergedTarget = (automatic["target"] as JsonObject).toMutableMap()
         mergedTarget.putAll(annotation)
         if (annotation.containsKey("name")) mergedTarget["nameFrom"] = JsonPrimitive("annotation")
@@ -85,7 +92,7 @@ internal object InteractionTargetResolver {
         mergedData["target"] = JsonObject(mergedTarget)
         mergedTarget["testId"]?.let { mergedData["id"] = it }
         val mergedName = (mergedTarget["name"] as? JsonPrimitive)?.content ?: name
-        return InteractionTargetSnapshot(targetText(mergedName, 48) ?: "view", JsonObject(mergedData))
+        return InteractionTargetSnapshot(targetText(mergedName, 48) ?: "view", JsonObject(mergedData), captureRevision)
     }
 
     private fun descendantText(view: View): String? {

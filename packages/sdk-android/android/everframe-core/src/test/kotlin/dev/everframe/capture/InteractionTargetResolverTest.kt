@@ -58,6 +58,20 @@ class InteractionTargetResolverTest {
         } finally { InteractionTargetRegistry.reset() }
     }
 
+    @Test fun clearDuringMetadataReadRevokesSnapshot() {
+        val view = Button(context)
+        var cleared = false
+        adapter = InteractionTargetViewAdapters.register { candidate ->
+            if (candidate !== view) null else {
+                if (!cleared) { cleared = true; sharedBreadcrumbBuffer.clear() }
+                InteractionTargetViewHints(name = "PRIOR_USER_PRIVATE")
+            }
+        }
+        TapBreadcrumbAdapter.recordTap(view)
+        sharedBreadcrumbBuffer.freeze()
+        assertTrue(sharedBreadcrumbBuffer.takeFrozen()!!.isEmpty())
+    }
+
     @Test fun imageTapResolvesPosterOwnerInsteadOfImageClass() {
         val parent = FrameLayout(context).apply { isClickable = true; contentDescription = "Low Orbit" }
         val image = ImageView(context); parent.addView(image)

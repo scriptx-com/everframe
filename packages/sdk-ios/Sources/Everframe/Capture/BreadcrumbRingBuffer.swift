@@ -67,6 +67,15 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     private var entries: [EverframeBreadcrumb] = []
     private var frozen: [EverframeBreadcrumb]?
     private var seq: Int = 0
+    // Separate from sequence numbering: every purge revokes pending input snapshots.
+    private var interactionRevision: UInt64 = 0
+    internal func captureRevision() -> UInt64 {
+        lock.lock(); defer { lock.unlock() }
+        return interactionRevision
+    }
+    internal func addInteraction(message: String, data: [String: EverframeJSONAny], captureRevision: UInt64) {
+        add(kind: .tap, message: message, level: nil, data: data, captureRevision: captureRevision)
+    }
     private var _maxCount: Int
 
     // Config-gating state (Task 1's wire). Defaults match applyConfig(nil):
@@ -122,6 +131,12 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     public func add(
         kind: EverframeBreadcrumbKind, message: String, level: EverframeLevel? = nil, data: [String: EverframeJSONAny]? = nil
     ) {
+        add(kind: kind, message: message, level: level, data: data, captureRevision: nil)
+    }
+
+    private func add(
+        kind: EverframeBreadcrumbKind, message: String, level: EverframeLevel?, data: [String: EverframeJSONAny]?, captureRevision: UInt64?
+    ) {
         // Cheap pre-lock fast path only. A thread that reads the gate open
         // here can still be descheduled before `lock.lock()`, let `kill()`
         // run to completion elsewhere (which flips `captureGate` false and
@@ -140,6 +155,7 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         if honorsKillGate, !Everframe.shared.captureGate { return }
         guard configEnabled, configKinds.contains(kind) else { return }
+        if let captureRevision, captureRevision != interactionRevision { return }
 
         let crumb = EverframeBreadcrumb(
             data: redactedData,
@@ -189,6 +205,7 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     /// Zeroize everything (logout / identity change / kill switch).
     public func clear() {
         lock.lock(); defer { lock.unlock() }
+        interactionRevision &+= 1
         entries.removeAll()
         frozen = nil
     }
@@ -209,6 +226,7 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         configKinds = Set(cfg.kinds.compactMap { EverframeBreadcrumbKind(rawValue: $0) })
         setMaxCountLocked(cfg.maxCount)
         if !configEnabled {
+            interactionRevision &+= 1
             entries.removeAll()
             frozen = nil
         }

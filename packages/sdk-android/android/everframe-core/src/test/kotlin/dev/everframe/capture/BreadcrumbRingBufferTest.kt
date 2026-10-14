@@ -79,6 +79,21 @@ class BreadcrumbRingBufferTest {
         resetBreadcrumbState()
     }
 
+    @Test fun purgeRevokesInteractionSnapshots() {
+        for (disable in listOf(false, true)) {
+            val buf = BreadcrumbRingBuffer(maxCount = 10, honorsKillGate = false)
+            val revision = buf.captureRevision()
+            if (disable) {
+                buf.applyConfig(dev.everframe.config.BreadcrumbsConfigWire(false, listOf("tap"), 10, 65536, 1024))
+                buf.applyConfig(null)
+            } else buf.clear()
+            buf.addInteraction("stale", JsonObject(emptyMap()), revision)
+            assertTrue(buf.snapshotForReport().isEmpty())
+            buf.addInteraction("fresh", JsonObject(emptyMap()), buf.captureRevision())
+            assertEquals(listOf("fresh"), buf.snapshotForReport().map { it.message })
+        }
+    }
+
     @Test fun interactionTargetFieldsAreBoundedAfterRedaction() {
         val buf = BreadcrumbRingBuffer(maxCount = 10, honorsKillGate = false)
         val name = "123-45-6789;".repeat(20)

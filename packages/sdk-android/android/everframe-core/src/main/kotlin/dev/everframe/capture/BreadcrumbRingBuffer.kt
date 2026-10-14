@@ -259,6 +259,12 @@ class BreadcrumbRingBuffer internal constructor(
      * is closed (honorsKillGate) or the live config has disabled this kind /
      * breadcrumbs entirely.
      */
+    // Independent of startEpoch ownership: sign-out clears also revoke pending input.
+    private var interactionRevision = 0L
+    internal fun captureRevision(): Long = lock.withLock { interactionRevision }
+    internal fun addInteraction(message: String, data: JsonObject, captureRevision: Long) =
+        add(BreadcrumbKind.Tap, message, null, data, null, captureRevision)
+
     private var evidenceGeneration = 0L
     internal fun generation(): Long = lock.withLock { evidenceGeneration }
     internal fun rotate(owner: Long) = lock.withLock { evidenceGeneration = owner; clear() }
@@ -268,7 +274,7 @@ class BreadcrumbRingBuffer internal constructor(
     fun add(kind: BreadcrumbKind, message: String, level: Level? = null, data: JsonObject? = null) =
         add(kind, message, level, data, null)
 
-    private fun add(kind: BreadcrumbKind, message: String, level: Level?, data: JsonObject?, owner: Long?) {
+    private fun add(kind: BreadcrumbKind, message: String, level: Level?, data: JsonObject?, owner: Long?, captureRevision: Long? = null) {
         if (honorsKillGate && !Everframe.captureGate) return
         if (!isKindEnabled(kind)) return
 
@@ -277,6 +283,7 @@ class BreadcrumbRingBuffer internal constructor(
 
         lock.withLock {
             if (owner != null && owner != evidenceGeneration) return@withLock
+            if (captureRevision != null && captureRevision != interactionRevision) return@withLock
             if (!configEnabled || kind !in configKinds) return@withLock
 
             val crumb = Breadcrumb(
@@ -317,6 +324,7 @@ class BreadcrumbRingBuffer internal constructor(
 
     /** Zeroize everything (logout / identity change / kill switch). */
     fun clear() = lock.withLock {
+        interactionRevision++
         entries.clear()
         frozen = null
     }
@@ -339,6 +347,7 @@ class BreadcrumbRingBuffer internal constructor(
         configKinds = cfg.kinds.mapNotNull { v -> BreadcrumbKind.entries.firstOrNull { it.value == v } }.toSet()
         setMaxCountLocked(cfg.maxCount)
         if (!configEnabled) {
+            interactionRevision++
             entries.clear()
             frozen = null
         }

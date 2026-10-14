@@ -120,8 +120,9 @@ enum TapBreadcrumbAdapter {
                     guard BreadcrumbRingBuffer.shared.isKindEnabled(.tap),
                           !TapBreadcrumbAdapter.isIndirectTextInputAction(sender: sender, event: event)
                     else { return nil }
+                    let revision = BreadcrumbRingBuffer.shared.captureRevision()
                     let (label, data) = TapBreadcrumbAdapter.deriveLabelAndData(sender: sender)
-                    return InteractionTargetSnapshot(label: label, data: data)
+                    return InteractionTargetSnapshot(label: label, data: data, captureRevision: revision)
                 } : nil
                 let result = originalFn(app, sel, action, target, sender, event)
                 if let snapshot, Thread.isMainThread {
@@ -217,9 +218,14 @@ enum TapBreadcrumbAdapter {
     @MainActor
     static func recordTap(sender: Any?, eventTimestamp: TimeInterval?, snapshot: InteractionTargetSnapshot? = nil) {
         guard BreadcrumbRingBuffer.shared.isKindEnabled(.tap) else { return }
+        let value = WindowTapBreadcrumbAdapter.maskedDispatchSnapshot(eventTimestamp: eventTimestamp) ?? snapshot ?? {
+            let revision = BreadcrumbRingBuffer.shared.captureRevision()
+            let (label, data) = deriveLabelAndData(sender: sender)
+            return InteractionTargetSnapshot(label: label, data: data, captureRevision: revision)
+        }()
+        guard value.captureRevision == BreadcrumbRingBuffer.shared.captureRevision() else { return }
         lastActionEventTimestamp = eventTimestamp
-        let value = WindowTapBreadcrumbAdapter.maskedDispatchSnapshot(eventTimestamp: eventTimestamp) ?? snapshot ?? { let (label, data) = deriveLabelAndData(sender: sender); return InteractionTargetSnapshot(label: label, data: data) }()
-        BreadcrumbRingBuffer.shared.add(kind: .tap, message: "tap \(value.label)", data: value.data)
+        BreadcrumbRingBuffer.shared.addInteraction(message: "tap \(value.label)", data: value.data, captureRevision: value.captureRevision)
     }
 
     /// Pure-ish derivation (only reads UIKit state, never mutates) — kept as
@@ -555,6 +561,7 @@ enum WindowTapBreadcrumbAdapter {
     @MainActor
     static func recordSnapshot(_ snapshot: InteractionTargetSnapshot, eventTimestamp: TimeInterval, remoteButton: String? = nil) {
         guard BreadcrumbRingBuffer.shared.isKindEnabled(.tap),
+              snapshot.captureRevision == BreadcrumbRingBuffer.shared.captureRevision(),
               TapBreadcrumbAdapter.lastActionEventTimestamp != eventTimestamp else { return }
         var data = snapshot.data
         let message: String
@@ -563,7 +570,7 @@ enum WindowTapBreadcrumbAdapter {
             data.merge(BreadcrumbRingBuffer.coerceHostData(["inputType": "remote", "button": button])) { _, new in new }
             message = "press \(button) — \(snapshot.label)"
         } else { message = "tap \(snapshot.label)" }
-        BreadcrumbRingBuffer.shared.add(kind: .tap, message: message, data: data)
+        BreadcrumbRingBuffer.shared.addInteraction(message: message, data: data, captureRevision: snapshot.captureRevision)
     }
 
     @MainActor

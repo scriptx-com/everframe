@@ -114,6 +114,28 @@ struct BreadcrumbRingBufferTests {
 
     // MARK: - redaction (mask-before-bytes)
 
+    @Test(arguments: [false, true]) func purgeRevokesInteractionSnapshots(disable: Bool) {
+        let buf = BreadcrumbRingBuffer(maxCount: 10, honorsKillGate: false)
+        let revision = buf.captureRevision()
+        if disable {
+            buf.applyConfig(BreadcrumbsConfigWire(enabled: false, kinds: ["tap"], maxCount: 10, byteBudget: 65536, consoleEntryCap: 1024))
+            buf.applyConfig(nil)
+        } else { buf.clear() }
+        buf.addInteraction(message: "stale", data: [:], captureRevision: revision)
+        #expect(buf.snapshot().isEmpty)
+        buf.addInteraction(message: "fresh", data: [:], captureRevision: buf.captureRevision())
+        #expect(buf.snapshot().map(\.message) == ["fresh"])
+    }
+
+    @Test func purgeDuringAddCannotRestoreInteractionEvidence() {
+        let buf = BreadcrumbRingBuffer(maxCount: 10, honorsKillGate: false)
+        let revision = buf.captureRevision()
+        // Drive the window after add's fast gate, before the authoritative locked check.
+        buf.preLockHook = { buf.clear() }
+        buf.addInteraction(message: "stale", data: [:], captureRevision: revision)
+        #expect(buf.snapshot().isEmpty)
+    }
+
     @Test func interactionTargetFieldsAreBoundedAfterRedaction() {
         let buf = BreadcrumbRingBuffer(maxCount: 10, honorsKillGate: false)
         let name = String(repeating: "123-45-6789;", count: 20)

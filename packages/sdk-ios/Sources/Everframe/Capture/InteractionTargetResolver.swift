@@ -30,15 +30,20 @@ public struct InteractionTargetViewHints {
 struct InteractionTargetSnapshot {
     let label: String
     let data: [String: EverframeJSONAny]
+    let captureRevision: UInt64
+    init(label: String, data: [String: EverframeJSONAny], captureRevision: UInt64 = BreadcrumbRingBuffer.shared.captureRevision()) {
+        self.label = label; self.data = data; self.captureRevision = captureRevision
+    }
 }
 
 @MainActor enum InteractionTargetResolver {
     private static let actions: Set<String> = ["button", "link", "tab", "switch", "checkbox", "radio", "textfield", "slider"]
     static func resolve(_ view: UIView) -> InteractionTargetSnapshot {
-        if sensitiveAncestry(view) { return masked(role: nativeRole(owner(view, useHints: false))) }
+        let revision = BreadcrumbRingBuffer.shared.captureRevision()
+        if sensitiveAncestry(view) { return masked(role: nativeRole(owner(view, useHints: false)), captureRevision: revision) }
         let selected = owner(view)
-        if sensitiveAncestry(selected) { return masked(role: nativeRole(selected)) }
-        return describe(selected)
+        if sensitiveAncestry(selected) { return masked(role: nativeRole(selected), captureRevision: revision) }
+        return describe(selected, captureRevision: revision)
     }
 
     static func sensitiveAncestry(_ view: UIView) -> Bool {
@@ -50,10 +55,10 @@ struct InteractionTargetSnapshot {
         return false
     }
 
-    private static func masked(role: String?) -> InteractionTargetSnapshot {
+    private static func masked(role: String?, captureRevision: UInt64) -> InteractionTargetSnapshot {
         var target: [String: Any] = ["masked": true]
         if let role { target["role"] = role }
-        return .init(label: "[masked]", data: BreadcrumbRingBuffer.coerceHostData(["masked": true, "target": target]))
+        return .init(label: "[masked]", data: BreadcrumbRingBuffer.coerceHostData(["masked": true, "target": target]), captureRevision: captureRevision)
     }
 
     private static func owner(_ view: UIView, useHints: Bool = true) -> UIView {
@@ -70,7 +75,7 @@ struct InteractionTargetSnapshot {
         return semantic ?? view
     }
 
-    private static func describe(_ view: UIView) -> InteractionTargetSnapshot {
+    private static func describe(_ view: UIView, captureRevision: UInt64) -> InteractionTargetSnapshot {
         let hints = InteractionTargetViewAdapters.describe(view)
         let role = interactionTargetText(hints?.role, max: 64) ?? nativeRole(view)
         let id = interactionTargetText(hints?.testId) ?? interactionTargetText(view.accessibilityIdentifier)
@@ -92,7 +97,7 @@ struct InteractionTargetSnapshot {
         let resolvedName = target["name"] as? String ?? name
         var data: [String: Any] = ["control": String(describing: type(of: view)), "target": target]
         if let id = target["testId"] { data["id"] = id }
-        return .init(label: interactionTargetText(resolvedName, max: 48) ?? "view", data: BreadcrumbRingBuffer.coerceHostData(data))
+        return .init(label: interactionTargetText(resolvedName, max: 48) ?? "view", data: BreadcrumbRingBuffer.coerceHostData(data), captureRevision: captureRevision)
     }
 
     /// Read the selected text host as well as descendant text hosts. Fabric's
