@@ -218,7 +218,7 @@ enum TapBreadcrumbAdapter {
     static func recordTap(sender: Any?, eventTimestamp: TimeInterval?, snapshot: InteractionTargetSnapshot? = nil) {
         guard BreadcrumbRingBuffer.shared.isKindEnabled(.tap) else { return }
         lastActionEventTimestamp = eventTimestamp
-        let value = snapshot ?? { let (label, data) = deriveLabelAndData(sender: sender); return InteractionTargetSnapshot(label: label, data: data) }()
+        let value = WindowTapBreadcrumbAdapter.maskedDispatchSnapshot(eventTimestamp: eventTimestamp) ?? snapshot ?? { let (label, data) = deriveLabelAndData(sender: sender); return InteractionTargetSnapshot(label: label, data: data) }()
         BreadcrumbRingBuffer.shared.add(kind: .tap, message: "tap \(value.label)", data: value.data)
     }
 
@@ -447,6 +447,40 @@ enum PressCrumbRateLimiter {
 }
 
 enum WindowTapBreadcrumbAdapter {
+    private final class PressStarts: NSObject { var snapshots: [Int: InteractionTargetSnapshot] = [:] }
+    @MainActor private static let pressStarts = NSMapTable<UIWindow, PressStarts>(keyOptions: .weakMemory, valueOptions: .strongMemory)
+    @MainActor static func snapshotForPress(type: UIPress.PressType, phase: UIPress.Phase, focusedView: UIView?, window: UIWindow) -> InteractionTargetSnapshot? {
+        let starts = pressStarts.object(forKey: window) ?? PressStarts()
+        pressStarts.setObject(starts, forKey: window)
+        switch phase {
+        case .began:
+            starts.snapshots[type.rawValue] = focusedView.map { InteractionTargetResolver.resolve($0) }
+                ?? InteractionTargetSnapshot(label: "screen", data: [:])
+            return nil
+        case .ended:
+            return starts.snapshots.removeValue(forKey: type.rawValue)
+                ?? focusedView.map { InteractionTargetResolver.resolve($0) }
+                ?? InteractionTargetSnapshot(label: "screen", data: [:])
+        case .cancelled:
+            starts.snapshots.removeValue(forKey: type.rawValue)
+            return nil
+        default: return nil
+        }
+    }
+
+    @MainActor private static var dispatchSnapshot: (TimeInterval, InteractionTargetSnapshot)?
+    @MainActor static func withDispatchSnapshot(_ snapshot: InteractionTargetSnapshot?, eventTimestamp: TimeInterval, _ body: () -> Void) {
+        let previous = dispatchSnapshot
+        dispatchSnapshot = snapshot.map { (eventTimestamp, $0) }
+        defer { dispatchSnapshot = previous }
+        body()
+    }
+    @MainActor static func maskedDispatchSnapshot(eventTimestamp: TimeInterval?) -> InteractionTargetSnapshot? {
+        guard let (timestamp, snapshot) = dispatchSnapshot,
+              timestamp == eventTimestamp, snapshot.data["masked"]?.value as? Bool == true else { return nil }
+        return snapshot
+    }
+
     /// `-(void)sendEvent:(UIEvent *)event` — `(self, event) -> Void`.
     fileprivate typealias SendEventFn = @convention(c) (UIWindow, Selector, UIEvent) -> Void
 
@@ -478,21 +512,25 @@ enum WindowTapBreadcrumbAdapter {
                 var remoteButton: String?
                 if BreadcrumbRingBuffer.shared.isKindEnabled(.tap) {
                     #if os(tvOS)
-                    if event.type == .presses, let presses = event as? UIPressesEvent,
-                       let ended = presses.allPresses.first(where: { $0.phase == .ended }) {
-                        remoteButton = pressName(ended.type)
-                        snapshot = focusedView(in: window).map { InteractionTargetResolver.resolve($0) }
-                            ?? InteractionTargetSnapshot(label: "screen", data: [:])
+                    if event.type == .presses, let presses = event as? UIPressesEvent {
+                        for press in presses.allPresses {
+                            if let value = snapshotForPress(type: press.type, phase: press.phase, focusedView: focusedView(in: window), window: window) {
+                                remoteButton = pressName(press.type)
+                                snapshot = value
+                            }
+                        }
                     }
                     #endif
                     if event.type == .touches, let ended = event.allTouches?.first(where: { $0.phase == .ended }) {
                         let view = ended.view ?? window.hitTest(ended.location(in: window), with: nil) ?? window
                         snapshot = InteractionTargetResolver.resolve(view)
                     }
-                }
+                } else { pressStarts.removeObject(forKey: window) }
                 // Capture immutable evidence before callbacks mutate views, screen, or focus.
                 // Emission stays after delivery so sendAction deduplication remains effective.
-                originalFn(window, sel, event)
+                withDispatchSnapshot(snapshot, eventTimestamp: event.timestamp) {
+                    originalFn(window, sel, event)
+                }
                 #if os(iOS) && !targetEnvironment(macCatalyst)
                 if event.type == .motion, event.subtype == .motionShake {
                     ShakeToReportTrigger.shared.handleShake()

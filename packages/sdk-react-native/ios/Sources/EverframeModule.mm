@@ -84,7 +84,8 @@ static NSDictionary *EFInteractionHints(UIView *view) {
   if (!props) return nil;
   const std::string role = props->role != facebook::react::Role::None
     ? facebook::react::toString(props->role) : props->accessibilityRole;
-  return @{ @"testId": @(props->testId.c_str()), @"role": @(role.c_str()) };
+  return @{ @"testId": @(props->testId.c_str()), @"role": @(role.c_str()), @"name": @(props->accessibilityLabel.c_str()),
+            @"actionable": @(props->events[facebook::react::ViewEvents::Offset::Click]) };
 }
 
 @implementation EverframeModule {
@@ -311,15 +312,11 @@ RCT_EXPORT_MODULE(Everframe)
 // available if a future iteration needs hint-based registration.
 - (void)registerSensitiveRect:(double)viewTag
                          rect:(JS::NativeEverframe::Rect &)rect {
-  __weak RCTBridge *weakBridge = _bridge;
+  __weak RCTViewRegistry *registry = _viewRegistry_DEPRECATED;
   NSNumber *tag = @((NSInteger)viewTag);
   dispatch_async(dispatch_get_main_queue(), ^{
-    RCTBridge *strongBridge = weakBridge;
     UIView *view = nil;
-    if (strongBridge != nil) {
-      view = [strongBridge.uiManager viewForReactTag:tag];
-    }
-    // Bridge does a nil-check + warn-once (Pitfall P5 / T-06-02-03).
+    @try { view = [registry viewForReactTag:tag]; } @catch (NSException *exception) { }
     [EverframeBridge markSensitiveViewOrWarn:view];
   });
 }

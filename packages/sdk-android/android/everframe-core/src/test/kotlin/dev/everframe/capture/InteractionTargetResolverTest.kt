@@ -193,4 +193,27 @@ class InteractionTargetResolverTest {
         assertEquals(JsonPrimitive("Home"),tap.data!!["target"]!!.jsonObject["screen"])
         assertEquals(JsonPrimitive("Low Orbit"),tap.data!!["target"]!!.jsonObject["name"])
     }
+    @Test @Config(qualifiers="television") fun directionalKeyKeepsFocusBeforeDownDispatch() {
+        val activity=org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup().get()
+        val root=LinearLayout(activity)
+        val first=Button(activity).apply { text="Origin"; isFocusableInTouchMode=true }
+        val second=Button(activity).apply { text="Destination"; isFocusableInTouchMode=true }
+        root.addView(first); root.addView(second); activity.setContentView(root); first.requestFocus()
+        assertSame(first,activity.window.currentFocus)
+        val delegate=object: android.view.Window.Callback by activity.window.callback {
+            override fun dispatchKeyEvent(event:KeyEvent):Boolean {
+                if(event.action==KeyEvent.ACTION_DOWN) { second.requestFocus(); InteractionTargetScreenState.recordExplicit("After") }
+                return true
+            }
+        }
+        InteractionTargetScreenState.recordExplicit("Before")
+        val callback=TXWindowCallbackWrapper(delegate,activity)
+        callback.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN,KeyEvent.KEYCODE_DPAD_RIGHT))
+        callback.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP,KeyEvent.KEYCODE_DPAD_RIGHT))
+        sharedBreadcrumbBuffer.freeze()
+        val target=sharedBreadcrumbBuffer.takeFrozen()!!.single().data!!["target"]!!.jsonObject
+        assertEquals(JsonPrimitive("Origin"),target["name"])
+        assertEquals(JsonPrimitive("Before"),target["screen"])
+    }
+
 }

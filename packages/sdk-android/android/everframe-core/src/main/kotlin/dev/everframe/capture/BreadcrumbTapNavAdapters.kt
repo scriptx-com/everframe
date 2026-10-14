@@ -151,11 +151,10 @@ internal object TapBreadcrumbAdapter {
      *  `View.onKeyUp`) is a separate call chain that does not pass through
      *  `Window.Callback` at all. So a single remote select-press can never
      *  double-record here the way iOS's sendAction + press crumb did. */
-    fun recordRemotePress(keyCode: Int, focused: View?) {
+    fun recordRemotePress(keyCode: Int, focused: View?, snapshot: InteractionTargetSnapshot? = focused?.let { InteractionTargetResolver.resolve(it) }) {
         if (!sharedBreadcrumbBuffer.isKindEnabled(BreadcrumbKind.Tap)) return
         val button = REMOTE_KEY_NAMES[keyCode] ?: return
         if (!PressCrumbRateLimiter.shouldRecord(button)) return
-        val snapshot = focused?.let { InteractionTargetResolver.resolve(it) }
         val label = snapshot?.label ?: "screen"
         val data = JsonObject(snapshot?.data.orEmpty() + mapOf(
             "inputType" to JsonPrimitive("remote"), "button" to JsonPrimitive(button),
@@ -340,11 +339,21 @@ internal class TXWindowCallbackWrapper(
                 android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
     }
 
+    private val remoteStarts = mutableMapOf<Int, InteractionTargetSnapshot>()
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_UP && isTvHost) {
+        if (isTvHost) {
             txGuardVoid("TXWindowCallbackWrapper.dispatchKeyEvent") {
-                TapBreadcrumbAdapter.recordRemotePress(
-                    event.keyCode, activity.window?.currentFocus)
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 &&
+                    sharedBreadcrumbBuffer.isKindEnabled(BreadcrumbKind.Tap)) {
+                    remoteStarts[event.keyCode] = activity.window?.currentFocus?.let { InteractionTargetResolver.resolve(it) }
+                        ?: InteractionTargetSnapshot("screen", JsonObject(emptyMap()))
+                } else if (event.action == KeyEvent.ACTION_UP) {
+                    val snapshot = remoteStarts.remove(event.keyCode)
+                    if (!event.isCanceled) {
+                        if (snapshot != null) TapBreadcrumbAdapter.recordRemotePress(event.keyCode, null, snapshot)
+                        else TapBreadcrumbAdapter.recordRemotePress(event.keyCode, activity.window?.currentFocus)
+                    }
+                }
             }
         }
         return delegate.dispatchKeyEvent(event)

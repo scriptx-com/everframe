@@ -72,5 +72,16 @@ import UIKit
         #expect(snapshot.label == "[masked]")
         #expect(!String(describing:snapshot.data).contains("SECRET"))
     } }
+    @Test func clippingAndSiblingReorderPreserveLiveOwnership() { run {
+        let root = UIView(), view = UIView(), sibling = UIView(); root.addSubview(view)
+        InteractionTargetRegistry.set(view: view, registrationId: "A", generation: 1, annotation: ["name": "Current"])
+        root.insertSubview(sibling, at: 0)
+        #expect(fields(view)["name"] as? String == "Current")
+        view.removeFromSuperview(); root.addSubview(view)
+        #expect(fields(view)["name"] as? String == "Current")
+        InteractionTargetRegistry.invalidate(view: view)
+        #expect(fields(view).isEmpty)
+    } }
+
 }
 #endif

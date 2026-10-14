@@ -889,3 +889,8 @@ Native registrations use weak host references and cancel stale ref generations.
 After 4096 distinct registrations in one native session, optional annotations
 fail closed until SDK restart; automatic target extraction continues. This
 bound prevents delayed work from resurrecting evicted registration ownership.
+
+Native target qualification uses the installed Fabric fixture under
+`__tests__/fixtures/interaction-targets`. Rebuild native binaries after upgrading.
+The iOS sensitive wrapper retains its native host and resolves it through the
+Fabric view registry, so masked descendants stay excluded from target labels.

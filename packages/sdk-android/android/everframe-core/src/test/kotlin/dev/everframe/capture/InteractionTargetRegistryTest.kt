@@ -42,7 +42,7 @@ class InteractionTargetRegistryTest {
         val replacement=Button(context).apply { id=123 }
         assertNull(InteractionTargetRegistry.lookup(replacement))
     }
-    @Test fun changedHostIdentityOrPositionInvalidatesAnnotation() {
+    @Test fun changedHostIdentityInvalidatesButSiblingClippingPreservesAnnotation() {
         val root=FrameLayout(context)
         val view=Button(context).apply { contentDescription="A" }; root.addView(view)
         InteractionTargetRegistry.set(view,"A",1,mapOf("container" to mapOf("index" to 0,"count" to 2)))
@@ -50,7 +50,9 @@ class InteractionTargetRegistryTest {
         assertNull(InteractionTargetRegistry.lookup(view))
         InteractionTargetRegistry.set(view,"A",2,mapOf("container" to mapOf("index" to 0,"count" to 2)))
         root.addView(View(context),0)
-        assertNull(InteractionTargetRegistry.lookup(view))
+        assertNotNull(InteractionTargetRegistry.lookup(view))
+        root.removeView(view); root.addView(view)
+        assertNotNull(InteractionTargetRegistry.lookup(view))
     }
     @Test fun annotationOverridesAreNormalizedAndContainerReplacesAutomaticGroup() {
         val root=FrameLayout(context).apply { contentDescription="Automatic" }
@@ -88,4 +90,15 @@ class InteractionTargetRegistryTest {
         InteractionTargetRegistry.completeSet(view,"A",2,mapOf("name" to "Obsolete"))
         assertNull(InteractionTargetRegistry.lookup(view))
     }
+    @Test fun temporaryWindowDetachDoesNotRevokeMountedRefOwnership() {
+        val activity=org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup().get()
+        val root=FrameLayout(activity); activity.setContentView(root)
+        val view=Button(activity); root.addView(view)
+        InteractionTargetRegistry.set(view,"A",1,mapOf("name" to "Current"))
+        root.removeView(view); root.addView(view)
+        assertEquals(JsonPrimitive("Current"),InteractionTargetRegistry.lookup(view)?.get("name"))
+        InteractionTargetRegistry.clear("A",2)
+        assertNull(InteractionTargetRegistry.lookup(view))
+    }
+
 }

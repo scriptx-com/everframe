@@ -7,6 +7,8 @@ import EverframeProtocol
 public struct InteractionTargetViewHints {
     public let testId: String?
     public let role: String?
+    /// Explicit framework label. Empty means known absent; nil permits UIKit fallback.
+    /// Frameworks with synthesized aggregate labels must supply an empty string.
     public let name: String?
     public let actionable: Bool
     public init(testId: String? = nil, role: String? = nil, name: String? = nil, actionable: Bool = false) {
@@ -60,9 +62,9 @@ struct InteractionTargetSnapshot {
         for _ in 0..<32 {
             guard let candidate = current else { break }
             let hints = useHints ? InteractionTargetViewAdapters.describe(candidate) : nil
-            let role = hints?.role ?? nativeRole(candidate)
+            let role = (useHints ? InteractionTargetRegistry.lookup(candidate)?["role"] as? String : nil) ?? hints?.role ?? nativeRole(candidate)
             if candidate is UIControl || hints?.actionable == true || role.map({ actions.contains($0) }) == true { return candidate }
-            if semantic == nil && (role != nil || (useHints && (hints?.testId != nil || candidate.accessibilityLabel?.isEmpty == false))) { semantic = candidate }
+            if semantic == nil && (role != nil || (useHints && (hints?.testId != nil || (hints?.name ?? candidate.accessibilityLabel)?.isEmpty == false))) { semantic = candidate }
             current = candidate.superview
         }
         return semantic ?? view
@@ -72,7 +74,7 @@ struct InteractionTargetSnapshot {
         let hints = InteractionTargetViewAdapters.describe(view)
         let role = interactionTargetText(hints?.role, max: 64) ?? nativeRole(view)
         let id = interactionTargetText(hints?.testId) ?? interactionTargetText(view.accessibilityIdentifier)
-        let accessibility = interactionTargetText(hints?.name) ?? interactionTargetText(view.accessibilityLabel)
+        let accessibility = interactionTargetText(hints?.name ?? view.accessibilityLabel)
         let directText = interactionTargetText((view as? UIButton)?.currentTitle) ?? interactionTargetText((view as? UILabel)?.text)
         let text = directText ?? ((accessibility == nil) ? descendantText(view) : nil)
         let name = accessibility ?? text ?? id ?? interactionTargetText(String(describing: type(of: view))) ?? "view"
@@ -128,7 +130,7 @@ struct InteractionTargetSnapshot {
             if let role, ["list", "grid", "tablist"].contains(role) {
                 var fields: [String: Any] = ["role": role]
                 if let id = interactionTargetText(hints?.testId) ?? interactionTargetText(candidate.accessibilityIdentifier) { fields["testId"] = id }
-                if let name = interactionTargetText(candidate.accessibilityLabel) { fields["name"] = name }
+                if let name = interactionTargetText(hints?.name ?? candidate.accessibilityLabel) { fields["name"] = name }
                 // Multi-section indices are ambiguous without explicit annotations.
                 if let table = candidate as? UITableView, table.numberOfSections == 1 {
                     fields["count"] = table.numberOfRows(inSection: 0)

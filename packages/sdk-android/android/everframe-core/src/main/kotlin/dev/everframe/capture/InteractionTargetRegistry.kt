@@ -3,9 +3,7 @@
 package dev.everframe.capture
 
 import android.view.View
-import android.view.ViewGroup
 import java.lang.ref.WeakReference
-import java.util.WeakHashMap
 import kotlinx.serialization.json.JsonObject
 
 /** Optional metadata only. clear/reset never inspect views, so ref cleanup can invalidate synchronously. */
@@ -14,12 +12,7 @@ object InteractionTargetRegistry {
     private val entries = mutableMapOf<String, Entry>()
     private val generations = mutableMapOf<String, Long>()
     private val pending = mutableMapOf<String, Long>()
-    private val observed = WeakHashMap<View, Boolean>()
     private var overflowed = false
-    private val detach = object : View.OnAttachStateChangeListener {
-        override fun onViewAttachedToWindow(v: View) = Unit
-        override fun onViewDetachedFromWindow(v: View) { synchronized(this@InteractionTargetRegistry) { entries.entries.removeAll { it.value.view.get() === v } } }
-    }
 
     @Synchronized fun set(view: View, registrationId: String, generation: Long, annotation: Map<String, Any?>) {
         if (beginSet(registrationId, generation)) completeSet(view, registrationId, generation, annotation)
@@ -41,7 +34,6 @@ object InteractionTargetRegistry {
         entries.remove(registrationId)
         if (value == null) return
         entries.entries.removeAll { it.value.view.get() == null || it.value.view.get() === view }
-        if (observed.put(view, true) == null) view.addOnAttachStateChangeListener(detach)
         entries[registrationId] = Entry(WeakReference(view), generation, value, identity(view))
     }
 
@@ -70,14 +62,10 @@ object InteractionTargetRegistry {
 
     private fun identity(view: View): List<Any?> {
         val hints = InteractionTargetViewAdapters.describe(view)
-        val result = mutableListOf<Any?>(view.id, hints?.testId, hints?.role, view.contentDescription?.toString())
-        var child = view
-        repeat(32) {
-            val parent = child.parent as? ViewGroup ?: return result
-            result.add(System.identityHashCode(parent)); result.add(parent.indexOfChild(child)); result.add(parent.childCount)
-            child = parent
-        }
-        return result
+        // Native clipping/reordering does not revoke a React ref. Ownership is
+        // cancelled synchronously by clear before host recycling; only this
+        // host's semantic identity is a defensive fallback here.
+        return listOf(view.id, hints?.testId, hints?.role, view.contentDescription?.toString())
     }
 
     private fun normalize(input: Map<String, Any?>): JsonObject? {

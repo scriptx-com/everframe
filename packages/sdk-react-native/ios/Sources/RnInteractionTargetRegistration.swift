@@ -31,14 +31,15 @@ import EverframeKit
                 let role: String?
                 switch raw {
                 case "imagebutton": role="button"
+                case "adjustable": role="slider"
                 case "search", "searchbox", "textbox": role="textfield"
                 case "heading": role="header"
                 case "img": role="image"
                 case "none", "": role=nil
                 default: role=raw
                 }
-                return InteractionTargetViewHints(testId: fields["testId"] as? String, role:role,
-                    actionable: role.map { ["button","tab","link","switch","checkbox","radio","slider","menuitem","textfield"].contains($0) } ?? false)
+                return InteractionTargetViewHints(testId: fields["testId"] as? String, role:role, name:fields["name"] as? String ?? "",
+                    actionable: (fields["actionable"] as? Bool ?? false) || (role.map { ["button","tab","link","switch","checkbox","radio","slider","menuitem","textfield"].contains($0) } ?? false))
             }
         }
     }
@@ -51,12 +52,22 @@ import EverframeKit
         requests[id]=request; enqueue(id,request)
         return true
     }
-    private func enqueue(_ id: String, _ request: Request) {
+    private func enqueue(_ id: String, _ request: Request, attempt: Int = 0) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.lock.lock(); defer { self.lock.unlock() }
-            guard !self.destroyed, self.requests[id] === request, let view=request.resolve(request.tag),
-                  !request.resolved || request.view === view else { return }
+            guard !self.destroyed, self.requests[id] === request else { return }
+            guard let view=request.resolve(request.tag), view.window != nil else {
+                // Fabric refs precede mounting. Bound retries, and re-check ownership
+                // before every lookup so cleanup cannot register a recycled host.
+                if !request.resolved, attempt < 8 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.016 * pow(2, Double(attempt))) { [weak self] in
+                        self?.enqueue(id, request, attempt: attempt + 1)
+                    }
+                }
+                return
+            }
+            guard !request.resolved || request.view === view else { return }
             request.view=view; request.resolved=true
             InteractionTargetRegistry.completeSet(view:view,registrationId:self.namespace+id,generation:request.generation,annotation:request.annotation)
         }

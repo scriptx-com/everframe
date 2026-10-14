@@ -18,6 +18,7 @@ internal class RnInteractionTargetRegistration(
     private val namespace = UUID.randomUUID().toString() + ":"
     private val requests = mutableMapOf<String, Request>()
     private var destroyed = false
+    private val pending = mutableMapOf<String, Request>()
     private fun integer(value: Double, maximum: Double) = value.isFinite() && value >= 0 && value <= maximum && value == value.toLong().toDouble()
 
     @Synchronized fun set(tag: Double, id: String, generation: Double, annotation: Map<String, Any?>): Boolean {
@@ -26,6 +27,7 @@ internal class RnInteractionTargetRegistration(
         if (!InteractionTargetRegistry.beginSet(key, generation.toLong())) return false
         val request = Request(tag.toInt(), generation.toLong(), annotation)
         requests[id] = request
+        pending[id] = request
         enqueue(id, request)
         return true
     }
@@ -36,6 +38,7 @@ internal class RnInteractionTargetRegistration(
                     val view = runCatching { resolve(request.tag) }.getOrNull()
                     // A resolved host cannot migrate to a replacement using the same numeric tag.
                     if (view != null && (request.view == null || request.view?.get() === view)) {
+                        pending.remove(id)
                         request.view = WeakReference(view)
                         InteractionTargetRegistry.completeSet(view, namespace + id, request.generation, request.annotation)
                     }
@@ -43,22 +46,27 @@ internal class RnInteractionTargetRegistration(
             }
         } } catch (_: Throwable) { InteractionTargetRegistry.clear(namespace + id, request.generation + 1) }
     }
+    /** Fabric can deliver the ref before the native mount. Retry only live unresolved owners. */
+    @Synchronized fun onMount() {
+        if (!destroyed && pending.isNotEmpty()) pending.toList().forEach { (id, request) -> enqueue(id, request) }
+    }
+
     @Synchronized fun clear(id: String, generation: Double): Boolean {
         if (destroyed || !integer(generation, 9007199254740991.0)) return false
         val current = requests[id]
-        if (current == null || generation > current.generation) requests.remove(id)
+        if (current == null || generation > current.generation) { requests.remove(id); pending.remove(id) }
         InteractionTargetRegistry.clear(namespace + id, generation.toLong())
         return true
     }
     /** Provider configure may run after child ref attachment. Core start clears its registry. */
     @Synchronized fun onStarted() {
         if (!destroyed) requests.forEach { (id, request) ->
-            if (InteractionTargetRegistry.beginSet(namespace + id, request.generation)) enqueue(id, request)
+            if (InteractionTargetRegistry.beginSet(namespace + id, request.generation)) { pending[id] = request; enqueue(id, request) }
         }
     }
     @Synchronized override fun close() {
         destroyed = true
         requests.forEach { (id, request) -> InteractionTargetRegistry.clear(namespace + id, request.generation + 1) }
-        requests.clear()
+        requests.clear(); pending.clear()
     }
 }

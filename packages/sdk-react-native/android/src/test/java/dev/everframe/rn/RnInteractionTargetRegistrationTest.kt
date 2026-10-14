@@ -78,4 +78,29 @@ class RnInteractionTargetRegistrationTest {
         assertEquals(JsonPrimitive("New"),metadata(view)?.get("name"))
         registration.close()
     }
+    @Test fun canonicalSliderAndExactAriaListItemRoles() {
+        val view=View(RuntimeEnvironment.getApplication())
+        view.setTag(com.facebook.react.R.id.accessibility_role,AccessibilityRole.ADJUSTABLE)
+        assertEquals("slider",RnInteractionTargetAdapter.describe(view)?.role)
+        view.setTag(com.facebook.react.R.id.role,com.facebook.react.uimanager.ReactAccessibilityDelegate.Role.LISTITEM)
+        assertEquals("listitem",RnInteractionTargetAdapter.describe(view)?.role)
+    }
+
+    @Test fun refBeforeNativeMountRetriesOnlyStillOwnedRequest() {
+        var host: View?=null
+        val registration=RnInteractionTargetRegistration({host},{it()})
+        registration.set(1.0,"A",1.0,mapOf("name" to "Current"))
+        host=View(RuntimeEnvironment.getApplication())
+        registration.onMount()
+        assertEquals(JsonPrimitive("Current"),metadata(host!!)?.get("name"))
+        val current=host!!
+        host=null
+        registration.set(2.0,"B",2.0,mapOf("name" to "Cancelled"))
+        registration.clear("B",3.0)
+        host=current
+        registration.onMount()
+        assertEquals(JsonPrimitive("Current"),metadata(current)?.get("name"))
+        registration.close()
+    }
+
 }

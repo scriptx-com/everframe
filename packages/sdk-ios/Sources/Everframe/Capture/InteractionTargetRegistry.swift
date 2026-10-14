@@ -69,14 +69,9 @@ public enum InteractionTargetRegistry {
     }
     @MainActor private static func identity(_ view: UIView) -> [AnyHashable] {
         let hints=InteractionTargetViewAdapters.describe(view)
-        var result: [AnyHashable]=[view.tag,hints?.testId ?? "", hints?.role ?? "",view.accessibilityIdentifier ?? "",view.accessibilityLabel ?? ""]
-        var child=view
-        for _ in 0..<32 {
-            guard let parent=child.superview else { break }
-            result += [ObjectIdentifier(parent),parent.subviews.firstIndex(of:child) ?? -1,parent.subviews.count]
-            child=parent
-        }
-        return result
+        // Ref ownership and explicit recycle invalidation survive native clipping.
+        // Sibling positions/counts are layout, not the identity of this host.
+        return [view.tag,hints?.testId ?? "",hints?.role ?? "",view.accessibilityIdentifier ?? "",hints?.name ?? view.accessibilityLabel ?? ""]
     }
     private static func normalize(_ input: [String: Any]) -> [String: Any] {
         func fields(_ map: [String: Any]) -> [String: Any] {

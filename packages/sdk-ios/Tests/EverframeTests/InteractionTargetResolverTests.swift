@@ -161,5 +161,70 @@ struct InteractionTargetResolverTests {
             #expect(fields?["screen"] as? String == "Home")
         }
     }
+
+    @Test func directionalRemoteKeepsFocusFromBeganAndClearsCancelledPresses() {
+        withState {
+            let window = UIWindow(), first = UIButton(), second = UIButton()
+            first.accessibilityLabel = "Origin"; second.accessibilityLabel = "Destination"
+            #expect(WindowTapBreadcrumbAdapter.snapshotForPress(type: .rightArrow, phase: .began, focusedView: first, window: window) == nil)
+            let snapshot = WindowTapBreadcrumbAdapter.snapshotForPress(type: .rightArrow, phase: .ended, focusedView: second, window: window)
+            #expect(snapshot?.label == "Origin")
+            _ = WindowTapBreadcrumbAdapter.snapshotForPress(type: .leftArrow, phase: .began, focusedView: first, window: window)
+            _ = WindowTapBreadcrumbAdapter.snapshotForPress(type: .leftArrow, phase: .cancelled, focusedView: second, window: window)
+            #expect(WindowTapBreadcrumbAdapter.snapshotForPress(type: .leftArrow, phase: .ended, focusedView: second, window: window)?.label == "Destination")
+        }
+    }
+    @Test func frameworkAggregatedLabelsNeverBypassFilteredTraversal() {
+        withState {
+            let list = AggregateLabelView(), card = AggregateLabelView()
+            let secret = UILabel(); secret.text = "SECRET"; SensitiveRectRegistry.mark(secret)
+            let publicText = UILabel(); publicText.text = "Public"
+            card.addSubview(secret); card.addSubview(publicText); list.addSubview(card)
+            let dispose = InteractionTargetViewAdapters.register { view in
+                if view === list { return .init(role: "list", name: "") }
+                if view === card { return .init(role: "button", name: "") }
+                return nil
+            }
+            defer { dispose(); InteractionTargetRegistry.reset() }
+            InteractionTargetRegistry.set(view: card, registrationId: "A", generation: 1, annotation: ["testId": "card"])
+            let snapshot = InteractionTargetResolver.resolve(publicText)
+            #expect(snapshot.label == "Public")
+            #expect(!String(describing: snapshot.data).contains("SECRET"))
+            #expect(card.reads == 0); #expect(list.reads == 0)
+        }
+    }
+    @Test func annotationRoleSelectsPlainPressableAncestor() {
+        withState {
+            let card = UIView(), image = UIImageView(); card.addSubview(image)
+            InteractionTargetRegistry.set(view: card, registrationId: "A", generation: 1, annotation: ["role": "button", "name": "Annotated"])
+            defer { InteractionTargetRegistry.reset() }
+            #expect(target(image)["name"] as? String == "Annotated")
+            SensitiveRectRegistry.mark(image)
+            #expect(target(image)["masked"] as? Bool == true)
+        }
+    }
+    @Test func maskedWindowHitDominatesControlDeduplication() {
+        withState {
+            let control = UIButton(); control.accessibilityIdentifier = "SECRET-ID"; control.accessibilityLabel = "SECRET-LABEL"
+            let child = UIView(); control.addSubview(child); SensitiveRectRegistry.mark(child)
+            let masked = InteractionTargetResolver.resolve(child)
+            WindowTapBreadcrumbAdapter.withDispatchSnapshot(masked, eventTimestamp: 42) {
+                TapBreadcrumbAdapter.recordTap(sender: control, eventTimestamp: 42)
+            }
+            WindowTapBreadcrumbAdapter.recordSnapshot(masked, eventTimestamp: 42)
+            BreadcrumbRingBuffer.shared.freeze(); let crumbs = BreadcrumbRingBuffer.shared.takeFrozen() ?? []
+            #expect(crumbs.count == 1)
+            #expect(crumbs.first?.message == "tap [masked]")
+            #expect(!String(describing: crumbs).contains("SECRET"))
+        }
+    }
+
+}
+@MainActor private final class AggregateLabelView: UIView {
+    var reads = 0
+    override var accessibilityLabel: String? {
+        get { reads += 1; return "SECRET Public" }
+        set { }
+    }
 }
 #endif
