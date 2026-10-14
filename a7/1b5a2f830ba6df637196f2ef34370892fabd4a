@@ -1,0 +1,19 @@
+packages/sdk-react-native/__tests__/fixtures/interaction-events/App.tsx
+  s_46e1aa7e76c6a2::t_d98bca332850df 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a71b5a2f830ba6df637196f2ef34370892fabd4a",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
