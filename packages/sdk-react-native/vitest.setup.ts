@@ -33,6 +33,8 @@ vi.mock('react-native', () => ({
       reportCrash: vi.fn().mockReturnValue(true),
       captureHandledException: vi.fn().mockReturnValue(true),
       setUser: vi.fn(),
+      setStateSync: vi.fn(() => true),
+      clearStateSync: vi.fn(() => true),
       trackPlayer: vi.fn(),
       detachPlayer: vi.fn(),
       recordPlayerEvent: vi.fn(),

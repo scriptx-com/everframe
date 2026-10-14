@@ -582,6 +582,7 @@ object CrashReporter {
                 // live `Everframe.currentUser` read: by this line redaction,
                 // fingerprinting and device collection have all run.
                 user = EnvelopeBuilder.TXUserExtras.from(captured.user.resolve()),
+                state = captured.state,
             )
             // Checked HERE, not at capture time: a kill() arriving during
             // redaction/fingerprinting/device assembly must still suppress the

@@ -663,6 +663,16 @@ class EverframeModule(
         extraResolverActive = false
     }
 
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    override fun setStateSync(key: String, valueJson: String): Boolean {
+        if (valueJson.length > 2048) return false
+        val value = try { kotlinx.serialization.json.Json.decodeFromString(dev.everframe.protocol.generated.StateValue.serializer(), valueJson) }
+                    catch (_: Exception) { return false }
+        return Everframe.setState(key, value)
+    }
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    override fun clearStateSync(key: String): Boolean = Everframe.clearState(key)
+
     // ---------------- setUser (self-declared identity — spec 2026-08-12) ----------------
 
     /**

@@ -364,6 +364,7 @@ object CompanionSubmissionComposer {
                 excluded = inputs.excluded,
                 // Ancillary data belongs to the exact reporter-open owner.
                 breadcrumbs = if (inputs.capture.matchesSession(inputs.capturedSession)) inputs.capture.takeBreadcrumbs() else null,
+                state = if (inputs.capture.matchesSession(inputs.capturedSession)) inputs.capture.takeState() else null,
                 // Report Resource Window (spec 2026-09-05) — gap class 3: the
                 // companion widget is a user-submitted-report build site too
                 // (the feature's primary use case), so it must stamp

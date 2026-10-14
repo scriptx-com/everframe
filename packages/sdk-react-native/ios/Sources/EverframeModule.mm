@@ -478,6 +478,13 @@ RCT_EXPORT_MODULE(Everframe)
 // shape; `id` is compatible with the generated `NSDictionary *` protocol
 // type. `EverframeBridge` re-validates and pulls out id/email/displayName
 // defensively.
+- (NSNumber *)setStateSync:(NSString *)key valueJson:(NSString *)valueJson {
+  return @([EverframeBridge setStateSync:key valueJson:valueJson]);
+}
+- (NSNumber *)clearStateSync:(NSString *)key {
+  return @([EverframeBridge clearStateSync:key]);
+}
+
 - (void)setUser:(id)user {
   NSDictionary *dict = [user isKindOfClass:[NSDictionary class]] ? (NSDictionary *)user : nil;
   [EverframeBridge setUser:dict];

@@ -30,6 +30,7 @@ import CoreFoundation
 import Combine
 import os.log
 import UIKit
+import EverframeProtocol
 import EverframeKit
 import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 of Phase 06.1)
 
@@ -715,6 +716,13 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// JS facade projects to these three string fields before the bridge
     /// anyway (`src/user-projection.ts`); this is the second layer, aligned in
     /// behaviour with Android's `stringOrNull` helper.
+    @objc public static func setStateSync(_ key: String, valueJson: String) -> Bool {
+        guard valueJson.utf8.count <= 2048, let data = valueJson.data(using: .utf8),
+              let value = try? JSONDecoder().decode(EverframeStateValue.self, from: data) else { return false }
+        return Everframe.shared.setState(key, value: value)
+    }
+    @objc public static func clearStateSync(_ key: String) -> Bool { Everframe.shared.clearState(key) }
+
     @objc public static func setUser(_ user: NSDictionary?) {
         guard let user else {
             Everframe.shared.setUser(nil)

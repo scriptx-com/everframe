@@ -34,6 +34,18 @@ class FrozenReportCapture internal constructor(
     private var readyClip: OwnedVideoClip? = null
     private var replayRevoked = false
     private var cancelled = false
+    private var stateSession: dev.everframe.TXCapturedSession? = null
+    internal fun withState(session: dev.everframe.TXCapturedSession): FrozenReportCapture {
+        synchronized(lock) { if (!terminal() && session.user.startEpoch == originatingStartEpoch) stateSession = session }
+        return this
+    }
+    fun takeState(): dev.everframe.protocol.generated.ReportState? {
+        val session = synchronized(lock) {
+            if (terminal()) null else stateSession.also { stateSession = null }
+        }
+        // Do not enter the SDK state lock while holding the capture-handle lock.
+        return session?.state
+    }
 
     /** Send-time config/user boundary, independent of whether optional replay is enabled. */
     fun matchesSession(session: dev.everframe.TXCapturedSession): Boolean =
@@ -96,7 +108,7 @@ class FrozenReportCapture internal constructor(
         val clip = synchronized(lock) {
             if (terminal()) return
             state = if (cancel) FrozenCaptureState.CANCELLED else FrozenCaptureState.CONSUMED
-            breadcrumbs = null; networkBodies = null
+            breadcrumbs = null; networkBodies = null; stateSession = null
             readyClip.also { readyClip = null }
         }
         try { clip?.close(); if (cancel) origin.cancel(owner) } finally { origin.release(owner) }

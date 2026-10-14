@@ -894,3 +894,11 @@ Native target qualification uses the installed Fabric fixture under
 `__tests__/fixtures/interaction-targets`. Rebuild native binaries after upgrading.
 The iOS sensitive wrapper retains its native host and resolves it through the
 Fabric view registry, so masked descendants stay excluded from target labels.
+
+### State labels (iOS and Android)
+
+`setState(key, value)` records a string, finite number, or boolean diagnostic label;
+`clearState(key)` removes it. Both are also available from `useEverframe()`.
+Call after the provider mounts. State is redacted, bounded, and frozen with report
+evidence. See [State API](../../docs/state.md) for lifecycle, privacy, limits and
+native recovery freshness.

@@ -30,6 +30,7 @@ internal object AndroidNativeSignalRuntime {
     @Volatile private var files: AndroidNativeSignalFiles? = null
 
     fun invalidateExposure() { controller?.invalidateExposure() }
+    fun refreshState(epoch: Int) = synchronized(work) { controller?.refreshState(epoch) }
     fun refreshExposure(epoch: Int) = synchronized(work) { controller?.refreshExposure(epoch) }
 
     /** Test seams replacing Keystore keys, Os file operations and the optional module. Never set in production. */
@@ -97,6 +98,7 @@ internal object AndroidNativeSignalRuntime {
             val device = DeviceMetadata.collect(context, captured.config?.debugBuild)
             val encoded = EnvelopeBuilder(vitalsStamp = { null }).buildEncoded(
                 reportId = UUID.randomUUID(), sdkVersion = Everframe.SDK_VERSION,
+                state = Everframe.captureSessionSnapshot().takeIf { it.user.startEpoch == epoch }?.state,
                 formFactor = DeviceMetadata.formFactor(device), appName = context.packageName,
                 appVersion = device["appVersion"] as? String ?: "0.0.0",
                 appBuild = device["appBuild"]?.toString(), appDebug = device["appDebug"] == "true", deviceModel = device["model"] as? String,

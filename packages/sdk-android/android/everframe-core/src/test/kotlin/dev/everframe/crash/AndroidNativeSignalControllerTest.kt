@@ -45,6 +45,33 @@ class AndroidNativeSignalControllerTest {
     private fun enable(c: AndroidNativeSignalController, command: Long = c.request(), epoch: Int = 1): Boolean =
         c.enable(command, epoch, allowed, ::template) { _, _ -> error("no prior record") }
 
+    @Test fun `optional state refresh preparation failure leaves signal capture armed`() {
+        val p = Producer()
+        val c = owner(p)
+        var fail = false
+        assertTrue(c.enable(c.request(), 1, allowed, { if (fail) error("unavailable state") else template() }) { _, _ -> true })
+        fail = true
+        assertFalse(c.refreshState(1))
+        assertTrue(p.armed)
+        assertTrue(c.ready(1))
+        fail = false
+        assertTrue(c.refreshState(1))
+        assertTrue(p.armed)
+        assertEquals(2, p.arms)
+        assertEquals(1, store("capsules").snapshotTokens().size)
+    }
+    @Test fun `cleanup failure after optional publication does not roll back working capture`() {
+        val p = Producer()
+        var fail = false
+        val c = AndroidNativeSignalController(::engine, p, { null }, processLaunchId = "this-process", now = { 3000 },
+            cleanup = { if (fail) error("cleanup unavailable") })
+        assertTrue(enable(c))
+        fail = true
+        assertTrue(c.refreshState(1))
+        assertTrue(p.armed); assertTrue(c.ready(1)); assertEquals(2, p.arms)
+        assertTrue(c.refreshState(1))
+        assertTrue(p.armed); assertEquals(3, p.arms)
+    }
     @Test fun `refresh rotates frozen signal attribution and keeps background capture armed`() {
         val launch = UUID.randomUUID().toString()
         var pointer: dev.everframe.health.NativeExposurePointer? = dev.everframe.health.NativeExposurePointer(

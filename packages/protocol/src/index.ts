@@ -53,6 +53,7 @@ export type {
   InteractionTargetContainer,
   InteractionTargetAnnotation,
 } from './interaction-target.js';
+export * from './state.js';
 // PROTO-03 relay control-frame schema — namespaced to avoid collisions with
 // envelope-side names (e.g. ReportAssembled, ReportSubmit are relay-specific
 // control frames, distinct from any envelope payload concepts).

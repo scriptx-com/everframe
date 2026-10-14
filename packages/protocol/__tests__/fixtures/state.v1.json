@@ -1,0 +1,47 @@
+{
+  "startedAt": 1000,
+  "initial": {
+    "custom": {},
+    "automatic": {
+      "locale": "en-US"
+    }
+  },
+  "changes": [
+    {
+      "t": 1001,
+      "seq": 1,
+      "namespace": "custom",
+      "key": "plan",
+      "op": "set",
+      "value": "premium"
+    },
+    {
+      "t": 1002,
+      "seq": 2,
+      "namespace": "custom",
+      "key": "enabled",
+      "op": "set",
+      "value": false
+    },
+    {
+      "t": 1002,
+      "seq": 3,
+      "namespace": "custom",
+      "key": "count",
+      "op": "set",
+      "value": 0
+    }
+  ],
+  "current": {
+    "custom": {
+      "plan": "premium",
+      "enabled": false,
+      "count": 0
+    },
+    "automatic": {
+      "locale": "en-US"
+    }
+  },
+  "capturedAt": 1003,
+  "droppedChanges": 0
+}

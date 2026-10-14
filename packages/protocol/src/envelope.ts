@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { z } from 'zod';
+import { ReportState } from './state.js';
 import { FocusedNode } from './focus.js';
 import { AttachmentRef } from './attachments.js';
 import { Breadcrumb } from './breadcrumb.js';
@@ -139,6 +140,7 @@ export const ReportEnvelope = z
         // (.passthrough() preserved). Max 128 = maxCount 100 + headroom for the
         // (bounded, ≤7) per-kind trim markers.
         breadcrumbs: z.array(Breadcrumb).max(128).optional(),
+        state: ReportState.optional(),
         /** Bodies channel (spec 2026-07-18 §6 / 2026-08-01). Joined to network
          *  crumbs via ref === crumb.data.reqId. */
         networkBodies: z.array(NetworkBodyEntrySchema).optional(),

@@ -293,6 +293,9 @@
             "$id": "Breadcrumb"
           }
         },
+        "state": {
+          "$ref": "#/$defs/ReportState"
+        },
         "networkBodies": {
           "type": "array",
           "items": {
@@ -801,6 +804,165 @@
   "additionalProperties": {},
   "$id": "ReportEnvelope",
   "$defs": {
+    "ReportState": {
+      "type": "object",
+      "properties": {
+        "startedAt": {
+          "type": "number"
+        },
+        "initial": {
+          "$ref": "#/$defs/StateSnapshot"
+        },
+        "checkpoint": {
+          "type": "object",
+          "properties": {
+            "t": {
+              "type": "number"
+            },
+            "throughSeq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "values": {
+              "$ref": "#/$defs/StateSnapshot"
+            }
+          },
+          "required": [
+            "t",
+            "throughSeq",
+            "values"
+          ],
+          "additionalProperties": false,
+          "title": "StateCheckpoint"
+        },
+        "changes": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StateChange"
+          }
+        },
+        "current": {
+          "$ref": "#/$defs/StateSnapshot"
+        },
+        "capturedAt": {
+          "type": "number"
+        },
+        "droppedChanges": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "startedAt",
+        "initial",
+        "changes",
+        "current",
+        "capturedAt",
+        "droppedChanges"
+      ],
+      "additionalProperties": false,
+      "title": "ReportState"
+    },
+    "StateSnapshot": {
+      "type": "object",
+      "properties": {
+        "custom": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^(?!__proto__$)[^\\u0000-\\u001f\\u007f-\\u009f\\p{Surrogate}]+$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/StateValue"
+          }
+        },
+        "automatic": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^(?!__proto__$)[^\\u0000-\\u001f\\u007f-\\u009f\\p{Surrogate}]+$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/StateValue"
+          }
+        }
+      },
+      "required": [
+        "custom",
+        "automatic"
+      ],
+      "additionalProperties": false,
+      "title": "StateSnapshot"
+    },
+    "StateValue": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 256
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        }
+      ],
+      "title": "StateValue"
+    },
+    "StateChange": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "number"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "namespace": {
+          "type": "string",
+          "enum": [
+            "custom",
+            "automatic"
+          ],
+          "title": "StateNamespace"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^(?!__proto__$)[^\\u0000-\\u001f\\u007f-\\u009f\\p{Surrogate}]+$"
+        },
+        "op": {
+          "type": "string",
+          "enum": [
+            "set",
+            "clear"
+          ],
+          "title": "StateOperation"
+        },
+        "value": {
+          "$ref": "#/$defs/StateValue"
+        }
+      },
+      "required": [
+        "t",
+        "seq",
+        "namespace",
+        "key",
+        "op"
+      ],
+      "additionalProperties": false,
+      "title": "StateChange"
+    },
     "CrashCauseChain": {
       "type": "object",
       "properties": {

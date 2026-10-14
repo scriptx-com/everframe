@@ -80,6 +80,10 @@ describe('RBRIDGE-01: no new JS replay/config/ingest surface on the bridge', () 
         'setInteractionTarget',
         'clearInteractionTarget',
         'setExtra',
+        // State capture adds synchronous label mutations so a subsequent
+        // fatal report cannot overtake the state update on the native bridge.
+        'setStateSync',
+        'clearStateSync',
         // Spec 2026-09-17 setExtra-resolver — the 11th D-decision, and this
         // test's whole reason to exist: two NEW report methods added
         // DELIBERATELY, not a quiet widening of `setExtra` itself. Native

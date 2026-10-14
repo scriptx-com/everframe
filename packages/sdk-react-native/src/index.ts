@@ -34,6 +34,8 @@ export {
   getReportDeliveryStatus,
   setExtra,
   setUser,
+  setState,
+  clearState,
   addBreadcrumb,
   recordScreen,
   EverframeNotMountedError,
@@ -113,3 +115,4 @@ export type {
 } from './report-delivery-status.js';
 
 export { useEverframeTarget, type InteractionTargetAnnotation } from './useEverframeTarget.js';
+export type { StateValue } from './state.js';

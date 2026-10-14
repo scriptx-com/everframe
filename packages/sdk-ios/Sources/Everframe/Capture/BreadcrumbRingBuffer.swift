@@ -25,7 +25,7 @@ import Foundation
 import EverframeProtocol
 
 public final class BreadcrumbRingBuffer: @unchecked Sendable {
-    public static let shared = BreadcrumbRingBuffer()
+    public static let shared = BreadcrumbRingBuffer(maxCount: 100, honorsKillGate: true, sequence: .shared)
 
     /// Buffer capacity default (spec §3/§6 `maxCount` default) — mirrors
     /// sdk-core's exported `MAX_BREADCRUMBS`.
@@ -66,7 +66,7 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     private let lock = NSLock()
     private var entries: [EverframeBreadcrumb] = []
     private var frozen: [EverframeBreadcrumb]?
-    private var seq: Int = 0
+    private let sequence: EvidenceSequence
     // Separate from sequence numbering: every purge revokes pending input snapshots.
     private var interactionRevision: UInt64 = 0
     internal func captureRevision() -> UInt64 {
@@ -86,13 +86,15 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     public init(maxCount: Int = 100) {
         self._maxCount = maxCount
         self.honorsKillGate = true
+        self.sequence = EvidenceSequence()
     }
 
     /// Test-only init that bypasses the global kill-gate check (mirrors
     /// LogRingBuffer's `capacity:honorsKillGate:` seam).
-    internal init(maxCount: Int, honorsKillGate: Bool) {
+    internal init(maxCount: Int, honorsKillGate: Bool, sequence: EvidenceSequence = EvidenceSequence()) {
         self._maxCount = maxCount
         self.honorsKillGate = honorsKillGate
+        self.sequence = sequence
     }
 
     // MARK: - Public surface
@@ -162,11 +164,10 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
             kind: kind,
             level: level,
             message: capped.message,
-            seq: seq,
+            seq: sequence.next(),
             t: Date().timeIntervalSince1970 * 1000,
             truncated: capped.truncated ? true : nil
         )
-        seq += 1
         entries.append(crumb)
         if entries.count > _maxCount {
             entries.removeFirst(entries.count - _maxCount)
