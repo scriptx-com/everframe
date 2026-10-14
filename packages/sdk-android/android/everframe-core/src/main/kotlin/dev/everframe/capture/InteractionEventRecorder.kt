@@ -52,6 +52,8 @@ internal class InteractionEventRecorder(
     private val pendingRegistrations = mutableMapOf<String, Long>()
     private var registrationOverflow = false
     private var timerArmed = false
+    private val revocationListeners = mutableListOf<() -> Unit>()
+    internal fun onRevoked(listener: () -> Unit) = buffer.withInteractionLock { revocationListeners.add(listener) }
 
     init {
         buffer.interactionRevocation = { eraseLocked() }
@@ -70,6 +72,7 @@ internal class InteractionEventRecorder(
         pending.clear(); semanticTimes.clear(); lifecycleTimes.clear(); hostTimes.clear()
         registrations.clear(); generations.clear(); pendingRegistrations.clear(); registrationOverflow = false
         timerArmed = false
+        revocationListeners.forEach { it() }
     }
     val pendingCount: Int get() = buffer.withInteractionLock { pending.size }
     internal fun pendingDebugSnapshot(): List<JsonObject> = buffer.withInteractionLock { pending.map { it.event } }
@@ -198,6 +201,9 @@ internal class InteractionEventRecorder(
     fun complete(host: View, type: String, reason: String) {
         val item = buffer.withInteractionLock { pending.firstOrNull { it.owner.host?.get() === host && it.event.string("type") == type } } ?: return
         flush(item, reason)
+    }
+    fun cancel(host: View, type: String) = buffer.withInteractionLock {
+        pending.removeAll { it.owner.host?.get() === host && it.event.string("type") == type }
     }
     fun flushDue() {
         val now = clock()

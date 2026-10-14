@@ -107,6 +107,7 @@ class EverframeModule(
 ) : NativeEverframeSpec(reactContext) {
 
     private val interactionTargetAdapter = dev.everframe.capture.InteractionTargetViewAdapters.register(RnInteractionTargetAdapter)
+    private val interactionEventObserver = RnInteractionEventObserver.install(reactContext)
     private val interactionTargets = RnInteractionTargetRegistration(
         { tag -> UIManagerHelper.getUIManagerForReactTag(reactContext, tag)?.resolveView(tag)?.takeIf { it.isAttachedToWindow } },
         { block -> UiThreadUtil.runOnUiThread { block() } },
@@ -404,6 +405,7 @@ class EverframeModule(
             //     or the host is left with a dead SDK and no way to revive it.
             //   • `attachPinUi` — the one bridge option that lands in module state instead of
             //     in `EverframeConfig`, so config equality alone cannot see it change.
+            interactionEventObserver.refresh(reactContext)
             if (Everframe.captureGate &&
                 Everframe.currentConfig == config &&
                 companionAttachPinUi == attachPinUi
@@ -640,6 +642,7 @@ class EverframeModule(
      */
     @OptIn(com.facebook.react.common.annotations.UnstableReactNativeAPI::class)
     override fun invalidate() {
+        interactionEventObserver.close()
         stopObservingInteractionMounts()
         interactionTargets.close()
         interactionTargetAdapter.close()

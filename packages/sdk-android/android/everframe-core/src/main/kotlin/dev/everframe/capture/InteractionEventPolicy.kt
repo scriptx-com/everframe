@@ -12,6 +12,9 @@ class InteractionEventPolicy private constructor(
     val urlRules: List<UrlRule>,
     val launchArgumentKeys: Set<String>,
 ) {
+    override fun equals(other: Any?): Boolean = other is InteractionEventPolicy &&
+        disabled == other.disabled && valueTestIds == other.valueTestIds && urlRules == other.urlRules && launchArgumentKeys == other.launchArgumentKeys
+    override fun hashCode(): Int = listOf(disabled, valueTestIds, urlRules, launchArgumentKeys).hashCode()
     data class UrlRule internal constructor(
         val origin: String, val queryKeys: Set<String>, val routes: Set<String>, val literalPaths: Set<String>,
     )

@@ -11,6 +11,7 @@ class InteractionEventPolicyTest {
         assertFalse(policy.disabled)
         assertTrue(policy.valueTestIds.isEmpty())
         assertTrue(policy.launchArgumentKeys.isEmpty())
+        assertEquals(policy, InteractionEventPolicy.parse(null))
     }
 
     @Test fun oversizedAndMalformedListsDoNotGrantPartialPermission() {
