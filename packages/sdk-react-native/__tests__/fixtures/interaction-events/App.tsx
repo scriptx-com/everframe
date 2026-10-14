@@ -21,7 +21,7 @@ function Button({ id, title, onPress }: { id: string; title: string; onPress(): 
 }
 function Field({ id, helpers, secure = false }: { id: string; helpers: boolean; secure?: boolean }) {
   const [text, setText] = useState('');
-  const interaction = useEverframeInteraction<React.ElementRef<typeof TextInput>>({ target: { testId: id, name: id }, helperTypes: ['text_edit'] });
+  const interaction = useEverframeInteraction<React.ElementRef<typeof TextInput>>({ target: { testId: id, name: id }, helperTypes: id === 'search-input' ? [] : ['text_edit'] });
   return <TextInput testID={id} accessibilityLabel={id} ref={helpers ? interaction.ref : undefined}
     value={text} secureTextEntry={secure} placeholder={id} placeholderTextColor="#b5c6d6" returnKeyType="done"
     onChangeText={value => { interaction.textChanged(value); setText(value); }}
