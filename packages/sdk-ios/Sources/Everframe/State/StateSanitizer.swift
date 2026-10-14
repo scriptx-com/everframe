@@ -31,7 +31,7 @@ enum StateSanitizer {
         case (nil, nil): return true
         case (.bool(let a), .bool(let b)): return a == b
         case (.double(let a), .double(let b)): return a == b
-        case (.string(let a), .string(let b)): return a == b
+        case (.string(let a), .string(let b)): return a.utf8.elementsEqual(b.utf8)
         default: return false
         }
     }

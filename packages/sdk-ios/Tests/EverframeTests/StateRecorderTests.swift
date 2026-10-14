@@ -82,6 +82,32 @@ struct StateRecorderTests {
         #expect(custom["apiKey"] as? String == "[REDACTED]")
         #expect(custom["empty"] as? String == "")
     }
+    @Test func unicodeKeyAliasesCannotMutateAnotherWireKey() throws {
+        for (key, alias) in [("\u{e9}", "e\u{301}"), ("e\u{301}", "\u{e9}")] {
+            let r = make()
+            #expect(r.set(key, value: .bool(true)))
+            #expect(!r.clear(alias))
+            #expect(!r.set(alias, value: .bool(false)))
+            let state = try #require(r.snapshot(capturedAt: 1003))
+            #expect(state.changes.count == 1)
+            #expect(try #require(state.current.custom.keys.first).utf8.elementsEqual(key.utf8))
+            #expect(StateSanitizer.equal(state.current.custom[key], .bool(true)))
+            #expect(r.clear(key))
+            #expect(!r.set(alias, value: .bool(false)))
+            #expect(r.set(key, value: .bool(false)))
+            #expect(try #require(r.snapshot(capturedAt: 1004)).changes.allSatisfy { $0.key.utf8.elementsEqual(key.utf8) })
+        }
+    }
+    @Test func canonicallyEquivalentValuesRetainTheirExactWireText() throws {
+        let r = make()
+        #expect(r.set("value", value: .string("\u{e9}")))
+        #expect(r.set("value", value: .string("e\u{301}")))
+        let state = try #require(r.snapshot(capturedAt: 1003))
+        #expect(state.changes.count == 2)
+        if case .string(let value) = state.current.custom["value"] {
+            #expect(value.utf8.elementsEqual("e\u{301}".utf8))
+        } else { Issue.record("missing string value") }
+    }
     @Test func sharedOrderingAndCancel() throws {
         let sequence = EvidenceSequence()
         let r = StateRecorder(now: { 1000 }, sequence: sequence)

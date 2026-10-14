@@ -104,7 +104,11 @@ internal class AndroidNativeRecovery(
             }
         }.toString().toByteArray(Charsets.UTF_8)
         require(context.size <= MAX_CONTEXT_BYTES)
-        val durable = enqueueContext(template.copy(envelopeBytes = context), authorization, held, onReclaimed)
+        val entry = template.copy(envelopeBytes = context)
+        // Optional state must never reclaim a pending crash to replace a healthy
+        // live observation. A full journal leaves the old context/token intact.
+        val durable = if (replacingEvidence) contexts.enqueueSync(entry, authorization)
+            else enqueueContext(entry, authorization, held, onReclaimed)
         try {
             check(authorization.isAllowed())
             register(token(template.reportId))

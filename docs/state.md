@@ -49,6 +49,10 @@ redaction are dropped to avoid merging unrelated keys.
   are rejected. Strings are limited to 256 UTF-16 code units.
 - Keys: nonempty, at most 64 UTF-16 code units, without control characters or
   unpaired surrogates. The reserved key `__proto__` is rejected.
+- On iOS, canonically equivalent Unicode key spellings cannot be distinct labels
+  in one session, even after a clear. Updates using a conflicting spelling are
+  ignored; existing keys keep their original spelling. String values preserve
+  their exact text.
 - At most 50 distinct custom keys per session, including keys later cleared.
 - At most 8 KiB of encoded live custom values and 32 KiB of encoded state.
 - At most 100 changes. Earlier history is compacted into a checkpoint; the

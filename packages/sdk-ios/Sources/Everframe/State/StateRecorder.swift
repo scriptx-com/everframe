@@ -75,9 +75,13 @@ final class StateRecorder: @unchecked Sendable {
     private func change(_ key: String, value: EverframeStateValue?, namespace: EverframeStateNamespace) -> Bool {
         lock.withLock {
             guard let old = state else { return false }
+            let known = namespace == .custom ? customKeys : automaticKeys
+            // Swift dictionaries equate canonical Unicode spellings; the wire
+            // and JavaScript do not. Reject an alias instead of mutating another
+            // wire key. Keep this fence after clear, while its history survives.
+            if let spelling = known.first(where: { $0 == key }), !spelling.utf8.elementsEqual(key.utf8) { return false }
             let previous = namespace == .custom ? old.current.custom[key] : old.current.automatic[key]
             if StateSanitizer.equal(previous, value) { return false }
-            let known = namespace == .custom ? customKeys : automaticKeys
             if value != nil && !known.contains(key) && known.count >= (namespace == .custom ? 50 : 32) { return false }
             let current = Self.applying(old.current, namespace: namespace, key: key, value: value)
             guard Self.bytes(current.custom) <= 8192 else { return false }
