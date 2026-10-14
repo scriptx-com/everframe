@@ -106,6 +106,39 @@ class EverframeModule(
     private val reactContext: ReactApplicationContext,
 ) : NativeEverframeSpec(reactContext) {
 
+    private val interactionTargetAdapter = dev.everframe.capture.InteractionTargetViewAdapters.register(RnInteractionTargetAdapter)
+    private val interactionTargets = RnInteractionTargetRegistration(
+        { tag -> UIManagerHelper.getUIManagerForReactTag(reactContext, tag)?.resolveView(tag)?.takeIf { it.isAttachedToWindow } },
+        { block -> UiThreadUtil.runOnUiThread { block() } },
+    )
+
+    private var interactionMountsClosed = false
+    private var interactionTargetUIManager: com.facebook.react.bridge.UIManager? = null
+    @OptIn(com.facebook.react.common.annotations.UnstableReactNativeAPI::class)
+    private val interactionMountListener = object : com.facebook.react.bridge.UIManagerListener {
+        override fun willDispatchViewUpdates(uiManager: com.facebook.react.bridge.UIManager) = Unit
+        override fun willMountItems(uiManager: com.facebook.react.bridge.UIManager) = Unit
+        override fun didMountItems(uiManager: com.facebook.react.bridge.UIManager) { interactionTargets.onMount() }
+        override fun didDispatchMountItems(uiManager: com.facebook.react.bridge.UIManager) { interactionTargets.onMount() }
+        override fun didScheduleMountItems(uiManager: com.facebook.react.bridge.UIManager) = Unit
+    }
+    @OptIn(com.facebook.react.common.annotations.UnstableReactNativeAPI::class)
+    @Synchronized private fun observeInteractionMounts(tag: Int) {
+        if (interactionMountsClosed) return
+        val manager = UIManagerHelper.getUIManagerForReactTag(reactContext, tag) ?: return
+        if (interactionTargetUIManager === manager) return
+        interactionTargetUIManager?.removeUIManagerEventListener(interactionMountListener)
+        interactionTargetUIManager = manager
+        manager.addUIManagerEventListener(interactionMountListener)
+    }
+
+    @OptIn(com.facebook.react.common.annotations.UnstableReactNativeAPI::class)
+    @Synchronized private fun stopObservingInteractionMounts() {
+        interactionMountsClosed = true
+        interactionTargetUIManager?.removeUIManagerEventListener(interactionMountListener)
+        interactionTargetUIManager = null
+    }
+
     private val reporterBridge = ReporterBridge()
 
     private val videoPrivacyAdapter = Everframe.__registerVideoPrivacyAdapter(RnVideoPrivacyAdapter)
@@ -394,6 +427,7 @@ class EverframeModule(
             // Window.Callback wrapper is never installed on the current screen
             // and the session ships zero tap crumbs (field bug 2026-07-10).
             Everframe.start(reactContext.applicationContext, config, reactContext.currentActivity)
+            interactionTargets.onStarted()
 
             // Codex round-5, G1 — the registry is NOT renewed here any more. The live players
             // this start just orphaned are re-registered from JS instead: `mount()` bumps the
@@ -604,7 +638,11 @@ class EverframeModule(
      * BEFORE the Provider's configure-on-mount, so clearing there would drop
      * legitimate registrations that had already landed.
      */
+    @OptIn(com.facebook.react.common.annotations.UnstableReactNativeAPI::class)
     override fun invalidate() {
+        stopObservingInteractionMounts()
+        interactionTargets.close()
+        interactionTargetAdapter.close()
         sensitiveRegistration.close()
         videoPrivacyAdapter.close()
         super.invalidate()
@@ -771,6 +809,17 @@ class EverframeModule(
      * `hasCompanionClientForTesting()` above.
      */
     internal var __drainRequester: () -> Unit = { Everframe.requestOutboxDrain() }
+
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    override fun setInteractionTarget(viewTag: Double, registrationId: String, generation: Double, annotation: ReadableMap): Boolean =
+        runCatching {
+            if (viewTag.isFinite() && viewTag > 0 && viewTag <= Int.MAX_VALUE && viewTag == viewTag.toInt().toDouble()) observeInteractionMounts(viewTag.toInt())
+            interactionTargets.set(viewTag, registrationId, generation, annotation.toHashMap())
+        }.getOrDefault(false)
+
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    override fun clearInteractionTarget(registrationId: String, generation: Double): Boolean =
+        runCatching { interactionTargets.clear(registrationId, generation) }.getOrDefault(false)
 
     // ---------------- registerSensitiveRect ----------------
 

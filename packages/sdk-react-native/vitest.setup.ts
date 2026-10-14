@@ -23,6 +23,8 @@ vi.mock('react-native', () => ({
       configureSync: vi.fn(() => true),
       openReporter: vi.fn().mockResolvedValue({ status: 'cancelled' }),
       registerSensitiveRect: vi.fn(),
+      setInteractionTarget: vi.fn(() => true),
+      clearInteractionTarget: vi.fn(() => true),
       setExtra: vi.fn(),
       setExtraResolverActive: vi.fn(),
       signalExtraResolverReady: vi.fn(),
@@ -49,6 +51,7 @@ vi.mock('react-native', () => ({
     isTV: false,
     select: (o: Record<string, unknown>) => o.ios ?? o.default,
   },
+  findNodeHandle: vi.fn(() => 12),
   requireNativeComponent: (name: string) => passthrough(name),
   // UI primitives — components are no-op functional components for unit tests.
   View: passthrough('View'),

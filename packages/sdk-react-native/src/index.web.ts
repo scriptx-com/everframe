@@ -45,3 +45,12 @@ import { emptyReportDeliveryStatus, type ReportDeliveryStatus } from './report-d
 export function getReportDeliveryStatus(): ReportDeliveryStatus {
   return emptyReportDeliveryStatus('unsupported', 'platform');
 }
+
+export type { InteractionTargetAnnotation } from '@everframe/protocol';
+const noopTargetRef = (_host: unknown): void => {};
+/** Native target annotations are a harmless no-op on web. */
+export function useEverframeTarget<T>(
+  _annotation?: import('@everframe/protocol').InteractionTargetAnnotation,
+): import('react').RefCallback<T> {
+  return noopTargetRef;
+}

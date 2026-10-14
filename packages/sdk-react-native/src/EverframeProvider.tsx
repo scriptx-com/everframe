@@ -12,7 +12,7 @@ import * as React from 'react';
 import { createRuntime, type Runtime, type EverframeProviderConfig } from './runtime.js';
 import { EverframeNotMountedError, type EverframeContextValue } from './contextSeam.js';
 
-const Ctx = React.createContext<EverframeContextValue | null>(null);
+const Ctx = React.createContext<Runtime | null>(null);
 
 export interface EverframeProviderProps {
   config: EverframeProviderConfig;
@@ -44,4 +44,9 @@ export function useEverframe(): EverframeContextValue {
     );
   }
   return ctx;
+}
+
+/** Internal optional access for best-effort enrichment hooks. */
+export function useOptionalEverframeRuntime(): Runtime | null {
+  return React.useContext(Ctx);
 }

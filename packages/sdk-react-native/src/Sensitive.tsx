@@ -89,7 +89,8 @@ export function EverframeSensitive(props: ViewProps): React.ReactElement {
     ...props,
     ref: viewRef,
     onLayout,
-    ...(Platform.OS === 'android' ? { collapsable: false } : {}),
+    // Fabric must retain the host so native sensitivity lookup can mark it.
+    collapsable: false,
   });
 }
 

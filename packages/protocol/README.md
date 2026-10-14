@@ -77,3 +77,36 @@ pnpm --filter @everframe/protocol build   # build dist/
 pnpm schema:generate                     # write schemas-json/envelope.v1.schema.json
 pnpm schema:check                        # drift gate (fails if generated output differs)
 ```
+
+## Interaction targets
+
+SDK-produced `tap` breadcrumbs may include `data.target`, described by
+`InteractionTargetSchema` and `schemas-json/interaction-target.v1.schema.json`.
+The optional descriptor carries `testId`, semantic `role`, `name` plus `nameFrom`,
+`container` (stable ID/name/role and logical zero-based index/count), and `screen`.
+Names can originate from `annotation`, `accessibility`, `text`, `testId`, or
+`className`; the latter two are weak fallbacks. Unknown fields are omitted.
+
+Masked targets contain only `{ role?, masked: true }`. SDK producers also remove
+legacy identifying breadcrumb fields and mask the message. Annotations cannot
+turn masking off. Position counts describe the logical collection, not its
+currently mounted children. If both positions are supplied, producers enforce
+`index < count`; JSON Schema validates structural bounds, while this correlated
+constraint belongs to the producer normalizer.
+
+`InteractionTargetAnnotation` permits optional `testId`, `role`, `name`, and
+`container`. `normalizeInteractionTargetAnnotation` drops invalid fields and
+bounds strings to 256 UTF-16 units (64 for roles), preserving surrogate pairs.
+Use normal accessibility labels/roles and test IDs before adding overrides.
+
+These schemas describe producer output without restricting historical/custom
+`Breadcrumb.data`. No target or annotation is required to submit a report.
+The protocol package minor version increases; envelope `protocolVersion` stays
+`1.0` so older readers continue accepting additive breadcrumb data.
+
+Regenerate the standalone schema after building the protocol:
+
+```sh
+pnpm --filter @everframe/protocol build
+pnpm --filter @everframe/protocol schema:interaction-target
+```

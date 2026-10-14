@@ -14,9 +14,10 @@ import EverframeProtocol
 /// Simulates an RN Fabric container (Pressable/card) — plain view, no a11y
 /// props, class name is what leaked into crumbs as "tap RCTViewComponentView".
 private final class RCTViewComponentView: UIView {}
-/// Simulates an RN Fabric text leaf: not a UILabel; mirrors its rendered
-/// string into accessibilityLabel (same contract the replay producer reads).
-private final class RCTParagraphComponentView: UIView {}
+/// Simulates RN Fabric's public own-text property without importing RN into core tests.
+private final class RCTParagraphComponentView: UIView {
+    @objc var attributedText: NSAttributedString?
+}
 
 @MainActor
 @Suite(.serialized)
@@ -199,7 +200,7 @@ struct WindowTapBreadcrumbAdapterTests {
                 let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
                 let card = RCTViewComponentView(frame: CGRect(x: 0, y: 0, width: 200, height: 80))
                 let caption = RCTParagraphComponentView(frame: CGRect(x: 8, y: 8, width: 180, height: 24))
-                caption.accessibilityLabel = marker
+                caption.attributedText = NSAttributedString(string: marker)
                 card.addSubview(caption)
                 window.addSubview(card)
 

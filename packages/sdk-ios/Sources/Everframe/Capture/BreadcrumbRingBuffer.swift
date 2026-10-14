@@ -67,6 +67,15 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     private var entries: [EverframeBreadcrumb] = []
     private var frozen: [EverframeBreadcrumb]?
     private let sequence: EvidenceSequence
+    // Separate from sequence numbering: every purge revokes pending input snapshots.
+    private var interactionRevision: UInt64 = 0
+    internal func captureRevision() -> UInt64 {
+        lock.lock(); defer { lock.unlock() }
+        return interactionRevision
+    }
+    internal func addInteraction(message: String, data: [String: EverframeJSONAny], captureRevision: UInt64) {
+        add(kind: .tap, message: message, level: nil, data: data, captureRevision: captureRevision)
+    }
     private var _maxCount: Int
 
     // Config-gating state (Task 1's wire). Defaults match applyConfig(nil):
@@ -124,6 +133,12 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     public func add(
         kind: EverframeBreadcrumbKind, message: String, level: EverframeLevel? = nil, data: [String: EverframeJSONAny]? = nil
     ) {
+        add(kind: kind, message: message, level: level, data: data, captureRevision: nil)
+    }
+
+    private func add(
+        kind: EverframeBreadcrumbKind, message: String, level: EverframeLevel?, data: [String: EverframeJSONAny]?, captureRevision: UInt64?
+    ) {
         // Cheap pre-lock fast path only. A thread that reads the gate open
         // here can still be descheduled before `lock.lock()`, let `kill()`
         // run to completion elsewhere (which flips `captureGate` false and
@@ -137,11 +152,12 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         preLockHook?()
 
         let capped = Self.capMessage(Self.redactor.redact(message))
-        let redactedData = data.map { Self.redactDataForStorage($0) }
+        let redactedData = data.map { Self.redactDataForStorage($0, interactionTarget: kind == .tap) }
 
         lock.lock(); defer { lock.unlock() }
         if honorsKillGate, !Everframe.shared.captureGate { return }
         guard configEnabled, configKinds.contains(kind) else { return }
+        if let captureRevision, captureRevision != interactionRevision { return }
 
         let crumb = EverframeBreadcrumb(
             data: redactedData,
@@ -190,6 +206,7 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     /// Zeroize everything (logout / identity change / kill switch).
     public func clear() {
         lock.lock(); defer { lock.unlock() }
+        interactionRevision &+= 1
         entries.removeAll()
         frozen = nil
     }
@@ -210,6 +227,7 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         configKinds = Set(cfg.kinds.compactMap { EverframeBreadcrumbKind(rawValue: $0) })
         setMaxCountLocked(cfg.maxCount)
         if !configEnabled {
+            interactionRevision &+= 1
             entries.removeAll()
             frozen = nil
         }
@@ -236,13 +254,32 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         return (String(decoding: units.prefix(maxMessageChars), as: UTF16.self), true)
     }
 
-    private static func redactDataForStorage(_ data: [String: EverframeJSONAny]) -> [String: EverframeJSONAny] {
+    private static func redactDataForStorage(_ data: [String: EverframeJSONAny], interactionTarget: Bool) -> [String: EverframeJSONAny] {
         let unwrapped: [String: Any] = data.mapValues { $0.value }
         // The top-level dict is itself the depth-0 subject (mirrors buffer.ts
         // `redactData(input.data, redaction, 0)`) — it is never truncated at
         // depth 0 (0 < maxDataDepth), so the dict branch below always returns.
-        guard let redacted = redactAny(unwrapped, depth: 0) as? [String: Any] else { return [:] }
+        guard var redacted = redactAny(unwrapped, depth: 0) as? [String: Any] else { return [:] }
+        // Redaction replacements can grow strings beyond the producer's limits.
+        // Only tap target fields have these bounds; arbitrary host data does not.
+        if interactionTarget, var target = redacted["target"] as? [String: Any] {
+            target = boundTargetFields(target, keys: ["name", "testId", "role", "screen"])
+            if let container = target["container"] as? [String: Any] {
+                target["container"] = boundTargetFields(container, keys: ["name", "testId", "role"])
+            }
+            redacted["target"] = target
+        }
         return mintJSONAny(redacted)
+    }
+
+    private static func boundTargetFields(_ fields: [String: Any], keys: [String]) -> [String: Any] {
+        var result = fields
+        for key in keys {
+            if let value = fields[key] as? String {
+                result[key] = interactionTargetText(value, max: key == "role" ? 64 : 256)
+            }
+        }
+        return result
     }
 
     private static func redactAny(_ value: Any, depth: Int) -> Any {

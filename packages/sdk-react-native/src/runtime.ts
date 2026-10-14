@@ -285,6 +285,8 @@ export interface RuntimeConfig
 }
 
 export interface Runtime extends EverframeContextValue {
+  /** Internal committed-mount signal for optional native ref annotations. */
+  interactionTargets: { getSnapshot(): number; subscribe(listener: () => void): () => void };
   getReportDeliveryStatus(): ReportDeliveryStatus;
   getErrorCaptureStatus(): ErrorCaptureStatus;
   mount(): void;
@@ -437,6 +439,8 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
     rejectionStatus: PromiseRejectionStatus;
   };
   let mounted: Mount | undefined;
+  let targetEpoch = 0;
+  const targetListeners = new Set<() => void>();
 
   function open(): Promise<ReporterResult> {
     // Native promise returns NSDictionary / WritableMap with the discriminated
@@ -455,6 +459,15 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
   }
 
   const runtime: Runtime = {
+    interactionTargets: {
+      getSnapshot: () => (mounted ? targetEpoch : 0),
+      subscribe(listener) {
+        targetListeners.add(listener);
+        return () => {
+          targetListeners.delete(listener);
+        };
+      },
+    },
     open,
     getReportDeliveryStatus() {
       const owner = mounted;
@@ -660,6 +673,8 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       };
       mounted = owner;
       __setCurrentContext(runtime);
+      targetEpoch++;
+      for (const listener of targetListeners) listener();
       if (config.crashReporting?.disabled !== true) {
         owner.controller = createCaptureController({
           jsBundle: config.jsBundle,
@@ -703,6 +718,7 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       // teardown can remount even this runtime object; old cleanup must not
       // clear its new controller, context, registry or integration list.
       mounted = undefined;
+      for (const listener of targetListeners) listener();
       if (__getCurrentContext() === runtime) __setCurrentContext(null);
       sensitiveRegistry.clear();
       // A torn-down provider can never answer native's ask-and-wait — clear

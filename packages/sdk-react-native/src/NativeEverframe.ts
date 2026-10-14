@@ -279,6 +279,15 @@ export interface Spec extends TurboModule {
    * Typed `UnsafeObject` at codegen boundary; facade casts to `ReporterResult`.
    */
   openReporter(): Promise<UnsafeObject>;
+  // Boolean return makes ownership invalidation synchronous; host resolution remains UI-queued.
+  setInteractionTarget(
+    viewTag: number,
+    registrationId: string,
+    generation: number,
+    annotation: UnsafeObject,
+  ): boolean;
+  clearInteractionTarget(registrationId: string, generation: number): boolean;
+
   registerSensitiveRect(viewTag: number, rect: Rect): void;
   /**
    * Set host-supplied free-form metadata for the next report. Single opaque

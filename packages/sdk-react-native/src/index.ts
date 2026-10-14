@@ -114,4 +114,5 @@ export type {
   ReportTransportStatus,
 } from './report-delivery-status.js';
 
+export { useEverframeTarget, type InteractionTargetAnnotation } from './useEverframeTarget.js';
 export type { StateValue } from './state.js';

@@ -54,7 +54,7 @@ config.resolver.extraNodeModules = {
   // the app declares them as direct deps) to avoid the second copy at
   // packages/sdk-react-native/node_modules/react-native (a pnpm-resolved
   // peer used only for the SDK's own typecheck/build).
-  react: path.resolve(workspaceRoot, 'node_modules/react'),
+  react: path.dirname(require.resolve('react/package.json', { paths: [projectRoot] })),
   'react-native': path.resolve(workspaceRoot, 'node_modules/react-native'),
 };
 

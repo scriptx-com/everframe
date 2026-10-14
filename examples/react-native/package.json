@@ -19,13 +19,13 @@
     "maestro:smoke": "maestro test maestro/reporter-smoke.yaml"
   },
   "dependencies": {
+    "@everframe/react-native": "workspace:*",
     "@react-native-tvos/config-tv": "0.1.6",
     "@react-navigation/native": "^7.0.0",
     "@react-navigation/native-stack": "^7.0.0",
-    "@everframe/react-native": "workspace:*",
     "expo": "56.0.23",
     "expo-build-properties": "56.0.27",
-    "react": "19.2.5",
+    "react": "19.2.3",
     "react-native": "npm:react-native-tvos@0.85.3-0",
     "react-native-nitro-modules": "0.37.1",
     "react-native-qrcode-svg": "^6.3.15",
@@ -35,12 +35,12 @@
     "react-native-video": "7.0.0-beta.11"
   },
   "devDependencies": {
+    "@everframe/babel-plugin-displayname": "workspace:*",
     "@everframe/cli": "workspace:*",
     "@everframe/expo": "workspace:*",
     "@everframe/metro": "workspace:*",
-    "@everframe/babel-plugin-displayname": "workspace:*",
     "@types/react": "^19.1.1",
-    "react-dom": "19.2.5",
+    "react-dom": "19.2.3",
     "typescript": "~5.9.0"
   },
   "expo": {

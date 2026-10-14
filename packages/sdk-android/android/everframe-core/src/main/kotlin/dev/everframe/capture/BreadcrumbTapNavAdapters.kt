@@ -76,6 +76,7 @@ import androidx.annotation.VisibleForTesting
 import dev.everframe.envelope.txGuardVoid
 import dev.everframe.protocol.generated.BreadcrumbKind
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Same-button repeat suppression for remote-press crumbs (parity with the
@@ -115,11 +116,6 @@ internal object PressCrumbRateLimiter {
  */
 internal object TapBreadcrumbAdapter {
 
-    /** Message-label UTF-16-unit cap — mirrors `BreadcrumbRingBuffer`'s own
-     *  capping convention (Kotlin's String is already UTF-16-native, so
-     *  `.length`/`.substring` operate on code units directly). */
-    private const val labelMaxChars: Int = 48
-
     /**
      * Gated + guarded entry point. `isKindEnabled` is a hot-path
      * optimization (skip label derivation entirely when `.tap` is off);
@@ -128,8 +124,8 @@ internal object TapBreadcrumbAdapter {
     fun recordTap(view: View) {
         txGuardVoid("TapBreadcrumbAdapter.recordTap") {
             if (!sharedBreadcrumbBuffer.isKindEnabled(BreadcrumbKind.Tap)) return@txGuardVoid
-            val (label, data) = deriveLabelAndData(view)
-            sharedBreadcrumbBuffer.add(kind = BreadcrumbKind.Tap, message = "tap $label", data = data)
+            val snapshot = InteractionTargetResolver.resolve(view)
+            sharedBreadcrumbBuffer.addInteraction(message = "tap ${snapshot.label}", data = snapshot.data, captureRevision = snapshot.captureRevision)
         }
     }
 
@@ -155,82 +151,28 @@ internal object TapBreadcrumbAdapter {
      *  `View.onKeyUp`) is a separate call chain that does not pass through
      *  `Window.Callback` at all. So a single remote select-press can never
      *  double-record here the way iOS's sendAction + press crumb did. */
-    fun recordRemotePress(keyCode: Int, focused: View?) {
+    fun recordRemotePress(keyCode: Int, focused: View?, snapshot: InteractionTargetSnapshot? = focused?.let { InteractionTargetResolver.resolve(it) }) {
         if (!sharedBreadcrumbBuffer.isKindEnabled(BreadcrumbKind.Tap)) return
         val button = REMOTE_KEY_NAMES[keyCode] ?: return
+        val value = snapshot ?: InteractionTargetSnapshot("screen", JsonObject(emptyMap()))
+        if (value.captureRevision != sharedBreadcrumbBuffer.captureRevision()) return
         if (!PressCrumbRateLimiter.shouldRecord(button)) return
-        val label = focused?.let { deriveLabelAndData(it).first } ?: "screen"
-        val dict = LinkedHashMap<String, Any?>()
-        dict["inputType"] = "remote"
-        dict["button"] = button
-        if (focused != null) dict["view"] = focused.javaClass.simpleName
-        sharedBreadcrumbBuffer.add(
-            kind = BreadcrumbKind.Tap,
+        val label = value.label
+        val data = JsonObject(value.data + mapOf(
+            "inputType" to JsonPrimitive("remote"), "button" to JsonPrimitive(button),
+        ))
+        sharedBreadcrumbBuffer.addInteraction(
             message = "press $button — $label",
-            data = BreadcrumbRingBuffer.coerceHostData(dict),
+            data = data,
+            captureRevision = value.captureRevision,
         )
     }
 
-    /**
-     * Pure-ish derivation (only reads View state, never mutates) — its own
-     * testable unit rather than inlined into [recordTap].
-     *
-     * Masked-aware precedence: the clicked view OR any ancestor sensitive
-     * (per [SensitiveRectRegistry.isSensitive], walked here since that
-     * function itself only inspects the single view passed to it) → label
-     * `"[masked]"`, data `{view, masked:true}`, NO text read at all. Else:
-     * `contentDescription` → button/text-view text (≤48 UTF-16 units) →
-     * resource-id entry name → class simple name.
-     */
+    /** Shared privacy-aware descriptor used by touch and remote input. */
     internal fun deriveLabelAndData(view: View): Pair<String, JsonObject> {
-        val className = view.javaClass.simpleName
-        if (isSensitiveOrAncestorSensitive(view)) {
-            return "[masked]" to BreadcrumbRingBuffer.coerceHostData(
-                mapOf("view" to className, "masked" to true),
-            )
-        }
-
-        val resourceId = resourceEntryName(view)
-        val dict = LinkedHashMap<String, Any?>()
-        dict["view"] = className
-        if (resourceId != null) dict["id"] = resourceId
-
-        val label =
-            nonEmpty(view.contentDescription?.toString())
-                ?: nonEmpty((view as? TextView)?.text?.toString())?.let { capChars(it, labelMaxChars) }
-                ?: resourceId
-                ?: className
-        return label to BreadcrumbRingBuffer.coerceHostData(dict)
+        val snapshot = InteractionTargetResolver.resolve(view)
+        return snapshot.label to snapshot.data
     }
-
-    /**
-     * Walks [view] then every `.parent` up to the root, per the "clicked
-     * view OR an ancestor is sensitive" rule.
-     */
-    private fun isSensitiveOrAncestorSensitive(view: View): Boolean {
-        var current: View? = view
-        while (current != null) {
-            if (SensitiveRectRegistry.isSensitive(current)) return true
-            current = current.parent as? View
-        }
-        return false
-    }
-
-    private fun resourceEntryName(view: View): String? {
-        if (view.id == View.NO_ID) return null
-        return try {
-            view.resources?.getResourceEntryName(view.id)
-        } catch (_: Throwable) {
-            null
-        }
-    }
-
-    private fun nonEmpty(s: String?): String? {
-        if (s.isNullOrEmpty()) return null
-        return s
-    }
-
-    private fun capChars(s: String, n: Int): String = if (s.length > n) s.substring(0, n) else s
 
     /**
      * Recursive hit-test over the decor view — the standard hit-test
@@ -308,6 +250,7 @@ internal object NavigationBreadcrumbAdapter {
 
     /** Activity-level entry point — `onActivityResumed`. */
     fun recordResume(activity: Activity) {
+        InteractionTargetScreenState.recordNative(activity.javaClass.simpleName)
         recordTransition(activity.javaClass.simpleName)
     }
 
@@ -398,11 +341,21 @@ internal class TXWindowCallbackWrapper(
                 android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
     }
 
+    private val remoteStarts = mutableMapOf<Int, InteractionTargetSnapshot>()
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_UP && isTvHost) {
+        if (isTvHost) {
             txGuardVoid("TXWindowCallbackWrapper.dispatchKeyEvent") {
-                TapBreadcrumbAdapter.recordRemotePress(
-                    event.keyCode, activity.window?.currentFocus)
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 &&
+                    sharedBreadcrumbBuffer.isKindEnabled(BreadcrumbKind.Tap)) {
+                    remoteStarts[event.keyCode] = activity.window?.currentFocus?.let { InteractionTargetResolver.resolve(it) }
+                        ?: InteractionTargetSnapshot("screen", JsonObject(emptyMap()))
+                } else if (event.action == KeyEvent.ACTION_UP) {
+                    val snapshot = remoteStarts.remove(event.keyCode)
+                    if (!event.isCanceled) {
+                        if (snapshot != null) TapBreadcrumbAdapter.recordRemotePress(event.keyCode, null, snapshot)
+                        else TapBreadcrumbAdapter.recordRemotePress(event.keyCode, activity.window?.currentFocus)
+                    }
+                }
             }
         }
         return delegate.dispatchKeyEvent(event)
