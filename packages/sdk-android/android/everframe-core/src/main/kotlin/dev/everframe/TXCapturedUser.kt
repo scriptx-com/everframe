@@ -154,7 +154,11 @@ data class TXCapturedSession internal constructor(
      */
     val killGeneration: Long,
     internal val captureConsent: Boolean = false,
+    private val capturedState: dev.everframe.protocol.generated.ReportState? = null,
+    private val stateGeneration: Long = 0,
 ) {
+    val state: dev.everframe.protocol.generated.ReportState?
+        get() = if (Everframe.stateEvidenceIsCurrent(stateGeneration)) capturedState else null
     /**
      * True once a `kill()` has landed since this snapshot was taken.
      *

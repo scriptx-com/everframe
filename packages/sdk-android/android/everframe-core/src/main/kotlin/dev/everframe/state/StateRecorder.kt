@@ -58,8 +58,13 @@ internal class StateRecorder(private val now: () -> Double = { System.currentTim
         }
         state = candidate; known.add(key); true
     }
-    fun snapshot(capturedAt: Double): ReportState? = lock.withLock { state?.copy(capturedAt = capturedAt) }
-    fun freeze(capturedAt: Double) = lock.withLock { if (frozen == null) frozen = state?.copy(capturedAt = capturedAt) }
+    private fun detached(value: ReportState, capturedAt: Double): ReportState {
+        fun snapshot(s: StateSnapshot) = s.copy(custom = s.custom.toMap(), automatic = s.automatic.toMap())
+        return value.copy(capturedAt = capturedAt, initial = snapshot(value.initial), current = snapshot(value.current),
+            checkpoint = value.checkpoint?.let { it.copy(values = snapshot(it.values)) }, changes = value.changes.toList())
+    }
+    fun snapshot(capturedAt: Double): ReportState? = lock.withLock { state?.let { detached(it, capturedAt) } }
+    fun freeze(capturedAt: Double) = lock.withLock { if (frozen == null) frozen = state?.let { detached(it, capturedAt) } }
     fun discardFrozen() = lock.withLock { frozen = null }
     fun takeFrozen(): ReportState? = lock.withLock { frozen.also { frozen = null } }
     fun erase() = lock.withLock { state = null; frozen = null; customKeys.clear(); automaticKeys.clear() }

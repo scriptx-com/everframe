@@ -20,10 +20,11 @@ import {
 import type { Spec, ConfigOpts } from '../src/NativeEverframe.js';
 
 describe('NativeEverframe TurboModule spec (post D-05/D-07 flip)', () => {
-  it('exposes exactly the 16 locked methods — no more, no fewer', () => {
+  it('exposes exactly the 18 locked methods — no more, no fewer', () => {
     expect(Object.keys(NativeEverframe).sort()).toEqual([
       'addBreadcrumb',
       'captureHandledException',
+      'clearStateSync',
       'configureSync',
       'detachPlayer',
       'openReporter',
@@ -33,6 +34,7 @@ describe('NativeEverframe TurboModule spec (post D-05/D-07 flip)', () => {
       'reportCrash',
       'setExtra',
       'setExtraResolverActive',
+      'setStateSync',
       'setUser',
       'signalExtraResolverReady',
       'trackPlayer',

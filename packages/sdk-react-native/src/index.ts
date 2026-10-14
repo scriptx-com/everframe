@@ -34,6 +34,8 @@ export {
   getReportDeliveryStatus,
   setExtra,
   setUser,
+  setState,
+  clearState,
   addBreadcrumb,
   recordScreen,
   EverframeNotMountedError,
@@ -111,3 +113,5 @@ export type {
   ReportTransportOutcome,
   ReportTransportStatus,
 } from './report-delivery-status.js';
+
+export type { StateValue } from './state.js';

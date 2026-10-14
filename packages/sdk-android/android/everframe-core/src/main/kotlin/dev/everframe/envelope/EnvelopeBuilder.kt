@@ -223,6 +223,7 @@ class EnvelopeBuilder(
         appBuild: String? = null,
         appDebug: Boolean = false,
         jsBundle: dev.everframe.protocol.generated.JSBundle? = null,
+        state: dev.everframe.protocol.generated.ReportState? = null,
         deviceModel: String? = null,
         deviceOs: String = "Android",
         deviceOsVersion: String = "0.0",
@@ -464,6 +465,7 @@ class EnvelopeBuilder(
                 redactions = redactions?.takeIf { it.isNotEmpty() },
                 resources = resourcesList,
                 vitals = vitalsGenerated,
+                state = state,
             ),
             protocolVersion = ProtocolVersion.The10,
             reporter = Reporter(

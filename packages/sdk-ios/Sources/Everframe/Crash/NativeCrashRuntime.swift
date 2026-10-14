@@ -37,6 +37,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
     private let lock = NSLock()
     private var generation: UInt64 = 0
     private var installed = false
+    private var publishedIdentifier: UUID?
     private var publishedTicket: UInt64?
     /// Durable context without a release-health pointer for `publishedTicket`: the
     /// published context itself, or its unlinked twin when that one carries a pointer.
@@ -78,7 +79,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
     @discardableResult func invalidate() -> UInt64 {
         lock.withLock {
             generation &+= 1
-            publishedTicket = nil; publishedUnlinked = nil; publishedExposureID = nil
+            publishedIdentifier = nil; publishedTicket = nil; publishedUnlinked = nil; publishedExposureID = nil
             terminationState?.disarm()
             if installed { recorder.disable() }
             return generation
@@ -92,13 +93,13 @@ final class NativeCrashRuntime: @unchecked Sendable {
         lock.withLock {
             let unlinked = publishedTicket == generation ? publishedUnlinked : nil
             generation &+= 1
-            publishedTicket = nil; publishedUnlinked = nil; publishedExposureID = nil
+            publishedIdentifier = nil; publishedTicket = nil; publishedUnlinked = nil; publishedExposureID = nil
             terminationState?.disarm()
             guard installed else { return generation }
             recorder.disable()
             if let unlinked, Thread.isMainThread {
                 guard recorder.publish(unlinked) else { recorder.disable(); return generation }
-                publishedTicket = generation; publishedUnlinked = unlinked
+                publishedIdentifier = unlinked; publishedTicket = generation; publishedUnlinked = unlinked
                 terminationState?.arm(contextID: unlinked)
             }
             return generation
@@ -111,9 +112,9 @@ final class NativeCrashRuntime: @unchecked Sendable {
         lock.withLock { publishedTicket == generation && publishedExposureID == exposureID }
     }
 
-    func refresh(ticket: UInt64, context: @escaping @Sendable () throws -> NativeCrashRecoveryContext?) async -> Bool {
+    func refresh(ticket: UInt64, replacingEvidence: Bool = false, context: @escaping @Sendable () throws -> NativeCrashRecoveryContext?) async -> Bool {
         let prepared: Prepared? = await withCheckedContinuation { continuation in
-            worker.async { continuation.resume(returning: self.prepareOnWorker(ticket: ticket, context: context)) }
+            worker.async { continuation.resume(returning: self.prepareOnWorker(ticket: ticket, replacingEvidence: replacingEvidence, context: context)) }
         }
         guard let prepared else { return false }
         switch prepared {
@@ -124,13 +125,13 @@ final class NativeCrashRuntime: @unchecked Sendable {
             return await withCheckedContinuation { continuation in
                 scheduleAdmission {
                     continuation.resume(returning: self.admitOnMain(ticket: ticket, directory: directory,
-                        identifier: identifier, unlinked: unlinked, exposureID: exposureID))
+                        identifier: identifier, unlinked: unlinked, exposureID: exposureID, replacingEvidence: replacingEvidence))
                 }
             }
         }
     }
 
-    private func admitOnMain(ticket: UInt64, directory: URL, identifier: UUID, unlinked: UUID?, exposureID: String?) -> Bool {
+    private func admitOnMain(ticket: UInt64, directory: URL, identifier: UUID, unlinked: UUID?, exposureID: String?, replacingEvidence: Bool) -> Bool {
         precondition(Thread.isMainThread)
         guard isCurrent(ticket) else { return false }
         if !attemptedInstall {
@@ -142,24 +143,30 @@ final class NativeCrashRuntime: @unchecked Sendable {
         }
         return lock.withLock {
             guard generation == ticket, installed else { return false }
-            if publishedTicket == ticket { return true }
+            if publishedTicket == ticket && !replacingEvidence { return true }
+            // The native recorder only accepts a context while disabled. Persistence
+            // already succeeded; keep this replacement window inside the leaf lock.
+            if replacingEvidence { recorder.disable() }
             // The current-generation check and enable share opt-out's leaf lock.
-            guard recorder.publish(identifier) else { recorder.disable(); terminationState?.disarm(); return false }
+            guard recorder.publish(identifier) else {
+                if replacingEvidence, let previous = publishedIdentifier, recorder.publish(previous) { return false }
+                recorder.disable(); terminationState?.disarm(); return false
+            }
             terminationState?.arm(contextID: identifier)
-            publishedTicket = ticket; publishedUnlinked = unlinked; publishedExposureID = exposureID
+            publishedIdentifier = identifier; publishedTicket = ticket; publishedUnlinked = unlinked; publishedExposureID = exposureID
             return true
         }
     }
 
     private func isCurrent(_ ticket: UInt64) -> Bool { lock.withLock { generation == ticket } }
 
-    private func prepareOnWorker(ticket: UInt64, context: @Sendable () throws -> NativeCrashRecoveryContext?) -> Prepared? {
+    private func prepareOnWorker(ticket: UInt64, replacingEvidence: Bool, context: @Sendable () throws -> NativeCrashRecoveryContext?) -> Prepared? {
         guard isCurrent(ticket) else { return nil }
         // A ticket names immutable ownership. Duplicate startup/setUser tails
         // must not close a healthy gate while rebuilding the same snapshot.
-        if lock.withLock({ generation == ticket && publishedTicket == ticket }) { return .published }
+        if !replacingEvidence && lock.withLock({ generation == ticket && publishedTicket == ticket }) { return .published }
         // Also safe for a caller refreshing the same ticket after a failure.
-        lock.withLock { if generation == ticket, installed { recorder.disable(); terminationState?.disarm() } }
+        lock.withLock { if !replacingEvidence, generation == ticket, installed { recorder.disable(); terminationState?.disarm() } }
         do {
             guard let context = try context(), isCurrent(ticket) else { return nil }
             if recovery == nil {
@@ -195,7 +202,7 @@ final class NativeCrashRuntime: @unchecked Sendable {
                 }
             }
             guard let run else { return nil }
-            if preparedTicket != ticket { preparedTicket = ticket; preparedIdentifiers = [] }
+            if replacingEvidence || preparedTicket != ticket { preparedTicket = ticket; preparedIdentifiers = [] }
             guard let identifier = try contextIdentifier(context, ticket: ticket, recovery: recovery, run: run) else { return nil }
             // A pointer-free twin lets a background withdrawal rearm capture without
             // disk work. Without one, that withdrawal waits for a refresh instead.
@@ -221,8 +228,15 @@ final class NativeCrashRuntime: @unchecked Sendable {
         if let existing = contextIdentifiers[digest] { preparedIdentifiers.insert(existing); return existing }
         if contextIdentifiers.count >= 128 {
             let retained = lock.withLock { () -> Set<UUID>? in
-                guard generation == ticket, let current = recorder.retainedContextIdentifiers() else { return nil }
-                return current.union(preparedIdentifiers).union(publishedUnlinked.map { [$0] } ?? [])
+                guard generation == ticket else { return nil }
+                // Native retention inventory requires a closed gate. Re-enable the
+                // same durable context before doing any retirement disk work.
+                let previous = publishedIdentifier
+                if previous != nil { recorder.disable() }
+                let current = recorder.retainedContextIdentifiers()
+                if let previous, !recorder.publish(previous) { terminationState?.disarm(); publishedTicket = nil }
+                guard let current else { return nil }
+                return current.union(previous.map { [$0] } ?? []).union(preparedIdentifiers).union(publishedUnlinked.map { [$0] } ?? [])
             }
             if let retained {
                 do {

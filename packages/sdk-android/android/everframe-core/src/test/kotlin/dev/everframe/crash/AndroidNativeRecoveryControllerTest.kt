@@ -58,6 +58,20 @@ class AndroidNativeRecoveryControllerTest {
         if (!requests.finishRevocation { if (!gate.isAllowed()) false else { controller.retire(1, true) { gate.isAllowed() }; gate.isAllowed() } }) return false
         return if (diagnostics) controller.enableDiagnostics(1, gate, 3000, ::template, admit = admit) else controller.enable(1, gate, 3000, ::template, admit = admit)
     }
+    @Test fun `optional state refresh failure keeps previous OS context`() {
+        val platform = Platform()
+        var fail = false
+        val controller = AndroidNativeRecoveryController(::engine, platform)
+        assertTrue(controller.enable(1, allowed, 3000, { if (fail) error("unavailable state") else template() }) { true })
+        val before = platform.registrations.last()
+        fail = true
+        assertFalse(controller.refreshState(1))
+        assertTrue(controller.ready(1))
+        assertArrayEquals(before, platform.registrations.last())
+        fail = false
+        assertTrue(controller.refreshState(1))
+        assertNotEquals(before!!.toList(), platform.registrations.last()!!.toList())
+    }
     @Test fun `foreground changes refresh the actual OS frozen context and clear before IO`() {
         val platform = Platform()
         val launch = UUID.randomUUID().toString()

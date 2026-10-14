@@ -13,6 +13,28 @@ struct StateRecorderTests {
     private func json(_ state: EverframeReportState?) throws -> [String: Any] {
         try JSONSerialization.jsonObject(with: JSONEncoder().encode(state)) as! [String: Any]
     }
+    @Test func sharedWireFixtureReplaysWithNativePrimitiveTypes() throws {
+        var root = URL(fileURLWithPath: #filePath)
+        for _ in 0..<4 { root.deleteLastPathComponent() }
+        let fixture = try JSONDecoder().decode(EverframeReportState.self, from: Data(contentsOf: root.appendingPathComponent("protocol/__tests__/fixtures/state.v1.json")))
+        let r = make(); r.reset(initial: fixture.initial, startedAt: fixture.startedAt)
+        for change in fixture.changes {
+            if let value = change.value { r.set(change.key, value: value, namespace: change.namespace) }
+            else { r.clear(change.key, namespace: change.namespace) }
+        }
+        let current = try #require(r.snapshot(capturedAt: fixture.capturedAt)).current
+        #expect(try EnvelopeBuilder.makeJSONEncoder().encode(current) == EnvelopeBuilder.makeJSONEncoder().encode(fixture.current))
+    }
+    @Test func concurrentWritesPreserveFrozenState() throws {
+        let r = make()
+        DispatchQueue.concurrentPerform(iterations: 100) { index in _ = r.set("key\(index % 10)", value: .double(Double(index))) }
+        r.freeze(capturedAt: 1002)
+        let frozen = try #require(r.takeFrozen())
+        DispatchQueue.concurrentPerform(iterations: 100) { index in _ = r.set("key\(index % 10)", value: .double(Double(index + 100))) }
+        #expect(frozen.changes.allSatisfy { if case .double(let value) = $0.value { return value < 100 }; return false })
+        let sequence = try #require(r.snapshot(capturedAt: 1003)).changes.map(\.seq)
+        #expect(zip(sequence, sequence.dropFirst()).allSatisfy { $0 < $1 })
+    }
     @Test func typedValuesAndFreeze() throws {
         let r = make()
         #expect(r.set("plan", value: .string("free")))
@@ -74,6 +96,13 @@ struct StateRecorderTests {
         let changes = try #require(r.snapshot(capturedAt: 1002)).changes
         #expect(changes[0].seq < between && changes[1].seq > between)
         #expect(changes.count == 3)
+    }
+    @Test func slashEscapingUsesEnvelopeBudget() throws {
+        let r = make()
+        for i in 0..<50 { _ = r.set("key\(i)", value: .string(String(repeating: "/", count: 256))) }
+        let s = try #require(r.snapshot(capturedAt: 1003))
+        #expect(try EnvelopeBuilder.makeJSONEncoder().encode(s.current.custom).count <= 8192)
+        #expect(try EnvelopeBuilder.makeJSONEncoder().encode(s).count <= 32768)
     }
     @Test func wireByteBudget() throws {
         let r = make()

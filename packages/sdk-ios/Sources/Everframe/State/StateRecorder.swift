@@ -17,7 +17,7 @@ final class StateRecorder: @unchecked Sendable {
     }
     private static var empty: EverframeStateSnapshot { EverframeStateSnapshot(automatic: [:], custom: [:]) }
     private static func bytes<T: Encodable>(_ value: T) -> Int {
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        let encoder = EnvelopeBuilder.makeJSONEncoder()
         return (try? encoder.encode(value).count) ?? Int.max
     }
     func reset(initial: EverframeStateSnapshot, startedAt: Double) {

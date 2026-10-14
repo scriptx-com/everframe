@@ -580,6 +580,7 @@ internal object ReporterDialog {
                 userExtra = userExtra,
                 excluded = includes.excludedKeys(),
                 breadcrumbs = if (reportCapture.matchesSession(capturedSession)) reportCapture.takeBreadcrumbs() else null,
+                state = if (reportCapture.matchesSession(capturedSession)) reportCapture.takeState() else null,
                 // Report Resource Window (spec 2026-09-05) — gap class 3: the
                 // PRIMARY use case is a user-submitted bug report, so this
                 // build site must stamp resources too, not just the crash

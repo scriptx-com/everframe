@@ -25,9 +25,9 @@
 // app stays focused on the integration boundary it owns: provider + reporter
 // modal + submit.
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { EverframeProvider } from '@everframe/react-native';
+import { EverframeProvider, setState } from '@everframe/react-native';
 import { consoleIntegration } from '@everframe/react-native/integrations/console';
 
 import { ReportFab } from './components/ReportFab';
@@ -110,6 +110,13 @@ function renderPlayback(): React.JSX.Element {
   return <Playback />;
 }
 
+function CurrentTabState({ tab }: { tab: TabKey }): null {
+  useEffect(() => {
+    if (!Platform.isTV) setState('guide.tab', tab);
+  }, [tab]);
+  return null;
+}
+
 export function App(): React.JSX.Element {
   const [tab, setTab] = useState<TabKey>('desk');
 
@@ -128,6 +135,7 @@ export function App(): React.JSX.Element {
 
   return (
     <EverframeProvider config={EVERFRAME_CONFIG}>
+      <CurrentTabState tab={tab} />
       <StatusBar barStyle="dark-content" />
       <View style={[styles.root, { paddingTop: STATUS_BAR_HEIGHT }]}>
         <View style={styles.masthead}>

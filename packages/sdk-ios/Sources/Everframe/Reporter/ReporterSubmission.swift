@@ -538,6 +538,8 @@ public enum ReporterSubmission {
         // clear it (that would steal it from B's own report).
         let frozenBreadcrumbs = !inputs.capturedSession.isSuperseded && inputs.captureIsCurrent()
             ? BreadcrumbRingBuffer.shared.takeFrozen() : nil
+        let frozenState = !inputs.capturedSession.isSuperseded && inputs.captureIsCurrent()
+            ? Everframe.shared.takeFrozenState(epoch: inputs.capturedSession.user.startEpoch) : nil
         let reportId = UUID()
         func encodeEnvelope() throws -> Data {
             try builder.buildEncoded(
@@ -551,6 +553,7 @@ public enum ReporterSubmission {
             redactions: allRedactionsJSON,
             extra: extra,
             jsBundle: cfg.loadedJsBundle?.metadata,
+            state: inputs.capturedSession.state != nil ? frozenState : nil,
             userExtra: userExtra,
             breadcrumbs: frozenBreadcrumbs,
             networkBodies: frozenBodies,

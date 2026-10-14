@@ -840,3 +840,11 @@ activity recreation.
 ## License
 
 MIT
+
+### State labels (iOS and Android)
+
+`setState(key, value)` records a string, finite number, or boolean diagnostic label;
+`clearState(key)` removes it. Both are also available from `useEverframe()`.
+Call after the provider mounts. State is redacted, bounded, and frozen with report
+evidence. See [State API](../../docs/state.md) for lifecycle, privacy, limits and
+native recovery freshness.

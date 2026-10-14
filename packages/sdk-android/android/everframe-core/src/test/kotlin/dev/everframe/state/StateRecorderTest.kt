@@ -14,6 +14,22 @@ class StateRecorderTest {
     private fun make(): StateRecorder = StateRecorder(now = { 1001.0 }, sequence = EvidenceSequence()).also {
         it.reset(StateSnapshot(emptyMap(), emptyMap()), 1000.0)
     }
+    @Test fun sharedWireFixtureReplaysWithNativePrimitiveTypes() {
+        val fixture = Json.decodeFromString(ReportState.serializer(), java.io.File("../../../protocol/__tests__/fixtures/state.v1.json").readText())
+        val r = make(); r.reset(fixture.initial, fixture.startedAt)
+        fixture.changes.forEach { if (it.value != null) r.set(it.key, it.value!!, it.namespace) else r.clear(it.key, it.namespace) }
+        assertEquals(fixture.current, r.snapshot(fixture.capturedAt)!!.current)
+    }
+    @Test fun concurrentWritesAndCallerMutationCannotChangeOwnedEvidence() {
+        val r = make()
+        val workers = (0..<10).map { key -> Thread { repeat(30) { r.set("key$key", StateValue.DoubleValue(it.toDouble())) } }.also { it.start() } }
+        workers.forEach { it.join() }
+        val captured = r.snapshot(1002.0)!!
+        (captured.current.custom as MutableMap).clear()
+        assertEquals(10, r.snapshot(1003.0)!!.current.custom.size)
+        val sequence = r.snapshot(1003.0)!!.changes.map { it.seq }
+        assertTrue(sequence.zipWithNext().all { (a, b) -> a < b })
+    }
     @Test fun typedValuesFreezeAndClear() {
         val r = make()
         assertTrue(r.set("plan", StateValue.StringValue("free")))

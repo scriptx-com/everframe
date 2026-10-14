@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import type { StateValue } from './state.js';
 import { emptyReportDeliveryStatus, type ReportDeliveryStatus } from './report-delivery-status.js';
 import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-capture-status.js';
 //
@@ -112,6 +113,9 @@ export interface EverframeContextValue {
    * argument to clear. Unverified: a label, never a credential.
    */
   setUser(user?: EverframeUserSpec): void;
+  /** Record a bounded diagnostic label for reports in the current native session. */
+  setState(key: string, value: StateValue): void;
+  clearState(key: string): void;
 }
 
 let __currentContext: EverframeContextValue | null = null;
@@ -235,4 +239,12 @@ export function getReportDeliveryStatus(): ReportDeliveryStatus {
   } catch {
     return emptyReportDeliveryStatus('unavailable', 'native-call-failed');
   }
+}
+
+/** No-op without a mounted provider. Values are labels, not personal data. */
+export function setState(key: string, value: StateValue): void {
+  __currentContext?.setState(key, value);
+}
+export function clearState(key: string): void {
+  __currentContext?.clearState(key);
 }
