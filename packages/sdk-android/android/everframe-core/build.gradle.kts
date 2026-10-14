@@ -236,6 +236,7 @@ dependencies {
     // Plan 06.2-08 — RelayWSClient observes ProcessLifecycleOwner to cancel the
     // WS on app-backgrounded and reconnect on app-foregrounded. Pure AndroidX;
     // does NOT pull Compose/Material into the AAR (Compose-isolation gate stays green).
+    implementation(libs.androidx.startup.runtime)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.lifecycle.common)
     // Plan 05-05 — AndroidX Security Crypto for DeviceKey EncryptedFile (T-04-19 analog;

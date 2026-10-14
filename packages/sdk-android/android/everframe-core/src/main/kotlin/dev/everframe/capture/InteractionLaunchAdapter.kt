@@ -17,12 +17,14 @@ internal class InteractionLaunchAdapter(private val recorder: InteractionEventRe
     private var seenForeground = false
     private var foreground = false
     private var installed = false
+    private var observedLaunch = false
     fun install() {
         val action = {
             if (!installed) {
                 installed = true
                 val lifecycle = ProcessLifecycleOwner.get().lifecycle
                 seed(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+                if (InteractionProcessHistory.shared.beforeFirstForeground()) launched()
                 lifecycle.addObserver(this)
             }
         }
@@ -32,15 +34,16 @@ internal class InteractionLaunchAdapter(private val recorder: InteractionEventRe
         if (seeded) return
         seeded = true; foreground = alreadyForeground; seenForeground = alreadyForeground
     }
+    fun launched() { observedLaunch = true }
     fun foreground() {
         if (foreground) return
         foreground = true
-        val start = if (seenForeground) "warm" else "cold"
+        val start = if (observedLaunch && !seenForeground) "cold" else "warm"
         seenForeground = true
         val owner = recorder.owner() ?: return
-        recorder.observe(InteractionObservation(owner, nativeInteractionEvent("launch", JsonObject(mapOf("start" to JsonPrimitive(start))))))
+        recorder.observe(InteractionObservation(owner, nativeInteractionEvent("launch", JsonObject(mapOf("start" to JsonPrimitive(start)))), deferLaunch = true))
     }
-    fun background() { foreground = false }
+    fun background() { recorder.finishLaunch(); foreground = false }
     override fun onStart(owner: LifecycleOwner) { foreground() }
     override fun onStop(owner: LifecycleOwner) { background() }
 }

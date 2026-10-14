@@ -970,3 +970,25 @@ Text coalesces after 750 ms of inactivity, editing end, submission or safe repor
 freeze. Scrolls coalesce at gesture completion or after 200 ms of inactivity.
 Semantic events share a 20-per-10-second budget; text and scroll also share a
 one-per-second budget per host. Values are bounded again after final redaction.
+
+Incoming links are observed through React Native's existing `Linking` channel while the provider is mounted. The SDK does not route links. By default, evidence contains only scheme and host. Declare known route templates (for example `/watch/:id`) and exact query keys in `interactions.urlRules` to include more. Credentials, fragments and actual dynamic path segments are omitted; ambiguous encoded separators and dot segments are rejected. The initial URL is requested once per JS process, including across provider remounts. Distinct URL callbacks remain distinct observations even when their URLs match, because React Native supplies no delivery ID.
+
+Observe an existing permission operation without changing its result:
+
+```ts
+import { observePermissionRequest, recordLaunchContext } from '@everframe/react-native';
+import { PermissionsAndroid } from 'react-native';
+
+const result = await observePermissionRequest('android.permission.CAMERA', () =>
+  PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA),
+);
+
+// For an existing notification integration; call during the matching foreground entry.
+recordLaunchContext({ trigger: 'notification', arguments: { campaign: 'autumn' } });
+```
+
+Without a mapper, the permission observer recognizes Android's `granted`, `denied` and `never_ask_again` results. Supply a mapper returning `granted`, `denied`, `blocked`, `limited`, `unavailable` or `unknown` for iOS or third-party APIs. The operation runs exactly once; its original value or rejection is preserved. A mapper failure or rejected request is recorded as `unknown`, never inferred as denial. A result does not prove a system dialog was shown. TV APIs that do not support a permission should map their actual result to `unavailable`.
+
+Launch context enriches only a native foreground entry that is still pending (up to 250 ms, ending earlier on report freeze or background). It cannot create a launch, change cold/warm classification, or alter a frozen report. Late context is omitted. Only exact `interactions.launchArgumentKeys` allowlisted primitive values are accepted, at most 16 entries and 128 UTF-16 units per string. URLs belong to link evidence and are omitted from launch arguments. No arguments are captured by default.
+
+Permission operations still run without a provider, with older native binaries and on web. Launch context is a no-op in those cases. A clear, sign-out or native configuration change revokes in-flight observations; it does not cancel the app's operation.

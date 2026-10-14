@@ -1,3 +1,4 @@
+import { installInteractionLinks } from './interactions/links.js';
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import {
@@ -686,6 +687,10 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       };
       mounted = owner;
       __setCurrentContext(runtime);
+      owner.teardowns.push({
+        name: 'interaction-links',
+        teardown: installInteractionLinks(runtime),
+      });
       targetEpoch++;
       for (const listener of targetListeners) listener();
       if (config.crashReporting?.disabled !== true) {

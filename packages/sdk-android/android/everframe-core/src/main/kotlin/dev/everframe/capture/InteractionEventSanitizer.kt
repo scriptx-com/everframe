@@ -5,7 +5,9 @@ package dev.everframe.capture
 import dev.everframe.envelope.RedactionEngine
 import dev.everframe.protocol.generated.BreadcrumbKind
 import java.net.URI
-import java.net.URLDecoder
+import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
 import java.net.URLEncoder
 import kotlinx.serialization.json.*
 
@@ -37,7 +39,7 @@ internal object InteractionEventSanitizer {
             val arguments = input["arguments"] as? JsonObject
             values.remove("arguments")
             if (arguments != null) {
-                val permitted = arguments.filterKeys { it in policy.launchArgumentKeys }.entries.take(16)
+                val permitted = arguments.filter { (key, value) -> key in policy.launchArgumentKeys && !(value is JsonPrimitive && value.isString && Regex("[A-Za-z][A-Za-z0-9+.-]*:|//").containsMatchIn(value.content)) }.entries.take(16)
                     .associate { it.key to it.value }
                 if (permitted.isNotEmpty()) values["arguments"] = JsonObject(permitted)
             }
@@ -151,15 +153,18 @@ internal object InteractionEventSanitizer {
             val origin = interactionOrigin(uri)
             if (origin == null) null else {
                 val rule = policy.urlRules.firstOrNull { it.origin == origin }
-                val path = uri.rawPath.orEmpty()
+                val actual = uri.rawPath.orEmpty().split('/').map { decode(it) }
+                if (actual.any { it == "." || it == ".." || it.any { c -> c in "/%\\" || c <= '\u001f' || c == '\u007f' } }) throw IllegalArgumentException("Ambiguous path")
+                val path = actual.joinToString("/")
                 val safePath = rule?.literalPaths?.firstOrNull { it == path } ?: rule?.routes?.firstOrNull { route ->
-                    val parts = route.split('/'); val actual = path.split('/')
+                    val parts = route.split('/')
                     parts.size == actual.size && parts.indices.all { parts[it] == actual[it] || (parts[it].startsWith(':') && actual[it].isNotEmpty()) }
                 }.orEmpty()
                 val query = uri.rawQuery?.split('&')?.mapNotNull { pair ->
-                    val key = URLDecoder.decode(pair.substringBefore('='), "UTF-8")
+                    val key = decode(pair.substringBefore('=').replace("+", " "))
+                    val decodedValue = decode(pair.substringAfter('=', "").replace("+", " "))
                     if (rule == null || key !in rule.queryKeys) null else {
-                        val value = boundedText(RedactionEngine.redact(URLDecoder.decode(pair.substringAfter('=', ""), "UTF-8")), 128) ?: return@mapNotNull null
+                        val value = boundedText(RedactionEngine.redact(decodedValue), 128) ?: return@mapNotNull null
                         val safeKey = boundedText(RedactionEngine.redact(key), 128) ?: return@mapNotNull null
                         URLEncoder.encode(safeKey, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8")
                     }
@@ -168,6 +173,21 @@ internal object InteractionEventSanitizer {
             }
         }
     } catch (_: Exception) { null }
+
+    /** Percent runs must be valid UTF-8; URLDecoder would replace malformed bytes. */
+    private fun decode(raw: String): String {
+        val out = StringBuilder(); var i = 0
+        while (i < raw.length) {
+            if (raw[i] != '%') { out.append(raw[i++]); continue }
+            val bytes = ByteArrayOutputStream()
+            while (i < raw.length && raw[i] == '%') {
+                require(i + 2 < raw.length)
+                bytes.write(raw.substring(i + 1, i + 3).toInt(16)); i += 3
+            }
+            out.append(Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes.toByteArray())))
+        }
+        return out.toString()
+    }
 
     private fun boundedText(value: String?, max: Int): String? {
         if (value == null || !validInteractionUnicode(value)) return null

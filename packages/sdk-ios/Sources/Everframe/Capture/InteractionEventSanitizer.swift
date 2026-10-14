@@ -28,7 +28,7 @@ enum InteractionEventSanitizer {
         if input["type"] as? String == "launch" {
             fields.removeValue(forKey: "arguments")
             if let arguments = input["arguments"] as? [String: Any] {
-                let keys = arguments.keys.filter { policy.launchArgumentKeys.contains($0) }.sorted().prefix(16)
+                let keys = arguments.keys.filter { policy.launchArgumentKeys.contains($0) && (arguments[$0] as? String)?.range(of: "[A-Za-z][A-Za-z0-9+.-]*:|//", options: .regularExpression) == nil }.sorted().prefix(16)
                 if !keys.isEmpty { fields["arguments"] = Dictionary(uniqueKeysWithValues: keys.map { ($0, arguments[$0]!) }) }
             }
         }
@@ -120,11 +120,16 @@ enum InteractionEventSanitizer {
     }
     private static func sanitizeURL(_ raw: String, policy: InteractionEventPolicy) -> String? {
         guard raw.utf16.count <= 8192, !raw.unicodeScalars.contains(where: { $0.value <= 32 || $0 == "\\" }),
+              raw.range(of: "%(?![0-9A-Fa-f]{2})", options: .regularExpression) == nil,
               let components = URLComponents(string: raw), let origin = interactionOrigin(components) else { return nil }
         let rule = policy.urlRules.first { $0.origin == origin }
-        let path = components.percentEncodedPath
+        let encodedParts = components.percentEncodedPath.components(separatedBy: "/")
+        let actual = encodedParts.compactMap { $0.removingPercentEncoding }
+        guard actual.count == encodedParts.count,
+              actual.allSatisfy({ $0 != "." && $0 != ".." && !$0.unicodeScalars.contains(where: { $0.value <= 31 || $0.value == 127 || "/%\\".unicodeScalars.contains($0) }) }) else { return nil }
+        let path = actual.joined(separator: "/")
         let safePath = rule?.literalPaths.first { $0 == path } ?? rule?.routes.sorted().first { route in
-            let parts = route.components(separatedBy: "/"), actual = path.components(separatedBy: "/")
+            let parts = route.components(separatedBy: "/")
             return parts.count == actual.count && parts.indices.allSatisfy { parts[$0] == actual[$0] || (parts[$0].hasPrefix(":") && !actual[$0].isEmpty) }
         } ?? ""
         var query: [String] = [], seen: Set<String> = []
@@ -132,8 +137,8 @@ enum InteractionEventSanitizer {
         for pair in (components.percentEncodedQuery ?? "").components(separatedBy: "&") {
             let pieces = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
             guard let key = pieces.first.map(String.init)?.replacingOccurrences(of: "+", with: " ").removingPercentEncoding,
-                  rule?.queryKeys.contains(key) == true, seen.insert(key).inserted, query.count < 16,
-                  let rawValue = (pieces.count == 2 ? String(pieces[1]) : "").replacingOccurrences(of: "+", with: " ").removingPercentEncoding,
+                  let rawValue = (pieces.count == 2 ? String(pieces[1]) : "").replacingOccurrences(of: "+", with: " ").removingPercentEncoding else { return nil }
+            guard rule?.queryKeys.contains(key) == true, seen.insert(key).inserted, query.count < 16,
                   let value = text(RedactionEngine().redact(rawValue), max: 128), let safeKey = text(RedactionEngine().redact(key), max: 128),
                   let encodedKey = safeKey.addingPercentEncoding(withAllowedCharacters: safeCharacters), let encodedValue = value.addingPercentEncoding(withAllowedCharacters: safeCharacters) else { continue }
             query.append(encodedKey + "=" + encodedValue)

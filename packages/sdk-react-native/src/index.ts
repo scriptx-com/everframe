@@ -125,3 +125,6 @@ export {
   type ScrollInput,
 } from './useEverframeInteraction.js';
 export type { InteractionPolicyOptions } from './interactions/policy.js';
+
+export { observePermissionRequest, type PermissionResult } from './interactions/permissions.js';
+export { recordLaunchContext, type LaunchContext } from './interactions/launch.js';

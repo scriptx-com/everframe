@@ -32,8 +32,8 @@ import UIKit
         guard !isForeground else { return }; isForeground = true
         let start = observedLaunch && !seenForeground ? "cold" : "warm"; seenForeground = true
         guard let owner = recorder.owner() else { return }
-        _ = recorder.observe(.init(owner: owner, event: nativeInteractionEvent("launch", ["start": start])))
+        _ = recorder.observe(.init(owner: owner, event: nativeInteractionEvent("launch", ["start": start]), deferLaunch: true))
     }
-    func background() { isForeground = false }
+    func background() { recorder.finishLaunch(); isForeground = false }
 }
 #endif

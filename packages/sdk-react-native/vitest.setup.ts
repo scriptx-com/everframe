@@ -50,6 +50,10 @@ vi.mock('react-native', () => ({
   // react-native-video adapter (the onBandwidthUpdate platform split), so the
   // mock must carry it. iOS is the default; adapters take an explicit
   // `platform` option in tests that need the Android path.
+  Linking: {
+    addEventListener: vi.fn(() => ({ remove: vi.fn() })),
+    getInitialURL: vi.fn(async () => null),
+  },
   Platform: {
     OS: 'ios',
     isTV: false,

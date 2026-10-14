@@ -81,3 +81,16 @@ export function useEverframeInteraction<T>(
     ) => void,
   };
 }
+
+export type { PermissionResult } from './interactions/permissions.js';
+export type { LaunchContext } from './interactions/launch.js';
+export async function observePermissionRequest<T>(
+  _permission: string,
+  operation: () => Promise<T>,
+  _mapResult?: (result: T) => import('./interactions/permissions.js').PermissionResult,
+): Promise<T> {
+  return operation();
+}
+export function recordLaunchContext(
+  _context: import('./interactions/launch.js').LaunchContext,
+): void {}

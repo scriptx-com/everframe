@@ -24,6 +24,7 @@ struct InteractionObservation {
     let event: [String: Any]
     var phase: String = "change"
     var composing: Bool = false
+    var deferLaunch: Bool = false
 }
 
 /// All mutable state uses the ring's non-recursive lock. Methods suffixed Locked never acquire it.
@@ -52,8 +53,20 @@ final class InteractionEventRecorder: @unchecked Sendable {
         let sourceScreen = InteractionTargetScreenState.current()
         return buffer.withInteractionLock {
             guard enabledLocked(), lease == token, prepared.count < 64 else { return nil }
+            if type == "launch_context" {
+                guard id.isEmpty, generation == 0,
+                      let previous = pending.first(where: { $0.event["type"] as? String == "launch" && currentLocked($0.owner) && $0.deadline > clock() }),
+                      let index = pending.firstIndex(where: { $0 === previous }) else { return nil }
+                var fields = previous.event
+                if let trigger = input["trigger"] { fields["trigger"] = trigger }
+                if let arguments = input["arguments"] { fields["arguments"] = arguments }
+                guard let event = InteractionEventSanitizer.sanitize(fields, policy: policy) else { return nil }
+                pending[index] = Pending(previous.owner, event, previous.deadline, false)
+                let item = PreparedInteraction(.init(owner: previous.owner, event: event, phase: "context"))
+                prepared.append(item); return item
+            }
             var owner: InteractionOwner
-            if id.isEmpty, generation == 0, ["deep_link", "permission", "launch"].contains(type) {
+            if id.isEmpty, generation == 0, ["deep_link", "permission"].contains(type) {
                 owner = InteractionOwner(lease: lease, revision: buffer.interactionRevisionLocked, host: nil, target: nil, liveTestId: nil, hostTag: nil)
             } else {
                 guard let entry = registrations[id], entry.owner.generation == generation, entry.types.contains(type), currentLocked(entry.owner) else { return nil }
@@ -91,6 +104,7 @@ final class InteractionEventRecorder: @unchecked Sendable {
             guard let index = prepared.firstIndex(where: { $0 === item }) else { return nil }
             prepared.remove(at: index); defer { item.observation = nil }; return item.observation
         }
+        if let observation, observation.phase == "context" { return buffer.withInteractionLock { currentLocked(observation.owner) } }
         return observation.map(observe) ?? false
     }
     private var policy: InteractionEventPolicy = .parse(nil)
@@ -159,7 +173,7 @@ final class InteractionEventRecorder: @unchecked Sendable {
         }
         let valueId = type != "text_edit" || owner.host is UITextField || owner.host is UITextView ? owner.liveTestId : nil
         guard let event = InteractionEventSanitizer.sanitize(input, policy: policy, liveTestId: valueId) else { return false }
-        let delay = type == "text_edit" ? 750.0 : type == "scroll" ? 200.0 : 0
+        let delay = type == "text_edit" ? 750.0 : type == "scroll" ? 200.0 : type == "launch" && observation.deferLaunch ? 250.0 : 0
         let shouldPend = delay != 0 && (observation.phase == "change" || observation.composing)
         let now = clock()
         let result: Bool? = buffer.withInteractionLock {
@@ -168,8 +182,8 @@ final class InteractionEventRecorder: @unchecked Sendable {
             guard shouldPend else { return nil }
             let hosts = Set(pending.compactMap { $0.owner.host.map(ObjectIdentifier.init) })
             if let host = owner.host, !hosts.contains(ObjectIdentifier(host)), hosts.count >= 32 {
-                let oldest = pending.first?.owner.host
-                pending.removeAll { $0.owner.host == nil || $0.owner.host === oldest }
+                let oldest = pending.first(where: { $0.owner.host != nil })?.owner.host
+                pending.removeAll { $0.owner.hasHost && ($0.owner.host == nil || $0.owner.host === oldest) }
             }
             pending.append(Pending(owner, event, now + delay, observation.composing)); return true
         }
@@ -194,6 +208,10 @@ final class InteractionEventRecorder: @unchecked Sendable {
         flush(item, reason: reason)
     }
     func cancel(host: UIView, type: String) { buffer.withInteractionLock { pending.removeAll { $0.owner.host === host && $0.event["type"] as? String == type } } }
+    @MainActor func finishLaunch() {
+        guard let item = buffer.withInteractionLock({ pending.first { $0.event["type"] as? String == "launch" } }) else { return }
+        flush(item, reason: "end")
+    }
     @MainActor func flushDue() {
         let now = clock(), ready = buffer.withInteractionLock { pending.filter { $0.deadline <= clock() } }
         for item in ready { flush(item, reason: "idle", now: now) }

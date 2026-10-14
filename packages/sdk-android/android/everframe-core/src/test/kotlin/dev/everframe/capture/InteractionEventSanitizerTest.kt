@@ -19,6 +19,13 @@ internal fun eventJson(type: String, fields: String) = interactionJson("""{"type
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
 class InteractionEventSanitizerTest {
+    @Test fun ambiguousPathsAndMalformedEncodingFailClosed() {
+        val policy = InteractionEventPolicy.parse("""{"urlRules":[{"origin":"https://example.com","routes":["/watch/:id"],"queryKeys":["q"]}]}""")
+        for (path in listOf("/watch/a%2Fb", "/watch/a%5cb", "/watch/%2e%2e", "/watch/../help", "/watch/%252f", "/watch/%ZZ", "/watch/%C0%AF", "/help?q=%ZZ")) {
+            val event = nativeInteractionEvent("deep_link", JsonObject(mapOf("url" to JsonPrimitive("https://example.com$path"), "delivery" to JsonPrimitive("initial"))))
+            assertNull(path, InteractionEventSanitizer.sanitize(event, policy))
+        }
+    }
     @Before fun setup() { SharedData.init(ApplicationProvider.getApplicationContext()) }
 
     @Test fun valuesRequireExactLiveIdentityAndAreRedactedBeforeRetention() {

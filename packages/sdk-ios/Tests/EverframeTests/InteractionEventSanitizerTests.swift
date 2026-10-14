@@ -10,6 +10,12 @@ func interactionEvent(_ type: String, _ fields: [String: Any]) -> [String: Any] 
 }
 
 struct InteractionEventSanitizerTests {
+    @Test func ambiguousPathsAndMalformedEncodingFailClosed() {
+        let policy = InteractionEventPolicy.parse(#"{"urlRules":[{"origin":"https://example.com","routes":["/watch/:id"],"queryKeys":["q"]}]}"#)
+        for path in ["/watch/a%2Fb", "/watch/a%5cb", "/watch/%2e%2e", "/watch/../help", "/watch/%252f", "/watch/%ZZ", "/watch/%C0%AF", "/help?q=%ZZ"] {
+            #expect(InteractionEventSanitizer.sanitize(interactionEvent("deep_link", ["url": "https://example.com" + path, "delivery": "initial"]), policy: policy) == nil)
+        }
+    }
     @Test func exactValuePermissionAndRedaction() throws {
         let policy = InteractionEventPolicy.parse(#"{"valueTestIds":["search"]}"#)
         let event = interactionEvent("text_edit", ["length": 11, "value": "123-45-6789", "reason": "idle"])

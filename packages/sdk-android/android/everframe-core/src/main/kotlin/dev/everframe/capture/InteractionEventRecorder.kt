@@ -31,6 +31,7 @@ internal data class InteractionObservation(
     val event: JsonObject,
     val phase: String = "change",
     val composing: Boolean = false,
+    val deferLaunch: Boolean = false,
 )
 
 /** Mutable admission state shares the buffer lock; no view access occurs under that lock. */
@@ -57,8 +58,17 @@ internal class InteractionEventRecorder(
         val sourceScreen = InteractionTargetScreenState.current()
         return buffer.withInteractionLock {
             if (!enabled() || lease != token || prepared.size >= 64) return@withInteractionLock null
+            if (type == "launch_context") {
+                if (id.isNotEmpty() || generation != 0L) return@withInteractionLock null
+                val previous = pending.firstOrNull { it.event.string("type") == "launch" && current(it.owner) && it.deadline > clock() } ?: return@withInteractionLock null
+                val fields = previous.event.toMutableMap()
+                input["trigger"]?.let { fields["trigger"] = it }; input["arguments"]?.let { fields["arguments"] = it }
+                val event = InteractionEventSanitizer.sanitize(JsonObject(fields), policy) ?: return@withInteractionLock null
+                pending[pending.indexOf(previous)] = previous.copy(event = event)
+                return@withInteractionLock PreparedInteraction(InteractionObservation(previous.owner, event, "context")).also { prepared.add(it) }
+            }
             val entry = registrations[id]
-            var owner = if (id.isEmpty() && generation == 0L && type in setOf("deep_link", "permission", "launch")) {
+            var owner = if (id.isEmpty() && generation == 0L && type in setOf("deep_link", "permission")) {
                 InteractionOwner(lease, buffer.captureRevision(), null, null, null, null)
             } else entry?.owner?.takeIf { it.generation == generation && type in entry.types && current(it) }
                 ?: return@withInteractionLock null
@@ -94,6 +104,7 @@ internal class InteractionEventRecorder(
         val observation = buffer.withInteractionLock {
             if (!prepared.remove(item)) null else item.observation.also { item.observation = null }
         } ?: return false
+        if (observation.phase == "context") return buffer.withInteractionLock { current(observation.owner) }
         return observe(observation)
     }
     private var policy = InteractionEventPolicy.parse(null)
@@ -169,7 +180,7 @@ internal class InteractionEventRecorder(
         val event = InteractionEventSanitizer.sanitize(JsonObject(input), localPolicy,
             owner.liveTestId.takeIf { type != "text_edit" || owner.host?.get() is TextView }) ?: return false
         val now = clock()
-        val delay = when (type) { "text_edit" -> 750L; "scroll" -> 200L; else -> 0L }
+        val delay = when (type) { "text_edit" -> 750L; "scroll" -> 200L; "launch" -> if (observation.deferLaunch) 250L else 0L; else -> 0L }
         val shouldPend = delay != 0L && (observation.phase == "change" || observation.composing)
         val accepted = buffer.withInteractionLock {
             if (!current(owner) || !buffer.isKindEnabled(InteractionEventSanitizer.kind(type))) return@withInteractionLock false
@@ -179,8 +190,8 @@ internal class InteractionEventRecorder(
                 val hosts = pending.mapNotNull { it.owner.host?.get() }.distinct()
                 val view = owner.host?.get()
                 if (view !in hosts && hosts.size >= 32) {
-                    val oldest = pending.firstOrNull()?.owner?.host?.get()
-                    pending.removeAll { it.owner.host?.get() == null || it.owner.host?.get() === oldest }
+                    val oldest = pending.firstOrNull { it.owner.host?.get() != null }?.owner?.host?.get()
+                    pending.removeAll { it.owner.host != null && (it.owner.host.get() == null || it.owner.host.get() === oldest) }
                 }
                 pending.add(Pending(owner, event, now + delay, observation.composing))
                 true
@@ -278,6 +289,10 @@ internal class InteractionEventRecorder(
     }
     fun cancel(host: View, type: String) = buffer.withInteractionLock {
         pending.removeAll { it.owner.host?.get() === host && it.event.string("type") == type }
+    }
+    fun finishLaunch() {
+        val item = buffer.withInteractionLock { pending.firstOrNull { it.event.string("type") == "launch" } } ?: return
+        flush(item, "end")
     }
     fun flushDue() {
         val now = clock()
