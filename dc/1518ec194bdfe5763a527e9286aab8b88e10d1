@@ -1,0 +1,27 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/state/StateRecorderTest.kt
+  s_77a87d381df89f::t_2d9511853866a2 95-99
+  s_77a87d381df89f::t_42fc694946a7c3 84-94,100-110
+packages/sdk-ios/Sources/Everframe/State/StateRecorder.swift
+  s_77a87d381df89f::t_3c46c45f85b39c 21-44
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/state/StateRecorder.kt
+  s_77a87d381df89f::t_3c46c45f85b39c 17-40
+packages/sdk-ios/Tests/EverframeTests/StateRecorderTests.swift
+  s_77a87d381df89f::t_42fc694946a7c3 115-126,132-143
+  s_77a87d381df89f::t_2d9511853866a2 127-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dc1518ec194bdfe5763a527e9286aab8b88e10d1",
+  "prompts": {},
+  "sessions": {
+    "s_77a87d381df89f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-3920-73e0-8e79-507dabe95fdc",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
