@@ -1,0 +1,39 @@
+packages/protocol/src/state.ts
+  s_7cc24f3632eed5::t_85a059d9434e0f 1-14,16,18,26,28-30,33-36,38-46,48-68,70-85
+  s_7cc24f3632eed5::t_190fb9d0a62deb 15,17,19-25,27,31-32,37,47,69
+  s_7cc24f3632eed5::t_6b9ec760d4c561 86-127
+packages/protocol/scripts/codegen-kotlin.sh
+  s_7cc24f3632eed5::t_3d01e1c8071856 43-72,122,130-131
+packages/protocol/src/index.ts
+  s_7cc24f3632eed5::t_85a059d9434e0f 45
+packages/protocol/src/envelope.ts
+  s_7cc24f3632eed5::t_85a059d9434e0f 4,143
+packages/protocol/__tests__/state.spec.ts
+  s_7cc24f3632eed5::t_b7bdda6fd8d2c6 92-93,104
+  s_7cc24f3632eed5::t_10a200c434f3d3 1-91,94-95,105
+  s_7cc24f3632eed5::t_b3f722dc4138f5 96-103,106-145
+packages/protocol/__tests__/fixtures/state.v1.json
+  s_7cc24f3632eed5::t_9f8b49babeaf5b 1-47
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_7cc24f3632eed5::t_2050bf05f17268 296-298,807-965
+packages/protocol/scripts/codegen-swift.sh
+  s_7cc24f3632eed5::t_ae93899524e231 53
+packages/sdk-android/android/everframe-protocol/src/test/kotlin/dev/everframe/protocol/StateRoundTripTest.kt
+  s_7cc24f3632eed5::t_33d2cc6bfb8b77 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d7423d2049062b91f9ed615f8da4ffbbc72cab0d",
+  "prompts": {},
+  "sessions": {
+    "s_7cc24f3632eed5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13a0c-b3ea-7772-8e51-05eec0b284d9",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
