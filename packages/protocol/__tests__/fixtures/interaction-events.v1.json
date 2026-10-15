@@ -1,0 +1,65 @@
+[
+  {
+    "type": "text_edit",
+    "length": 2,
+    "reason": "end",
+    "source": "native",
+    "observedAt": 1000
+  },
+  {
+    "type": "control_change",
+    "control": "switch",
+    "checked": true,
+    "source": "native",
+    "observedAt": 1000
+  },
+  {
+    "type": "control_change",
+    "control": "picker",
+    "optionId": "subtitles-en",
+    "source": "native",
+    "observedAt": 1000
+  },
+  {
+    "type": "scroll",
+    "axis": "x",
+    "direction": "forward",
+    "item": {
+      "testId": "episode-7"
+    },
+    "source": "native",
+    "observedAt": 1000
+  },
+  {
+    "type": "deep_link",
+    "url": "nocturne://title",
+    "delivery": "initial",
+    "source": "native",
+    "observedAt": 1000
+  },
+  {
+    "type": "permission",
+    "permission": "camera",
+    "phase": "requested",
+    "source": "native",
+    "observedAt": 1000
+  },
+  {
+    "type": "permission",
+    "permission": "camera",
+    "phase": "result",
+    "result": "denied",
+    "source": "native",
+    "observedAt": 1000
+  },
+  {
+    "type": "launch",
+    "start": "cold",
+    "trigger": "notification",
+    "arguments": {
+      "mode": "demo"
+    },
+    "source": "native",
+    "observedAt": 1000
+  }
+]

@@ -105,6 +105,8 @@ export type Rect = {
  * Rich variants (e.g., callbacks, function refs) MUST stay on the JS side.
  */
 export type ConfigOpts = {
+  /** Bounded local interaction policy; native validation remains authoritative. */
+  interactionsJson?: string;
   sdkKey?: string;
   sdkVersion?: string;
   /**
@@ -287,6 +289,17 @@ export interface Spec extends TurboModule {
     annotation: UnsafeObject,
   ): boolean;
   clearInteractionTarget(registrationId: string, generation: number): boolean;
+  /** Revocable semantic observation ownership; unrelated to replay controls. */
+  getInteractionLease(): string;
+  setInteractionObserver(
+    viewTag: number,
+    id: string,
+    generation: number,
+    lease: string,
+    optionsJson: string,
+  ): boolean;
+  clearInteractionObserver(id: string, generation: number): boolean;
+  recordInteraction(lease: string, id: string, generation: number, eventJson: string): boolean;
 
   registerSensitiveRect(viewTag: number, rect: Rect): void;
   /**

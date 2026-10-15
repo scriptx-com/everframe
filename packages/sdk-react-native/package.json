@@ -113,15 +113,16 @@
     "zod": "^4.3.0"
   },
   "devDependencies": {
-    "@everframe/sdk-core": "workspace:*",
-    "@everframe/protocol": "workspace:*",
     "@arethetypeswrong/cli": "^0.18.0",
+    "@everframe/protocol": "workspace:*",
+    "@everframe/sdk-core": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "jsdom": "^29.1.1",
-    "react-dom": "^19.0.0",
     "publint": "^0.3.0",
+    "react-dom": "^19.0.0",
+    "react-native-url-polyfill": "4.0.0",
     "tsup": "^8.0.0",
     "vitest": "^4.0.0"
   },

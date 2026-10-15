@@ -226,6 +226,9 @@ class BreadcrumbRingBuffer internal constructor(
     }
 
     private val lock = ReentrantLock()
+    internal var interactionRevocation: (() -> Unit)? = null
+    internal var interactionFreeze: (() -> Unit)? = null
+    internal fun <T> withInteractionLock(block: () -> T): T = lock.withLock(block)
     private val entries = ArrayDeque<Breadcrumb>()
     private var frozen: List<Breadcrumb>? = null
     private var _maxCount: Int = maxCount
@@ -274,17 +277,26 @@ class BreadcrumbRingBuffer internal constructor(
     fun add(kind: BreadcrumbKind, message: String, level: Level? = null, data: JsonObject? = null) =
         add(kind, message, level, data, null)
 
+    internal fun addObservedInteraction(kind: BreadcrumbKind, message: String, data: JsonObject, captureRevision: Long): Boolean =
+        store(kind, message, null, data, null, captureRevision, observedInteraction = true)
+
     private fun add(kind: BreadcrumbKind, message: String, level: Level?, data: JsonObject?, owner: Long?, captureRevision: Long? = null) {
-        if (honorsKillGate && !Everframe.captureGate) return
-        if (!isKindEnabled(kind)) return
+        store(kind, message, level, data, owner, captureRevision)
+    }
+
+    private fun store(kind: BreadcrumbKind, message: String, level: Level?, data: JsonObject?, owner: Long?, captureRevision: Long? = null, observedInteraction: Boolean = false): Boolean {
+        if (honorsKillGate && !Everframe.captureGate) return false
+        if (!isKindEnabled(kind)) return false
 
         val capped = capMessage(RedactionEngine.redact(message))
-        val redactedData = data?.let { redactDataForStorage(it, interactionTarget = kind == BreadcrumbKind.Tap) }
+        val redacted = data?.let { redactDataForStorage(it, interactionTarget = kind == BreadcrumbKind.Tap) }
+        val redactedData = if (observedInteraction) redacted?.let { InteractionEventSanitizer.storageData(it) } ?: return false else redacted
 
-        lock.withLock {
-            if (owner != null && owner != evidenceGeneration) return@withLock
-            if (captureRevision != null && captureRevision != interactionRevision) return@withLock
-            if (!configEnabled || kind !in configKinds) return@withLock
+        return lock.withLock {
+            if (honorsKillGate && !Everframe.captureGate) return@withLock false
+            if (owner != null && owner != evidenceGeneration) return@withLock false
+            if (captureRevision != null && captureRevision != interactionRevision) return@withLock false
+            if (!configEnabled || kind !in configKinds) return@withLock false
 
             val crumb = Breadcrumb(
                 data = redactedData,
@@ -297,18 +309,24 @@ class BreadcrumbRingBuffer internal constructor(
             )
             entries.addLast(crumb)
             if (entries.size > _maxCount) entries.removeFirst()
+            true
         }
     }
 
     /** Owner-bound immutable selection; source epoch is checked inside the ring lock. */
     fun snapshotForReport(): List<Breadcrumb> = lock.withLock { entries.toList() }
-    internal fun snapshotForReport(guard: () -> Boolean): List<Breadcrumb>? = lock.withLock {
-        if (guard()) entries.toList() else null
+    internal fun snapshotForReport(guard: () -> Boolean): List<Breadcrumb>? {
+        if (!lock.withLock { guard() }) return null
+        // The reporter's owner-bound path must flush pending interactions too.
+        // UI validation stays outside the ring lock; off-main capture never waits.
+        interactionFreeze?.invoke()
+        return lock.withLock { if (guard()) entries.toList() else null }
     }
 
     /** Snapshot the chain at reporter-open. Idempotent — never a second snapshot while one is already held. */
-    fun freeze() = lock.withLock {
-        if (frozen == null) frozen = entries.toList()
+    fun freeze() {
+        interactionFreeze?.invoke()
+        lock.withLock { if (frozen == null) frozen = entries.toList() }
     }
 
     /** Drop the frozen snapshot (reporter cancelled). Live capture continues. */
@@ -324,6 +342,7 @@ class BreadcrumbRingBuffer internal constructor(
     /** Zeroize everything (logout / identity change / kill switch). */
     fun clear() = lock.withLock {
         interactionRevision++
+        interactionRevocation?.invoke()
         entries.clear()
         frozen = null
     }
@@ -336,6 +355,11 @@ class BreadcrumbRingBuffer internal constructor(
      */
     fun applyConfig(cfg: BreadcrumbsConfigWire?, guard: (() -> Boolean)? = null) = lock.withLock {
         if (guard?.invoke() == false) return@withLock
+        val nextKinds = cfg?.kinds?.mapNotNull { v -> BreadcrumbKind.entries.firstOrNull { it.value == v } }?.toSet() ?: allKinds
+        if (configKinds != nextKinds || configEnabled != (cfg?.enabled ?: true)) {
+            interactionRevision++
+            interactionRevocation?.invoke()
+        }
         if (cfg == null) {
             configEnabled = true
             configKinds = allKinds
@@ -347,6 +371,7 @@ class BreadcrumbRingBuffer internal constructor(
         setMaxCountLocked(cfg.maxCount)
         if (!configEnabled) {
             interactionRevision++
+            interactionRevocation?.invoke()
             entries.clear()
             frozen = null
         }

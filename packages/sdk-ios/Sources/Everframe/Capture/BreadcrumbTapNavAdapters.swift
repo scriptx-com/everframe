@@ -124,7 +124,12 @@ enum TapBreadcrumbAdapter {
                     let (label, data) = TapBreadcrumbAdapter.deriveLabelAndData(sender: sender)
                     return InteractionTargetSnapshot(label: label, data: data, captureRevision: revision)
                 } : nil
+                let control: InteractionControlChange? = Thread.isMainThread ? MainActor.assumeIsolated {
+                    guard let view = sender as? UIView else { return nil }
+                    return InteractionControlAdapter.shared.beginAction(view, event: event)
+                } : nil
                 let result = originalFn(app, sel, action, target, sender, event)
+                if let control, Thread.isMainThread { MainActor.assumeIsolated { InteractionControlAdapter.shared.complete(control) } }
                 if let snapshot, Thread.isMainThread {
                     MainActor.assumeIsolated {
                         TapBreadcrumbAdapter.recordTap(sender: sender, eventTimestamp: event?.timestamp, snapshot: snapshot)
@@ -475,10 +480,13 @@ enum WindowTapBreadcrumbAdapter {
     }
 
     @MainActor private static var dispatchSnapshot: (TimeInterval, InteractionTargetSnapshot)?
+    @MainActor private(set) static var interactionDispatchRevision: UInt64?
     @MainActor static func withDispatchSnapshot(_ snapshot: InteractionTargetSnapshot?, eventTimestamp: TimeInterval, _ body: () -> Void) {
         let previous = dispatchSnapshot
+        let previousRevision = interactionDispatchRevision
+        interactionDispatchRevision = snapshot?.captureRevision ?? BreadcrumbRingBuffer.shared.captureRevision()
         dispatchSnapshot = snapshot.map { (eventTimestamp, $0) }
-        defer { dispatchSnapshot = previous }
+        defer { dispatchSnapshot = previous; interactionDispatchRevision = previousRevision }
         body()
     }
     @MainActor static func maskedDispatchSnapshot(eventTimestamp: TimeInterval?) -> InteractionTargetSnapshot? {
@@ -535,7 +543,10 @@ enum WindowTapBreadcrumbAdapter {
                 // Capture immutable evidence before callbacks mutate views, screen, or focus.
                 // Emission stays after delivery so sendAction deduplication remains effective.
                 withDispatchSnapshot(snapshot, eventTimestamp: event.timestamp) {
+                    InteractionControlAdapter.shared.beforeEvent(event, window: window)
+                    InteractionScrollAdapter.shared.beforeEvent(event, window: window)
                     originalFn(window, sel, event)
+                    InteractionScrollAdapter.shared.afterEvent(event)
                 }
                 #if os(iOS) && !targetEnvironment(macCatalyst)
                 if event.type == .motion, event.subtype == .motionShake {

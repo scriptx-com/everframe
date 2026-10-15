@@ -6,7 +6,13 @@
      that follows the install docs sends nothing. The manifest merger adds it to
      every app that depends on core. No ACCESS_NETWORK_STATE: the SDK never asks
      the OS about connectivity, it retries from the outbox instead. -->
-<!-- No <application> element: no allowBackup, theme, name, networkSecurityConfig or usesCleartextTraffic. -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<!-- No app settings are overridden; startup retains only a process lifecycle boolean. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
+    <application>
+        <provider android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup" android:exported="false" tools:node="merge">
+            <meta-data android:name="dev.everframe.capture.InteractionProcessInitializer" android:value="androidx.startup" />
+        </provider>
+    </application>
 </manifest>

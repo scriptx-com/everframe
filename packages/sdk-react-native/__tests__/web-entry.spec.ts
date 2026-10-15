@@ -79,3 +79,17 @@ it('native target hook is a stable no-op on web with matching annotation fields'
     ref(null);
   }).not.toThrow();
 });
+
+it('semantic interaction helpers are inert on web and exported on native', () => {
+  const helper = webEntry.useEverframeInteraction({
+    helperTypes: ['text_edit', 'control_change', 'scroll'],
+  });
+  expect(typeof nativeEntry.useEverframeInteraction).toBe('function');
+  expect(() => {
+    helper.ref({});
+    helper.textChanged('text', { reason: 'submit' });
+    helper.controlChanged({ control: 'switch', checked: true });
+    helper.scrollSettled({ axis: 'y', direction: 'forward' });
+    helper.ref(null);
+  }).not.toThrow();
+});

@@ -42,6 +42,12 @@ export {
 } from './dom-snapshot.js';
 export type { ParseDomSnapshotResult } from './dom-snapshot.js';
 export { Breadcrumb, BreadcrumbKind, BreadcrumbLevel } from './breadcrumb.js';
+export { InteractionEventSchema, interactionBreadcrumbKind } from './interaction-event.js';
+export type {
+  InteractionEvent,
+  InteractionEventType,
+  InteractionSource,
+} from './interaction-event.js';
 export {
   InteractionTargetSchema,
   InteractionTargetContainerSchema,

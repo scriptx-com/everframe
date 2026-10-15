@@ -349,6 +349,7 @@ internal object BreadcrumbAdapters {
         txGuardVoid("BreadcrumbAdapters.install") {
             CrashReporter.configure(context)
             LifecycleBreadcrumbObserver.install()
+            InteractionLaunchAdapter.shared.install()
             ErrorBreadcrumbAdapter.install()
         }
     }

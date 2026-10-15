@@ -116,6 +116,9 @@ android {
                 // does not configure this JVM. Keep one bounded worker.
                 test.maxHeapSize = "2g"
                 test.maxParallelForks = 1
+                val interactionCorpus = rootProject.file("../../protocol/__tests__/fixtures/interaction-events.v1.json")
+                test.inputs.file(interactionCorpus)
+                test.systemProperty("everframeInteractionCorpus", interactionCorpus.absolutePath)
                 val detailsCorpus = rootProject.file("../../protocol/__tests__/fixtures/crash-details-native-parity.json")
                 test.inputs.file(detailsCorpus)
                 test.systemProperty("everframeCrashDetailsCorpus", detailsCorpus.absolutePath)
@@ -233,6 +236,7 @@ dependencies {
     // Plan 06.2-08 — RelayWSClient observes ProcessLifecycleOwner to cancel the
     // WS on app-backgrounded and reconnect on app-foregrounded. Pure AndroidX;
     // does NOT pull Compose/Material into the AAR (Compose-isolation gate stays green).
+    implementation(libs.androidx.startup.runtime)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.lifecycle.common)
     // Plan 05-05 — AndroidX Security Crypto for DeviceKey EncryptedFile (T-04-19 analog;

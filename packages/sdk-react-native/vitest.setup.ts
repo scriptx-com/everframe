@@ -23,6 +23,10 @@ vi.mock('react-native', () => ({
       configureSync: vi.fn(() => true),
       openReporter: vi.fn().mockResolvedValue({ status: 'cancelled' }),
       registerSensitiveRect: vi.fn(),
+      getInteractionLease: vi.fn(() => 'test-lease'),
+      setInteractionObserver: vi.fn(() => true),
+      clearInteractionObserver: vi.fn(() => true),
+      recordInteraction: vi.fn(() => true),
       setInteractionTarget: vi.fn(() => true),
       clearInteractionTarget: vi.fn(() => true),
       setExtra: vi.fn(),
@@ -46,6 +50,12 @@ vi.mock('react-native', () => ({
   // react-native-video adapter (the onBandwidthUpdate platform split), so the
   // mock must carry it. iOS is the default; adapters take an explicit
   // `platform` option in tests that need the Android path.
+  Linking: {
+    addEventListener: vi.fn(() => ({ remove: vi.fn() })),
+    getInitialURL: vi.fn(async () => null),
+  },
+  // The bundled URL parser optionally reads BlobModule for blob URL support.
+  NativeModules: {},
   Platform: {
     OS: 'ios',
     isTV: false,

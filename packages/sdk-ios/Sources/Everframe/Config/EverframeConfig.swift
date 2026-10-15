@@ -38,6 +38,7 @@ public struct LoadedJsBundle: Sendable, Equatable {
 /// supplies the one hand-written `==` (see its own note).
 public struct EverframeConfig: Sendable, Equatable {
     public var loadedJsBundle: LoadedJsBundle? = nil
+    public var interactions: InteractionEventPolicy = .parse(nil)
     public let sdkKey: String
     public let environment: Environment
     public let release: String?

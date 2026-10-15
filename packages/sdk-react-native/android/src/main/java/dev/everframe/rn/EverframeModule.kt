@@ -107,6 +107,11 @@ class EverframeModule(
 ) : NativeEverframeSpec(reactContext) {
 
     private val interactionTargetAdapter = dev.everframe.capture.InteractionTargetViewAdapters.register(RnInteractionTargetAdapter)
+    private val interactionEvents = RnInteractionEventRegistration(
+        { tag -> com.facebook.react.uimanager.UIManagerHelper.getUIManagerForReactTag(reactContext, tag)?.resolveView(tag) },
+        { action -> com.facebook.react.bridge.UiThreadUtil.runOnUiThread { action() } },
+    )
+    private val interactionEventObserver = RnInteractionEventObserver.install(reactContext) { interactionEvents.active() }
     private val interactionTargets = RnInteractionTargetRegistration(
         { tag -> UIManagerHelper.getUIManagerForReactTag(reactContext, tag)?.resolveView(tag)?.takeIf { it.isAttachedToWindow } },
         { block -> UiThreadUtil.runOnUiThread { block() } },
@@ -118,8 +123,8 @@ class EverframeModule(
     private val interactionMountListener = object : com.facebook.react.bridge.UIManagerListener {
         override fun willDispatchViewUpdates(uiManager: com.facebook.react.bridge.UIManager) = Unit
         override fun willMountItems(uiManager: com.facebook.react.bridge.UIManager) = Unit
-        override fun didMountItems(uiManager: com.facebook.react.bridge.UIManager) { interactionTargets.onMount() }
-        override fun didDispatchMountItems(uiManager: com.facebook.react.bridge.UIManager) { interactionTargets.onMount() }
+        override fun didMountItems(uiManager: com.facebook.react.bridge.UIManager) { interactionTargets.onMount(); interactionEvents.onMount() }
+        override fun didDispatchMountItems(uiManager: com.facebook.react.bridge.UIManager) { interactionTargets.onMount(); interactionEvents.onMount() }
         override fun didScheduleMountItems(uiManager: com.facebook.react.bridge.UIManager) = Unit
     }
     @OptIn(com.facebook.react.common.annotations.UnstableReactNativeAPI::class)
@@ -323,6 +328,7 @@ class EverframeModule(
                 release = sdkVersion,
                 capture = CaptureConfig(networkBodies = !networkBodiesDisabled, crash = !crashReportingDisabled),
                 installIdentifierEnabled = !installIdentifierDisabled,
+                interactions = dev.everframe.capture.InteractionEventPolicy.parse(opts.takeIfHasString("interactionsJson")),
                 loadedJsBundle = dev.everframe.config.LoadedJsBundle.create(
                     opts.takeIfHasString("jsBundleBuildId"), opts.takeIfHasString("jsBundleName")),
                 releaseHealth = parseReleaseHealth(opts),
@@ -404,6 +410,7 @@ class EverframeModule(
             //     or the host is left with a dead SDK and no way to revive it.
             //   • `attachPinUi` — the one bridge option that lands in module state instead of
             //     in `EverframeConfig`, so config equality alone cannot see it change.
+            interactionEventObserver.refresh(reactContext)
             if (Everframe.captureGate &&
                 Everframe.currentConfig == config &&
                 companionAttachPinUi == attachPinUi
@@ -640,6 +647,8 @@ class EverframeModule(
      */
     @OptIn(com.facebook.react.common.annotations.UnstableReactNativeAPI::class)
     override fun invalidate() {
+        interactionEventObserver.close()
+        interactionEvents.close()
         stopObservingInteractionMounts()
         interactionTargets.close()
         interactionTargetAdapter.close()
@@ -818,6 +827,15 @@ class EverframeModule(
         }.getOrDefault(false)
 
     @ReactMethod(isBlockingSynchronousMethod = true)
+    override fun getInteractionLease(): String = interactionEvents.lease()
+    override fun setInteractionObserver(viewTag: Double, id: String, generation: Double, lease: String, optionsJson: String): Boolean =
+        runCatching {
+            if (viewTag.isFinite() && viewTag > 0 && viewTag <= Int.MAX_VALUE && viewTag == viewTag.toInt().toDouble()) observeInteractionMounts(viewTag.toInt())
+            interactionEvents.set(viewTag,id,generation,lease,optionsJson)
+        }.getOrDefault(false)
+    override fun clearInteractionObserver(id: String, generation: Double): Boolean = runCatching { interactionEvents.clear(id,generation) }.getOrDefault(false)
+    override fun recordInteraction(lease: String, id: String, generation: Double, eventJson: String): Boolean = runCatching { interactionEvents.record(lease,id,generation,eventJson) }.getOrDefault(false)
+
     override fun clearInteractionTarget(registrationId: String, generation: Double): Boolean =
         runCatching { interactionTargets.clear(registrationId, generation) }.getOrDefault(false)
 

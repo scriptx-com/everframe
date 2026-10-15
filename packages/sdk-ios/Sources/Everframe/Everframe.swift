@@ -1287,6 +1287,9 @@ public final class Everframe: @unchecked Sendable {
         // while running customer teardown above publishes NOTHING and launches no tail.
         guard _startEpoch == epoch else { stateLock.unlock(); return }
         _config = config
+        #if canImport(UIKit)
+        InteractionEventRecorder.shared.configure(config.interactions)
+        #endif
         stateEvidenceGeneration &+= 1
         stateRecorder.reset(initial: AutomaticStateFacts.initial(), startedAt: Date().timeIntervalSince1970 * 1000)
         nativeCrashPublishedEpoch = epoch

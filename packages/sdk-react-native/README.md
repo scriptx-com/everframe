@@ -902,3 +902,98 @@ Fabric view registry, so masked descendants stay excluded from target labels.
 Call after the provider mounts. State is redacted, bounded, and frozen with report
 evidence. See [State API](../../docs/state.md) for lifecycle, privacy, limits and
 native recovery freshness.
+
+## Semantic interaction evidence
+
+On iOS, Android and their TV variants, supported native controls record text edits,
+control changes and completed scroll gestures automatically. Existing taps and
+reporting continue to work without hooks. Programmatic text/control updates do not
+represent user interaction. TV focus movement only counts as scrolling when the
+native content offset changes.
+
+Text evidence contains its UTF-16 length by default. Secure or sensitive fields
+produce no text evidence, including length. To permit a value locally, configure
+an exact native `testID`:
+
+```tsx
+<EverframeProvider config={{
+  sdkKey: 'txx_…',
+  interactions: { valueTestIds: ['search-input'] },
+}}>
+  <App />
+</EverframeProvider>
+```
+
+Optional values are redacted and limited to 256 UTF-16 units. Allowlisting a name
+only in hook metadata never grants permission: the live native host must carry
+that exact `testID`. Setting `interactions: { disabled: true }` disables these
+semantic events without changing existing tap/error capture.
+
+Use `useEverframeInteraction` to add target metadata to an existing native host.
+Its ref adds no wrapper or app handler. Compose it with any existing app ref:
+
+```tsx
+import { useEverframeInteraction } from '@everframe/react-native';
+import type { ElementRef } from 'react';
+import { TextInput } from 'react-native';
+
+function SearchField() {
+  const interaction = useEverframeInteraction<ElementRef<typeof TextInput>>({
+    target: { testId: 'search-input', name: 'Search' },
+  });
+  return <TextInput testID="search-input" ref={interaction.ref} />;
+}
+```
+
+Native observation owns text, control and scroll evidence. `helperTypes` is
+retained for source compatibility and always registers an empty list, including
+legacy declarations. Each native bridge also strips helper ownership from older
+JavaScript callers, so these declarations never suppress automatic observation.
+Existing tap evidence is preserved. Missing providers, unsupported refs, older
+native binaries and the web entry safely leave metadata registration inactive.
+
+`textChanged(text, options?)`, `controlChanged(change)` and
+`scrollSettled(change)` are compatibility no-ops. They never inspect their
+payloads or send values, lengths or state across the bridge. JavaScript callbacks
+cannot prove whether a host was sensitive when the observation originated;
+checking after it is unmasked would be too late. Custom JavaScript controls
+without a supported native observation point produce missing semantic evidence.
+
+Clearing evidence, signing out or changing native capture configuration revokes
+pending work. A queued callback keeps its original ownership and cannot renew it.
+An unchanged mounted hook does not replay old metadata; a fresh committed host
+attachment or metadata change can register again.
+
+Text coalesces after 750 ms of inactivity, editing end, submission or safe report
+freeze. An unfinished native composition retains only the last observed user-edit
+length, without its value. If the keyboard ends composition without another text
+change after the idle check, that summary waits for editing end or safe report
+freeze. Its length describes the observed edit, including when the app later
+replaces the text; it is not a newly sampled final value.
+Scrolls coalesce at gesture completion or after 200 ms of inactivity.
+Semantic events share a 20-per-10-second budget; text and scroll also share a
+one-per-second budget per host. Values are bounded again after final redaction.
+
+Incoming links are observed through React Native's existing `Linking` channel while the provider is mounted. The SDK does not route links. By default, evidence contains only scheme and host; valid opaque or hostless links retain only their scheme (for example `myapp:`). Parsing works in bare React Native without a global URL patch. Declare known route templates (for example `/watch/:id`) and exact query keys in `interactions.urlRules` to include more. Credentials, fragments and actual dynamic path segments are omitted; ambiguous encoded separators and dot segments are rejected. The initial URL is considered once per JS process. If capture is disabled at that first mount, it is omitted permanently; later mounts and re-enabling capture observe only fresh URL callbacks. The mounted subscription stays active while local policy enables it, and each new callback checks the current native capture lease. Distinct URL callbacks remain distinct observations even when their URLs match, because React Native supplies no delivery ID.
+
+Observe an existing permission operation without changing its result:
+
+```ts
+import { observePermissionRequest, recordLaunchContext } from '@everframe/react-native';
+import { PermissionsAndroid } from 'react-native';
+
+const result = await observePermissionRequest('android.permission.CAMERA', () =>
+  PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA),
+);
+
+// For an existing notification integration; call during the matching foreground entry.
+recordLaunchContext({ trigger: 'notification', arguments: { campaign: 'autumn' } });
+```
+
+Without a mapper, the permission observer recognizes Android's `granted`, `denied` and `never_ask_again` results. Supply a mapper returning `granted`, `denied`, `blocked`, `limited`, `unavailable` or `unknown` for iOS or third-party APIs. The operation runs exactly once; its original value or rejection is preserved. A mapper failure or rejected request is recorded as `unknown`, never inferred as denial. A result does not prove a system dialog was shown. TV APIs that do not support a permission should map their actual result to `unavailable`.
+
+Launch context enriches only a native foreground entry that is still pending (up to 250 ms, ending earlier on report freeze or background). It cannot create a launch, change cold/warm classification, or alter a frozen report. Late context is omitted. Only exact `interactions.launchArgumentKeys` allowlisted primitive values are accepted, at most 16 entries and 128 UTF-16 units per string. URLs belong to link evidence and are omitted from launch arguments. No arguments are captured by default.
+
+Permission operations still run without a provider, with older native binaries and on web. Launch context is a no-op in those cases. A clear, sign-out or native configuration change revokes in-flight observations; it does not cancel the app's operation.
+
+Target annotations enrich supported automatic native observations, including IME composition and optional allowlisted values. Native integrations that observe controls directly on the UI thread can supply native helpers with original privacy proof; the JavaScript compatibility methods cannot provide that proof.

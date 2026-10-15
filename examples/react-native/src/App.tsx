@@ -30,6 +30,8 @@ import { Platform, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-n
 import { EverframeProvider, setState } from '@everframe/react-native';
 import { consoleIntegration } from '@everframe/react-native/integrations/console';
 
+import InteractionEventsFixture, { fixtureInteractionPolicy } from './fixtures/InteractionEvents';
+
 import { ReportFab } from './components/ReportFab';
 import { PLAYBACK_SUPPORTED, TabBar, type TabKey } from './components/TabBar';
 import { color, font } from './theme';
@@ -66,7 +68,9 @@ const STATUS_BAR_HEIGHT = Platform.isTV
 // pure-JS, deliberately NOT @react-navigation (see header comment), so
 // `reactNavigationIntegration` doesn't apply; navigation breadcrumbs already
 // come from each screen's `useEverframeScreen(...)` marker instead.
+const interactionFixture = __DEV__ && process.env.EXPO_PUBLIC_EVERFRAME_INTERACTION_FIXTURE === '1';
 const EVERFRAME_CONFIG = {
+  ...(interactionFixture ? { interactions: fixtureInteractionPolicy } : {}),
   sdkKey: process.env.EXPO_PUBLIC_EVERFRAME_KEY ?? '',
   appName: 'examplereactnative',
   ...(process.env.EXPO_PUBLIC_EVERFRAME_JS_BUILD_ID
@@ -117,7 +121,7 @@ function CurrentTabState({ tab }: { tab: TabKey }): null {
   return null;
 }
 
-export function App(): React.JSX.Element {
+function GuideApp(): React.JSX.Element {
   const [tab, setTab] = useState<TabKey>('desk');
 
   // Deterministic console output so the consoleIntegration() dogfood has
@@ -199,3 +203,13 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
 });
+
+export function App(): React.JSX.Element {
+  return interactionFixture ? (
+    <EverframeProvider config={EVERFRAME_CONFIG}>
+      <InteractionEventsFixture />
+    </EverframeProvider>
+  ) : (
+    <GuideApp />
+  );
+}

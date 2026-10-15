@@ -142,6 +142,8 @@ data class EverframeConfig(
      */
     val reporterEnabled: Boolean = true,
     val loadedJsBundle: LoadedJsBundle? = null,
+    /** Local interaction privacy policy; omitted means structural capture without values. */
+    val interactions: dev.everframe.capture.InteractionEventPolicy = dev.everframe.capture.InteractionEventPolicy.parse(null),
 )
 
 /**

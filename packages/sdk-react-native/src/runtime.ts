@@ -1,3 +1,4 @@
+import { installInteractionLinks } from './interactions/links.js';
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import {
@@ -49,6 +50,11 @@ import {
 } from './reporter/types.js';
 import { projectUserSpec } from './user-projection.js';
 import type { EverframeIntegration } from './integrations/types.js';
+import {
+  interactionPolicyForConfig,
+  type InteractionPolicyOptions,
+} from './interactions/policy.js';
+import type { InteractionScope } from './interactions/registration.js';
 
 const applyDeliveryMethod = Reflect.apply;
 
@@ -84,6 +90,7 @@ export interface RuntimeConfig
   extends Omit<
     ConfigOpts,
     | 'sdkVersion'
+    | 'interactionsJson'
     | 'installIdentifierDisabled'
     | 'crashReportingDisabled'
     | 'companionBadgeEnabled'
@@ -121,6 +128,8 @@ export interface RuntimeConfig
    * optional (extractBridgeConfig builds `{}`); only this host surface requires it.
    */
   sdkKey: string;
+  /** Local value/URL allowlists; structural interaction evidence is on by default. */
+  interactions?: InteractionPolicyOptions;
   appName?: string;
   /** Exact loaded Hermes bundle identity, independent of the native app build. */
   jsBundle?: JsBundleConfig;
@@ -286,6 +295,7 @@ export interface RuntimeConfig
 
 export interface Runtime extends EverframeContextValue {
   /** Internal committed-mount signal for optional native ref annotations. */
+  interactionEvents: InteractionScope;
   interactionTargets: { getSnapshot(): number; subscribe(listener: () => void): () => void };
   getReportDeliveryStatus(): ReportDeliveryStatus;
   getErrorCaptureStatus(): ErrorCaptureStatus;
@@ -459,6 +469,10 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
   }
 
   const runtime: Runtime = {
+    interactionEvents: {
+      policy: interactionPolicyForConfig(config),
+      owner: () => (__getCurrentContext() === runtime ? mounted : undefined),
+    },
     interactionTargets: {
       getSnapshot: () => (mounted ? targetEpoch : 0),
       subscribe(listener) {
@@ -673,6 +687,10 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       };
       mounted = owner;
       __setCurrentContext(runtime);
+      owner.teardowns.push({
+        name: 'interaction-links',
+        teardown: installInteractionLinks(runtime),
+      });
       targetEpoch++;
       for (const listener of targetListeners) listener();
       if (config.crashReporting?.disabled !== true) {
@@ -752,6 +770,12 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
 
 function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   const bridge: ConfigOpts = {};
+  try {
+    if (Object.getOwnPropertyDescriptor(config, 'interactions'))
+      bridge.interactionsJson = JSON.stringify(interactionPolicyForConfig(config));
+  } catch {
+    bridge.interactionsJson = '{"disabled":true}';
+  }
   if (config.sdkKey !== undefined) bridge.sdkKey = config.sdkKey;
   // `sdkVersion` is NOT forwarded — the SDK version is owned by the SDK itself
   // (the native side stamps its own `Everframe.SDK_VERSION`), never the host.
