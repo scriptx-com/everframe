@@ -1,0 +1,29 @@
+packages/sdk-ios/Sources/Everframe/Capture/InteractionTargetResolver.swift
+  s_eb79cd0a048bfe::t_0fe9376ea3fda9 55,63,80
+packages/sdk-ios/Sources/Everframe/Companion/CompanionCaptureBridge.swift
+  s_eb79cd0a048bfe::t_d2af2db5aa73d3 58,313,321,323,344-345
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_eb79cd0a048bfe::t_ed830823a1c15c 2213-2220,2230,2258-2260,2274-2276
+packages/sdk-ios/Sources/EverframeReporterUI/EFReporterPresenter.swift
+  s_eb79cd0a048bfe::t_53673226b7929f 165,214-215,217-218,231,233
+packages/sdk-ios/Tests/EverframeTests/CompanionFreezeLifecycleTests.swift
+  s_eb79cd0a048bfe::t_eacd1a2e69db59 37-57
+packages/sdk-ios/Tests/EverframeTests/InteractionTargetResolverTests.swift
+  s_eb79cd0a048bfe::t_5a0b042c502be9 75-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9fc2e01502bc6ba88f8ac897f1a72edaa3f13d7d",
+  "prompts": {},
+  "sessions": {
+    "s_eb79cd0a048bfe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13b4b-6dbf-7273-9431-bee25af1347c",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
