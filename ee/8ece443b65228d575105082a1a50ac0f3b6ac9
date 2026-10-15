@@ -1,0 +1,27 @@
+packages/sdk-android/android/everframe-core/consumer-rules.pro
+  s_38998fe0f6ead3::t_ece1c8428a31e0 56-58
+packages/sdk-android/android/everframe-core/proguard-rules.pro
+  s_38998fe0f6ead3::t_a690d4ce634fb2 68-70
+packages/sdk-android/android/everframe-gradle-plugin/src/main/resources/everframe-keep.pro
+  s_38998fe0f6ead3::t_41c3df4f9e9fce 29-31
+scripts/verify-android-publication.sh
+  s_38998fe0f6ead3::t_70c3aa1f3763b1 92-100
+scripts/verify-android-publication.test.mjs
+  s_38998fe0f6ead3::t_39d5dbd067739d 20-21,225-254
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ee8ece443b65228d575105082a1a50ac0f3b6ac9",
+  "prompts": {},
+  "sessions": {
+    "s_38998fe0f6ead3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22559dba-d1a6-4026-9c30-ed60abc33a84",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
