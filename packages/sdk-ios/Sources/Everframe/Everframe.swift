@@ -2210,8 +2210,14 @@ public final class Everframe: @unchecked Sendable {
     // non-throwing by design; if the buffer ever gains a throwing path, wrap
     // these in their own guard so breadcrumbs can never block the replay seam
     // or a report.
-    @MainActor
-    public func __replayFreeze() {
+    @MainActor private var replayReporterOwner: UUID?
+
+    /// Retain this owner through presentation and pass it back on close. Older
+    /// presentations cannot discard a newer companion/host capture.
+    @MainActor @discardableResult
+    public func __replayFreeze() -> UUID {
+        let owner = UUID()
+        replayReporterOwner = owner
         _replaySession?.freezeForReporter()
         BreadcrumbRingBuffer.shared.freeze()
         stateLock.withLock { if Self.captureGate { stateRecorder.freeze(capturedAt: Date().timeIntervalSince1970 * 1000) } }
@@ -2221,6 +2227,7 @@ public final class Everframe: @unchecked Sendable {
         // instant the reporter opens. Non-throwing by design, same as the
         // BreadcrumbRingBuffer seams.
         NetworkBodyRingBuffer.shared.freeze()
+        return owner
     }
 
     /// Starts a handled error's replay snapshot in the session it was captured
@@ -2248,7 +2255,9 @@ public final class Everframe: @unchecked Sendable {
 
     /// Called after the reporter window is removed, including successful Send.
     @MainActor
-    public func __replayReporterDidClose() {
+    public func __replayReporterDidClose(owner: UUID? = nil) {
+        guard owner == nil || owner == replayReporterOwner else { return }
+        replayReporterOwner = nil
         BreadcrumbRingBuffer.shared.reporterClosed()
         _replaySession?.cancelForReporter()
     }
@@ -2262,7 +2271,9 @@ public final class Everframe: @unchecked Sendable {
     // these in their own guard so breadcrumbs can never block the replay seam
     // or a report.
     @MainActor
-    public func __replayCancel() {
+    public func __replayCancel(owner: UUID? = nil) {
+        guard owner == nil || owner == replayReporterOwner else { return }
+        replayReporterOwner = nil
         BreadcrumbRingBuffer.shared.reporterClosed()
         _replaySession?.cancelForReporter()
         BreadcrumbRingBuffer.shared.discardAndResume()

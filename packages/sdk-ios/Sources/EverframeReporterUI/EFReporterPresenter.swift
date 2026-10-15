@@ -162,7 +162,7 @@ public enum EFReporterPresenter {
         // No-op when replay is OFF. The frozen window is consumed on submit via
         // ReporterSubmission (lifecycle.complete) or discarded on cancel below.
         Everframe.shared.report.markOpened(trigger: ReportAPI.currentTrigger)
-        Everframe.shared.__replayFreeze()   // lifecycle freeze at reporter-open
+        captureOwner = Everframe.shared.__replayFreeze()   // lifecycle freeze at reporter-open
 
         // Drain host-attached sticky payload now (NOT inside ReporterSubmission)
         // so the VC can preview it and the user can toggle inclusion via the
@@ -211,7 +211,11 @@ public enum EFReporterPresenter {
     }
 
     /// Internal — invoked by EFReporterViewController on Send / Cancel.
+    private static var captureOwner: UUID?
+
     static func resolveResult(_ result: Result<ReportResult, Error>) {
+        let owner = captureOwner
+        captureOwner = nil
         controller?.dismiss()
         controller = nil
         let resolve = pendingResolve
@@ -224,9 +228,9 @@ public enum EFReporterPresenter {
         // non-submit outcome. No-op when replay is OFF.
         switch result {
         case .success(.submitted), .success(.queued):
-            Everframe.shared.__replayReporterDidClose()
+            if let owner { Everframe.shared.__replayReporterDidClose(owner: owner) }
         case .success(.cancelled), .failure:
-            Everframe.shared.__replayCancel()
+            if let owner { Everframe.shared.__replayCancel(owner: owner) }
         }
         // Flip presenting=false BEFORE resolving so observers seeing the
         // continuation's resume have already seen the state transition.

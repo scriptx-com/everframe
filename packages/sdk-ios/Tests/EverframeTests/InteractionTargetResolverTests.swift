@@ -72,6 +72,21 @@ struct InteractionTargetResolverTests {
             #expect(InteractionTargetResolver.resolve(button).data["origin"] == nil)
         }
     }
+    @Test func independentNestedActionDoesNotInheritReporterOrigin() {
+        withState {
+            let report = UIButton(), help = UIButton(), title = UILabel()
+            report.addSubview(help); report.addSubview(title)
+            InteractionTargetRegistry.set(view: report, registrationId: "parent-report", generation: 1, annotation: ["reporterTrigger": "button"])
+            defer { InteractionTargetRegistry.reset() }
+            #expect(InteractionTargetResolver.resolve(help).data["origin"] == nil)
+            #expect(InteractionTargetResolver.resolve(title).data["origin"]?.value as? String == "reporter")
+            SensitiveRectRegistry.mark(report)
+            #expect(InteractionTargetResolver.resolve(help).label == "[masked]")
+            #expect(InteractionTargetResolver.resolve(help).data["origin"] == nil)
+            #expect(InteractionTargetResolver.resolve(title).data["origin"]?.value as? String == "reporter")
+        }
+    }
+
     @Test func explicitReporterTargetAttributesOnlyItsOwnTap() {
         withState {
             let report = UIButton(); report.accessibilityLabel = "Report bug"

@@ -34,6 +34,27 @@ struct CompanionFreezeLifecycleTests {
         }
     }
 
+    @Test(arguments: [false, true]) @MainActor func olderNativeClosePreservesCompanionCapture(cancelled: Bool) async {
+        await withCleanBuffer {
+            Everframe.shared.report.markOpened(trigger: .button)
+            let owner = Everframe.shared.__replayFreeze()
+            let closeNative = {
+                if cancelled { Everframe.shared.__replayCancel(owner: owner) }
+                else { Everframe.shared.__replayReporterDidClose(owner: owner) }
+            }
+            Everframe.shared.setState("companion", value: .bool(true))
+            CompanionCaptureBridge.beginReportCaptureLifecycle()
+            Everframe.shared.setState("companion", value: .bool(false))
+            closeNative()
+            #expect(BreadcrumbRingBuffer.shared.snapshot().last?.message == "reporter_opened")
+            #expect(BreadcrumbRingBuffer.shared.takeFrozen()?.last?.data?["trigger"]?.value as? String == "companion")
+            let state = Everframe.shared.takeFrozenState(epoch: Everframe.shared.currentStartEpoch)
+            if case .bool(let value) = state?.current.custom["companion"] { #expect(value) }
+            else { Issue.record("The companion's frozen State was discarded") }
+            CompanionCaptureBridge.abortReportCaptureLifecycle()
+        }
+    }
+
     @Test @MainActor func beginFreezesCurrentChain() async {
         await withCleanBuffer {
             BreadcrumbRingBuffer.shared.add(

@@ -51,8 +51,8 @@ struct InteractionTargetSnapshot {
     private static let actions: Set<String> = ["button", "link", "tab", "switch", "checkbox", "radio", "textfield", "slider"]
     static func resolve(_ view: UIView) -> InteractionTargetSnapshot {
         let revision = BreadcrumbRingBuffer.shared.captureRevision()
-        let attribution = attribution(view)
         let selected = owner(view, useHints: !sensitiveAncestry(view))
+        let attribution = attribution(view, selected: selected)
         let snapshot = sensitiveAncestry(view) || sensitiveAncestry(selected)
             ? masked(role: nativeRole(selected), captureRevision: revision)
             : describe(selected, captureRevision: revision)
@@ -60,10 +60,9 @@ struct InteractionTargetSnapshot {
     }
 
     /// Only native identity and explicit bound annotations establish origin.
-    private static func attribution(_ view: UIView) -> [String: Any] {
+    private static func attribution(_ view: UIView, selected: UIView) -> [String: Any] {
         var current: UIResponder? = view
         var seen = Set<ObjectIdentifier>()
-        var reporter: String?
         while let candidate = current, seen.insert(ObjectIdentifier(candidate)).inserted {
             let name = NSStringFromClass(type(of: candidate))
             if ["RCTLogBoxView", "RCTRedBox", "EXDevMenu.DevMenuWindow", "EXDevMenu.DevMenuViewController",
@@ -75,11 +74,10 @@ struct InteractionTargetSnapshot {
                 if InteractionOriginViewAdapters.isDevtools(host) { return ["origin": "devtools"] }
                 let annotation = InteractionTargetRegistry.lookup(host)
                 if interactionBool(annotation?["devtoolsOrigin"]) == true { return ["origin": "devtools"] }
-                if reporter == nil { reporter = annotation?["reporterTrigger"] as? String }
             }
             current = candidate.next
         }
-        if let reporter { return ["origin": "reporter", "trigger": reporter] }
+        if let reporter = InteractionTargetRegistry.lookup(selected)?["reporterTrigger"] as? String { return ["origin": "reporter", "trigger": reporter] }
         return [:]
     }
 

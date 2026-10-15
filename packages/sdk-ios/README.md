@@ -583,7 +583,6 @@ filtered from captured network rows.
 
 MIT. See top-level `LICENSE`.
 
-
 ### Reporter interaction origins
 
 Reporter opens now write `custom` breadcrumbs with message `reporter_opened` and data `{ source: "everframe_reporter", trigger: "button" | "shake" | "menu" | "companion" }` before evidence freezes. Close/cancel writes `reporter_closed` with the same source discriminator to the live trail. Pending interaction summaries precede the opened marker. Existing `report.open()` remains valid and defaults to `button`; native shake and companion requests identify their own triggers.
