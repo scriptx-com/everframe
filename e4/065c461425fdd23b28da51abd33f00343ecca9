@@ -1,0 +1,201 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionOriginTest.kt
+  s_eb79cd0a048bfe::t_d9d9e8a5261924 1-21,27-57
+  s_eb79cd0a048bfe::t_2836d8a077179c 22-26
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterOwnershipTest.kt
+  s_eb79cd0a048bfe::t_a34940deef430b 54
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/TXReporterPresenter.kt
+  s_eb79cd0a048bfe::t_8e506d5e1a4d61 93,182-186,201,207
+  s_eb79cd0a048bfe::t_e31ba6c24d4b82 104,117
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionCaptureBridge.kt
+  s_eb79cd0a048bfe::t_8e506d5e1a4d61 302
+  s_eb79cd0a048bfe::t_e31ba6c24d4b82 281
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionTargetResolver.kt
+  s_eb79cd0a048bfe::t_a68dde63188f52 90
+  s_eb79cd0a048bfe::t_4d340fa0aef728 25-26,28,31,39-40
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionTargetRegistry.kt
+  s_eb79cd0a048bfe::t_a68dde63188f52 82
+  s_eb79cd0a048bfe::t_4d340fa0aef728 83-84
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReporterBridgeTest.kt
+  s_eb79cd0a048bfe::t_be98ac8a06add3 64-97
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterDialogLifecycleTest.kt
+  s_eb79cd0a048bfe::t_fe099cf71c6e69 199,223,228
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventRecorder.kt
+  s_eb79cd0a048bfe::t_4d340fa0aef728 29,95,185,191,287,311,392
+  s_eb79cd0a048bfe::t_cc62bc282e411f 186
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_eb79cd0a048bfe::t_1bcfdf41005cd5 473-496,509-512
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReporterTrigger.kt
+  s_eb79cd0a048bfe::t_e31ba6c24d4b82 1-10,12-19
+  s_eb79cd0a048bfe::t_88a9bcf9641846 11
+packages/sdk-react-native/__tests__/devtools-notification.fixture.ts
+  s_eb79cd0a048bfe::t_5daa03fd743100 1-5
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/trigger/ShakeToReport.kt
+  s_eb79cd0a048bfe::t_e31ba6c24d4b82 192
+packages/sdk-react-native/__tests__/devtools-origins.spec.ts
+  s_eb79cd0a048bfe::t_5daa03fd743100 1-68,70-113,327-328
+  s_eb79cd0a048bfe::t_bd72c4bfe209a7 69,190
+  s_eb79cd0a048bfe::t_86146d01f22d06 114-131,136-189,191-243,254-310,312-326
+  s_eb79cd0a048bfe::t_97e78ff38ac074 244-253
+  s_eb79cd0a048bfe::t_2b167a83244efa 132-135,311
+  s_eb79cd0a048bfe::t_5f994ee84819a9 329-384
+packages/sdk-android/android/everframe-gradle-plugin/src/main/resources/everframe-keep.pro
+  s_eb79cd0a048bfe::t_5b2ca2aa6bfce6 35-39,144-147
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/BreadcrumbRingBufferTest.kt
+  s_eb79cd0a048bfe::t_b8643ba75a262d 146-155
+  s_eb79cd0a048bfe::t_38efe36ef400fa 97-138
+  s_eb79cd0a048bfe::t_a34940deef430b 139-145
+packages/sdk-react-native/vitest.config.ts
+  s_eb79cd0a048bfe::t_5daa03fd743100 35-42
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventSanitizer.kt
+  s_eb79cd0a048bfe::t_4d340fa0aef728 119-122
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/video/FrozenReportCapture.kt
+  s_eb79cd0a048bfe::t_e31ba6c24d4b82 38-42,129-130
+  s_eb79cd0a048bfe::t_8e506d5e1a4d61 43-52,131
+  s_eb79cd0a048bfe::t_6e85a11fab3af3 132
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbRingBuffer.kt
+  s_eb79cd0a048bfe::t_8e506d5e1a4d61 235,318-323,401-405
+  s_eb79cd0a048bfe::t_e31ba6c24d4b82 286,288-290,302,305-311,315-317,389,424
+  s_eb79cd0a048bfe::t_fab1df44941f08 234,285,291-301,304
+  s_eb79cd0a048bfe::t_c3ff40862359d8 287,303
+  s_eb79cd0a048bfe::t_a68dde63188f52 312-314
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/TXReporterPresenterSingleFlightTest.kt
+  s_eb79cd0a048bfe::t_e501087d0adb5d 50-69
+  s_eb79cd0a048bfe::t_38efe36ef400fa 70-79
+packages/sdk-android/android/everframe-core/src/test/kotlin/com/facebook/react/devsupport/RedBoxContentView.kt
+  s_eb79cd0a048bfe::t_d9d9e8a5261924 1-6
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_eb79cd0a048bfe::t_e31ba6c24d4b82 2387,2390-2397,2400-2402,2847-2852
+  s_eb79cd0a048bfe::t_fab1df44941f08 2388
+  s_eb79cd0a048bfe::t_88a9bcf9641846 2386
+  s_eb79cd0a048bfe::t_836b0f014eff32 2853
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/companion/CompanionFreezeLifecycleTest.kt
+  s_eb79cd0a048bfe::t_6a6898e4469fd3 144-152,154,156-158
+  s_eb79cd0a048bfe::t_313a9d950e8617 87,90,103-105,153,155,159-160
+  s_eb79cd0a048bfe::t_e501087d0adb5d 126
+  s_eb79cd0a048bfe::t_300531eebf61e9 66-71
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnInteractionTargetRegistrationTest.kt
+  s_eb79cd0a048bfe::t_be98ac8a06add3 23-33
+  s_eb79cd0a048bfe::t_e1cb6e85bde24d 18-21
+packages/sdk-android/android/everframe-core/proguard-rules.pro
+  s_eb79cd0a048bfe::t_57111ea9fb7119 194-198
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionOrigin.kt
+  s_eb79cd0a048bfe::t_4d340fa0aef728 1-15,19-22,25-50
+  s_eb79cd0a048bfe::t_a68dde63188f52 16-18,23-24
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionTargetPrivacyBoundaryTest.kt
+  s_eb79cd0a048bfe::t_c89b2f5905cb5b 23-46
+packages/sdk-react-native/__tests__/devtools-inspector.fixture.ts
+  s_eb79cd0a048bfe::t_5daa03fd743100 1-4
+packages/sdk-react-native/src/interactions/devtools.ts
+  s_eb79cd0a048bfe::t_422e240ba9a759 3-36,39-47,50-55,58-82,88-98,103-115,120-124,129-142,145-148,155-160,165-171,176-179,185-222
+  s_eb79cd0a048bfe::t_5daa03fd743100 1-2,223
+  s_eb79cd0a048bfe::t_ca90f46160a2e8 37-38,48-49,56-57,83-87,99-102,116-119,125-128,143-144,149-154,161-164,172-175,180-184
+packages/sdk-react-native/__tests__/devtools-availability.spec.ts
+  s_eb79cd0a048bfe::t_bb889cef8fbbb4 1-21,23-86
+  s_eb79cd0a048bfe::t_a8a68574b9ccc6 22
+  s_eb79cd0a048bfe::t_bb1d56c572cb3a 87-106
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionTargetViewAdapter.kt
+  s_eb79cd0a048bfe::t_4d340fa0aef728 13
+packages/sdk-android/android/everframe-core/consumer-rules.pro
+  s_eb79cd0a048bfe::t_57111ea9fb7119 155-159
+  s_eb79cd0a048bfe::t_9e00efb623c787 367-370
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionTargetRegistryTest.kt
+  s_eb79cd0a048bfe::t_b8643ba75a262d 47-70
+  s_eb79cd0a048bfe::t_1f51015ee045d4 40,42-43
+  s_eb79cd0a048bfe::t_d9d9e8a5261924 23-39,41,44-46
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/RnInteractionTargetAdapter.kt
+  s_eb79cd0a048bfe::t_1699f77c9134e0 6,28-30
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbTapNavAdapters.kt
+  s_eb79cd0a048bfe::t_cc62bc282e411f 161-165
+packages/sdk-android/android/everframe-core/src/test/kotlin/expo/modules/devmenu/DevMenuActivity.kt
+  s_eb79cd0a048bfe::t_2836d8a077179c 1-6
+packages/sdk-react-native/src/react-native-internals.d.ts
+  s_eb79cd0a048bfe::t_5daa03fd743100 8-17
+packages/protocol/__tests__/interaction-target.spec.ts
+  s_eb79cd0a048bfe::t_0bede80316d5ea 12-28
+packages/protocol/src/interaction-target.ts
+  s_eb79cd0a048bfe::t_58af13edcec3aa 28-29,105-108
+packages/sdk-android/README.md
+  s_eb79cd0a048bfe::t_60457e4b508757 107-113
+packages/sdk-ios/README.md
+  s_eb79cd0a048bfe::t_57896de87259d0 585-591
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbRingBuffer.swift
+  s_eb79cd0a048bfe::t_5774705d754f85 69,204-240,278,288-291,310
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbTapNavAdapters.swift
+  s_eb79cd0a048bfe::t_92555af36a0aa8 580-584
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventRecorder.swift
+  s_eb79cd0a048bfe::t_80109a557f1e48 13,18,20,96,189,194,292,335,354
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventSanitizer.swift
+  s_eb79cd0a048bfe::t_419b246a00c485 94
+packages/sdk-ios/Sources/Everframe/Capture/InteractionTargetRegistry.swift
+  s_eb79cd0a048bfe::t_a1c508416ac3b0 90-91
+packages/sdk-ios/Sources/Everframe/Capture/InteractionTargetResolver.swift
+  s_eb79cd0a048bfe::t_baa6ca585e8737 30-40,54-83,130
+packages/sdk-ios/Sources/Everframe/Companion/CompanionCaptureBridge.swift
+  s_eb79cd0a048bfe::t_e256d48933524b 311
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_eb79cd0a048bfe::t_042ca920cb0efd 2252,2266,2597-2598,2600-2610
+packages/sdk-ios/Sources/Everframe/Trigger/ShakeToReport.swift
+  s_eb79cd0a048bfe::t_6cbae5b6c2f0a9 90
+packages/sdk-ios/Sources/EverframeReporterUI/EFReporterPresenter.swift
+  s_eb79cd0a048bfe::t_a421e3c00a5b60 164
+packages/sdk-ios/Tests/EverframeTests/CompanionFreezeLifecycleTests.swift
+  s_eb79cd0a048bfe::t_fe630ba77b82f6 45-47,75
+packages/sdk-ios/Tests/EverframeTests/InteractionEventRecorderTests.swift
+  s_eb79cd0a048bfe::t_37c0d8bd9eecd4 21-38
+packages/sdk-ios/Tests/EverframeTests/InteractionTargetResolverTests.swift
+  s_eb79cd0a048bfe::t_168f0b0a767983 9-10,33-92
+packages/sdk-ios/Tests/EverframeTests/ReporterOriginTests.swift
+  s_eb79cd0a048bfe::t_c698d7442ad24b 1-53
+packages/sdk-react-native/EverframeRN.podspec
+  s_eb79cd0a048bfe::t_ea7233068fccae 89
+packages/sdk-react-native/README.md
+  s_eb79cd0a048bfe::t_382b8a9d96d462 1000-1025
+packages/sdk-react-native/__tests__/codegen-types-compat.spec.ts
+  s_eb79cd0a048bfe::t_327157f9a8266f 27
+packages/sdk-react-native/__tests__/rbridge-no-surface.test.ts
+  s_eb79cd0a048bfe::t_43ab00dbe1d479 78-81,174-176
+packages/sdk-react-native/__tests__/reporter-origins.spec.ts
+  s_eb79cd0a048bfe::t_a8ea4858d3a6d8 1-37
+packages/sdk-react-native/__tests__/spec-shape.test.ts
+  s_eb79cd0a048bfe::t_ecbf2ee42cec6d 23,33-34,36
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_eb79cd0a048bfe::t_406e035c2e2541 546-550,567,589-597
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_eb79cd0a048bfe::t_4671a91e858cfc 70,142,146,313-321
+packages/sdk-react-native/ios/Sources/RnDevtoolsOrigin.h
+  s_eb79cd0a048bfe::t_2a89784b874a6c 1-7
+packages/sdk-react-native/ios/Sources/RnDevtoolsOrigin.mm
+  s_eb79cd0a048bfe::t_632b095c3ae909 1-36
+packages/sdk-react-native/ios/Sources/RnInteractionTargetRegistration.swift
+  s_eb79cd0a048bfe::t_c38e9a5a642d87 22-31,104
+packages/sdk-react-native/ios/Tests/RnDevtoolsOriginTests.mm
+  s_eb79cd0a048bfe::t_996ab47d18e12a 1-44
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_eb79cd0a048bfe::t_aaca55f2d43072 284-286
+packages/sdk-react-native/src/contextSeam.ts
+  s_eb79cd0a048bfe::t_a3d428ff4137e7 18-19,48-51,160,169,256-262
+packages/sdk-react-native/src/index.ts
+  s_eb79cd0a048bfe::t_d7fe6d0722a0f4 31-32,133-134
+packages/sdk-react-native/src/reporter/types.ts
+  s_eb79cd0a048bfe::t_7fcfeaffd63df5 53-61
+packages/sdk-react-native/src/runtime.ts
+  s_eb79cd0a048bfe::t_550583c66a82ad 28,51-52,458,462-473,491-498,703-708,932-934
+packages/sdk-react-native/vitest.setup.ts
+  s_eb79cd0a048bfe::t_d7dfe4ea5fbd2f 25-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e4065c461425fdd23b28da51abd33f00343ecca9",
+  "prompts": {},
+  "sessions": {
+    "s_eb79cd0a048bfe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13b4b-6dbf-7273-9431-bee25af1347c",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
