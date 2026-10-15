@@ -1,0 +1,61 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbRingBuffer.kt
+  s_eb79cd0a048bfe::t_c47148c3793fb4 285,287-288,290,295,297-300
+  s_eb79cd0a048bfe::t_30afdac6b18fb9 291-294
+  s_eb79cd0a048bfe::t_aeac11fb40c917 289,296
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_eb79cd0a048bfe::t_aeac11fb40c917 487-488,492-508
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/BreadcrumbRingBufferTest.kt
+  s_eb79cd0a048bfe::t_683cf9be3c9057 156-185
+  s_eb79cd0a048bfe::t_019b3bfb17c9d4 186-194
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/ReporterBridgeTest.kt
+  s_eb79cd0a048bfe::t_fd163cdb4dfb7d 92-93,95-103,105,123,135
+  s_eb79cd0a048bfe::t_683cf9be3c9057 69,72,76,80,82-91,104,106-122,124-130,133-134,136-146
+  s_eb79cd0a048bfe::t_48d8f8bc6a7ddf 94
+  s_eb79cd0a048bfe::t_c47148c3793fb4 70,73,77,81
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_eb79cd0a048bfe::t_aeac11fb40c917 2403-2409
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/InteractionEventBridgeTest.kt
+  s_eb79cd0a048bfe::t_30afdac6b18fb9 50-54,60
+packages/sdk-ios/README.md
+  s_eb79cd0a048bfe::t_21336951eed74f 592-593
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbRingBuffer.swift
+  s_eb79cd0a048bfe::t_8cf2651d7db7d3 70-71,206-214,217,221-222,225-226,228-237,240-241,244,248-249,252-259,261-267,308,321,325,339,344
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_eb79cd0a048bfe::t_7145109dc1c925 2603
+packages/sdk-ios/Tests/EverframeTests/ReporterOriginTests.swift
+  s_eb79cd0a048bfe::t_d027767c230544 9-13,44,49-88
+packages/sdk-react-native/README.md
+  s_eb79cd0a048bfe::t_c57f8b4012d67e 1021
+packages/sdk-react-native/__tests__/reporter-origins.spec.ts
+  s_eb79cd0a048bfe::t_bc1137374cface 38-57
+packages/sdk-react-native/__tests__/web-entry.spec.ts
+  s_eb79cd0a048bfe::t_15c1ead2ef2cb4 96-100
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_eb79cd0a048bfe::t_7d84d195360386 589-591,594-595
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_eb79cd0a048bfe::t_79a126874b6dda 319-324
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_eb79cd0a048bfe::t_7a71ac0fa35f02 285-286
+packages/sdk-react-native/src/contextSeam.ts
+  s_eb79cd0a048bfe::t_6365aa67f10860 50-51,257-258,260-261
+packages/sdk-react-native/src/index.web.ts
+  s_eb79cd0a048bfe::t_e05b08381fecec 97-103
+packages/sdk-react-native/src/runtime.ts
+  s_eb79cd0a048bfe::t_351ddd6864732e 491,493,496-497
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e0d6eb9e986506df8350613450c45bc5a48657dd",
+  "prompts": {},
+  "sessions": {
+    "s_eb79cd0a048bfe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13b4b-6dbf-7273-9431-bee25af1347c",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
