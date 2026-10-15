@@ -63,9 +63,10 @@ import EverframeKit
         requests = requests.filter { $0.value.lease == token }
         guard requests.count < 4096 || requests[id] != nil,
               InteractionEvents.beginRegistration(id: key(id), generation: UInt64(generation), lease: token, optionsJson: optionsJson) else { return false }
-        // JS text callbacks cannot prove the native field was safe when observed.
-        // Preserve automatic native text capture and supported helper ownership.
-        let types = Set(list).subtracting(["text_edit"])
+        // JS callbacks cannot prove the native host was safe when observed.
+        // Keep metadata and lifetime tracking without suppressing native capture,
+        // including for older JS callers that still declare helper ownership.
+        let types: Set<String> = []
         let request = Request(NSNumber(value: tag), UInt64(generation), token, types, resolve)
         requests[id] = request; enqueue(id, request, host: host)
         return true

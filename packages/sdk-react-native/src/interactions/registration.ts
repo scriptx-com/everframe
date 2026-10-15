@@ -2,16 +2,16 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import {
   normalizeInteractionTargetAnnotation,
-  InteractionTargetSchema,
   type InteractionTargetAnnotation,
   type InteractionEvent,
 } from '@everframe/protocol';
 import type { InteractionPolicy } from './policy.js';
 
-/** text_edit is accepted for compatibility; native observation retains ownership. */
+/** Legacy helper declarations are accepted for compatibility; native observation retains ownership. */
 export type HelperType = 'text_edit' | 'control_change' | 'scroll';
 export interface InteractionHookOptions {
   target?: InteractionTargetAnnotation;
+  /** Compatibility only. All helpers remain native-owned regardless of this list. */
   helperTypes?: readonly HelperType[];
 }
 type EventInput<T> = T extends unknown ? Omit<T, 'type' | 'source' | 'observedAt'> : never;
@@ -44,32 +44,17 @@ export function normalizeInteractionOptions(input: unknown): InteractionHookOpti
     )
       delete target.testId;
     const raw = own(input, 'helperTypes');
-    let helpers: HelperType[] = [];
     if (Array.isArray(raw) && raw.length <= 3) {
       const values = Array.from({ length: raw.length }, (_, index) => own(raw, String(index)));
-      if (values.every((value) => types.includes(value as HelperType)))
-        // A JS callback cannot prove native sensitivity at observation time.
-        // Leave automatic text capture active instead of owning an unsafe helper.
-        helpers = [...new Set(values)].filter((value) => value !== 'text_edit') as HelperType[];
+      if (!values.every((value) => types.includes(value as HelperType)))
+        return { ...(target ? { target } : {}), helperTypes: [] };
     }
-    return { ...(target ? { target } : {}), helperTypes: helpers };
+    // JS cannot prove original native privacy for any host-bound state.
+    // Validate legacy declarations above, but never suppress native fallback.
+    return { ...(target ? { target } : {}), helperTypes: [] };
   } catch {
     return { helperTypes: [] };
   }
-}
-function bounded(value: unknown, limit: number): string | undefined {
-  if (typeof value !== 'string' || value.includes('\0')) return undefined;
-  let text = value.slice(0, limit);
-  if (/[\uD800-\uDBFF]$/.test(text)) text = text.slice(0, -1);
-  return /[\uD800-\uDFFF]/u.test(text) ? undefined : text;
-}
-function identifier(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    value.length > 0 &&
-    value.length <= 128 &&
-    bounded(value, 128) === value
-  );
 }
 function utf8Length(value: string): number {
   let bytes = 0;
@@ -90,7 +75,6 @@ interface Bridge {
     optionsJson: string,
   ): unknown;
   clearInteractionObserver(id: string, generation: number): unknown;
-  recordInteraction(lease: string, id: string, generation: number, eventJson: string): unknown;
 }
 /** A controller belongs to one committed option set and never renews a revoked observation. */
 export function createInteractionRegistration(
@@ -127,7 +111,6 @@ export function createInteractionRegistration(
           'getInteractionLease',
           'setInteractionObserver',
           'clearInteractionObserver',
-          'recordInteraction',
         ].some((key) => typeof (b as unknown as Record<string, unknown>)[key] !== 'function')
       )
         return;
@@ -151,29 +134,6 @@ export function createInteractionRegistration(
       clear();
     }
   }
-  function emit(type: HelperType, fields: () => Record<string, unknown> | undefined) {
-    const captured = binding;
-    if (!captured || !options.helperTypes?.includes(type)) return;
-    try {
-      const b = bridge as Bridge;
-      if (scope?.owner() !== captured.owner || b.getInteractionLease() !== captured.lease) {
-        clear();
-        return;
-      }
-      const input = fields();
-      if (!input) return;
-      const json = JSON.stringify({ ...input, type, source: 'app', observedAt: Date.now() });
-      if (utf8Length(json) <= 8192)
-        b.recordInteraction(captured.lease, id, captured.generation, json);
-    } catch {
-      /* App callbacks and custom refs remain authoritative. */
-    }
-  }
-  function permittedValue(value: unknown): string | undefined {
-    return options.target?.testId && scope?.policy.valueTestIds.includes(options.target.testId)
-      ? bounded(value, 256)
-      : undefined;
-  }
   return {
     attach(next: unknown) {
       clear();
@@ -187,46 +147,14 @@ export function createInteractionRegistration(
       host = undefined;
       attempted = true;
     },
+    /** Compatibility no-op: native UI observations own text privacy, lengths and values. */
     textChanged(
       _text: string,
       _input?: { composing?: boolean; reason?: 'change' | 'end' | 'submit' },
-    ) {
-      // Reserved compatibility API. Native UI observations own text privacy,
-      // composition, length and optional values; JS text never crosses the bridge.
-    },
-    controlChanged(change: ControlChangeInput) {
-      emit('control_change', () => {
-        const control = own(change, 'control');
-        if (control === 'switch' || control === 'checkbox') {
-          const checked = own(change, 'checked');
-          return typeof checked === 'boolean' ? { control, checked } : undefined;
-        }
-        if (control === 'slider') {
-          const position = own(change, 'position');
-          return typeof position === 'number' && Number.isFinite(position)
-            ? { control, position }
-            : undefined;
-        }
-        if (control === 'radio' || control === 'picker') {
-          const optionId = own(change, 'optionId');
-          if (!identifier(optionId)) return;
-          const value = permittedValue(own(change, 'value'));
-          return { control, optionId, ...(value === undefined ? {} : { value }) };
-        }
-      });
-    },
-    scrollSettled(change: ScrollInput) {
-      emit('scroll', () => {
-        const axis = own(change, 'axis'),
-          direction = own(change, 'direction');
-        if (
-          !['x', 'y'].includes(axis as string) ||
-          !['forward', 'backward'].includes(direction as string)
-        )
-          return;
-        const parsed = InteractionTargetSchema.safeParse(own(change, 'item'));
-        return { axis, direction, ...(parsed.success ? { item: parsed.data } : {}) };
-      });
-    },
+    ) {},
+    /** Compatibility no-op: JS cannot prove privacy when the control state originated. */
+    controlChanged(_change: ControlChangeInput) {},
+    /** Compatibility no-op: native observation owns scroll evidence. */
+    scrollSettled(_change: ScrollInput) {},
   };
 }

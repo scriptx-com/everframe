@@ -929,42 +929,35 @@ only in hook metadata never grants permission: the live native host must carry
 that exact `testID`. Setting `interactions: { disabled: true }` disables these
 semantic events without changing existing tap/error capture.
 
-Use `useEverframeInteraction` for an opaque custom control or a semantic action
-that native observation cannot identify. It returns a ref for the existing host
-and explicit methods; it adds no wrapper or app handler. For example:
+Use `useEverframeInteraction` to add target metadata to an existing native host.
+Its ref adds no wrapper or app handler. Compose it with any existing app ref:
 
 ```tsx
 import { useEverframeInteraction } from '@everframe/react-native';
-import { Pressable, Text, type View } from 'react-native';
+import type { ElementRef } from 'react';
+import { TextInput } from 'react-native';
 
-function RecentSort({ setSort }: { setSort: (value: string) => void }) {
-  const interaction = useEverframeInteraction<View>({
-    target: { testId: 'sort-recent', name: 'Recent sort' },
-    helperTypes: ['control_change'],
+function SearchField() {
+  const interaction = useEverframeInteraction<ElementRef<typeof TextInput>>({
+    target: { testId: 'search-input', name: 'Search' },
   });
-  return <Pressable testID="sort-recent" ref={interaction.ref} onPress={() => {
-    setSort('recent');
-    interaction.controlChanged({ control: 'picker', optionId: 'recent' });
-  }}><Text>Recent</Text></Pressable>;
+  return <TextInput testID="search-input" ref={interaction.ref} />;
 }
 ```
 
-Use `scrollSettled({ axis, direction, item? })` for app-owned scroll semantics.
-Only call helpers from user-interaction callbacks. Do not call them for programmatic
-state updates. Compose the returned ref with any existing app ref.
+Native observation owns text, control and scroll evidence. `helperTypes` is
+retained for source compatibility and always registers an empty list, including
+legacy declarations. Each native bridge also strips helper ownership from older
+JavaScript callers, so these declarations never suppress automatic observation.
+Existing tap evidence is preserved. Missing providers, unsupported refs, older
+native binaries and the web entry safely leave metadata registration inactive.
 
-`helperTypes` defaults to an empty list. Only explicitly selected `control_change`
-and `scroll` types suppress
-the corresponding automatic observer, after native attachment succeeds. Existing
-tap evidence is preserved. Missing providers, unsupported refs, older native
-binaries and the web entry safely leave helpers inactive.
-
-Text uses automatic native observation. `textChanged(text, options?)` remains a
-compatibility no-op, and requesting `helperTypes: ['text_edit']` does not suppress
-the native text observer. JavaScript callbacks cannot prove whether a field was
-secure when the text originated; checking after it is unmasked would be too late.
-No helper text value or length crosses the bridge. Custom text controls without a
-supported native observation point produce no text evidence.
+`textChanged(text, options?)`, `controlChanged(change)` and
+`scrollSettled(change)` are compatibility no-ops. They never inspect their
+payloads or send values, lengths or state across the bridge. JavaScript callbacks
+cannot prove whether a host was sensitive when the observation originated;
+checking after it is unmasked would be too late. Custom JavaScript controls
+without a supported native observation point produce missing semantic evidence.
 
 Clearing evidence, signing out or changing native capture configuration revokes
 pending work. A queued callback keeps its original ownership and cannot renew it.
@@ -981,7 +974,7 @@ Scrolls coalesce at gesture completion or after 200 ms of inactivity.
 Semantic events share a 20-per-10-second budget; text and scroll also share a
 one-per-second budget per host. Values are bounded again after final redaction.
 
-Incoming links are observed through React Native's existing `Linking` channel while the provider is mounted. The SDK does not route links. By default, evidence contains only scheme and host; valid opaque or hostless links retain only their scheme (for example `myapp:`). Parsing works in bare React Native without a global URL patch. Declare known route templates (for example `/watch/:id`) and exact query keys in `interactions.urlRules` to include more. Credentials, fragments and actual dynamic path segments are omitted; ambiguous encoded separators and dot segments are rejected. The initial URL is requested once per JS process, including across provider remounts. Distinct URL callbacks remain distinct observations even when their URLs match, because React Native supplies no delivery ID.
+Incoming links are observed through React Native's existing `Linking` channel while the provider is mounted. The SDK does not route links. By default, evidence contains only scheme and host; valid opaque or hostless links retain only their scheme (for example `myapp:`). Parsing works in bare React Native without a global URL patch. Declare known route templates (for example `/watch/:id`) and exact query keys in `interactions.urlRules` to include more. Credentials, fragments and actual dynamic path segments are omitted; ambiguous encoded separators and dot segments are rejected. The initial URL is considered once per JS process. If capture is disabled at that first mount, it is omitted permanently; later mounts and re-enabling capture observe only fresh URL callbacks. The mounted subscription stays active while local policy enables it, and each new callback checks the current native capture lease. Distinct URL callbacks remain distinct observations even when their URLs match, because React Native supplies no delivery ID.
 
 Observe an existing permission operation without changing its result:
 
@@ -1003,4 +996,4 @@ Launch context enriches only a native foreground entry that is still pending (up
 
 Permission operations still run without a provider, with older native binaries and on web. Launch context is a no-op in those cases. A clear, sign-out or native configuration change revokes in-flight observations; it does not cancel the app's operation.
 
-Standard native text fields should keep `helperTypes: []` so native edit observation owns IME composition and optional allowlisted values. Target annotations still enrich automatic evidence. Unsupported text helper declarations are also filtered by each native bridge, preserving automatic capture for callers using older JavaScript code.
+Target annotations enrich supported automatic native observations, including IME composition and optional allowlisted values. Native integrations that observe controls directly on the UI thread can supply native helpers with original privacy proof; the JavaScript compatibility methods cannot provide that proof.

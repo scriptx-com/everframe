@@ -21,12 +21,10 @@ function Button({ id, title, onPress }: { id: string; title: string; onPress(): 
 }
 function Field({ id, helpers, secure = false }: { id: string; helpers: boolean; secure?: boolean }) {
   const [text, setText] = useState('');
-  const interaction = useEverframeInteraction<React.ElementRef<typeof TextInput>>({ target: { testId: id, name: id }, helperTypes: id === 'search-input' ? [] : ['text_edit'] });
+  const interaction = useEverframeInteraction<React.ElementRef<typeof TextInput>>({ target: { testId: id, name: id } });
   return <TextInput testID={id} accessibilityLabel={id} ref={helpers ? interaction.ref : undefined}
     value={text} secureTextEntry={secure} placeholder={id} placeholderTextColor="#b5c6d6" returnKeyType="done"
-    onChangeText={value => { interaction.textChanged(value); setText(value); }}
-    onEndEditing={event => interaction.textChanged(event.nativeEvent.text, { reason: 'end' })}
-    onSubmitEditing={event => interaction.textChanged(event.nativeEvent.text, { reason: 'submit' })}
+    onChangeText={setText}
     style={{ color: '#fff', borderColor: '#8194a6', borderWidth: 1, padding: 12, fontSize: 20, minHeight: 50 }} />;
 }
 /** Development fixture: app operations remain visible and synthetic results are explicitly labelled. */
@@ -35,9 +33,9 @@ export default function InteractionEventsFixture() {
   const [helpers, setHelpers] = useState(initialHelpers), [version, setVersion] = useState(0);
   const [checked, setChecked] = useState(false), [option, setOption] = useState('recent'), [status, setStatus] = useState('Ready');
   const captures = useRef(0), pending = useRef<((value: string) => void) | undefined>(undefined);
-  const custom = useEverframeInteraction<React.ElementRef<typeof Pressable>>({ target: { testId: 'fixture-picker', name: 'Sort order' }, helperTypes: ['control_change'] });
-  const toggle = useEverframeInteraction<React.ElementRef<typeof Pressable>>({ target: { testId: 'fixture-checkbox', name: 'Saved' }, helperTypes: ['control_change'] });
-  const scroll = useEverframeInteraction<React.ElementRef<typeof ScrollView>>({ target: { testId: 'fixture-scroll', name: 'Fixture titles' }, helperTypes: [] });
+  const custom = useEverframeInteraction<React.ElementRef<typeof Pressable>>({ target: { testId: 'fixture-picker', name: 'Sort order' } });
+  const toggle = useEverframeInteraction<React.ElementRef<typeof Pressable>>({ target: { testId: 'fixture-checkbox', name: 'Saved' } });
+  const scroll = useEverframeInteraction<React.ElementRef<typeof ScrollView>>({ target: { testId: 'fixture-scroll', name: 'Fixture titles' } });
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => {
       if (state === 'active') recordLaunchContext({ trigger: 'notification', arguments: { campaign: 'fixture-explicit', ignored: 'SECRET-LAUNCH' } });
@@ -52,8 +50,8 @@ export default function InteractionEventsFixture() {
   };
   return <ScrollView style={{ backgroundColor: '#0d1721' }} contentContainerStyle={{ padding: Platform.isTV ? 50 : 28, paddingTop: Platform.isTV ? 50 : 70, gap: 14 }} keyboardShouldPersistTaps="handled">
     <Text style={{ color: '#fff', fontSize: 26 }}>Interaction evidence fixture</Text>
-    <Text style={{ color: '#b5c6d6' }}>Helpers {helpers ? 'on' : 'off'} · host generation {version} · {status}</Text>
-    <Button id="fixture-helpers" title="Toggle helpers" onPress={() => setHelpers(value => !value)} />
+    <Text style={{ color: '#b5c6d6' }}>Target metadata {helpers ? 'on' : 'off'} · host generation {version} · {status}</Text>
+    <Button id="fixture-helpers" title="Toggle target metadata" onPress={() => setHelpers(value => !value)} />
     <Button id="fixture-remount" title="Remount hosts" onPress={() => setVersion(value => value + 1)} />
     <View key={version} style={{ gap: 14 }}>
       <Field id="search-input" helpers={helpers} />
@@ -62,12 +60,12 @@ export default function InteractionEventsFixture() {
       <EverframeSensitive><Field id="masked-input" helpers={helpers} /></EverframeSensitive>
       {!Platform.isTV && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><Text style={{ color: '#fff' }}>Native switch</Text><Switch testID="fixture-switch" accessibilityLabel="Native saved switch" value={checked} onValueChange={setChecked} /></View>}
       <Pressable testID="fixture-checkbox" accessibilityRole="checkbox" accessibilityState={{ checked }} ref={helpers ? toggle.ref : undefined}
-        onPress={() => { toggle.controlChanged({ control: 'checkbox', checked: !checked }); setChecked(!checked); }} style={{ padding: 16, borderColor: '#8194a6', borderWidth: 1 }}>
-        <Text style={{ color: '#fff' }}>Custom checkbox: {checked ? 'on' : 'off'} (helper only)</Text>
+        onPress={() => { setChecked(!checked); }} style={{ padding: 16, borderColor: '#8194a6', borderWidth: 1 }}>
+        <Text style={{ color: '#fff' }}>Custom checkbox: {checked ? 'on' : 'off'} (custom JS state; no control evidence)</Text>
       </Pressable>
       <Pressable testID="fixture-picker" accessibilityRole="button" accessibilityLabel="Change sort" ref={helpers ? custom.ref : undefined}
-        onPress={() => { const next = option === 'recent' ? 'alphabetical' : 'recent'; custom.controlChanged({ control: 'picker', optionId: next }); setOption(next); }} style={{ padding: 16, borderColor: '#8194a6', borderWidth: 1 }}>
-        <Text style={{ color: '#fff' }}>Sort: {option} (helper only)</Text>
+        onPress={() => { const next = option === 'recent' ? 'alphabetical' : 'recent'; setOption(next); }} style={{ padding: 16, borderColor: '#8194a6', borderWidth: 1 }}>
+        <Text style={{ color: '#fff' }}>Sort: {option} (custom JS state; no control evidence)</Text>
       </Pressable>
       <ScrollView horizontal testID="fixture-scroll" ref={helpers ? scroll.ref : undefined} style={{ height: 140 }}>
         {Array.from({ length: 30 }, (_, index) => <View key={index} style={{ width: 180, padding: 10 }}><Button id={`fixture-item-${index}`} title={`Title ${index}`} onPress={() => setStatus(`Selected title ${index}`)} /></View>)}

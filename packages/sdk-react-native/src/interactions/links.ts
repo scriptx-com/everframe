@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { Linking } from 'react-native';
 import { URL } from 'react-native-url-polyfill/js/URL.js';
+import { safeInteractionHost } from './url-authority.js';
 import Native from '../NativeEverframe.js';
 import { redactStringContent } from '@everframe/sdk-core';
 import type { InteractionPolicy } from './policy.js';
@@ -32,6 +33,7 @@ export function sanitizeInteractionUrl(
       if (/[\u0000-\u001f\u007f\\]/u.test(decodeURIComponent(payload))) return;
       return parsed.protocol.toLowerCase();
     }
+    if (!safeInteractionHost(parsed.host)) return;
     const match = /^[A-Za-z][A-Za-z0-9+.-]*:\/\/[^/?#]+([^?#]*)(?:\?([^#]*))?(?:#.*)?$/.exec(raw);
     if (!match) return;
     const parts = match[1]!.split('/').map((part) => decodeURIComponent(part));
@@ -87,7 +89,11 @@ export function installInteractionLinks(
 ): () => void {
   const scope = runtime.interactionEvents,
     owner = scope.owner();
-  if (!owner || scope.policy.disabled) return () => {};
+  if (!owner) return () => {};
+  if (scope.policy.disabled) {
+    initialRequested = true;
+    return () => {};
+  }
   if (installed?.owner === owner) return installed.dispose;
   installed?.dispose();
   let closed = false,
@@ -103,7 +109,7 @@ export function installInteractionLinks(
   const emit = (
     raw: unknown,
     delivery: 'initial' | 'subsequent',
-    capture = captureInteractionOperation(scope, bridge),
+    capture: ReturnType<typeof captureInteractionOperation>,
   ) => {
     if (closed || scope.owner() !== owner || !capture) return;
     const url = sanitizeInteractionUrl(raw, scope.policy);
@@ -111,11 +117,15 @@ export function installInteractionLinks(
   };
   try {
     const capture = captureInteractionOperation(scope, bridge);
-    if (!capture) return dispose;
-    subscription = linking.addEventListener('url', (event) => emit(event.url, 'subsequent'));
+    subscription = linking.addEventListener('url', (event) =>
+      emit(event.url, 'subsequent', captureInteractionOperation(scope, bridge)),
+    );
     installed = { owner, dispose };
     if (!initialRequested) {
+      // Consume the initial opportunity even without a lease. A later enable
+      // or mount must never treat this old launch URL as fresh evidence.
       initialRequested = true;
+      if (!capture) return dispose;
       void linking.getInitialURL().then(
         (url) => emit(url, 'initial', capture),
         () => {},

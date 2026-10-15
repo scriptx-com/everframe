@@ -53,6 +53,14 @@ func interactionNumber(_ input: Any?) -> Double? {
 }
 func interactionOrigin(_ url: URLComponents) -> String? {
     guard let scheme = url.scheme?.lowercased(), let host = url.host?.lowercased(), !host.isEmpty else { return nil }
+    // URLComponents decodes the host. A delimiter here would become payload when
+    // the origin is assembled; a surviving percent could do so on the next pass.
+    guard !host.unicodeScalars.contains(where: { $0.value <= 32 || $0.value == 127 || "/?#@\\%".unicodeScalars.contains($0) }) else { return nil }
+    if host.contains(where: { ":[]".contains($0) }) {
+        // Only literal bracketed IPv6 may contain host colons or brackets.
+        // Encoded forms must not introduce a new port or authority structure.
+        guard host.hasPrefix("["), host.hasSuffix("]"), url.percentEncodedHost?.lowercased() == host else { return nil }
+    }
     let port = url.port.flatMap { (scheme == "http" && $0 == 80) || (scheme == "https" && $0 == 443) ? nil : $0 }
     return "\(scheme)://\(host)" + (port.map { ":\($0)" } ?? "")
 }

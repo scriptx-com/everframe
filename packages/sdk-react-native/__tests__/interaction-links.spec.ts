@@ -180,3 +180,156 @@ it('drops an initial URL resolving after native revocation', async () => {
   await Promise.resolve();
   expect(send).not.toHaveBeenCalled();
 });
+
+it('subscribes without a native lease and captures only fresh enabled-period links', async () => {
+  vi.resetModules();
+  const { installInteractionLinks } = await import('../src/interactions/links.js');
+  let listener!: (event: { url: string }) => void;
+  let lease = '';
+  const owner = {};
+  const remove = vi.fn();
+  const linking = {
+    addEventListener: vi.fn((_type: string, fn: typeof listener) => {
+      listener = fn;
+      return { remove };
+    }),
+    getInitialURL: vi.fn(async () => 'https://example.test/help'),
+  };
+  const send = vi.fn();
+  const runtime = { interactionEvents: { policy, owner: () => owner } };
+  const bridge = { getInteractionLease: () => lease, recordInteraction: send };
+  const stop = installInteractionLinks(runtime, linking, bridge);
+  expect(linking.addEventListener).toHaveBeenCalledTimes(1);
+  listener({ url: 'https://example.test/watch/OLD' });
+  lease = 'enabled';
+  await Promise.resolve();
+  expect(send).not.toHaveBeenCalled();
+  listener({ url: 'https://example.test/watch/FRESH' });
+  expect(send).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(send.mock.calls[0][3])).toMatchObject({
+    url: 'https://example.test/watch/:id',
+    delivery: 'subsequent',
+  });
+  lease = '';
+  listener({ url: 'https://example.test/help' });
+  lease = 'reenabled';
+  listener({ url: 'https://example.test/help' });
+  expect(send).toHaveBeenCalledTimes(2);
+  installInteractionLinks(runtime, linking, bridge);
+  expect(linking.addEventListener).toHaveBeenCalledTimes(1);
+  stop();
+  stop();
+  listener({ url: 'https://example.test/help' });
+  expect(send).toHaveBeenCalledTimes(2);
+  expect(remove).toHaveBeenCalledTimes(1);
+  const stopNext = installInteractionLinks(runtime, linking, bridge);
+  await Promise.resolve();
+  expect(linking.getInitialURL).not.toHaveBeenCalled();
+  expect(send).toHaveBeenCalledTimes(2);
+  listener({ url: 'https://example.test/help' });
+  expect(send).toHaveBeenCalledTimes(3);
+  stopNext();
+});
+it('does not replay an initial promise after disposal and a fresh mount', async () => {
+  vi.resetModules();
+  const { installInteractionLinks } = await import('../src/interactions/links.js');
+  let resolve!: (url: string) => void;
+  let owner = {};
+  const send = vi.fn();
+  const linking = {
+    addEventListener: () => ({ remove() {} }),
+    getInitialURL: vi.fn(
+      () =>
+        new Promise<string>((r) => {
+          resolve = r;
+        }),
+    ),
+  };
+  const runtime = { interactionEvents: { policy, owner: () => owner } };
+  const bridge = { getInteractionLease: () => 'lease', recordInteraction: send };
+  const stop = installInteractionLinks(runtime, linking, bridge);
+  stop();
+  owner = {};
+  const stopNext = installInteractionLinks(runtime, linking, bridge);
+  resolve('https://example.test/help');
+  await Promise.resolve();
+  expect(send).not.toHaveBeenCalled();
+  expect(linking.getInitialURL).toHaveBeenCalledTimes(1);
+  stopNext();
+});
+it.each([
+  '%2fSECRET',
+  '%3Ftoken=SECRET',
+  '%23SECRET',
+  '%40SECRET',
+  '%5cSECRET',
+  '%00SECRET',
+  '%20SECRET',
+  '%7fSECRET',
+  '%252fSECRET',
+  '%253Ftoken=SECRET',
+  '%25252FSECRET',
+  '%25253Ftoken=SECRET',
+  '%25SECRET',
+  '%3A123',
+  '%5BSECRET',
+  '%5DSECRET',
+])(
+  'rejects ambiguous encoded authority %s before forwarding or granting policy permissions',
+  (host) => {
+    const raw = 'nocturne://title' + host;
+    expect(sanitizeInteractionUrl(raw, normalizeInteractionPolicy({}))).toBeUndefined();
+    const local = normalizeInteractionPolicy({
+      urlRules: [{ origin: raw.toLowerCase(), queryKeys: ['token'], routes: ['/:id'] }],
+    });
+    expect(local.urlRules).toEqual([]);
+  },
+);
+it.each([
+  ['nocturne://title/SECRET', 'nocturne://title'],
+  ['nocturne://user:password@title:1234/SECRET', 'nocturne://title:1234'],
+  ['https://[::1]:8443/SECRET', 'https://[::1]:8443'],
+  ['nocturne://[::1]:1234/SECRET', 'nocturne://[::1]:1234'],
+])('preserves valid hosts and strips ordinary credentials for %s', (raw, expected) => {
+  expect(sanitizeInteractionUrl(raw, normalizeInteractionPolicy({}))).toBe(expected);
+  expect(
+    normalizeInteractionPolicy({ urlRules: [{ origin: expected, routes: ['/:id'] }] }).urlRules,
+  ).toEqual([{ origin: expected, routes: ['/:id'], queryKeys: [], literalPaths: [] }]);
+});
+it('consumes the initial URL opportunity during a locally disabled mount', async () => {
+  vi.resetModules();
+  const { installInteractionLinks } = await import('../src/interactions/links.js');
+  const owner = {};
+  const send = vi.fn();
+  let listener!: (event: { url: string }) => void;
+  const linking = {
+    addEventListener: vi.fn((_type: string, fn: typeof listener) => {
+      listener = fn;
+      return { remove() {} };
+    }),
+    getInitialURL: vi.fn(async () => 'https://example.test/help'),
+  };
+  const bridge = { getInteractionLease: () => 'enabled', recordInteraction: send };
+  installInteractionLinks(
+    {
+      interactionEvents: {
+        policy: normalizeInteractionPolicy({ disabled: true }),
+        owner: () => owner,
+      },
+    },
+    linking,
+    bridge,
+  );
+  expect(linking.addEventListener).not.toHaveBeenCalled();
+  const stop = installInteractionLinks(
+    { interactionEvents: { policy, owner: () => owner } },
+    linking,
+    bridge,
+  );
+  await Promise.resolve();
+  expect(linking.getInitialURL).not.toHaveBeenCalled();
+  expect(send).not.toHaveBeenCalled();
+  listener({ url: 'https://example.test/help' });
+  expect(send).toHaveBeenCalledTimes(1);
+  stop();
+});

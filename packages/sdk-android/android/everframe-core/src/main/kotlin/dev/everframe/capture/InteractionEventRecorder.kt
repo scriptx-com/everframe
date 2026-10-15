@@ -36,6 +36,7 @@ internal data class InteractionObservation(
     val deferLaunch: Boolean = false,
     // Set only by the native user-edit adapter, never by helper JSON.
     val nativeTextAttachment: InteractionTextAdapter.Attachment? = null,
+    val nativeScrollAttachment: InteractionScrollAdapter.Attachment? = null,
 )
 
 /** Mutable admission state shares the buffer lock; no view access occurs under that lock. */
@@ -45,7 +46,9 @@ internal class InteractionEventRecorder(
     private val schedule: (Long, () -> Unit) -> Unit = { delay, action -> Handler(Looper.getMainLooper()).postDelayed({ action() }, delay); Unit },
 ) {
     private data class Pending(val owner: InteractionOwner, val event: JsonObject, var deadline: Long, val composing: Boolean,
-        val nativeTextAttachment: InteractionTextAdapter.Attachment? = null, var dormant: Boolean = false, var completionReason: String? = null)
+        val nativeTextAttachment: InteractionTextAdapter.Attachment? = null,
+        val nativeScrollAttachment: InteractionScrollAdapter.Attachment? = null,
+        var dormant: Boolean = false, var completionReason: String? = null)
     private var token = UUID.randomUUID().toString()
     private var runtime: String? = null
     private val prepared = mutableListOf<PreparedInteraction>()
@@ -64,9 +67,9 @@ internal class InteractionEventRecorder(
         // Never inspect UI under the breadcrumb lock or retain a JS value while waiting for UI validation.
         val candidate = buffer.withInteractionLock { registrations[id]?.owner }
         val hostPrivacy = if (candidate != null && Looper.myLooper() == Looper.getMainLooper()) live(candidate) else null
-        // Text requires observation-time native privacy proof. A later UI queue drain
-        // cannot establish whether off-main text was captured before unmasking.
-        if (type == "text_edit" && hostPrivacy != true) return null
+        // Every host-bound state requires observation-time native privacy proof.
+        // A later UI queue drain cannot establish whether it preceded unmasking.
+        if (type in setOf("text_edit", "control_change", "scroll") && hostPrivacy != true) return null
         val privacyVerified = hostPrivacy == true && candidate != null && !nativeComposing(candidate)
         return buffer.withInteractionLock {
             if (!enabled() || lease != token) return@withInteractionLock null
@@ -193,7 +196,7 @@ internal class InteractionEventRecorder(
         val owner = observation.owner
         val type = observation.event.string("type") ?: return false
         if ((type in setOf("text_edit", "control_change", "scroll")) != (owner.host != null)) return false
-        if (!live(owner) || observation.nativeTextAttachment?.attached == false) return false
+        if (!live(owner) || observation.nativeTextAttachment?.attached == false || observation.nativeScrollAttachment?.attached == false) return false
         val localPolicy = buffer.withInteractionLock { if (current(owner)) policy else null } ?: return false
         if (observation.phase !in setOf("change", "end", "submit")) return false
         val composing = observation.composing || (type == "text_edit" && nativeComposing(owner))
@@ -212,7 +215,7 @@ internal class InteractionEventRecorder(
             pending.removeAll { it.owner.host?.get() === owner.host?.get() && it.event.string("type") == type }
             if (shouldPend) {
                 boundSummaryHostsLocked(owner)
-                pending.add(Pending(owner, event, now + delay, composing, observation.nativeTextAttachment))
+                pending.add(Pending(owner, event, now + delay, composing, observation.nativeTextAttachment, observation.nativeScrollAttachment))
                 true
             } else admitLocked(owner, event, now)
         }
@@ -351,7 +354,7 @@ internal class InteractionEventRecorder(
         for (item in ready) flush(item, "freeze")
     }
     private fun flush(item: Pending, reason: String) {
-        val live = live(item.owner) && item.nativeTextAttachment?.attached != false
+        val live = live(item.owner) && item.nativeTextAttachment?.attached != false && item.nativeScrollAttachment?.attached != false
         val composing = live && item.event.string("type") == "text_edit" && nativeComposing(item.owner)
         val nativeComposition = item.composing && item.nativeTextAttachment != null
         buffer.withInteractionLock {

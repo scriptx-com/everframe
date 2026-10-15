@@ -6,7 +6,7 @@
 Build the public React Native example in development with
 `EXPO_PUBLIC_EVERFRAME_INTERACTION_FIXTURE=1`, a dedicated local SDK key and the
 matching native SDK artifacts. The fixture has no embedded key or destination.
-`EXPO_PUBLIC_EVERFRAME_INTERACTION_HELPERS=0` starts with helper refs detached;
+`EXPO_PUBLIC_EVERFRAME_INTERACTION_HELPERS=0` starts with metadata refs detached;
 all native testIDs and screen tracking remain. Repeat on iOS, Android, tvOS and
 Android TV after rebuilding native code, not only reloading Metro.
 
@@ -18,8 +18,9 @@ Android TV after rebuilding native code, not only reloading Metro.
    report neither text events nor lengths. Scan the entire captured envelope for
    sentinels, not just its breadcrumbs.
 3. Change the native switch on phones. Use the custom checkbox and sort picker
-   on each runtime: those custom semantics are helper-only, so helper-off captures
-   still show taps but must not invent their control state.
+   on each runtime: those JS-only controls have no supported native observation
+   point. Captures may show taps but must not invent their control state in either
+   metadata mode.
 4. Scroll the horizontal title rail with touch/momentum or TV remote movement.
    One settled gesture produces at most one summary, subject to admission limits.
    Focus movement without an offset change must not produce a scroll event.
@@ -42,16 +43,17 @@ Android TV after rebuilding native code, not only reloading Metro.
    does not expose that identity API. **Clear user metadata** calls `setUser()`;
    it is not identity sign-out and does not revoke pending work. After native
    sign-out, resolve the old request: no old-owner result may reappear. Unchanged
-   helper refs stay revoked. **Remount hosts** to recover, edit again, and capture
+   metadata refs stay revoked. **Remount hosts** to recover, edit again, and capture
    fresh evidence. Label debugger-driven identity changes in the evidence.
 9. **Capture evidence** submits a handled fixture error through the real SDK.
    Record exact SDK/app commits, runtime, helper mode and actual stored envelopes.
    Run the interaction JSON schema over stored events and scan all payload fields.
 
-The form keeps existing app callbacks; helpers are called before state changes.
-Search remains native-owned in both modes, preserving IME and optional value
-observations. Other fields exercise helper-owned structural summaries.
-The title rail keeps automatic native scroll observation in both modes. Synthetic
+The form keeps existing app callbacks and uses refs only for target metadata.
+The legacy JS text, control and scroll methods are compatibility no-ops. Native
+observation owns all supported fields and controls in both modes, preserving IME,
+structural summaries and explicitly permitted values. The title rail keeps
+automatic native scroll observation in both modes. Synthetic
 permission/attribution cases and unsupported controls must remain labelled in any
 validation report. Never label a local collector envelope as a production report.
 

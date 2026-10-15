@@ -9,7 +9,35 @@ func interactionEvent(_ type: String, _ fields: [String: Any]) -> [String: Any] 
     fields.merging(["type": type, "source": "app", "observedAt": 1.0]) { _, value in value }
 }
 
+let ambiguousInteractionHosts = [
+    "title%2FSECRET", "title%3Ftoken=SECRET", "title%23SECRET", "title%40SECRET",
+    "title%5CSECRET", "title%00SECRET", "title%20SECRET", "title%7FSECRET",
+    "title%252FSECRET", "title%253Ftoken=SECRET", "title%3A123", "%5B2001:db8::1%5D",
+]
+
 struct InteractionEventSanitizerTests {
+    @Test func decodedAuthorityCannotBecomePayloadOnFirstSanitation() {
+        for host in ambiguousInteractionHosts {
+            let event = interactionEvent("deep_link", ["url": "nocturne://" + host, "delivery": "initial"])
+            #expect(InteractionEventSanitizer.sanitize(event, policy: .parse(nil)) == nil, "authority: \(host)")
+        }
+    }
+    @Test func safeLinksAreIdempotentIncludingAllowedRoutesAndIPv6() throws {
+        let policy = InteractionEventPolicy.parse(#"{"urlRules":[{"origin":"https://example.com","routes":["/watch/:id"],"queryKeys":["q"]}]}"#)
+        for (raw, expected) in [
+            ("nocturne://title/private?token=SECRET", "nocturne://title"),
+            ("nocturne://t%69tle/private", "nocturne://title"),
+            ("https://user:password@example.com:443/private", "https://example.com"),
+            ("https://[2001:DB8::1]:8443/private", "https://[2001:db8::1]:8443"),
+            ("https://example.com/watch/private?q=hello&token=secret", "https://example.com/watch/:id?q=hello"),
+            ("MyApp:reset?token=SECRET", "myapp:"), ("file:///private", "file:"),
+        ] {
+            let first = try #require(InteractionEventSanitizer.sanitize(interactionEvent("deep_link", ["url": raw, "delivery": "initial"]), policy: policy))
+            #expect(first["url"] as? String == expected)
+            let second = try #require(InteractionEventSanitizer.sanitize(first, policy: policy))
+            #expect(second["url"] as? String == expected)
+        }
+    }
     @Test func ambiguousPathsAndMalformedEncodingFailClosed() {
         let policy = InteractionEventPolicy.parse(#"{"urlRules":[{"origin":"https://example.com","routes":["/watch/:id"],"queryKeys":["q"]}]}"#)
         for path in ["/watch/a%2Fb", "/watch/a%5cb", "/watch/%2e%2e", "/watch/../help", "/watch/%252f", "/watch/%ZZ", "/watch/%C0%AF", "/help?q=%ZZ"] {

@@ -8,6 +8,7 @@ import android.os.SystemClock
 import android.view.View
 import android.view.ViewTreeObserver
 import java.lang.ref.WeakReference
+import java.util.WeakHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.serialization.json.*
@@ -18,7 +19,20 @@ class InteractionScrollAdapter internal constructor(
     private val clock: () -> Long = SystemClock::elapsedRealtime,
 ) {
     companion object { val shared by lazy { InteractionScrollAdapter(sharedInteractionRecorder) } }
-    private class Gesture(owner: InteractionOwner, val axis: String, val start: Int, var last: Int, var time: Long) {
+    // The token outlives idle gesture cleanup so a still-pending summary also
+    // loses ownership on detach. It retains neither the view nor its evidence.
+    internal class Attachment(private val adapter: WeakReference<InteractionScrollAdapter>) : View.OnAttachStateChangeListener {
+        var attached = true
+            private set
+        override fun onViewAttachedToWindow(view: View) = Unit
+        override fun onViewDetachedFromWindow(view: View) {
+            attached = false
+            view.removeOnAttachStateChangeListener(this)
+            adapter.get()?.detached(view, this)
+        }
+    }
+    private val attachments = WeakHashMap<View, Attachment>()
+    private class Gesture(owner: InteractionOwner, val attachment: Attachment, val axis: String, val start: Int, var last: Int, var time: Long) {
         val host = owner.host!!
         val owner = AtomicReference<InteractionOwner?>(owner)
         var moved = false
@@ -38,9 +52,13 @@ class InteractionScrollAdapter internal constructor(
         if (axis !in setOf("x", "y") || recorder.suppresses(view, "scroll")) return
         finished(view)
         val owner = recorder.owner(view) ?: return
+        val attachment = attachments[view]?.takeIf { it.attached } ?: Attachment(WeakReference(this)).also {
+            attachments[view] = it
+            view.addOnAttachStateChangeListener(it)
+        }
         if (gestures.size >= 32) gestures.firstOrNull()?.let { remove(it, cancel = true) }
         val position = if (axis == "x") view.scrollX else view.scrollY
-        val gesture = Gesture(owner, axis, position, position, clock())
+        val gesture = Gesture(owner, attachment, axis, position, position, clock())
         recorder.retainIfCurrent(owner) { gestures.add(gesture) }
     }
     /** Additive native offset listener, used for remote-driven smooth scrolling. */
@@ -61,7 +79,7 @@ class InteractionScrollAdapter internal constructor(
     }
     fun moved(view: View) {
         val gesture = gestures.firstOrNull { it.host.get() === view } ?: return
-        if (!view.isAttachedToWindow || recorder.suppresses(view, "scroll")) { remove(gesture, cancel = true); return }
+        if (!gesture.attachment.attached || !view.isAttachedToWindow || recorder.suppresses(view, "scroll")) { remove(gesture, cancel = true); return }
         if (gesture.moved && clock() - gesture.time >= 200) { remove(gesture, cancel = false); return }
         val position = if (gesture.axis == "x") view.scrollX else view.scrollY
         if (position == gesture.last) return
@@ -70,7 +88,7 @@ class InteractionScrollAdapter internal constructor(
         val event = nativeInteractionEvent("scroll", JsonObject(mapOf("axis" to JsonPrimitive(gesture.axis),
             "direction" to JsonPrimitive(if (position > gesture.start) "forward" else "backward"))))
         val owner = gesture.owner.get() ?: return
-        recorder.observe(InteractionObservation(owner, event))
+        recorder.observe(InteractionObservation(owner, event, nativeScrollAttachment = gesture.attachment))
     }
     fun endDrag(view: View) {
         moved(view)
@@ -84,6 +102,10 @@ class InteractionScrollAdapter internal constructor(
         remove(gesture, cancel = false)
     }
     fun dispose() { gestures.toList().forEach { remove(it, cancel = true) } }
+    private fun detached(view: View, attachment: Attachment) {
+        gestures.filter { it.attachment === attachment }.forEach { remove(it, cancel = false) }
+        recorder.cancel(view, "scroll")
+    }
     private fun remove(gesture: Gesture, cancel: Boolean) {
         gestures.remove(gesture)
         gesture.owner.set(null)

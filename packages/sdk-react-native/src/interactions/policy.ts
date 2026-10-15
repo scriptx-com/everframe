@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { URL } from 'react-native-url-polyfill/js/URL.js';
+import { safeInteractionHost } from './url-authority.js';
 
 export interface InteractionUrlRule {
   origin: string;
@@ -58,7 +59,14 @@ function origin(input: unknown): string | undefined {
   if (!identifier(input, 1024)) return undefined;
   try {
     const parsed = new URL(input);
-    if (!parsed.host || parsed.username || parsed.password || parsed.search || parsed.hash)
+    if (
+      !parsed.host ||
+      !safeInteractionHost(parsed.host) ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash
+    )
       return undefined;
     if (parsed.pathname && parsed.pathname !== '/') return undefined;
     const canonical = `${parsed.protocol}//${parsed.host}`;

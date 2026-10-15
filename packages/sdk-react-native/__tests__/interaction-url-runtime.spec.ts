@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { createContext, runInContext } from 'node:vm';
@@ -25,10 +25,15 @@ it('loads URL policy in a bare runtime without browser URL or text codecs', () =
         allowJs: true,
       },
     }).outputText;
-    const dependency = (name: string) =>
-      name === 'react-native'
-        ? { NativeModules: {} }
-        : load(require.resolve(name, { paths: [dirname(file)] }));
+    const dependency = (name: string) => {
+      if (name === 'react-native') return { NativeModules: {} };
+      const localSource = resolve(dirname(file), name.replace(/\.js$/, '.ts'));
+      return load(
+        name.startsWith('.') && existsSync(localSource)
+          ? localSource
+          : require.resolve(name, { paths: [dirname(file)] }),
+      );
+    };
     runInContext(`(function(exports, require, module) {${code}\n})`, context, {
       filename: file,
     })(module.exports, dependency, module);

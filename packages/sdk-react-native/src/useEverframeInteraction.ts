@@ -28,11 +28,8 @@ const bridge = {
   get clearInteractionObserver() {
     return NativeEverframe.clearInteractionObserver;
   },
-  get recordInteraction() {
-    return NativeEverframe.recordInteraction;
-  },
 };
-/** Optional helpers on an existing host; no handlers, delegates or layout are replaced. */
+/** Annotates an existing native host; legacy evidence helpers are compatibility no-ops. */
 export function useEverframeInteraction<T>(options?: InteractionHookOptions) {
   const runtime = useOptionalEverframeRuntime();
   const [id] = React.useState(nextInteractionTargetId);

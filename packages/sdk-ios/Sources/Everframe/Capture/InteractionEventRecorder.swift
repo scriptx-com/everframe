@@ -61,9 +61,10 @@ final class InteractionEventRecorder: @unchecked Sendable {
         let capturedHostSafe: Bool? = Thread.isMainThread ? MainActor.assumeIsolated {
             candidate.map { live($0) }
         } : nil
-        // Text metadata requires privacy proof at capture time, including length.
+        // Every host payload requires privacy proof at capture time, including
+        // text length, control state and scroll direction.
         // Admission after an off-main observation cannot establish its earlier safety.
-        guard type != "text_edit" || capturedHostSafe == true else { return nil }
+        guard !["text_edit", "control_change", "scroll"].contains(type) || capturedHostSafe == true else { return nil }
         let privacyVerified = capturedHostSafe == true && MainActor.assumeIsolated {
             candidate.map { !nativeComposing($0) } ?? false
         }

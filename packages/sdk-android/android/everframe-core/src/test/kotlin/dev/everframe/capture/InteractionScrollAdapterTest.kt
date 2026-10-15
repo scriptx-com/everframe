@@ -12,6 +12,70 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class) @Config(manifest = Config.NONE)
 class InteractionScrollAdapterTest {
+    @Test fun pendingSummaryStillObservesDetachAfterRemoteGestureCleanup() {
+        val f = InteractionAdapterFixture()
+        val adapter = InteractionScrollAdapter(f.recorder, clock = { f.now })
+        val view = android.widget.ScrollView(f.activity)
+        val child = View(f.activity)
+        view.addView(child, android.widget.FrameLayout.LayoutParams(200, 2000))
+        f.root.addView(view, android.widget.LinearLayout.LayoutParams(200, 200))
+        view.measure(View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY))
+        view.layout(0, 0, 200, 200); child.layout(0, 0, 200, 2000)
+        try {
+            adapter.remoteBegan(view, "y")
+            view.scrollTo(0, 100)
+            org.robolectric.util.ReflectionHelpers.callInstanceMethod<Any>(view.viewTreeObserver, "dispatchOnScrollChanged")
+            assertEquals(1, f.recorder.pendingCount)
+            f.now = 200
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(200))
+            assertEquals("Normal idle cleanup releases the gesture", 0, adapter.retainedHosts)
+            assertEquals("The recorder has not flushed the summary yet", 1, f.recorder.pendingCount)
+            f.root.removeView(view); f.root.addView(view)
+            assertEquals("The surviving attachment token cancels pending evidence", 0, f.recorder.pendingCount)
+            f.recorder.flushDue()
+            assertEquals(0, f.buffer.size)
+        } finally { adapter.dispose() }
+    }
+    @Test fun detachedScrollViewCannotReviveDragOrPendingSummary() = detachedScrollView(remote = false)
+    @Test fun detachedScrollViewCannotReviveRemoteGestureOrPendingSummary() = detachedScrollView(remote = true)
+    private fun detachedScrollView(remote: Boolean) {
+        val f = InteractionAdapterFixture()
+        val adapter = InteractionScrollAdapter(f.recorder, clock = { f.now })
+        val view = android.widget.ScrollView(f.activity)
+        val child = View(f.activity)
+        view.addView(child, android.widget.FrameLayout.LayoutParams(200, 2000))
+        f.root.addView(view, android.widget.LinearLayout.LayoutParams(200, 200))
+        view.measure(View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY))
+        view.layout(0, 0, 200, 200); child.layout(0, 0, 200, 2000)
+        fun begin() { if (remote) adapter.remoteBegan(view, "y") else adapter.began(view, "y") }
+        fun move(position: Int) {
+            view.scrollTo(0, position)
+            assertEquals(position, view.scrollY)
+            if (remote) org.robolectric.util.ReflectionHelpers.callInstanceMethod<Any>(view.viewTreeObserver, "dispatchOnScrollChanged")
+            else adapter.moved(view)
+        }
+        try {
+            begin(); move(100)
+            assertEquals(1, f.recorder.pendingCount)
+            f.root.removeView(view)
+            assertFalse(view.isAttachedToWindow)
+            val pendingAfterDetach = f.recorder.pendingCount
+            val gesturesAfterDetach = adapter.retainedHosts
+            f.root.addView(view)
+            assertTrue(view.isAttachedToWindow)
+            f.now = 200; f.recorder.flushDue()
+            assertEquals("Reattached ScrollView must not revive the old summary", 0, f.buffer.size)
+            assertEquals(0, pendingAfterDetach)
+            assertEquals(0, gesturesAfterDetach)
+            move(150); adapter.finished(view)
+            f.now = 500; f.recorder.flushDue()
+            assertEquals("Reattachment requires a fresh gesture", 0, f.buffer.size)
+            begin(); move(250)
+            f.now = 700; f.recorder.flushDue()
+            assertEquals("scroll", f.events().single().string("type"))
+            assertEquals("forward", f.events().single().string("direction"))
+        } finally { adapter.dispose() }
+    }
     @Test fun revocationBetweenCaptureAndRetentionDoesNotRestoreGesture() {
         val f = InteractionAdapterFixture()
         val adapter = InteractionScrollAdapter(f.recorder, clock = { f.recorder.revoke(); 0 })

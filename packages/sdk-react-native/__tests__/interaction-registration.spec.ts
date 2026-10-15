@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { expect, it, vi } from 'vitest';
-import { createInteractionRegistration } from '../src/interactions/registration.js';
+import {
+  createInteractionRegistration,
+  normalizeInteractionOptions,
+} from '../src/interactions/registration.js';
 import { normalizeInteractionPolicy } from '../src/interactions/policy.js';
 
 function fixture(allowed = false) {
@@ -41,80 +44,72 @@ function fixture(allowed = false) {
     },
   };
 }
-it('keeps automatic text ownership and never forwards unverifiable JS text metadata', () => {
+it('leaves automatic native ownership active for every legacy helper declaration', () => {
   const f = fixture(true);
   f.registration.attach({});
   expect(JSON.parse(f.bridge.setInteractionObserver.mock.calls[0][4])).toEqual({
     target: { testId: 'search' },
-    helperTypes: ['control_change', 'scroll'],
-  });
-  f.registration.textChanged('SECRET', { reason: 'end' });
-  f.registration.textChanged('SECRET', {
-    get composing(): boolean {
-      throw Error('must not inspect unsupported text input');
-    },
-  });
-  expect(f.bridge.recordInteraction).not.toHaveBeenCalled();
-  f.registration.controlChanged({ control: 'checkbox', checked: true });
-  expect(JSON.parse(f.bridge.recordInteraction.mock.calls[0][3])).toMatchObject({
-    type: 'control_change',
-    control: 'checkbox',
-    checked: true,
-  });
-  const textOnly = createInteractionRegistration(f.bridge, f.scope, 'B', {
-    target: { name: 'Search' },
-    helperTypes: ['text_edit'],
-  });
-  textOnly.attach({});
-  expect(JSON.parse(f.bridge.setInteractionObserver.mock.calls.at(-1)![4])).toEqual({
-    target: { name: 'Search' },
     helperTypes: [],
   });
+  for (const helperTypes of [
+    ['text_edit'],
+    ['control_change'],
+    ['scroll'],
+    ['scroll', 'text_edit', 'control_change'],
+  ]) {
+    expect(normalizeInteractionOptions({ target: { name: 'Search' }, helperTypes })).toEqual({
+      target: { name: 'Search' },
+      helperTypes: [],
+    });
+  }
 });
-it('acquires ownership only on committed attachment and preserves the captured lease', () => {
-  const f = fixture();
-  expect(f.bridge.getInteractionLease).not.toHaveBeenCalled();
-  f.registration.controlChanged({ control: 'checkbox', checked: false });
-  expect(f.bridge.recordInteraction).not.toHaveBeenCalled();
-  f.registration.attach({});
-  f.registration.controlChanged({ control: 'checkbox', checked: true });
-  const call = f.bridge.recordInteraction.mock.calls.at(-1)!;
-  expect(call.slice(0, 2)).toEqual(['lease-1', 'A']);
-  expect(JSON.parse(call[3])).toMatchObject({
-    checked: true,
-    control: 'checkbox',
-    type: 'control_change',
-  });
-  f.revoke();
-  f.registration.controlChanged({ control: 'checkbox', checked: false });
-  f.registration.start();
-  expect(f.bridge.recordInteraction).toHaveBeenCalledTimes(1);
-  expect(f.bridge.setInteractionObserver).toHaveBeenCalledTimes(1);
-  f.registration.attach({});
-  f.registration.controlChanged({ control: 'checkbox', checked: false });
-  expect(f.bridge.recordInteraction.mock.calls.at(-1)![0]).toBe('lease-2');
-});
-it('control values require an exact local ID and are bounded in UTF16', () => {
+it('never inspects or forwards JS helper payloads even on an allowlisted attached host', () => {
   const f = fixture(true);
   f.registration.attach({});
-  f.registration.controlChanged({ control: 'picker', optionId: 'safe', value: '😀'.repeat(200) });
-  expect(JSON.parse(f.bridge.recordInteraction.mock.calls.at(-1)![3]).value).toBe('😀'.repeat(128));
-  const denied = fixture();
-  denied.registration.attach({});
-  denied.registration.controlChanged({ control: 'picker', optionId: 'safe', value: 'SECRET' });
-  expect(denied.bridge.recordInteraction.mock.calls.at(-1)![3]).not.toContain('SECRET');
+  const read = vi.fn(() => {
+    throw Error('private input must not be inspected');
+  });
+  const hostile = new Proxy({}, { get: read, getOwnPropertyDescriptor: read, ownKeys: read });
+  expect(() => {
+    f.registration.textChanged(hostile as never, hostile);
+    f.registration.controlChanged(hostile as never);
+    f.registration.scrollSettled(hostile as never);
+    f.registration.controlChanged({ control: 'checkbox', checked: true });
+    f.registration.controlChanged({ control: 'picker', optionId: 'safe', value: 'SECRET' });
+    f.registration.scrollSettled({ axis: 'y', direction: 'forward' });
+  }).not.toThrow();
+  expect(read).not.toHaveBeenCalled();
+  expect(f.bridge.recordInteraction).not.toHaveBeenCalled();
 });
-it('unmount and a new mount identity never renew an old callback', () => {
+it('acquires metadata ownership only on committed attachment and never renews a revoked lease', () => {
+  const f = fixture();
+  expect(f.bridge.getInteractionLease).not.toHaveBeenCalled();
+  f.registration.start();
+  expect(f.bridge.setInteractionObserver).not.toHaveBeenCalled();
+  f.registration.attach({});
+  expect(f.bridge.setInteractionObserver.mock.calls[0].slice(0, 2)).toEqual([12, 'A']);
+  expect(f.bridge.setInteractionObserver.mock.calls[0][3]).toBe('lease-1');
+  f.revoke();
+  f.registration.start();
+  expect(f.bridge.setInteractionObserver).toHaveBeenCalledTimes(1);
+  f.registration.attach({});
+  expect(f.bridge.clearInteractionObserver).toHaveBeenCalledTimes(1);
+  expect(f.bridge.setInteractionObserver.mock.calls.at(-1)![3]).toBe('lease-2');
+  expect(JSON.parse(f.bridge.setInteractionObserver.mock.calls.at(-1)![4]).helperTypes).toEqual([]);
+});
+it('provider identity changes never replay committed metadata, and disposal clears the original owner', () => {
   const f = fixture();
   f.registration.attach({});
-  const callback = f.registration.controlChanged;
+  const first = f.bridge.setInteractionObserver.mock.calls[0];
   f.unmount();
-  callback({ control: 'checkbox', checked: true });
+  f.registration.start();
   f.remount();
-  callback({ control: 'checkbox', checked: false });
-  expect(f.bridge.recordInteraction).not.toHaveBeenCalled();
+  f.registration.start();
+  expect(f.bridge.setInteractionObserver).toHaveBeenCalledTimes(1);
   f.registration.dispose();
   expect(f.bridge.clearInteractionObserver).toHaveBeenCalledTimes(1);
+  expect(f.bridge.clearInteractionObserver.mock.calls[0][0]).toBe(first[1]);
+  expect(f.bridge.clearInteractionObserver.mock.calls[0][1]).toBeGreaterThan(first[2]);
 });
 it('missing/throwing bridges and failed native attachment leave automatic capture available', () => {
   for (const bridge of [
@@ -142,32 +137,25 @@ it('missing/throwing bridges and failed native attachment leave automatic captur
   f.registration.controlChanged({ control: 'checkbox', checked: true });
   expect(f.bridge.recordInteraction).not.toHaveBeenCalled();
 });
-it('only selected helper types can submit and hostile optional values never escape', () => {
-  const f = fixture();
-  const r = createInteractionRegistration(f.bridge, f.scope, 'A', { helperTypes: ['scroll'] });
-  r.attach({});
-  r.textChanged('SECRET');
-  r.controlChanged({ control: 'switch', checked: true });
-  expect(f.bridge.recordInteraction).not.toHaveBeenCalled();
-  r.scrollSettled({ axis: 'y', direction: 'forward' });
-  expect(JSON.parse(f.bridge.recordInteraction.mock.calls[0][3])).toMatchObject({
-    type: 'scroll',
-    axis: 'y',
-    direction: 'forward',
+it('validates legacy helper lists without evaluating accessors or dropping valid target metadata', () => {
+  const read = vi.fn(() => {
+    throw Error('host accessor');
   });
-  expect(() =>
-    r.scrollSettled(
-      new Proxy(
-        {},
-        {
-          getOwnPropertyDescriptor() {
-            throw Error('no');
-          },
-        },
-      ) as never,
-    ),
-  ).not.toThrow();
-  expect(f.bridge.recordInteraction).toHaveBeenCalledTimes(1);
+  const accessor = Object.defineProperty(['control_change'], '0', { get: read });
+  expect(
+    normalizeInteractionOptions({ target: { name: 'Search' }, helperTypes: accessor }),
+  ).toEqual({ helperTypes: [] });
+  expect(read).not.toHaveBeenCalled();
+  for (const helperTypes of [
+    ['unknown'],
+    ['text_edit', 'scroll', 'control_change', 'scroll'],
+    undefined,
+  ]) {
+    expect(normalizeInteractionOptions({ target: { name: 'Search' }, helperTypes })).toEqual({
+      target: { name: 'Search' },
+      helperTypes: [],
+    });
+  }
 });
 it('updates create distinct generations, and an old disposal cannot clear a newer registration', () => {
   const f = fixture();
@@ -197,6 +185,26 @@ it('normalizing malformed metadata never turns its testId into a value permissio
     r.controlChanged({ control: 'picker', optionId: 'safe', value: 'SECRET' });
     r.dispose();
   }
-  expect(f.bridge.recordInteraction.mock.calls).toHaveLength(2);
-  for (const call of f.bridge.recordInteraction.mock.calls) expect(call[3]).not.toContain('SECRET');
+  expect(f.bridge.recordInteraction).not.toHaveBeenCalled();
+  for (const call of f.bridge.setInteractionObserver.mock.calls) {
+    expect(JSON.parse(call[4]).target?.testId).toBeUndefined();
+    expect(JSON.parse(call[4]).helperTypes).toEqual([]);
+  }
+});
+
+it('registers target metadata on a bridge without JS helper submission support', () => {
+  const f = fixture();
+  const { recordInteraction: _record, ...bridge } = f.bridge;
+  const r = createInteractionRegistration(bridge, f.scope, 'metadata', {
+    target: { name: 'Native search' },
+    helperTypes: ['control_change'],
+  });
+  r.attach({});
+  expect(bridge.setInteractionObserver).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(bridge.setInteractionObserver.mock.calls[0][4])).toEqual({
+    target: { name: 'Native search' },
+    helperTypes: [],
+  });
+  r.dispose();
+  expect(bridge.clearInteractionObserver).toHaveBeenCalledTimes(1);
 });

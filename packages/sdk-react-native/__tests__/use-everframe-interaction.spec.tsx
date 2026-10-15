@@ -216,3 +216,49 @@ it('policy accessors are never evaluated or allowed to enable capture', () => {
       .disabled,
   ).toBe(true);
 });
+
+it('StrictMode custom controls retain metadata without owning native evidence or inspecting helper payloads', () => {
+  const inspected = vi.fn(() => {
+    throw Error('private state');
+  });
+  const payload = new Proxy(
+    {},
+    { get: inspected, getOwnPropertyDescriptor: inspected, ownKeys: inspected },
+  );
+  function Custom() {
+    const i = useEverframeInteraction<HTMLButtonElement>({
+      target: { name: 'Sort order' },
+      helperTypes: ['control_change', 'scroll'],
+    });
+    return (
+      <button
+        ref={i.ref}
+        onClick={() => {
+          i.controlChanged(payload as never);
+          i.scrollSettled(payload as never);
+        }}
+      >
+        Change sort
+      </button>
+    );
+  }
+  const tree = render(
+    <React.StrictMode>
+      <Provider>
+        <Custom />
+      </Provider>
+    </React.StrictMode>,
+  );
+  fireEvent.click(tree.getByText('Change sort'));
+  expect(inspected).not.toHaveBeenCalled();
+  expect(NativeEverframe.recordInteraction).not.toHaveBeenCalled();
+  const sets = vi.mocked(NativeEverframe.setInteractionObserver).mock.calls;
+  expect(sets.length).toBeGreaterThan(0);
+  for (const set of sets)
+    expect(JSON.parse(set[4])).toEqual({ target: { name: 'Sort order' }, helperTypes: [] });
+  tree.unmount();
+  const clears = vi.mocked(NativeEverframe.clearInteractionObserver).mock.calls;
+  expect(clears.some((clear) => clear[0] === sets.at(-1)![1] && clear[1] > sets.at(-1)![2])).toBe(
+    true,
+  );
+});
