@@ -39,6 +39,34 @@ class InteractionEventSanitizerTest {
         assertTrue(allowed.containsKey("value"))
     }
 
+    @Test fun opaqueAndHostlessLinksKeepOnlyTheirSchemeThroughNativeSanitation() {
+        val policy = InteractionEventPolicy.parse(null)
+        for ((raw, expected) in listOf(
+            "myapp:reset?token=SECRET#private" to "myapp:",
+            "MYAPP:/reset/SECRET" to "myapp:",
+            "myapp:" to "myapp:",
+            "mailto:private@example.com?subject=SECRET" to "mailto:",
+            "tel:+1234567890" to "tel:",
+            "file:///private/SECRET" to "file:",
+        )) {
+            val event = nativeInteractionEvent("deep_link", JsonObject(mapOf("url" to JsonPrimitive(raw), "delivery" to JsonPrimitive("initial"))))
+            val clean = InteractionEventSanitizer.sanitize(event, policy)
+            assertEquals(raw, expected, clean?.string("url"))
+            assertEquals(expected, InteractionEventSanitizer.sanitize(clean!!, policy)?.string("url"))
+        }
+    }
+
+    @Test fun malformedHostlessLinksFailClosed() {
+        val policy = InteractionEventPolicy.parse(null)
+        for (raw in listOf("myapp", "reset/path", ":secret", "1app:secret", "myapp://", "myapp:///secret", "myapp://:123/secret", "myapp://user@/secret",
+            "https:secret", "http:/secret", "ftp:", "ws:", "wss:/secret", "myapp:bad%ZZ",
+            "myapp:bad%C0%AF", "myapp:bad%ED%A0%80", "myapp:bad%00", "myapp:bad%0A", "myapp:bad%7F",
+            "myapp:bad%5Csecret", "myapp:bad\\secret", "myapp:bad\nsecret")) {
+            val event = nativeInteractionEvent("deep_link", JsonObject(mapOf("url" to JsonPrimitive(raw), "delivery" to JsonPrimitive("initial"))))
+            assertNull(raw, InteractionEventSanitizer.sanitize(event, policy))
+        }
+    }
+
     @Test fun linkDefaultsDropPathCredentialsQueryAndFragment() {
         val raw = "https://user:password@example.com/private-token?q=secret#secret"
         val clean = InteractionEventSanitizer.sanitize(eventJson("deep_link", """"url":"$raw","delivery":"initial""""), InteractionEventPolicy.parse(null))!!

@@ -20,17 +20,17 @@ import UIKit
             bridge.close(); window.isHidden = true; InteractionEventRecorder.shared.configure(.parse(nil))
             BreadcrumbRingBuffer.shared.clear(); Everframe.captureGate = false
         }
-        let options = #"{"target":{"name":"Search"},"helperTypes":["text_edit"]}"#
+        let options = #"{"target":{"name":"Search"},"helperTypes":["control_change"]}"#
         XCTAssertTrue(bridge.setObserver(2,id:"A",generation:1,lease:bridge.lease(),optionsJson:options,resolve:{ _ in wrapper },host:{ _ in field }))
         try? await Task.sleep(nanoseconds:30_000_000)
-        XCTAssertTrue(InteractionEvents.suppresses(view:field,type:"text_edit"))
-        XCTAssertFalse(InteractionEvents.suppresses(view:wrapper,type:"text_edit"))
+        XCTAssertTrue(InteractionEvents.suppresses(view:field,type:"control_change"))
+        XCTAssertFalse(InteractionEvents.suppresses(view:wrapper,type:"control_change"))
         let lease = bridge.lease()
-        XCTAssertTrue(bridge.record(lease,id:"A",generation:1,eventJson:#"{"type":"text_edit","source":"app","observedAt":1,"length":6,"value":"SECRET","phase":"end"}"#))
+        XCTAssertTrue(bridge.record(lease,id:"A",generation:1,eventJson:#"{"type":"control_change","source":"app","observedAt":1,"control":"checkbox","checked":true}"#))
         field.isSecureTextEntry = true
         try? await Task.sleep(nanoseconds:30_000_000)
         XCTAssertEqual(BreadcrumbRingBuffer.shared.size,0)
-        XCTAssertFalse(InteractionEvents.suppresses(view:field,type:"text_edit"))
+        XCTAssertFalse(InteractionEvents.suppresses(view:field,type:"control_change"))
     }
 }
 #endif

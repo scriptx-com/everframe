@@ -16,6 +16,17 @@ struct InteractionEventSanitizerTests {
             #expect(InteractionEventSanitizer.sanitize(interactionEvent("deep_link", ["url": "https://example.com" + path, "delivery": "initial"]), policy: policy) == nil)
         }
     }
+    @Test func hostlessLinksRetainOnlyTheirNormalizedScheme() {
+        for raw in ["myapp:reset?token=SECRET", "MyApp:/reset/SECRET", "mailto:private@example.com", "myapp:", "file:///reset/SECRET", "tel:+123"] {
+            let expected = raw.hasPrefix("mailto:") ? "mailto:" : raw.hasPrefix("file:") ? "file:" : raw.hasPrefix("tel:") ? "tel:" : "myapp:"
+            let event = InteractionEventSanitizer.sanitize(interactionEvent("deep_link", ["url": raw, "delivery": "initial"]), policy: .parse(nil))
+            #expect(event?["url"] as? String == expected)
+            #expect(!String(describing: event).contains("SECRET"))
+        }
+        for raw in ["1myapp:SECRET", "myapp:bad%ZZ", "myapp:bad\\path", "myapp:bad path", "myapp://", "myapp:///SECRET", "https:/SECRET", "http:SECRET", "ftp:SECRET", "ws:SECRET", "wss:SECRET", "myapp:%C0%AF", "myapp:%0Asecret"] {
+            #expect(InteractionEventSanitizer.sanitize(interactionEvent("deep_link", ["url": raw, "delivery": "initial"]), policy: .parse(nil)) == nil)
+        }
+    }
     @Test func exactValuePermissionAndRedaction() throws {
         let policy = InteractionEventPolicy.parse(#"{"valueTestIds":["search"]}"#)
         let event = interactionEvent("text_edit", ["length": 11, "value": "123-45-6789", "reason": "idle"])

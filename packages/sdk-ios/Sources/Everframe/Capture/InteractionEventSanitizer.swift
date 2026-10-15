@@ -121,7 +121,17 @@ enum InteractionEventSanitizer {
     private static func sanitizeURL(_ raw: String, policy: InteractionEventPolicy) -> String? {
         guard raw.utf16.count <= 8192, !raw.unicodeScalars.contains(where: { $0.value <= 32 || $0 == "\\" }),
               raw.range(of: "%(?![0-9A-Fa-f]{2})", options: .regularExpression) == nil,
-              let components = URLComponents(string: raw), let origin = interactionOrigin(components) else { return nil }
+              let decoded = raw.removingPercentEncoding,
+              !decoded.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 || $0 == "\\" }),
+              let components = URLComponents(string: raw), let scheme = components.scheme?.lowercased() else { return nil }
+        if components.host?.isEmpty != false {
+            guard !["http", "https", "ftp", "ws", "wss"].contains(scheme),
+                  let colon = raw.firstIndex(of: ":") else { return nil }
+            let payload = raw[raw.index(after: colon)...]
+            guard !payload.hasPrefix("//") || (scheme == "file" && payload.hasPrefix("///")) else { return nil }
+            return scheme + ":"
+        }
+        guard let origin = interactionOrigin(components) else { return nil }
         let rule = policy.urlRules.first { $0.origin == origin }
         let encodedParts = components.percentEncodedPath.components(separatedBy: "/")
         let actual = encodedParts.compactMap { $0.removingPercentEncoding }

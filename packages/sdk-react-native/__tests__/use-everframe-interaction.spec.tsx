@@ -80,9 +80,8 @@ it('registers after provider startup, updates only committed metadata, and clear
   expect(JSON.parse(first[4]).target.name).toBe('Search');
   fireEvent.change(tree.getByLabelText('Search'), { target: { value: '😀' } });
   expect(changed).toHaveBeenCalledTimes(1);
-  expect(
-    JSON.parse(vi.mocked(NativeEverframe.recordInteraction).mock.calls.at(-1)![3]),
-  ).toMatchObject({ length: 2, value: '😀' });
+  expect(JSON.parse(first[4]).helperTypes).toEqual([]);
+  expect(NativeEverframe.recordInteraction).not.toHaveBeenCalled();
   tree.rerender(
     <Provider>
       <Control name="Updated" />
@@ -193,7 +192,7 @@ it('StrictMode ref replay preserves one app call and clears every committed owne
   );
   fireEvent.change(tree.getByLabelText('Search'), { target: { value: 'one' } });
   expect(changed).toHaveBeenCalledTimes(1);
-  expect(NativeEverframe.recordInteraction).toHaveBeenCalledTimes(1);
+  expect(NativeEverframe.recordInteraction).not.toHaveBeenCalled();
   tree.unmount();
   const sets = vi.mocked(NativeEverframe.setInteractionObserver).mock.calls;
   const clears = vi.mocked(NativeEverframe.clearInteractionObserver).mock.calls;

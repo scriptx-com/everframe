@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+import { URL } from 'react-native-url-polyfill/js/URL.js';
 
 export interface InteractionUrlRule {
   origin: string;

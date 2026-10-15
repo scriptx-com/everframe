@@ -628,6 +628,9 @@ importers:
       react-dom:
         specifier: 19.2.5
         version: 19.2.5(react@19.2.5)
+      react-native-url-polyfill:
+        specifier: 4.0.0
+        version: 4.0.0(react-native@0.87.1(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.2.5))
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
@@ -5146,6 +5149,11 @@ packages:
         optional: true
       '@types/react':
         optional: true
+
+  react-native-url-polyfill@4.0.0:
+    resolution: {integrity: sha512-eqYM3wBAA0eL1sPYbBAoNfbES3+NkgcxUdelQ7QzmoVtqKB5qGG0U13MPTRUroAWK+y2EoJFS3MZUK0fwTf0pA==}
+    peerDependencies:
+      react-native: '*'
 
   react-native-video@7.0.0-beta.11:
     resolution: {integrity: sha512-EJkW+40lzX/qjclGW5sHeQkNlYKYjaqulh5ryalqU5tBs+rOF72kvrNjL4c3NKoGeGhzB5SZuUBj8m3xXTBbOQ==}
@@ -11082,6 +11090,10 @@ snapshots:
       - react-native
       - supports-color
       - utf-8-validate
+
+  react-native-url-polyfill@4.0.0(react-native@0.87.1(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.2.5)):
+    dependencies:
+      react-native: 0.87.1(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.2.5)
 
   react-native-video@7.0.0-beta.11(react-dom@19.2.3(react@19.2.3))(react-native-nitro-modules@0.37.1(react-native-tvos@0.85.3-0)(react@19.2.3))(react-native-tvos@0.85.3-0)(react@19.2.3):
     dependencies:

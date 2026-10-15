@@ -81,7 +81,7 @@ class InteractionEventRecorderTest {
         val json = """{"type":"text_edit","source":"app","observedAt":1,"length":6,"value":"SECRET","phase":"end"}"""
         var queued: PreparedInteraction? = null
         val thread = Thread { queued = recorder.prepare(lease,"A",1,json) }; thread.start(); thread.join()
-        assertFalse(queued?.observation?.event.toString().contains("SECRET"))
+        assertNull("Text cannot retain even length without native observation-time privacy proof", queued)
         view.transformationMethod = android.text.method.PasswordTransformationMethod.getInstance()
         val secure = recorder.prepare(lease,"A",1,json)
         assertFalse(secure?.observation?.event.toString().contains("SECRET"))

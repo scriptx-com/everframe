@@ -14,7 +14,60 @@ const policy = normalizeInteractionPolicy({
     { origin: 'nocturne://watch', routes: ['/:id'] },
   ],
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+it('sanitizes links without relying on the host runtime URL implementation', () => {
+  // Bare RN's URL implementation is incomplete. No host URL implementation
+  // may decide which raw characters count as the origin for privacy purposes.
+  vi.stubGlobal(
+    'URL',
+    class {
+      constructor() {
+        throw new Error('Incomplete host URL implementation');
+      }
+    },
+  );
+  const defaults = normalizeInteractionPolicy({});
+  for (const raw of [
+    'https://example.test/reset/@SENTINEL-SECRET',
+    'https://example.test/reset?token=@SENTINEL-SECRET',
+    'https://example.test/private:12345',
+  ]) {
+    expect(sanitizeInteractionUrl(raw, defaults)).toBe('https://example.test');
+  }
+  const custom = normalizeInteractionPolicy({
+    urlRules: [{ origin: 'nocturne://title', routes: ['/:id'] }],
+  });
+  expect(custom.urlRules).toHaveLength(1);
+  expect(sanitizeInteractionUrl('nocturne://title/SECRET', custom)).toBe('nocturne://title/:id');
+});
+it.each([
+  ['myapp:reset?token=SECRET', 'myapp:'],
+  ['MYAPP:/reset/SECRET', 'myapp:'],
+  ['myapp:', 'myapp:'],
+  ['mailto:user@example.test?subject=SECRET', 'mailto:'],
+  ['tel:+123456789', 'tel:'],
+  ['file:///private/SECRET', 'file:'],
+])('retains only the scheme for a valid hostless link %s', (raw, expected) => {
+  expect(sanitizeInteractionUrl(raw, policy)).toBe(expected);
+});
+it.each([
+  'https:',
+  'https:/reset/SECRET',
+  'http://',
+  'myapp://',
+  'myapp://:123/path',
+  'myapp:SECRET%ZZ',
+  'myapp:SECRET%C0%AF',
+  'myapp:SECRET%00',
+  'myapp:SECRET\\path',
+  'myapp:SECRET\npath',
+  '1app:SECRET',
+])('rejects malformed hostless links %s', (raw) => {
+  expect(sanitizeInteractionUrl(raw, policy)).toBeUndefined();
+});
 it('defaults to structural evidence and never copies credentials, fragments or unknown paths', () => {
   expect(
     sanitizeInteractionUrl(

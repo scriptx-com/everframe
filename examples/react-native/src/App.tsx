@@ -30,9 +30,7 @@ import { Platform, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-n
 import { EverframeProvider, setState } from '@everframe/react-native';
 import { consoleIntegration } from '@everframe/react-native/integrations/console';
 
-import InteractionEventsFixture, {
-  fixtureInteractionPolicy,
-} from './fixtures/InteractionEvents';
+import InteractionEventsFixture, { fixtureInteractionPolicy } from './fixtures/InteractionEvents';
 
 import { ReportFab } from './components/ReportFab';
 import { PLAYBACK_SUPPORTED, TabBar, type TabKey } from './components/TabBar';

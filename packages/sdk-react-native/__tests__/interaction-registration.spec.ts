@@ -41,50 +41,77 @@ function fixture(allowed = false) {
     },
   };
 }
+it('keeps automatic text ownership and never forwards unverifiable JS text metadata', () => {
+  const f = fixture(true);
+  f.registration.attach({});
+  expect(JSON.parse(f.bridge.setInteractionObserver.mock.calls[0][4])).toEqual({
+    target: { testId: 'search' },
+    helperTypes: ['control_change', 'scroll'],
+  });
+  f.registration.textChanged('SECRET', { reason: 'end' });
+  f.registration.textChanged('SECRET', {
+    get composing(): boolean {
+      throw Error('must not inspect unsupported text input');
+    },
+  });
+  expect(f.bridge.recordInteraction).not.toHaveBeenCalled();
+  f.registration.controlChanged({ control: 'checkbox', checked: true });
+  expect(JSON.parse(f.bridge.recordInteraction.mock.calls[0][3])).toMatchObject({
+    type: 'control_change',
+    control: 'checkbox',
+    checked: true,
+  });
+  const textOnly = createInteractionRegistration(f.bridge, f.scope, 'B', {
+    target: { name: 'Search' },
+    helperTypes: ['text_edit'],
+  });
+  textOnly.attach({});
+  expect(JSON.parse(f.bridge.setInteractionObserver.mock.calls.at(-1)![4])).toEqual({
+    target: { name: 'Search' },
+    helperTypes: [],
+  });
+});
 it('acquires ownership only on committed attachment and preserves the captured lease', () => {
   const f = fixture();
   expect(f.bridge.getInteractionLease).not.toHaveBeenCalled();
-  f.registration.textChanged('uncommitted');
+  f.registration.controlChanged({ control: 'checkbox', checked: false });
   expect(f.bridge.recordInteraction).not.toHaveBeenCalled();
   f.registration.attach({});
-  f.registration.textChanged('😀', { reason: 'end' });
+  f.registration.controlChanged({ control: 'checkbox', checked: true });
   const call = f.bridge.recordInteraction.mock.calls.at(-1)!;
   expect(call.slice(0, 2)).toEqual(['lease-1', 'A']);
-  expect(JSON.parse(call[3])).toMatchObject({ length: 2, phase: 'end', type: 'text_edit' });
-  expect(call[3]).not.toContain('😀');
+  expect(JSON.parse(call[3])).toMatchObject({
+    checked: true,
+    control: 'checkbox',
+    type: 'control_change',
+  });
   f.revoke();
-  f.registration.textChanged('old secret');
+  f.registration.controlChanged({ control: 'checkbox', checked: false });
   f.registration.start();
   expect(f.bridge.recordInteraction).toHaveBeenCalledTimes(1);
   expect(f.bridge.setInteractionObserver).toHaveBeenCalledTimes(1);
   f.registration.attach({});
-  f.registration.textChanged('new');
+  f.registration.controlChanged({ control: 'checkbox', checked: false });
   expect(f.bridge.recordInteraction.mock.calls.at(-1)![0]).toBe('lease-2');
 });
-it('values require an exact local ID, are bounded in UTF16 and omitted during composition', () => {
+it('control values require an exact local ID and are bounded in UTF16', () => {
   const f = fixture(true);
   f.registration.attach({});
-  f.registration.textChanged('😀'.repeat(200));
+  f.registration.controlChanged({ control: 'picker', optionId: 'safe', value: '😀'.repeat(200) });
   expect(JSON.parse(f.bridge.recordInteraction.mock.calls.at(-1)![3]).value).toBe('😀'.repeat(128));
-  f.registration.textChanged('SECRET', { composing: true });
-  expect(JSON.parse(f.bridge.recordInteraction.mock.calls.at(-1)![3])).toMatchObject({
-    length: 6,
-    composing: true,
-  });
-  expect(f.bridge.recordInteraction.mock.calls.at(-1)![3]).not.toContain('SECRET');
   const denied = fixture();
   denied.registration.attach({});
-  denied.registration.textChanged('SECRET');
+  denied.registration.controlChanged({ control: 'picker', optionId: 'safe', value: 'SECRET' });
   expect(denied.bridge.recordInteraction.mock.calls.at(-1)![3]).not.toContain('SECRET');
 });
 it('unmount and a new mount identity never renew an old callback', () => {
   const f = fixture();
   f.registration.attach({});
-  const callback = f.registration.textChanged;
+  const callback = f.registration.controlChanged;
   f.unmount();
-  callback('old');
+  callback({ control: 'checkbox', checked: true });
   f.remount();
-  callback('still old');
+  callback({ control: 'checkbox', checked: false });
   expect(f.bridge.recordInteraction).not.toHaveBeenCalled();
   f.registration.dispose();
   expect(f.bridge.clearInteractionObserver).toHaveBeenCalledTimes(1);
@@ -100,17 +127,19 @@ it('missing/throwing bridges and failed native attachment leave automatic captur
     }),
   ]) {
     const f = fixture();
-    const r = createInteractionRegistration(bridge, f.scope, 'A', { helperTypes: ['text_edit'] });
+    const r = createInteractionRegistration(bridge, f.scope, 'A', {
+      helperTypes: ['control_change'],
+    });
     expect(() => {
       r.attach({});
-      r.textChanged('text');
+      r.controlChanged({ control: 'checkbox', checked: true });
       r.dispose();
     }).not.toThrow();
   }
   const f = fixture();
   f.bridge.setInteractionObserver.mockReturnValue(false);
   f.registration.attach({});
-  f.registration.textChanged('no');
+  f.registration.controlChanged({ control: 'checkbox', checked: true });
   expect(f.bridge.recordInteraction).not.toHaveBeenCalled();
 });
 it('only selected helper types can submit and hostile optional values never escape', () => {
@@ -162,10 +191,10 @@ it('normalizing malformed metadata never turns its testId into a value permissio
   for (const testId of ['search\0', `${longest}x`]) {
     const r = createInteractionRegistration(f.bridge, f.scope, 'A', {
       target: { testId },
-      helperTypes: ['text_edit'],
+      helperTypes: ['control_change'],
     });
     r.attach({});
-    r.textChanged('SECRET');
+    r.controlChanged({ control: 'picker', optionId: 'safe', value: 'SECRET' });
     r.dispose();
   }
   expect(f.bridge.recordInteraction.mock.calls).toHaveLength(2);

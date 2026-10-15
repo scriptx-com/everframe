@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { Linking } from 'react-native';
+import { URL } from 'react-native-url-polyfill/js/URL.js';
 import Native from '../NativeEverframe.js';
 import { redactStringContent } from '@everframe/sdk-core';
 import type { InteractionPolicy } from './policy.js';
@@ -20,6 +21,17 @@ export function sanitizeInteractionUrl(
       /[\u0000-\u0020\u007f\\\uD800-\uDFFF]/u.test(raw)
     )
       return;
+    // Use our bundled parser: bare RN's global URL can misclassify private
+    // path/query characters as the host. Apps need no global URL patch.
+    const parsed = new URL(raw);
+    if (!parsed.host) {
+      const payload = raw.slice(raw.indexOf(':') + 1);
+      // Empty authorities are malformed, except a file URL's local path.
+      if (payload.startsWith('//') && !(parsed.protocol === 'file:' && payload.startsWith('///')))
+        return;
+      if (/[\u0000-\u001f\u007f\\]/u.test(decodeURIComponent(payload))) return;
+      return parsed.protocol.toLowerCase();
+    }
     const match = /^[A-Za-z][A-Za-z0-9+.-]*:\/\/[^/?#]+([^?#]*)(?:\?([^#]*))?(?:#.*)?$/.exec(raw);
     if (!match) return;
     const parts = match[1]!.split('/').map((part) => decodeURIComponent(part));
@@ -27,8 +39,6 @@ export function sanitizeInteractionUrl(
       parts.some((part) => part === '.' || part === '..' || /[/%\\\u0000-\u001f\u007f]/u.test(part))
     )
       return;
-    const parsed = new URL(raw);
-    if (!parsed.host) return;
     const origin = `${parsed.protocol.toLowerCase()}//${parsed.host.toLowerCase()}`;
     const rule = policy.urlRules.find((rule) => rule.origin === origin),
       path = parts.join('/');

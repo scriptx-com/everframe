@@ -58,9 +58,15 @@ final class InteractionEventRecorder: @unchecked Sendable {
         let sourceScreen = InteractionTargetScreenState.current()
         // UI inspection stays outside the buffer lock; values never wait in a queue for privacy proof.
         let candidate = buffer.withInteractionLock { registrations[id]?.owner }
-        let privacyVerified = Thread.isMainThread ? MainActor.assumeIsolated {
-            candidate.map { live($0) && !nativeComposing($0) } ?? false
-        } : false
+        let capturedHostSafe: Bool? = Thread.isMainThread ? MainActor.assumeIsolated {
+            candidate.map { live($0) }
+        } : nil
+        // Text metadata requires privacy proof at capture time, including length.
+        // Admission after an off-main observation cannot establish its earlier safety.
+        guard type != "text_edit" || capturedHostSafe == true else { return nil }
+        let privacyVerified = capturedHostSafe == true && MainActor.assumeIsolated {
+            candidate.map { !nativeComposing($0) } ?? false
+        }
         return buffer.withInteractionLock {
             guard enabledLocked(), lease == token else { return nil }
             if type == "launch_context" {
@@ -129,7 +135,9 @@ final class InteractionEventRecorder: @unchecked Sendable {
     private var hostTimes: [ObjectIdentifier: HostTime] = [:]
     private var registrations: [String: Registration] = [:], generations: [String: UInt64] = [:]
     private var pendingRegistrations: [String: (generation: UInt64, annotation: [String: Any]?)] = [:]
-    private var registrationOverflow = false, timerArmed = false
+    private var registrationOverflow = false
+    private var armedDeadline: Double?
+    private var timerGeneration: UInt64 = 0
     private var revocationListeners: [() -> Void] = []
     func onRevoked(_ listener: @escaping () -> Void) { buffer.withInteractionLock { revocationListeners.append(listener) } }
     // Adapter stores share the revoke boundary: a stale snapshot cannot repopulate
@@ -164,7 +172,7 @@ final class InteractionEventRecorder: @unchecked Sendable {
         token = UUID().uuidString
         prepared.forEach { $0.observation = nil }; prepared.removeAll()
         pending.removeAll(); semanticTimes.removeAll(); lifecycleTimes.removeAll(); hostTimes.removeAll()
-        registrations.removeAll(); generations.removeAll(); pendingRegistrations.removeAll(); registrationOverflow = false; timerArmed = false
+        registrations.removeAll(); generations.removeAll(); pendingRegistrations.removeAll(); registrationOverflow = false; armedDeadline = nil
         revocationListeners.forEach { $0() }
     }
     @MainActor func owner(view: UIView? = nil, lease requested: String? = nil) -> InteractionOwner? {
@@ -222,14 +230,19 @@ final class InteractionEventRecorder: @unchecked Sendable {
         prepared.removeAll { cell in removed.contains { $0 === cell } }; removed.forEach { $0.observation = nil }
     }
     private func armTimer() {
-        let timer: (String, Double)? = buffer.withInteractionLock {
-            guard !timerArmed, let deadline = pending.filter({ !$0.dormant }).map(\.deadline).min() else { return nil }
-            timerArmed = true; return (token, max(1, deadline - clock()))
+        let timer: (token: String, generation: UInt64, delay: Double)? = buffer.withInteractionLock {
+            guard let deadline = pending.filter({ !$0.dormant }).map(\.deadline).min(),
+                  armedDeadline.map({ deadline < $0 }) ?? true else { return nil }
+            armedDeadline = deadline; timerGeneration &+= 1
+            return (token, timerGeneration, max(1, deadline - clock()))
         }
         guard let timer else { return }
-        schedule(timer.1) { [weak self] in
+        schedule(timer.delay) { [weak self] in
             guard let self else { return }
-            let active = self.buffer.withInteractionLock { if self.token != timer.0 { return false }; self.timerArmed = false; return true }
+            let active = self.buffer.withInteractionLock {
+                guard self.token == timer.token, self.timerGeneration == timer.generation else { return false }
+                self.armedDeadline = nil; return true
+            }
             guard active, Thread.isMainThread else { return }
             MainActor.assumeIsolated { self.flushDue(); self.armTimer() }
         }

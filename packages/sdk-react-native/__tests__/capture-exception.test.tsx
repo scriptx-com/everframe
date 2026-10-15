@@ -103,7 +103,10 @@ describe('public captureException ownership', () => {
     // Mounts may query interaction ownership; capture still sends only crash facts.
     expect(NativeEverframe.getInteractionLease).toHaveBeenCalledTimes(2);
     for (const [name, fn] of Object.entries(NativeEverframe)) {
-      if (vi.isMockFunction(fn) && !['configureSync', 'getInteractionLease', 'captureHandledException'].includes(name)) {
+      if (
+        vi.isMockFunction(fn) &&
+        !['configureSync', 'getInteractionLease', 'captureHandledException'].includes(name)
+      ) {
         expect(fn, name).not.toHaveBeenCalled();
       }
     }

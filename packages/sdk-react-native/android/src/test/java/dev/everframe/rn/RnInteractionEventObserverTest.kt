@@ -16,7 +16,9 @@ import com.facebook.react.views.switchview.ReactSwitchManager
 import com.facebook.react.views.switchview.ReactSwitch
 import dev.everframe.Everframe
 import dev.everframe.capture.sharedBreadcrumbBuffer
+import dev.everframe.capture.InteractionEvents
 import dev.everframe.shared.SharedData
+import kotlinx.serialization.json.*
 import org.junit.*
 import org.junit.Assert.*
 import org.junit.runner.RunWith
@@ -80,6 +82,31 @@ class RnInteractionEventObserverTest {
         val events = sharedBreadcrumbBuffer.takeFrozen()!!
         assertEquals(1, events.size); assertFalse(events.toString().contains("typed"))
         assertTrue(dispatcher.calls > 0)
+    }
+    @Test fun mixedHelperRegistrationPreservesAutomaticNativeTypingAndTargetMetadata() {
+        val manager = TextManager(); val view = ReactEditText(context).apply { id = 2 }
+        root.addView(view); views[2] = view; manager.attach(context, view)
+        val bridge = RnInteractionEventRegistration({ views[it] }, { it() })
+        try {
+            val lease = bridge.lease()
+            assertTrue(bridge.set(2.0, "mixed", 1.0, lease,
+                """{"helperTypes":["text_edit","control_change","scroll"],"target":{"name":"Search","testId":"search"}}"""))
+            assertEquals(lease, bridge.lease())
+            assertFalse(InteractionEvents.suppresses(view, "text_edit"))
+            assertTrue(InteractionEvents.suppresses(view, "control_change"))
+            assertTrue(InteractionEvents.suppresses(view, "scroll"))
+            assertFalse(bridge.record(lease, "mixed", 1.0,
+                """{"type":"text_edit","source":"app","observedAt":1,"length":31,"value":"SECRET","phase":"end"}"""))
+            view.text!!.replace(0, view.text!!.length, "typed")
+            sharedBreadcrumbBuffer.freeze()
+            val event = sharedBreadcrumbBuffer.takeFrozen()!!.single().data!!
+            assertEquals("text_edit", event["interaction"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+            assertEquals("native", event["interaction"]!!.jsonObject["source"]!!.jsonPrimitive.content)
+            assertEquals(5, event["interaction"]!!.jsonObject["length"]!!.jsonPrimitive.int)
+            assertEquals("Search", event["target"]!!.jsonObject["name"]!!.jsonPrimitive.content)
+            assertFalse(event.toString().contains("SECRET"))
+            assertTrue(dispatcher.calls > 0)
+        } finally { bridge.close() }
     }
     @Test fun realSwitchManagerPreservesUserListenerAndExcludesPropChanges() {
         val manager = ReactSwitchManager()

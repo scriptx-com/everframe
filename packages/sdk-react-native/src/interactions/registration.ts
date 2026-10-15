@@ -8,6 +8,7 @@ import {
 } from '@everframe/protocol';
 import type { InteractionPolicy } from './policy.js';
 
+/** text_edit is accepted for compatibility; native observation retains ownership. */
 export type HelperType = 'text_edit' | 'control_change' | 'scroll';
 export interface InteractionHookOptions {
   target?: InteractionTargetAnnotation;
@@ -47,7 +48,9 @@ export function normalizeInteractionOptions(input: unknown): InteractionHookOpti
     if (Array.isArray(raw) && raw.length <= 3) {
       const values = Array.from({ length: raw.length }, (_, index) => own(raw, String(index)));
       if (values.every((value) => types.includes(value as HelperType)))
-        helpers = [...new Set(values)] as HelperType[];
+        // A JS callback cannot prove native sensitivity at observation time.
+        // Leave automatic text capture active instead of owning an unsafe helper.
+        helpers = [...new Set(values)].filter((value) => value !== 'text_edit') as HelperType[];
     }
     return { ...(target ? { target } : {}), helperTypes: helpers };
   } catch {
@@ -185,22 +188,11 @@ export function createInteractionRegistration(
       attempted = true;
     },
     textChanged(
-      text: string,
-      input?: { composing?: boolean; reason?: 'change' | 'end' | 'submit' },
+      _text: string,
+      _input?: { composing?: boolean; reason?: 'change' | 'end' | 'submit' },
     ) {
-      emit('text_edit', () => {
-        if (typeof text !== 'string') return;
-        const rawComposing = own(input, 'composing'),
-          phase = own(input, 'reason') ?? 'change';
-        if (
-          (rawComposing !== undefined && typeof rawComposing !== 'boolean') ||
-          !['change', 'end', 'submit'].includes(phase as string)
-        )
-          return;
-        const composing = rawComposing === true,
-          value = composing ? undefined : permittedValue(text);
-        return { length: text.length, phase, composing, ...(value === undefined ? {} : { value }) };
-      });
+      // Reserved compatibility API. Native UI observations own text privacy,
+      // composition, length and optional values; JS text never crosses the bridge.
     },
     controlChanged(change: ControlChangeInput) {
       emit('control_change', () => {

@@ -147,32 +147,50 @@ internal object InteractionEventSanitizer {
         is JsonPrimitive -> if (value.isString) JsonPrimitive(RedactionEngine.redact(value.content)) else value
     }
 
-    private fun sanitizeUrl(raw: String, policy: InteractionEventPolicy): String? = try {
-        if (raw.length > 8192 || !validInteractionUnicode(raw) || raw.any { it <= '\u0020' || it == '\\' }) null else {
-            val uri = URI(raw)
-            val origin = interactionOrigin(uri)
-            if (origin == null) null else {
-                val rule = policy.urlRules.firstOrNull { it.origin == origin }
-                val actual = uri.rawPath.orEmpty().split('/').map { decode(it) }
-                if (actual.any { it == "." || it == ".." || it.any { c -> c in "/%\\" || c <= '\u001f' || c == '\u007f' } }) throw IllegalArgumentException("Ambiguous path")
-                val path = actual.joinToString("/")
-                val safePath = rule?.literalPaths?.firstOrNull { it == path } ?: rule?.routes?.firstOrNull { route ->
-                    val parts = route.split('/')
-                    parts.size == actual.size && parts.indices.all { parts[it] == actual[it] || (parts[it].startsWith(':') && actual[it].isNotEmpty()) }
-                }.orEmpty()
-                val query = uri.rawQuery?.split('&')?.mapNotNull { pair ->
-                    val key = decode(pair.substringBefore('=').replace("+", " "))
-                    val decodedValue = decode(pair.substringAfter('=', "").replace("+", " "))
-                    if (rule == null || key !in rule.queryKeys) null else {
-                        val value = boundedText(RedactionEngine.redact(decodedValue), 128) ?: return@mapNotNull null
-                        val safeKey = boundedText(RedactionEngine.redact(key), 128) ?: return@mapNotNull null
-                        URLEncoder.encode(safeKey, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8")
-                    }
-                }?.distinctBy { it.substringBefore('=') }?.take(16).orEmpty()
-                origin + safePath + if (query.isEmpty()) "" else "?" + query.joinToString("&")
+    private fun sanitizeUrl(raw: String, policy: InteractionEventPolicy): String? {
+        return try {
+            if (raw.length > 8192 || !validInteractionUnicode(raw) || raw.any { it <= '\u0020' || it == '\u007f' || it == '\\' }) null else {
+                require(':' in raw)
+                val scheme = raw.substringBefore(':').takeIf { it.matches(Regex("[A-Za-z][A-Za-z0-9+.-]*")) }?.lowercase()
+                    ?: throw IllegalArgumentException("Invalid scheme")
+                val requiresHost = scheme in setOf("http", "https", "ftp", "ws", "wss")
+                // Scheme-only evidence is also accepted on the second native sanitation pass.
+                if (raw.substringAfter(':').isEmpty()) {
+                    require(!requiresHost)
+                    return "$scheme:"
+                }
+                val uri = URI(raw)
+                val origin = interactionOrigin(uri)
+                if (origin == null) {
+                    require(!requiresHost && uri.rawAuthority == null)
+                    val payload = raw.substringAfter(':')
+                    require(!payload.startsWith("//") || (scheme == "file" && payload.startsWith("///")))
+                    // Validate all discarded payload as well: malformed encodings are not links.
+                    require(decode(payload).none { it <= '\u001f' || it == '\u007f' || it == '\\' })
+                    "$scheme:"
+                } else {
+                    val rule = policy.urlRules.firstOrNull { it.origin == origin }
+                    val actual = uri.rawPath.orEmpty().split('/').map { decode(it) }
+                    if (actual.any { it == "." || it == ".." || it.any { c -> c in "/%\\" || c <= '\u001f' || c == '\u007f' } }) throw IllegalArgumentException("Ambiguous path")
+                    val path = actual.joinToString("/")
+                    val safePath = rule?.literalPaths?.firstOrNull { it == path } ?: rule?.routes?.firstOrNull { route ->
+                        val parts = route.split('/')
+                        parts.size == actual.size && parts.indices.all { parts[it] == actual[it] || (parts[it].startsWith(':') && actual[it].isNotEmpty()) }
+                    }.orEmpty()
+                    val query = uri.rawQuery?.split('&')?.mapNotNull { pair ->
+                        val key = decode(pair.substringBefore('=').replace("+", " "))
+                        val decodedValue = decode(pair.substringAfter('=', "").replace("+", " "))
+                        if (rule == null || key !in rule.queryKeys) null else {
+                            val value = boundedText(RedactionEngine.redact(decodedValue), 128) ?: return@mapNotNull null
+                            val safeKey = boundedText(RedactionEngine.redact(key), 128) ?: return@mapNotNull null
+                            URLEncoder.encode(safeKey, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8")
+                        }
+                    }?.distinctBy { it.substringBefore('=') }?.take(16).orEmpty()
+                    origin + safePath + if (query.isEmpty()) "" else "?" + query.joinToString("&")
+                }
             }
-        }
-    } catch (_: Exception) { null }
+        } catch (_: Exception) { null }
+    }
 
     /** Percent runs must be valid UTF-8; URLDecoder would replace malformed bytes. */
     private fun decode(raw: String): String {

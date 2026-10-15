@@ -35,7 +35,7 @@ internal data class InteractionObservation(
     val composing: Boolean = false,
     val deferLaunch: Boolean = false,
     // Set only by the native user-edit adapter, never by helper JSON.
-    val nativeTextEdit: Boolean = false,
+    val nativeTextAttachment: InteractionTextAdapter.Attachment? = null,
 )
 
 /** Mutable admission state shares the buffer lock; no view access occurs under that lock. */
@@ -45,7 +45,7 @@ internal class InteractionEventRecorder(
     private val schedule: (Long, () -> Unit) -> Unit = { delay, action -> Handler(Looper.getMainLooper()).postDelayed({ action() }, delay); Unit },
 ) {
     private data class Pending(val owner: InteractionOwner, val event: JsonObject, var deadline: Long, val composing: Boolean,
-        val nativeTextEdit: Boolean = false, var dormant: Boolean = false, var completionReason: String? = null)
+        val nativeTextAttachment: InteractionTextAdapter.Attachment? = null, var dormant: Boolean = false, var completionReason: String? = null)
     private var token = UUID.randomUUID().toString()
     private var runtime: String? = null
     private val prepared = mutableListOf<PreparedInteraction>()
@@ -63,7 +63,11 @@ internal class InteractionEventRecorder(
         val sourceScreen = InteractionTargetScreenState.current()
         // Never inspect UI under the breadcrumb lock or retain a JS value while waiting for UI validation.
         val candidate = buffer.withInteractionLock { registrations[id]?.owner }
-        val privacyVerified = candidate != null && Looper.myLooper() == Looper.getMainLooper() && live(candidate) && !nativeComposing(candidate)
+        val hostPrivacy = if (candidate != null && Looper.myLooper() == Looper.getMainLooper()) live(candidate) else null
+        // Text requires observation-time native privacy proof. A later UI queue drain
+        // cannot establish whether off-main text was captured before unmasking.
+        if (type == "text_edit" && hostPrivacy != true) return null
+        val privacyVerified = hostPrivacy == true && candidate != null && !nativeComposing(candidate)
         return buffer.withInteractionLock {
             if (!enabled() || lease != token) return@withInteractionLock null
             if (type == "launch_context") {
@@ -131,7 +135,8 @@ internal class InteractionEventRecorder(
     private val generations = mutableMapOf<String, Long>()
     private val pendingRegistrations = mutableMapOf<String, Pair<Long, JsonObject?>>()
     private var registrationOverflow = false
-    private var timerArmed = false
+    private var timerDeadline: Long? = null
+    private var timerGeneration = 0L
     private val revocationListeners = mutableListOf<() -> Unit>()
     internal fun onRevoked(listener: () -> Unit) = buffer.withInteractionLock { revocationListeners.add(listener) }
     // No UI reads or recorder calls in retain: adapter insertion shares revoke's lock.
@@ -156,7 +161,8 @@ internal class InteractionEventRecorder(
         prepared.forEach { it.observation = null }; prepared.clear()
         pending.clear(); semanticTimes.clear(); lifecycleTimes.clear(); hostTimes.clear()
         registrations.clear(); generations.clear(); pendingRegistrations.clear(); registrationOverflow = false
-        timerArmed = false
+        timerDeadline = null
+        timerGeneration++
         revocationListeners.forEach { it() }
     }
     val pendingCount: Int get() = buffer.withInteractionLock { pending.size }
@@ -187,7 +193,7 @@ internal class InteractionEventRecorder(
         val owner = observation.owner
         val type = observation.event.string("type") ?: return false
         if ((type in setOf("text_edit", "control_change", "scroll")) != (owner.host != null)) return false
-        if (!live(owner)) return false
+        if (!live(owner) || observation.nativeTextAttachment?.attached == false) return false
         val localPolicy = buffer.withInteractionLock { if (current(owner)) policy else null } ?: return false
         if (observation.phase !in setOf("change", "end", "submit")) return false
         val composing = observation.composing || (type == "text_edit" && nativeComposing(owner))
@@ -206,7 +212,7 @@ internal class InteractionEventRecorder(
             pending.removeAll { it.owner.host?.get() === owner.host?.get() && it.event.string("type") == type }
             if (shouldPend) {
                 boundSummaryHostsLocked(owner)
-                pending.add(Pending(owner, event, now + delay, composing, observation.nativeTextEdit))
+                pending.add(Pending(owner, event, now + delay, composing, observation.nativeTextAttachment))
                 true
             } else admitLocked(owner, event, now)
         }
@@ -228,14 +234,14 @@ internal class InteractionEventRecorder(
     }
     private fun armTimer() {
         val timer = buffer.withInteractionLock {
-            if (timerArmed) return@withInteractionLock null
             val deadline = pending.filterNot { it.dormant }.minOfOrNull { it.deadline } ?: return@withInteractionLock null
-            timerArmed = true
-            token to (deadline - clock()).coerceAtLeast(1)
+            if (timerDeadline?.let { it <= deadline } == true) return@withInteractionLock null
+            timerDeadline = deadline
+            Triple(token, ++timerGeneration, (deadline - clock()).coerceAtLeast(1))
         } ?: return
-        schedule(timer.second) {
+        schedule(timer.third) {
             val active = buffer.withInteractionLock {
-                if (token != timer.first) false else { timerArmed = false; true }
+                if (token != timer.first || timerGeneration != timer.second) false else { timerDeadline = null; true }
             }
             if (active) { flushDue(); armTimer() }
         }
@@ -315,7 +321,7 @@ internal class InteractionEventRecorder(
         val firstReason = buffer.withInteractionLock { item.completionReason ?: reason }
         flush(item, firstReason)
         buffer.withInteractionLock {
-            if (pending.any { it === item } && current(item.owner) && item.composing && item.nativeTextEdit && item.completionReason == null) {
+            if (pending.any { it === item } && current(item.owner) && item.composing && item.nativeTextAttachment?.attached == true && item.completionReason == null) {
                 // Some IMEs submit before removing composing spans. Give this same edit
                 // one deferred check on the shared timer, retaining its original owner.
                 // Keeping the reason also prevents duplicate end callbacks from polling.
@@ -345,9 +351,9 @@ internal class InteractionEventRecorder(
         for (item in ready) flush(item, "freeze")
     }
     private fun flush(item: Pending, reason: String) {
-        val live = live(item.owner)
+        val live = live(item.owner) && item.nativeTextAttachment?.attached != false
         val composing = live && item.event.string("type") == "text_edit" && nativeComposing(item.owner)
-        val nativeComposition = item.composing && item.nativeTextEdit
+        val nativeComposition = item.composing && item.nativeTextAttachment != null
         buffer.withInteractionLock {
             if (item !in pending) return@withInteractionLock
             if (live && nativeComposition && composing && current(item.owner)) {

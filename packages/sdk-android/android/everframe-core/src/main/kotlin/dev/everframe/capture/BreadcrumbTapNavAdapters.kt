@@ -345,7 +345,7 @@ internal class TXWindowCallbackWrapper(
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val scroll = if (isTvHost && event.action == KeyEvent.ACTION_DOWN && event.keyCode in setOf(
                 KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT)) {
-            runCatching { remoteScrollContainer(activity.window?.currentFocus) }.getOrNull()
+            runCatching { remoteScrollContainer(activity.window?.currentFocus, event.keyCode) }.getOrNull()
         } else null
         scroll?.let { (view, axis) -> txGuardVoid("interaction.remote.begin") { InteractionScrollAdapter.shared.remoteBegan(view, axis) } }
         if (isTvHost) {
@@ -368,12 +368,13 @@ internal class TXWindowCallbackWrapper(
         return result
     }
 
-    private fun remoteScrollContainer(focused: android.view.View?): Pair<android.view.View, String>? {
+    private fun remoteScrollContainer(focused: android.view.View?, keyCode: Int): Pair<android.view.View, String>? {
+        val axis = if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) "x" else "y"
         var view = focused
         repeat(32) {
             val current = view ?: return null
-            if (current is android.widget.HorizontalScrollView) return current to "x"
-            if (current is android.widget.ScrollView) return current to "y"
+            if (axis == "x" && current is android.widget.HorizontalScrollView) return current to axis
+            if (axis == "y" && current is android.widget.ScrollView) return current to axis
             view = current.parent as? android.view.View
         }
         return null

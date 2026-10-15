@@ -949,17 +949,22 @@ function RecentSort({ setSort }: { setSort: (value: string) => void }) {
 }
 ```
 
-The other methods are `textChanged(text, { composing?, reason? })` and
-`scrollSettled({ axis, direction, item? })`. Text reasons are `change`, `end` or
-`submit`; composition never forwards a value. Text helpers require both matching
-`target.testId` metadata and the allowlisted native `testID` to forward values.
+Use `scrollSettled({ axis, direction, item? })` for app-owned scroll semantics.
 Only call helpers from user-interaction callbacks. Do not call them for programmatic
 state updates. Compose the returned ref with any existing app ref.
 
-`helperTypes` defaults to an empty list. Only explicitly selected types suppress
+`helperTypes` defaults to an empty list. Only explicitly selected `control_change`
+and `scroll` types suppress
 the corresponding automatic observer, after native attachment succeeds. Existing
 tap evidence is preserved. Missing providers, unsupported refs, older native
 binaries and the web entry safely leave helpers inactive.
+
+Text uses automatic native observation. `textChanged(text, options?)` remains a
+compatibility no-op, and requesting `helperTypes: ['text_edit']` does not suppress
+the native text observer. JavaScript callbacks cannot prove whether a field was
+secure when the text originated; checking after it is unmasked would be too late.
+No helper text value or length crosses the bridge. Custom text controls without a
+supported native observation point produce no text evidence.
 
 Clearing evidence, signing out or changing native capture configuration revokes
 pending work. A queued callback keeps its original ownership and cannot renew it.
@@ -976,7 +981,7 @@ Scrolls coalesce at gesture completion or after 200 ms of inactivity.
 Semantic events share a 20-per-10-second budget; text and scroll also share a
 one-per-second budget per host. Values are bounded again after final redaction.
 
-Incoming links are observed through React Native's existing `Linking` channel while the provider is mounted. The SDK does not route links. By default, evidence contains only scheme and host. Declare known route templates (for example `/watch/:id`) and exact query keys in `interactions.urlRules` to include more. Credentials, fragments and actual dynamic path segments are omitted; ambiguous encoded separators and dot segments are rejected. The initial URL is requested once per JS process, including across provider remounts. Distinct URL callbacks remain distinct observations even when their URLs match, because React Native supplies no delivery ID.
+Incoming links are observed through React Native's existing `Linking` channel while the provider is mounted. The SDK does not route links. By default, evidence contains only scheme and host; valid opaque or hostless links retain only their scheme (for example `myapp:`). Parsing works in bare React Native without a global URL patch. Declare known route templates (for example `/watch/:id`) and exact query keys in `interactions.urlRules` to include more. Credentials, fragments and actual dynamic path segments are omitted; ambiguous encoded separators and dot segments are rejected. The initial URL is requested once per JS process, including across provider remounts. Distinct URL callbacks remain distinct observations even when their URLs match, because React Native supplies no delivery ID.
 
 Observe an existing permission operation without changing its result:
 
@@ -998,4 +1003,4 @@ Launch context enriches only a native foreground entry that is still pending (up
 
 Permission operations still run without a provider, with older native binaries and on web. Launch context is a no-op in those cases. A clear, sign-out or native configuration change revokes in-flight observations; it does not cancel the app's operation.
 
-Standard native text fields should keep `helperTypes: []` so native edit observation owns IME composition and optional allowlisted values. A JavaScript helper retains an optional value only if native code can verify the current host privacy on the UI thread before queuing it; calls from another thread omit values. Structural helper summaries still work, and native privacy is checked again before admission.
+Standard native text fields should keep `helperTypes: []` so native edit observation owns IME composition and optional allowlisted values. Target annotations still enrich automatic evidence. Unsupported text helper declarations are also filtered by each native bridge, preserving automatic capture for callers using older JavaScript code.

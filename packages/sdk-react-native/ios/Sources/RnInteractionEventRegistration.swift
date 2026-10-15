@@ -63,7 +63,10 @@ import EverframeKit
         requests = requests.filter { $0.value.lease == token }
         guard requests.count < 4096 || requests[id] != nil,
               InteractionEvents.beginRegistration(id: key(id), generation: UInt64(generation), lease: token, optionsJson: optionsJson) else { return false }
-        let request = Request(NSNumber(value: tag), UInt64(generation), token, Set(list), resolve)
+        // JS text callbacks cannot prove the native field was safe when observed.
+        // Preserve automatic native text capture and supported helper ownership.
+        let types = Set(list).subtracting(["text_edit"])
+        let request = Request(NSNumber(value: tag), UInt64(generation), token, types, resolve)
         requests[id] = request; enqueue(id, request, host: host)
         return true
     }
@@ -80,7 +83,12 @@ import EverframeKit
                 }
                 return
             }
-            guard let view = host(root), view === root || view.isDescendant(of: root) else { return }
+            guard var view = host(root) else { return }
+            // Fabric ScrollView exposes its native host through this public getter;
+            // its accessibility element is the wrapper, unlike TextInput/Switch.
+            if view.responds(to: NSSelectorFromString("scrollView")),
+               let scroll = view.value(forKey: "scrollView") as? UIScrollView { view = scroll }
+            guard view === root || view.isDescendant(of: root) else { return }
             request.root = root; request.host = view; request.resolved = true
             _ = InteractionEvents.completeRegistration(view: view, id: self.key(id), generation: request.generation, lease: request.lease, types: request.types)
         }

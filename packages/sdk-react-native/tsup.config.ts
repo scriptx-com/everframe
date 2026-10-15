@@ -70,5 +70,6 @@ export default defineConfig({
   // externalize it from the JS bundle as well; keeping it here holds the
   // bundle self-contained exactly as it was validated, and the dependency
   // exists purely so the consumer can resolve the type import.
-  noExternal: ['@everframe/sdk-core', '@everframe/protocol', 'zod'],
+  // Keep URL parsing identical in bare RN and Expo without modifying globals.
+  noExternal: ['@everframe/sdk-core', '@everframe/protocol', 'zod', 'react-native-url-polyfill'],
 });

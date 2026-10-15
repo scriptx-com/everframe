@@ -18,6 +18,53 @@ import Testing
             _ = recorder.observe(.init(owner: owner, event: interactionEvent("text_edit", ["length": 6, "value": "SECRET"]), phase: phase, composing: composing))
         }
     }
+    @Test func helperTextCapturedWhileSensitiveDoesNotEmitAfterUnmask() throws {
+        let f = Fixture(), view = f.field(), lease = try #require(f.recorder.lease())
+        #expect(f.recorder.register(view: view, id: "secure", generation: 1, lease: lease, types: ["text_edit"]))
+        for secure in [true, false] {
+            if secure { view.isSecureTextEntry = true } else { SensitiveRectRegistry.mark(view) }
+            let item = f.recorder.prepare(lease: lease, id: "secure", generation: 1, json: #"{"type":"text_edit","source":"app","observedAt":1,"length":17,"phase":"end"}"#)
+            view.isSecureTextEntry = false; view.everframe_isSensitive = false
+            if let item { _ = f.recorder.recordPrepared(item) }
+            #expect(f.buffer.size == 0)
+        }
+    }
+    @Test func offMainTextPreparationRejectsUnknownPrivacyBeforeUnmasking() async throws {
+        for mode in ["safe", "secure", "masked"] {
+            let f = Fixture(), view = f.field(), lease = try #require(f.recorder.lease())
+            #expect(f.recorder.register(view: view, id: "off-main", generation: 1, lease: lease, types: ["text_edit"]))
+            if mode == "secure" { view.isSecureTextEntry = true }
+            if mode == "masked" { SensitiveRectRegistry.mark(view) }
+            let recorder = f.recorder
+            let item = await Task.detached {
+                recorder.prepare(lease: lease, id: "off-main", generation: 1,
+                    json: #"{"type":"text_edit","source":"app","observedAt":1,"length":17,"value":"PRIVATE-CAPTURE","phase":"end"}"#)
+            }.value
+            #expect(item == nil)
+            view.isSecureTextEntry = false; view.everframe_isSensitive = false
+            if let item { _ = recorder.recordPrepared(item) }
+            #expect(f.buffer.size == 0)
+        }
+    }
+    @Test func earlierScrollAndLaunchDeadlinesSupersedeTextTimer() throws {
+        let f = Fixture(); var timers: [(Double, () -> Void)] = []
+        let recorder = InteractionEventRecorder(buffer: f.buffer, clock: { f.now }, schedule: { delay, action in timers.append((f.now + delay, action)) })
+        let text = f.field(), scroll = f.field()
+        _ = recorder.observe(.init(owner: try #require(recorder.owner(view: text)), event: interactionEvent("text_edit", ["length": 1])))
+        f.now = 50
+        _ = recorder.observe(.init(owner: try #require(recorder.owner(view: scroll)), event: interactionEvent("scroll", ["axis": "y", "direction": "forward"])))
+        #expect(timers.map(\.0).min() == 250)
+        f.now = 250
+        for timer in timers.filter({ $0.0 <= f.now }) { timer.1() }
+        #expect(f.buffer.size == 1)
+        _ = recorder.observe(.init(owner: try #require(recorder.owner()), event: interactionEvent("launch", ["start": "cold"]), deferLaunch: true))
+        f.now = 500
+        for timer in timers.filter({ $0.0 == 500 }) { timer.1() }
+        #expect(f.buffer.size == 2)
+        f.now = 750
+        for timer in timers.filter({ $0.0 == 750 }) { timer.1() }
+        #expect(f.buffer.size == 3)
+    }
     @Test func preparedAndDelayedSummariesShareThe32HostBound() throws {
         let f = Fixture(), lease = try #require(f.recorder.lease())
         for _ in 0..<17 { try f.text(f.field()) }

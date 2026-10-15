@@ -37,11 +37,14 @@ internal class RnInteractionEventRegistration(
         if (list.size > 3) return false
         val types = list.map { (it as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return false }.toSet()
         if (!setOf("text_edit","control_change","scroll").containsAll(types)) return false
+        // JS text callbacks have no immutable native privacy proof at observation.
+        // Keep annotations and other helpers while leaving native typing active.
+        val supportedTypes = types - "text_edit"
         requests.filterValues { it.lease != lease }.values.forEach(::detachListener)
         requests.entries.removeAll { it.value.lease != lease }
         if (requests.size >= 4096 && !requests.containsKey(id)) return false
         if (!InteractionEvents.beginRegistration(namespace+id,generation.toLong(),lease,json)) return false
-        val request = Request(tag.toInt(),generation.toLong(),lease,types)
+        val request = Request(tag.toInt(),generation.toLong(),lease,supportedTypes)
         requests.put(id,request)?.let(::detachListener); enqueue(id,request)
         return true
     }

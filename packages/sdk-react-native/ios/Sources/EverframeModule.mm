@@ -80,6 +80,7 @@
 @end
 
 // Fabric exposes the native TextInput/Switch accessibility element publicly.
+// ScrollView's public scrollView getter is resolved by the registration layer.
 // Never reach into component-private ivars or replace their delegates.
 static UIView *EFInteractionHost(UIView *view) {
   if ([view isKindOfClass:RCTViewComponentView.class]) {

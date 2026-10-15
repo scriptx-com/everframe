@@ -54,6 +54,8 @@ vi.mock('react-native', () => ({
     addEventListener: vi.fn(() => ({ remove: vi.fn() })),
     getInitialURL: vi.fn(async () => null),
   },
+  // The bundled URL parser optionally reads BlobModule for blob URL support.
+  NativeModules: {},
   Platform: {
     OS: 'ios',
     isTV: false,
