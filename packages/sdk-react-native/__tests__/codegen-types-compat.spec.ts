@@ -24,6 +24,6 @@ describe('React Native codegen type compatibility', () => {
     const encoded = JSON.stringify(schema);
 
     expect(Object.keys(schema.modules)).toEqual(['NativeEverframe']);
-    expect(encoded.match(/GenericObjectTypeAnnotation/g)?.length).toBe(7);
+    expect(encoded.match(/GenericObjectTypeAnnotation/g)?.length).toBe(8);
   });
 });

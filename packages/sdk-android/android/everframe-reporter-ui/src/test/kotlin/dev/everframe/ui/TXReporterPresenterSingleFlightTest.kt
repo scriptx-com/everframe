@@ -47,6 +47,36 @@ class TXReporterPresenterSingleFlightTest {
     @Before fun reset() { TXReporterPresenter.__resetSingleFlightForTesting() }
     @After fun close() { Everframe.kill(); Everframe.clearExtra(); TXReporterPresenter.__resetSingleFlightForTesting() }
 
+    @Test fun markerIsFrozenBeforeReporterAndCancellationClosesTheLiveInterval() = runBlocking {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        startSdk(activity)
+        val buffer = dev.everframe.capture.sharedBreadcrumbBuffer
+        buffer.clear()
+        Everframe.addBreadcrumb("before")
+        val bitmap = Bitmap.createBitmap(2,2,Bitmap.Config.ARGB_8888)
+        TXReporterPresenter(
+            captureScreenshot = { _, _ -> ScreenshotCapture.CaptureResult(bitmap,2,2,byteArrayOf(1)) },
+            showDialog = { _, _, capture, _, _ ->
+                val crumbs = capture.takeBreadcrumbs()!!
+                assertEquals(listOf("before","reporter_opened"),crumbs.map { it.message })
+                assertEquals(kotlinx.serialization.json.JsonPrimitive("button"),crumbs.last().data!!["trigger"])
+                assertEquals(kotlinx.serialization.json.JsonPrimitive("everframe_reporter"),crumbs.last().data!!["source"])
+                ReportResult.Cancelled("user")
+            },
+        ).openReporter(activity)
+        assertEquals("reporter_closed",buffer.snapshotForReport().last().message)
+    }
+
+    @Test fun failedScreenshotDoesNotLeaveReporterLifecycleEvidence() = runBlocking {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        startSdk(activity)
+        val buffer = dev.everframe.capture.sharedBreadcrumbBuffer
+        buffer.clear()
+        val result = TXReporterPresenter(captureScreenshot = { _, _ -> null }).openReporter(activity)
+        assertEquals(ReportResult.Cancelled("capture_failed"),result)
+        assertTrue(buffer.snapshotForReport().none { it.message == "reporter_opened" || it.message == "reporter_closed" })
+    }
+
     @Test fun concurrentOpensPresentOneReporterAndShareItsResult() = runBlocking {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         Everframe.start(

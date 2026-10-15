@@ -281,6 +281,9 @@ export interface Spec extends TurboModule {
    * Typed `UnsafeObject` at codegen boundary; facade casts to `ReporterResult`.
    */
   openReporter(): Promise<UnsafeObject>;
+  openReporterWithTrigger(trigger: string): Promise<UnsafeObject>;
+  markReporterOpened(trigger: string): void;
+  markReporterClosed(): void;
   // Boolean return makes ownership invalidation synchronous; host resolution remains UI-queued.
   setInteractionTarget(
     viewTag: number,

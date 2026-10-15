@@ -543,6 +543,11 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     @objc public static func openReporter(
         completion: @escaping (NSDictionary?, NSError?) -> Void
     ) {
+        openReporter(trigger: "button", completion: completion)
+    }
+
+    @objc(openReporterWithTrigger:completion:)
+    public static func openReporter(trigger: String, completion: @escaping (NSDictionary?, NSError?) -> Void) {
         os_log("[everframe] openReporter.enter", log: log, type: .info)
         guard Everframe.shared.captureGate else {
             completion(nil, NSError(
@@ -559,7 +564,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
 
         Task {
             do {
-                let result = try await Everframe.shared.report.open()
+                let result = try await Everframe.shared.report.open(trigger: ReporterTrigger(rawValue: trigger) ?? .button)
                 let dict: NSDictionary
                 switch result {
                 case .submitted(let id):
@@ -579,6 +584,15 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
                 completion(nil, error as NSError)
             }
         }
+    }
+
+    @objc public static func markReporterOpened(_ trigger: String) {
+        guard let trigger = ReporterTrigger(rawValue: trigger) else { return }
+        Everframe.shared.report.markOpened(trigger: trigger)
+    }
+
+    @objc public static func markReporterClosed() {
+        BreadcrumbRingBuffer.shared.reporterClosed()
     }
 
     /// `openReporter`'s error for a crash-only session (`reporterDisabled: true`).

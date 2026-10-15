@@ -2249,6 +2249,7 @@ public final class Everframe: @unchecked Sendable {
     /// Called after the reporter window is removed, including successful Send.
     @MainActor
     public func __replayReporterDidClose() {
+        BreadcrumbRingBuffer.shared.reporterClosed()
         _replaySession?.cancelForReporter()
     }
 
@@ -2262,6 +2263,7 @@ public final class Everframe: @unchecked Sendable {
     // or a report.
     @MainActor
     public func __replayCancel() {
+        BreadcrumbRingBuffer.shared.reporterClosed()
         _replaySession?.cancelForReporter()
         BreadcrumbRingBuffer.shared.discardAndResume()
         stateRecorder.discardFrozen()
@@ -2592,7 +2594,20 @@ public final class Everframe: @unchecked Sendable {
     public let companion = CompanionAPI()
 }
 
+public enum ReporterTrigger: String, Sendable { case button, shake, menu, companion }
+
 public final class ReportAPI: ObservableObject, @unchecked Sendable {
+    @TaskLocal public static var currentTrigger: ReporterTrigger = .button
+
+    /// Explicit host-owned boundary; does not retroactively claim preceding input.
+    public func markOpened(trigger: ReporterTrigger) {
+        BreadcrumbRingBuffer.shared.reporterOpened(trigger: trigger)
+    }
+
+    public func open(trigger: ReporterTrigger) async throws -> ReportResult {
+        try await Self.$currentTrigger.withValue(trigger) { try await open() }
+    }
+
     /// Triggers reporter overlay; returns when user submits or cancels.
     /// Wired in plan 04-06 to EFReporterPresenter.openAndAwait() via the
     /// runtime-injected resolver below — this keeps Everframe.swift independent

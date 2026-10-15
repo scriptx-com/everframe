@@ -10,13 +10,14 @@ final class InteractionOwner {
     weak var host: UIView?
     let hasHost: Bool
     let target: [String: Any]?
+    let origin: String?
     let liveTestId: String?
     let hostTag: Int?
     let registrationId: String?
     let generation: UInt64?
-    init(lease: String, revision: UInt64, host: UIView?, target: [String: Any]?, liveTestId: String?, hostTag: Int?, registrationId: String? = nil, generation: UInt64? = nil) {
+    init(lease: String, revision: UInt64, host: UIView?, target: [String: Any]?, liveTestId: String?, hostTag: Int?, registrationId: String? = nil, generation: UInt64? = nil, origin: String? = nil) {
         self.lease = lease; self.revision = revision; self.host = host; self.hasHost = host != nil
-        self.target = target; self.liveTestId = liveTestId; self.hostTag = hostTag; self.registrationId = registrationId; self.generation = generation
+        self.origin = origin; self.target = target; self.liveTestId = liveTestId; self.hostTag = hostTag; self.registrationId = registrationId; self.generation = generation
     }
 }
 struct InteractionObservation {
@@ -92,7 +93,7 @@ final class InteractionEventRecorder: @unchecked Sendable {
             if owner.hasHost {
                 var fields = owner.target ?? [:]; fields["screen"] = sourceScreen
                 let target = (InteractionEventSanitizer.redact(fields) as? [String: Any]).flatMap(InteractionEventSanitizer.target)
-                owner = InteractionOwner(lease: owner.lease, revision: owner.revision, host: owner.host, target: target, liveTestId: owner.liveTestId, hostTag: owner.hostTag, registrationId: owner.registrationId, generation: owner.generation)
+                owner = InteractionOwner(lease: owner.lease, revision: owner.revision, host: owner.host, target: target, liveTestId: owner.liveTestId, hostTag: owner.hostTag, registrationId: owner.registrationId, generation: owner.generation, origin: owner.origin)
             }
             let phase = type == "text_edit" ? (input["phase"] as? String ?? "change") : type == "scroll" ? "end" : "change"
             guard ["change", "end", "submit"].contains(phase), input["composing"] == nil || interactionBool(input["composing"]) != nil else { return nil }
@@ -185,12 +186,12 @@ final class InteractionEventRecorder: @unchecked Sendable {
         let target = snapshot.data["target"]?.value as? [String: Any]
         guard interactionBool(target?["masked"]) != true else { return nil }
         let safeTarget = (target.map(InteractionEventSanitizer.redact) as? [String: Any]).flatMap(InteractionEventSanitizer.target)
-        let owner = InteractionOwner(lease: lease, revision: revision, host: view, target: safeTarget, liveTestId: testId(view), hostTag: view.tag)
+        let owner = InteractionOwner(lease: lease, revision: revision, host: view, target: safeTarget, liveTestId: testId(view), hostTag: view.tag, origin: snapshot.data["origin"]?.value as? String)
         return buffer.withInteractionLock {
             guard currentLocked(owner) else { return nil }
             guard let annotation = registrations.values.first(where: { $0.owner.host === view && currentLocked($0.owner) })?.annotation else { return owner }
             return InteractionOwner(lease: owner.lease, revision: owner.revision, host: view,
-                target: (owner.target ?? [:]).merging(annotation) { _, value in value }, liveTestId: owner.liveTestId, hostTag: owner.hostTag)
+                target: (owner.target ?? [:]).merging(annotation) { _, value in value }, liveTestId: owner.liveTestId, hostTag: owner.hostTag, origin: owner.origin)
         }
     }
     @MainActor func observe(_ observation: InteractionObservation) -> Bool {
@@ -288,6 +289,7 @@ final class InteractionEventRecorder: @unchecked Sendable {
     private func admit(_ owner: InteractionOwner, event: [String: Any], now: Double) -> Bool {
         guard let type = event["type"] as? String else { return false }
         var data: [String: Any] = ["interaction": event]; data["target"] = owner.target
+        if owner.origin == "devtools" { data["origin"] = "devtools" }
         return buffer.addObservedInteraction(kind: InteractionEventSanitizer.kind(type), message: InteractionEventSanitizer.message(type), data: BreadcrumbRingBuffer.coerceHostData(data), captureRevision: owner.revision) {
             guard self.currentLocked(owner) else { return false }
             let semantic = ["text_edit", "control_change", "scroll"].contains(type)
@@ -330,7 +332,7 @@ final class InteractionEventRecorder: @unchecked Sendable {
             let displaced = registrations.filter { $0.value.owner.host === view }.map(\.key)
             for key in displaced { cancelRegistrationLocked(key) }
             pending.removeAll { $0.owner.host === view && ($0.event["type"] as? String).map(types.contains) == true }
-            let bound = InteractionOwner(lease: owner.lease, revision: owner.revision, host: view, target: target, liveTestId: owner.liveTestId, hostTag: owner.hostTag, registrationId: id, generation: generation)
+            let bound = InteractionOwner(lease: owner.lease, revision: owner.revision, host: view, target: target, liveTestId: owner.liveTestId, hostTag: owner.hostTag, registrationId: id, generation: generation, origin: owner.origin)
             registrations[id] = Registration(owner: bound, types: types, annotation: annotation); return true
         }
     }
@@ -349,7 +351,7 @@ final class InteractionEventRecorder: @unchecked Sendable {
     @MainActor func registeredOwner(id: String, generation: UInt64, lease: String) -> InteractionOwner? {
         guard let entry = buffer.withInteractionLock({ registrations[id].flatMap { $0.owner.generation == generation && $0.owner.lease == lease && currentLocked($0.owner) ? $0 : nil } }),
               live(entry.owner), let host = entry.owner.host, let fresh = owner(view: host, lease: lease) else { return nil }
-        return InteractionOwner(lease: fresh.lease, revision: fresh.revision, host: host, target: fresh.target, liveTestId: fresh.liveTestId, hostTag: fresh.hostTag, registrationId: id, generation: generation)
+        return InteractionOwner(lease: fresh.lease, revision: fresh.revision, host: host, target: fresh.target, liveTestId: fresh.liveTestId, hostTag: fresh.hostTag, registrationId: id, generation: generation, origin: fresh.origin)
     }
     @MainActor func suppresses(view: UIView, type: String) -> Bool {
         let owners = buffer.withInteractionLock { registrations.values.filter { $0.types.contains(type) && $0.owner.host === view && currentLocked($0.owner) }.map(\.owner) }

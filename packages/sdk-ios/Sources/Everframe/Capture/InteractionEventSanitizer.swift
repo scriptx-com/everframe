@@ -91,6 +91,7 @@ enum InteractionEventSanitizer {
     static func storageData(_ data: [String: EverframeJSONAny]) -> [String: EverframeJSONAny]? {
         guard let input = data["interaction"]?.value as? [String: Any], let event = bound(input) else { return nil }
         var out: [String: Any] = ["interaction": event]
+        if data["origin"]?.value as? String == "devtools" { out["origin"] = "devtools" }
         if let input = data["target"]?.value as? [String: Any], let bounded = target(input) { out["target"] = bounded }
         return BreadcrumbRingBuffer.coerceHostData(out)
     }

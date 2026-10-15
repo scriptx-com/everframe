@@ -86,7 +86,7 @@ Pod::Spec.new do |s|
   s.dependency 'React-Core'
 
   s.test_spec 'Tests' do |t|
-    t.source_files = 'ios/Tests/**/*.swift'
+    t.source_files = 'ios/Tests/**/*.{swift,m,mm}'
     t.frameworks = ['XCTest', 'UIKit']
   end
 end

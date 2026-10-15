@@ -75,6 +75,10 @@ describe('RBRIDGE-01: no new JS replay/config/ingest surface on the bridge', () 
     it('declares exactly the 19 locked report methods and no other non-companion report method', () => {
       const REPORT_METHODS = [
         'openReporter',
+        // Explicit reporter attribution; existing no-argument open stays intact.
+        'openReporterWithTrigger',
+        'markReporterOpened',
+        'markReporterClosed',
         'registerSensitiveRect',
         // Interaction target metadata: synchronous ref ownership, no replay controls.
         'setInteractionTarget',
@@ -167,7 +171,9 @@ describe('RBRIDGE-01: no new JS replay/config/ingest surface on the bridge', () 
       const unexpected = declared.filter((m) => !known.has(m));
       expect(
         unexpected,
-        `RBRIDGE-01: no NEW (non-companion) report method may be added to the TurboModule — adding another report method requires a phase D-decision. Unexpected: ${unexpected.join(', ')}`,
+        `RBRIDGE-01: no NEW (non-companion) report method may be added to the TurboModule — adding another report method requires a phase D-decision. Unexpected: ${unexpected.join(
+          ', ',
+        )}`,
       ).toEqual([]);
     });
   });

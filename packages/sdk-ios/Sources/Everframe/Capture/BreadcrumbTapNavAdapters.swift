@@ -577,6 +577,11 @@ enum WindowTapBreadcrumbAdapter {
         var data = snapshot.data
         let message: String
         if let button = remoteButton {
+            if data["origin"]?.value as? String == "reporter" {
+                let trigger = data["trigger"]?.value as? String
+                let activation = (trigger == "button" && button == "select") || (trigger == "menu" && button == "menu")
+                if !activation { data.removeValue(forKey: "origin"); data.removeValue(forKey: "trigger") }
+            }
             guard PressCrumbRateLimiter.shouldRecord(button: button) else { return }
             data.merge(BreadcrumbRingBuffer.coerceHostData(["inputType": "remote", "button": button])) { _, new in new }
             message = "press \(button) — \(snapshot.label)"

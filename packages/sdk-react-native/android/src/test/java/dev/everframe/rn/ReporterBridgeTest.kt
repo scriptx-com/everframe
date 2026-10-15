@@ -61,6 +61,40 @@ class ReporterBridgeTest {
         activity.title = title
         return context().apply { onHostResume(activity) }
     }
+    @Test fun explicitReporterMarkersValidateTriggersAndCloseTheInterval() {
+        val module = EverframeModule(resumed())
+        module.configureSync(JavaOnlyMap.of("sdkKey","reporter-test-only"))
+        val buffer = dev.everframe.capture.sharedBreadcrumbBuffer
+        buffer.clear()
+        module.markReporterOpened("invalid")
+        assertTrue(buffer.snapshotForReport().isEmpty())
+        module.markReporterOpened("menu")
+        assertEquals("reporter_opened",buffer.snapshotForReport().last().message)
+        assertEquals(kotlinx.serialization.json.JsonPrimitive("menu"),buffer.snapshotForReport().last().data!!["trigger"])
+        module.markReporterClosed()
+        assertEquals("reporter_closed",buffer.snapshotForReport().last().message)
+        Everframe.kill()
+        module.markReporterOpened("button")
+        assertTrue(buffer.snapshotForReport().isEmpty())
+    }
+    @Test fun explicitOpenTriggerReachesTheExistingResolverWithoutLeakingToTheNextOpen() {
+        val module = EverframeModule(resumed())
+        module.configureSync(JavaOnlyMap.of("sdkKey","reporter-test-only"))
+        val triggers = mutableListOf<String>()
+        Everframe.report.__resolver = {
+            triggers += Everframe.report.__currentTrigger().value
+            ReportResult.Cancelled("test")
+        }
+        val promise = java.lang.reflect.Proxy.newProxyInstance(Promise::class.java.classLoader,arrayOf(Promise::class.java)) { _, method, _ ->
+            if(method.name == "reject") fail("valid open must resolve")
+            null
+        } as Promise
+        module.openReporterWithTrigger("menu",promise)
+        shadowOf(Looper.getMainLooper()).idle()
+        module.openReporter(promise)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(listOf("menu","button"),triggers)
+    }
     @Test fun missingOpenMethodRejects() = runBlocking {
         try {
             ReporterBridge { IncompatibleReporterFixture::class.java }.open(resumed())

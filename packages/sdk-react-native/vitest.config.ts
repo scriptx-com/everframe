@@ -32,6 +32,14 @@ export default mergeConfig(
           './__tests__/stubs/react-native-exceptions-manager.ts',
           import.meta.url,
         ).pathname,
+        'react-native/Libraries/LogBox/LogBoxNotificationContainer': new URL(
+          './__tests__/devtools-notification.fixture.ts',
+          import.meta.url,
+        ).pathname,
+        'react-native/Libraries/LogBox/LogBoxInspectorContainer': new URL(
+          './__tests__/devtools-inspector.fixture.ts',
+          import.meta.url,
+        ).pathname,
         'react-native': new URL('./__tests__/stubs/react-native.ts', import.meta.url).pathname,
       },
     },

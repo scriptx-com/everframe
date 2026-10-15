@@ -66,6 +66,7 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     private let lock = NSLock()
     private var entries: [EverframeBreadcrumb] = []
     private var frozen: [EverframeBreadcrumb]?
+    private var reporterActive = false
     private let sequence: EvidenceSequence
     // Separate from sequence numbering: every purge revokes pending input snapshots.
     internal var interactionRevisionLocked: UInt64 = 0
@@ -200,6 +201,43 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         return true
     }
 
+    /// Explicit reporter lifecycle boundary. Flush pre-open summaries before the marker.
+    public func reporterOpened(trigger: ReporterTrigger) {
+        let revision = captureRevision()
+        #if canImport(UIKit)
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { self.reporterOpened(trigger: trigger, revision: revision) }
+            return
+        }
+        #endif
+        reporterOpened(trigger: trigger, revision: revision)
+    }
+
+    private func reporterOpened(trigger: ReporterTrigger, revision: UInt64) {
+        guard captureRevision() == revision else { return }
+        interactionFreeze?()
+        _ = store(kind: .custom, message: "reporter_opened", level: nil,
+                  data: Self.coerceHostData(["source": "everframe_reporter", "trigger": trigger.rawValue]),
+                  captureRevision: revision, admission: { guard !self.reporterActive else { return false }; self.reporterActive = true; return true })
+    }
+
+    public func reporterClosed() {
+        let revision = captureRevision()
+        #if canImport(UIKit)
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { self.reporterClosed(revision: revision) }
+            return
+        }
+        #endif
+        reporterClosed(revision: revision)
+    }
+
+    private func reporterClosed(revision: UInt64) {
+        _ = store(kind: .custom, message: "reporter_closed", level: nil,
+                  data: Self.coerceHostData(["source": "everframe_reporter"]), captureRevision: revision,
+                  admission: { guard self.reporterActive else { return false }; self.reporterActive = false; return true })
+    }
+
     /// Snapshot the chain at reporter-open. Idempotent — never a second
     /// snapshot while one is already held.
     public func freeze() {
@@ -237,6 +275,7 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
         interactionRevocation?()
         entries.removeAll()
         frozen = nil
+        reporterActive = false
     }
 
     /// Live config gate (Task 1's wire), applied at the freshest point a
@@ -246,6 +285,10 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
     public func applyConfig(_ cfg: BreadcrumbsConfigWire?) {
         lock.lock(); defer { lock.unlock() }
         let nextKinds = cfg.map { Set($0.kinds.compactMap { EverframeBreadcrumbKind(rawValue: $0) }) } ?? Self.allKinds()
+        if !nextKinds.contains(.custom) || cfg?.enabled == false {
+            entries.removeAll { $0.data?["source"]?.value as? String == "everframe_reporter" && ["reporter_opened", "reporter_closed"].contains($0.message) }
+            reporterActive = false
+        }
         if nextKinds != configKinds || configEnabled != (cfg?.enabled ?? true) {
             interactionRevisionLocked &+= 1
             interactionRevocation?()
@@ -264,6 +307,7 @@ public final class BreadcrumbRingBuffer: @unchecked Sendable {
             interactionRevocation?()
             entries.removeAll()
             frozen = nil
+            reporterActive = false
         }
     }
 

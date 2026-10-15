@@ -161,6 +161,7 @@ public enum EFReporterPresenter {
         // and stops the sampling tick, so the reporter chrome is NEVER recorded.
         // No-op when replay is OFF. The frozen window is consumed on submit via
         // ReporterSubmission (lifecycle.complete) or discarded on cancel below.
+        Everframe.shared.report.markOpened(trigger: ReportAPI.currentTrigger)
         Everframe.shared.__replayFreeze()   // lifecycle freeze at reporter-open
 
         // Drain host-attached sticky payload now (NOT inside ReporterSubmission)

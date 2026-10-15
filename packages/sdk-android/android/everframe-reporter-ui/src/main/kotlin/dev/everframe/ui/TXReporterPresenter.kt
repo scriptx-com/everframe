@@ -90,6 +90,7 @@ internal class TXReporterPresenter(
         // honest even when the guarded block returns Cancelled.
         Everframe.report.__setPresenting(true)
         var submitted = false
+        var opened = false
         var frozenCapture: dev.everframe.capture.video.FrozenReportCapture? = null
         try {
         val result: ReportResult? = txGuardSuspend("presenter") {
@@ -100,6 +101,7 @@ internal class TXReporterPresenter(
             if (Everframe.currentConfig?.reporterEnabled == false) {
                 return@txGuardSuspend ReportResult.Cancelled("reporter_disabled")
             }
+            if (!isCurrent()) return@txGuardSuspend ReportResult.Cancelled("no_active_activity")
 
             // Consume host-attached payload exactly once — matches iOS
             // TXReporterPresenter.swift:72. `hostExtra` is threaded through to
@@ -112,7 +114,7 @@ internal class TXReporterPresenter(
             //    Dialog mounts (capture-before-reporter ordering, mirroring iOS).
             //    This guarantees the reporter UI is never recorded into the
             //    replay. No-op when replay is OFF (lifecycle IDLE).
-            val reportCapture = Everframe.__replayFreeze()
+            val reportCapture = Everframe.__replayFreeze(Everframe.report.__currentTrigger())
             frozenCapture = reportCapture
 
             // 0b. Final whole-branch review, fix round 2, Critical 1 — re-warm
@@ -177,7 +179,11 @@ internal class TXReporterPresenter(
             // 3. Show the phone/tablet Compose Dialog. (Android TV used to
             //    hand off to a separate :everframe-tv Activity; that module
             //    was removed — TV reports go through the phone companion.)
-            return@txGuardSuspend showDialog(activity, capture, reportCapture, hostExtraNormalized, onDismissed)
+            opened = true
+            return@txGuardSuspend showDialog(activity, capture, reportCapture, hostExtraNormalized) {
+                reportCapture.__closeReporterBoundary()
+                onDismissed()
+            }
         }
         // Send hands the capture to its submission, which releases it when the
         // upload ends. A caller cancelled after Send must not empty it mid-upload,
@@ -192,11 +198,13 @@ internal class TXReporterPresenter(
         // a cancelled reporter must not leave a frozen snapshot pinned under
         // the next report. Submit paths consume and release their explicit handle.
         if (final is ReportResult.Cancelled) {
+            if (!opened) frozenCapture?.__discardReporterBoundary()
             frozenCapture?.cancel()
         }
         submitted = final !is ReportResult.Cancelled
         return final
         } finally {
+            if (!opened) frozenCapture?.__discardReporterBoundary()
             if (submitted) frozenCapture?.finishConsumption() else frozenCapture?.cancel()
             Everframe.report.__setPresenting(false)
         }

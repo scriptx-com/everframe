@@ -470,6 +470,30 @@ class EverframeModule(
      */
     @ReactMethod
     override fun openReporter(promise: Promise) {
+        openReporterInternal(null,promise)
+    }
+
+    @ReactMethod
+    override fun openReporterWithTrigger(trigger: String, promise: Promise) {
+        val value = dev.everframe.config.ReporterTrigger.fromValue(trigger)
+        if (value == null) {
+            promise.reject(REJECT_OPEN_REPORTER_FAILED,"Invalid reporter trigger")
+            return
+        }
+        openReporterInternal(value,promise)
+    }
+
+    @ReactMethod
+    override fun markReporterOpened(trigger: String) {
+        txGuardVoid("markReporterOpened") { Everframe.markReporterOpened(trigger) }
+    }
+
+    @ReactMethod
+    override fun markReporterClosed() {
+        txGuardVoid("markReporterClosed") { Everframe.markReporterClosed() }
+    }
+
+    private fun openReporterInternal(trigger: dev.everframe.config.ReporterTrigger?, promise: Promise) {
         if (!Everframe.captureGate) {
             promise.reject(REJECT_CAPTURE_DISABLED, "Everframe not started (captureGate=false). Call configure() first.")
             return
@@ -482,7 +506,10 @@ class EverframeModule(
         }
         MainScope().launch {
             try {
-                val result: ReportResult = reporterBridge.open(reactContext)
+                val result: ReportResult = if (trigger == null) reporterBridge.open(reactContext)
+                    else kotlinx.coroutines.withContext(dev.everframe.config.ReporterTriggerContext(trigger)) {
+                        reporterBridge.open(reactContext)
+                    }
                 val dict = Arguments.createMap().apply {
                     when (result) {
                         is ReportResult.Submitted -> {

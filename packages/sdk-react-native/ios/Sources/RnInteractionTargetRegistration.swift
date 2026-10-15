@@ -19,6 +19,16 @@ import EverframeKit
     private var requests: [String: Request]=[:]
     private var destroyed=false
     private var removeAdapter: (() -> Void)?
+    private var removeOriginAdapter: (() -> Void)?
+
+    @objc public func installOriginAdapter(_ read: @escaping (UIView) -> Bool) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.lock.lock(); defer { self.lock.unlock() }
+            guard !self.destroyed else { return }
+            self.removeOriginAdapter = InteractionOriginViewAdapters.register(read)
+        }
+    }
 
     @objc public func installAdapter(_ read: @escaping (UIView) -> NSDictionary?) {
         DispatchQueue.main.async { [weak self] in
@@ -91,7 +101,7 @@ import EverframeKit
         destroyed=true
         for (id, request) in requests { InteractionTargetRegistry.clear(registrationId:namespace+id,generation:request.generation+1) }
         requests.removeAll()
-        DispatchQueue.main.async { [self] in removeAdapter?(); removeAdapter=nil }
+        DispatchQueue.main.async { [self] in removeAdapter?(); removeAdapter=nil; removeOriginAdapter?(); removeOriginAdapter=nil }
     }
     @MainActor @objc public static func invalidateView(_ view: UIView) { InteractionTargetRegistry.invalidate(view:view) }
 }

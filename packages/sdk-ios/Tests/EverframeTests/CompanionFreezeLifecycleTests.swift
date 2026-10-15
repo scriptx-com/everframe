@@ -42,6 +42,9 @@ struct CompanionFreezeLifecycleTests {
             CompanionCaptureBridge.beginReportCaptureLifecycle()
             let frozen = BreadcrumbRingBuffer.shared.takeFrozen()
             #expect(frozen?.contains { $0.message == "before-report" } == true)
+            #expect(frozen?.last?.message == "reporter_opened")
+            #expect(frozen?.last?.data?["source"]?.value as? String == "everframe_reporter")
+            #expect(frozen?.last?.data?["trigger"]?.value as? String == "companion")
         }
     }
 
@@ -69,6 +72,7 @@ struct CompanionFreezeLifecycleTests {
             CompanionCaptureBridge.beginReportCaptureLifecycle()
             CompanionCaptureBridge.abortReportCaptureLifecycle()
             #expect(BreadcrumbRingBuffer.shared.takeFrozen() == nil)
+            #expect(BreadcrumbRingBuffer.shared.snapshot().last?.message == "reporter_closed")
         }
     }
 }

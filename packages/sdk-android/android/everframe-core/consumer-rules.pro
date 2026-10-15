@@ -152,6 +152,11 @@
 -keep class dev.everframe.TXCapturedSession { *; }
 -keep class dev.everframe.config.ReportResult { *; }
 -keep class dev.everframe.config.ReportResult$* { *; }
+# Reporter trigger types are public and shared with the native bridges.
+-keep enum dev.everframe.config.ReporterTrigger { *; }
+-keep class dev.everframe.config.ReporterTrigger$* { *; }
+-keep class dev.everframe.config.ReporterTriggerContext { *; }
+-keep class dev.everframe.config.ReporterTriggerContext$* { *; }
 -keep class dev.everframe.config.EverframeConfigError { *; }
 -keep class dev.everframe.config.EverframeConfigError$* { *; }
 -keep class dev.everframe.config.EverframeEnvelopeError { *; }
@@ -359,6 +364,10 @@
 -keep public enum dev.everframe.capture.video.VideoPrivacyAdapter$Classification { *; }
 # Production fallback identifies absent RN privacy facilities by native View ancestry.
 -keepnames class com.facebook.react.** extends android.view.View
+# Developer UI attribution uses native class identity; these rules do not retain absent tooling.
+-keepnames class com.facebook.react.devsupport.** extends android.app.Activity
+-keepnames class expo.modules.devmenu.**
+-keepnames class expo.modules.devlauncher.**
 # Native video refuses Flutter host windows by View ancestry name. Flutter minifies release
 # builds by default, and neither its rules nor its embedding keep this name.
 -keepnames class io.flutter.embedding.android.FlutterView

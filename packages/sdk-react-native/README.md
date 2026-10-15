@@ -997,3 +997,29 @@ Launch context enriches only a native foreground entry that is still pending (up
 Permission operations still run without a provider, with older native binaries and on web. Launch context is a no-op in those cases. A clear, sign-out or native configuration change revokes in-flight observations; it does not cancel the app's operation.
 
 Target annotations enrich supported automatic native observations, including IME composition and optional allowlisted values. Native integrations that observe controls directly on the UI thread can supply native helpers with original privacy proof; the JavaScript compatibility methods cannot provide that proof.
+
+### Reporter boundaries and developer tools
+
+Native phone reporter opens and companion report requests add this custom breadcrumb before freezing evidence:
+
+```json
+{"kind":"custom","message":"reporter_opened","data":{"source":"everframe_reporter","trigger":"button"}}
+```
+
+`trigger` is `button`, `shake`, `menu`, or `companion`. Pending text/scroll summaries are flushed before this boundary. Native shake uses `shake`; companion report requests use `companion`; existing `open()` calls use `button`. To identify a host menu entry explicitly, call `open({ trigger: 'menu' })`. Closing or cancelling the native flow adds `reporter_closed` with `data.source: 'everframe_reporter'` to the live trail. Both events retain breadcrumb capture/config gates.
+
+A reporter call crosses the React Native bridge after its native input can already have been recorded. It cannot prove that the previous tap or remote key opened the reporter. For a button, annotate its native host ref before interaction:
+
+```tsx
+const reporterRef = useEverframeTarget({ reporterTrigger: 'button' });
+const { open } = useEverframe();
+return <Pressable ref={reporterRef} onPress={() => void open()}><Text>Report</Text></Pressable>;
+```
+
+That target's tap/activation carries `data.origin: 'reporter'` and `data.trigger: 'button'`. On a remote, only Select/Enter activation is attributed to a `button` target; arrows, Menu and Play/Pause retain their ordinary meaning. An explicitly annotated `reporterTrigger: 'menu'` target attributes only its Menu activation. Attribution survives masking without retaining the target's text. Removing/recycling the bound ref removes attribution.
+
+Hosts owning a reporting flow outside `open()` can call `markReporterOpened('menu')` and `markReporterClosed()` around that flow. These explicit markers do not claim or remove earlier native keys: a TV event callback may run after native key capture. Use companion report-request boundaries when a host cannot attribute the original remote trigger. Never infer reporter intent from a button label, a Menu/Play/Pause key, or proximity to `open()`.
+
+Native target capture adds `data.origin: 'devtools'` to supported taps and structured text/control/scroll observations whose native ancestry belongs to React Native LogBox, the native development menu, or Expo development-client UI. This comes from framework view/window/controller identity, an RN-owned development-menu controller, or a framework root module identity. In a development host, the inline LogBox notification/inspector is also registered by the exact React Native component exports through the existing React DevTools commit hook; application components with the same name are not attributed. This observer reads component identity and native refs, never warning text or component props, and removes registrations when their committed hosts disappear or the provider unmounts. Production JavaScript leaves this observer inert. A development JavaScript host can still attribute LogBox when its native SDK was built in Release mode. Display text such as “Dismiss” never grants an origin. A missing React DevTools hook, unavailable RN private module exports at runtime, initial asynchronous module loading, unknown framework versions and surfaces outside the native capture adapters leave attribution unavailable; origin tagging does not install a new dialog capture mechanism. The observer depends on the LogBox module paths in supported React Native versions; a future version removing those paths requires an SDK compatibility update before Metro can bundle it.
+
+Consumers should use the latest active reporter interval (matching `reporter_opened`/`reporter_closed` markers by ordered trail), cut before its explicitly attributed triggering interaction when present, and otherwise before its opened marker. Closed reporter intervals can also be excluded while preserving application actions after their closing marker. Developer-tool observations can be excluded by their explicit `data.origin`. A cancelled earlier report must not become the boundary for a later report. Legacy trails lacking these fields remain valid and supply no new attribution evidence.

@@ -63,6 +63,12 @@ class CompanionFreezeLifecycleTest {
         SharedData.init(ApplicationProvider.getApplicationContext())
         Everframe.start(ApplicationProvider.getApplicationContext(), dev.everframe.config.EverframeConfig(
             appId = "test", sdkKey = "txx_live_test1234567890", environment = dev.everframe.config.Environment.production))
+        val deadline = System.nanoTime() + 5_000_000_000L
+        while (Everframe._replaySession == null && System.nanoTime() < deadline) {
+            shadowOf(android.os.Looper.getMainLooper()).idle()
+            Thread.sleep(5)
+        }
+        assertNotNull("start must install the capture coordinator",Everframe._replaySession)
         sharedBreadcrumbBuffer.applyConfig(null)
         sharedBreadcrumbBuffer.clear()
     }
@@ -78,9 +84,10 @@ class CompanionFreezeLifecycleTest {
     fun reportRequestFreezesBreadcrumbChain() {
         Everframe.addBreadcrumb("before-report")
         var frozen: dev.everframe.capture.video.FrozenReportCapture? = null
+        var crumbs: List<dev.everframe.protocol.generated.Breadcrumb>? = null
         CompanionCaptureBridge.__captureProvider = { id, capture ->
             frozen = capture
-            org.junit.Assert.assertEquals(listOf("before-report"), capture.takeBreadcrumbs()!!.map { it.message })
+            crumbs = capture.takeBreadcrumbs()
             minimalPayload(id)
         }
         // Explicit `null` — this is the QR path, which carries no attribution
@@ -93,6 +100,9 @@ class CompanionFreezeLifecycleTest {
         // PAUSED looper mode the posted runnable doesn't run until drained.
         shadowOf(android.os.Looper.getMainLooper()).idle()
         assertNotNull(frozen)
+        org.junit.Assert.assertEquals(listOf("before-report","reporter_opened"), crumbs!!.map { it.message })
+        org.junit.Assert.assertEquals(kotlinx.serialization.json.JsonPrimitive("companion"),crumbs!!.last().data!!["trigger"])
+        org.junit.Assert.assertEquals(kotlinx.serialization.json.JsonPrimitive("everframe_reporter"),crumbs!!.last().data!!["source"])
     }
 
     @Test
@@ -113,7 +123,7 @@ class CompanionFreezeLifecycleTest {
         val newer = CompanionCaptureBridge.captureFor("new")!!
         // Both old callbacks run only now, after the replacement acquired its owner.
         shadowOf(android.os.Looper.getMainLooper()).idle()
-        org.junit.Assert.assertEquals(listOf("replacement"), newer.takeBreadcrumbs()!!.map { it.message })
+        org.junit.Assert.assertEquals(listOf("replacement","reporter_opened"), newer.takeBreadcrumbs()!!.map { it.message })
         newer.cancel(); oldClient.stop(); nextClient.stop()
     }
 
@@ -131,7 +141,23 @@ class CompanionFreezeLifecycleTest {
         var newPublished = false
         org.junit.Assert.assertTrue(CompanionCaptureBridge.__publishCapture("new", newer) { newPublished = true })
         org.junit.Assert.assertTrue(newPublished)
-        old.cancel(); newer.cancel()
+        old.cancel()
+        org.junit.Assert.assertEquals("reporter_opened",sharedBreadcrumbBuffer.snapshotForReport().last().message)
+        newer.cancel()
+        org.junit.Assert.assertEquals("reporter_closed",sharedBreadcrumbBuffer.snapshotForReport().last().message)
+    }
+
+    @Test fun explicitHostBoundaryRemainsBeforeTheTriggeringKeyWhenCompanionClaimsCapture() {
+        Everframe.markReporterOpened("menu")
+        Everframe.addBreadcrumb("host triggering key")
+        var crumbs: List<dev.everframe.protocol.generated.Breadcrumb>? = null
+        CompanionCaptureBridge.__captureProvider = { id,capture ->
+            crumbs = capture.takeBreadcrumbs()
+            minimalPayload(id)
+        }
+        CompanionCaptureBridge.onReportRequest("host-marked",FakeWs(),null)
+        org.junit.Assert.assertEquals(listOf("reporter_opened","host triggering key"),crumbs!!.map { it.message })
+        org.junit.Assert.assertEquals(kotlinx.serialization.json.JsonPrimitive("menu"),crumbs!!.first().data!!["trigger"])
     }
 
     @Test

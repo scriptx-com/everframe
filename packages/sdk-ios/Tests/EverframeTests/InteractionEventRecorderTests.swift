@@ -18,6 +18,24 @@ import Testing
             _ = recorder.observe(.init(owner: owner, event: interactionEvent("text_edit", ["length": 6, "value": "SECRET"]), phase: phase, composing: composing))
         }
     }
+    @Test func devtoolsOriginIsCapturedWithStructuredInteractionAndNotInferredFromText() throws {
+        let f = Fixture(), view = f.field()
+        let unregister = InteractionOriginViewAdapters.register { $0 === view }
+        defer { unregister() }
+        try f.text(view, phase: "end")
+        #expect(f.buffer.snapshot().last?.data?["origin"]?.value as? String == "devtools")
+        let ordinary = f.field(); ordinary.accessibilityLabel = "Dismiss"
+        try f.text(ordinary, phase: "end")
+        #expect(f.buffer.snapshot().last?.data?["origin"] == nil)
+    }
+    @Test func reporterBoundaryFlushesPreOpenTextBeforeItsMarker() throws {
+        let f = Fixture(); try f.text(f.field())
+        f.buffer.reporterOpened(trigger: .button)
+        f.buffer.freeze()
+        let events = try #require(f.buffer.takeFrozen())
+        #expect(events.map(\.message) == ["Text edited", "reporter_opened"])
+        #expect((events[0].data?["interaction"]?.value as? [String: Any])?["reason"] as? String == "freeze")
+    }
     @Test func helperTextCapturedWhileSensitiveDoesNotEmitAfterUnmask() throws {
         let f = Fixture(), view = f.field(), lease = try #require(f.recorder.lease())
         #expect(f.recorder.register(view: view, id: "secure", generation: 1, lease: lease, types: ["text_edit"]))

@@ -308,6 +308,7 @@ public final class CompanionCaptureBridge: @unchecked Sendable {
         captureOwner = nil
         #if canImport(UIKit)
         Everframe.shared.__replayCancel()
+        Everframe.shared.report.markOpened(trigger: .companion)
         Everframe.shared.__replayFreeze()
         #endif
     }

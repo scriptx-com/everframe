@@ -10,6 +10,7 @@ data class InteractionTargetViewHints(
     val role: String? = null,
     val name: String? = null,
     val actionable: Boolean = false,
+    val devtools: Boolean = false,
 )
 fun interface InteractionTargetViewAdapter {
     fun describe(view: View): InteractionTargetViewHints?

@@ -6,6 +6,8 @@ import UIKit
 import EverframeProtocol
 @testable import EverframeKit
 
+@objc(RCTLogBoxView) private final class FixtureLogBoxWindow: UIWindow {}
+
 @MainActor @Suite(.serialized)
 struct InteractionTargetResolverTests {
     private func withState(_ body: () -> Void) {
@@ -27,6 +29,66 @@ struct InteractionTargetResolverTests {
     }
     private func target(_ view: UIView) -> [String: Any] {
         InteractionTargetResolver.resolve(view).data["target"]?.value as? [String: Any] ?? [:]
+    }
+    @Test func devtoolsWindowIdentitySurvivesPrivacyAndDismissal() {
+        withState {
+            let window = FixtureLogBoxWindow()
+            let button = UIButton(); button.accessibilityLabel = "Dismiss"
+            window.addSubview(button)
+            let snapshot = InteractionTargetResolver.resolve(button)
+            button.removeFromSuperview()
+            TapBreadcrumbAdapter.recordTap(sender: button, eventTimestamp: 9, snapshot: snapshot)
+            #expect(BreadcrumbRingBuffer.shared.snapshot().last?.data?["origin"]?.value as? String == "devtools")
+            #expect(InteractionTargetResolver.resolve(button).data["origin"] == nil)
+            window.addSubview(button); SensitiveRectRegistry.mark(window)
+            let masked = InteractionTargetResolver.resolve(button)
+            #expect(masked.label == "[masked]")
+            #expect(masked.data["origin"]?.value as? String == "devtools")
+        }
+    }
+    @Test func focusingReporterTargetDoesNotClaimOtherRemoteKeys() {
+        withState {
+            let report = UIButton(); report.accessibilityLabel = "Report bug"
+            InteractionTargetRegistry.set(view: report, registrationId: "remote-reporter", generation: 1, annotation: ["reporterTrigger": "button"])
+            WindowTapBreadcrumbAdapter.recordEndedPress(type: .menu, focusedView: report, eventTimestamp: 10)
+            #expect(BreadcrumbRingBuffer.shared.snapshot().last?.data?["origin"] == nil)
+            WindowTapBreadcrumbAdapter.recordEndedPress(type: .playPause, focusedView: report, eventTimestamp: 11)
+            #expect(BreadcrumbRingBuffer.shared.snapshot().last?.data?["origin"] == nil)
+            WindowTapBreadcrumbAdapter.recordEndedPress(type: .select, focusedView: report, eventTimestamp: 12)
+            #expect(BreadcrumbRingBuffer.shared.snapshot().last?.data?["origin"]?.value as? String == "reporter")
+            InteractionTargetRegistry.clear(registrationId: "remote-reporter", generation: 2)
+        }
+    }
+    @Test func registeredFrameworkRootAttributesDescendantsAndClearsOnReuse() {
+        withState {
+            let root = UIView(), button = UIButton(); root.addSubview(button)
+            InteractionTargetRegistry.set(view: root, registrationId: "framework-root", generation: 1, annotation: ["devtoolsOrigin": true])
+            #expect(InteractionTargetResolver.resolve(button).data["origin"]?.value as? String == "devtools")
+            SensitiveRectRegistry.mark(root)
+            let masked = InteractionTargetResolver.resolve(button)
+            #expect(masked.label == "[masked]")
+            #expect(masked.data["origin"]?.value as? String == "devtools")
+            InteractionTargetRegistry.invalidate(view: root)
+            #expect(InteractionTargetResolver.resolve(button).data["origin"] == nil)
+        }
+    }
+    @Test func explicitReporterTargetAttributesOnlyItsOwnTap() {
+        withState {
+            let report = UIButton(); report.accessibilityLabel = "Report bug"
+            InteractionTargetRegistry.set(view: report, registrationId: "reporter", generation: 1, annotation: ["reporterTrigger": "button"])
+            let snapshot = InteractionTargetResolver.resolve(report)
+            #expect(snapshot.data["origin"]?.value as? String == "reporter")
+            #expect(snapshot.data["trigger"]?.value as? String == "button")
+            let ordinary = UIButton(); ordinary.accessibilityLabel = "Report bug"
+            #expect(InteractionTargetResolver.resolve(ordinary).data["origin"] == nil)
+            SensitiveRectRegistry.mark(report)
+            let masked = InteractionTargetResolver.resolve(report)
+            #expect(masked.label == "[masked]")
+            #expect(masked.data["origin"]?.value as? String == "reporter")
+            #expect(masked.data["trigger"]?.value as? String == "button")
+            InteractionTargetRegistry.clear(registrationId: "reporter", generation: 2)
+            #expect(InteractionTargetResolver.resolve(report).data["origin"] == nil)
+        }
     }
     @Test func imageTapResolvesPosterOwner() {
         withState {

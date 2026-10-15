@@ -26,6 +26,7 @@ internal class InteractionOwner(
     val hostId: Int?,
     val registrationId: String? = null,
     val generation: Long? = null,
+    val origin: JsonObject = JsonObject(emptyMap()),
 )
 
 internal data class InteractionObservation(
@@ -91,7 +92,7 @@ internal class InteractionEventRecorder(
                 val fields = owner.target?.toMutableMap() ?: mutableMapOf()
                 fields.remove("screen"); sourceScreen?.let { fields["screen"] = JsonPrimitive(it) }
                 val target = InteractionEventSanitizer.target(InteractionEventSanitizer.redact(JsonObject(fields)) as JsonObject)
-                owner = InteractionOwner(owner.lease,owner.revision,owner.host,target,owner.liveTestId,owner.hostId,owner.registrationId,owner.generation)
+                owner = InteractionOwner(owner.lease,owner.revision,owner.host,target,owner.liveTestId,owner.hostId,owner.registrationId,owner.generation,owner.origin)
             }
             val phase = if (type == "text_edit") input.string("phase") ?: "change" else if (type == "scroll") "end" else "change"
             if (phase !in setOf("change", "end", "submit")) return@withInteractionLock null
@@ -181,12 +182,13 @@ internal class InteractionEventRecorder(
             val target = snapshot.data["target"] as? JsonObject
             if (target?.get("masked") == JsonPrimitive(true)) return null
             val safeTarget = target?.let { InteractionEventSanitizer.target(InteractionEventSanitizer.redact(it) as JsonObject) }
-            val owner = InteractionOwner(lease, revision, WeakReference(view), safeTarget, testId(view), view.id)
+            val owner = InteractionOwner(lease, revision, WeakReference(view), safeTarget, testId(view), view.id,
+                origin = JsonObject(snapshot.data.filter { (key, value) -> key == "origin" && value == JsonPrimitive("devtools") }))
             buffer.withInteractionLock {
                 if (!current(owner)) null else {
                     val annotation = registrations.values.firstOrNull { it.owner.host?.get() === view && current(it.owner) }?.annotation
                     if (annotation == null) owner else InteractionOwner(owner.lease,owner.revision,owner.host,
-                        JsonObject((owner.target ?: JsonObject(emptyMap())) + annotation),owner.liveTestId,owner.hostId)
+                        JsonObject((owner.target ?: JsonObject(emptyMap())) + annotation),owner.liveTestId,owner.hostId,origin=owner.origin)
                 }
             }
         } catch (_: Exception) { null }
@@ -282,7 +284,7 @@ internal class InteractionEventRecorder(
             for (key in displaced) { generations[key]?.let { cancelRegistration(key,it) } }
             pending.removeAll { it.owner.host?.get() === view && it.event.string("type") in types }
             registrations[id] = Registration(InteractionOwner(owner.lease, owner.revision, owner.host, target,
-                owner.liveTestId, owner.hostId, id, generation), types.toSet(), annotation)
+                owner.liveTestId, owner.hostId, id, generation, owner.origin), types.toSet(), annotation)
             true
         }
     }
@@ -306,7 +308,7 @@ internal class InteractionEventRecorder(
         if (!live(entry.owner)) return null
         // Resolve the source screen at observation, not when the host was mounted.
         val fresh = owner(entry.owner.host?.get() ?: return null, lease) ?: return null
-        return InteractionOwner(fresh.lease, fresh.revision, fresh.host, fresh.target, fresh.liveTestId, fresh.hostId, id, generation)
+        return InteractionOwner(fresh.lease, fresh.revision, fresh.host, fresh.target, fresh.liveTestId, fresh.hostId, id, generation, fresh.origin)
     }
     fun suppresses(view: View, type: String): Boolean {
         val owners = buffer.withInteractionLock { registrations.values.filter { type in it.types && it.owner.host?.get() === view && current(it.owner) }.map { it.owner } }
@@ -387,6 +389,7 @@ internal class InteractionEventRecorder(
         if (hostLimited && host != null && hostTimes[host]?.let { now - it < 1000 } == true) return false
         val data = linkedMapOf<String, JsonElement>("interaction" to event)
         owner.target?.let { data["target"] = it }
+        data.putAll(owner.origin)
         if (!buffer.addObservedInteraction(kind, InteractionEventSanitizer.message(type), JsonObject(data), owner.revision)) return false
         times.addLast(now)
         if (hostLimited && host != null) hostTimes[host] = now

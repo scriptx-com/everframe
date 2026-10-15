@@ -20,6 +20,30 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, qualifiers = "television")
 class InteractionTargetPrivacyBoundaryTest {
+    @Test fun reporterAnnotationOnlyTagsTheMatchingRemoteActivation() {
+        SharedData.init(ApplicationProvider.getApplicationContext())
+        Everframe.captureGate = true
+        sharedBreadcrumbBuffer.applyConfig(null); sharedBreadcrumbBuffer.clear()
+        PressCrumbRateLimiter.__resetForTesting()
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val button = Button(activity)
+        try {
+            InteractionTargetRegistry.set(button,"report",1,mapOf("reporterTrigger" to "button"))
+            TapBreadcrumbAdapter.recordRemotePress(KeyEvent.KEYCODE_DPAD_RIGHT,button)
+            TapBreadcrumbAdapter.recordRemotePress(KeyEvent.KEYCODE_DPAD_CENTER,button)
+            InteractionTargetRegistry.set(button,"report",2,mapOf("reporterTrigger" to "menu"))
+            TapBreadcrumbAdapter.recordRemotePress(KeyEvent.KEYCODE_BACK,button)
+            TapBreadcrumbAdapter.recordRemotePress(KeyEvent.KEYCODE_MENU,button)
+            val data = sharedBreadcrumbBuffer.snapshotForReport().map { it.data!! }
+            assertNull(data[0]["origin"]); assertNull(data[0]["trigger"])
+            assertEquals(kotlinx.serialization.json.JsonPrimitive("reporter"),data[1]["origin"])
+            assertNull(data[2]["origin"])
+            assertEquals(kotlinx.serialization.json.JsonPrimitive("menu"),data[3]["trigger"])
+        } finally {
+            Everframe.captureGate = false
+            InteractionTargetRegistry.reset(); sharedBreadcrumbBuffer.clear()
+        }
+    }
     @Test fun snapshotCannotRestorePriorUserMetadataAfterSignOut() {
         SharedData.init(ApplicationProvider.getApplicationContext())
         Everframe.captureGate = true

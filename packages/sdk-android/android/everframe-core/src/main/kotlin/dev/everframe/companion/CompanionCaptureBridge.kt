@@ -278,7 +278,7 @@ object CompanionCaptureBridge {
         // Freeze before invoking the host screenshot provider. Replacement revokes only its predecessor.
         val capture = synchronized(captureLock) {
             pendingCapture?.capture?.cancel()
-            Everframe.__replayFreeze().also {
+            Everframe.__replayFreeze(dev.everframe.config.ReporterTrigger.Companion).also {
                 pendingCapture = CaptureSlot(correlationId, clientOwner, it)
             }
         }
@@ -299,6 +299,7 @@ object CompanionCaptureBridge {
                 RelayMessage.serializer(),
                 ReportFailed(correlationId = correlationId, reason = "capture_failed"),
             ))
+            capture.__discardReporterBoundary()
             capture.cancel()
             Companion.__finishReport(correlationId)
             return

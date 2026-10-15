@@ -25,6 +25,8 @@ export const InteractionTargetContainerSchema = z
 
 export const InteractionTargetAnnotationSchema = z
   .object({
+    /** Explicit host attribution. Never inferred from target labels. */
+    reporterTrigger: z.enum(['button', 'menu']).optional(),
     testId: name.optional(),
     role: role.optional(),
     name: name.optional(),
@@ -100,6 +102,10 @@ export function normalizeInteractionTargetAnnotation(
       });
     }
     return compact({
+      reporterTrigger:
+        input.reporterTrigger === 'button' || input.reporterTrigger === 'menu'
+          ? input.reporterTrigger
+          : undefined,
       testId: bounded(input.testId),
       role: bounded(input.role, 64),
       name: bounded(input.name),

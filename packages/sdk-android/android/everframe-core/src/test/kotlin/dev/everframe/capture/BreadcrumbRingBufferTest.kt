@@ -94,6 +94,65 @@ class BreadcrumbRingBufferTest {
         }
     }
 
+    @Test fun reporterBoundariesFlushPendingEvidenceAndOldOwnersCannotCloseANewerInterval() {
+        val buf = BreadcrumbRingBuffer(100,false)
+        buf.interactionFreeze = { buf.add(BreadcrumbKind.Custom,"pending edit") }
+        val first = buf.reporterOpened("menu")!!
+        assertEquals(listOf("pending edit","reporter_opened"),buf.snapshotForReport().map { it.message })
+        buf.reporterClosed(first)
+        val second = buf.reporterOpened("shake")!!
+        buf.reporterClosed(first)
+        assertEquals("reporter_opened",buf.snapshotForReport().last().message)
+        buf.reporterClosed(second)
+        assertEquals("reporter_closed",buf.snapshotForReport().last().message)
+        val count = buf.size
+        buf.reporterClosed()
+        assertEquals(count,buf.size)
+        buf.reporterOpened("button")
+        buf.clear()
+        buf.reporterClosed()
+        assertEquals(0,buf.size)
+    }
+
+    @Test fun disablingCustomCaptureCannotLeaveAnActiveBoundaryInTheRetainedChain() {
+        val buf = BreadcrumbRingBuffer(100,false)
+        buf.reporterOpened("button")
+        buf.applyConfig(dev.everframe.config.BreadcrumbsConfigWire(true,listOf("tap"),100,65536,1024))
+        buf.reporterClosed()
+        assertTrue(buf.snapshotForReport().none { it.message == "reporter_opened" })
+        buf.applyConfig(null)
+        assertNotNull(buf.reporterOpened("menu"))
+    }
+
+    @Test fun reporterMarkersHonorCaptureGateConfigAndExactTriggerValidation() {
+        val buf = BreadcrumbRingBuffer(100,true)
+        Everframe.captureGate = true
+        for (trigger in listOf("menu ","unknown","Button","")) assertNull(buf.reporterOpened(trigger))
+        assertEquals(0,buf.size)
+        Everframe.captureGate = false
+        assertNull(buf.reporterOpened("button"))
+        Everframe.captureGate = true
+        buf.applyConfig(dev.everframe.config.BreadcrumbsConfigWire(false,listOf("custom"),100,65536,1024))
+        assertNull(buf.reporterOpened("button"))
+    }
+
+    @Test fun reporterBoundaryCannotCrossAnIdentityPurgeDuringPendingInteractionFlush() {
+        val buf = BreadcrumbRingBuffer(100,false)
+        buf.interactionFreeze = { buf.clear() }
+        assertNull(buf.reporterOpened("button"))
+        assertTrue(buf.snapshotForReport().isEmpty())
+    }
+
+    @Test fun aCloseWhileCaptureIsGatedCannotLeaveAStaleOpenMarker() {
+        val buf = BreadcrumbRingBuffer(100,true)
+        Everframe.captureGate = true
+        assertNotNull(buf.reporterOpened("menu"))
+        Everframe.captureGate = false
+        buf.reporterClosed()
+        Everframe.captureGate = true
+        assertTrue(buf.snapshotForReport().isEmpty())
+    }
+
     @Test fun interactionTargetFieldsAreBoundedAfterRedaction() {
         val buf = BreadcrumbRingBuffer(maxCount = 10, honorsKillGate = false)
         val name = "123-45-6789;".repeat(20)

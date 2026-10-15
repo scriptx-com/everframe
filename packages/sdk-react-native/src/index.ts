@@ -28,6 +28,8 @@ export { EverframeSensitive as Sensitive } from './Sensitive.js';
 // context seam) for non-component call sites.
 export {
   open,
+  markReporterOpened,
+  markReporterClosed,
   captureException,
   getPromiseRejectionStatus,
   getErrorCaptureStatus,
@@ -128,3 +130,5 @@ export type { InteractionPolicyOptions } from './interactions/policy.js';
 
 export { observePermissionRequest, type PermissionResult } from './interactions/permissions.js';
 export { recordLaunchContext, type LaunchContext } from './interactions/launch.js';
+
+export type { ReporterTrigger, ReporterOpenOptions } from './reporter/types.js';

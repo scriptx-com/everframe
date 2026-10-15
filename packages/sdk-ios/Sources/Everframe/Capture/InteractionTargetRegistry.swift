@@ -87,6 +87,8 @@ public enum InteractionTargetRegistry {
             return n.isFinite && n >= 0 && n <= 9_007_199_254_740_991 && n.rounded() == n ? n : nil
         }
         var result=fields(input)
+        if interactionBool(input["devtoolsOrigin"]) == true { result["devtoolsOrigin"] = true }
+        if let trigger = input["reporterTrigger"] as? String, ["button", "menu"].contains(trigger) { result["reporterTrigger"] = trigger }
         if let container=input["container"] as? [String: Any] {
             var nested=fields(container)
             let index=position(container["index"]), count=position(container["count"])
