@@ -1,0 +1,76 @@
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventRecorder.swift
+  s_46e1aa7e76c6a2::t_0ff6f8a8c14c99 64-65,67
+packages/sdk-ios/Tests/EverframeTests/InteractionEventPolicyTests.swift
+  s_46e1aa7e76c6a2::t_af6f6010f2474b 3,8-17
+packages/sdk-react-native/ios/Tests/InteractionEventBridgeTests.swift
+  s_46e1aa7e76c6a2::t_fa83291e651412 11,17,31,36,38-40,48-49,52-54,56,59,63,65-66,71,73-75,91,94,99-102,104-120,126,128,130,137-138,152-153,163,166,171-172,184-200
+  s_46e1aa7e76c6a2::t_46b1325a550bb9 201
+packages/sdk-ios/Tests/EverframeTests/InteractionEventSanitizerTests.swift
+  s_46e1aa7e76c6a2::t_d29a83316b1514 12-17,19-40
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionScrollAdapterTest.kt
+  s_46e1aa7e76c6a2::t_102b71516a5e6d 15-38
+  s_46e1aa7e76c6a2::t_7b146a57f4e666 39-53,56-78
+  s_46e1aa7e76c6a2::t_10daebafbfa31c 54-55
+packages/sdk-react-native/__tests__/fixtures/interaction-events/README.md
+  s_46e1aa7e76c6a2::t_7f61abe4906c02 9,21-23,46,52-56
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/InteractionPreparedPrivacyTest.kt
+  s_46e1aa7e76c6a2::t_c823793e3851eb 1-74
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionEventRecorder.kt
+  s_46e1aa7e76c6a2::t_ce6f64f46f5ea7 39,49-51,70-72,199,218,357
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/RnInteractionEventRegistration.kt
+  s_46e1aa7e76c6a2::t_ce6f64f46f5ea7 40-41,46
+packages/sdk-ios/Sources/Everframe/Capture/InteractionEventPolicy.swift
+  s_46e1aa7e76c6a2::t_0ff6f8a8c14c99 56-63
+packages/sdk-react-native/ios/Sources/RnInteractionEventRegistration.swift
+  s_46e1aa7e76c6a2::t_0ff6f8a8c14c99 66-69
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/InteractionScrollAdapter.kt
+  s_46e1aa7e76c6a2::t_ce6f64f46f5ea7 11,22-35,55-58,61,82,91,105-108
+packages/sdk-ios/Tests/EverframeTests/InteractionPreparedPrivacyTests.swift
+  s_46e1aa7e76c6a2::t_5b3a481214ae47 1-78,81-84
+  s_46e1aa7e76c6a2::t_85f4b203b4085e 79-80
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/RnInteractionEventObserverTest.kt
+  s_46e1aa7e76c6a2::t_102b71516a5e6d 17-18,98-99,123-171
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/InteractionEventBridgeTest.kt
+  s_46e1aa7e76c6a2::t_7b146a57f4e666 41,57-59,61-68,70-72,74,77,79,82,95,105,116,133,144,153,155,181
+  s_46e1aa7e76c6a2::t_61d2639d988ed9 11,29,31-32,35-40,42-43,73,75-76,81,83-94,96-99,101-103,106,109-110,117-118,121-123,137,140,143,145-146,149-150,152,154,156-160,162,167,169,183,185-186,188,194,196-200
+examples/react-native/src/fixtures/InteractionEvents.tsx
+  s_46e1aa7e76c6a2::t_2acd36a34965b8 24,27,36-38,53-54,63-64,67-68
+packages/sdk-react-native/README.md
+  s_46e1aa7e76c6a2::t_c1c51edf8d1eb5 932-933,937-938,940-942,944,948-953,955-960,977,999
+packages/sdk-react-native/__tests__/interaction-links.spec.ts
+  s_46e1aa7e76c6a2::t_77e351cfcd0c55 183-335
+packages/sdk-react-native/__tests__/interaction-registration.spec.ts
+  s_46e1aa7e76c6a2::t_3bf663b5c8e704 4-7,47,52,54-70,72-81,84,87-88,90-91,96-98,100,103,105,107-108,111-112,140-142,144-158,188-209
+packages/sdk-react-native/__tests__/interaction-url-runtime.spec.ts
+  s_46e1aa7e76c6a2::t_197b5ad107f44f 3,28-36
+packages/sdk-react-native/__tests__/use-everframe-interaction.spec.tsx
+  s_46e1aa7e76c6a2::t_891cd0cb698bbf 219-264
+packages/sdk-react-native/ios/Tests/InteractionObserverTests.swift
+  s_46e1aa7e76c6a2::t_6ed50b33987e1a 9,11-12,14-18,20,23-46
+packages/sdk-react-native/src/interactions/links.ts
+  s_46e1aa7e76c6a2::t_3faf44275eba2a 5,36,92-96,112,120-122,125-126,128
+packages/sdk-react-native/src/interactions/policy.ts
+  s_46e1aa7e76c6a2::t_cd6b817a733849 4,62-69
+packages/sdk-react-native/src/interactions/registration.ts
+  s_46e1aa7e76c6a2::t_eb67b2d9a8d699 10,14,49-50,52-54,150,154-158
+packages/sdk-react-native/src/interactions/url-authority.ts
+  s_46e1aa7e76c6a2::t_24f1cdaaaa88bc 1-15
+packages/sdk-react-native/src/useEverframeInteraction.ts
+  s_46e1aa7e76c6a2::t_aed122df3df060 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3e7e52a1170d0e649e9c527c70dca2a3f7248de2",
+  "prompts": {},
+  "sessions": {
+    "s_46e1aa7e76c6a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13ac1-1fc8-7223-847e-23863230f152",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
