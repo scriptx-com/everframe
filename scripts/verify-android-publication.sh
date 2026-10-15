@@ -89,6 +89,15 @@ fi
 # bridge (compiled separately against this AAR) calls toJson() on the result.
 # Without keep rules R8 renames them and strips toJson(), which nothing in core calls.
 CORE_ENTRIES="$(unzip -Z1 "${CORE_CLASSES}" 2>/dev/null || true)"
+# The separately compiled RN bridge calls LoadedJsBundle.create(). Keep both
+# the public class and Kotlin companion factory through the producer R8 pass.
+for bundle_type in 'LoadedJsBundle' 'LoadedJsBundle$Companion'; do
+    grep -Fx "dev/everframe/config/${bundle_type}.class" <<<"${CORE_ENTRIES}" >/dev/null ||
+        fail "${CORE_AAR} is missing dev.everframe.config.${bundle_type} from its release classes"
+done
+unzip -p "${CORE_CLASSES}" 'dev/everframe/config/LoadedJsBundle$Companion.class' | strings | grep -Fx create >/dev/null ||
+    fail "${CORE_AAR} release LoadedJsBundle companion has no create()"
+
 for diagnostics_type in ReportDeliveryStatus CaptureStatus CapturePathStatus QueueStatus TransportStatus; do
     grep -Fx "dev/everframe/diagnostics/${diagnostics_type}.class" <<<"${CORE_ENTRIES}" >/dev/null ||
         fail "${CORE_AAR} is missing dev.everframe.diagnostics.${diagnostics_type} from its release classes"

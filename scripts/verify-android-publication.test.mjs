@@ -17,6 +17,8 @@ const formerGroup = `com.${formerName}`;
 const formerEndpoint = `https://${formerName}.com`;
 const coreClasses = {
   'dev/everframe/Everframe.class': 'https://everframe.dev dev.everframe Everframe',
+  'dev/everframe/config/LoadedJsBundle.class': 'Companion',
+  'dev/everframe/config/LoadedJsBundle$Companion.class': 'create',
   'dev/everframe/diagnostics/ReportDeliveryStatus.class': 'toJson',
   'dev/everframe/diagnostics/CaptureStatus.class': 'class',
   'dev/everframe/diagnostics/CapturePathStatus.class': 'class',
@@ -217,6 +219,36 @@ test('rejects a release reporter AAR missing the host-image entry point', () => 
     assert.match(`${result.stdout}\n${result.stderr}`, /EFReporterFromImage/);
   } finally {
     rmSync(repository, { recursive: true, force: true });
+  }
+});
+
+test('rejects a release core AAR whose loaded bundle factory API was renamed or stripped', () => {
+  for (const missing of [
+    'dev/everframe/config/LoadedJsBundle.class',
+    'dev/everframe/config/LoadedJsBundle$Companion.class',
+    'create',
+  ]) {
+    const classes = { ...coreClasses };
+    if (missing === 'create')
+      classes['dev/everframe/config/LoadedJsBundle$Companion.class'] = 'class';
+    else delete classes[missing];
+    const repository = fixture();
+    try {
+      const prefix = path.join(repository, 'dev/everframe/core/0.9.0/core-0.9.0');
+      const jar = `${prefix}-classes.jar`;
+      zip(jar, classes);
+      rmSync(`${prefix}.aar`);
+      zip(`${prefix}.aar`, {
+        'AndroidManifest.xml': '<manifest package="dev.everframe" />',
+        'classes.jar': readFileSync(jar),
+      });
+      rmSync(jar);
+      const result = verify(repository);
+      assert.notEqual(result.status, 0, `must reject missing ${missing}`);
+      assert.match(`${result.stdout}\n${result.stderr}`, /LoadedJsBundle/);
+    } finally {
+      rmSync(repository, { recursive: true, force: true });
+    }
   }
 });
 

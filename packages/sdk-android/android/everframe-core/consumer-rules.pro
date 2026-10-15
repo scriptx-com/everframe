@@ -53,6 +53,9 @@
 # in `start(...)`, `report(...)`, exception catch blocks.
 # ---------------------------------------------------------------------------
 -keep class dev.everframe.config.EverframeConfig { *; }
+# RN consumers construct loaded bundle identity through its companion factory.
+-keep class dev.everframe.config.LoadedJsBundle { *; }
+-keep class dev.everframe.config.LoadedJsBundle$* { *; }
 -keep class dev.everframe.config.CaptureConfig { *; }
 -keep class dev.everframe.config.CaptureConfig$Companion { *; }
 -keep class dev.everframe.config.Environment { *; }
