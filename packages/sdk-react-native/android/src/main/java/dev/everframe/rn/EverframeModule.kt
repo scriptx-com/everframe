@@ -484,13 +484,28 @@ class EverframeModule(
     }
 
     @ReactMethod
-    override fun markReporterOpened(trigger: String) {
-        txGuardVoid("markReporterOpened") { Everframe.markReporterOpened(trigger) }
+    override fun markReporterOpened(trigger: String, promise: Promise) {
+        runReporterMarker(Everframe.__prepareReporterOpened(trigger),promise)
     }
 
     @ReactMethod
-    override fun markReporterClosed() {
-        txGuardVoid("markReporterClosed") { Everframe.markReporterClosed() }
+    override fun markReporterClosed(promise: Promise) {
+        runReporterMarker(Everframe.__prepareReporterClosed(),promise)
+    }
+
+    private fun runReporterMarker(action: Runnable, promise: Promise) {
+        try {
+            UiThreadUtil.runOnUiThread {
+                try {
+                    action.run()
+                    promise.resolve(null)
+                } catch (_: Throwable) {
+                    promise.reject("reporter_marker_failed","Could not record reporter marker")
+                }
+            }
+        } catch (_: Throwable) {
+            promise.reject("reporter_marker_failed","Could not schedule reporter marker")
+        }
     }
 
     private fun openReporterInternal(trigger: dev.everframe.config.ReporterTrigger?, promise: Promise) {

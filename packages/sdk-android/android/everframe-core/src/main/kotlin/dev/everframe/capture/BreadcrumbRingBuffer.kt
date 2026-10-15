@@ -282,9 +282,22 @@ class BreadcrumbRingBuffer internal constructor(
     internal fun addObservedInteraction(kind: BreadcrumbKind, message: String, data: JsonObject, captureRevision: Long): Boolean =
         store(kind, message, null, data, null, captureRevision, observedInteraction = true)
 
-    internal fun reporterOpened(trigger: String, claimForCapture: Boolean = false): Any? {
-        if (dev.everframe.config.ReporterTrigger.fromValue(trigger) == null) return null
+    internal fun prepareReporterOpened(trigger: String): Runnable {
         val revision = captureRevision()
+        return Runnable { reporterOpened(trigger,expectedRevision = revision) }
+    }
+
+    internal fun prepareReporterClosed(): Runnable {
+        // Purge removes this identity; config changes retaining custom markers
+        // must still let their original close terminate the retained interval.
+        val owner = lock.withLock { reporterBoundary }
+        return Runnable { if (owner != null) reporterClosed(owner) }
+    }
+
+    internal fun reporterOpened(trigger: String, claimForCapture: Boolean = false, expectedRevision: Long? = null): Any? {
+        if (dev.everframe.config.ReporterTrigger.fromValue(trigger) == null) return null
+        val revision = expectedRevision ?: captureRevision()
+        if (revision != captureRevision()) return null
         // Summaries observed before the open must precede its sequence boundary.
         interactionFreeze?.invoke()
         return lock.withLock {

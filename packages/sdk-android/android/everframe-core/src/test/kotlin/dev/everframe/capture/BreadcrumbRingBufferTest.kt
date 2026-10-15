@@ -153,6 +153,45 @@ class BreadcrumbRingBufferTest {
         assertTrue(buf.snapshotForReport().isEmpty())
     }
 
+    @Test fun preparedReporterMarkersCannotCrossPurgeOrCloseANewerInterval() {
+        val buf = BreadcrumbRingBuffer(100,false)
+        val oldOpen = buf.prepareReporterOpened("menu")
+        buf.clear()
+        oldOpen.run()
+        assertTrue(buf.snapshotForReport().isEmpty())
+
+        buf.reporterOpened("button")
+        val oldClose = buf.prepareReporterClosed()
+        buf.reporterClosed()
+        buf.reporterOpened("menu")
+        oldClose.run()
+        assertEquals("reporter_opened",buf.snapshotForReport().last().message)
+        val purgedClose = buf.prepareReporterClosed()
+        buf.clear()
+        buf.reporterOpened("shake")
+        purgedClose.run()
+        assertEquals("reporter_opened",buf.snapshotForReport().last().message)
+    }
+
+    @Test fun preparedReporterOpenFlushesBeforePublishingAndCompleting() {
+        val buf = BreadcrumbRingBuffer(100,false)
+        buf.interactionFreeze = { buf.add(BreadcrumbKind.Custom,"pending edit") }
+        val open = buf.prepareReporterOpened("menu")
+        assertTrue(buf.snapshotForReport().isEmpty())
+        open.run()
+        buf.add(BreadcrumbKind.Custom,"triggering key after completion")
+        assertEquals(listOf("pending edit","reporter_opened","triggering key after completion"),buf.snapshotForReport().map { it.message })
+    }
+
+    @Test fun preparedCloseStillClosesItsIntervalWhenConfigRetainsCustomMarkers() {
+        val buf = BreadcrumbRingBuffer(100,false)
+        buf.reporterOpened("menu")
+        val close = buf.prepareReporterClosed()
+        buf.applyConfig(dev.everframe.config.BreadcrumbsConfigWire(true,listOf("custom"),100,65536,1024))
+        close.run()
+        assertEquals(listOf("reporter_opened","reporter_closed"),buf.snapshotForReport().map { it.message })
+    }
+
     @Test fun interactionTargetFieldsAreBoundedAfterRedaction() {
         val buf = BreadcrumbRingBuffer(maxCount = 10, honorsKillGate = false)
         val name = "123-45-6789;".repeat(20)

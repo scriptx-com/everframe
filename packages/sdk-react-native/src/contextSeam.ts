@@ -47,8 +47,8 @@ export interface EverframeContextValue {
    */
   open(options?: ReporterOpenOptions): Promise<ReporterResult>;
   /** Mark a host-owned reporter interval. Does not attribute prior native input. */
-  markReporterOpened(trigger: ReporterTrigger): void;
-  markReporterClosed(): void;
+  markReporterOpened(trigger: ReporterTrigger): Promise<void>;
+  markReporterClosed(): Promise<void>;
   sensitive: {
     register(tag: number, rect: { x: number; y: number; width: number; height: number }): void;
     unregister(tag: number): void;
@@ -254,9 +254,9 @@ export function clearState(key: string): void {
   __currentContext?.clearState(key);
 }
 
-export function markReporterOpened(trigger: ReporterTrigger): void {
-  __currentContext?.markReporterOpened(trigger);
+export async function markReporterOpened(trigger: ReporterTrigger): Promise<void> {
+  await __currentContext?.markReporterOpened(trigger);
 }
-export function markReporterClosed(): void {
-  __currentContext?.markReporterClosed();
+export async function markReporterClosed(): Promise<void> {
+  await __currentContext?.markReporterClosed();
 }

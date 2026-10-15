@@ -2400,6 +2400,13 @@ object Everframe {
     @JvmStatic
     fun markReporterClosed() { sharedBreadcrumbBuffer.reporterClosed() }
 
+    /** Native bridge preparation occurs before dispatching onto the UI thread. */
+    @JvmStatic
+    fun __prepareReporterOpened(trigger: String): Runnable = sharedBreadcrumbBuffer.prepareReporterOpened(trigger)
+
+    @JvmStatic
+    fun __prepareReporterClosed(): Runnable = sharedBreadcrumbBuffer.prepareReporterClosed()
+
     @JvmStatic
     suspend fun __replayComplete(capture: FrozenReportCapture): OwnedVideoClip? = capture.exportVideo()
 

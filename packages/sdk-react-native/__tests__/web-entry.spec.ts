@@ -93,3 +93,8 @@ it('semantic interaction helpers are inert on web and exported on native', () =>
     helper.ref(null);
   }).not.toThrow();
 });
+
+it('native reporter markers are awaitable no-ops on web', async () => {
+  await expect(webEntry.markReporterOpened('menu')).resolves.toBeUndefined();
+  await expect(webEntry.markReporterClosed()).resolves.toBeUndefined();
+});

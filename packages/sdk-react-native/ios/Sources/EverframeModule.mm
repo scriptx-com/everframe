@@ -316,8 +316,12 @@ RCT_EXPORT_MODULE(Everframe)
     else resolve(result ?: @{});
   }];
 }
-- (void)markReporterOpened:(NSString *)trigger { [EverframeBridge markReporterOpened:trigger]; }
-- (void)markReporterClosed { [EverframeBridge markReporterClosed]; }
+- (void)markReporterOpened:(NSString *)trigger resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  [EverframeBridge markReporterOpened:trigger completion:^{ resolve(nil); }];
+}
+- (void)markReporterClosed:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  [EverframeBridge markReporterClosed:^{ resolve(nil); }];
+}
 
 - (NSNumber *)setInteractionTarget:(double)viewTag
                     registrationId:(NSString *)registrationId

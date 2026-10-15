@@ -2600,7 +2600,7 @@ public final class ReportAPI: ObservableObject, @unchecked Sendable {
     @TaskLocal public static var currentTrigger: ReporterTrigger = .button
 
     /// Explicit host-owned boundary; does not retroactively claim preceding input.
-    public func markOpened(trigger: ReporterTrigger) {
+    @MainActor public func markOpened(trigger: ReporterTrigger) {
         BreadcrumbRingBuffer.shared.reporterOpened(trigger: trigger)
     }
 

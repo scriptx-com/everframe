@@ -47,12 +47,17 @@ class InteractionEventBridgeTest {
         field = EditText(activity).apply { id = 2 }; root.addView(field); host = field
         SharedData.init(activity)
         Everframe::class.java.getDeclaredField("captureGate").apply { isAccessible=true }.setBoolean(null,true)
-        sharedBreadcrumbBuffer.applyConfig(null); sharedBreadcrumbBuffer.clear()
+        // Assert only this fixture's semantic evidence. A previous module test
+        // may have installed process-wide stderr capture for Android warnings.
+        sharedBreadcrumbBuffer.applyConfig(dev.everframe.config.BreadcrumbsConfigWire(
+            true,listOf("custom","lifecycle","navigation"),100,65536,1024))
+        sharedBreadcrumbBuffer.clear()
         bridge = RnInteractionEventRegistration({ host }, { queue.add(it) })
     }
     @After fun cleanup() {
         bridge.close(); drain(); sharedBreadcrumbBuffer.clear()
         Everframe::class.java.getDeclaredField("captureGate").apply { isAccessible=true }.setBoolean(null,false)
+        sharedBreadcrumbBuffer.applyConfig(null)
     }
     @Test fun legacyMaskedControlCannotEmitAfterUnmaskingBeforeTheUiDrain() {
         val view = android.widget.Switch(root.context).apply { id = 3 }

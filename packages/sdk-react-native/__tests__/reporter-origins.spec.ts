@@ -35,3 +35,23 @@ it('only the mounted owner can mark a host reporter interval, with bounded trigg
   expect(Native.markReporterOpened).toHaveBeenCalledTimes(1);
   expect(Native.markReporterClosed).toHaveBeenCalledTimes(1);
 });
+
+it('waits for native marker publication before the host continues its reporter flow', async () => {
+  runtime = createRuntime({ sdkKey: 'test-key' });
+  runtime.mount();
+  let publish!: () => void;
+  vi.mocked(Native.markReporterOpened).mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      publish = resolve;
+    }),
+  );
+  let continued = false;
+  const pending = Promise.resolve(runtime.markReporterOpened('menu')).then(() => {
+    continued = true;
+  });
+  await Promise.resolve();
+  expect(continued).toBe(false);
+  publish();
+  await pending;
+  expect(continued).toBe(true);
+});

@@ -586,13 +586,13 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         }
     }
 
-    @objc public static func markReporterOpened(_ trigger: String) {
-        guard let trigger = ReporterTrigger(rawValue: trigger) else { return }
-        Everframe.shared.report.markOpened(trigger: trigger)
+    @objc public static func markReporterOpened(_ trigger: String, completion: @escaping @Sendable () -> Void) {
+        guard let trigger = ReporterTrigger(rawValue: trigger) else { completion(); return }
+        BreadcrumbRingBuffer.shared.reporterOpened(trigger: trigger, completion: completion)
     }
 
-    @objc public static func markReporterClosed() {
-        BreadcrumbRingBuffer.shared.reporterClosed()
+    @objc public static func markReporterClosed(_ completion: @escaping @Sendable () -> Void) {
+        BreadcrumbRingBuffer.shared.reporterClosed(completion: completion)
     }
 
     /// `openReporter`'s error for a crash-only session (`reporterDisabled: true`).

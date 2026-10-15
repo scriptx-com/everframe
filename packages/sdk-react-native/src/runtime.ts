@@ -488,13 +488,13 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       },
     },
     open,
-    markReporterOpened(trigger) {
+    async markReporterOpened(trigger) {
       if (mounted && __getCurrentContext() === runtime && isReporterTrigger(trigger)) {
-        NativeEverframe.markReporterOpened(trigger);
+        await NativeEverframe.markReporterOpened(trigger);
       }
     },
-    markReporterClosed() {
-      if (mounted && __getCurrentContext() === runtime) NativeEverframe.markReporterClosed();
+    async markReporterClosed() {
+      if (mounted && __getCurrentContext() === runtime) await NativeEverframe.markReporterClosed();
     },
     getReportDeliveryStatus() {
       const owner = mounted;
