@@ -9,6 +9,23 @@ import corpus from './fixtures/interaction-targets.v1.json';
 import envelope from './fixtures/v1-minimal.json';
 
 describe('interaction target producer contract', () => {
+  it('preserves only explicit reporter trigger annotations', () => {
+    expect(protocol.normalizeInteractionTargetAnnotation({ reporterTrigger: 'button' })).toEqual({
+      reporterTrigger: 'button',
+    });
+    expect(protocol.normalizeInteractionTargetAnnotation({ reporterTrigger: 'menu' })).toEqual({
+      reporterTrigger: 'menu',
+    });
+    expect(protocol.normalizeInteractionTargetAnnotation({ name: 'Report bug' })).toEqual({
+      name: 'Report bug',
+    });
+    expect(
+      protocol.normalizeInteractionTargetAnnotation({ reporterTrigger: 'playPause' }),
+    ).toBeUndefined();
+    expect(
+      protocol.InteractionTargetAnnotationSchema.safeParse({ reporterTrigger: 'button' }).success,
+    ).toBe(true);
+  });
   it('exports the optional target contract without tightening legacy breadcrumb data', () => {
     expect(protocol).toHaveProperty('InteractionTargetSchema');
     expect(

@@ -116,6 +116,10 @@ internal object InteractionEventSanitizer {
     fun storageData(data: JsonObject): JsonObject? {
         val interaction = bound(data["interaction"] as? JsonObject ?: return null) ?: return null
         val out = linkedMapOf<String, JsonElement>("interaction" to interaction)
+        data.string("origin")?.takeIf { it == "devtools" || it == "reporter" }?.let { out["origin"] = JsonPrimitive(it) }
+        if (out["origin"] == JsonPrimitive("reporter")) {
+            data.string("trigger")?.takeIf { it == "button" || it == "menu" }?.let { out["trigger"] = JsonPrimitive(it) }
+        }
         (data["target"] as? JsonObject)?.let { target(it) }?.let { out["target"] = it }
         return JsonObject(out)
     }

@@ -15,8 +15,22 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class) @Config(sdk=[29])
 class RnInteractionTargetRegistrationTest {
-    @Before fun setup() { InteractionTargetRegistry.reset() }
+    @Before fun setup() {
+        InteractionTargetRegistry.reset()
+        com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsForTests.setUp()
+    }
     @After fun cleanup() { InteractionTargetRegistry.reset() }
+    @Test fun devtoolsIdentityUsesActualReactRootModuleAndNeverAccessibilityNames() {
+        val context = RuntimeEnvironment.getApplication()
+        val ordinary = View(context).apply { contentDescription = "LogBox Dismiss DevMenu" }
+        assertFalse(RnInteractionTargetAdapter.describe(ordinary)!!.devtools)
+        for (name in listOf("LogBox","DevMenu")) {
+            val root = object : com.facebook.react.ReactRootView(context) { override fun getJSModuleName(): String = name }
+            assertTrue(RnInteractionTargetAdapter.describe(root)!!.devtools)
+        }
+        val appRoot = object : com.facebook.react.ReactRootView(context) { override fun getJSModuleName(): String = "ShoppingApp" }
+        assertFalse(RnInteractionTargetAdapter.describe(appRoot)!!.devtools)
+    }
     private fun metadata(view:View): JsonObject? = InteractionTargetRegistry.javaClass.declaredMethods
         .single { it.name.startsWith("lookup") }.apply { isAccessible=true }.invoke(InteractionTargetRegistry,view) as? JsonObject
     @Test fun readsRealReactNativeTestIdAndRoleTags() {

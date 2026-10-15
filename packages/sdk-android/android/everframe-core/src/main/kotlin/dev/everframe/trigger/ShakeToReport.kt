@@ -189,7 +189,7 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
         if (!gate.tryBegin(Everframe.report.isPresenting.value)) return
         Everframe.sdkScope.launch(Dispatchers.Main.immediate) {
             try {
-                Everframe.report.open()
+                Everframe.report.open(dev.everframe.config.ReporterTrigger.Shake)
             } catch (_: Throwable) {
                 // Core can be used without reporter-ui; a gesture is a safe no-op then.
             } finally {

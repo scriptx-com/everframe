@@ -61,6 +61,107 @@ class ReporterBridgeTest {
         activity.title = title
         return context().apply { onHostResume(activity) }
     }
+    @Test fun explicitReporterMarkersValidateTriggersAndCloseTheInterval() {
+        val module = EverframeModule(resumed())
+        module.configureSync(JavaOnlyMap.of("sdkKey","reporter-test-only"))
+        val buffer = dev.everframe.capture.sharedBreadcrumbBuffer
+        buffer.clear()
+        module.markReporterOpened("invalid",markerPromise())
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(buffer.snapshotForReport().isEmpty())
+        module.markReporterOpened("menu",markerPromise())
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals("reporter_opened",buffer.snapshotForReport().last().message)
+        assertEquals(kotlinx.serialization.json.JsonPrimitive("menu"),buffer.snapshotForReport().last().data!!["trigger"])
+        module.markReporterClosed(markerPromise())
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals("reporter_closed",buffer.snapshotForReport().last().message)
+        Everframe.kill()
+        module.markReporterOpened("button",markerPromise())
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(buffer.snapshotForReport().isEmpty())
+    }
+    private fun markerPromise(onResolve: () -> Unit = {}): Promise = java.lang.reflect.Proxy.newProxyInstance(
+        Promise::class.java.classLoader,arrayOf(Promise::class.java)
+    ) { _, method, _ ->
+        if (method.name == "reject") fail("reporter marker must resolve")
+        if (method.name == "resolve") onResolve()
+        null
+    } as Promise
+
+    private fun markerModule(): EverframeModule {
+        val context = resumed()
+        dev.everframe.shared.SharedData.init(context.applicationContext)
+        val module = EverframeModule(context)
+        // Marker scheduling needs an open capture gate, without starting the
+        // unrelated process-wide console and network interceptors in this fixture.
+        Everframe::class.java.getDeclaredField("captureGate").apply { isAccessible = true }.setBoolean(null,true)
+        dev.everframe.capture.sharedBreadcrumbBuffer.applyConfig(null)
+        dev.everframe.capture.sharedBreadcrumbBuffer.clear()
+        return module
+    }
+
+    @Test fun queuedReporterOpenResolvesOnMainAfterTheBoundary() {
+        val module = markerModule()
+        val buffer = dev.everframe.capture.sharedBreadcrumbBuffer
+        buffer.clear()
+        var resolved = false
+        val promise = markerPromise {
+            assertEquals(Looper.getMainLooper(),Looper.myLooper())
+            resolved = true
+            Everframe.addBreadcrumb("triggering key")
+        }
+        Thread { module.markReporterOpened("menu",promise) }.apply { start(); join() }
+        assertFalse(resolved)
+        assertTrue(buffer.snapshotForReport().isEmpty())
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(resolved)
+        assertEquals(listOf("reporter_opened","triggering key"),buffer.snapshotForReport().map { it.message })
+    }
+
+    @Test fun queuedReporterOpenIsRevokedByPurgeAndStillResolves() {
+        val module = markerModule()
+        val buffer = dev.everframe.capture.sharedBreadcrumbBuffer
+        buffer.clear()
+        var resolved = false
+        Thread { module.markReporterOpened("menu",markerPromise { resolved = true }) }.apply { start(); join() }
+        buffer.clear()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(resolved)
+        assertTrue(buffer.snapshotForReport().isEmpty())
+    }
+
+    @Test fun queuedReporterCloseCannotCloseANewerInterval() {
+        val module = markerModule()
+        val buffer = dev.everframe.capture.sharedBreadcrumbBuffer
+        buffer.clear()
+        Everframe.markReporterOpened("button")
+        var resolved = false
+        Thread { module.markReporterClosed(markerPromise { resolved = true }) }.apply { start(); join() }
+        Everframe.markReporterClosed()
+        Everframe.markReporterOpened("menu")
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(resolved)
+        assertEquals("reporter_opened",buffer.snapshotForReport().last().message)
+    }
+    @Test fun explicitOpenTriggerReachesTheExistingResolverWithoutLeakingToTheNextOpen() {
+        val module = EverframeModule(resumed())
+        module.configureSync(JavaOnlyMap.of("sdkKey","reporter-test-only"))
+        val triggers = mutableListOf<String>()
+        Everframe.report.__resolver = {
+            triggers += Everframe.report.__currentTrigger().value
+            ReportResult.Cancelled("test")
+        }
+        val promise = java.lang.reflect.Proxy.newProxyInstance(Promise::class.java.classLoader,arrayOf(Promise::class.java)) { _, method, _ ->
+            if(method.name == "reject") fail("valid open must resolve")
+            null
+        } as Promise
+        module.openReporterWithTrigger("menu",promise)
+        shadowOf(Looper.getMainLooper()).idle()
+        module.openReporter(promise)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(listOf("menu","button"),triggers)
+    }
     @Test fun missingOpenMethodRejects() = runBlocking {
         try {
             ReporterBridge { IncompatibleReporterFixture::class.java }.open(resumed())

@@ -582,3 +582,11 @@ filtered from captured network rows.
 ## License
 
 MIT. See top-level `LICENSE`.
+
+### Reporter interaction origins
+
+Reporter opens now write `custom` breadcrumbs with message `reporter_opened` and data `{ source: "everframe_reporter", trigger: "button" | "shake" | "menu" | "companion" }` before evidence freezes. Close/cancel writes `reporter_closed` with the same source discriminator to the live trail. Pending interaction summaries precede the opened marker. Existing `report.open()` remains valid and defaults to `button`; native shake and companion requests identify their own triggers.
+
+Native target annotations accept `reporterTrigger: "button" | "menu"`. This marks only the bound target's matching activation with top-level breadcrumb data `origin: "reporter"` and `trigger`; it never identifies an unrelated preceding tap or key. Supported RN/Expo developer-tool surfaces receive `data.origin: "devtools"` from native framework identity, without label matching. All existing capture gates, masking and registration lifetime rules apply. See the [React Native reporter-origin contract](../sdk-react-native/README.md#reporter-boundaries-and-developer-tools) for lifecycle handling, host-owned flow markers and remote-input limitations.
+
+For host-owned flows, `report.markOpened(trigger:)` is main-actor isolated so pending UI summaries are flushed before the marker. The lower-level ring marker methods accept a completion callback for queued callers; wait for it before writing subsequent host evidence. React Native exposes this completion as an awaitable promise.

@@ -67,6 +67,7 @@
 #import <react/renderer/components/view/ViewProps.h>
 #import <react/renderer/components/view/accessibilityPropsConversions.h>
 #import <objc/runtime.h>
+#import "RnDevtoolsOrigin.h"
 
 // Fabric clears props and reuses component views. Invalidate before reuse begins.
 @interface RCTViewComponentView (EverframeInteractionTarget)
@@ -138,9 +139,11 @@ RCT_EXPORT_MODULE(Everframe)
     _vitals = [RemoteVitalsBridge new];
     _interactionEvents = [RnInteractionEventRegistration new];
     _interactionTargets = [RnInteractionTargetRegistration new];
+    [_interactionTargets installOriginAdapter:^BOOL(UIView *view) { return EFIsDevMenuView(view); }];
     [_interactionTargets installAdapter:^NSDictionary *(UIView *view) { return EFInteractionHints(view); }];
     static dispatch_once_t once;
     dispatch_once(&once, ^{
+      EFInstallDevMenuOrigin();
       method_exchangeImplementations(class_getInstanceMethod(RCTViewComponentView.class, @selector(prepareForRecycle)),
                                      class_getInstanceMethod(RCTViewComponentView.class, @selector(ef_target_prepareForRecycle)));
     });
@@ -305,6 +308,19 @@ RCT_EXPORT_MODULE(Everframe)
       resolve(result ?: @{});
     }
   }];
+}
+
+- (void)openReporterWithTrigger:(NSString *)trigger resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  [EverframeBridge openReporterWithTrigger:trigger completion:^(NSDictionary *result, NSError *err) {
+    if (err) reject([EverframeBridge openReporterRejectCodeFor:err], err.localizedDescription, err);
+    else resolve(result ?: @{});
+  }];
+}
+- (void)markReporterOpened:(NSString *)trigger resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  [EverframeBridge markReporterOpened:trigger completion:^{ resolve(nil); }];
+}
+- (void)markReporterClosed:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  [EverframeBridge markReporterClosed:^{ resolve(nil); }];
 }
 
 - (NSNumber *)setInteractionTarget:(double)viewTag

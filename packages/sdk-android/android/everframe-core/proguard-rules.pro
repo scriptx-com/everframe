@@ -65,6 +65,9 @@
 
 # Public config / result / error.
 -keep class dev.everframe.config.EverframeConfig { *; }
+# RN consumers construct loaded bundle identity through its companion factory.
+-keep class dev.everframe.config.LoadedJsBundle { *; }
+-keep class dev.everframe.config.LoadedJsBundle$* { *; }
 -keep class dev.everframe.config.CaptureConfig { *; }
 -keep class dev.everframe.config.CaptureConfig$Companion { *; }
 -keep class dev.everframe.config.Environment { *; }
@@ -191,6 +194,11 @@
 -keep class dev.everframe.TXCapturedSession { *; }
 -keep class dev.everframe.config.ReportResult { *; }
 -keep class dev.everframe.config.ReportResult$* { *; }
+# Reporter trigger types cross the core/reporter/RN artifact boundary.
+-keep enum dev.everframe.config.ReporterTrigger { *; }
+-keep class dev.everframe.config.ReporterTrigger$* { *; }
+-keep class dev.everframe.config.ReporterTriggerContext { *; }
+-keep class dev.everframe.config.ReporterTriggerContext$* { *; }
 -keep class dev.everframe.config.EverframeConfigError { *; }
 -keep class dev.everframe.config.EverframeConfigError$* { *; }
 -keep class dev.everframe.config.EverframeEnvelopeError { *; }

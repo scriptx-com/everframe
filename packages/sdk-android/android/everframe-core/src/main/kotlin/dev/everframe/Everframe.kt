@@ -2383,10 +2383,29 @@ object Everframe {
 
     /** Bind the reporter-open owner and immutable ancillary values before the reporter mounts. */
     @JvmStatic
-    fun __replayFreeze(): FrozenReportCapture = synchronized(reportCaptureCoordinator) {
+    @JvmOverloads
+    fun __replayFreeze(reporterTrigger: dev.everframe.config.ReporterTrigger? = null): FrozenReportCapture = synchronized(reportCaptureCoordinator) {
+        val boundary = reporterTrigger?.let { sharedBreadcrumbBuffer.reporterOpened(it.value,claimForCapture = true) }
         val captured = captureSessionSnapshot()
-        (_replaySession?.freezeOwnedCapture() ?: FrozenReportCapture.empty(currentStartEpochVolatile())).withState(captured)
+        (_replaySession?.freezeOwnedCapture() ?: FrozenReportCapture.empty(currentStartEpochVolatile()))
+            .withState(captured).withReporterBoundary(boundary)
     }
+
+    /** Explicit boundary for a host-owned reporter. Invalid triggers and gated sessions are ignored. */
+    @JvmStatic
+    fun markReporterOpened(trigger: String) {
+        if (captureGate) sharedBreadcrumbBuffer.reporterOpened(trigger)
+    }
+
+    @JvmStatic
+    fun markReporterClosed() { sharedBreadcrumbBuffer.reporterClosed() }
+
+    /** Native bridge preparation occurs before dispatching onto the UI thread. */
+    @JvmStatic
+    fun __prepareReporterOpened(trigger: String): Runnable = sharedBreadcrumbBuffer.prepareReporterOpened(trigger)
+
+    @JvmStatic
+    fun __prepareReporterClosed(): Runnable = sharedBreadcrumbBuffer.prepareReporterClosed()
 
     @JvmStatic
     suspend fun __replayComplete(capture: FrozenReportCapture): OwnedVideoClip? = capture.exportVideo()
@@ -2831,6 +2850,13 @@ object Everframe {
                     "Reporter UI module not on classpath. Add dev.everframe:reporter-ui dependency."
                 )
         }
+
+        suspend fun open(trigger: dev.everframe.config.ReporterTrigger): ReportResult =
+            kotlinx.coroutines.withContext(dev.everframe.config.ReporterTriggerContext(trigger)) { open() }
+
+        suspend fun __currentTrigger(): dev.everframe.config.ReporterTrigger =
+            kotlin.coroutines.coroutineContext[dev.everframe.config.ReporterTriggerContext]?.trigger
+                ?: dev.everframe.config.ReporterTrigger.Button
 
         /** Plan 05-06 sets this at module-load via ReporterResolverInstaller (renamed in 05.1-02). */
         @JvmStatic

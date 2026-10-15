@@ -20,6 +20,54 @@ class InteractionTargetRegistryTest {
     private val context:Context get()=ApplicationProvider.getApplicationContext()
     @Before fun setup() { InteractionTargetRegistry.reset() }
     @After fun cleanup() { InteractionTargetRegistry.reset() }
+    @Test fun reporterAnnotationTagsTheActualTargetAndRetainsOnlySafeMetadataWhenMasked() {
+        val root = FrameLayout(context)
+        val button = Button(context).apply { text = "PRIVATE" }; root.addView(button)
+        InteractionTargetRegistry.set(button,"report",1,mapOf("reporterTrigger" to "menu", "name" to "PRIVATE"))
+        val plain = InteractionTargetResolver.resolve(button)
+        assertEquals(JsonPrimitive("reporter"), plain.data["origin"])
+        assertEquals(JsonPrimitive("menu"), plain.data["trigger"])
+        button.setTag(R.id.tx_sensitive,true)
+        val masked = InteractionTargetResolver.resolve(button)
+        assertEquals(JsonPrimitive("reporter"), masked.data["origin"])
+        assertEquals(JsonPrimitive("menu"), masked.data["trigger"])
+        assertFalse(masked.data.toString().contains("PRIVATE"))
+        assertNull(InteractionTargetResolver.resolve(root).data["origin"])
+        InteractionTargetRegistry.clear("report",2)
+        assertNull(InteractionTargetResolver.resolve(button).data["origin"])
+    }
+    @Test fun invalidReporterTriggerCannotAnnotateAControl() {
+        for ((index,trigger) in listOf("shake","companion","Menu","button ",42).withIndex()) {
+            val view = Button(context)
+            InteractionTargetRegistry.set(view,"invalid-$index",1,mapOf("reporterTrigger" to trigger,"name" to "control"))
+            assertEquals(JsonPrimitive("control"),InteractionTargetRegistry.lookup(view)?.get("name"))
+            assertNull(InteractionTargetResolver.resolve(view).data["origin"])
+        }
+    }
+    @Test fun internalDevtoolsAnnotationTagsMaskedDescendantsAndClearRevokesIt() {
+        val root = FrameLayout(context).apply { contentDescription = "PRIVATE"; setTag(R.id.tx_sensitive,true) }
+        val child = Button(context).apply { text = "PRIVATE" }; root.addView(child)
+        InteractionTargetRegistry.set(root,"tools",1,mapOf("devtoolsOrigin" to true,"name" to "PRIVATE"))
+        InteractionTargetRegistry.set(child,"report",1,mapOf("reporterTrigger" to "button"))
+        val snapshot = InteractionTargetResolver.resolve(child)
+        assertEquals(JsonPrimitive("devtools"),snapshot.data["origin"])
+        assertNull(snapshot.data["trigger"])
+        assertEquals("[masked]",snapshot.label)
+        assertFalse(snapshot.data.toString().contains("PRIVATE"))
+        InteractionTargetRegistry.clear("tools",2)
+        assertEquals(JsonPrimitive("reporter"),InteractionTargetResolver.resolve(child).data["origin"])
+        InteractionTargetRegistry.set(root,"tools",3,mapOf("devtoolsOrigin" to true))
+        root.contentDescription = "recycled"
+        assertEquals(JsonPrimitive("reporter"),InteractionTargetResolver.resolve(child).data["origin"])
+    }
+    @Test fun devtoolsAnnotationAcceptsOnlyTrueBoolean() {
+        for ((index,value) in listOf(false,"true",1).withIndex()) {
+            val button = Button(context)
+            InteractionTargetRegistry.set(button,"invalid-tools-$index",1,mapOf("devtoolsOrigin" to value,"name" to "ordinary"))
+            assertEquals(JsonPrimitive("ordinary"),InteractionTargetRegistry.lookup(button)?.get("name"))
+            assertNull(InteractionTargetResolver.resolve(button).data["origin"])
+        }
+    }
     @Test fun oldCleanupCannotRemoveNewOwner() {
         val view=Button(context)
         InteractionTargetRegistry.set(view,"A",1,mapOf("name" to "Old"))

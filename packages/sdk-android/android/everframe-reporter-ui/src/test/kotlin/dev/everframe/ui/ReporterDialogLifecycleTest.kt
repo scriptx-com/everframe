@@ -196,7 +196,7 @@ class ReporterDialogLifecycleTest {
             // A lifecycle-scoped caller, cancelled when the user leaves right after Send.
             caller.cancel()
             gate.countDown()
-            assertEquals(listOf("owned-evidence"), queuedBreadcrumbs(outbox))
+            assertEquals(listOf("owned-evidence","reporter_opened"), queuedBreadcrumbs(outbox))
             awaitIdling(caller)
         } finally { gate.countDown(); caller.cancelAndJoin(); host.pause().stop().destroy() }
     }
@@ -220,12 +220,12 @@ class ReporterDialogLifecycleTest {
             assertTrue("A cancelled caller must stay presenting while its sent report holds the capture",
                 Everframe.report.isPresenting.value)
             gate.countDown()
-            assertEquals(listOf("owned-evidence"), queuedBreadcrumbs(outbox))
+            assertEquals(listOf("owned-evidence","reporter_opened"), queuedBreadcrumbs(outbox))
             awaitIdling(caller)
             assertFalse(Everframe.report.isPresenting.value)
             next = Everframe.__replayFreeze()
             assertEquals("The next report must freeze its own evidence",
-                listOf("owned-evidence"), next.takeBreadcrumbs()?.map { it.message })
+                listOf("owned-evidence","reporter_opened","reporter_closed"), next.takeBreadcrumbs()?.map { it.message })
         } finally { gate.countDown(); caller.cancelAndJoin(); next?.cancel(); host.pause().stop().destroy() }
     }
 

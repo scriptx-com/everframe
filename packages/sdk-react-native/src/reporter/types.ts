@@ -50,3 +50,12 @@ export class EverframeReporterDisabledError extends Error {
     super(message ?? 'The Everframe reporter is disabled in this session (reporter.disabled).');
   }
 }
+
+/** Explicit entry point attribution; never inferred from display text or a previous key. */
+export type ReporterTrigger = 'button' | 'shake' | 'menu' | 'companion';
+export interface ReporterOpenOptions {
+  trigger?: ReporterTrigger;
+}
+export function isReporterTrigger(value: unknown): value is ReporterTrigger {
+  return value === 'button' || value === 'shake' || value === 'menu' || value === 'companion';
+}

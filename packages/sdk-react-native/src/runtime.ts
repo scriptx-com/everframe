@@ -25,6 +25,7 @@ import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-captur
 // Inlining avoids pulling sdk-react's web-only deps (react-konva, html-to-image)
 // into the RN bundle. Dedupe to sdk-core post-v0.1.0.
 import NativeEverframe from './NativeEverframe.js';
+import { installDevtoolsOrigins } from './interactions/devtools.js';
 import { validStateKey, validStateValue } from './state.js';
 import type { ConfigOpts, Rect } from './NativeEverframe.js';
 import { budgetExtra, EXTRA_MAX_CHARS } from '@everframe/sdk-core';
@@ -47,6 +48,8 @@ import {
   EverframeReporterDisabledError,
   REPORTER_DISABLED_CODE,
   type ReporterResult,
+  type ReporterOpenOptions,
+  isReporterTrigger,
 } from './reporter/types.js';
 import { projectUserSpec } from './user-projection.js';
 import type { EverframeIntegration } from './integrations/types.js';
@@ -452,20 +455,22 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
   let targetEpoch = 0;
   const targetListeners = new Set<() => void>();
 
-  function open(): Promise<ReporterResult> {
+  function open(options?: ReporterOpenOptions): Promise<ReporterResult> {
     // Native promise returns NSDictionary / WritableMap with the discriminated
     // status field. The TurboModule spec types it `UnsafeObject`; the cast
     // here is the documented codegen-recursion-shape escape hatch.
-    return (NativeEverframe.openReporter() as unknown as Promise<ReporterResult>).catch(
-      (error: unknown) => {
-        // Crash-only session (spec 2026-10-12): both bridges reject with
-        // this code. Surface the same named error as the web SDK.
-        if ((error as { code?: unknown } | null)?.code === REPORTER_DISABLED_CODE) {
-          throw new EverframeReporterDisabledError();
-        }
-        throw error;
-      },
-    );
+    const result =
+      options && isReporterTrigger(options.trigger)
+        ? NativeEverframe.openReporterWithTrigger(options.trigger)
+        : NativeEverframe.openReporter();
+    return (result as unknown as Promise<ReporterResult>).catch((error: unknown) => {
+      // Crash-only session (spec 2026-10-12): both bridges reject with
+      // this code. Surface the same named error as the web SDK.
+      if ((error as { code?: unknown } | null)?.code === REPORTER_DISABLED_CODE) {
+        throw new EverframeReporterDisabledError();
+      }
+      throw error;
+    });
   }
 
   const runtime: Runtime = {
@@ -483,6 +488,14 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       },
     },
     open,
+    async markReporterOpened(trigger) {
+      if (mounted && __getCurrentContext() === runtime && isReporterTrigger(trigger)) {
+        await NativeEverframe.markReporterOpened(trigger);
+      }
+    },
+    async markReporterClosed() {
+      if (mounted && __getCurrentContext() === runtime) await NativeEverframe.markReporterClosed();
+    },
     getReportDeliveryStatus() {
       const owner = mounted;
       const owned = () =>
@@ -687,6 +700,12 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       };
       mounted = owner;
       __setCurrentContext(runtime);
+      owner.teardowns.push({
+        name: 'devtools-origins',
+        teardown: installDevtoolsOrigins({
+          getOwner: () => (__getCurrentContext() === runtime ? mounted : undefined),
+        }),
+      });
       owner.teardowns.push({
         name: 'interaction-links',
         teardown: installInteractionLinks(runtime),
@@ -910,7 +929,9 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
       // identifiers are never logged.
       if (healthSetExplicitly || (typeof __DEV__ !== 'undefined' && __DEV__)) {
         console.warn(
-          `[everframe] releaseHealth rejected: invalid ${rejected.join(', ')}. Foreground-session ` +
+          `[everframe] releaseHealth rejected: invalid ${rejected.join(
+            ', ',
+          )}. Foreground-session ` +
             'monitoring is off for this configuration; turning it off erases undelivered health records on this device.',
         );
       }

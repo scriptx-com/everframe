@@ -158,7 +158,11 @@ internal object TapBreadcrumbAdapter {
         if (value.captureRevision != sharedBreadcrumbBuffer.captureRevision()) return
         if (!PressCrumbRateLimiter.shouldRecord(button)) return
         val label = value.label
-        val data = JsonObject(value.data + mapOf(
+        val originMatches = value.data["origin"] != JsonPrimitive("reporter") ||
+            (value.data["trigger"] == JsonPrimitive("button") && button == "select") ||
+            (value.data["trigger"] == JsonPrimitive("menu") && button == "menu")
+        val fields = if (originMatches) value.data else value.data.filterKeys { it != "origin" && it != "trigger" }
+        val data = JsonObject(fields + mapOf(
             "inputType" to JsonPrimitive("remote"), "button" to JsonPrimitive(button),
         ))
         sharedBreadcrumbBuffer.addInteraction(

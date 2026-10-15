@@ -27,6 +27,17 @@ public struct InteractionTargetViewHints {
     static func describe(_ view: UIView) -> InteractionTargetViewHints? { adapter?(view) }
 }
 
+/// Framework support adapters provide provenance only, without reading target labels.
+@MainActor public enum InteractionOriginViewAdapters {
+    private static var adapter: ((UIView) -> Bool)?
+    private static var owner: UUID?
+    public static func register(_ read: @escaping (UIView) -> Bool) -> () -> Void {
+        let token = UUID(); owner = token; adapter = read
+        return { if owner == token { adapter = nil; owner = nil } }
+    }
+    static func isDevtools(_ view: UIView) -> Bool { adapter?(view) == true }
+}
+
 struct InteractionTargetSnapshot {
     let label: String
     let data: [String: EverframeJSONAny]
@@ -40,10 +51,34 @@ struct InteractionTargetSnapshot {
     private static let actions: Set<String> = ["button", "link", "tab", "switch", "checkbox", "radio", "textfield", "slider"]
     static func resolve(_ view: UIView) -> InteractionTargetSnapshot {
         let revision = BreadcrumbRingBuffer.shared.captureRevision()
-        if sensitiveAncestry(view) { return masked(role: nativeRole(owner(view, useHints: false)), captureRevision: revision) }
-        let selected = owner(view)
-        if sensitiveAncestry(selected) { return masked(role: nativeRole(selected), captureRevision: revision) }
-        return describe(selected, captureRevision: revision)
+        let selected = owner(view, useHints: !sensitiveAncestry(view))
+        let attribution = attribution(view, selected: selected)
+        let snapshot = sensitiveAncestry(view) || sensitiveAncestry(selected)
+            ? masked(role: nativeRole(selected), captureRevision: revision)
+            : describe(selected, captureRevision: revision)
+        return .init(label: snapshot.label, data: snapshot.data.merging(BreadcrumbRingBuffer.coerceHostData(attribution)) { _, value in value }, captureRevision: revision)
+    }
+
+    /// Only native identity and explicit bound annotations establish origin.
+    private static func attribution(_ view: UIView, selected: UIView) -> [String: Any] {
+        var current: UIResponder? = view
+        var seen = Set<ObjectIdentifier>()
+        while let candidate = current, seen.insert(ObjectIdentifier(candidate)).inserted {
+            let name = NSStringFromClass(type(of: candidate))
+            if ["RCTLogBoxView", "RCTRedBox", "EXDevMenu.DevMenuWindow", "EXDevMenu.DevMenuViewController",
+                "expo_dev_menu.DevMenuWindow", "expo_dev_menu.DevMenuViewController",
+                "EXDevLauncher.DevLauncherViewController", "expo_dev_launcher.DevLauncherViewController"].contains(name) {
+                return ["origin": "devtools"]
+            }
+            if let host = candidate as? UIView {
+                if InteractionOriginViewAdapters.isDevtools(host) { return ["origin": "devtools"] }
+                let annotation = InteractionTargetRegistry.lookup(host)
+                if interactionBool(annotation?["devtoolsOrigin"]) == true { return ["origin": "devtools"] }
+            }
+            current = candidate.next
+        }
+        if let reporter = InteractionTargetRegistry.lookup(selected)?["reporterTrigger"] as? String { return ["origin": "reporter", "trigger": reporter] }
+        return [:]
     }
 
     static func sensitiveAncestry(_ view: UIView) -> Bool {
@@ -90,7 +125,7 @@ struct InteractionTargetSnapshot {
         if let container = container(view) { target["container"] = container }
         if let screen = InteractionTargetScreenState.current() { target["screen"] = screen }
         if let annotation = InteractionTargetRegistry.lookup(view) {
-            target.merge(annotation) { _, value in value }
+            target.merge(annotation.filter { !["reporterTrigger", "devtoolsOrigin"].contains($0.key) }) { _, value in value }
             if annotation["name"] != nil { target["nameFrom"] = "annotation" }
             else if source == "testId", let override = annotation["testId"] { target["name"] = override }
         }

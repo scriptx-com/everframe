@@ -15,6 +15,8 @@ import { emptyErrorCaptureStatus, type ErrorCaptureStatus } from './error-captur
 // `open()` destination.
 import {
   type ReporterResult,
+  type ReporterOpenOptions,
+  type ReporterTrigger,
   EverframeNotMountedError,
   EverframeReporterDisabledError,
 } from './reporter/types.js';
@@ -43,7 +45,10 @@ export interface EverframeContextValue {
    * matches sdk-react. Rejects with `EverframeReporterDisabledError` when the
    * config sets `reporter: { disabled: true }`.
    */
-  open(): Promise<ReporterResult>;
+  open(options?: ReporterOpenOptions): Promise<ReporterResult>;
+  /** Mark a host-owned reporter interval. Does not attribute prior native input. */
+  markReporterOpened(trigger: ReporterTrigger): Promise<void>;
+  markReporterClosed(): Promise<void>;
   sensitive: {
     register(tag: number, rect: { x: number; y: number; width: number; height: number }): void;
     unregister(tag: number): void;
@@ -152,7 +157,7 @@ export function __getCurrentContext(): EverframeContextValue | null {
  * `useEverframe().open()`. This re-export exists for non-component call
  * sites (global error handlers, deep-link handlers, native event bridges).
  */
-export function open(): Promise<ReporterResult> {
+export function open(options?: ReporterOpenOptions): Promise<ReporterResult> {
   const ctx = __currentContext;
   if (!ctx) {
     return Promise.reject(
@@ -161,7 +166,7 @@ export function open(): Promise<ReporterResult> {
       ),
     );
   }
-  return ctx.open();
+  return ctx.open(options);
 }
 
 /** Top-level `setExtra` for non-component call sites. No-op if no provider mounted. */
@@ -247,4 +252,11 @@ export function setState(key: string, value: StateValue): void {
 }
 export function clearState(key: string): void {
   __currentContext?.clearState(key);
+}
+
+export async function markReporterOpened(trigger: ReporterTrigger): Promise<void> {
+  await __currentContext?.markReporterOpened(trigger);
+}
+export async function markReporterClosed(): Promise<void> {
+  await __currentContext?.markReporterClosed();
 }

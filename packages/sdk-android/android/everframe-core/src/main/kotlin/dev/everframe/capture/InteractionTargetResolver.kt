@@ -22,18 +22,21 @@ internal object InteractionTargetResolver {
     fun resolve(view: View): InteractionTargetSnapshot {
         val revision = sharedBreadcrumbBuffer.captureRevision()
         return try {
+            val targetView = owner(view, useHints = !sensitiveAncestry(view))
+            val origin = InteractionOrigin.resolve(view, targetView)
             if (sensitiveAncestry(view)) {
-                masked(nativeRole(owner(view, useHints = false)), revision)
+                masked(nativeRole(targetView), revision).withOrigin(origin)
             } else {
-                val targetView = owner(view)
                 // Promotion cannot escape the sensitivity of either lineage.
-                if (sensitiveAncestry(targetView)) masked(nativeRole(targetView), revision) else describe(targetView, revision)
+                (if (sensitiveAncestry(targetView)) masked(nativeRole(targetView), revision) else describe(targetView, revision)).withOrigin(origin)
             }
         } catch (_: Throwable) {
             // A failed privacy query cannot make a label safe to read.
             masked(null, revision)
         }
     }
+
+    private fun InteractionTargetSnapshot.withOrigin(origin: JsonObject) = copy(data = JsonObject(data + origin))
 
     private fun masked(role: String?, captureRevision: Long): InteractionTargetSnapshot {
         val target = linkedMapOf<String, Any?>("masked" to true)
@@ -84,7 +87,7 @@ internal object InteractionTargetResolver {
         val annotation = InteractionTargetRegistry.lookup(view)
         if (annotation == null) return InteractionTargetSnapshot(targetText(name, 48) ?: "view", automatic, captureRevision)
         val mergedTarget = (automatic["target"] as JsonObject).toMutableMap()
-        mergedTarget.putAll(annotation)
+        mergedTarget.putAll(annotation.filterKeys { it != "reporterTrigger" && it != "devtoolsOrigin" })
         if (annotation.containsKey("name")) mergedTarget["nameFrom"] = JsonPrimitive("annotation")
         // A stable-ID override must also update a name derived from that ID.
         if (annotation.containsKey("testId") && !annotation.containsKey("name") && from == "testId") mergedTarget["name"] = annotation.getValue("testId")

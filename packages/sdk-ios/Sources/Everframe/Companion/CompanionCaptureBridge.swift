@@ -55,6 +55,7 @@ public final class CompanionCaptureBridge: @unchecked Sendable {
         weak var companion: CompanionAPI?
     }
     @MainActor private static var captureOwner: CaptureOwner?
+    @MainActor private static var captureLifecycleOwner: UUID?
 
     /// Pair state may outlive a disconnected client. Only a current capture
     /// may keep a replacement Everframe SDK session frozen.
@@ -308,7 +309,8 @@ public final class CompanionCaptureBridge: @unchecked Sendable {
         captureOwner = nil
         #if canImport(UIKit)
         Everframe.shared.__replayCancel()
-        Everframe.shared.__replayFreeze()
+        Everframe.shared.report.markOpened(trigger: .companion)
+        captureLifecycleOwner = Everframe.shared.__replayFreeze()
         #endif
     }
 
@@ -316,8 +318,9 @@ public final class CompanionCaptureBridge: @unchecked Sendable {
     internal static func abortReportCaptureLifecycle() {
         captureOwner = nil
         #if canImport(UIKit)
-        Everframe.shared.__replayCancel()
+        if let owner = captureLifecycleOwner { Everframe.shared.__replayCancel(owner: owner) }
         #endif
+        captureLifecycleOwner = nil
     }
 
     // MARK: - report.request → report.assembled
@@ -338,7 +341,8 @@ public final class CompanionCaptureBridge: @unchecked Sendable {
             Self.abortReportCaptureLifecycle()
         } else {
             #if canImport(UIKit)
-            Everframe.shared.__replayReporterDidClose()
+            if let owner = Self.captureLifecycleOwner { Everframe.shared.__replayReporterDidClose(owner: owner) }
+            Self.captureLifecycleOwner = nil
             #endif
         }
     }

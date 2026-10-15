@@ -94,3 +94,10 @@ export async function observePermissionRequest<T>(
 export function recordLaunchContext(
   _context: import('./interactions/launch.js').LaunchContext,
 ): void {}
+
+export type { ReporterTrigger, ReporterOpenOptions } from './reporter/types.js';
+/** Native reporter lifecycle markers are inert on the browser entry. */
+export async function markReporterOpened(
+  _trigger: import('./reporter/types.js').ReporterTrigger,
+): Promise<void> {}
+export async function markReporterClosed(): Promise<void> {}

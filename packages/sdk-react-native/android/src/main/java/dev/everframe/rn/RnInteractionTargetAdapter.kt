@@ -3,6 +3,7 @@
 package dev.everframe.rn
 
 import android.view.View
+import com.facebook.react.ReactRootView
 import com.facebook.react.uimanager.ReactAccessibilityDelegate.AccessibilityRole
 import com.facebook.react.uimanager.ReactAccessibilityDelegate.Role
 import dev.everframe.capture.InteractionTargetViewAdapter
@@ -24,6 +25,9 @@ internal object RnInteractionTargetAdapter : InteractionTargetViewAdapter {
             else -> rawRole
         }
         return InteractionTargetViewHints(testId = testId, role = role,
+            // ReactSurfaceView (Fabric) also extends ReactRootView. The module
+            // identity is assigned by the framework, independent of rendered labels.
+            devtools = view is ReactRootView && runCatching { view.jsModuleName in setOf("LogBox", "DevMenu") }.getOrDefault(false),
             actionable = role in setOf("button", "tab", "link", "switch", "checkbox", "radio", "slider", "menuitem", "textfield"))
     }
 }

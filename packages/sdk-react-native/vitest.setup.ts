@@ -22,6 +22,9 @@ vi.mock('react-native', () => ({
     getEnforcing: () => ({
       configureSync: vi.fn(() => true),
       openReporter: vi.fn().mockResolvedValue({ status: 'cancelled' }),
+      openReporterWithTrigger: vi.fn().mockResolvedValue({ status: 'cancelled' }),
+      markReporterOpened: vi.fn(),
+      markReporterClosed: vi.fn(),
       registerSensitiveRect: vi.fn(),
       getInteractionLease: vi.fn(() => 'test-lease'),
       setInteractionObserver: vi.fn(() => true),

@@ -87,7 +87,7 @@ final class ShakeToReportTrigger: @unchecked Sendable {
 
         Task { @MainActor in
             defer { currentGate.complete() }
-            _ = try? await Everframe.shared.report.open()
+            _ = try? await Everframe.shared.report.open(trigger: .shake)
         }
     }
     #endif

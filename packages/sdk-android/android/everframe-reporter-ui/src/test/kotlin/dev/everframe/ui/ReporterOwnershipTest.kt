@@ -51,7 +51,7 @@ class ReporterOwnershipTest {
             },
         )
         assertTrue(presenter.openReporter(activity) is ReportResult.Cancelled)
-        assertEquals(listOf("before-open"), messagesAtMount)
+        assertEquals(listOf("before-open","reporter_opened"), messagesAtMount)
         assertNull(old!!.takeNetworkBodies())
         assertEquals(listOf("replacement"), replacement!!.takeBreadcrumbs()!!.map { it.message })
         replacement!!.cancel()

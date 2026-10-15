@@ -470,6 +470,45 @@ class EverframeModule(
      */
     @ReactMethod
     override fun openReporter(promise: Promise) {
+        openReporterInternal(null,promise)
+    }
+
+    @ReactMethod
+    override fun openReporterWithTrigger(trigger: String, promise: Promise) {
+        val value = dev.everframe.config.ReporterTrigger.fromValue(trigger)
+        if (value == null) {
+            promise.reject(REJECT_OPEN_REPORTER_FAILED,"Invalid reporter trigger")
+            return
+        }
+        openReporterInternal(value,promise)
+    }
+
+    @ReactMethod
+    override fun markReporterOpened(trigger: String, promise: Promise) {
+        runReporterMarker(Everframe.__prepareReporterOpened(trigger),promise)
+    }
+
+    @ReactMethod
+    override fun markReporterClosed(promise: Promise) {
+        runReporterMarker(Everframe.__prepareReporterClosed(),promise)
+    }
+
+    private fun runReporterMarker(action: Runnable, promise: Promise) {
+        try {
+            UiThreadUtil.runOnUiThread {
+                try {
+                    action.run()
+                    promise.resolve(null)
+                } catch (_: Throwable) {
+                    promise.reject("reporter_marker_failed","Could not record reporter marker")
+                }
+            }
+        } catch (_: Throwable) {
+            promise.reject("reporter_marker_failed","Could not schedule reporter marker")
+        }
+    }
+
+    private fun openReporterInternal(trigger: dev.everframe.config.ReporterTrigger?, promise: Promise) {
         if (!Everframe.captureGate) {
             promise.reject(REJECT_CAPTURE_DISABLED, "Everframe not started (captureGate=false). Call configure() first.")
             return
@@ -482,7 +521,10 @@ class EverframeModule(
         }
         MainScope().launch {
             try {
-                val result: ReportResult = reporterBridge.open(reactContext)
+                val result: ReportResult = if (trigger == null) reporterBridge.open(reactContext)
+                    else kotlinx.coroutines.withContext(dev.everframe.config.ReporterTriggerContext(trigger)) {
+                        reporterBridge.open(reactContext)
+                    }
                 val dict = Arguments.createMap().apply {
                     when (result) {
                         is ReportResult.Submitted -> {

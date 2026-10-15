@@ -79,6 +79,9 @@ object InteractionTargetRegistry {
             return if (number.isFinite() && number >= 0 && number <= 9007199254740991.0 && number == number.toLong().toDouble()) number.toLong() else null
         }
         val result = fields(input)
+        if (input["devtoolsOrigin"] == true) result["devtoolsOrigin"] = true
+        (input["reporterTrigger"] as? String)?.takeIf { it == "button" || it == "menu" }
+            ?.let { result["reporterTrigger"] = it }
         (input["container"] as? Map<*, *>)?.let { container ->
             val nested = fields(container)
             val index = position(container["index"]); val count = position(container["count"])

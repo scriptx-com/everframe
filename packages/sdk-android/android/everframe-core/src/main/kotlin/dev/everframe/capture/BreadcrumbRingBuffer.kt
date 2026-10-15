@@ -231,6 +231,8 @@ class BreadcrumbRingBuffer internal constructor(
     internal fun <T> withInteractionLock(block: () -> T): T = lock.withLock(block)
     private val entries = ArrayDeque<Breadcrumb>()
     private var frozen: List<Breadcrumb>? = null
+    private class ReporterBoundary(val opened: Breadcrumb, var claimedForCapture: Boolean)
+    private var reporterBoundary: ReporterBoundary? = null
     private var _maxCount: Int = maxCount
 
     // Config-gating state (Task 1's wire). Defaults match applyConfig(null):
@@ -279,6 +281,58 @@ class BreadcrumbRingBuffer internal constructor(
 
     internal fun addObservedInteraction(kind: BreadcrumbKind, message: String, data: JsonObject, captureRevision: Long): Boolean =
         store(kind, message, null, data, null, captureRevision, observedInteraction = true)
+
+    internal fun prepareReporterOpened(trigger: String): Runnable {
+        val revision = captureRevision()
+        return Runnable { reporterOpened(trigger,expectedRevision = revision) }
+    }
+
+    internal fun prepareReporterClosed(): Runnable {
+        // Purge removes this identity; config changes retaining custom markers
+        // must still let their original close terminate the retained interval.
+        val owner = lock.withLock { reporterBoundary }
+        return Runnable { if (owner != null) reporterClosed(owner) }
+    }
+
+    internal fun reporterOpened(trigger: String, claimForCapture: Boolean = false, expectedRevision: Long? = null): Any? {
+        if (dev.everframe.config.ReporterTrigger.fromValue(trigger) == null) return null
+        val revision = expectedRevision ?: captureRevision()
+        if (revision != captureRevision()) return null
+        // Summaries observed before the open must precede its sequence boundary.
+        interactionFreeze?.invoke()
+        return lock.withLock {
+            if (revision != interactionRevision || (honorsKillGate && !Everframe.captureGate) ||
+                !configEnabled || BreadcrumbKind.Custom !in configKinds) return@withLock null
+            // A host can mark before its triggering key reaches the log bridge.
+            // Its first native capture adopts that boundary; another capture must
+            // own a fresh token so a detached predecessor cannot close it.
+            reporterBoundary?.let { active ->
+                if (!claimForCapture || !active.claimedForCapture) {
+                    if (claimForCapture) active.claimedForCapture = true
+                    return@withLock active
+                }
+            }
+            val data = coerceHostData(mapOf("source" to "everframe_reporter", "trigger" to trigger))
+            if (!store(BreadcrumbKind.Custom,"reporter_opened",null,data,null,revision)) null
+            else ReporterBoundary(entries.last(),claimForCapture).also { reporterBoundary = it }
+        }
+    }
+
+    internal fun reporterClosed(owner: Any? = null) = lock.withLock {
+        val active = reporterBoundary ?: return@withLock
+        if (owner != null && owner !== active) return@withLock
+        reporterBoundary = null
+        if (!store(BreadcrumbKind.Custom,"reporter_closed",null,coerceHostData(mapOf("source" to "everframe_reporter")),null)) {
+            entries.remove(active.opened)
+        }
+        Unit
+    }
+
+    internal fun reporterDiscarded(owner: Any) = lock.withLock {
+        val boundary = owner as? ReporterBoundary ?: return@withLock
+        entries.remove(boundary.opened)
+        if (reporterBoundary === boundary) reporterBoundary = null
+    }
 
     private fun add(kind: BreadcrumbKind, message: String, level: Level?, data: JsonObject?, owner: Long?, captureRevision: Long? = null) {
         store(kind, message, level, data, owner, captureRevision)
@@ -345,6 +399,7 @@ class BreadcrumbRingBuffer internal constructor(
         interactionRevocation?.invoke()
         entries.clear()
         frozen = null
+        reporterBoundary = null
     }
 
     /**
@@ -356,6 +411,11 @@ class BreadcrumbRingBuffer internal constructor(
     fun applyConfig(cfg: BreadcrumbsConfigWire?, guard: (() -> Boolean)? = null) = lock.withLock {
         if (guard?.invoke() == false) return@withLock
         val nextKinds = cfg?.kinds?.mapNotNull { v -> BreadcrumbKind.entries.firstOrNull { it.value == v } }?.toSet() ?: allKinds
+        if (BreadcrumbKind.Custom !in nextKinds) {
+            entries.removeAll { it.data?.get("source") == JsonPrimitive("everframe_reporter") &&
+                it.message in setOf("reporter_opened","reporter_closed") }
+            reporterBoundary = null
+        }
         if (configKinds != nextKinds || configEnabled != (cfg?.enabled ?: true)) {
             interactionRevision++
             interactionRevocation?.invoke()
@@ -374,6 +434,7 @@ class BreadcrumbRingBuffer internal constructor(
             interactionRevocation?.invoke()
             entries.clear()
             frozen = null
+            reporterBoundary = null
         }
     }
 

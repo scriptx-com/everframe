@@ -35,6 +35,21 @@ class FrozenReportCapture internal constructor(
     private var replayRevoked = false
     private var cancelled = false
     private var stateSession: dev.everframe.TXCapturedSession? = null
+    private var reporterBoundary: Any? = null
+    internal fun withReporterBoundary(boundary: Any?): FrozenReportCapture {
+        synchronized(lock) { if (!terminal()) reporterBoundary = boundary }
+        return this
+    }
+    /** Reporter presentation failed before becoming visible; its attempt is not an open. */
+    fun __discardReporterBoundary() {
+        val boundary = synchronized(lock) { reporterBoundary.also { reporterBoundary = null } }
+        if (boundary != null) dev.everframe.capture.sharedBreadcrumbBuffer.reporterDiscarded(boundary)
+    }
+    /** A dismissed reporter no longer delimits subsequent live app interactions. */
+    fun __closeReporterBoundary() {
+        val boundary = synchronized(lock) { reporterBoundary.also { reporterBoundary = null } }
+        if (boundary != null) dev.everframe.capture.sharedBreadcrumbBuffer.reporterClosed(boundary)
+    }
     internal fun withState(session: dev.everframe.TXCapturedSession): FrozenReportCapture {
         synchronized(lock) { if (!terminal() && session.user.startEpoch == originatingStartEpoch) stateSession = session }
         return this
@@ -111,7 +126,10 @@ class FrozenReportCapture internal constructor(
             breadcrumbs = null; networkBodies = null; stateSession = null
             readyClip.also { readyClip = null }
         }
-        try { clip?.close(); if (cancel) origin.cancel(owner) } finally { origin.release(owner) }
+        try { clip?.close(); if (cancel) origin.cancel(owner) } finally {
+            origin.release(owner)
+            __closeReporterBoundary()
+        }
     }
 
     internal companion object {
