@@ -1,0 +1,19 @@
+packages/everframe_flutter/CHANGELOG.md
+  s_eb79cd0a048bfe::t_1373e52ba6fb1d 4-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6726447ca7ae867811056a6d07fe421cf1119f6a",
+  "prompts": {},
+  "sessions": {
+    "s_eb79cd0a048bfe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13b4b-6dbf-7273-9431-bee25af1347c",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
