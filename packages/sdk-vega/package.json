@@ -1,6 +1,6 @@
 {
   "name": "@everframe/vega",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Amazon Vega OS SDK for Everframe (preview): JavaScript crash and error reporting for React Native for Vega apps, with no native module.",
   "author": {
     "name": "Scriptx, UAB",

@@ -1,5 +1,18 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.4.0
+
+### Minor Changes
+
+- d0ed9cb: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Describe phone and TV interactions using available native control names, roles,
+  IDs, collection metadata, and screen context. Add the optional
+  `useEverframeTarget` ref hook for logical app metadata, with stale-host
+  invalidation and sensitive-view masking. Automatic reporting remains available
+  without annotations; the web hook is a no-op.
+
 ## 1.3.0
 
 ### Patch Changes
@@ -121,6 +134,7 @@
   <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
   The SDK key is renamed to `sdkKey` in every SDK; `apiKey` and `appId` are still accepted but deprecated. `appId` now means only the App ID, the UUID that symbol and source-map uploads take.
+
   - Web, React and React Native: the config field is `sdkKey`, for example `init({ sdkKey: 'evf_live_…' })` and `<EverframeProvider config={{ sdkKey: 'evf_live_…' }}>`. A config that still passes `apiKey` keeps working: the SDK reads it as `sdkKey` and logs one deprecation warning. When both are set, `sdkKey` wins.
   - iOS and tvOS: `EverframeConfig(sdkKey:)` and `.sdkKey` replace `EverframeConfig(appId:)` and `.appId`, which still compile with a deprecation warning. `EverframeConfigError.missingAppId` is now `EverframeConfigError.missingSdkKey`. `ReplaySession(baseURL:sdkKey:locallyDisabled:)` replaces the deprecated `apiKey:` spelling.
   - Android: `EverframeConfig(appId, sdkKey)` already used these names and is unchanged. Internal `ReplaySession`, `ReplayConfigProvider` and `VitalsTransport` parameters named `apiKey` are now `sdkKey`.

@@ -1,5 +1,11 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 0.0.10
+
+### Patch Changes
+
+- @everframe/web@1.4.0
+
 ## 0.0.9
 
 ### Patch Changes

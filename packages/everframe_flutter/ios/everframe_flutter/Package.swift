@@ -16,7 +16,7 @@ if let sdkPath = ProcessInfo.processInfo.environment["EVERFRAME_SDK_IOS_ROOT"],
 } else {
     // The plugin resolves the native SDK of its own version and later patches.
     nativeSDK = .package(url: "https://github.com/scriptx-com/everframe.git",
-                         .upToNextMinor(from: "1.3.0"))
+                         .upToNextMinor(from: "1.4.0"))
 }
 
 let package = Package(

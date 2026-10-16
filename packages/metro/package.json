@@ -1,6 +1,6 @@
 {
   "name": "@everframe/metro",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": false,
   "description": "Metro serializer integration that stamps a build identity into React Native bundles for Everframe symbolication.",
   "type": "module",

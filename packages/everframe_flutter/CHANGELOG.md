@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-## Unreleased
+## 1.4.0
 
 - Align the plugin and its Android, iOS, and web SDK dependency versions with the coordinated Everframe 1.4.0 release.
 - The Dart API and Flutter bridge implementation are unchanged from 1.3.0.
