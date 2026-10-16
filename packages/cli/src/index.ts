@@ -206,7 +206,7 @@ async function deviceBuildsCommand(argv: string[], env: NodeJS.ProcessEnv): Prom
           error: { code: safe.code, message: safe.message },
           ...(statusCommand && { statusCommand }),
         })
-      : `${diagnostic}${safe.uploadId ? ` Upload ID: ${safe.uploadId}.` : ''}${statusCommand ? ` Continue with: ${statusCommand}` : ''}`;
+      : `${diagnostic}${safe.uploadId ? ` Upload ID: ${safe.uploadId}.` : ''}${safe.lastStatus ? ` Last known state: ${safe.lastStatus.state}.` : ''}${statusCommand ? ` Continue with: ${statusCommand}` : ''}`;
     const safeOutput = redact(output, env.EVERFRAME_API_TOKEN);
     if (json) console.log(safeOutput);
     else console.error(safeOutput);

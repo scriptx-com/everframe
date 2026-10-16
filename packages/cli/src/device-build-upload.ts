@@ -429,10 +429,13 @@ export async function uploadDeviceBuild(
 ): Promise<DeviceBuildUploadStatus> {
   const ctx = context(options);
   validateFormat(options);
+  checkBudget(ctx);
   let commit: string | undefined;
   try {
     commit = detectBuildVcs({
       projectRoot: options.projectRoot ?? process.cwd(),
+      commitOnly: true,
+      deadline: ctx.deadline,
       ...(options.commit === undefined ? {} : { commit: options.commit }),
     })?.commit;
   } catch {

@@ -123,7 +123,7 @@ async function fixture(options: { putState?: string; getState?: string; reject?:
     '--build-number',
     '0042',
   ];
-  return { cli, args, requests };
+  return { cli, args, requests, root };
 }
 
 afterEach(async () => {
@@ -247,6 +247,7 @@ it.each([false, true])(
       });
     else {
       expect(output).toContain('accepted');
+      expect(output).toContain('Last known state: queued.');
       expect(output).not.toMatch(/\b(failed|ready)\b/);
     }
   },
@@ -347,3 +348,34 @@ it.each(['failed', 'expired'])(
     });
   },
 );
+
+it('preserves the last known state after an accepted upload observation fails', async () => {
+  const { cli, args } = await fixture({ putState: 'uploading', reject: 'GET' });
+  const result = await cli([...args, '--wait']);
+  expect(result.exitCode).toBe(1);
+  expect(result.stderr).toContain('request_failed');
+  expect(result.stderr).toContain('Last known state: uploading.');
+  expect(result.stderr).toContain(uploadId);
+  expect(result.stderr).toContain(
+    `everframe device-builds status --app-id ${appId} --upload-id ${uploadId}`,
+  );
+  expect(result.stderr).not.toContain(token);
+});
+
+it('bounds slow Git provenance by the total deadline before making HTTP requests', async () => {
+  const { cli, args, requests, root } = await fixture();
+  await writeFile(
+    join(root, 'git'),
+    `#!${process.execPath}
+setTimeout(() => process.stdout.write('${'a'.repeat(40)}\\n'), 3000);
+`,
+    { mode: 0o755 },
+  );
+  const started = Date.now();
+  const result = await cli([...args, '--timeout', '1', '--json'], {
+    PATH: `${root}:${process.env.PATH}`,
+  });
+  expect(result).toMatchObject({ exitCode: 1, json: { error: { code: 'upload_timeout' } } });
+  expect(Date.now() - started).toBeLessThan(1450);
+  expect(requests).toHaveLength(0);
+});

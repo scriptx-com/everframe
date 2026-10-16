@@ -5,7 +5,7 @@ import { once } from 'node:events';
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, rename, rm, truncate, writeFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { tmpdir } from 'node:os';
+import { devNull, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -141,6 +141,9 @@ describe('runnable build upload transport', () => {
 
   it.each(['detected', 'explicit'] as const)('records a %s full commit', async (kind) => {
     const { options, requests, root } = await fixture();
+    // Isolate real Git, including production detection, from machine-local side effects.
+    vi.stubEnv('GIT_CONFIG_GLOBAL', devNull);
+    vi.stubEnv('GIT_CONFIG_NOSYSTEM', '1');
     execFileSync('git', ['init', '--quiet', root]);
     execFileSync('git', [
       '-C',
