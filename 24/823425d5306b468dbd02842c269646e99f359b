@@ -1,0 +1,23 @@
+packages/cli/__tests__/device-build-upload.spec.ts
+  s_7c516fe4332332::t_2d0623143a8cb7 231-301,470-484,490,496-497,500-501,504,508,510,516,523-524,527,529
+  s_7c516fe4332332::t_91c70cfe113726 485-489,491-495,498-499,502-503,505-507,509,511-515,517-522,525-526,528
+packages/cli/src/device-build-upload.ts
+  s_7c516fe4332332::t_78f1ad547ae3cc 70-71,80-81,109,113-125,232,284-287,294-295,340,361-366,484-485,559-560,562
+  s_7c516fe4332332::t_53d6ea0b177531 563-564
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "24823425d5306b468dbd02842c269646e99f359b",
+  "prompts": {},
+  "sessions": {
+    "s_7c516fe4332332": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14480-4b2c-7180-8476-87005055d9d5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
