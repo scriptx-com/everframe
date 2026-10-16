@@ -1,6 +1,11 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
+## Unreleased
+
+- Align the plugin and its Android, iOS, and web SDK dependency versions with the coordinated Everframe 1.4.0 release.
+- The Dart API and Flutter bridge implementation are unchanged from 1.3.0.
+
 ## 1.3.0
 
 - Native release-health sessions are enabled by default. `releaseHealth: false` opts out without disabling error reports; `crash: false` disables both. Native `start(debugBuild:)` forwards an explicit build flag. Dart errors remain outside the native crash rate.
