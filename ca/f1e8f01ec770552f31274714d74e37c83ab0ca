@@ -1,0 +1,25 @@
+packages/build-tools/CHANGELOG.md
+  s_7c516fe4332332::t_b607e40497432c 1-3
+packages/cli/README.md
+  s_7c516fe4332332::t_0ac5cc34c9d832 6,12-153
+packages/cli/__tests__/device-build-command.spec.ts
+  s_7c516fe4332332::t_a9cb487fc5124c 1-349
+packages/cli/src/index.ts
+  s_7c516fe4332332::t_893e855ce32abc 5,14-20,58-59,76-77,88-216,226-227,242,259-260
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "caf1e8f01ec770552f31274714d74e37c83ab0ca",
+  "prompts": {},
+  "sessions": {
+    "s_7c516fe4332332": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14480-4b2c-7180-8476-87005055d9d5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
