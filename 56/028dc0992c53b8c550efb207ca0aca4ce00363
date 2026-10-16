@@ -1,0 +1,35 @@
+packages/protocol/src/device-builds.ts
+  s_7c516fe4332332::t_7a02f6ce9ad08b 1-110
+  s_7c516fe4332332::t_a8b56f8b30a679 111-146
+packages/protocol/__tests__/device-builds.spec.ts
+  s_7c516fe4332332::t_6a749223220ac8 1-87,89-92,94-101,103-167,170-180
+  s_7c516fe4332332::t_1eb3da2c781bc2 88,93,102,168-169
+  s_7c516fe4332332::t_eae7ee8197a376 181-229
+packages/protocol/src/index.ts
+  s_7c516fe4332332::t_7a02f6ce9ad08b 86-100
+  s_58fdebe0a145df::t_aac101c6a332f5 85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "56028dc0992c53b8c550efb207ca0aca4ce00363",
+  "prompts": {},
+  "sessions": {
+    "s_58fdebe0a145df": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14486-3c3f-7c90-91f6-d73243158a39",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_7c516fe4332332": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14480-4b2c-7180-8476-87005055d9d5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
