@@ -67,6 +67,8 @@ export class DeviceBuildUploadError extends Error {
     readonly code: DeviceBuildUploadErrorCode,
     message: string = code,
     readonly statusCode?: number,
+    readonly uploadId?: string,
+    readonly lastStatus?: DeviceBuildUploadStatus,
   ) {
     super(message);
     this.name = 'DeviceBuildUploadError';
@@ -75,8 +77,8 @@ export class DeviceBuildUploadError extends Error {
 
 /** Acceptance survived the deadline; the caller can continue with the status command. */
 export class DeviceBuildWaitTimeoutError extends DeviceBuildUploadError {
-  readonly uploadId: string;
-  constructor(readonly lastStatus: DeviceBuildUploadStatus) {
+  override readonly uploadId: string;
+  constructor(override readonly lastStatus: DeviceBuildUploadStatus) {
     super('wait_timeout', 'wait_timeout: upload accepted; check its status to continue.');
     this.name = 'DeviceBuildWaitTimeoutError';
     this.uploadId = lastStatus.uploadId;
@@ -104,7 +106,21 @@ interface Context {
   signal: AbortSignal | undefined;
   wait: boolean;
   onStatus: DeviceBuildUploadOptions['onStatus'];
+  uploadId?: string;
   lastStatus?: DeviceBuildUploadStatus;
+}
+
+function errorWithRecovery(ctx: Context, error: unknown): DeviceBuildUploadError {
+  if (error instanceof DeviceBuildWaitTimeoutError) return error;
+  const safe =
+    error instanceof DeviceBuildUploadError ? error : new DeviceBuildUploadError('request_failed');
+  return new DeviceBuildUploadError(
+    safe.code,
+    safe.message,
+    safe.statusCode,
+    ctx.uploadId,
+    ctx.lastStatus,
+  );
 }
 
 function context(
@@ -213,7 +229,7 @@ async function responseBody(response: Response): Promise<unknown> {
       const chunk = await reader.read();
       if (chunk.done) break;
       bytes += chunk.value.byteLength;
-      if (bytes > (response.ok ? 65536 : 4096)) {
+      if (bytes > 65536) {
         await reader.cancel().catch(() => undefined);
         throw new DeviceBuildUploadError('invalid_server_response');
       }
@@ -265,14 +281,18 @@ async function requestOnce(
       await response.body?.cancel().catch(() => undefined);
       throw new RequestFailure('request_failed', false, 0, response.status);
     }
-    const body = await responseBody(response);
-    if (!response.ok)
+    if (!response.ok) {
+      // Status and Retry-After determine policy. Diagnostic bodies are never
+      // needed and cannot turn permanent HTTP errors into network retries.
+      await response.body?.cancel().catch(() => undefined);
       throw new RequestFailure(
         'request_failed',
         response.status === 429 || response.status >= 500,
         retryDelay(response, attempt),
         response.status,
       );
+    }
+    const body = await responseBody(response);
     return { body, retryAfterMs: retryDelay(response, attempt) };
   } catch (error) {
     checkBudget(ctx);
@@ -317,6 +337,7 @@ function parseStatus(ctx: Context, input: unknown, uploadId?: string): DeviceBui
       code: result.error.code,
       message: redact(safeMessages[result.error.code], ctx.token),
     };
+  ctx.lastStatus = result;
   return result;
 }
 
@@ -337,7 +358,12 @@ export async function getDeviceBuildUpload(
   const ctx = context(options);
   if (!z.uuid().safeParse(options.uploadId).success)
     throw new DeviceBuildUploadError('invalid_input');
-  return (await readStatus(ctx, options.uploadId.toLowerCase())).status;
+  ctx.uploadId = options.uploadId.toLowerCase();
+  try {
+    return (await readStatus(ctx, ctx.uploadId)).status;
+  } catch (error) {
+    throw errorWithRecovery(ctx, error);
+  }
 }
 
 function unchanged(before: BigIntStats, after: BigIntStats): boolean {
@@ -455,6 +481,8 @@ export async function uploadDeviceBuild(
     const reservation = DeviceBuildUploadReservationSchema.safeParse(reserved.body);
     if (!reservation.success) throw new DeviceBuildUploadError('invalid_server_response');
     const reservedUploadId = reservation.data.uploadId;
+    ctx.uploadId = reservedUploadId;
+    if (!('contentPath' in reservation.data)) parseStatus(ctx, reservation.data);
     let current: DeviceBuildUploadStatus;
     let retryAfterMs = reserved.retryAfterMs;
     if ('contentPath' in reservation.data || reservation.data.state === 'receiving') {
@@ -528,7 +556,11 @@ export async function uploadDeviceBuild(
       publish(ctx, current);
     }
     return current;
+  } catch (error) {
+    throw errorWithRecovery(ctx, error);
   } finally {
-    await file.close();
+    await file.close().catch(() => {
+      throw errorWithRecovery(ctx, new DeviceBuildUploadError('source_file_unavailable'));
+    });
   }
 }

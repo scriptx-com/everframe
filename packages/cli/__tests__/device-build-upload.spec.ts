@@ -228,6 +228,77 @@ describe('runnable build upload transport', () => {
     expect(acceptedUploadCount).toBe(1);
   });
 
+  it('preserves a known upload ID when uncertain PUT reconciliation fails', async () => {
+    const { options, requests } = await fixture((request, res) => {
+      if (request.method === 'POST') json(res, 201, receipt());
+      else if (request.method === 'PUT') res.destroy();
+      else json(res, 403, { error: token });
+    });
+    const updates: unknown[] = [];
+    const error = await uploadDeviceBuild({
+      ...options,
+      onStatus: (value) => updates.push(value),
+    }).catch((value: unknown) => value);
+    expect(error).toMatchObject({ code: 'request_failed', statusCode: 403, uploadId });
+    expect(JSON.stringify(error)).not.toContain(token);
+    expect(updates).toEqual([]);
+    expect(requests.map((request) => request.method)).toEqual(['POST', 'PUT', 'GET']);
+  });
+
+  it.each(['permanent', 'changed', 'abort', 'deadline'] as const)(
+    'preserves the reservation ID on %s failure before the first status callback',
+    async (failure) => {
+      const controller = new AbortController();
+      const { options } = await fixture(async (request, res) => {
+        if (request.method === 'POST') {
+          if (failure === 'changed') await writeFile(options.file, 'changed');
+          json(res, 201, receipt());
+        } else if (failure === 'permanent') json(res, 403, { error: token });
+        else if (failure === 'abort') controller.abort(new Error(token));
+      });
+      const updates: unknown[] = [];
+      const error = await uploadDeviceBuild({
+        ...options,
+        signal: controller.signal,
+        ...(failure === 'deadline' ? { timeout: 0.1 } : {}),
+        onStatus: (value) => updates.push(value),
+      }).catch((value: unknown) => value);
+      expect(error).toMatchObject({
+        uploadId,
+        code: {
+          permanent: 'request_failed',
+          changed: 'source_file_changed',
+          abort: 'aborted',
+          deadline: 'upload_timeout',
+        }[failure],
+      });
+      expect(updates).toEqual([]);
+      expect(JSON.stringify(error)).not.toContain(token);
+    },
+  );
+
+  it('preserves safe accepted status when source verification fails before its callback', async () => {
+    const { options } = await fixture(async (request, res) => {
+      if (request.method === 'POST') json(res, 201, receipt());
+      else {
+        await writeFile(options.file, 'changed');
+        json(res, 202, { ...status(), error: { code: 'provider_unavailable', message: token } });
+      }
+    });
+    const updates: unknown[] = [];
+    const error = await uploadDeviceBuild({
+      ...options,
+      onStatus: (value) => updates.push(value),
+    }).catch((value: unknown) => value);
+    expect(error).toMatchObject({
+      code: 'source_file_changed',
+      uploadId,
+      lastStatus: { state: 'queued' },
+    });
+    expect(JSON.stringify(error)).not.toContain(token);
+    expect(updates).toEqual([]);
+  });
+
   it('retries abandoned content on the same upload only after GET confirms receiving', async () => {
     let puts = 0;
     const { options, requests } = await fixture((request, res) => {
@@ -395,6 +466,66 @@ describe('runnable build upload transport', () => {
     });
     expect(requests).toHaveLength(3);
   });
+
+  it.each([
+    [429, ''],
+    [429, '<html>busy</html>'],
+    [429, 'x'.repeat(4097)],
+    [503, ''],
+    [503, '<html>busy</html>'],
+    [503, 'x'.repeat(4097)],
+  ] as const)(
+    'honors Retry-After for HTTP %i independently of its diagnostic body (%#)',
+    async (httpStatus, body) => {
+      let posts = 0;
+      let rejectedAt = 0;
+      let retriedAt = 0;
+      const { options, requests } = await fixture((request, res) => {
+        if (request.method !== 'POST') json(res, 202, status());
+        else if (++posts === 1) {
+          rejectedAt = Date.now();
+          res.writeHead(httpStatus, { 'retry-after': '1' }).end(body);
+        } else {
+          retriedAt = Date.now();
+          json(res, 201, receipt());
+        }
+      });
+      await expect(uploadDeviceBuild(options)).resolves.toMatchObject({ state: 'queued' });
+      expect(posts).toBe(2);
+      expect(retriedAt - rejectedAt).toBeGreaterThanOrEqual(1000);
+      expect(
+        new Set(
+          requests
+            .filter((request) => request.method === 'POST')
+            .map((request) => request.headers['idempotency-key']),
+        ).size,
+      ).toBe(1);
+    },
+  );
+
+  it.each(['POST', 'PUT', 'GET'] as const)(
+    'does not retry or reconcile an interrupted permanent %s error body',
+    async (method) => {
+      const { options, requests } = await fixture((request, res) => {
+        if (request.method !== method) {
+          json(res, 201, receipt());
+          return;
+        }
+        res.writeHead(403, { 'content-length': '1000' });
+        res.write('{');
+        setTimeout(() => res.destroy(), 10);
+      });
+      const error = await (
+        method === 'GET'
+          ? getDeviceBuildUpload({ ...options, uploadId })
+          : uploadDeviceBuild(options)
+      ).catch((value: unknown) => value);
+      expect(error).toMatchObject({ code: 'request_failed', statusCode: 403 });
+      expect(requests.map((request) => request.method)).toEqual(
+        method === 'PUT' ? ['POST', 'PUT'] : [method],
+      );
+    },
+  );
 
   it('does not retransmit a permanent PUT conflict', async () => {
     const { options, requests } = await fixture((request, res) => {
