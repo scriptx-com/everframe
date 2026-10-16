@@ -83,6 +83,22 @@ export { SENSITIVE_KEY_PARTS, isSensitiveKey } from './sensitive-keys.js';
 export * from './native-crash.js';
 export * from './build-artifacts.js';
 export {
+  DevicePlatformSchema,
+  DeviceBuildUploadInputSchema,
+  DeviceBuildUploadStateSchema,
+  DeviceBuildUploadStatusSchema,
+  DeviceBuildUploadReceiptSchema,
+  DeviceBuildUploadReservationSchema,
+} from './device-builds.js';
+export type {
+  DevicePlatform,
+  DeviceBuildUploadInput,
+  DeviceBuildUploadState,
+  DeviceBuildUploadStatus,
+  DeviceBuildUploadReceipt,
+  DeviceBuildUploadReservation,
+} from './device-builds.js';
+export {
   VitalsPlayerEventType,
   VitalsPlayerId,
   VitalsSample,
