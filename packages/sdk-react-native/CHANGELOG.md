@@ -138,7 +138,6 @@
   <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
   The SDK key is renamed to `sdkKey` in every SDK; `apiKey` and `appId` are still accepted but deprecated. `appId` now means only the App ID, the UUID that symbol and source-map uploads take.
-
   - Web, React and React Native: the config field is `sdkKey`, for example `init({ sdkKey: 'evf_live_…' })` and `<EverframeProvider config={{ sdkKey: 'evf_live_…' }}>`. A config that still passes `apiKey` keeps working: the SDK reads it as `sdkKey` and logs one deprecation warning. When both are set, `sdkKey` wins.
   - iOS and tvOS: `EverframeConfig(sdkKey:)` and `.sdkKey` replace `EverframeConfig(appId:)` and `.appId`, which still compile with a deprecation warning. `EverframeConfigError.missingAppId` is now `EverframeConfigError.missingSdkKey`. `ReplaySession(baseURL:sdkKey:locallyDisabled:)` replaces the deprecated `apiKey:` spelling.
   - Android: `EverframeConfig(appId, sdkKey)` already used these names and is unchanged. Internal `ReplaySession`, `ReplayConfigProvider` and `VitalsTransport` parameters named `apiKey` are now `sdkKey`.
@@ -201,7 +200,6 @@
   Publish the build-artifact tooling. `@everframe/metro` stamps a build identity into Hermes bundles at bundle time, `@everframe/expo` adds the native build steps that collect the bundle, source map and native identifiers, and `@everframe/cli` verifies and uploads them so release crashes symbolicate. `@everframe/react-native` now reads the identity injected by `@everframe/metro`, so no build ID needs to be passed at runtime.
 
   `@everframe/bundler-plugin` adds Vite, Rollup, webpack, esbuild and Next.js plugins that stamp a build ID into web bundles and upload their source maps at the end of a production build. `everframe upload-expo-export` uploads the bundles and source maps from an `expo export` directory. `everframe setup react-native` patches the Gradle and Xcode build steps so native release builds collect and upload their artifacts.
-
   - @everframe/react@1.1.0
 
 ## 1.0.0
@@ -253,7 +251,6 @@
   menu's shake gesture.
 
 - 061f83a: Give `@traceitx/react` the host-facing API `@traceitx/react-native` already had, and fix `setExtra` corruption.
-
   - `recordScreen`, `useTXScreen` and `<TXScreen>` are now available on web, deriving the same `from → to` breadcrumb the native SDKs emit. Hosts previously hand-rolled this from a recipe in our own docstring, and different hosts got different subsets of the five rules right.
   - Top-level `setUser` on web; calling it with no argument clears, matching React Native.
   - `companion.start()` no longer requires `sdkKey` / `deviceLabel` when a `<TraceItXProvider>` is mounted — it defaults them from the provider config. Explicit arguments still win, and standalone `@traceitx/web` is unchanged.
@@ -311,7 +308,6 @@
   (`com.traceitx.vitals` in `traceitx-core`, `TraceItXKit/Vitals` on iOS) —
   not the RN modules, which stay pure glue. This is a native SDK change, not
   only a JS one:
-
   - **Android (`@traceitx/sdk-android`) and iOS (`@traceitx/sdk-ios`) each
     gain two new public classes.** On Android specifically, `traceitx-core`'s
     R8 rules now keep `RemotePlayerRegistry`/`RemotePlayerIntegration`
@@ -485,7 +481,6 @@
 - 16e10a6: Fixed: upgrading `@traceitx/react-native` did not upgrade the native SDK underneath it.
 
   The bridge derived its native dependency ranges from its own version as `~> X.Y.0` (CocoaPods) and `X.Y.+` (Gradle) — a ceiling with no floor. Both are satisfied by `X.Y.0` forever, so a project that had already resolved the native SDK once kept it:
-
   - **iOS.** CocoaPods only re-resolves a pod whose `Podfile.lock` entry no longer fits its constraint. `pod install` therefore kept returning the previously locked `TraceItX`, however far ahead the npm package moved. Nothing in the project surfaced the mismatch — every manifest read the new version and only the lockfile disagreed — so an app could sit on an older native SDK indefinitely, missing native fixes it appeared to have. Recovering needed an explicit `pod update TraceItX` (or deleting a generated `ios/` directory), which is not something a correctness property should depend on anyone remembering.
   - **Android.** Gradle resolves `X.Y.+` to the highest version it can currently see, so a stale dynamic-version cache — or a `mavenLocal` holding an older patch — could hand the bridge an AAR older than the JS half it shipped with. Gradle re-resolves upward once the cache expires, which narrowed the window rather than closing it.
 
