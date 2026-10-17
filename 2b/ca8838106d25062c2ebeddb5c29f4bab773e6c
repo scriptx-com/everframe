@@ -1,0 +1,19 @@
+packages/cli/__tests__/device-build-upload.spec.ts
+  s_7c516fe4332332::t_2f8a439ac732dc 178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2bca8838106d25062c2ebeddb5c29f4bab773e6c",
+  "prompts": {},
+  "sessions": {
+    "s_7c516fe4332332": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14480-4b2c-7180-8476-87005055d9d5",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
