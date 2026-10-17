@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { detectBuildVcs } from '@everframe/build-tools';
 import { parseArgs } from 'node:util';
+import { DevicePlatformSchema } from '@everframe/protocol';
 import { realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -10,7 +11,13 @@ import { adviceFor, verifyStagedBuild } from './build-verify.js';
 import { collectHermesBuild } from './hermes.js';
 import { collectBuild } from './manifest.js';
 import { dsymUploadBuildCommand } from './apple-command.js';
-import { DEFAULT_API_URL, uploadBudget } from './defaults.js';
+import { DEFAULT_API_URL, redact, uploadBudget } from './defaults.js';
+import {
+  DeviceBuildUploadError,
+  DeviceBuildWaitTimeoutError,
+  getDeviceBuildUpload,
+  uploadDeviceBuild,
+} from './device-build-upload.js';
 import { elfUploadBuildCommand } from './elf-command.js';
 import { uploadAndroidElfBuild } from './elf-upload.js';
 import { collectElfBuild } from './elf.js';
@@ -48,6 +55,8 @@ export { collectVegaBuilds } from './vega.js';
 
 const HELP = `Usage:
   everframe --version
+  everframe device-builds upload --app-id <uuid> --platform <ios|tvos|android|android-tv|roku> --file <path> --version <version> --build-number <number> [--commit <full-sha>] [--wait] [--timeout <seconds>] [--json]
+  everframe device-builds status --app-id <uuid> --upload-id <uuid> [--json]
   everframe sourcemaps upload --app-id <uuid> --build <id> --dir <path> [--url-prefix <url>] [--delete-after-upload]
   everframe sourcemaps upload-hermes --app-id <uuid> --build <id> --platform <android|ios|vega> --bundle-name <name> --bundle <path> --source-map <path>
   everframe sourcemaps upload-hermes --manifest <dir> --platform <android|ios> --app-id <uuid>
@@ -64,6 +73,8 @@ const HELP = `Usage:
   everframe build collect --staging <dir> --platform <android|ios> --bundle <path> --source-map <path> [--dsym <dir>] [--elf <dir>]
   everframe build verify --staging <dir> --platform <android|ios> [--release] [--allow-missing]
 
+Device builds: uploads are asynchronous by default; --wait observes readiness within a total 600-second budget (override with --timeout).
+
 Build provenance: --commit <full-sha> overrides captured or detected source identity.
 
 Environment:
@@ -74,6 +85,135 @@ Environment:
   EVERFRAME_UPLOAD_TIMEOUT_SECONDS  Overall upload time limit (default 600 for build integrations)
 `;
 
+async function deviceBuildsCommand(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
+  const json = argv.slice(2).includes('--json');
+  let appId: string | undefined;
+  try {
+    const upload = argv[1] === 'upload';
+    const { values } = parseArgs({
+      args: argv.slice(2),
+      strict: true,
+      allowPositionals: false,
+      options: {
+        'app-id': { type: 'string' },
+        json: { type: 'boolean' },
+        help: { type: 'boolean', short: 'h' },
+        platform: { type: 'string' },
+        file: { type: 'string' },
+        version: { type: 'string' },
+        'build-number': { type: 'string' },
+        commit: { type: 'string' },
+        wait: { type: 'boolean' },
+        timeout: { type: 'string' },
+        'upload-id': { type: 'string' },
+      },
+    });
+    if (values.help) {
+      console.log(HELP);
+      return 0;
+    }
+    const unsupported = upload
+      ? values['upload-id'] !== undefined
+      : [
+          values.platform,
+          values.file,
+          values.version,
+          values['build-number'],
+          values.commit,
+          values.wait,
+          values.timeout,
+        ].some((value) => value !== undefined);
+    if (unsupported)
+      throw new DeviceBuildUploadError(
+        'invalid_input',
+        'Options do not match this device-builds command; run everframe --help.',
+      );
+    appId = values['app-id'] ?? env.EVERFRAME_APP_ID;
+    if (!appId)
+      throw new DeviceBuildUploadError(
+        'invalid_input',
+        'Set --app-id or EVERFRAME_APP_ID to the application UUID.',
+      );
+    const options = {
+      appId,
+      token: env.EVERFRAME_API_TOKEN ?? '',
+      apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
+    };
+    let status;
+    if (upload) {
+      const platform = DevicePlatformSchema.safeParse(values.platform);
+      if (!platform.success || !values.file || !values.version || !values['build-number'])
+        throw new DeviceBuildUploadError(
+          'invalid_input',
+          'Provide --platform, --file, --version and --build-number.',
+        );
+      status = await uploadDeviceBuild({
+        ...options,
+        platform: platform.data,
+        file: values.file,
+        version: values.version,
+        buildNumber: values['build-number'],
+        ...(values.commit !== undefined && { commit: values.commit }),
+        ...(values.timeout !== undefined && { timeout: Number(values.timeout) }),
+        wait: values.wait ?? false,
+      });
+    } else {
+      if (!values['upload-id'])
+        throw new DeviceBuildUploadError(
+          'invalid_input',
+          'Provide --upload-id to observe an upload.',
+        );
+      status = await getDeviceBuildUpload({ ...options, uploadId: values['upload-id'] });
+    }
+    const failed = status.state === 'failed' || status.state === 'expired';
+    const error =
+      status.error ??
+      (failed
+        ? {
+            code: status.state === 'expired' ? 'upload_expired' : 'upload_failed',
+            message:
+              status.state === 'expired'
+                ? 'The upload has expired; start a new upload.'
+                : 'Runnable build processing failed.',
+          }
+        : undefined);
+    const output = json
+      ? JSON.stringify({ ...status, ...(error && { error }) })
+      : `Device build upload ${status.uploadId}: ${status.state}.${status.state === 'ready' ? ` Build ${status.buildId}.` : ''}${error ? ` ${error.code}: ${error.message}` : ''}`;
+    console.log(redact(output, env.EVERFRAME_API_TOKEN));
+    return failed ? 1 : 0;
+  } catch (error) {
+    // Parser and unexpected exceptions may contain user input or filesystem details.
+    const safe =
+      error instanceof DeviceBuildUploadError
+        ? error
+        : new DeviceBuildUploadError(
+            'invalid_input',
+            'Invalid device-builds options; run everframe --help.',
+          );
+    const statusCommand =
+      safe.uploadId && appId
+        ? `everframe device-builds status --app-id ${appId.toLowerCase()} --upload-id ${safe.uploadId}`
+        : undefined;
+    const diagnostic =
+      safe.message === safe.code || safe.message.startsWith(`${safe.code}:`)
+        ? safe.message
+        : `${safe.code}: ${safe.message}`;
+    const output = json
+      ? JSON.stringify({
+          ...(safe.uploadId && { uploadId: safe.uploadId }),
+          ...(safe.lastStatus && { state: safe.lastStatus.state }),
+          error: { code: safe.code, message: safe.message },
+          ...(statusCommand && { statusCommand }),
+        })
+      : `${diagnostic}${safe.uploadId ? ` Upload ID: ${safe.uploadId}.` : ''}${safe.lastStatus ? ` Last known state: ${safe.lastStatus.state}.` : ''}${statusCommand ? ` Continue with: ${statusCommand}` : ''}`;
+    const safeOutput = redact(output, env.EVERFRAME_API_TOKEN);
+    if (json) console.log(safeOutput);
+    else console.error(safeOutput);
+    return safe instanceof DeviceBuildWaitTimeoutError ? 2 : 1;
+  }
+}
+
 export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
   if (argv.length === 1 && (argv[0] === '--help' || argv[0] === '-h')) {
     console.log(HELP);
@@ -83,6 +223,8 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
     console.log(CLI_VERSION);
     return 0;
   }
+  const isDeviceBuildCommand =
+    argv[0] === 'device-builds' && (argv[1] === 'upload' || argv[1] === 'status');
   const isSourceMapCommand =
     argv[0] === 'sourcemaps' &&
     (argv[1] === 'upload' || argv[1] === 'upload-hermes' || argv[1] === 'upload-vega');
@@ -97,6 +239,7 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
   const isSetupXcodeCommand = argv[0] === 'setup' && argv[1] === 'xcode';
   const isXcodeBuildPhaseCommand = argv[0] === 'xcode' && argv[1] === 'build-phase';
   if (
+    !isDeviceBuildCommand &&
     !isSetupCommand &&
     !isXcodeBuildPhaseCommand &&
     !isSetupXcodeCommand &&
@@ -113,6 +256,8 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
     return 1;
   }
   try {
+    if (isDeviceBuildCommand) return await deviceBuildsCommand(argv, env);
+
     if (isXcodeBuildPhaseCommand) {
       if (argv.slice(2).some((arg) => arg === '--help' || arg === '-h')) {
         console.log(HELP);

@@ -2,11 +2,16 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { devNull, tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { detectBuildVcs, overrideBuildVcs } from '../src/vcs.js';
 const roots: string[] = [];
+beforeEach(() => {
+  // Real Git fixtures must not inherit machine-local configuration or side effects.
+  vi.stubEnv('GIT_CONFIG_GLOBAL', devNull);
+  vi.stubEnv('GIT_CONFIG_NOSYSTEM', '1');
+});
 function directory() {
   const p = mkdtempSync(join(tmpdir(), 'vcs-test-'));
   roots.push(p);
@@ -31,6 +36,7 @@ function repo() {
 }
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 it('uses local HEAD ahead of CI and captures clean nested worktrees', () => {
@@ -109,4 +115,33 @@ it('uses CI when Git is unavailable', async () => {
   expect(
     detectBuildVcs({ projectRoot: directory(), env: { BUILD_SOURCEVERSION: 'a'.repeat(40) } }),
   ).toEqual({ commit: 'a'.repeat(40) });
+});
+
+it('detects only the commit without inspecting branch or working tree when requested', async () => {
+  const { root, commit } = repo();
+  const { default: child } = await import('node:child_process');
+  const spy = vi.spyOn(child, 'execFileSync');
+  expect(detectBuildVcs({ projectRoot: root, commitOnly: true, env: {} })).toEqual({ commit });
+  expect(spy.mock.calls.map(([, args]) => args)).toEqual([['rev-parse', '--verify', 'HEAD']]);
+});
+it('does not start Git after the detection deadline', async () => {
+  const { default: child } = await import('node:child_process');
+  const spy = vi.spyOn(child, 'execFileSync');
+  expect(
+    detectBuildVcs({ projectRoot: directory(), deadline: Date.now() - 1, env: {} }),
+  ).toBeUndefined();
+  expect(spy).not.toHaveBeenCalled();
+});
+it('passes the remaining budget to Git and skips later probes after expiry', async () => {
+  const { default: child } = await import('node:child_process');
+  vi.spyOn(Date, 'now').mockReturnValue(1000);
+  const spy = vi.spyOn(child, 'execFileSync').mockImplementation((_file, _args, options) => {
+    expect(options).toMatchObject({ timeout: 100 });
+    vi.mocked(Date.now).mockReturnValue(1100);
+    return 'a'.repeat(40) + '\n';
+  });
+  expect(detectBuildVcs({ projectRoot: directory(), deadline: 1100, env: {} })).toEqual({
+    commit: 'a'.repeat(40),
+  });
+  expect(spy).toHaveBeenCalledTimes(1);
 });
