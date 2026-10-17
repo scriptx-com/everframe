@@ -175,7 +175,7 @@ describe('runnable build upload transport', () => {
     await uploadDeviceBuild(options);
     expect(requests[0]!.body.sha256).toBe(createHash('sha256').update(bytes).digest('hex'));
     expect(requests[0]!.body.sizeBytes).toBe(bytes.length);
-    expect(requests[1]!.bytes).toEqual(bytes);
+    expect(requests[1]!.bytes.equals(bytes)).toBe(true);
   });
 
   it('distinguishes asynchronous acceptance from readiness and reports safe status updates', async () => {
