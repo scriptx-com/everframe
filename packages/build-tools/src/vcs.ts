@@ -29,16 +29,25 @@ export function detectBuildVcs(options: {
   projectRoot: string;
   commit?: string;
   env?: NodeJS.ProcessEnv;
+  /** Skip branch and working-tree inspection when only the commit is needed. */
+  commitOnly?: boolean;
+  /** Optional absolute deadline in milliseconds since the Unix epoch. */
+  deadline?: number;
 }): BuildVcs | undefined {
   const explicit = options.commit === undefined ? undefined : explicitCommit(options.commit);
+  if (options.commitOnly && explicit) return { commit: explicit };
   const env = options.env ?? process.env;
   const git = (args: string[]): string | undefined => {
+    const timeout = Math.floor(
+      Math.min(1500, options.deadline === undefined ? 1500 : options.deadline - Date.now()),
+    );
+    if (timeout <= 0) return undefined;
     try {
       return childProcess
         .execFileSync('git', args, {
           cwd: options.projectRoot,
           encoding: 'utf8',
-          timeout: 1500,
+          timeout,
           maxBuffer: 64 * 1024,
           stdio: ['ignore', 'pipe', 'pipe'],
         })
@@ -55,7 +64,7 @@ export function detectBuildVcs(options: {
       .map((key) => commitValue(env[key]))
       .find((value) => value !== undefined);
   if (!commit) return undefined;
-  if (commit !== head) return { commit };
+  if (options.commitOnly || commit !== head) return { commit };
   const branch = BuildVcsSchema.shape.branch.safeParse(
     git(['symbolic-ref', '--quiet', '--short', 'HEAD']),
   );

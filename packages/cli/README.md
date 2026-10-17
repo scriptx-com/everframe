@@ -3,11 +3,153 @@
 
 # Everframe build artifact CLI
 
-Run `everframe --help` for source-map, Hermes, R8, native symbols and build-staging commands,
+Run `everframe --help` for device builds, source-map, Hermes, R8, native symbols and build-staging commands,
 and `everframe --version` for the installed version.
 
 Uploads go to the production API, `https://everframe.dev/api/v1`. Set
 `EVERFRAME_API_URL` only to target another Everframe server.
+
+## Runnable device builds
+
+Upload a runnable package for Try on Device separately from source maps and native
+symbols. Set `EVERFRAME_API_TOKEN` from your CI secret store to an API token with
+`artifacts:write` access, and `EVERFRAME_APP_ID` to the Everframe app UUID (the
+App ID on the dashboard's Setup tab). `--app-id` overrides that environment value.
+`EVERFRAME_API_URL` optionally selects another Everframe API base URL.
+
+| Platform                | Package                           |
+| ----------------------- | --------------------------------- |
+| `android`, `android-tv` | APK, including for Android TV     |
+| `ios`, `tvos`           | Simulator `.app` bundled in a ZIP |
+| `roku`                  | Roku sideload ZIP                 |
+
+IPA and AAB store packages are unsupported: build a simulator `.app` for iOS/tvOS
+or an APK for Android/Android TV instead. Filename suffixes are case-insensitive;
+the server also validates package contents. Each file must be nonempty and no
+larger than 500 MiB (524288000 bytes); your server may enforce a lower limit.
+Local files remain on disk after uploading.
+
+Pass version and build number as strings, preserving values such as `0042`.
+`--commit <full-sha>` optionally supplies a full 40- or 64-character hexadecimal
+commit. Otherwise the CLI tries Git and CI provenance; a package outside a Git
+checkout can still upload without a commit.
+
+### Standalone uploads
+
+Use your project's existing build configuration and output paths in place of the
+placeholders below. For Android and Android TV, run your APK-producing Gradle task
+first (for example, `./gradlew <APK-assemble-task>`), then upload its APK:
+
+```sh
+everframe device-builds upload --platform android \
+  --file "<path/to/phone.apk>" --version "$APP_VERSION" --build-number "$APP_BUILD_NUMBER"
+
+everframe device-builds upload --platform android-tv \
+  --file "<path/to/tv.apk>" --version "$APP_VERSION" --build-number "$APP_BUILD_NUMBER"
+```
+
+For iOS, produce a simulator build with your scheme and project. Use `-workspace`
+instead of `-project` when your project requires a workspace, and supply any other
+build options your project needs. ZIP the resulting `.app` with the bundle at the
+archive root:
+
+```sh
+xcodebuild -project "<path/to/App.xcodeproj>" -scheme "<iOS-scheme>" \
+  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath "<path/to/derived-data>" build
+ditto -c -k --sequesterRsrc --keepParent "<path/to/built/App.app>" "<path/to/ios-simulator.zip>"
+everframe device-builds upload --platform ios \
+  --file "<path/to/ios-simulator.zip>" --version "$APP_VERSION" --build-number "$APP_BUILD_NUMBER"
+```
+
+For tvOS, use the Apple TV simulator destination and your tvOS scheme:
+
+```sh
+xcodebuild -project "<path/to/App.xcodeproj>" -scheme "<tvOS-scheme>" \
+  -sdk appletvsimulator -destination 'generic/platform=tvOS Simulator' \
+  -derivedDataPath "<path/to/derived-data>" build
+ditto -c -k --sequesterRsrc --keepParent "<path/to/built/AppTV.app>" "<path/to/tvos-simulator.zip>"
+everframe device-builds upload --platform tvos \
+  --file "<path/to/tvos-simulator.zip>" --version "$APP_VERSION" --build-number "$APP_BUILD_NUMBER"
+```
+
+An Apple archive built for physical devices does not provide a simulator app.
+A CI job that already archives for distribution needs this additional simulator
+build to provide a runnable iOS/tvOS package; uploading its dSYMs alone does not
+create one. Keep the simulator package's version, build number and commit tied to
+its own source build.
+
+For Roku, use the sideload ZIP from your existing packaging process:
+
+```sh
+everframe device-builds upload --platform roku \
+  --file "<path/to/roku-sideload.zip>" --version "$APP_VERSION" --build-number "$APP_BUILD_NUMBER"
+```
+
+### Readiness and recovery
+
+The default upload returns after acceptance and prints the upload ID and actual
+state, such as `queued`. Acceptance does not mean the build is ready to launch.
+Add `--wait` to wait for `ready`, `failed` or `expired`. `--timeout <seconds>` sets
+the total invocation budget, including upload and retries; the default is 600
+seconds. It also bounds uploads without `--wait`.
+
+```sh
+everframe device-builds upload --platform android \
+  --file "<path/to/app.apk>" --version "$APP_VERSION" --build-number "$APP_BUILD_NUMBER" \
+  --wait --timeout 600 --json
+
+everframe device-builds status --app-id "$EVERFRAME_APP_ID" --upload-id "<upload-uuid>" --json
+```
+
+`status` reads the latest state without uploading again; repeat it to resume
+observation after a timeout or interrupted job. A timeout after acceptance prints
+the upload ID and a status command, and does not mean processing failed.
+Errors after reservation also retain the upload ID when known: check its status
+before starting a replacement upload. An expired upload needs a new upload.
+
+| Command result                                                      | Exit code |
+| ------------------------------------------------------------------- | --------- |
+| Accepted asynchronous upload, or waited `ready` upload              | `0`       |
+| Rejected upload or terminal `failed`/`expired` state                | `1`       |
+| Wait deadline reached after acceptance                              | `2`       |
+| Status is `receiving`, `queued`, `uploading`, `retrying` or `ready` | `0`       |
+| Status request error or status is `failed`/`expired`                | `1`       |
+
+`--json` writes one JSON object to stdout, with `uploadId` and `state` on status
+results and `buildId` when ready. Errors include safe `error.code` and
+`error.message`, plus `uploadId`, last known `state` and `statusCommand` when
+available. Human diagnostics go to stderr; human status results go to stdout.
+
+### Optional device upload beside symbols in CI
+
+Keep the existing symbol upload and the optional device upload as separate steps.
+This shell example gates the job on symbols and reports device upload problems
+independently. Set the archive and simulator ZIP paths from your own build steps;
+the ZIP requires the additional simulator build described above. Set
+`UPLOAD_DEVICE_BUILD=1` to enable the optional step:
+
+```sh
+symbols_exit=0
+everframe dsym upload-build --archive "$XCODE_ARCHIVE_PATH" --strict || symbols_exit=$?
+
+if [ "${UPLOAD_DEVICE_BUILD:-0}" = "1" ]; then
+  device_exit=0
+  everframe device-builds upload --platform ios \
+    --file "$IOS_SIMULATOR_ZIP" --version "$APP_VERSION" --build-number "$APP_BUILD_NUMBER" \
+    --wait --timeout 600 || device_exit=$?
+  if [ "$device_exit" -ne 0 ]; then
+    printf 'Device upload exited %s; retain its upload ID and check status.\n' "$device_exit" >&2
+  fi
+fi
+
+exit "$symbols_exit"
+```
+
+A device upload error or timeout does not undo successful symbol uploads. If your
+release requires a ready runnable build, gate that requirement separately using
+the device step's exit code. The commands require an Everframe server supporting
+the device-build upload API.
 
 ## Apple dSYM upload
 
