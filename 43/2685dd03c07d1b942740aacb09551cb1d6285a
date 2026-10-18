@@ -1,0 +1,19 @@
+scripts/release-readiness.test.mjs
+  s_59beee3f6c6321::t_adfe7fea348560 133-137,139-146,149,212-221,227-232,234,237,240-243,246-249,251-260
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "432685dd03c07d1b942740aacb09551cb1d6285a",
+  "prompts": {},
+  "sessions": {
+    "s_59beee3f6c6321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3c40cec8-11c3-490f-bc5f-74c7727bd993",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
