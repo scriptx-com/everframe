@@ -130,20 +130,23 @@ function fileGroup(file) {
   return 'mobile';
 }
 
-// What a release bump does to the version-bearing files of the `bumped` groups: every literal of
-// the old version becomes the new one, the bridges' native range moves its upper bound for a
-// minor release, and the Roku manifest takes the new components. Other groups' files are left
-// exactly as they are.
-function bumpedReader(from, to, bumped = Object.keys(groups)) {
-  const [fromMajor, fromMinor] = from.split('.').map(Number);
-  const [toMajor, toMinor, toPatch] = to.split('.').map(Number);
+// What a release bump does to the version-bearing files, per group from `from[group]` to
+// `to[group]`: every literal of the old version becomes the new one, the bridges' native range
+// moves its upper bound for a minor release, and the Roku manifest takes the new components. A
+// group whose version does not change is left exactly as it is. `base` is the tree bumped from.
+function bumpedReader(from, to, base = read) {
   return (file) => {
-    let text = read(file);
-    if (!bumped.includes(fileGroup(file))) return text;
-    if (file.endsWith('package.json')) return JSON.stringify({ ...JSON.parse(text), version: to });
+    let text = base(file);
+    const group = fileGroup(file);
+    const [old, next] = [from[group], to[group]];
+    if (old === next) return text;
+    if (file.endsWith('package.json'))
+      return JSON.stringify({ ...JSON.parse(text), version: next });
+    const [fromMajor, fromMinor] = old.split('.').map(Number);
+    const [toMajor, toMinor, toPatch] = next.split('.').map(Number);
     text = text
       .replaceAll(`,${fromMajor}.${fromMinor + 1}.0)`, `,${toMajor}.${toMinor + 1}.0)`)
-      .replaceAll(from, to);
+      .replaceAll(old, next);
     if (file === 'packages/sdk-roku/library/manifest') {
       text = text
         .replace(/^major_version=.*$/m, `major_version=${toMajor}`)
@@ -206,51 +209,55 @@ test('internal dependencies between published packages follow the workspace vers
   }
 });
 
-const every = (version) => Object.fromEntries(Object.keys(groups).map((g) => [g, version]));
+const each = (versions, bump) =>
+  Object.fromEntries(Object.entries(versions).map(([g, v]) => [g, bump(v)]));
+const patchOf = (v) => {
+  const [major, minor, patch] = v.split('.').map(Number);
+  return `${major}.${minor}.${patch + 1}`;
+};
+const minorOf = (v) => {
+  const [major, minor] = v.split('.').map(Number);
+  return `${major}.${minor + 1}.0`;
+};
 
 test('every file that carries a release version matches its group', () => {
   assert.deepEqual(versionAlignmentProblems(currentVersions(), read), []);
 });
 
-// The bump tests start from a tree whose groups agree, which is what a full release produces.
-const sharedVersion = () => {
-  const versions = [...new Set(Object.values(currentVersions()))];
-  return versions.length === 1 ? versions[0] : null;
-};
-
-test('the alignment checks hold for a patch release where native and bridges share the patch', (t) => {
-  const from = sharedVersion();
-  if (!from) return t.skip('groups are on different versions');
-  const [major, minor, patch] = from.split('.').map(Number);
-  const next = `${major}.${minor}.${patch + 1}`;
-  assert.deepEqual(versionAlignmentProblems(every(next), bumpedReader(from, next)), []);
+// Each bump starts from every group's own version, so these hold after a single-group release
+// too, when the groups no longer share one.
+test('the alignment checks hold for a patch release where native and bridges share the patch', () => {
+  const from = currentVersions();
+  const to = each(from, patchOf);
+  assert.deepEqual(versionAlignmentProblems(to, bumpedReader(from, to)), []);
   // A bridge left on the previous release's floor fails the patch check.
-  const stale = bumpedReader(from, next);
+  const stale = bumpedReader(from, to);
   const staleRange = (file) =>
     file === 'packages/sdk-react-native/android/build.gradle.kts' ? read(file) : stale(file);
-  assert.equal(versionAlignmentProblems(every(next), staleRange).length, 1);
+  assert.equal(versionAlignmentProblems(to, staleRange).length, 1);
 });
 
-test('the alignment checks hold for a minor release', (t) => {
-  const from = sharedVersion();
-  if (!from) return t.skip('groups are on different versions');
-  const [major, minor] = from.split('.').map(Number);
-  const next = `${major}.${minor + 1}.0`;
-  assert.deepEqual(versionAlignmentProblems(every(next), bumpedReader(from, next)), []);
+test('the alignment checks hold for a minor release', () => {
+  const from = currentVersions();
+  const to = each(from, minorOf);
+  assert.deepEqual(versionAlignmentProblems(to, bumpedReader(from, to)), []);
 });
 
-test('a tools-only bump leaves the other groups aligned', (t) => {
-  const from = sharedVersion();
-  if (!from) return t.skip('groups are on different versions');
-  const [major, minor, patch] = from.split('.').map(Number);
-  const next = `${major}.${minor}.${patch + 1}`;
-  const versions = { ...every(from), tools: next };
-  assert.deepEqual(versionAlignmentProblems(versions, bumpedReader(from, next, ['tools'])), []);
+test('a tools-only bump leaves the other groups aligned', () => {
+  const from = currentVersions();
+  const to = { ...from, tools: patchOf(from.tools) };
+  assert.deepEqual(versionAlignmentProblems(to, bumpedReader(from, to)), []);
   // Bumping the tools without saying so is caught on each of the four tools manifests.
-  assert.equal(
-    versionAlignmentProblems(every(from), bumpedReader(from, next, ['tools'])).length,
-    groups.tools.length,
-  );
+  assert.equal(versionAlignmentProblems(from, bumpedReader(from, to)).length, groups.tools.length);
+});
+
+test('after a tools-only release, every group still bumps and checks from its own version', () => {
+  const start = currentVersions();
+  const afterTools = { ...start, tools: patchOf(start.tools) };
+  const released = bumpedReader(start, afterTools);
+  assert.deepEqual(currentVersions(released), afterTools);
+  const next = each(afterTools, minorOf);
+  assert.deepEqual(versionAlignmentProblems(next, bumpedReader(afterTools, next, released)), []);
 });
 
 test('Gradle coordinates the release depends on', () => {
