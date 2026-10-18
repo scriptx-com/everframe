@@ -1,0 +1,27 @@
+.changeset/cli-device-builds.md
+  s_59beee3f6c6321::t_6508ed5155806d 1-5
+packages/cli/__tests__/native-setup.spec.ts
+  s_59beee3f6c6321::t_d78553ce439c63 15,326,331-343
+packages/cli/build-constants.ts
+  s_59beee3f6c6321::t_699ad25819f6a6 5-11,13-15,21-27
+packages/cli/src/native-setup/gradle.ts
+  s_59beee3f6c6321::t_8358c14adf354c 3,6-7
+packages/cli/src/version.ts
+  s_59beee3f6c6321::t_a6fcf4e69c8362 4,7-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "525e205637006e0f7c2f0e3e6f48e2693cd1f06c",
+  "prompts": {},
+  "sessions": {
+    "s_59beee3f6c6321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3c40cec8-11c3-490f-bc5f-74c7727bd993",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
