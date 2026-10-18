@@ -1,5 +1,14 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.4.1
+
+### Minor Changes
+
+- 1418067: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Add `everframe device-builds upload` and `everframe device-builds status` for uploading runnable builds from CI and waiting for them to be ready for Try on device. Expo and React Native setup now writes the Gradle plugin version of the current Android release, so the CLI can release on its own.
+
 ## 1.4.0
 
 ## 1.3.0
