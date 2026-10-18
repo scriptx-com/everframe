@@ -1,0 +1,19 @@
+packages/cli/turbo.json
+  s_59beee3f6c6321::t_cce5d14931721c 1-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ad9d5ff05eceb9eff2e00c18a61938a28246ca8a",
+  "prompts": {},
+  "sessions": {
+    "s_59beee3f6c6321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3c40cec8-11c3-490f-bc5f-74c7727bd993",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
