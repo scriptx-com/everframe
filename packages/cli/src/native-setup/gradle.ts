@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { CLI_VERSION } from '../version.js';
+import { ANDROID_RELEASE_VERSION } from '../version.js';
 import { checkedAppId } from './script.js';
 
-/** The dev.everframe Gradle plugin released with this CLI; both share the Everframe version. */
-export const EVERFRAME_GRADLE_PLUGIN = `dev.everframe:gradle-plugin:${CLI_VERSION}`;
+/** The dev.everframe Gradle plugin of the Android release this CLI was built against. */
+export const EVERFRAME_GRADLE_PLUGIN = `dev.everframe:gradle-plugin:${ANDROID_RELEASE_VERSION}`;
 const PLUGIN_TAG = 'everframe-gradle-plugin';
 const CLASSPATH_ANCHOR =
   /^([ \t]*)classpath\(\s*["']com\.facebook\.react:react-native-gradle-plugin["']\s*\)[ \t]*$/m;

@@ -7,9 +7,8 @@ import test from 'node:test';
 
 const read = (file) => readFileSync(file, 'utf8');
 const manifest = (dir) => JSON.parse(read(`packages/${dir}/package.json`));
-const releaseVersion = manifest('sdk-web').version;
 
-// Every published npm package ships on one version line, which the native SDKs share.
+// Every published npm package; the release groups below say which ones release together.
 const published = {
   '@everframe/web': 'sdk-web',
   '@everframe/react': 'sdk-react',
@@ -23,38 +22,71 @@ const published = {
   '@everframe/expo': 'expo',
 };
 
-// Every file that carries the release version, and what it must contain for `version`. All
-// expectations derive from the version, so a patch release (native SDK and bridges on x.y.z)
-// and a minor release pass the same checks.
-function versionAlignmentProblems(version, readFile) {
-  const [major, minor, patch] = version.split('.').map(Number);
-  const nativeRange = `[${version},${major}.${minor + 1}.0)`;
+// Packages that release together, one changesets `fixed` group each. Inside a group every
+// manifest shares one version; across groups they may differ, because the release tool
+// (`pnpm publish:all --groups …` in the private repo) can release a group on its own. The
+// native SDKs and both bridges are `mobile`: they pin each other by derived ranges.
+const groups = {
+  mobile: ['@everframe/react-native', '@everframe/sdk-android', '@everframe/sdk-ios-marker'],
+  web: ['@everframe/web', '@everframe/react', '@everframe/identity'],
+  tv: ['@everframe/roku', '@everframe/vega'],
+  tools: ['@everframe/cli', '@everframe/metro', '@everframe/bundler-plugin', '@everframe/expo'],
+};
+
+// Private workspace markers whose CHANGELOGs record the native Android and iOS releases.
+const nativeMarkers = {
+  '@everframe/sdk-android': 'sdk-android',
+  '@everframe/sdk-ios-marker': 'sdk-ios',
+};
+
+const dirOf = (name) => published[name] ?? nativeMarkers[name];
+const groupOf = (name) => Object.keys(groups).find((g) => groups[g].includes(name));
+/** Each group's version, read from its first member. */
+const currentVersions = (readFile = read) =>
+  Object.fromEntries(
+    Object.entries(groups).map(([g, [first]]) => [
+      g,
+      JSON.parse(readFile(`packages/${dirOf(first)}/package.json`)).version,
+    ]),
+  );
+
+// Every file that carries a release version, and what it must contain for each group's
+// `versions`. All expectations derive from the versions, so a patch release (native SDK and
+// bridges on x.y.z), a minor release and a single-group release pass the same checks.
+function versionAlignmentProblems(versions, readFile) {
+  const { mobile, web, tv } = versions;
+  const [major, minor] = mobile.split('.').map(Number);
+  const nativeRange = `[${mobile},${major}.${minor + 1}.0)`;
   const problems = [];
   const expect = (file, needle) => {
     const text = readFile(file);
     const ok = needle instanceof RegExp ? needle.test(text) : text.includes(needle);
     if (!ok) problems.push(`${file}: expected ${needle}`);
   };
-  for (const dir of [...Object.values(published), ...Object.values(nativeMarkers)]) {
-    const pkg = JSON.parse(readFile(`packages/${dir}/package.json`));
-    if (pkg.version !== version)
-      problems.push(`packages/${dir}/package.json: version ${pkg.version}`);
+  for (const [g, names] of Object.entries(groups)) {
+    for (const name of names) {
+      const dir = dirOf(name);
+      const pkg = JSON.parse(readFile(`packages/${dir}/package.json`));
+      if (pkg.version !== versions[g])
+        problems.push(
+          `packages/${dir}/package.json: version ${pkg.version}, ${g} is ${versions[g]}`,
+        );
+    }
   }
   // `prebuild` rewrites these from package.json. A stale committed literal makes every build
   // dirty the tree, which blocks the next production deploy's fast-forward of the SDK checkout.
   for (const dir of ['sdk-web', 'sdk-react'])
-    expect(`packages/${dir}/src/internal/version.ts`, `PKG_VERSION = '${version}';`);
-  expect(
-    'packages/sdk-roku/library/components/Everframe/lib/ef_version.brs',
-    `return "${version}"`,
-  );
+    expect(`packages/${dir}/src/internal/version.ts`, `PKG_VERSION = '${web}';`);
+  expect('packages/sdk-roku/library/components/Everframe/lib/ef_version.brs', `return "${tv}"`);
+  const [tvMajor, tvMinor, tvPatch] = tv.split('.').map(Number);
   for (const line of [
-    `major_version=${major}`,
-    `minor_version=${minor}`,
-    `build_version=${patch}`,
+    `major_version=${tvMajor}`,
+    `minor_version=${tvMinor}`,
+    `build_version=${tvPatch}`,
   ]) {
     expect('packages/sdk-roku/library/manifest', new RegExp(`^${line}$`, 'm'));
   }
+  const version = mobile;
   expect('packages/everframe_flutter/pubspec.yaml', `version: ${version}\n`);
   expect('packages/everframe_flutter/lib/src/web_sdk_web.dart', `sdkVersion: '${version}'.toJS`);
   expect('packages/everframe_flutter/android/build.gradle.kts', `version = "${version}"`);
@@ -89,18 +121,32 @@ function versionAlignmentProblems(version, readFile) {
   return problems;
 }
 
-// What a release bump does to the version-bearing files: every literal of the old version
-// becomes the new one, the bridges' native range moves its upper bound for a minor release, and
-// the Roku manifest takes the new components.
-function bumpedReader(from, to) {
-  const [fromMajor, fromMinor] = from.split('.').map(Number);
-  const [toMajor, toMinor, toPatch] = to.split('.').map(Number);
+// The group a version-bearing file belongs to: a package.json by its package, the browser
+// SDKs' version files to `web`, Roku's to `tv`, and every native and bridge file to `mobile`.
+function fileGroup(file) {
+  if (file.endsWith('package.json')) return groupOf(JSON.parse(read(file)).name);
+  if (/^packages\/sdk-(web|react)\//.test(file)) return 'web';
+  if (file.startsWith('packages/sdk-roku/')) return 'tv';
+  return 'mobile';
+}
+
+// What a release bump does to the version-bearing files, per group from `from[group]` to
+// `to[group]`: every literal of the old version becomes the new one, the bridges' native range
+// moves its upper bound for a minor release, and the Roku manifest takes the new components. A
+// group whose version does not change is left exactly as it is. `base` is the tree bumped from.
+function bumpedReader(from, to, base = read) {
   return (file) => {
-    let text = read(file);
-    if (file.endsWith('package.json')) return JSON.stringify({ ...JSON.parse(text), version: to });
+    let text = base(file);
+    const group = fileGroup(file);
+    const [old, next] = [from[group], to[group]];
+    if (old === next) return text;
+    if (file.endsWith('package.json'))
+      return JSON.stringify({ ...JSON.parse(text), version: next });
+    const [fromMajor, fromMinor] = old.split('.').map(Number);
+    const [toMajor, toMinor, toPatch] = next.split('.').map(Number);
     text = text
       .replaceAll(`,${fromMajor}.${fromMinor + 1}.0)`, `,${toMajor}.${toMinor + 1}.0)`)
-      .replaceAll(from, to);
+      .replaceAll(old, next);
     if (file === 'packages/sdk-roku/library/manifest') {
       text = text
         .replace(/^major_version=.*$/m, `major_version=${toMajor}`)
@@ -111,35 +157,32 @@ function bumpedReader(from, to) {
   };
 }
 
-// Private workspace markers whose CHANGELOGs record the native Android and iOS releases.
-const nativeMarkers = {
-  '@everframe/sdk-android': 'sdk-android',
-  '@everframe/sdk-ios-marker': 'sdk-ios',
-};
-
-test('every published npm package and native marker is in the one fixed changeset group', () => {
+test('the changeset fixed groups are the four release groups', () => {
   const { fixed } = JSON.parse(read('.changeset/config.json'));
-  assert.equal(fixed.length, 1);
+  const sorted = (list) => [...list].sort();
+  assert.deepEqual(fixed.map(sorted), Object.values(groups).map(sorted));
   assert.deepEqual(
-    [...fixed[0]].sort(),
-    [...Object.keys(published), ...Object.keys(nativeMarkers)].sort(),
+    sorted(Object.values(groups).flat()),
+    sorted([...Object.keys(published), ...Object.keys(nativeMarkers)]),
   );
 });
 
-test('the native markers carry the release version, so their CHANGELOGs share its heading', () => {
+test('the native markers carry the mobile version, so their CHANGELOGs share its heading', () => {
+  const versions = currentVersions();
   for (const [name, dir] of Object.entries(nativeMarkers)) {
     const pkg = manifest(dir);
     assert.equal(pkg.name, name, dir);
-    assert.equal(pkg.version, releaseVersion, dir);
+    assert.equal(pkg.version, versions.mobile, dir);
     assert.equal(pkg.private, true, dir);
   }
 });
 
-test('every published npm package is publishable at the release version', () => {
+test("every published npm package is publishable at its group's version", () => {
+  const versions = currentVersions();
   for (const [name, dir] of Object.entries(published)) {
     const pkg = manifest(dir);
     assert.equal(pkg.name, name, dir);
-    assert.equal(pkg.version, releaseVersion, dir);
+    assert.equal(pkg.version, versions[groupOf(name)], dir);
     assert.notEqual(pkg.private, true, dir);
     assert.equal(pkg.publishConfig?.access, 'public', dir);
   }
@@ -166,25 +209,55 @@ test('internal dependencies between published packages follow the workspace vers
   }
 });
 
-test('every file that carries the release version matches it', () => {
-  assert.deepEqual(versionAlignmentProblems(releaseVersion, read), []);
+const each = (versions, bump) =>
+  Object.fromEntries(Object.entries(versions).map(([g, v]) => [g, bump(v)]));
+const patchOf = (v) => {
+  const [major, minor, patch] = v.split('.').map(Number);
+  return `${major}.${minor}.${patch + 1}`;
+};
+const minorOf = (v) => {
+  const [major, minor] = v.split('.').map(Number);
+  return `${major}.${minor + 1}.0`;
+};
+
+test('every file that carries a release version matches its group', () => {
+  assert.deepEqual(versionAlignmentProblems(currentVersions(), read), []);
 });
 
+// Each bump starts from every group's own version, so these hold after a single-group release
+// too, when the groups no longer share one.
 test('the alignment checks hold for a patch release where native and bridges share the patch', () => {
-  const [major, minor, patch] = releaseVersion.split('.').map(Number);
-  const next = `${major}.${minor}.${patch + 1}`;
-  assert.deepEqual(versionAlignmentProblems(next, bumpedReader(releaseVersion, next)), []);
+  const from = currentVersions();
+  const to = each(from, patchOf);
+  assert.deepEqual(versionAlignmentProblems(to, bumpedReader(from, to)), []);
   // A bridge left on the previous release's floor fails the patch check.
-  const stale = bumpedReader(releaseVersion, next);
+  const stale = bumpedReader(from, to);
   const staleRange = (file) =>
     file === 'packages/sdk-react-native/android/build.gradle.kts' ? read(file) : stale(file);
-  assert.equal(versionAlignmentProblems(next, staleRange).length, 1);
+  assert.equal(versionAlignmentProblems(to, staleRange).length, 1);
 });
 
 test('the alignment checks hold for a minor release', () => {
-  const [major, minor] = releaseVersion.split('.').map(Number);
-  const next = `${major}.${minor + 1}.0`;
-  assert.deepEqual(versionAlignmentProblems(next, bumpedReader(releaseVersion, next)), []);
+  const from = currentVersions();
+  const to = each(from, minorOf);
+  assert.deepEqual(versionAlignmentProblems(to, bumpedReader(from, to)), []);
+});
+
+test('a tools-only bump leaves the other groups aligned', () => {
+  const from = currentVersions();
+  const to = { ...from, tools: patchOf(from.tools) };
+  assert.deepEqual(versionAlignmentProblems(to, bumpedReader(from, to)), []);
+  // Bumping the tools without saying so is caught on each of the four tools manifests.
+  assert.equal(versionAlignmentProblems(from, bumpedReader(from, to)).length, groups.tools.length);
+});
+
+test('after a tools-only release, every group still bumps and checks from its own version', () => {
+  const start = currentVersions();
+  const afterTools = { ...start, tools: patchOf(start.tools) };
+  const released = bumpedReader(start, afterTools);
+  assert.deepEqual(currentVersions(released), afterTools);
+  const next = each(afterTools, minorOf);
+  assert.deepEqual(versionAlignmentProblems(next, bumpedReader(afterTools, next, released)), []);
 });
 
 test('Gradle coordinates the release depends on', () => {

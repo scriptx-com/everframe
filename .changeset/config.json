@@ -3,20 +3,10 @@
   "changelog": "@changesets/cli/changelog",
   "commit": false,
   "fixed": [
-    [
-      "@everframe/web",
-      "@everframe/react",
-      "@everframe/react-native",
-      "@everframe/identity",
-      "@everframe/roku",
-      "@everframe/vega",
-      "@everframe/cli",
-      "@everframe/metro",
-      "@everframe/bundler-plugin",
-      "@everframe/expo",
-      "@everframe/sdk-android",
-      "@everframe/sdk-ios-marker"
-    ]
+    ["@everframe/react-native", "@everframe/sdk-android", "@everframe/sdk-ios-marker"],
+    ["@everframe/web", "@everframe/react", "@everframe/identity"],
+    ["@everframe/roku", "@everframe/vega"],
+    ["@everframe/cli", "@everframe/metro", "@everframe/bundler-plugin", "@everframe/expo"]
   ],
   "linked": [],
   "access": "public",

@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import xcode from 'xcode';
+import { androidVersionFrom, buildConstants } from '../build-constants';
 import {
   DEFAULT_XCODE_UPLOAD_SCRIPT,
   EVERFRAME_GRADLE_PLUGIN,
@@ -322,16 +323,24 @@ describe('patchRootBuildGradle', () => {
     );
     expect(patchRootBuildGradle(out)).toBe(out);
   });
-  it('pins the Gradle plugin released with this CLI, on the shared version line', () => {
-    const { version } = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')) as {
-      version: string;
-    };
+  it('pins the Gradle plugin of the current Android release', () => {
     const properties = readFileSync(
       join(__dirname, '../../sdk-android/android/gradle.properties'),
       'utf8',
     );
-    expect(EVERFRAME_GRADLE_PLUGIN).toBe(`dev.everframe:gradle-plugin:${version}`);
-    expect(/^everframeVersion=(.+)$/m.exec(properties)![1]!.trim()).toBe(version);
+    const android = /^everframeVersion=(.+)$/m.exec(properties)![1]!.trim();
+    expect(EVERFRAME_GRADLE_PLUGIN).toBe(`dev.everframe:gradle-plugin:${android}`);
+  });
+  it('compiles the Android release version in from gradle.properties', () => {
+    const properties = readFileSync(
+      join(__dirname, '../../sdk-android/android/gradle.properties'),
+      'utf8',
+    );
+    expect(buildConstants().__EVERFRAME_ANDROID_VERSION__).toBe(
+      JSON.stringify(androidVersionFrom(properties)),
+    );
+    expect(androidVersionFrom('android.useAndroidX=true\neverframeVersion=1.4.0\n')).toBe('1.4.0');
+    expect(() => androidVersionFrom('android.useAndroidX=true\n')).toThrow(/everframeVersion/);
   });
   it('moves an existing classpath block to this version in place', () => {
     const current = patchRootBuildGradle(ROOT);
