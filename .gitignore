@@ -41,3 +41,6 @@ packages/everframe_flutter/pubspec.lock
 packages/swc-plugin-displayname/.swc/
 packages/swc-plugin-displayname/target/
 packages/swc-plugin-displayname/swc_plugin_displayname.wasm
+
+# Changesets the release tool sets aside while it versions other release groups
+.changeset-deferred/
