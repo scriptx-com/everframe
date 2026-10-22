@@ -163,9 +163,11 @@ dashboard. Like the reporter, a quick capture consumes the pending
   ever turns replay on. When quick capture disarms, replay follows the app's
   replay setting again: at the next config refresh when the dashboard setting
   changes, and at once on `kill()` or on a `start()` with
-  `quickCaptureEnabled = false`. A capture queued offline keeps its replay
-  when the retry runs while quick capture still forces replay for the same
-  project; a retry at any other time sends the report without the replay.
+  `quickCaptureEnabled = false`. A queued report with a native video replay
+  from the same project and session keeps it when a retry in that session runs
+  while quick capture still forces replay. A retry at the next app launch runs
+  before the dashboard config arrives, so it sends the capture without its
+  replay.
 - **Opt out** locally with `EverframeConfig(..., quickCaptureEnabled = false)`.
   Local `true` never overrides a dashboard disable.
 - **Token.** When the emulator's global setting `everframe_token` holds your

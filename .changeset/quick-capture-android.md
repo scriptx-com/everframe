@@ -16,10 +16,16 @@ unaffected.
 When the block also sets `replay: true`, session replay records while quick
 capture is armed, even if the app's `replayEnabled` is false and regardless of
 its sampling rate. The flag never turns replay off; after a disarm, replay
-follows `replayEnabled` again. A quick capture queued offline keeps its replay
-when the retry runs while quick capture still forces replay for the same
-project.
+follows `replayEnabled` again. A queued report with a native video replay from the same project and session
+keeps it when a retry in that session runs while quick capture still forces
+replay. A retry at the next app launch runs before the dashboard config
+arrives, so it sends the capture without its replay.
 
 The public `ReporterTrigger` enum gained a `QuickCapture` case (raw value
 `quick_capture`). Host code that uses an exhaustive `when` over `ReporterTrigger`
 needs an `else` branch.
+
+The public Kotlin functions `effectiveNativeVideo` and
+`ReportAuthorizationFactory.forPending` gained a trailing defaulted parameter.
+This is source-compatible; recompile callers outside the SDK for binary
+compatibility.

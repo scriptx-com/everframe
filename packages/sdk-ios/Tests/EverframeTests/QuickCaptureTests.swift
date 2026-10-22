@@ -132,15 +132,18 @@ final class QuickCaptureTests: XCTestCase {
     /// Android parity: a killed session (or revoked consent) closes the capture
     /// gate, and a press must not freeze, submit or toast "Capture failed".
     func testIgnoredWhenCaptureGateClosed() async {
-        var toasts: [String] = []
-        let qc = makeArmed()
-        qc.showToast = { toasts.append($0) }
-        Everframe.captureGate = false
-        let outcome = await qc.capture()
-        XCTAssertTrue(isIgnored(outcome, reason: "kill_switch"), "\(outcome)")
-        XCTAssertEqual(freezes, 0)
-        XCTAssertTrue(submitted.isEmpty)
-        XCTAssertTrue(toasts.isEmpty)
+        await withGlobalCaptureStateLock {
+            Everframe.captureGate = true
+            var toasts: [String] = []
+            let qc = makeArmed()
+            qc.showToast = { toasts.append($0) }
+            Everframe.captureGate = false
+            let outcome = await qc.capture()
+            XCTAssertTrue(isIgnored(outcome, reason: "kill_switch"), "\(outcome)")
+            XCTAssertEqual(freezes, 0)
+            XCTAssertTrue(submitted.isEmpty)
+            XCTAssertTrue(toasts.isEmpty)
+        }
     }
 
     func testBeginSessionClearsThePreviousSessionsRemoteBlock() async {
@@ -155,7 +158,9 @@ final class QuickCaptureTests: XCTestCase {
     }
 
     /// `captureHotkey.replay` forces replay only while every arming gate holds.
-    func testForcesReplayOnlyWhileArmedWithTheFlag() {
+    func testForcesReplayOnlyWhileArmedWithTheFlag() async {
+      await withGlobalCaptureStateLock {
+        Everframe.captureGate = true
         let qc = makeArmed()
         XCTAssertFalse(qc.forcesReplay)
         qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, replay: false))
@@ -173,6 +178,7 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertFalse(qc.forcesReplay)
         qc.beginSession(localEnabled: true, debug: true)
         XCTAssertFalse(qc.forcesReplay, "a new session waits for its own block")
+      }
     }
 
     func testSubmitsQuickCaptureWithToken() async throws {

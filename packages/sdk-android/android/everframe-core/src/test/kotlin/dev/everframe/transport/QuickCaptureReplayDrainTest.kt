@@ -101,7 +101,8 @@ class QuickCaptureReplayDrainTest {
     @Test fun aQueuedForcedQuickCaptureKeepsItsReplay() {
         armForcing()
         val body = drainQueuedReplay()
-        assertTrue(body.contains("video/mp4"))
+        assertTrue("the replay multipart part ships", body.contains("name=\"replay\"; filename=\"replay.mp4\""))
+        assertTrue("with its bytes", body.contains("***"))
         assertFalse(body.contains("degradedReason"))
     }
 
@@ -109,12 +110,12 @@ class QuickCaptureReplayDrainTest {
         QuickCapture.install(app, localEnabled = true, debug = true)
         QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = true))
         val body = drainQueuedReplay()
-        assertFalse(body.contains("video/mp4"))
+        assertFalse(body.contains("name=\"replay\""))
     }
 
     @Test fun forcingNeverKeepsReplayForAnotherProjectsEntry() {
         armForcing()
         val body = drainQueuedReplay(entrySdkKey = "other-project")
-        assertFalse(body.contains("video/mp4"))
+        assertFalse(body.contains("name=\"replay\""))
     }
 }
