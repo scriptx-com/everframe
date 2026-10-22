@@ -19,7 +19,9 @@ its sampling rate. The flag never turns replay off; after a disarm, replay
 follows `replayEnabled` again. A queued report with a native video replay from the same project and session
 keeps it when a retry in that session runs while quick capture still forces
 replay. A retry at the next app launch runs before the dashboard config
-arrives, so it sends the capture without its replay.
+arrives, so it sends the capture without its replay. Native video replay never
+records frames that show Jetpack Compose content, so quick captures taken on
+Compose screens carry the screenshot, logs and metadata but no replay.
 
 The public `ReporterTrigger` enum gained a `QuickCapture` case (raw value
 `quick_capture`). Host code that uses an exhaustive `when` over `ReporterTrigger`

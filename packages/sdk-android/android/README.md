@@ -167,7 +167,9 @@ dashboard. Like the reporter, a quick capture consumes the pending
   from the same project and session keeps it when a retry in that session runs
   while quick capture still forces replay. A retry at the next app launch runs
   before the dashboard config arrives, so it sends the capture without its
-  replay.
+  replay. Native video replay never records frames that show Jetpack Compose
+  content, so quick captures taken on Compose screens carry the screenshot,
+  logs and metadata but no replay.
 - **Opt out** locally with `EverframeConfig(..., quickCaptureEnabled = false)`.
   Local `true` never overrides a dashboard disable.
 - **Token.** When the emulator's global setting `everframe_token` holds your
