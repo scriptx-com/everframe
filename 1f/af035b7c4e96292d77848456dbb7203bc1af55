@@ -1,0 +1,39 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/ReplayConfigProviderTest.kt
+  s_f1c043e85606b2::t_d2664b8b31a329 147-175
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/replay/QuickCaptureReplaySessionTest.kt
+  s_f1c043e85606b2::t_43f45ebf12a65a 1-245
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/NativeVideoSettingsTest.kt
+  s_f1c043e85606b2::t_bd1739c7641511 31-42
+  s_f1c043e85606b2::t_16d4c836fe0c6c 30
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/QuickCaptureTest.kt
+  s_f1c043e85606b2::t_dad289994b933c 168-219
+  s_f1c043e85606b2::t_31ffd8ae27dbb1 167
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplaySession.kt
+  s_f1c043e85606b2::t_68099f605c9c9e 225-231,235-239
+.changeset/quick-capture-android.md
+  s_f1c043e85606b2::t_d934a966325743 16-20
+packages/sdk-android/android/README.md
+  s_f1c043e85606b2::t_b23230ba058289 158-166
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/NativeVideoSettings.kt
+  s_f1c043e85606b2::t_eb9c365e0036d5 52-56,62,64
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReplayConfigProvider.kt
+  s_f1c043e85606b2::t_00f7a7264e6bfd 496-499,502,506-510,519,525
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/QuickCapture.kt
+  s_f1c043e85606b2::t_235e1e2bb91337 20-22,97,118,143,147-160,169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1faf035b7c4e96292d77848456dbb7203bc1af55",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
