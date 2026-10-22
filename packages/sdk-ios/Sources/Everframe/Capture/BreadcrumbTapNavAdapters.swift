@@ -555,11 +555,12 @@ enum WindowTapBreadcrumbAdapter {
                 #endif
                 #if targetEnvironment(simulator)
                 // Simulator quick capture observes key-downs only; the event was
-                // already delivered unchanged above. `isArmed` is checked first so
-                // a disarmed session never builds a key event. Device builds
-                // compile none of this.
-                if event.type == .presses, QuickCapture.shared.isArmed,
-                   let presses = event as? UIPressesEvent {
+                // already delivered unchanged above. `isArmed` is checked before
+                // the presses are read, so a disarmed session never builds a key event. Device builds
+                // compile none of this. Match the class, not `event.type`: UIKit
+                // delivers hardware-keyboard keys as `UIPhysicalKeyboardEvent`, a
+                // `UIPressesEvent` subclass whose `type` is not `.presses`.
+                if let presses = event as? UIPressesEvent, QuickCapture.shared.isArmed {
                     for keyEvent in quickCaptureKeyEvents(presses.allPresses) {
                         QuickCapture.shared.handle(keyEvent)
                     }

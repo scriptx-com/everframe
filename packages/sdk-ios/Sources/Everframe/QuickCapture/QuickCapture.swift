@@ -89,6 +89,9 @@ final class QuickCapture {
     var isApplicationActive: @MainActor () -> Bool = { UIApplication.shared.applicationState == .active }
     var lifecycle: Lifecycle = .live
     var showToast: @MainActor (String) -> Void = { QuickCaptureToast.show(text: $0) }
+    /// The double-Shift window. The key-delivery proof widens it, because
+    /// XCTest spaces synthesized key presses seconds apart.
+    var doubleShiftWindow: TimeInterval = CaptureHotkeyMatcher.defaultWindow
 
     // MARK: State
 
@@ -147,7 +150,9 @@ final class QuickCapture {
         guard isSimulator else { return }
         let (reason, binding) = gate.evaluation
         guard reason == nil else { matcher = nil; return }
-        if matcher?.binding != binding { matcher = CaptureHotkeyMatcher(binding: binding) }
+        if matcher?.binding != binding || matcher?.window != doubleShiftWindow {
+            matcher = CaptureHotkeyMatcher(binding: binding, window: doubleShiftWindow)
+        }
         guard matcher?.feed(event) == true else { return }
         Task { @MainActor in _ = await self.capture() }
     }

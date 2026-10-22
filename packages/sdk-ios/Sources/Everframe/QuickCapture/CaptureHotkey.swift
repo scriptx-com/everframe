@@ -53,7 +53,9 @@ struct CaptureHotkeyMatcher {
     let window: TimeInterval
     private var lastShiftAt: TimeInterval?
 
-    init(binding: CaptureHotkeyBinding, window: TimeInterval = 0.4) {
+    static let defaultWindow: TimeInterval = 0.4
+
+    init(binding: CaptureHotkeyBinding, window: TimeInterval = CaptureHotkeyMatcher.defaultWindow) {
         self.binding = binding
         self.window = window
     }
