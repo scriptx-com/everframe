@@ -1,0 +1,27 @@
+packages/sdk-ios/Sources/Everframe/Config/EverframeConfig.swift
+  s_f1c043e85606b2::t_93abc6af7b4053 126-128
+packages/sdk-ios/Sources/Everframe/Config/ReplayConfigProvider.swift
+  s_f1c043e85606b2::t_96b786ad080187 178-188,305,326,342,376,417,433,448,668
+packages/sdk-ios/Tests/EverframeTests/EverframeConfigEquatableTests.swift
+  s_f1c043e85606b2::t_224a27bcc7e7a1 51-57
+packages/sdk-ios/Tests/EverframeTests/ReplayConfigProviderTests.swift
+  s_f1c043e85606b2::t_beddb8f33ac9b3 708,712-730
+packages/sdk-ios/Tests/EverframeTests/VitalsConfigNegotiationTests.swift
+  s_f1c043e85606b2::t_2077416c791de0 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8cd9836930b231af87cab2bdab11279636367ed7",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
