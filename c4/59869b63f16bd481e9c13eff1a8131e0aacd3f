@@ -1,0 +1,33 @@
+.changeset/quick-capture-ios.md
+  s_f1c043e85606b2::t_12392fe454e118 19-20
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbTapNavAdapters.swift
+  s_f1c043e85606b2::t_51b728b65a5ea7 564-565,576-587,589,591-592,598-599
+packages/sdk-ios/Sources/Everframe/QuickCapture/CaptureHotkey.swift
+  s_f1c043e85606b2::t_24d9360667623d 85-109
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCapture.swift
+  s_f1c043e85606b2::t_33a94bcf5f7fa3 108,170-172,176
+packages/sdk-ios/Tests/EverframeTests/CaptureHotkeyTests.swift
+  s_f1c043e85606b2::t_a4ec6910ad2018 59-89
+packages/sdk-ios/Tests/EverframeTests/QuickCaptureTests.swift
+  s_f1c043e85606b2::t_741cde13f2e6ea 333-359
+packages/sdk-ios/Tests/QuickCaptureKeyDeliveryProof/.gitignore
+  s_f1c043e85606b2::t_e661e8ed528540 1-2
+packages/sdk-ios/Tests/QuickCaptureKeyDeliveryProof/UITests/QuickCaptureKeyDeliveryUITests.swift
+  s_f1c043e85606b2::t_477cee5112e2f7 44-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c459869b63f16bd481e9c13eff1a8131e0aacd3f",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
