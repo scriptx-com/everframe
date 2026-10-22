@@ -79,3 +79,39 @@ struct CaptureHotkeyMatcher {
         }
     }
 }
+
+/// Maps one hardware-keyboard press to a `CaptureKeyEvent`, on raw values so it
+/// stays UIKit-free and host-testable. The simulator-only `UIWindow.sendEvent`
+/// branch passes `UIKey.keyCode.rawValue`, `charactersIgnoringModifiers` and
+/// `modifierFlags.rawValue`; `QuickCaptureTests` pins these constants to UIKit's.
+enum CaptureKeyMapping {
+    /// `UIKeyboardHIDUsage.keyboardLeftShift` / `.keyboardRightShift`.
+    static let leftShiftUsage = 0xE1
+    static let rightShiftUsage = 0xE5
+    /// `UIKeyModifierFlags` bits.
+    static let shiftFlag = 1 << 17
+    static let controlFlag = 1 << 18
+    static let optionFlag = 1 << 19
+    static let commandFlag = 1 << 20
+
+    /// A key-down event, or nil unless the press just began. UIPress reports no
+    /// auto-repeat, so `isRepeat` is always false.
+    static func event(
+        keyCode: Int, charactersIgnoringModifiers: String, modifierFlags: Int, began: Bool, at: TimeInterval
+    ) -> CaptureKeyEvent? {
+        guard began else { return nil }
+        let key: CaptureKey
+        if keyCode == leftShiftUsage || keyCode == rightShiftUsage {
+            key = .shift
+        } else {
+            let characters = charactersIgnoringModifiers.lowercased()
+            key = characters.isEmpty ? .other : .character(characters)
+        }
+        var modifiers: CaptureKeyModifiers = []
+        if modifierFlags & shiftFlag != 0 { modifiers.insert(.shift) }
+        if modifierFlags & controlFlag != 0 { modifiers.insert(.control) }
+        if modifierFlags & optionFlag != 0 { modifiers.insert(.option) }
+        if modifierFlags & commandFlag != 0 { modifiers.insert(.command) }
+        return .down(key: key, modifiers: modifiers, isRepeat: false, at: at)
+    }
+}

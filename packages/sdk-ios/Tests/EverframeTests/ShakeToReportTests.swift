@@ -26,6 +26,15 @@ final class ShakeToReportTests: XCTestCase {
         XCTAssertFalse(gate.tryBegin(presenting: false, applicationActive: true))
     }
 
+    /// A shake during a simulator quick capture would freeze over the capture's
+    /// frozen evidence, so the shake gate stands down until the capture finishes.
+    func testShakeIsIgnoredWhileAQuickCaptureIsInFlight() {
+        let gate = ShakeToReportGate(localEnabled: true)
+        gate.setRemoteEnabled(true)
+        XCTAssertFalse(gate.tryBegin(presenting: false, applicationActive: true, quickCaptureInFlight: true))
+        XCTAssertTrue(gate.tryBegin(presenting: false, applicationActive: true, quickCaptureInFlight: false))
+    }
+
     /// A crash-only session has no on-device reporter, so `start` never arms shake for it,
     /// whatever `shakeToReportEnabled` says.
     func testACrashOnlySessionNeverArmsShake() throws {

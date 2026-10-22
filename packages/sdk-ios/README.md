@@ -459,7 +459,9 @@ dashboard.
 - **Debug simulators only.** It never runs on a device or in a release build.
   It also needs `reporterEnabled` and the dashboard's capture hotkey setting,
   and it does nothing while the reporter is on screen or a capture is still
-  uploading.
+  uploading. Shake-to-report waits for an in-flight capture to finish, but an
+  explicit `report.open()` during that upload still opens the reporter, and
+  either report may then miss part of the frozen replay and evidence.
 - **Opt out** locally by setting `quickCaptureEnabled` to `false` on your
   config before `start`. Local `true` never overrides a dashboard disable.
 

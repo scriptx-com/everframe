@@ -2221,6 +2221,10 @@ public final class Everframe: @unchecked Sendable {
     // or a report.
     @MainActor private var replayReporterOwner: UUID?
 
+    /// True while a reporter, companion or quick capture holds the frozen replay
+    /// and evidence. Set from the freeze, which comes before `isPresenting` flips.
+    @MainActor internal var __replayHasReporterOwner: Bool { replayReporterOwner != nil }
+
     /// Retain this owner through presentation and pass it back on close. Older
     /// presentations cannot discard a newer companion/host capture.
     @MainActor @discardableResult

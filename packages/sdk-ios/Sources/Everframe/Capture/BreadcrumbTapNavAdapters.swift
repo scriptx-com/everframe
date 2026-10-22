@@ -553,43 +553,42 @@ enum WindowTapBreadcrumbAdapter {
                     ShakeToReportTrigger.shared.handleShake()
                 }
                 #endif
+                #if targetEnvironment(simulator)
                 // Simulator quick capture observes key-downs only; the event was
                 // already delivered unchanged above. `isArmed` is checked first so
-                // a disarmed session never builds a key event.
+                // a disarmed session never builds a key event. Device builds
+                // compile none of this.
                 if event.type == .presses, QuickCapture.shared.isArmed,
                    let presses = event as? UIPressesEvent {
                     for keyEvent in quickCaptureKeyEvents(presses.allPresses) {
                         QuickCapture.shared.handle(keyEvent)
                     }
                 }
+                #endif
                 if let snapshot { recordSnapshot(snapshot, eventTimestamp: event.timestamp, remoteButton: remoteButton) }
             }
         }
         method_setImplementation(method, imp_implementationWithBlock(block))
     }
 
+    #if targetEnvironment(simulator)
     /// Hardware-keyboard presses that just went down, as quick-capture key events.
     /// `systemUptime` is monotonic, which the hotkey matcher's window needs.
     @MainActor
     static func quickCaptureKeyEvents(_ presses: Set<UIPress>) -> [CaptureKeyEvent] {
         let now = ProcessInfo.processInfo.systemUptime
         return presses.compactMap { press -> CaptureKeyEvent? in
-            guard press.phase == .began, let key = press.key else { return nil }
-            let captureKey: CaptureKey
-            switch key.keyCode {
-            case .keyboardLeftShift, .keyboardRightShift: captureKey = .shift
-            default:
-                let characters = key.charactersIgnoringModifiers.lowercased()
-                captureKey = characters.isEmpty ? .other : .character(characters)
-            }
-            var modifiers: CaptureKeyModifiers = []
-            if key.modifierFlags.contains(.shift) { modifiers.insert(.shift) }
-            if key.modifierFlags.contains(.control) { modifiers.insert(.control) }
-            if key.modifierFlags.contains(.alternate) { modifiers.insert(.option) }
-            if key.modifierFlags.contains(.command) { modifiers.insert(.command) }
-            return .down(key: captureKey, modifiers: modifiers, isRepeat: false, at: now)
+            guard let key = press.key else { return nil }
+            return CaptureKeyMapping.event(
+                keyCode: key.keyCode.rawValue,
+                charactersIgnoringModifiers: key.charactersIgnoringModifiers,
+                modifierFlags: key.modifierFlags.rawValue,
+                began: press.phase == .began,
+                at: now
+            )
         }
     }
+    #endif
 
     /// The entire crumb path minus the touch extractor above — driven
     /// directly by tests (UIEvent/UITouch are not constructible headlessly).

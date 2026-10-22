@@ -28,9 +28,11 @@ final class ShakeToReportGate: @unchecked Sendable {
         return localEnabled
     }
 
-    func tryBegin(presenting: Bool, applicationActive: Bool) -> Bool {
+    /// `quickCaptureInFlight`: a simulator quick capture holds the frozen evidence
+    /// until it finishes, so a shake then would freeze over it.
+    func tryBegin(presenting: Bool, applicationActive: Bool, quickCaptureInFlight: Bool = false) -> Bool {
         lock.lock(); defer { lock.unlock() }
-        guard localEnabled, remoteEnabled == true, applicationActive, !presenting, !inFlight else {
+        guard localEnabled, remoteEnabled == true, applicationActive, !presenting, !quickCaptureInFlight, !inFlight else {
             return false
         }
         inFlight = true
@@ -82,7 +84,10 @@ final class ShakeToReportTrigger: @unchecked Sendable {
         stateLock.unlock()
         guard currentGate.tryBegin(
             presenting: Everframe.shared.report.isPresenting,
-            applicationActive: UIApplication.shared.applicationState == .active
+            applicationActive: UIApplication.shared.applicationState == .active,
+            // Shake only. An explicit `report.open()` mid-capture still proceeds
+            // (see `QuickCapture.isCapturing`).
+            quickCaptureInFlight: QuickCapture.shared.isCapturing
         ) else { return }
 
         Task { @MainActor in

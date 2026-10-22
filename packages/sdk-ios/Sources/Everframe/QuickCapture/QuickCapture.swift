@@ -128,6 +128,12 @@ final class QuickCapture {
         gate.reset(localEnabled: false, debug: false)
     }
 
+    /// True from the gate check to the toast. Shake-to-report stands down while
+    /// it is set. An explicit `report.open()` does not check it: a reporter opened
+    /// mid-capture freezes over this capture's evidence, and this capture's own
+    /// close then no-ops on the owner mismatch.
+    var isCapturing: Bool { inFlight }
+
     /// The first failing session gate, nil when the session is armed. Ignores `isSimulator`.
     nonisolated var configurationGateReason: String? { gate.evaluation.reason }
 
@@ -165,6 +171,10 @@ final class QuickCapture {
         // The same flag `ShakeToReportTrigger` hands `ShakeToReportGate.tryBegin(presenting:)`.
         guard !Everframe.shared.report.isPresenting else { return "reporter_presenting" }
         guard !inFlight else { return "in_flight" }
+        // The reporter freezes before it sets `isPresenting`, and the companion
+        // never sets it: a held owner means another capture's frozen evidence,
+        // which this capture must not freeze over or consume.
+        guard !Everframe.shared.__replayHasReporterOwner else { return "capture_frozen" }
         return nil
     }
 

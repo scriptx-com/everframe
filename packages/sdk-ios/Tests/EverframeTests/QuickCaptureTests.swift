@@ -202,10 +202,13 @@ final class QuickCaptureTests: XCTestCase {
 
         let second = await qc.capture()
         XCTAssertTrue(isIgnored(second, reason: "in_flight"), "\(second)")
+        // The flag the shake gate reads while a capture is in flight.
+        XCTAssertTrue(qc.isCapturing)
 
         release?.resume()
         let firstOutcome = await first.value
         guard case .sent = firstOutcome else { return XCTFail("expected .sent, got \(firstOutcome)") }
+        XCTAssertFalse(qc.isCapturing)
         XCTAssertEqual(submitted.count, 1)
         XCTAssertEqual(freezes, 1)
 
@@ -222,6 +225,22 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertTrue(isIgnored(outcome, reason: "reporter_presenting"), "\(outcome)")
         XCTAssertEqual(freezes, 0)
         XCTAssertTrue(submitted.isEmpty)
+    }
+
+    /// The reporter freezes before it flips `isPresenting`, so a held reporter
+    /// owner (reporter opening, companion capture) must also stop a quick capture
+    /// from freezing over and consuming that frozen evidence.
+    func testIgnoredWhileAnotherCaptureHoldsTheFrozenReplay() async {
+        let qc = makeArmed()
+        let owner = Everframe.shared.__replayFreeze()
+        defer { Everframe.shared.__replayCancel(owner: owner) }
+        XCTAssertTrue(Everframe.shared.__replayHasReporterOwner)
+        let outcome = await qc.capture()
+        XCTAssertTrue(isIgnored(outcome, reason: "capture_frozen"), "\(outcome)")
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertEqual(freezes, 0)
+        Everframe.shared.__replayCancel(owner: owner)
+        XCTAssertFalse(Everframe.shared.__replayHasReporterOwner)
     }
 
     func testDoubleShiftViaHandleTriggersCapture() async {
@@ -308,6 +327,17 @@ final class QuickCaptureTests: XCTestCase {
 
         Everframe.shared.kill()
         XCTAssertEqual(QuickCapture.shared.configurationGateReason, "not_debug")
+    }
+
+    /// `CaptureKeyMapping` works on raw values so the host can test it; pin
+    /// them to UIKit's own constants.
+    func testKeyMappingRawValuesMatchUIKit() {
+        XCTAssertEqual(UIKeyboardHIDUsage.keyboardLeftShift.rawValue, CaptureKeyMapping.leftShiftUsage)
+        XCTAssertEqual(UIKeyboardHIDUsage.keyboardRightShift.rawValue, CaptureKeyMapping.rightShiftUsage)
+        XCTAssertEqual(UIKeyModifierFlags.shift.rawValue, CaptureKeyMapping.shiftFlag)
+        XCTAssertEqual(UIKeyModifierFlags.control.rawValue, CaptureKeyMapping.controlFlag)
+        XCTAssertEqual(UIKeyModifierFlags.alternate.rawValue, CaptureKeyMapping.optionFlag)
+        XCTAssertEqual(UIKeyModifierFlags.command.rawValue, CaptureKeyMapping.commandFlag)
     }
 
     func testQuickCaptureTriggerNamesItself() {
