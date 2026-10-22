@@ -680,6 +680,8 @@ final class IdentityHeaderRedirectGuard: NSObject, URLSessionTaskDelegate {
         // not "send an empty header," it is "do not send this header at
         // all," which is what the leak fix requires.
         stripped.setValue(nil, forHTTPHeaderField: IDENTITY_TOKEN_HEADER)
+        // SECURITY: the quick-capture token is a bearer credential too.
+        stripped.setValue(nil, forHTTPHeaderField: "X-Everframe-Capture-Token")
         completionHandler(stripped)
     }
 

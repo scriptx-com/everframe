@@ -613,7 +613,11 @@ internal object IdentityHeaderRedirectGuard : Interceptor {
         val request = if (sameOrigin) {
             chain.request()
         } else {
-            chain.request().newBuilder().removeHeader(IDENTITY_TOKEN_HEADER).build()
+            chain.request().newBuilder()
+                .removeHeader(IDENTITY_TOKEN_HEADER)
+                // SECURITY: the quick-capture token is a bearer credential too.
+                .removeHeader(MultipartUploader.CAPTURE_TOKEN_HEADER)
+                .build()
         }
         return chain.proceed(request)
     }
