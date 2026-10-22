@@ -45,6 +45,7 @@ import android.provider.Settings
 import androidx.annotation.VisibleForTesting
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
+import dev.everframe.capture.EmulatorEnvironment
 import java.io.File
 import java.security.MessageDigest
 import java.util.UUID
@@ -211,31 +212,13 @@ object CompanionDeviceFacts {
             model = cap(Build.MODEL, MODEL_MAX),
             osName = cap(OS_NAME, OS_FIELD_MAX),
             osVersion = cap(Build.VERSION.RELEASE, OS_FIELD_MAX),
-            emulator = isEmulator(),
+            emulator = EmulatorEnvironment.isEmulator(),
         )
     }
 
     private const val OS_NAME: String = "Android"
     private const val MODEL_MAX: Int = 80
     private const val OS_FIELD_MAX: Int = 40
-
-    /**
-     * Emulator heuristic (naming spec 2026-08-24): the same three signals
-     * Android tooling has used for a decade to detect a stock AVD / Genymotion
-     * / Google-Play-emulator image. Null-safe throughout — every `Build`
-     * field involved reads back null under a plain (unmocked) JVM, which a
-     * bare `.contains` call on a non-null-asserted String would otherwise NPE
-     * on.
-     */
-    private fun isEmulator(): Boolean {
-        val fingerprint = Build.FINGERPRINT
-        val model = Build.MODEL
-        val product = Build.PRODUCT
-        return fingerprint?.contains("generic") == true ||
-            fingerprint?.contains("emulator") == true ||
-            model?.contains("sdk_gphone") == true ||
-            product?.contains("sdk") == true
-    }
 
     private fun cap(s: String?, n: Int): String? {
         if (s.isNullOrBlank()) return null
