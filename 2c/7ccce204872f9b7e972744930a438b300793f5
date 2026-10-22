@@ -1,0 +1,37 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/ReportAuthorizationFactory.kt
+  s_f1c043e85606b2::t_6c45fefa284687 38-43
+  s_f1c043e85606b2::t_1c008f32c4d185 51
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/ReportSubmitter.kt
+  s_f1c043e85606b2::t_2845823e32bb8f 368-377,380
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/transport/QuickCaptureReplayDrainTest.kt
+  s_f1c043e85606b2::t_7cd0462f1bc994 1-120
+packages/sdk-ios/Sources/Everframe/Transport/ReportSubmitter.swift
+  s_f1c043e85606b2::t_8f815500826a02 366,369-376
+  s_f1c043e85606b2::t_385c9b636af53a 358-360,457-458,503-513
+.changeset/quick-capture-android.md
+  s_f1c043e85606b2::t_902b32dcfc6891 19-21
+.changeset/quick-capture-ios.md
+  s_f1c043e85606b2::t_44de2c1e9fd017 19-21
+packages/sdk-android/android/README.md
+  s_f1c043e85606b2::t_77694f25f01e23 166-168
+packages/sdk-ios/README.md
+  s_f1c043e85606b2::t_2966435685e66b 475-477
+packages/sdk-ios/Tests/EverframeTests/QuickCaptureReplayTests.swift
+  s_f1c043e85606b2::t_f2d44853258ad1 9-11,38-58,263-351
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2c7ccce204872f9b7e972744930a438b300793f5",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
