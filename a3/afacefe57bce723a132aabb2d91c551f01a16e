@@ -1,0 +1,25 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/EmulatorEnvironment.kt
+  s_f1c043e85606b2::t_5ff2c076909054 1-25
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionDevice.kt
+  s_f1c043e85606b2::t_bc57667ea3e923 48,215
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/CaptureTokenReader.kt
+  s_f1c043e85606b2::t_8a62f90698f583 1-37
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/CaptureTokenReaderTest.kt
+  s_f1c043e85606b2::t_e7514879e2805a 1-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a3afacefe57bce723a132aabb2d91c551f01a16e",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
