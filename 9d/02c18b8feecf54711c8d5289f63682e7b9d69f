@@ -1,0 +1,33 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionSubmissionComposer.kt
+  s_f1c043e85606b2::t_39dbb1f69899b9 25-30,187-193,386,491-492
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/envelope/EnvelopeBuilder.kt
+  s_f1c043e85606b2::t_9233f75bcdeda8 290-295,489
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/MultipartUploader.kt
+  s_f1c043e85606b2::t_13a2e5c2f2344d 131-138,146,176-180,227-228
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/ReportSubmitter.kt
+  s_f1c043e85606b2::t_4ed8c5a54dd260 181-189,205,211-212
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/companion/CompanionSubmissionComposerTest.kt
+  s_f1c043e85606b2::t_02f508a4fdc5f7 685-734
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/envelope/EnvelopeQuickCaptureTest.kt
+  s_f1c043e85606b2::t_74548b9ab90b1d 1-51
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/transport/CaptureTokenHeaderTest.kt
+  s_f1c043e85606b2::t_67683da288a9cf 1-145
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/transport/MultipartUploaderTest.kt
+  s_f1c043e85606b2::t_3d60056079cc2d 265-279
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9d02c18b8feecf54711c8d5289f63682e7b9d69f",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
