@@ -1,0 +1,21 @@
+.changeset/quick-capture-android.md
+  s_f1c043e85606b2::t_c202f38c4a2049 1-18
+.changeset/quick-capture-ios.md
+  s_f1c043e85606b2::t_da0b6cd0de5623 11-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "903854c05f45d6fae8552b88872bce9abdfa7e26",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
