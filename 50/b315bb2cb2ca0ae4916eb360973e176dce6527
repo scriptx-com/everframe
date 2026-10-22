@@ -1,0 +1,25 @@
+packages/sdk-ios/Sources/Everframe/QuickCapture/CaptureHotkey.swift
+  s_f1c043e85606b2::t_f0e302f7e79bbc 1-81
+packages/sdk-ios/Sources/Everframe/QuickCapture/CaptureTokenReader.swift
+  s_f1c043e85606b2::t_8041027b23606b 1-28
+packages/sdk-ios/Tests/EverframeTests/CaptureHotkeyTests.swift
+  s_f1c043e85606b2::t_43f15224df3925 1-59
+packages/sdk-ios/Tests/EverframeTests/CaptureTokenReaderTests.swift
+  s_f1c043e85606b2::t_e4f21bb98d1171 1-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "50b315bb2cb2ca0ae4916eb360973e176dce6527",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
