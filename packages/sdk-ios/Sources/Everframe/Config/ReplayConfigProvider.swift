@@ -177,12 +177,27 @@ public struct ShakeToReportConfigWire: Decodable, Sendable, Equatable {
 
 /// Simulator quick-capture hotkey. `binding` is optional on the wire; the consumer applies the default
 /// binding. The outer decoder degrades malformed blocks to nil.
+///
+/// `replay: true` records session replay while quick capture is armed, even when `replayEnabled` is
+/// false. It never turns replay off. Decoded on its own: a missing or malformed value is nil and
+/// leaves the rest of the block intact.
 public struct CaptureHotkeyConfigWire: Decodable, Sendable, Equatable {
     public let enabled: Bool
     public let binding: String?
-    public init(enabled: Bool, binding: String? = nil) {
+    public let replay: Bool?
+    public init(enabled: Bool, binding: String? = nil, replay: Bool? = nil) {
         self.enabled = enabled
         self.binding = binding
+        self.replay = replay
+    }
+
+    enum CodingKeys: String, CodingKey { case enabled, binding, replay }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try c.decode(Bool.self, forKey: .enabled)
+        binding = try c.decodeIfPresent(String.self, forKey: .binding)
+        replay = (try? c.decodeIfPresent(Bool.self, forKey: .replay)) ?? nil
     }
 }
 

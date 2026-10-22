@@ -90,6 +90,10 @@ enum ReplayCoverage: Hashable, Sendable {
     /// settings and kept for the session: a later rate change never flips it.
     private var sampledIn: [ReplayCoverage: Bool] = [:]
     private var coverage = ReplayCoverage.report
+    /// Simulator quick capture forces this session to record (`captureHotkey.replay`).
+    /// It bypasses the sampling decision but never replaces it: the draw is
+    /// still taken at the configured rate and decides again once forcing ends.
+    private var forced = false
     private var suspended = false
     private var reporterOpen = false
     private var generation = 0
@@ -136,12 +140,15 @@ enum ReplayCoverage: Hashable, Sendable {
     }
 
     /// `samplingRate` is the rate for `coverage`; it only matters the first time
-    /// that coverage applies settings.
+    /// that coverage applies settings. `forced` admits the session whatever its
+    /// draw: a quick-capture debug session on a simulator records regardless of
+    /// `samplingRate`.
     func apply(settings: NativeVideoSettings?, durationSec: Int = 30, samplingRate: Double = 1,
-               coverage: ReplayCoverage = .report) {
+               coverage: ReplayCoverage = .report, forced: Bool = false) {
         if settings == nil { consentGeneration += 1 }
         let duration = min(NativeVideoLimits.maxDurationSec, max(1, durationSec))
         self.coverage = coverage
+        self.forced = forced
         if settings != nil, sampledIn[coverage] == nil {
             let draw = self.draw ?? random()
             self.draw = draw
@@ -151,7 +158,7 @@ enum ReplayCoverage: Hashable, Sendable {
         if self.settings != settings || self.durationSec != duration {
             invalidate()
             self.settings = settings; self.durationSec = duration
-        } else if sampledIn[coverage] != true, recorder != nil {
+        } else if !admitted, recorder != nil {
             // The new coverage does not admit this draw. An upgrade never lands
             // here (it inherits the crash-only admission); kept so no coverage
             // can record past its own decision.
@@ -235,7 +242,7 @@ enum ReplayCoverage: Hashable, Sendable {
     func stop() { settings = nil; consentGeneration += 1; invalidate() }
 
     private func startIfEligible() {
-        guard let settings, sampledIn[coverage] == true, !suspended, !reporterOpen, recorder == nil else { return }
+        guard let settings, admitted, !suspended, !reporterOpen, recorder == nil else { return }
         do {
             anchorNanos = now(); anchorEpochMs = epochMs()
             recorder = try makeRecorder(settings.framesPerSecond, UInt64(durationSec) * 1_000_000_000)
@@ -260,6 +267,9 @@ enum ReplayCoverage: Hashable, Sendable {
             }
         }
     }
+
+    /// Whether this session may record now: forced, or sampled in for its coverage.
+    private var admitted: Bool { forced || sampledIn[coverage] == true }
 
     private func invalidate() {
         generation += 1

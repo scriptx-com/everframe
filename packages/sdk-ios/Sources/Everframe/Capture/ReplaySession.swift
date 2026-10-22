@@ -569,14 +569,24 @@ public final class ReplaySession: NSObject {
         QuickCapture.shared.publish(remote: latest.captureHotkey) {
             Everframe.shared.currentStartEpoch == startEpochAtCreation
         }
+        // Simulator quick capture's `captureHotkey.replay`: replay also records
+        // while quick capture is armed, even with `replayEnabled` false, and
+        // regardless of sampling, because that is a developer's debug session.
+        // Duration, frame rate and the session's draw still come from this
+        // config. Read right after the publish above, on this same MainActor
+        // stretch: only `start()`/`kill()` can change the gate in between, and
+        // both supersede this session, which their teardown then stops.
+        let replayForced = QuickCapture.shared.forcesReplay
         // A server that sends no crash-only rate leaves crash-only sessions
         // unrecorded, so their errors carry no replay (ErrorReplayGate).
         video.apply(
-            settings: locallyDisabled ? nil : effectiveNativeVideo(config: latest, fetchConfirmed: succeeded),
+            settings: locallyDisabled ? nil
+                : effectiveNativeVideo(config: latest, fetchConfirmed: succeeded, forced: replayForced),
             durationSec: latest.replayDurationSec,
             samplingRate: replayCoverage.samplingRate(report: latest.samplingRate,
                                                       crashOnly: latest.crashOnlySamplingRate),
-            coverage: replayCoverage
+            coverage: replayCoverage,
+            forced: replayForced
         )
         // Independent review, round 4 (Serious 3) — mirrors the `configBox.value`
         // write above (now ahead of `applyImageConfig` — see Task 4 fix round 1's

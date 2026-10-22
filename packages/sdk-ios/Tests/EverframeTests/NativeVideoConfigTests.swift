@@ -45,4 +45,14 @@ struct NativeVideoConfigTests {
     @Test func replayOffRemainsOff() {
         #expect(effectiveNativeVideo(config: .off, fetchConfirmed: true) == nil)
     }
+    /// Quick capture's `captureHotkey.replay` turns replay on, never off, and
+    /// still needs a confirmed fetch and the config's video settings.
+    @Test func forcedReplayRecordsOnlyFromAConfirmedConfig() {
+        #expect(effectiveNativeVideo(config: .off, fetchConfirmed: true, forced: true) == NativeVideoSettings())
+        #expect(effectiveNativeVideo(config: .off, fetchConfirmed: false, forced: true) == nil)
+        let noVideo = ReplayConfig(replayEnabled: false, replayDurationSec: 30, samplingRate: 1, nativeVideo: nil)
+        #expect(effectiveNativeVideo(config: noVideo, fetchConfirmed: true, forced: true) == nil)
+        let on = ReplayConfig(replayEnabled: true, replayDurationSec: 30, samplingRate: 1)
+        #expect(effectiveNativeVideo(config: on, fetchConfirmed: true, forced: false) == NativeVideoSettings())
+    }
 }

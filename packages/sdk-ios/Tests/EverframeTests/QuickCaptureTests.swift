@@ -154,6 +154,27 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertFalse(qc.isArmed)
     }
 
+    /// `captureHotkey.replay` forces replay only while every arming gate holds.
+    func testForcesReplayOnlyWhileArmedWithTheFlag() {
+        let qc = makeArmed()
+        XCTAssertFalse(qc.forcesReplay)
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, replay: false))
+        XCTAssertFalse(qc.forcesReplay)
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, replay: true))
+        XCTAssertTrue(qc.forcesReplay)
+        qc.isSimulator = false
+        XCTAssertFalse(qc.forcesReplay, "a device never forces replay")
+        qc.isSimulator = true
+        Everframe.captureGate = false
+        XCTAssertFalse(qc.forcesReplay, "a closed kill switch never forces replay")
+        Everframe.captureGate = true
+        XCTAssertTrue(qc.forcesReplay)
+        qc.teardown()
+        XCTAssertFalse(qc.forcesReplay)
+        qc.beginSession(localEnabled: true, debug: true)
+        XCTAssertFalse(qc.forcesReplay, "a new session waits for its own block")
+    }
+
     func testSubmitsQuickCaptureWithToken() async throws {
         let qc = makeArmed()
         let outcome = await qc.capture()

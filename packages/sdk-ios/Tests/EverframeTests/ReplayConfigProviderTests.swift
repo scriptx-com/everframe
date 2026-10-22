@@ -728,6 +728,30 @@ final class ReplayConfigProviderTests: XCTestCase {
         XCTAssertNil(c.captureHotkey?.binding)
     }
 
+    func testDecodesCaptureHotkeyReplayFlag() async {
+        let on = await decodedConfig(json: #"{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1,"captureHotkey":{"enabled":true,"replay":true}}"#)
+        XCTAssertEqual(on.captureHotkey, .init(enabled: true, replay: true))
+        let off = await decodedConfig(json: #"{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1,"captureHotkey":{"enabled":true,"replay":false}}"#)
+        XCTAssertEqual(off.captureHotkey?.replay, false)
+    }
+
+    func testAbsentCaptureHotkeyReplayFlagIsNil() async {
+        let c = await decodedConfig(json: #"{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1,"captureHotkey":{"enabled":true,"binding":"Shift Shift"}}"#)
+        XCTAssertEqual(c.captureHotkey, .init(enabled: true, binding: "Shift Shift"))
+        XCTAssertNil(c.captureHotkey?.replay)
+    }
+
+    /// A malformed flag degrades to nil on its own: the block, its binding and
+    /// the rest of the config survive.
+    func testMalformedCaptureHotkeyReplayFlagIsNilNotWholeBlock() async {
+        for raw in [#""yes""#, "1", "null", #"{"on":true}"#] {
+            let c = await decodedConfig(json: #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"captureHotkey":{"enabled":true,"binding":"Mod+Shift+B","replay":"# + raw + "}}")
+            XCTAssertTrue(c.replayEnabled, raw)
+            XCTAssertEqual(c.captureHotkey, .init(enabled: true, binding: "Mod+Shift+B"), raw)
+            XCTAssertNil(c.captureHotkey?.replay, raw)
+        }
+    }
+
     // MARK: - crashOnlySamplingRate (crash-only sessions spec 2026-10-12)
     // Sent only to a caller that declares `crashonly`. Lenient: a missing,
     // wrong-typed or out-of-range value reads as nil (the crash-only rate is

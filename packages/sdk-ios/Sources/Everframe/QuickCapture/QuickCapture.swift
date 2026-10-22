@@ -13,6 +13,9 @@
 // screen and no capture already in flight. The `UIWindow.sendEvent` hook reads
 // `isArmed` before it builds a single key event, so a disarmed session costs
 // one lock read per press event and nothing per touch.
+//
+// The block's `replay` flag also records session replay while the session is
+// armed, whatever the app's `replayEnabled` (`forcesReplay`).
 #if canImport(UIKit)
 import UIKit
 
@@ -31,6 +34,7 @@ private final class QuickCaptureGate: @unchecked Sendable {
     private var debug = false
     private var remoteEnabled = false
     private var binding: CaptureHotkeyBinding = .doubleShift
+    private var replay = false
 
     func reset(localEnabled: Bool, debug: Bool) {
         lock.lock(); defer { lock.unlock() }
@@ -38,6 +42,7 @@ private final class QuickCaptureGate: @unchecked Sendable {
         self.debug = debug
         remoteEnabled = false
         binding = .doubleShift
+        replay = false
     }
 
     func setRemote(_ remote: CaptureHotkeyConfigWire?) {
@@ -45,15 +50,17 @@ private final class QuickCaptureGate: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         remoteEnabled = remote?.enabled == true
         binding = parsed
+        replay = remote?.replay == true
     }
 
-    /// The first failing configuration gate (nil when armed) and the active binding.
-    var evaluation: (reason: String?, binding: CaptureHotkeyBinding) {
+    /// The first failing configuration gate (nil when armed), the active binding
+    /// and the block's `replay` flag, read together.
+    var evaluation: (reason: String?, binding: CaptureHotkeyBinding, replay: Bool) {
         lock.lock(); defer { lock.unlock() }
-        if !debug { return ("not_debug", binding) }
-        if !localEnabled { return ("disabled", binding) }
-        if !remoteEnabled { return ("remote_disabled", binding) }
-        return (nil, binding)
+        if !debug { return ("not_debug", binding, replay) }
+        if !localEnabled { return ("disabled", binding, replay) }
+        if !remoteEnabled { return ("remote_disabled", binding, replay) }
+        return (nil, binding, replay)
     }
 }
 
@@ -145,10 +152,23 @@ final class QuickCapture {
     /// True when a key press could fire a capture. Cheap: one lock read.
     var isArmed: Bool { isSimulator && gate.evaluation.reason == nil }
 
+    /// True while quick capture is armed with an open kill switch and the
+    /// dashboard's `captureHotkey.replay` flag is set. `ReplaySession` then
+    /// records replay even when `replayEnabled` is false; this never turns
+    /// replay off. Devices and release builds never arm, so it is always false
+    /// there. `ReplaySession` reads it at every config apply, right after
+    /// publishing that config's block, so a disarm stops a forced recording at
+    /// the next apply, and `kill()` tears the replay session down with it.
+    var forcesReplay: Bool {
+        guard isSimulator, Everframe.captureGate else { return false }
+        let evaluation = gate.evaluation
+        return evaluation.reason == nil && evaluation.replay
+    }
+
     /// Feeds one key-down. Never blocks: a match starts `capture()` on its own task.
     func handle(_ event: CaptureKeyEvent) {
         guard isSimulator else { return }
-        let (reason, binding) = gate.evaluation
+        let (reason, binding, _) = gate.evaluation
         guard reason == nil else { matcher = nil; return }
         if matcher?.binding != binding || matcher?.window != doubleShiftWindow {
             matcher = CaptureHotkeyMatcher(binding: binding, window: doubleShiftWindow)
