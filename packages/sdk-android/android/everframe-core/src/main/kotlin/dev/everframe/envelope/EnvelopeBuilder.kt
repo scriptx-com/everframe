@@ -287,6 +287,12 @@ class EnvelopeBuilder(
          * Composer / CrashReporter) supplies `sharedResourceBuffer.snapshot()`.
          */
         resources: List<ResourceRingBuffer.Entry> = emptyList(),
+        /**
+         * Simulator quick capture: written as `quickCapture: true`. Any other
+         * report leaves the field null so the key is absent from the wire
+         * (`explicitNulls = false`), byte-identical to the pre-quick-capture shape.
+         */
+        quickCapture: Boolean = false,
     ): EncodedEnvelope {
         val redactedLogs = trimLogs(logs.map { it.copy(message = redactor.redact(it.message)) })
         val redactedNetwork = networkRows.map {
@@ -480,6 +486,7 @@ class EnvelopeBuilder(
                 platform = platformEnum,
                 version = sdkVersion,
             ),
+            quickCapture = if (quickCapture) true else null,
             sessionID = stamp?.sessionId,
             source = source,
             submittedAt = now,

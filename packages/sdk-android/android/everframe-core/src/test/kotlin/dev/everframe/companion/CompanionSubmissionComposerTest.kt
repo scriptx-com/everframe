@@ -683,6 +683,56 @@ class CompanionSubmissionComposerTest {
     }
 
     /**
+     * Simulator quick capture: `Inputs.quickCapture` reaches the envelope and
+     * `Inputs.captureToken` reaches the live request's header; the default
+     * `Inputs` send neither.
+     */
+    @Test
+    fun `quickCapture and captureToken thread through to the request, defaults send neither`() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val activity = Robolectric.buildActivity(android.app.Activity::class.java).create().get()
+            Everframe.start(
+                activity.applicationContext,
+                EverframeConfig(appId = "test-app-id", sdkKey = "txx_live_test1234567890", environment = Environment.production),
+            )
+            val client = OkHttpClient.Builder()
+                .connectTimeout(2, TimeUnit.SECONDS).readTimeout(2, TimeUnit.SECONDS).writeTimeout(2, TimeUnit.SECONDS)
+                .build()
+            CompanionSubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
+                ReportSubmitter(cfg, outbox, uploader = MultipartUploader(client), endpointOverride = server.url("/").toString())
+            }
+            fun send(quick: Boolean, token: String?): okhttp3.mockwebserver.RecordedRequest {
+                server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+                val inputs = CompanionSubmissionComposer.Inputs(
+                    capture = Everframe.__replayFreeze(),
+                    activity = activity,
+                    captureBitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888),
+                    title = "t", description = "d",
+                    includeLogs = false, includeNetwork = false, includeMetadata = false,
+                    hostExtra = null, companionAttribution = null,
+                    capturedSession = Everframe.captureSessionSnapshot(),
+                    quickCapture = quick, captureToken = token,
+                )
+                val result = runBlocking { CompanionSubmissionComposer.submit(inputs) }
+                assertTrue("expected Submitted, got $result", result is ReportResult.Submitted)
+                return server.takeRequest(10, TimeUnit.SECONDS)!!
+            }
+            val quick = send(true, "cap_tok_1")
+            assertEquals("cap_tok_1", quick.getHeader("X-Everframe-Capture-Token"))
+            assertTrue(quick.body.readUtf8().contains("\"quickCapture\":true"))
+
+            val normal = send(false, null)
+            org.junit.Assert.assertNull(normal.getHeader("X-Everframe-Capture-Token"))
+            assertTrue(!normal.body.readUtf8().contains("quickCapture"))
+        } finally {
+            CompanionSubmissionComposer.__submitterFactoryForTesting = null
+            server.shutdown()
+        }
+    }
+
+    /**
      * Final whole-branch review, Important 2 (companion path). The test
      * above proves the ordinary same-session case attaches the header; this
      * proves the header is withheld when a `start(projectB)` lands between

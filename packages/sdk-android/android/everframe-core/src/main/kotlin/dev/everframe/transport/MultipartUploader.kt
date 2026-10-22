@@ -128,6 +128,14 @@ class MultipartUploader(private val client: OkHttpClient) {
          */
         identityToken: String? = null,
         authorization: ReportAuthorization? = null,
+        /**
+         * Simulator quick-capture token. When non-null it rides this POST as
+         * `X-Everframe-Capture-Token` so ingest can attribute the capture to the
+         * developer who owns the emulator. Null — the default, and every
+         * non-quick-capture submit and every outbox drain — sends no header.
+         * SECURITY: never log this value.
+         */
+        captureToken: String? = null,
     ): UploadResult = withContext(Dispatchers.IO) {
 
         var expected = authorization?.evaluate() ?: ReportAuthorizationDecision(true, true)
@@ -135,7 +143,7 @@ class MultipartUploader(private val client: OkHttpClient) {
         var payload = preparePayload(envelopeBytes, attachments, expected.replayAllowed)
         repeat(2) { attempt ->
             validatePayload(payload.first, payload.second)
-            listOfNotNull(endpoint, sdkKey, idempotencyKey, identityToken, companionAttribution).forEach {
+            listOfNotNull(endpoint, sdkKey, idempotencyKey, identityToken, companionAttribution, captureToken).forEach {
                 require(it.length <= 16_384 && it.toByteArray(Charsets.UTF_8).size <= 16_384) { "Routing/header field exceeds limit" }
             }
             val body = multipartBody(payload.first, payload.second)
@@ -164,6 +172,11 @@ class MultipartUploader(private val client: OkHttpClient) {
                     // companionAttribution above.
                     if (identityToken != null) {
                         header(IDENTITY_TOKEN_HEADER, identityToken)
+                    }
+                    // SECURITY: never log captureToken — same posture as
+                    // companionAttribution above.
+                    if (captureToken != null) {
+                        header(CAPTURE_TOKEN_HEADER, captureToken)
                     }
                 }
                 .post(body)
@@ -211,6 +224,8 @@ class MultipartUploader(private val client: OkHttpClient) {
     }
 
     internal companion object {
+        internal const val CAPTURE_TOKEN_HEADER = "X-Everframe-Capture-Token"
+
         internal fun multipartBody(envelope: ByteArray, parts: List<Part>): MultipartBody =
             MultipartBody.Builder().setType(MultipartBody.FORM).apply {
                 addFormDataPart("envelope", "envelope.json", envelope.toRequestBody("application/json".toMediaType()))

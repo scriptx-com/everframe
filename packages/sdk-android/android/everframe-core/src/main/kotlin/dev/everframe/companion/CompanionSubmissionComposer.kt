@@ -22,8 +22,12 @@
 //     either move the `ReporterIncludes` data class down into :everframe-core
 //     (touches the UI module's public surface) or shape the composer's
 //     `Inputs` to avoid the UI type (which is what we do below — raw booleans).
-//   • The duplication is small (~40 lines of envelope-build glue). When a
-//     third caller appears we can promote.
+//   • The duplication is small (~40 lines of envelope-build glue). The third
+//     caller has since appeared (simulator quick capture), and we still keep
+//     the duplication: the composer now has two UI-less callers (the companion
+//     bridge and quick capture), and `ReporterDialog.submitBaked` stays in sync
+//     with it for everything except `quickCapture` and `captureToken`, which
+//     only the UI-less callers set.
 //
 // Documented as a deliberate, time-boxed duplication in 06.2-13-SUMMARY.md.
 //
@@ -180,6 +184,13 @@ object CompanionSubmissionComposer {
          *  surface toggles per-section (the phone reporter SPA sends a flat
          *  `includes` map), so this is derived from the booleans above. */
         val excluded: List<String> = emptyList(),
+        /** Simulator quick capture: stamps `quickCapture: true` on the envelope.
+         *  False for the phone-driven companion path. */
+        val quickCapture: Boolean = false,
+        /** Simulator quick-capture token, sent only as the live upload's
+         *  `X-Everframe-Capture-Token` header and never persisted to the outbox.
+         *  SECURITY: never log. */
+        val captureToken: String? = null,
     )
 
     /**
@@ -372,6 +383,7 @@ object CompanionSubmissionComposer {
                 // throws and returns an empty list when the sampler is
                 // off/never started.
                 resources = sharedResourceBuffer.snapshot(),
+                quickCapture = inputs.quickCapture,
             )
 
             // 6. Ship via ReportSubmitter (isolated OkHttpClient — no
@@ -476,6 +488,8 @@ object CompanionSubmissionComposer {
                 identitySubject = if (identity.epochStillCurrent) inputs.capturedSession.user.identitySubject else null,
                 identityToken = identity.token,
                 authorization = ReportAuthorizationFactory.forCapture(inputs.capturedSession, inputs.capture),
+                // SECURITY: never log. Live upload only; see ReportSubmitter.submit.
+                captureToken = inputs.captureToken,
             )
         } ?: ReportResult.Cancelled("submit_guard_failed")
         } finally { inputs.capture.finishConsumption() }
