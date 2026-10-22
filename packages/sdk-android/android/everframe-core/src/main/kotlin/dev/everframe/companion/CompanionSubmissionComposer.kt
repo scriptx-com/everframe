@@ -191,7 +191,25 @@ object CompanionSubmissionComposer {
          *  `X-Everframe-Capture-Token` header and never persisted to the outbox.
          *  SECURITY: never log. */
         val captureToken: String? = null,
-    )
+        /** True when [captureBitmap] went through the reporter's annotation
+         *  canvas (the companion path). Simulator quick capture sends the raw
+         *  screenshot and passes false, so the attachment is declared a plain
+         *  `screenshot` instead of `annotated-screenshot`. */
+        val annotated: Boolean = true,
+    ) {
+        /** The generated `toString()` would print both credentials into any log
+         *  or crash message that interpolates the inputs. */
+        override fun toString(): String =
+            "Inputs(activity=$activity, captureBitmap=$captureBitmap, capture=$capture, " +
+                "extraShotPngs=${extraShotPngs.size}, title=$title, description=$description, " +
+                "includeLogs=$includeLogs, includeNetwork=$includeNetwork, includeMetadata=$includeMetadata, " +
+                "extraOverrides=$extraOverrides, hostExtra=$hostExtra, " +
+                "companionAttribution=${redact(companionAttribution)}, capturedSession=$capturedSession, " +
+                "excluded=$excluded, quickCapture=$quickCapture, captureToken=${redact(captureToken)}, " +
+                "annotated=$annotated)"
+
+        private fun redact(secret: String?): String? = secret?.let { "<redacted>" }
+    }
 
     /**
      * Compose + submit. Returns the same `ReportResult` that
@@ -241,11 +259,12 @@ object CompanionSubmissionComposer {
             // 3. Declare the screenshot attachment so parser.ts can pair the
             //    multipart 'screenshot' part with envelope.attachments[]
             //    (ReporterDialog.kt:267-275 parity).
+            val screenshotKind = if (inputs.annotated) AttachmentKind.AnnotatedScreenshot else AttachmentKind.Screenshot
             val screenshotAttachment = Attachment(
                 byteLength = pngBytes.size.toDouble(),
                 contentType = "image/png",
                 height = null,
-                kind = AttachmentKind.AnnotatedScreenshot,
+                kind = screenshotKind,
                 partName = "screenshot",
                 sha256 = sha,
                 width = null,
@@ -266,7 +285,7 @@ object CompanionSubmissionComposer {
                     byteLength = bytes.size.toDouble(),
                     contentType = "image/png",
                     height = null,
-                    kind = AttachmentKind.AnnotatedScreenshot,
+                    kind = screenshotKind,
                     partName = name,
                     sha256 = hex,
                     width = null,

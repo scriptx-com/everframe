@@ -144,6 +144,36 @@ class CompanionSubmissionComposerTest {
         assertEquals(listOf("network"), inputs.excluded)
     }
 
+    /** `Inputs` is a data class: its `toString()` must not print either credential. */
+    @Test
+    fun inputs_toStringRedactsCredentials() {
+        val activity = Robolectric.buildActivity(android.app.Activity::class.java).create().get()
+        val inputs = CompanionSubmissionComposer.Inputs(
+            capture = Everframe.__replayFreeze(),
+            activity = activity,
+            captureBitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888),
+            title = "visible-title",
+            description = "d",
+            includeLogs = true,
+            includeNetwork = true,
+            includeMetadata = true,
+            hostExtra = null,
+            companionAttribution = "attr-secret-456",
+            capturedSession = Everframe.captureSessionSnapshot(),
+            captureToken = "cap-secret-123",
+        )
+        val text = inputs.toString()
+        assertFalse(text, text.contains("cap-secret-123"))
+        assertFalse(text, text.contains("attr-secret-456"))
+        assertTrue(text, text.contains("captureToken=<redacted>"))
+        assertTrue(text, text.contains("companionAttribution=<redacted>"))
+        assertTrue("other fields still print", text.contains("visible-title"))
+
+        val bare = inputs.copy(captureToken = null, companionAttribution = null).toString()
+        assertTrue(bare, bare.contains("captureToken=null"))
+        assertTrue(bare, bare.contains("companionAttribution=null"))
+    }
+
     /**
      * Contract 2: submit() without a configured Everframe returns
      * `Cancelled("no_config")` — never throws, never NPEs. Mirrors iOS
@@ -683,9 +713,10 @@ class CompanionSubmissionComposerTest {
     }
 
     /**
-     * Simulator quick capture: `Inputs.quickCapture` reaches the envelope and
-     * `Inputs.captureToken` reaches the live request's header; the default
-     * `Inputs` send neither.
+     * Simulator quick capture: `Inputs.quickCapture` reaches the envelope,
+     * `Inputs.captureToken` reaches the live request's header, and
+     * `annotated = false` declares the raw shot a plain `screenshot`; the
+     * default `Inputs` send neither and stay `annotated-screenshot`.
      */
     @Test
     fun `quickCapture and captureToken thread through to the request, defaults send neither`() {
@@ -703,7 +734,7 @@ class CompanionSubmissionComposerTest {
             CompanionSubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
                 ReportSubmitter(cfg, outbox, uploader = MultipartUploader(client), endpointOverride = server.url("/").toString())
             }
-            fun send(quick: Boolean, token: String?): okhttp3.mockwebserver.RecordedRequest {
+            fun send(quick: Boolean, token: String?, annotated: Boolean = true): okhttp3.mockwebserver.RecordedRequest {
                 server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
                 val inputs = CompanionSubmissionComposer.Inputs(
                     capture = Everframe.__replayFreeze(),
@@ -713,19 +744,25 @@ class CompanionSubmissionComposerTest {
                     includeLogs = false, includeNetwork = false, includeMetadata = false,
                     hostExtra = null, companionAttribution = null,
                     capturedSession = Everframe.captureSessionSnapshot(),
-                    quickCapture = quick, captureToken = token,
+                    quickCapture = quick, captureToken = token, annotated = annotated,
                 )
                 val result = runBlocking { CompanionSubmissionComposer.submit(inputs) }
                 assertTrue("expected Submitted, got $result", result is ReportResult.Submitted)
                 return server.takeRequest(10, TimeUnit.SECONDS)!!
             }
-            val quick = send(true, "cap_tok_1")
+            val quick = send(true, "cap_tok_1", annotated = false)
             assertEquals("cap_tok_1", quick.getHeader("X-Everframe-Capture-Token"))
-            assertTrue(quick.body.readUtf8().contains("\"quickCapture\":true"))
+            val quickBody = quick.body.readUtf8()
+            assertTrue(quickBody.contains("\"quickCapture\":true"))
+            assertTrue("raw shot is a plain screenshot", quickBody.contains("\"kind\":\"screenshot\""))
+            assertFalse(quickBody.contains("\"kind\":\"annotated-screenshot\""))
 
             val normal = send(false, null)
             org.junit.Assert.assertNull(normal.getHeader("X-Everframe-Capture-Token"))
-            assertTrue(!normal.body.readUtf8().contains("quickCapture"))
+            val normalBody = normal.body.readUtf8()
+            assertTrue(!normalBody.contains("quickCapture"))
+            assertTrue("companion default stays annotated", normalBody.contains("\"kind\":\"annotated-screenshot\""))
+            assertFalse(normalBody.contains("\"kind\":\"screenshot\""))
         } finally {
             CompanionSubmissionComposer.__submitterFactoryForTesting = null
             server.shutdown()

@@ -442,14 +442,16 @@ For the cross-SDK contract statement see the top-level
 
 ## Quick capture (debug simulators)
 
-While you test a debug build in the iOS or tvOS simulator, double-tap
-**Shift** to file a report without opening the reporter. The SDK takes the
+While you test a debug build in the iOS simulator, double-tap **Shift** to
+file a report without opening the reporter. The tvOS simulator is not yet
+verified. The SDK takes the
 screenshot first, freezes the replay window, logs, breadcrumbs and network the
 same way the reporter does, uploads the report at once, and then shows a short
 toast: `Captured · <device name>`, `Captured · uploads when online` when the
 upload was queued, or `Capture failed`. The toast is never part of the
 screenshot. Title and description stay empty; you fill them in on the
-dashboard.
+dashboard. Like the reporter, a quick capture consumes the pending
+`Everframe.shared.setExtra` payload.
 
 - **Trigger.** Double Shift by default. The dashboard's per-app capture hotkey
   setting can pick a chord such as `Mod+Shift+B` instead. Modifier presses
@@ -459,9 +461,9 @@ dashboard.
 - **Debug simulators only.** It never runs on a device or in a release build.
   It also needs `reporterEnabled` and the dashboard's capture hotkey setting,
   and it does nothing while the reporter is on screen or a capture is still
-  uploading. Shake-to-report waits for an in-flight capture to finish, but an
-  explicit `report.open()` during that upload still opens the reporter, and
-  either report may then miss part of the frozen replay and evidence.
+  uploading. Shake-to-report is ignored while a quick capture is in flight,
+  but an explicit `report.open()` during that upload still opens the reporter,
+  and either report may then miss part of the frozen replay and evidence.
 - **Opt out** locally by setting `quickCaptureEnabled` to `false` on your
   config before `start`. Local `true` never overrides a dashboard disable.
 
@@ -472,8 +474,9 @@ dashboard.
   ```
 
 - **Token file.** When `$SIMULATOR_HOST_HOME/.everframe/credentials` on your
-  Mac holds `{"token": "<token>"}` (`npx everframe login` writes it), the
-  capture is attributed to you. It is read fresh at every capture, sent only
+  Mac (normally `~/.everframe/credentials`) holds your capture token as JSON,
+  `{"token": "<token>"}`, the capture is attributed to you. The Everframe CLI
+  will write this file (coming soon); until then, create it yourself. It is read fresh at every capture, sent only
   on the quick-capture upload, and never logged. Without it, captures land in
   the app's shared inbox. A capture that is queued offline and retried later
   goes out without the token.

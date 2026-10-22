@@ -67,17 +67,6 @@ final class ReportSubmitterSessionLifecycleTests: XCTestCase {
         )
     }
 
-    /// The observable consequence of that identity, driven through the REAL
-    /// production path: constructing MANY separate `ReportSubmitter`
-    /// instances (exactly what `ReporterSubmission.swift` does for every
-    /// ordinary report) and submitting through each must not accumulate
-    /// sessions AND every single one of those submissions must still
-    /// complete. This is also the negative check on the OTHER candidate fix
-    /// (invalidate-per-submitter): if a submitter's session were invalidated
-    /// after its own submit, sharing it across the DEFAULT-constructed
-    /// instances below would make every submission after the first fail
-    /// outright (`invalidated and can no longer be used`) — this test would
-    /// catch that regression too, not just a session-identity mismatch.
     private func captureTokenHeader(_ r: RecordingHTTPServer.RecordedRequest) -> String? {
         r.headers.first { $0.key.lowercased() == "x-everframe-capture-token" }?.value
     }
@@ -111,6 +100,17 @@ final class ReportSubmitterSessionLifecycleTests: XCTestCase {
         XCTAssertNil(captureTokenHeader(server.recorded[1]), "a replayed upload must carry no capture token")
     }
 
+    /// The observable consequence of that identity, driven through the REAL
+    /// production path: constructing MANY separate `ReportSubmitter`
+    /// instances (exactly what `ReporterSubmission.swift` does for every
+    /// ordinary report) and submitting through each must not accumulate
+    /// sessions AND every single one of those submissions must still
+    /// complete. This is also the negative check on the OTHER candidate fix
+    /// (invalidate-per-submitter): if a submitter's session were invalidated
+    /// after its own submit, sharing it across the DEFAULT-constructed
+    /// instances below would make every submission after the first fail
+    /// outright (`invalidated and can no longer be used`) — this test would
+    /// catch that regression too, not just a session-identity mismatch.
     func testRepeatedSubmissionsThroughSeparatelyConstructedSubmittersAllStillComplete() async throws {
         let sessionsSeen = NSMutableSet()
 

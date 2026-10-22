@@ -77,6 +77,8 @@ class QuickCaptureTest {
             submitResult(inputs)
         }
         Settings.Global.putString(app.contentResolver, CaptureTokenReader.SETTINGS_KEY, null)
+        // The test sends the broadcast from the app itself; let it hold DUMP the way the adb shell does.
+        shadowOf(app).grantPermissions(QuickCapture.BROADCAST_PERMISSION)
     }
 
     @After
@@ -111,6 +113,18 @@ class QuickCaptureTest {
         val registered = receivers()
         assertEquals(1, registered.size)
         assertEquals(Context.RECEIVER_EXPORTED, registered.single().flags and Context.RECEIVER_EXPORTED)
+        // Only senders holding DUMP (the adb shell, not third-party apps) can trigger a capture.
+        assertEquals("android.permission.DUMP", registered.single().broadcastPermission)
+    }
+
+    @Test
+    fun senderWithoutDumpCannotTrigger() {
+        shadowOf(app).denyPermissions(QuickCapture.BROADCAST_PERMISSION)
+        arm()
+        app.sendBroadcast(Intent(QuickCapture.ACTION))
+        idleMain()
+        assertNull("a sender without DUMP (any third-party app) never reaches the receiver", QuickCapture.__lastTrigger)
+        assertTrue(submits.isEmpty())
     }
 
     @Test
@@ -236,6 +250,7 @@ class QuickCaptureTest {
         assertEquals(1, freezes.get())
         val inputs = submits.single()
         assertTrue(inputs.quickCapture)
+        assertFalse("a raw screenshot, not an annotated one", inputs.annotated)
         assertEquals("t1", inputs.captureToken)
         assertEquals("", inputs.title)
         assertEquals("", inputs.description)

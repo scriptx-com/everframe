@@ -8,7 +8,8 @@
 // A SwiftPM test bundle has no UI scenes, so the screenshot comes from a
 // plain `UIWindow(frame:)` handed to `ScreenshotCapture.__windowsOverrideForTesting`,
 // and the replay lifecycle is a counting stub so no test leaves the shared
-// breadcrumb/replay buffers frozen for the next one.
+// breadcrumb/replay buffers frozen for the next one. The one test that runs the
+// production lifecycle releases those buffers itself.
 #if canImport(UIKit)
 import UIKit
 import XCTest
@@ -22,8 +23,12 @@ final class QuickCaptureTests: XCTestCase {
     private var freezes = 0
     private var closes: [UUID] = []
     private var cancels: [UUID] = []
+    private var savedCaptureGate = false
 
     override func setUp() async throws {
+        // An open capture gate, as after `start()`; the kill-switch test closes it.
+        savedCaptureGate = Everframe.captureGate
+        Everframe.captureGate = true
         home = NSTemporaryDirectory() + "evf-qc-" + UUID().uuidString
         try FileManager.default.createDirectory(atPath: home + "/.everframe", withIntermediateDirectories: true)
         try #"{"token":"t1"}"#.write(toFile: home + "/.everframe/credentials", atomically: true, encoding: .utf8)
@@ -37,6 +42,7 @@ final class QuickCaptureTests: XCTestCase {
     }
 
     override func tearDown() async throws {
+        Everframe.captureGate = savedCaptureGate
         ScreenshotCapture.__windowsOverrideForTesting = nil
         ReportAPI.__performSetPresenting(false)
         hostWindow.isHidden = true
@@ -123,6 +129,20 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertTrue(submitted.isEmpty)
     }
 
+    /// Android parity: a killed session (or revoked consent) closes the capture
+    /// gate, and a press must not freeze, submit or toast "Capture failed".
+    func testIgnoredWhenCaptureGateClosed() async {
+        var toasts: [String] = []
+        let qc = makeArmed()
+        qc.showToast = { toasts.append($0) }
+        Everframe.captureGate = false
+        let outcome = await qc.capture()
+        XCTAssertTrue(isIgnored(outcome, reason: "kill_switch"), "\(outcome)")
+        XCTAssertEqual(freezes, 0)
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertTrue(toasts.isEmpty)
+    }
+
     func testBeginSessionClearsThePreviousSessionsRemoteBlock() async {
         let qc = makeArmed()
         XCTAssertTrue(qc.isArmed)
@@ -175,6 +195,38 @@ final class QuickCaptureTests: XCTestCase {
         guard case .failed = failedOutcome else { return XCTFail("expected .failed, got \(failedOutcome)") }
         XCTAssertEqual(cancels.count, 1)
         XCTAssertEqual(closes.count, 1)
+    }
+
+    /// The production lifecycle, not the counting stub: a sent capture releases
+    /// the real freeze owner through the close path, which leaves the frozen
+    /// breadcrumb snapshot for the submit to consume, and a throwing submit
+    /// releases it through cancel, which discards that snapshot. Swapping the two
+    /// calls fails both halves. Android twin: `successfulUploadReleasesTheFreeze`.
+    func testProductionLifecycleClosesOnSuccessAndCancelsOnFailure() async {
+        struct Boom: Error {}
+        BreadcrumbRingBuffer.shared.discardAndResume()
+        // Close leaves the frozen snapshots for the (stubbed) submit; drop them.
+        defer { Everframe.shared.__replayCancel(owner: Everframe.shared.__replayFreeze()) }
+
+        let sent = makeArmed()
+        sent.lifecycle = .live
+        let sentOutcome = await sent.capture()
+        guard case .sent = sentOutcome else { return XCTFail("expected .sent, got \(sentOutcome)") }
+        XCTAssertFalse(Everframe.shared.__replayHasReporterOwner, "a sent capture must release the freeze owner")
+        XCTAssertNotNil(BreadcrumbRingBuffer.shared.takeFrozen(), "released via close: the frozen snapshot is not discarded")
+
+        let failing = makeArmed(submit: { _ in throw Boom() })
+        failing.lifecycle = .live
+        let failedOutcome = await failing.capture()
+        guard case .failed = failedOutcome else { return XCTFail("expected .failed, got \(failedOutcome)") }
+        XCTAssertFalse(Everframe.shared.__replayHasReporterOwner, "a failed capture must release the freeze owner")
+        XCTAssertNil(BreadcrumbRingBuffer.shared.takeFrozen(), "released via cancel: the frozen snapshot is discarded")
+
+        // Reusable: the next capture is not refused as `capture_frozen`.
+        let next = makeArmed()
+        next.lifecycle = .live
+        let nextOutcome = await next.capture()
+        guard case .sent = nextOutcome else { return XCTFail("expected .sent, got \(nextOutcome)") }
     }
 
     func testNoWindowFailsWithoutFreezing() async {

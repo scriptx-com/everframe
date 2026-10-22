@@ -10,11 +10,13 @@
 //
 // The receiver is registered only on a debug build, on an emulator, with the
 // local `quickCaptureEnabled` and `reporterEnabled` options on. It is
-// RECEIVER_EXPORTED because `adb shell` broadcasts as the shell UID, so any app
-// on that emulator can send the action too. The receiver is therefore a pure
-// trigger: it reads no extras and returns no data, and every capture still
-// passes the gate below (the dashboard's `captureHotkey` block, a current
-// activity, no reporter on screen, no other capture holding the freeze).
+// RECEIVER_EXPORTED because `adb shell` broadcasts as the shell UID, and it
+// requires the sender to hold `android.permission.DUMP` (see
+// [QuickCapture.BROADCAST_PERMISSION]), which the shell holds and an ordinary
+// app cannot obtain. The receiver is still a pure trigger: it reads no extras
+// and returns no data, and every capture still passes the gate below (the
+// dashboard's `captureHotkey` block, a current activity, no reporter on screen,
+// no other capture holding the freeze).
 package dev.everframe.quickcapture
 
 import android.app.Activity
@@ -51,6 +53,15 @@ internal sealed interface QuickCaptureOutcome {
 
 internal object QuickCapture {
     const val ACTION: String = "com.everframe.CAPTURE"
+
+    /**
+     * The permission a sender must hold for the receiver to accept the broadcast. The shell UID
+     * holds DUMP, so `adb shell am broadcast -a com.everframe.CAPTURE` still reaches the receiver;
+     * DUMP is signature|privileged|development, so another app on the emulator cannot hold it
+     * unless someone grants it from adb. Whatever this is changed to MUST keep allowing
+     * `adb shell am broadcast`, or the host trigger stops working.
+     */
+    const val BROADCAST_PERMISSION: String = "android.permission.DUMP"
 
     // ---- Test seams ----
 
@@ -105,10 +116,11 @@ internal object QuickCapture {
             val next = Receiver()
             val registered = runCatching {
                 // `adb shell am broadcast` runs as the shell UID and cannot reach a NOT_EXPORTED receiver.
+                // The permission keeps other apps out and MUST keep admitting the shell (see above).
                 if (Build.VERSION.SDK_INT >= 33) {
-                    app.registerReceiver(next, IntentFilter(ACTION), Context.RECEIVER_EXPORTED)
+                    app.registerReceiver(next, IntentFilter(ACTION), BROADCAST_PERMISSION, null, Context.RECEIVER_EXPORTED)
                 } else {
-                    app.registerReceiver(next, IntentFilter(ACTION))
+                    app.registerReceiver(next, IntentFilter(ACTION), BROADCAST_PERMISSION, null)
                 }
             }.isSuccess
             if (registered) {
@@ -145,7 +157,7 @@ internal object QuickCapture {
     }
 
     private class Receiver : BroadcastReceiver() {
-        // A pure trigger: any app on the emulator can send this action, so nothing is read from the intent.
+        // A pure trigger: nothing is read from the intent, whoever sent it.
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != ACTION) return
             __lastTrigger = Everframe.sdkScope.async { capture() }
@@ -223,6 +235,8 @@ internal object QuickCapture {
                     quickCapture = true,
                     // Read fresh per capture. SECURITY: never log.
                     captureToken = CaptureTokenReader.read(appContext),
+                    // The raw screenshot: no annotation canvas ran.
+                    annotated = false,
                 ),
             )
             return when (result) {

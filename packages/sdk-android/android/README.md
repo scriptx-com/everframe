@@ -151,8 +151,8 @@ dashboard. Like the reporter, a quick capture consumes the pending
   build running on an emulator, never on a device or in a release build. It
   also needs `reporterEnabled` and the dashboard's capture hotkey setting, and
   it does nothing while the reporter is on screen, while another capture holds
-  the frozen replay, or while a capture is still uploading. Shake-to-report
-  waits for an in-flight capture to finish, but an explicit `report.open()`
+  the frozen replay, or while a capture is still uploading. Shake-to-report is
+  ignored while a quick capture is in flight, but an explicit `report.open()`
   during that upload still opens the reporter, and that report may then miss
   the frozen replay and evidence.
 - **Opt out** locally with `EverframeConfig(..., quickCaptureEnabled = false)`.

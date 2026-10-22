@@ -9,10 +9,10 @@
 //
 // Inert unless every gate holds: a simulator, a debug build, the local
 // `quickCaptureEnabled` and `reporterEnabled` options, the dashboard's
-// `captureHotkey` block, an active app, no reporter on screen and no capture
-// already in flight. The `UIWindow.sendEvent` hook reads `isArmed` before it
-// builds a single key event, so a disarmed session costs one lock read per
-// press event and nothing per touch.
+// `captureHotkey` block, an open capture gate, an active app, no reporter on
+// screen and no capture already in flight. The `UIWindow.sendEvent` hook reads
+// `isArmed` before it builds a single key event, so a disarmed session costs
+// one lock read per press event and nothing per touch.
 #if canImport(UIKit)
 import UIKit
 
@@ -167,6 +167,8 @@ final class QuickCapture {
     private func ignoreReason() -> String? {
         guard isSimulator else { return "not_simulator" }
         if let reason = gate.evaluation.reason { return reason }
+        // The kill switch: closed before `start()` and after `kill()`.
+        guard Everframe.captureGate else { return "kill_switch" }
         guard isApplicationActive() else { return "inactive" }
         // The same flag `ShakeToReportTrigger` hands `ShakeToReportGate.tryBegin(presenting:)`.
         guard !Everframe.shared.report.isPresenting else { return "reporter_presenting" }
