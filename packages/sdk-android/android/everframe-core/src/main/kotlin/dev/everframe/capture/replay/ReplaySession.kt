@@ -188,6 +188,9 @@ class ReplaySession(
         dev.everframe.trigger.ShakeToReportTrigger.publishRemote(latest.shakeToReport?.enabled) {
             currentGenerationValid(capturedEpoch)
         }
+        dev.everframe.quickcapture.QuickCapture.publishRemote(latest.captureHotkey) {
+            currentGenerationValid(capturedEpoch)
+        }
         if (!wasIdentityEnabled && isIdentityEnabled(latest) && currentGenerationValid(capturedEpoch)) Everframe.__warmIdentityToken()
         sharedBreadcrumbBuffer.applyConfig(latest.breadcrumbs) { currentGenerationValid(capturedEpoch) }
         // Report Resource Window (spec 2026-09-05). `windowSec` is read LIVE
@@ -313,6 +316,9 @@ class ReplaySession(
         foreground = true; recorder?.resume()
         if (state == NativeVideoRecorder.State.SUSPENDED) state = NativeVideoRecorder.State.BUFFERING
     }
+
+    /** True while a report capture (reporter, companion or quick capture) holds this session's freeze. */
+    internal val hasReportOwner: Boolean get() = Everframe.withReportAuthorizationLock { activeOwner != null }
 
     /** Called under Everframe's capture coordinator, which serializes snapshots with start/kill epoch changes. */
     internal fun freezeOwnedCapture(): FrozenReportCapture {

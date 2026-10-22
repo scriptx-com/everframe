@@ -126,6 +126,44 @@ requests no permission, declares no required sensor feature, and safely no-ops
 when the device has no accelerometer. Android TV and Leanback devices are
 excluded.
 
+### Quick capture (debug emulators)
+
+While you test a debug build on an Android emulator, send one broadcast to file
+a report without opening the reporter:
+
+```sh
+adb shell am broadcast -a com.everframe.CAPTURE
+```
+
+The SDK takes the screenshot first, freezes the replay window, logs,
+breadcrumbs and network the same way the reporter does, uploads the report at
+once, and then shows a short toast: `Captured · <device name>`,
+`Captured · uploads when online` when the upload was queued, or
+`Capture failed`. The toast is a system window, so it is never part of the
+screenshot. Title and description stay empty; you fill them in on the
+dashboard. Like the reporter, a quick capture consumes the pending
+`Everframe.setExtra` payload.
+
+- **Trigger.** The broadcast action `com.everframe.CAPTURE`. A host-side
+  keyboard trigger arrives with the Everframe CLI; until then, send the
+  broadcast yourself. The receiver reads nothing from the broadcast.
+- **Debug emulators only.** The receiver is registered only in a debuggable
+  build running on an emulator, never on a device or in a release build. It
+  also needs `reporterEnabled` and the dashboard's capture hotkey setting, and
+  it does nothing while the reporter is on screen, while another capture holds
+  the frozen replay, or while a capture is still uploading. Shake-to-report
+  waits for an in-flight capture to finish, but an explicit `report.open()`
+  during that upload still opens the reporter, and that report may then miss
+  the frozen replay and evidence.
+- **Opt out** locally with `EverframeConfig(..., quickCaptureEnabled = false)`.
+  Local `true` never overrides a dashboard disable.
+- **Token.** When the emulator's global setting `everframe_token` holds your
+  capture token (`adb shell settings put global everframe_token <token>`), the
+  capture is attributed to you. It is read fresh at every capture, sent only on
+  the quick-capture upload, and never logged. Without it, captures land in the
+  app's shared inbox. A capture that is queued offline and retried later goes
+  out without the token.
+
 ### Crash-only sessions
 
 `EverframeConfig(..., reporterEnabled = false)` reports crashes and errors

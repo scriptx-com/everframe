@@ -95,9 +95,13 @@ internal class ShakeToReportGate(localEnabled: Boolean) {
     @Volatile var foreground: Boolean = false
     private var inFlight = false
 
+    /**
+     * [quickCaptureInFlight]: an emulator quick capture holds the frozen evidence until it finishes, so a
+     * shake then would freeze over it.
+     */
     @Synchronized
-    fun tryBegin(presenting: Boolean): Boolean {
-        if (!localEnabled || remoteEnabled != true || !foreground || presenting || inFlight) return false
+    fun tryBegin(presenting: Boolean, quickCaptureInFlight: Boolean = false): Boolean {
+        if (!localEnabled || remoteEnabled != true || !foreground || presenting || quickCaptureInFlight || inFlight) return false
         inFlight = true
         return true
     }
@@ -186,7 +190,7 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
     override fun onSensorChanged(event: SensorEvent) {
         if (event.sensor.type != Sensor.TYPE_ACCELEROMETER || event.values.size < 3) return
         if (!detector.onAcceleration(event.timestamp, event.values[0], event.values[1], event.values[2])) return
-        if (!gate.tryBegin(Everframe.report.isPresenting.value)) return
+        if (!tryBeginShake(gate)) return
         Everframe.sdkScope.launch(Dispatchers.Main.immediate) {
             try {
                 Everframe.report.open(dev.everframe.config.ReporterTrigger.Shake)
@@ -197,6 +201,15 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
             }
         }
     }
+
+    /**
+     * Shake only. An explicit `report.open()` during a quick capture still proceeds
+     * (see `QuickCapture.isCapturing`).
+     */
+    internal fun tryBeginShake(gate: ShakeToReportGate): Boolean = gate.tryBegin(
+        presenting = Everframe.report.isPresenting.value,
+        quickCaptureInFlight = dev.everframe.quickcapture.QuickCapture.isCapturing,
+    )
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
