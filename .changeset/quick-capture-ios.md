@@ -16,7 +16,8 @@ unaffected. The tvOS simulator is not yet verified.
 When the block also sets `replay: true`, session replay records while quick
 capture is armed, even if the app's `replayEnabled` is false and regardless of
 its sampling rate. The flag never turns replay off; after a disarm, replay
-follows `replayEnabled` again.
+follows `replayEnabled` again. A key press that UIKit delivers twice is counted
+once.
 
 The public `ReporterTrigger` enum gained a `quickCapture` case (raw value
 `quick_capture`). Host code that switches exhaustively over `ReporterTrigger`

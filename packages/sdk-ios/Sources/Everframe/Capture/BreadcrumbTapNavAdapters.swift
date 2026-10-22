@@ -561,8 +561,8 @@ enum WindowTapBreadcrumbAdapter {
                 // delivers hardware-keyboard keys as `UIPhysicalKeyboardEvent`, a
                 // `UIPressesEvent` subclass whose `type` is not `.presses`.
                 if let presses = event as? UIPressesEvent, QuickCapture.shared.isArmed {
-                    for keyEvent in quickCaptureKeyEvents(presses.allPresses) {
-                        QuickCapture.shared.handle(keyEvent)
+                    for (keyEvent, press) in quickCaptureKeyEvents(presses.allPresses) {
+                        QuickCapture.shared.handle(keyEvent, press: press)
                     }
                 }
                 #endif
@@ -573,20 +573,30 @@ enum WindowTapBreadcrumbAdapter {
     }
 
     #if targetEnvironment(simulator)
-    /// Hardware-keyboard presses that just went down, as quick-capture key events.
-    /// `systemUptime` is monotonic, which the hotkey matcher's window needs.
+    /// Hardware-keyboard presses that just went down, as quick-capture key events,
+    /// each with the identity `QuickCapture` dedups on. `systemUptime` is
+    /// monotonic, which the hotkey matcher's window needs.
+    ///
+    /// Dedup is on press identity plus `press.timestamp`, not on
+    /// `window.isKeyWindow`. Whichever window UIKit hands a key event to, the
+    /// press object and its timestamp are the same, so a press seen twice is
+    /// dropped without deciding which window owns it. A key-window check would
+    /// depend on which window is key at the moment of delivery, and would drop
+    /// the only delivery if UIKit ever routed a key to a window that is not
+    /// key. The cost is a scan of at most `CapturePressDeduplicator.capacity`
+    /// entries per key-down, and only while quick capture is armed.
     @MainActor
-    static func quickCaptureKeyEvents(_ presses: Set<UIPress>) -> [CaptureKeyEvent] {
+    static func quickCaptureKeyEvents(_ presses: Set<UIPress>) -> [(CaptureKeyEvent, CapturePressID)] {
         let now = ProcessInfo.processInfo.systemUptime
-        return presses.compactMap { press -> CaptureKeyEvent? in
-            guard let key = press.key else { return nil }
-            return CaptureKeyMapping.event(
+        return presses.compactMap { press -> (CaptureKeyEvent, CapturePressID)? in
+            guard let key = press.key, let event = CaptureKeyMapping.event(
                 keyCode: key.keyCode.rawValue,
                 charactersIgnoringModifiers: key.charactersIgnoringModifiers,
                 modifierFlags: key.modifierFlags.rawValue,
                 began: press.phase == .began,
                 at: now
-            )
+            ) else { return nil }
+            return (event, CapturePressID(press: ObjectIdentifier(press), timestamp: press.timestamp))
         }
     }
     #endif

@@ -41,6 +41,10 @@ final class QuickCaptureKeyDeliveryUITests: XCTestCase {
         tapShift()
         tapShift()
         XCTAssertTrue(waitForStatus("submits=1 quickCapture=true"), statusText())
+        // Exactly one: a Shift press UIKit hands the hook twice must not count
+        // as a second press and fire again.
+        sleep(2)
+        XCTAssertEqual(statusText(), "submits=1 quickCapture=true")
     }
 
     func testRemoteChordBindingFires() {

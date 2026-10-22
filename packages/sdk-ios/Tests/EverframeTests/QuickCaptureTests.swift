@@ -330,6 +330,33 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertTrue(submitted.first?.quickCapture == true)
     }
 
+    /// The hook passes each press's identity. A key-down that reaches it twice
+    /// must not count as the second Shift of a double Shift.
+    func testTheSamePressFedTwiceDoesNotFire() async throws {
+        let qc = makeArmed()
+        let press = NSObject()
+        let id = CapturePressID(press: ObjectIdentifier(press), timestamp: 42)
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0), press: id)
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0.01), press: id)
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertEqual(freezes, 0)
+
+        // A second, distinct press completes the double Shift.
+        let didSubmit = expectation(description: "submit")
+        qc.submit = { [unowned self] inputs in
+            self.submitted.append(inputs)
+            didSubmit.fulfill()
+            return .submitted(reportId: UUID())
+        }
+        let other = NSObject()
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0.2),
+                  press: CapturePressID(press: ObjectIdentifier(other), timestamp: 42.2))
+        await fulfillment(of: [didSubmit], timeout: 5)
+        XCTAssertEqual(submitted.count, 1)
+        withExtendedLifetime((press, other)) {}
+    }
+
     func testHandleIsInertWhenDisarmed() async throws {
         let qc = makeArmed()
         qc.publish(remote: nil)

@@ -56,4 +56,35 @@ final class CaptureHotkeyTests: XCTestCase {
         XCTAssertTrue(m.feed(.down(key: .character("b"), modifiers: [.command, .shift], isRepeat: false, at: 0)))
         XCTAssertFalse(m.feed(.down(key: .character("b"), modifiers: [.shift], isRepeat: false, at: 1)))
     }
+
+    // MARK: Press dedup
+
+    func testTheSamePressIsAdmittedOnce() {
+        let press = NSObject()
+        var dedup = CapturePressDeduplicator()
+        let id = CapturePressID(press: ObjectIdentifier(press), timestamp: 10)
+        XCTAssertTrue(dedup.admit(id))
+        XCTAssertFalse(dedup.admit(id))
+        XCTAssertFalse(dedup.admit(CapturePressID(press: ObjectIdentifier(press), timestamp: 10)))
+    }
+
+    /// A reused press object is a new press once its timestamp moves on, and
+    /// two press objects that went down together are two presses.
+    func testANewTimestampOrAnotherPressIsANewPress() {
+        let first = NSObject(), second = NSObject()
+        var dedup = CapturePressDeduplicator()
+        XCTAssertTrue(dedup.admit(CapturePressID(press: ObjectIdentifier(first), timestamp: 10)))
+        XCTAssertTrue(dedup.admit(CapturePressID(press: ObjectIdentifier(first), timestamp: 10.2)))
+        XCTAssertTrue(dedup.admit(CapturePressID(press: ObjectIdentifier(second), timestamp: 10.2)))
+    }
+
+    func testMemoryIsBounded() {
+        let presses = (0...CapturePressDeduplicator.capacity).map { _ in NSObject() }
+        var dedup = CapturePressDeduplicator()
+        let ids = presses.map { CapturePressID(press: ObjectIdentifier($0), timestamp: 1) }
+        for id in ids { XCTAssertTrue(dedup.admit(id)) }
+        // The oldest fell out; the newest is still remembered.
+        XCTAssertTrue(dedup.admit(ids[0]))
+        XCTAssertFalse(dedup.admit(ids[ids.count - 1]))
+    }
 }

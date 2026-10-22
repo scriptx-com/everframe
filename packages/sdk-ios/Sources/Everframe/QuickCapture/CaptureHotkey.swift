@@ -82,6 +82,31 @@ struct CaptureHotkeyMatcher {
     }
 }
 
+/// One physical key press: the `UIPress` object and its `timestamp`. UIKit can
+/// reuse a press object, and a freed object's address can be reused, so the
+/// timestamp keeps two presses of the same object apart.
+struct CapturePressID: Hashable {
+    let press: ObjectIdentifier
+    let timestamp: TimeInterval
+}
+
+/// Admits each key press once. If UIKit hands the same key-down to
+/// `UIWindow.sendEvent` more than once, for example once per window, the
+/// matcher must not count the repeat as the second Shift of a double Shift.
+/// Remembers the last few admitted presses only: a repeat delivery comes with
+/// the same dispatch, not several presses later.
+struct CapturePressDeduplicator {
+    static let capacity = 8
+    private var recent: [CapturePressID] = []
+
+    mutating func admit(_ id: CapturePressID) -> Bool {
+        guard !recent.contains(id) else { return false }
+        recent.append(id)
+        if recent.count > Self.capacity { recent.removeFirst() }
+        return true
+    }
+}
+
 /// Maps one hardware-keyboard press to a `CaptureKeyEvent`, on raw values so it
 /// stays UIKit-free and host-testable. The simulator-only `UIWindow.sendEvent`
 /// branch passes `UIKey.keyCode.rawValue`, `charactersIgnoringModifiers` and

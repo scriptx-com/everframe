@@ -105,6 +105,7 @@ final class QuickCapture {
     private let stateLock = NSLock()
     private let gate = QuickCaptureGate()
     private var matcher: CaptureHotkeyMatcher?
+    private var presses = CapturePressDeduplicator()
     private var inFlight = false
 
     nonisolated init() {}
@@ -166,10 +167,13 @@ final class QuickCapture {
     }
 
     /// Feeds one key-down. Never blocks: a match starts `capture()` on its own task.
-    func handle(_ event: CaptureKeyEvent) {
+    /// `press` names the physical press; one already fed is dropped (see
+    /// `CapturePressDeduplicator`).
+    func handle(_ event: CaptureKeyEvent, press: CapturePressID? = nil) {
         guard isSimulator else { return }
         let (reason, binding, _) = gate.evaluation
         guard reason == nil else { matcher = nil; return }
+        if let press, !presses.admit(press) { return }
         if matcher?.binding != binding || matcher?.window != doubleShiftWindow {
             matcher = CaptureHotkeyMatcher(binding: binding, window: doubleShiftWindow)
         }
