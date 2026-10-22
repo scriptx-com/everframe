@@ -472,7 +472,9 @@ dashboard. Like the reporter, a quick capture consumes the pending
   ever turns replay on. When quick capture disarms, replay follows the app's
   replay setting again: at the next config refresh when the dashboard setting
   changes, and at once on `kill()` or on a `start()` with
-  `quickCaptureEnabled = false`.
+  `quickCaptureEnabled = false`. A capture queued offline keeps its replay
+  when the retry runs while quick capture still forces replay for the same
+  project; a retry at any other time sends the report without the replay.
 - **Opt out** locally by setting `quickCaptureEnabled` to `false` on your
   config before `start`. Local `true` never overrides a dashboard disable.
 

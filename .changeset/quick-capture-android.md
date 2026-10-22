@@ -16,7 +16,9 @@ unaffected.
 When the block also sets `replay: true`, session replay records while quick
 capture is armed, even if the app's `replayEnabled` is false and regardless of
 its sampling rate. The flag never turns replay off; after a disarm, replay
-follows `replayEnabled` again.
+follows `replayEnabled` again. A quick capture queued offline keeps its replay
+when the retry runs while quick capture still forces replay for the same
+project.
 
 The public `ReporterTrigger` enum gained a `QuickCapture` case (raw value
 `quick_capture`). Host code that uses an exhaustive `when` over `ReporterTrigger`

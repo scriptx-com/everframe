@@ -6,8 +6,9 @@
 // true. The flag never turns replay off, and a disarm hands the decision back
 // to `replayEnabled` at the next config apply. Drives the real
 // `ReplaySession.refreshConfigNow()` seam against `QuickCapture.shared`, which
-// is the instance that seam publishes to. UIKit-gated: run on a simulator (see
-// TESTING.md).
+// is the instance that seam publishes to. Also covers the outbox drain: a
+// queued quick capture keeps its forced replay while forcing lasts.
+// UIKit-gated: run on a simulator (see TESTING.md).
 #if canImport(UIKit)
 import Foundation
 import Testing
@@ -33,6 +34,27 @@ private func config(replayEnabled: Bool, samplingRate: Double = 1, hotkey: Strin
 }
 
 private let forcing = #"{"enabled":true,"replay":true}"#
+
+/// Answers every request with `status`, and runs `onRequest` as each one starts.
+private final class QuickCaptureDrainURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var status = 200
+    nonisolated(unsafe) static var onRequest: (() -> Void)?
+    nonisolated(unsafe) static var replayRefs: [Int] = []
+
+    static func reset() { status = 200; onRequest = nil; replayRefs = [] }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        guard let url = request.url else { return }
+        Self.onRequest?()
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: url, statusCode: Self.status, httpVersion: "HTTP/1.1",
+                                                              headerFields: [:])!, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data())
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
 
 @MainActor @Suite(.serialized)
 struct QuickCaptureReplayTests {
@@ -236,6 +258,95 @@ struct QuickCaptureReplayTests {
             #expect(!QuickCapture.shared.forcesReplay)
             #expect(await eventually { session.__lifecycleStateForTesting() == .idle })
         }
+    }
+
+    /// A quick capture queued offline keeps the replay forcing allowed when the
+    /// outbox drains it later, while quick capture still forces replay.
+    @Test func aQueuedForcedQuickCaptureKeepsItsReplayOnDrain() async throws {
+        try await withArmedQuickCapture {
+            QuickCapture.shared.publish(remote: CaptureHotkeyConfigWire(enabled: true, replay: true))
+            #expect(QuickCapture.shared.forcesReplay)
+            let drained = try await drainQueuedReplay()
+            #expect(drained.uploads == 1)
+            #expect(drained.replayRefsAtUpload == [1], "the replay must still be in the entry it uploads")
+            #expect(drained.remaining == 0)
+        }
+    }
+
+    /// Without forcing, the drain still strips replay while `replayEnabled` is false.
+    @Test(arguments: [CaptureHotkeyConfigWire(enabled: true), CaptureHotkeyConfigWire(enabled: true, replay: false),
+                      CaptureHotkeyConfigWire(enabled: false, replay: true), nil])
+    func withoutForcingTheDrainStillStripsReplay(block: CaptureHotkeyConfigWire?) async throws {
+        try await withArmedQuickCapture {
+            QuickCapture.shared.publish(remote: block)
+            #expect(!QuickCapture.shared.forcesReplay)
+            let drained = try await drainQueuedReplay()
+            #expect(drained.uploads == 1)
+            #expect(drained.replayRefsAtUpload == [0], "revoked replay is removed before the retry")
+            #expect(drained.remaining == 0)
+        }
+    }
+
+    /// Forcing keeps replay only for the project that is running now.
+    @Test func forcingNeverKeepsAnotherProjectsQueuedReplay() async throws {
+        try await withArmedQuickCapture {
+            QuickCapture.shared.publish(remote: CaptureHotkeyConfigWire(enabled: true, replay: true))
+            let drained = try await drainQueuedReplay(entryKey: "another-project")
+            #expect(drained.replayRefsAtUpload == [0])
+        }
+    }
+
+    /// Forcing drives only the native video recorder, so it never keeps a
+    /// queued VTree replay.
+    @Test func forcingNeverKeepsAQueuedVTreeReplay() async throws {
+        try await withArmedQuickCapture {
+            QuickCapture.shared.publish(remote: CaptureHotkeyConfigWire(enabled: true, replay: true))
+            let drained = try await drainQueuedReplay(nativeVideo: false)
+            #expect(drained.replayRefsAtUpload == [0])
+        }
+    }
+
+    /// Queues one report with a replay (native video, or else VTree) for
+    /// `entryKey` while offline, then drains it with replay off as the running
+    /// project `quick-capture-drain`.
+    private func drainQueuedReplay(entryKey: String = "quick-capture-drain", nativeVideo: Bool = true) async throws
+        -> (uploads: Int, replayRefsAtUpload: [Int], remaining: Int) {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("quick-capture-drain-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let savedConfig = Everframe.shared.currentConfig
+        Everframe.__setConfigForTesting(EverframeConfig(sdkKey: "quick-capture-drain"))
+        Everframe.shared.__replayConfigOverrideForTesting = nil // replayEnabled false
+        let urlConfig = URLSessionConfiguration.ephemeral
+        urlConfig.protocolClasses = [QuickCaptureDrainURLProtocol.self]
+        let urlSession = URLSession(configuration: urlConfig)
+        defer {
+            urlSession.invalidateAndCancel()
+            QuickCaptureDrainURLProtocol.reset()
+            Everframe.__setConfigForTesting(savedConfig)
+            try? FileManager.default.removeItem(at: dir)
+        }
+        let box = JSONLOutbox(testFileURL: dir.appendingPathComponent("outbox.jsonl"))
+        QuickCaptureDrainURLProtocol.status = 503
+        let (filename, contentType) = nativeVideo ? ("replay.mp4", "video/mp4") : ("replay.json", "application/octet-stream")
+        let queued = try await ReportSubmitter(config: EverframeConfig(sdkKey: entryKey), outbox: box, session: urlSession)
+            .submit(
+                envelopeBytes: Data(#"{"quickCapture":true,"attachments":[{"partName":"replay","kind":"sessionReplay","contentType":"\#(contentType)"}],"captureControl":{"included":[],"excluded":[]}}"#.utf8),
+                idempotencyKey: "quick-capture-drain-idem",
+                attachments: [ReportSubmitter.Attachment(name: "replay", filename: filename,
+                    contentType: contentType, data: Data([1, 2, 3]), sha256Hex: "replay-hash")],
+                endpoint: IngestEndpoint.url.absoluteString)
+        guard case .queued = queued else { Issue.record("the offline upload must queue"); return (0, [], 0) }
+        QuickCaptureDrainURLProtocol.reset()
+        QuickCaptureDrainURLProtocol.onRequest = {
+            let refs = (try? box.hydrate().first)?.attachmentRefs.filter { $0.name == "replay" }.count ?? -1
+            QuickCaptureDrainURLProtocol.replayRefs.append(refs)
+        }
+        let epoch = Everframe.shared.currentStartEpoch
+        await ReportSubmitter(config: EverframeConfig(sdkKey: "quick-capture-drain"), outbox: box, session: urlSession)
+            .drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
+                         epochAtInitiation: epoch, currentEpoch: { Everframe.shared.currentStartEpoch })
+        return (QuickCaptureDrainURLProtocol.replayRefs.count, QuickCaptureDrainURLProtocol.replayRefs, box.count)
     }
 
     private func eventually(_ predicate: @MainActor () async -> Bool) async -> Bool {

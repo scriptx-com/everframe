@@ -355,15 +355,25 @@ public final class ReportSubmitter: Sendable {
                 )
             }
             var envelopeBytes = e.envelopeBytes
+            // Simulator quick capture's `captureHotkey.replay` forces only the
+            // native video recorder, so only a native video replay can ride on it.
+            let nativeVideoReplay = attachments.contains { $0.name == "replay" && $0.contentType == "video/mp4" }
             if attachments.contains(where: { $0.name == "replay" }) {
                 // A queued report may outlive consent or its capture project.
                 // Preserve the report, but never retry replay without a live
                 // enablement decision for the same project and endpoint.
                 let replayEnabledNow = (await currentReplayConfig()).replayEnabled
-                let replayAllowed = e.sdkKey == config.sdkKey
+                let sameProject = e.sdkKey == config.sdkKey
                     && e.endpoint == IngestEndpoint.url.absoluteString
                     && currentEpoch() == epochAtInitiation
-                    && replayEnabledNow
+                var replayAllowed = sameProject && replayEnabledNow
+                if sameProject && !replayEnabledNow && nativeVideoReplay {
+                    // A quick capture queued offline keeps the replay that
+                    // `captureHotkey.replay` forced, while quick capture still
+                    // forces replay for this same project and start.
+                    replayAllowed = await Self.quickCaptureForcesReplay()
+                        && currentEpoch() == epochAtInitiation
+                }
                 if !replayAllowed {
                     guard let stripped = Self.removingReplay(from: e) else {
                         continue // Keep the durable entry; do not upload inconsistent metadata.
@@ -444,7 +454,8 @@ public final class ReportSubmitter: Sendable {
                             && e.sdkKey == Everframe.shared.currentConfig?.sdkKey
                             && e.endpoint == IngestEndpoint.url.absoluteString
                             && currentEpoch() == epochAtInitiation
-                            && Everframe.shared.__hostReplayEnabledNow()
+                            && (Everframe.shared.__hostReplayEnabledNow()
+                                || (nativeVideoReplay && QuickCapture.shared.forcesReplay))
                     }
                     : self
                 #else
@@ -487,6 +498,17 @@ public final class ReportSubmitter: Sendable {
                 // request is safe because its idempotency key stays unchanged.
             }
         }
+    }
+
+    /// Whether simulator quick capture currently forces replay
+    /// (`captureHotkey.replay`). Always false without UIKit, where quick
+    /// capture does not exist.
+    private static func quickCaptureForcesReplay() async -> Bool {
+        #if canImport(UIKit)
+        return await MainActor.run { QuickCapture.shared.forcesReplay }
+        #else
+        return false
+        #endif
     }
 
     private static func removingReplay(from entry: OutboxEntry) -> OutboxEntry? {

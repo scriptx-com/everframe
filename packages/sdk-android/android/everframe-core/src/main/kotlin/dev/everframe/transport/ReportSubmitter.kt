@@ -365,11 +365,19 @@ class ReportSubmitter(
             // its upgrade requests that pass when it finishes.
             if (dev.everframe.crash.ErrorReplayHolds.isHeld(entry.reportId)) return@drainOwned false
             try {
+                val hostReplay = entry.attachmentRefs.any { it.name == "replay" &&
+                    it.filename == "replay.json" && it.contentType == "application/octet-stream" }
+                // A quick capture queued offline keeps the replay `captureHotkey.replay` forced, but only while
+                // quick capture still forces replay for the project and endpoint this entry belongs to.
+                val forcedReplay = !hostReplay &&
+                    entry.sdkKey == config.sdkKey &&
+                    entry.endpoint == endpointAtInitiation &&
+                    endpointUrl == endpointAtInitiation &&
+                    currentEpoch() == epochAtInitiation &&
+                    dev.everframe.quickcapture.QuickCapture.forcesReplay
                 val authority = OutboxDrainAuthorization(outbox.store, pending.token,
                     ReportAuthorizationFactory.forPending(drainSession, endpointAtInitiation,
-                        entry.endpoint, entry.sdkKey,
-                        hostReplay = entry.attachmentRefs.any { it.name == "replay" &&
-                            it.filename == "replay.json" && it.contentType == "application/octet-stream" }))
+                        entry.endpoint, entry.sdkKey, hostReplay = hostReplay, forcedReplay = forcedReplay))
                 val parts = entry.attachmentRefs.map { ref ->
                     MultipartUploader.Part(
                         name = ref.name,
