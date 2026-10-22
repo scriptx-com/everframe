@@ -175,6 +175,17 @@ public struct ShakeToReportConfigWire: Decodable, Sendable, Equatable {
     public init(enabled: Bool) { self.enabled = enabled }
 }
 
+/// Simulator quick-capture hotkey. `binding` is optional on the wire; the consumer applies the default
+/// binding. The outer decoder degrades malformed blocks to nil.
+public struct CaptureHotkeyConfigWire: Decodable, Sendable, Equatable {
+    public let enabled: Bool
+    public let binding: String?
+    public init(enabled: Bool, binding: String? = nil) {
+        self.enabled = enabled
+        self.binding = binding
+    }
+}
+
 /// Server-driven companion name-badge override (plan 2026-08-25). Present
 /// only when this Everframe SDK declared `companionbadge` in `X-Everframe-SDK-Features`.
 /// `position` stays a STRING here (wire shape); resolution to
@@ -291,6 +302,7 @@ public struct ReplayConfig: Sendable, Equatable {
     public let branding: BrandingConfigWire?
     public let resources: ResourcesConfigWire?
     public let shakeToReport: ShakeToReportConfigWire?
+    public let captureHotkey: CaptureHotkeyConfigWire?
     /// Session Vitals (iOS spec 2026-09-05 §1). `nil` per-field means "no
     /// server opinion" — see `toVitalsServerConfig()`'s defaulting.
     public let vitalsEnabled: Bool?
@@ -311,6 +323,7 @@ public struct ReplayConfig: Sendable, Equatable {
         branding: BrandingConfigWire? = nil,
         resources: ResourcesConfigWire? = nil,
         shakeToReport: ShakeToReportConfigWire? = nil,
+        captureHotkey: CaptureHotkeyConfigWire? = nil,
         nativeVideo: NativeVideoSettings? = NativeVideoSettings(),
         vitalsEnabled: Bool? = nil,
         vitalsSampleRate: Double? = nil,
@@ -326,6 +339,7 @@ public struct ReplayConfig: Sendable, Equatable {
         self.branding = branding
         self.resources = resources
         self.shakeToReport = shakeToReport
+        self.captureHotkey = captureHotkey
         self.nativeVideo = nativeVideo
         self.vitalsEnabled = vitalsEnabled
         self.vitalsSampleRate = vitalsSampleRate
@@ -359,6 +373,7 @@ private struct ReplayConfigWire: Decodable {
     let branding: BrandingConfigWire?
     let resources: ResourcesConfigWire?
     let shakeToReport: ShakeToReportConfigWire?
+    let captureHotkey: CaptureHotkeyConfigWire?
     let vitalsEnabled: Bool?
     let vitalsSampleRate: Double?
     let crashOnlySamplingRate: Double?
@@ -399,6 +414,7 @@ private struct ReplayConfigWire: Decodable {
         // see ResourcesConfigWire's doc comment.
         resources = (try? c.decodeIfPresent(ResourcesConfigWire.self, forKey: .resources)) ?? nil
         shakeToReport = (try? c.decodeIfPresent(ShakeToReportConfigWire.self, forKey: .shakeToReport)) ?? nil
+        captureHotkey = (try? c.decodeIfPresent(CaptureHotkeyConfigWire.self, forKey: .captureHotkey)) ?? nil
         // Session Vitals (iOS spec 2026-09-05 §1) — per-field lenient, the
         // branding block's posture: a wrong-typed field degrades THAT FIELD
         // alone. Clamping to [0,1] happens in toVitalsServerConfig().
@@ -414,7 +430,7 @@ private struct ReplayConfigWire: Decodable {
     enum CodingKeys: String, CodingKey {
         case replayEnabled, replayDurationSec, samplingRate, breadcrumbs, networkBodies, identity
         case companionBadge, branding, nativeVideo, vitalsEnabled, vitalsSampleRate
-        case resources, shakeToReport, crashOnlySamplingRate
+        case resources, shakeToReport, captureHotkey, crashOnlySamplingRate
     }
 
     var config: ReplayConfig {
@@ -429,6 +445,7 @@ private struct ReplayConfigWire: Decodable {
             branding: branding,
             resources: resources,
             shakeToReport: shakeToReport,
+            captureHotkey: captureHotkey,
             nativeVideo: nativeVideo,
             vitalsEnabled: vitalsEnabled,
             vitalsSampleRate: vitalsSampleRate,
@@ -648,7 +665,7 @@ extension ReplayConfigProvider {
     /// (the server configuration contract) — so adding a block here is a
     /// prerequisite for receiving it, not a formality.
     public static let sdkFeaturesHeaderValue =
-        "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly"
+        "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey"
 
     /// Test seam: decode a raw `/api/config` body exactly as `refresh()` does.
     static func __decodeForTesting(_ data: Data) throws -> ReplayConfig {
