@@ -145,6 +145,35 @@ class ReplayConfigProviderTest {
     }
 
     @Test
+    fun `captureHotkey replay flag decodes and is null when absent`() = runTest {
+        var body = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"captureHotkey":{"enabled":true,"replay":true}}"""
+        val p = provider(fetcher = { response(200, body) })
+
+        assertTrue(p.refresh(force = true))
+        assertEquals(CaptureHotkeyConfigWire(enabled = true, replay = true), p.current.captureHotkey)
+
+        body = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"captureHotkey":{"enabled":true,"replay":false}}"""
+        assertTrue(p.refresh(force = true))
+        assertEquals(false, p.current.captureHotkey?.replay)
+
+        body = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"captureHotkey":{"enabled":true,"binding":"Shift Shift"}}"""
+        assertTrue(p.refresh(force = true))
+        assertEquals(CaptureHotkeyConfigWire(enabled = true, binding = "Shift Shift"), p.current.captureHotkey)
+        assertNull(p.current.captureHotkey?.replay)
+    }
+
+    @Test
+    fun `malformed captureHotkey replay flag is null and keeps the block`() = runTest {
+        for (bad in listOf(""""yes"""", "1", "null", """{"on":true}""", "[true]")) {
+            val p = provider(fetcher = {
+                response(200, """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"captureHotkey":{"enabled":true,"binding":"Shift Shift","replay":$bad}}""")
+            })
+            assertTrue(p.refresh(force = true))
+            assertEquals("replay=$bad", CaptureHotkeyConfigWire(enabled = true, binding = "Shift Shift", replay = null), p.current.captureHotkey)
+        }
+    }
+
+    @Test
     fun `quickCaptureEnabled defaults to true`() {
         val c = EverframeConfig(appId = "app", sdkKey = "txx_live_test1234567890")
         assertTrue(c.quickCaptureEnabled)

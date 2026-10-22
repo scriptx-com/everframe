@@ -222,12 +222,21 @@ class ReplaySession(
                 NetworkBodyCaptureState.breadcrumbsExcludeNetwork(latest.breadcrumbs),
             guard = { currentGenerationValid(capturedEpoch) })
         sharedNetworkBodyBuffer.setTotalBudget(latest.networkBodies?.bodyTotalBudget ?: 262144) { currentGenerationValid(capturedEpoch) }
+        // Emulator quick capture's `captureHotkey.replay`: replay also records while quick capture is armed,
+        // even with `replayEnabled` false, and regardless of sampling, because that is a developer's debug
+        // session. Duration, frame rate and the session's admission still come from this config. Read after
+        // this refresh published its block above, and outside the authorization lock (QuickCapture has its
+        // own). Only `start()`/`kill()` change the rest of the gate, and both supersede this session, which
+        // the generation check below and their teardown then stop.
+        val replayForced = dev.everframe.quickcapture.QuickCapture.forcesReplay
         Everframe.withReportAuthorizationLock {
             if (!currentGenerationValid(capturedEpoch)) return@withReportAuthorizationLock
             // One draw for every kind, and an admission is kept for the session: a refresh that lowers a
-            // rate, or an upgrade that sees lower rates, never stops a recording.
-            val effective = effectiveNativeVideo(latest, succeeded, locallyDisabled)
-                ?.takeIf { admitsLocked(coverage, latest) }
+            // rate, or an upgrade that sees lower rates, never stops a recording. Forcing bypasses the
+            // admission but never replaces it: the draw is still checked at the configured rate first, and
+            // decides again once forcing ends.
+            val effective = effectiveNativeVideo(latest, succeeded, locallyDisabled, forced = replayForced)
+                ?.takeIf { admitsLocked(coverage, latest) || replayForced }
             val decision = VideoPolicy(effective, latest.replayDurationSec)
             if (authorized && videoPolicy != decision) revokeReplayLocked()
             videoPolicy = decision

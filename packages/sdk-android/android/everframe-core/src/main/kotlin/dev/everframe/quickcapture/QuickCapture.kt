@@ -17,6 +17,9 @@
 // and returns no data, and every capture still passes the gate below (the
 // dashboard's `captureHotkey` block, a current activity, no reporter on screen,
 // no other capture holding the freeze).
+//
+// The block's `replay` flag also records session replay while quick capture is armed, whatever the
+// app's `replayEnabled` ([QuickCapture.forcesReplay]).
 package dev.everframe.quickcapture
 
 import android.app.Activity
@@ -91,6 +94,7 @@ internal object QuickCapture {
     @Volatile private var debug = false
     @Volatile private var localEnabled = false
     @Volatile private var remoteEnabled = false
+    @Volatile private var remoteReplay = false
     private val inFlight = AtomicBoolean(false)
 
     /**
@@ -111,6 +115,7 @@ internal object QuickCapture {
             this.debug = debug
             this.localEnabled = localEnabled
             remoteEnabled = false
+            remoteReplay = false
             if (!debug || !localEnabled || !isEmulator()) return
             val app = context.applicationContext ?: context
             val next = Receiver()
@@ -135,8 +140,23 @@ internal object QuickCapture {
         synchronized(lock) {
             if (!isCurrent()) return
             remoteEnabled = wire?.enabled == true
+            remoteReplay = wire?.replay == true
         }
     }
+
+    /**
+     * True while quick capture is armed (debug build, emulator, local opt-in, the dashboard's block enabled,
+     * the receiver installed, kill switch open) and the block's `replay` flag is set. `ReplaySession` then
+     * records replay even when `replayEnabled` is false; this never turns replay off. Release builds and
+     * real devices never install the receiver, so it is always false there. `ReplaySession` reads it at
+     * every config apply, right after publishing that config's block, so a disarm stops a forced
+     * recording at the next apply, and `kill()` tears the replay session down with it.
+     */
+    val forcesReplay: Boolean
+        get() {
+            val flagged = synchronized(lock) { receiver != null && debug && localEnabled && remoteEnabled && remoteReplay }
+            return flagged && Everframe.captureGate && isEmulator()
+        }
 
     /** Called from `kill()`. */
     fun teardown(isCurrent: () -> Boolean = { true }) {
@@ -146,6 +166,7 @@ internal object QuickCapture {
             debug = false
             localEnabled = false
             remoteEnabled = false
+            remoteReplay = false
         }
     }
 

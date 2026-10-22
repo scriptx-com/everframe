@@ -28,6 +28,19 @@ class NativeVideoSettingsTest {
     }
 
     @Test
+    fun `forced replay records with replay off but still needs a confirmed config, settings and no local veto`() {
+        val off = ReplayConfig(false, 30, 1.0, nativeVideo = NativeVideoSettings(5))
+
+        assertNull(effectiveNativeVideo(off, true, sdkInt = 29))
+        assertEquals(5, effectiveNativeVideo(off, true, sdkInt = 29, forced = true)?.framesPerSecond)
+        assertEquals(5, effectiveNativeVideo(off.copy(replayEnabled = true), true, sdkInt = 29, forced = false)?.framesPerSecond)
+        assertNull(effectiveNativeVideo(off, false, sdkInt = 29, forced = true))
+        assertNull(effectiveNativeVideo(off.copy(nativeVideo = null), true, sdkInt = 29, forced = true))
+        assertNull(effectiveNativeVideo(off, true, locallyDisabled = true, sdkInt = 29, forced = true))
+        assertNull(effectiveNativeVideo(off, true, sdkInt = 28, forced = true))
+    }
+
+    @Test
     fun `effective settings reject unsupported programmatic frame rates`() {
         for (framesPerSecond in listOf(0, 3, 6, 60)) {
             val config = ReplayConfig(

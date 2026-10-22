@@ -155,6 +155,15 @@ dashboard. Like the reporter, a quick capture consumes the pending
   ignored while a quick capture is in flight, but an explicit `report.open()`
   during that upload still opens the reporter, and that report may then miss
   the frozen replay and evidence.
+- **Replay.** When the dashboard's capture hotkey setting also turns on
+  replay (`captureHotkey.replay`), session replay records while quick capture
+  is armed, even if the app's replay setting is off. It records regardless of
+  the sampling rate, because this is your own debug session; the replay
+  duration and frame rate still come from the app's settings. The flag only
+  ever turns replay on. When quick capture disarms, replay follows the app's
+  replay setting again: at the next config refresh when the dashboard setting
+  changes, and at once on `kill()` or on a `start()` with
+  `quickCaptureEnabled = false`.
 - **Opt out** locally with `EverframeConfig(..., quickCaptureEnabled = false)`.
   Local `true` never overrides a dashboard disable.
 - **Token.** When the emulator's global setting `everframe_token` holds your

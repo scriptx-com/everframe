@@ -13,6 +13,11 @@ in the project config, and can be turned off locally with
 `quickCaptureEnabled = false`. Physical devices and release builds are
 unaffected.
 
+When the block also sets `replay: true`, session replay records while quick
+capture is armed, even if the app's `replayEnabled` is false and regardless of
+its sampling rate. The flag never turns replay off; after a disarm, replay
+follows `replayEnabled` again.
+
 The public `ReporterTrigger` enum gained a `QuickCapture` case (raw value
 `quick_capture`). Host code that uses an exhaustive `when` over `ReporterTrigger`
 needs an `else` branch.

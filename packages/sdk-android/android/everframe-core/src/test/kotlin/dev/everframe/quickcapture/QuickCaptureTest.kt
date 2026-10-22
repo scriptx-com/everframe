@@ -165,6 +165,59 @@ class QuickCaptureTest {
     }
 
     @Test
+    fun forcesReplayOnlyWhileArmedWithTheFlag() {
+        val forcing = CaptureHotkeyConfigWire(enabled = true, replay = true)
+        assertFalse("nothing installed", QuickCapture.forcesReplay)
+
+        QuickCapture.install(app, localEnabled = true, debug = true)
+        assertFalse("no block yet", QuickCapture.forcesReplay)
+        QuickCapture.publishRemote(forcing)
+        assertTrue(QuickCapture.forcesReplay)
+
+        QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = true))
+        assertFalse("flag absent", QuickCapture.forcesReplay)
+        QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = true, replay = false))
+        assertFalse("flag false", QuickCapture.forcesReplay)
+        QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = false, replay = true))
+        assertFalse("block disabled", QuickCapture.forcesReplay)
+        QuickCapture.publishRemote(null)
+        assertFalse("no block", QuickCapture.forcesReplay)
+
+        QuickCapture.publishRemote(forcing)
+        QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = false), isCurrent = { false })
+        assertTrue("a stale publish changes nothing", QuickCapture.forcesReplay)
+
+        Everframe.captureGate = false
+        assertFalse("kill switch closed", QuickCapture.forcesReplay)
+        Everframe.captureGate = true
+        assertTrue(QuickCapture.forcesReplay)
+
+        QuickCapture.isEmulator = { false }
+        assertFalse("not an emulator", QuickCapture.forcesReplay)
+        QuickCapture.isEmulator = { true }
+
+        QuickCapture.teardown()
+        assertFalse("torn down", QuickCapture.forcesReplay)
+
+        QuickCapture.install(app, localEnabled = true, debug = true)
+        assertFalse("a new session starts unforced", QuickCapture.forcesReplay)
+
+        QuickCapture.install(app, localEnabled = false, debug = true)
+        QuickCapture.publishRemote(forcing)
+        assertFalse("local opt-out", QuickCapture.forcesReplay)
+
+        QuickCapture.install(app, localEnabled = true, debug = false)
+        QuickCapture.publishRemote(forcing)
+        assertFalse("release build", QuickCapture.forcesReplay)
+
+        QuickCapture.isEmulator = { false }
+        QuickCapture.install(app, localEnabled = true, debug = true)
+        QuickCapture.isEmulator = { true }
+        QuickCapture.publishRemote(forcing)
+        assertFalse("no receiver installed (real device)", QuickCapture.forcesReplay)
+    }
+
+    @Test
     fun staleRemotePublishIsIgnored() {
         QuickCapture.install(app, localEnabled = true, debug = true)
         QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = true), isCurrent = { false })

@@ -493,13 +493,21 @@ private object ShakeToReportConfigWireSerializer : KSerializer<ShakeToReportConf
 /**
  * Simulator quick-capture dashboard gate. A malformed block degrades to absent; `binding` is parsed but
  * ignored on Android, whose trigger is on the host.
+ *
+ * `replay: true` records session replay while quick capture is armed, even when `replayEnabled` is false.
+ * It never turns replay off. Decoded on its own: a missing or malformed value is null and leaves the rest
+ * of the block intact.
  */
 @Serializable(with = CaptureHotkeyConfigWireSerializer::class)
-data class CaptureHotkeyConfigWire(val enabled: Boolean, val binding: String? = null)
+data class CaptureHotkeyConfigWire(val enabled: Boolean, val binding: String? = null, val replay: Boolean? = null)
 
 private object CaptureHotkeyConfigWireSerializer : KSerializer<CaptureHotkeyConfigWire> {
     @Serializable
-    private data class Surrogate(val enabled: Boolean, val binding: String? = null)
+    private data class Surrogate(
+        val enabled: Boolean,
+        val binding: String? = null,
+        @Serializable(with = LenientBooleanSerializer::class) val replay: Boolean? = null,
+    )
 
     private val lenient = Json { ignoreUnknownKeys = true }
     internal val INVALID = CaptureHotkeyConfigWire(enabled = false)
@@ -508,13 +516,13 @@ private object CaptureHotkeyConfigWireSerializer : KSerializer<CaptureHotkeyConf
     override fun deserialize(decoder: Decoder): CaptureHotkeyConfigWire = try {
         val element = (decoder as JsonDecoder).decodeJsonElement()
         val value = lenient.decodeFromJsonElement(Surrogate.serializer(), element)
-        CaptureHotkeyConfigWire(value.enabled, value.binding)
+        CaptureHotkeyConfigWire(value.enabled, value.binding, value.replay)
     } catch (_: Throwable) {
         INVALID
     }
 
     override fun serialize(encoder: Encoder, value: CaptureHotkeyConfigWire) {
-        encoder.encodeSerializableValue(Surrogate.serializer(), Surrogate(value.enabled, value.binding))
+        encoder.encodeSerializableValue(Surrogate.serializer(), Surrogate(value.enabled, value.binding, value.replay))
     }
 }
 
