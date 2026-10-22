@@ -490,6 +490,34 @@ private object ShakeToReportConfigWireSerializer : KSerializer<ShakeToReportConf
     }
 }
 
+/**
+ * Simulator quick-capture dashboard gate. A malformed block degrades to absent; `binding` is parsed but
+ * ignored on Android, whose trigger is on the host.
+ */
+@Serializable(with = CaptureHotkeyConfigWireSerializer::class)
+data class CaptureHotkeyConfigWire(val enabled: Boolean, val binding: String? = null)
+
+private object CaptureHotkeyConfigWireSerializer : KSerializer<CaptureHotkeyConfigWire> {
+    @Serializable
+    private data class Surrogate(val enabled: Boolean, val binding: String? = null)
+
+    private val lenient = Json { ignoreUnknownKeys = true }
+    internal val INVALID = CaptureHotkeyConfigWire(enabled = false)
+    override val descriptor = Surrogate.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): CaptureHotkeyConfigWire = try {
+        val element = (decoder as JsonDecoder).decodeJsonElement()
+        val value = lenient.decodeFromJsonElement(Surrogate.serializer(), element)
+        CaptureHotkeyConfigWire(value.enabled, value.binding)
+    } catch (_: Throwable) {
+        INVALID
+    }
+
+    override fun serialize(encoder: Encoder, value: CaptureHotkeyConfigWire) {
+        encoder.encodeSerializableValue(Surrogate.serializer(), Surrogate(value.enabled, value.binding))
+    }
+}
+
 /** Decodes a JSON boolean; anything else (string "true", number, null) → null. Per-field leniency for a top-level scalar. */
 object LenientBooleanSerializer : KSerializer<Boolean?> {
     override val descriptor = PrimitiveSerialDescriptor("LenientBoolean", PrimitiveKind.BOOLEAN).nullable
@@ -527,6 +555,7 @@ data class ReplayConfig(
     val branding: BrandingConfigWire? = null,
     val resources: ResourcesConfigWire? = null,
     val shakeToReport: ShakeToReportConfigWire? = null,
+    val captureHotkey: CaptureHotkeyConfigWire? = null,
     /** Session Vitals (spec 2026-09-05) — negotiated via the `vitals` feature token; null when the server did not send them. */
     val vitalsEnabled: Boolean? = null,
     val vitalsSampleRate: Double? = null,
@@ -571,6 +600,7 @@ private data class ReplayConfigWire(
     val branding: BrandingConfigWire? = null,
     val resources: ResourcesConfigWire? = null,
     val shakeToReport: ShakeToReportConfigWire? = null,
+    val captureHotkey: CaptureHotkeyConfigWire? = null,
     @Serializable(with = LenientBooleanSerializer::class) val vitalsEnabled: Boolean? = null,
     @Serializable(with = LenientDoubleSerializer::class) val vitalsSampleRate: Double? = null,
     val nativeVideo: NativeVideoSettings? = null,
@@ -767,6 +797,9 @@ class ReplayConfigProvider(
                     shakeToReport = wire.shakeToReport?.takeUnless {
                         it === ShakeToReportConfigWireSerializer.INVALID
                     },
+                    captureHotkey = wire.captureHotkey?.takeUnless {
+                        it === CaptureHotkeyConfigWireSerializer.INVALID
+                    },
                     vitalsEnabled = wire.vitalsEnabled,
                     vitalsSampleRate = wire.vitalsSampleRate,
                     nativeVideo = wire.nativeVideo,
@@ -839,7 +872,7 @@ class ReplayConfigProvider(
          * strict decoder would otherwise reject as an unknown key.
          */
         val SDK_FEATURES_HEADER_VALUE: String
-            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly" +
+            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey" +
                 if (android.os.Build.VERSION.SDK_INT >= 29) ", nativevideo, nativevideolowfps" else ""
 
         /**
