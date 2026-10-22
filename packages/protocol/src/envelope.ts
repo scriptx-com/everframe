@@ -34,6 +34,9 @@ export const ReportEnvelope = z
     // 'crash' = process-terminating unhandled exception; 'error' = non-fatal
     // uncaught (web onerror/unhandledrejection, RN non-fatal).
     source: z.enum(['manual', 'crash', 'error', 'diagnostic']).optional(),
+    // Filed by the debug quick-capture trigger; ingest files it as an unfiled
+    // capture. Additive optional — absent means a normal report.
+    quickCapture: z.boolean().optional(),
     // Session vitals (spec 2026-09-01): the always-on collector's session,
     // stamped when vitals were running at submit time. Additive optional —
     // absent on every pre-vitals envelope and whenever vitals are disabled.

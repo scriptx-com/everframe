@@ -49,6 +49,22 @@ describe('SDK-04: generated JSON Schema', () => {
   });
 });
 
+describe('quickCapture schema parity', () => {
+  const ajv = new AjvCtor({ strict: false, allErrors: true });
+  addFormatsFn(ajv);
+  const validate = ajv.compile(jsonSchema);
+
+  it.each([
+    ['true', true, true],
+    ['false', false, true],
+    ['a string', 'yes', false],
+  ] as const)('%s has the same result in Ajv and Zod', (_name, quickCapture, accepted) => {
+    const envelope = { ...structuredClone(minimal), quickCapture };
+    expect(ReportEnvelope.safeParse(envelope).success).toBe(accepted);
+    expect(validate(envelope)).toBe(accepted);
+  });
+});
+
 describe('Hermes build identity schema parity', () => {
   const ajv = new AjvCtor({ strict: false, allErrors: true });
   addFormatsFn(ajv);

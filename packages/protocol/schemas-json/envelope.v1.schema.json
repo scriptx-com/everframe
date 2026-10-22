@@ -25,6 +25,9 @@
         "diagnostic"
       ]
     },
+    "quickCapture": {
+      "type": "boolean"
+    },
     "sessionId": {
       "type": "string",
       "format": "uuid",

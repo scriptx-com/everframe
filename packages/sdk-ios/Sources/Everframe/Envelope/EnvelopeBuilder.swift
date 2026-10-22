@@ -522,6 +522,7 @@ public struct EnvelopeBuilder {
             context: context,
             payload: payload,
             protocolVersion: EverframeProtocolVersion.the10,
+            quickCapture: nil,
             reporter: reporter,
             reportID: reportId.uuidString,
             sdk: EverframeSDK(
