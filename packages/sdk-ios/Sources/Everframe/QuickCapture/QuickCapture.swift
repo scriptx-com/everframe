@@ -96,6 +96,8 @@ final class QuickCapture {
     var isApplicationActive: @MainActor () -> Bool = { UIApplication.shared.applicationState == .active }
     var lifecycle: Lifecycle = .live
     var showToast: @MainActor (String) -> Void = { QuickCaptureToast.show(text: $0) }
+    /// Replaces the task `handle` and the Darwin notification start on a trigger.
+    var triggerOverride: (@MainActor () -> Void)?
     /// The double-Shift window. The key-delivery proof widens it, because
     /// XCTest spaces synthesized key presses seconds apart.
     var doubleShiftWindow: TimeInterval = CaptureHotkeyMatcher.defaultWindow
@@ -108,7 +110,17 @@ final class QuickCapture {
     private var presses = CapturePressDeduplicator()
     private var inFlight = false
 
+    nonisolated static let darwinCaptureNotification = "com.everframe.capture"
+    nonisolated(unsafe) private var darwinObserverInstalled = false
+
     nonisolated init() {}
+
+    deinit {
+        #if targetEnvironment(simulator)
+        CFNotificationCenterRemoveEveryObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(), Unmanaged.passUnretained(self).toOpaque())
+        #endif
+    }
 
     nonisolated private static var runningOnSimulator: Bool {
         #if targetEnvironment(simulator)
@@ -125,6 +137,38 @@ final class QuickCapture {
         stateLock.lock(); defer { stateLock.unlock() }
         guard ifCurrent() else { return }
         gate.reset(localEnabled: localEnabled, debug: debug)
+        installDarwinObserver()
+    }
+
+    /// Listens for `xcrun simctl spawn <udid> notifyutil -p com.everframe.capture`.
+    /// Installed once, kept for the process lifetime; callers hold `stateLock`.
+    nonisolated private func installDarwinObserver() {
+        #if targetEnvironment(simulator)
+        guard !darwinObserverInstalled else { return }
+        darwinObserverInstalled = true
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            Unmanaged.passUnretained(self).toOpaque(),
+            { _, observer, _, _, _ in
+                guard let observer else { return }
+                let capture = Unmanaged<QuickCapture>.fromOpaque(observer).takeUnretainedValue()
+                Task { @MainActor in capture.darwinNotificationReceived() }
+            },
+            Self.darwinCaptureNotification as CFString,
+            nil,
+            .deliverImmediately
+        )
+        #endif
+    }
+
+    func darwinNotificationReceived() {
+        guard isArmed else { return }
+        startCapture()
+    }
+
+    private func startCapture() {
+        if let triggerOverride { triggerOverride(); return }
+        Task { @MainActor in _ = await self.capture() }
     }
 
     nonisolated func publish(remote: CaptureHotkeyConfigWire?, ifCurrent: () -> Bool = { true }) {
@@ -178,7 +222,7 @@ final class QuickCapture {
             matcher = CaptureHotkeyMatcher(binding: binding, window: doubleShiftWindow)
         }
         guard matcher?.feed(event) == true else { return }
-        Task { @MainActor in _ = await self.capture() }
+        startCapture()
     }
 
     // MARK: Pipeline

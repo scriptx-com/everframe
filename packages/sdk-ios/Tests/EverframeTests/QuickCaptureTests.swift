@@ -78,6 +78,40 @@ final class QuickCaptureTests: XCTestCase {
         return reason.map { $0 == got } ?? true
     }
 
+    private func postCaptureNotification() async {
+        CFNotificationCenterPostNotification(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName(QuickCapture.darwinCaptureNotification as CFString), nil, nil, true)
+        try? await Task.sleep(nanoseconds: 500_000_000)
+    }
+
+    func testDarwinNotificationTriggersCaptureWhenArmed() async {
+        let qc = makeArmed()
+        var calls = 0
+        qc.triggerOverride = { calls += 1 }
+        await postCaptureNotification()
+        XCTAssertEqual(calls, 1)
+    }
+
+    func testDarwinNotificationIgnoredWhenDisarmed() async {
+        let qc = makeArmed()
+        qc.publish(remote: nil)
+        var calls = 0
+        qc.triggerOverride = { calls += 1 }
+        await postCaptureNotification()
+        XCTAssertEqual(calls, 0)
+    }
+
+    func testDarwinObserverRegisteredOnce() async {
+        let qc = makeArmed()
+        qc.beginSession(localEnabled: true, debug: true)
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true))
+        var calls = 0
+        qc.triggerOverride = { calls += 1 }
+        await postCaptureNotification()
+        XCTAssertEqual(calls, 1)
+    }
+
     func testIgnoredWithoutRemoteBlock() async {
         let qc = makeArmed()
         qc.publish(remote: nil)
