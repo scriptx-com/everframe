@@ -566,6 +566,9 @@ public final class ReplaySession: NSObject {
         ShakeToReportTrigger.shared.publish(remoteEnabled: latest.shakeToReport?.enabled) {
             Everframe.shared.currentStartEpoch == startEpochAtCreation
         }
+        QuickCapture.shared.publish(remote: latest.captureHotkey) {
+            Everframe.shared.currentStartEpoch == startEpochAtCreation
+        }
         // A server that sends no crash-only rate leaves crash-only sessions
         // unrecorded, so their errors carry no replay (ErrorReplayGate).
         video.apply(

@@ -280,7 +280,10 @@ public enum ScreenshotCapture {
         // Everframe SDK overlay window even when it is momentarily the only visible
         // one — the level rule below remains the tie-breaker for ordinary
         // host layering, it just never gets to see this window at all.
-        let nonBadgeCandidates = candidates.filter { !($0 is EFCompanionBadgeWindow) }
+        // The quick-capture toast is excluded for the same reason.
+        let nonBadgeCandidates = candidates.filter {
+            !($0 is EFCompanionBadgeWindow) && !($0 is EFQuickCaptureToastWindow)
+        }
         // Lowest windowLevel = host's main window. Tie-breaker: prefer the
         // current isKeyWindow if multiple windows share that level.
         return nonBadgeCandidates

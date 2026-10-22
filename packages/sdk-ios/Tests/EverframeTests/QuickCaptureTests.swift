@@ -1,0 +1,317 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+//
+// Simulator quick capture: the gate, the headless pipeline and the toast
+// window's capture exclusion. UIKit-gated, so `swift test` on the macOS host
+// compiles this to nothing; run it on a simulator (see TESTING.md).
+//
+// A SwiftPM test bundle has no UI scenes, so the screenshot comes from a
+// plain `UIWindow(frame:)` handed to `ScreenshotCapture.__windowsOverrideForTesting`,
+// and the replay lifecycle is a counting stub so no test leaves the shared
+// breadcrumb/replay buffers frozen for the next one.
+#if canImport(UIKit)
+import UIKit
+import XCTest
+@testable import EverframeKit
+
+@MainActor
+final class QuickCaptureTests: XCTestCase {
+    private var home: String!
+    private var hostWindow: UIWindow!
+    private var submitted: [ReporterSubmission.Inputs] = []
+    private var freezes = 0
+    private var closes: [UUID] = []
+    private var cancels: [UUID] = []
+
+    override func setUp() async throws {
+        home = NSTemporaryDirectory() + "evf-qc-" + UUID().uuidString
+        try FileManager.default.createDirectory(atPath: home + "/.everframe", withIntermediateDirectories: true)
+        try #"{"token":"t1"}"#.write(toFile: home + "/.everframe/credentials", atomically: true, encoding: .utf8)
+        hostWindow = UIWindow(frame: CGRect(x: 0, y: 0, width: 120, height: 200))
+        hostWindow.isHidden = false
+        ScreenshotCapture.__windowsOverrideForTesting = [hostWindow]
+        submitted = []
+        freezes = 0
+        closes = []
+        cancels = []
+    }
+
+    override func tearDown() async throws {
+        ScreenshotCapture.__windowsOverrideForTesting = nil
+        ReportAPI.__performSetPresenting(false)
+        hostWindow.isHidden = true
+        try? FileManager.default.removeItem(atPath: home)
+    }
+
+    /// A fully armed capture with every seam stubbed. `submit` defaults to an
+    /// immediate `.submitted`.
+    private func makeArmed(
+        submit: (@MainActor (ReporterSubmission.Inputs) async throws -> ReportResult)? = nil
+    ) -> QuickCapture {
+        let qc = QuickCapture()
+        qc.isSimulator = true
+        qc.isApplicationActive = { true }
+        qc.environment = ["SIMULATOR_HOST_HOME": home, "SIMULATOR_DEVICE_NAME": "iPhone Test"]
+        qc.showToast = { _ in }
+        qc.lifecycle = QuickCapture.Lifecycle(
+            open: { [unowned self] in self.freezes += 1; return UUID() },
+            didClose: { [unowned self] in self.closes.append($0) },
+            cancel: { [unowned self] in self.cancels.append($0) }
+        )
+        qc.submit = submit ?? { [unowned self] inputs in
+            self.submitted.append(inputs)
+            return .submitted(reportId: UUID())
+        }
+        qc.beginSession(localEnabled: true, debug: true)
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true))
+        return qc
+    }
+
+    private func isIgnored(_ outcome: QuickCaptureOutcome, reason: String? = nil) -> Bool {
+        guard case let .ignored(got) = outcome else { return false }
+        return reason.map { $0 == got } ?? true
+    }
+
+    func testIgnoredWithoutRemoteBlock() async {
+        let qc = makeArmed()
+        qc.publish(remote: nil)
+        let outcome = await qc.capture()
+        XCTAssertTrue(isIgnored(outcome), "\(outcome)")
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertEqual(freezes, 0)
+        XCTAssertFalse(qc.isArmed)
+    }
+
+    func testIgnoredWhenRemoteDisabled() async {
+        let qc = makeArmed()
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: false))
+        let outcome = await qc.capture()
+        XCTAssertTrue(isIgnored(outcome), "\(outcome)")
+        XCTAssertTrue(submitted.isEmpty)
+    }
+
+    func testIgnoredWhenLocalDisabled() async {
+        let qc = makeArmed()
+        qc.beginSession(localEnabled: false, debug: true)
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true))
+        let outcome = await qc.capture()
+        XCTAssertTrue(isIgnored(outcome), "\(outcome)")
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertFalse(qc.isArmed)
+    }
+
+    func testIgnoredOnReleaseBuildOrDevice() async {
+        let release = makeArmed()
+        release.beginSession(localEnabled: true, debug: false)
+        release.publish(remote: CaptureHotkeyConfigWire(enabled: true))
+        let releaseOutcome = await release.capture()
+        XCTAssertTrue(isIgnored(releaseOutcome), "\(releaseOutcome)")
+
+        let device = makeArmed()
+        device.isSimulator = false
+        let deviceOutcome = await device.capture()
+        XCTAssertTrue(isIgnored(deviceOutcome), "\(deviceOutcome)")
+        XCTAssertFalse(device.isArmed)
+        XCTAssertTrue(submitted.isEmpty)
+    }
+
+    func testIgnoredWhenApplicationInactive() async {
+        let qc = makeArmed()
+        qc.isApplicationActive = { false }
+        let outcome = await qc.capture()
+        XCTAssertTrue(isIgnored(outcome), "\(outcome)")
+        XCTAssertTrue(submitted.isEmpty)
+    }
+
+    func testBeginSessionClearsThePreviousSessionsRemoteBlock() async {
+        let qc = makeArmed()
+        XCTAssertTrue(qc.isArmed)
+        qc.beginSession(localEnabled: true, debug: true)
+        XCTAssertFalse(qc.isArmed)
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true))
+        XCTAssertTrue(qc.isArmed)
+        qc.teardown()
+        XCTAssertFalse(qc.isArmed)
+    }
+
+    func testSubmitsQuickCaptureWithToken() async throws {
+        let qc = makeArmed()
+        let outcome = await qc.capture()
+        guard case .sent = outcome else { return XCTFail("expected .sent, got \(outcome)") }
+        let inputs = try XCTUnwrap(submitted.first)
+        XCTAssertEqual(submitted.count, 1)
+        XCTAssertTrue(inputs.quickCapture)
+        XCTAssertEqual(inputs.captureToken, "t1")
+        XCTAssertEqual(inputs.shots.count, 1)
+        XCTAssertEqual(inputs.shots.first?.annotated, false)
+        XCTAssertEqual(inputs.title, "")
+        XCTAssertEqual(inputs.description, "")
+        XCTAssertTrue(inputs.includeLogs)
+        XCTAssertTrue(inputs.includeNetwork)
+        XCTAssertTrue(inputs.includeMetadata)
+        XCTAssertNil(inputs.companionAttribution)
+        XCTAssertEqual(freezes, 1)
+        XCTAssertEqual(closes.count, 1)
+        XCTAssertTrue(cancels.isEmpty)
+    }
+
+    func testNoTokenStillSubmits() async throws {
+        let qc = makeArmed()
+        qc.environment = [:]
+        let outcome = await qc.capture()
+        guard case .sent = outcome else { return XCTFail("expected .sent, got \(outcome)") }
+        XCTAssertNil(try XCTUnwrap(submitted.first).captureToken)
+    }
+
+    func testQueuedAndFailedOutcomesReleaseTheLifecycle() async {
+        struct Boom: Error {}
+        let queued = makeArmed(submit: { _ in .queued(reportId: UUID()) })
+        let queuedOutcome = await queued.capture()
+        guard case .queued = queuedOutcome else { return XCTFail("expected .queued, got \(queuedOutcome)") }
+        XCTAssertEqual(closes.count, 1)
+
+        let failing = makeArmed(submit: { _ in throw Boom() })
+        let failedOutcome = await failing.capture()
+        guard case .failed = failedOutcome else { return XCTFail("expected .failed, got \(failedOutcome)") }
+        XCTAssertEqual(cancels.count, 1)
+        XCTAssertEqual(closes.count, 1)
+    }
+
+    func testNoWindowFailsWithoutFreezing() async {
+        let qc = makeArmed()
+        ScreenshotCapture.__windowsOverrideForTesting = []
+        let outcome = await qc.capture()
+        guard case .failed = outcome else { return XCTFail("expected .failed, got \(outcome)") }
+        XCTAssertEqual(freezes, 0)
+        XCTAssertTrue(submitted.isEmpty)
+    }
+
+    func testSecondTriggerWhileInFlightIgnored() async {
+        var release: CheckedContinuation<Void, Never>?
+        let entered = expectation(description: "submit entered")
+        let qc = makeArmed(submit: { [unowned self] inputs in
+            self.submitted.append(inputs)
+            // Only the first submit parks; the post-flight one returns at once.
+            if self.submitted.count == 1 {
+                await withCheckedContinuation { release = $0; entered.fulfill() }
+            }
+            return .submitted(reportId: UUID())
+        })
+        let first = Task { await qc.capture() }
+        await fulfillment(of: [entered], timeout: 5)
+
+        let second = await qc.capture()
+        XCTAssertTrue(isIgnored(second, reason: "in_flight"), "\(second)")
+
+        release?.resume()
+        let firstOutcome = await first.value
+        guard case .sent = firstOutcome else { return XCTFail("expected .sent, got \(firstOutcome)") }
+        XCTAssertEqual(submitted.count, 1)
+        XCTAssertEqual(freezes, 1)
+
+        // The flight is over: the next press captures again.
+        let third = await qc.capture()
+        guard case .sent = third else { return XCTFail("expected .sent, got \(third)") }
+        XCTAssertEqual(submitted.count, 2)
+    }
+
+    func testIgnoredWhileReporterPresenting() async {
+        let qc = makeArmed()
+        ReportAPI.__performSetPresenting(true)
+        let outcome = await qc.capture()
+        XCTAssertTrue(isIgnored(outcome, reason: "reporter_presenting"), "\(outcome)")
+        XCTAssertEqual(freezes, 0)
+        XCTAssertTrue(submitted.isEmpty)
+    }
+
+    func testDoubleShiftViaHandleTriggersCapture() async {
+        let didSubmit = expectation(description: "submit")
+        let qc = makeArmed(submit: { [unowned self] inputs in
+            self.submitted.append(inputs)
+            didSubmit.fulfill()
+            return .submitted(reportId: UUID())
+        })
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0))
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0.2))
+        await fulfillment(of: [didSubmit], timeout: 5)
+        XCTAssertEqual(submitted.count, 1)
+        XCTAssertTrue(submitted.first?.quickCapture == true)
+    }
+
+    func testHandleIsInertWhenDisarmed() async throws {
+        let qc = makeArmed()
+        qc.publish(remote: nil)
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0))
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0.2))
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertEqual(freezes, 0)
+    }
+
+    func testRemoteBindingSelectsTheChord() async {
+        let didSubmit = expectation(description: "submit")
+        let qc = makeArmed(submit: { [unowned self] inputs in
+            self.submitted.append(inputs)
+            didSubmit.fulfill()
+            return .submitted(reportId: UUID())
+        })
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Mod+Shift+B"))
+        // Double Shift no longer fires once the server picked a chord.
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0))
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0.1))
+        qc.handle(.down(key: .character("b"), modifiers: [.command, .shift], isRepeat: false, at: 0.3))
+        await fulfillment(of: [didSubmit], timeout: 5)
+        XCTAssertEqual(submitted.count, 1)
+    }
+
+    func testToastWindowExcludedFromScreenshot() {
+        let toast = EFQuickCaptureToastWindow(frame: CGRect(x: 0, y: 0, width: 120, height: 40))
+        toast.windowLevel = .normal - 1
+        toast.isHidden = false
+        defer { toast.isHidden = true }
+
+        // Alone, the toast is never the capture target.
+        ScreenshotCapture.__windowsOverrideForTesting = [toast]
+        XCTAssertNil(ScreenshotCapture.activeKeyWindow())
+
+        // Even below the host window's level, listed first, the host wins.
+        ScreenshotCapture.__windowsOverrideForTesting = [toast, hostWindow]
+        XCTAssertTrue(ScreenshotCapture.activeKeyWindow() === hostWindow)
+        XCTAssertFalse(ScreenshotCapture.activeKeyWindow() is EFQuickCaptureToastWindow)
+    }
+
+    func testToastCopy() {
+        XCTAssertEqual(QuickCaptureToast.text(for: .sent, deviceName: "iPhone 18 Pro"), "Captured · iPhone 18 Pro")
+        XCTAssertEqual(QuickCaptureToast.text(for: .queued, deviceName: "iPhone 18 Pro"), "Captured · uploads when online")
+        XCTAssertEqual(QuickCaptureToast.text(for: .failed, deviceName: "iPhone 18 Pro"), "Capture failed")
+        XCTAssertNil(QuickCaptureToast.text(for: .ignored(reason: "in_flight"), deviceName: "iPhone 18 Pro"))
+        XCTAssertEqual(QuickCaptureToast.windowLevel, .alert + 2)
+    }
+
+    /// `start` arms the local half only with both `reporterEnabled` and
+    /// `quickCaptureEnabled`; the server block still has to arrive; `kill` disarms.
+    func testStartAndKillWireTheSessionGate() throws {
+        defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil) }
+        let sdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+        try Everframe.shared.start(config: EverframeConfig(
+            sdkKey: sdkKey, capture: CaptureConfig(logs: false), releaseHealth: nil, reporterEnabled: false))
+        XCTAssertEqual(QuickCapture.shared.configurationGateReason, "disabled")
+
+        var optedOut = EverframeConfig(sdkKey: sdkKey, capture: CaptureConfig(logs: false), releaseHealth: nil)
+        optedOut.quickCaptureEnabled = false
+        try Everframe.shared.start(config: optedOut)
+        XCTAssertEqual(QuickCapture.shared.configurationGateReason, "disabled")
+
+        try Everframe.shared.start(config: EverframeConfig(
+            sdkKey: sdkKey, capture: CaptureConfig(logs: false), releaseHealth: nil))
+        XCTAssertEqual(QuickCapture.shared.configurationGateReason, "remote_disabled")
+
+        Everframe.shared.kill()
+        XCTAssertEqual(QuickCapture.shared.configurationGateReason, "not_debug")
+    }
+
+    func testQuickCaptureTriggerNamesItself() {
+        XCTAssertEqual(ReporterTrigger.quickCapture.rawValue, "quick_capture")
+    }
+}
+#endif

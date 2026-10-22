@@ -1262,6 +1262,15 @@ public final class Everframe: @unchecked Sendable {
             localEnabled: config.shakeToReportEnabled && config.reporterEnabled,
             ifCurrent: vitalsStillNewest
         )
+        #if canImport(UIKit) && targetEnvironment(simulator)
+        // Simulator quick capture: same crash-only rule as shake, debug builds only. Device builds
+        // never arm it, so they skip even the debug-build check.
+        QuickCapture.shared.beginSession(
+            localEnabled: config.quickCaptureEnabled && config.reporterEnabled,
+            debug: DebugBuild.current(configured: config.debugBuild),
+            ifCurrent: vitalsStillNewest
+        )
+        #endif
 
         NetworkBodyCaptureGate.shared.reset()
         NetworkBodyRingBuffer.shared.clear()
@@ -2428,6 +2437,9 @@ public final class Everframe: @unchecked Sendable {
         VitalsRuntime.shared.shutdown(dropPending: true, ifCurrent: stillThisKill)
         VitalsServerConfigBox.shared.publish(nil, ifCurrent: stillThisKill)
         ShakeToReportTrigger.shared.teardown(ifCurrent: stillThisKill)
+        #if canImport(UIKit)
+        QuickCapture.shared.teardown(ifCurrent: stillThisKill)
+        #endif
         // 04-04: uninstall stderr intercept and restore the original FD so the
         // host's stderr pipeline returns to baseline. Idempotent.
         LogCapture.uninstall()
@@ -2605,7 +2617,11 @@ public final class Everframe: @unchecked Sendable {
     public let companion = CompanionAPI()
 }
 
-public enum ReporterTrigger: String, Sendable { case button, shake, menu, companion }
+public enum ReporterTrigger: String, Sendable {
+    case button, shake, menu, companion
+    /// Simulator quick capture (double Shift by default); files a report with no reporter UI.
+    case quickCapture = "quick_capture"
+}
 
 public final class ReportAPI: ObservableObject, @unchecked Sendable {
     @TaskLocal public static var currentTrigger: ReporterTrigger = .button
