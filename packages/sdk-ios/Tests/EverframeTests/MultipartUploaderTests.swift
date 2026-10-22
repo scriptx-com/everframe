@@ -103,6 +103,23 @@ final class MultipartUploaderTests: XCTestCase {
         XCTAssertTrue(ct.hasPrefix("multipart/form-data; boundary="), "got Content-Type=\(ct)")
     }
 
+    func testCaptureTokenHeaderSet() async throws {
+        let uploader = MultipartUploader(endpoint: URL(string: "https://ingest.example.test")!, sdkKey: "k")
+        _ = try await uploader.upload(parts: [.init(name: "envelope", filename: "envelope.json",
+            contentType: "application/json", data: Data("{}".utf8))],
+            idempotencyKey: "idem-cap", captureToken: "tok", urlSession: makeStubSession())
+        XCTAssertEqual(StubURLProtocol.capturedRequest?.value(forHTTPHeaderField: "X-Everframe-Capture-Token"), "tok")
+    }
+
+    func testNoCaptureTokenNoHeader() async throws {
+        let uploader = MultipartUploader(endpoint: URL(string: "https://ingest.example.test")!, sdkKey: "k")
+        _ = try await uploader.upload(parts: [.init(name: "envelope", filename: "envelope.json",
+            contentType: "application/json", data: Data("{}".utf8))],
+            idempotencyKey: "idem-nocap", urlSession: makeStubSession())
+        XCTAssertNotNil(StubURLProtocol.capturedRequest)
+        XCTAssertNil(StubURLProtocol.capturedRequest?.value(forHTTPHeaderField: "X-Everframe-Capture-Token"))
+    }
+
     func test_upload_sets_authorization_bearer_header() async throws {
         let session = makeStubSession()
         let uploader = MultipartUploader(endpoint: URL(string: "https://ingest.example.test/v1/reports")!, sdkKey: "my-sdk-key")

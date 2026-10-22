@@ -78,6 +78,39 @@ final class ReportSubmitterSessionLifecycleTests: XCTestCase {
     /// instances below would make every submission after the first fail
     /// outright (`invalidated and can no longer be used`) — this test would
     /// catch that regression too, not just a session-identity mismatch.
+    private func captureTokenHeader(_ r: RecordingHTTPServer.RecordedRequest) -> String? {
+        r.headers.first { $0.key.lowercased() == "x-everframe-capture-token" }?.value
+    }
+
+    /// The capture token rides the live attempt only. A retryable failure
+    /// queues the report; the outbox bytes must not contain the token and the
+    /// replayed request must carry no token header.
+    func testCaptureTokenNotPersistedToOutbox() async throws {
+        let outboxURL = tempDir.appendingPathComponent("outbox.jsonl")
+        let box = JSONLOutbox(testFileURL: outboxURL)
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "app"), outbox: box)
+
+        server.respond = { _ in (503, [:], Data()) }
+        let result = try await submitter.submit(
+            envelopeBytes: Data("{}".utf8), idempotencyKey: "idem-cap-1", attachments: [],
+            captureToken: "tok-secret-123", endpoint: server.url.absoluteString)
+        guard case .queued = result else { return XCTFail("503 must queue the report — got \(result)") }
+
+        XCTAssertEqual(server.recorded.count, 1)
+        XCTAssertEqual(captureTokenHeader(server.recorded[0]), "tok-secret-123",
+            "not vacuous: the live attempt carried the token")
+
+        let persisted = try Data(contentsOf: outboxURL)
+        XCTAssertFalse(persisted.isEmpty, "the entry must really be in the outbox")
+        XCTAssertNil(persisted.range(of: Data("tok-secret-123".utf8)), "token must never reach the outbox bytes")
+
+        server.respond = { _ in (200, ["Content-Type": "application/json"], Data("{}".utf8)) }
+        await submitter.drainOutbox(identityHolder: IdentityTokenHolder(),
+            currentReplayConfig: { await ReplayConfigProvider(configUrl: URL(string: "https://everframe.dev/api/config")!, sdkKey: "app").current }, epochAtInitiation: 0, currentEpoch: { 0 })
+        XCTAssertEqual(server.recorded.count, 2, "the queued entry must be replayed")
+        XCTAssertNil(captureTokenHeader(server.recorded[1]), "a replayed upload must carry no capture token")
+    }
+
     func testRepeatedSubmissionsThroughSeparatelyConstructedSubmittersAllStillComplete() async throws {
         let sessionsSeen = NSMutableSet()
 

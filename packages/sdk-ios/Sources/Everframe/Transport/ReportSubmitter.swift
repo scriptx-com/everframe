@@ -114,6 +114,10 @@ public final class ReportSubmitter: Sendable {
     ///   outbox is retried later, potentially after the pair (and the token's
     ///   10-minute TTL) is long gone, so the retry submits unattributed rather
     ///   than with a token ingest would reject.
+    /// - Parameter captureToken: simulator quick-capture token, see
+    ///   `MultipartUploader.upload`. Never persisted with an outbox entry,
+    ///   like `companionAttribution`: a retry submits without it.
+    ///   SECURITY: never log it.
     /// - Parameters sdkKey/endpoint: the credentials this report was CAPTURED
     ///   under. `nil` means "use the active config" — the live submit path.
     ///   `drainOutbox` passes the entry's own values, so a queued report always
@@ -138,6 +142,7 @@ public final class ReportSubmitter: Sendable {
         attachments: [Attachment],
         reportId: UUID = UUID(),
         companionAttribution: String? = nil,
+        captureToken: String? = nil,
         sdkKey: String? = nil,
         endpoint: String? = nil,
         identitySubject: String? = nil,
@@ -145,13 +150,14 @@ public final class ReportSubmitter: Sendable {
     ) async throws -> ReportResult {
         try await performSubmit(envelopeBytes: envelopeBytes, idempotencyKey: idempotencyKey,
             attachments: attachments, reportId: reportId, companionAttribution: companionAttribution,
-            sdkKey: sdkKey, endpoint: endpoint, identitySubject: identitySubject,
+            captureToken: captureToken, sdkKey: sdkKey, endpoint: endpoint, identitySubject: identitySubject,
             identityToken: identityToken, alreadyPersisted: false)
     }
 
     private func performSubmit(
         envelopeBytes: Data, idempotencyKey: String, attachments: [Attachment], reportId: UUID,
-        companionAttribution: String? = nil, sdkKey: String? = nil, endpoint: String? = nil,
+        companionAttribution: String? = nil, captureToken: String? = nil,
+        sdkKey: String? = nil, endpoint: String? = nil,
         identitySubject: String? = nil, identityToken: String? = nil, alreadyPersisted: Bool
     ) async throws -> ReportResult {
 
@@ -173,6 +179,7 @@ public final class ReportSubmitter: Sendable {
                 parts: parts,
                 idempotencyKey: idempotencyKey,
                 companionAttribution: companionAttribution,
+                captureToken: captureToken,
                 identityToken: identityToken,
                 urlSession: session
             ) }

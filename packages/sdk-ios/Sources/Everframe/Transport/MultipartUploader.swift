@@ -39,6 +39,9 @@ public struct MultipartUploader {
     ///   report to the team member who filed it. nil on every ordinary
     ///   (in-app or QR-paired) submit — the request is then byte-for-byte what
     ///   it was before companion existed. SECURITY: never log it.
+    /// - Parameter captureToken: Simulator quick-capture token. When non-nil it
+    ///   rides this POST as `X-Everframe-Capture-Token`. nil on every ordinary
+    ///   submit and on every outbox replay. SECURITY: never log it.
     /// - Parameter identityToken: Verified-identity JWT (recognition spec
     ///   2026-08-06), already resolved by the caller via
     ///   `resolveIdentityHeader` — this function does no gating of its own,
@@ -48,6 +51,7 @@ public struct MultipartUploader {
         parts: [Part],
         idempotencyKey: String,
         companionAttribution: String? = nil,
+        captureToken: String? = nil,
         identityToken: String? = nil,
         urlSession: URLSession = .shared
     ) async throws -> (statusCode: Int, headers: [AnyHashable: Any]) {
@@ -82,6 +86,11 @@ public struct MultipartUploader {
             // SECURITY: never log this value (and note the debug print below
             // deliberately prints only the URL + byte count, no headers).
             req.setValue(companionAttribution, forHTTPHeaderField: "X-Everframe-Companion-Attribution")
+        }
+        if let captureToken {
+            // SECURITY: never log this value — same posture as
+            // companionAttribution above.
+            req.setValue(captureToken, forHTTPHeaderField: "X-Everframe-Capture-Token")
         }
         if let identityToken {
             // SECURITY: never log this value — same posture as
