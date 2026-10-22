@@ -1,0 +1,26 @@
+packages/sdk-react-native/__tests__/EverframeProvider.spec.tsx
+  s_8fdcb8b04d9d80::t_1c1e1e11dbd410 13
+  s_8fdcb8b04d9d80::t_182422ce500b59 144-161,165,167-170
+packages/sdk-react-native/src/runtime.ts
+  s_8fdcb8b04d9d80::t_5cf02402d3332f 678-682
+packages/sdk-react-native/CHANGELOG.md
+  s_8fdcb8b04d9d80::t_517edd65c37aad 3-8
+packages/sdk-react-native/package.json
+  s_8fdcb8b04d9d80::t_7bab23d95373e3 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a88804ab22303bd4b5c7f0fe4f0154020d5ad57f",
+  "prompts": {},
+  "sessions": {
+    "s_8fdcb8b04d9d80": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a394ec2-f6c1-41fc-8964-39d66df2538a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
