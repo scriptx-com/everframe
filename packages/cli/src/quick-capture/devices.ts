@@ -140,8 +140,10 @@ export function tokenOrigin(url: string): string | null {
 }
 
 /**
- * Writes the issuing origin before the token, so the emulator never pairs the
- * new token with a stale origin. Without an origin, any earlier one is removed.
+ * Replaces the token so the emulator never pairs a token with another
+ * server's origin: the old token goes first, then the new origin is written
+ * (or a stale one removed), then the new token. Any failed step stops the
+ * sequence, which leaves either the old pair untouched or no token at all.
  */
 export async function pushToken(
   run: Runner,
@@ -151,6 +153,8 @@ export async function pushToken(
   origin: string | null,
 ): Promise<RunResult> {
   const settings = ['-s', serial, 'shell', 'settings'];
+  const removed = await run(adb, [...settings, 'delete', 'global', TOKEN_SETTING]);
+  if (removed.code !== 0) return removed;
   const recorded = await run(
     adb,
     origin
@@ -161,12 +165,15 @@ export async function pushToken(
   return run(adb, [...settings, 'put', 'global', TOKEN_SETTING, token]);
 }
 
-/** Removes the token first, then its origin. */
+/**
+ * Removes the token, then its origin. If the token stays, so does its origin:
+ * a token without one may be sent to any ingest server.
+ */
 export async function clearToken(run: Runner, adb: string, serial: string): Promise<RunResult> {
   const settings = ['-s', serial, 'shell', 'settings', 'delete', 'global'];
   const cleared = await run(adb, [...settings, TOKEN_SETTING]);
-  const origin = await run(adb, [...settings, TOKEN_ORIGIN_SETTING]);
-  return cleared.code !== 0 ? cleared : origin;
+  if (cleared.code !== 0) return cleared;
+  return run(adb, [...settings, TOKEN_ORIGIN_SETTING]);
 }
 
 export async function triggerSimulator(run: Runner, udid: string): Promise<RunResult> {

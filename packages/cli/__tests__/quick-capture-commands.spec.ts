@@ -97,10 +97,11 @@ describe('link token origin', () => {
   const settingsCalls = (calls: [string, string[]][]) =>
     calls.filter(([, a]) => a.includes('settings')).map(([, a]) => a.slice(4));
 
-  it("records the credentials' origin before the token", async () => {
+  it("removes the old token, then records the credentials' origin before the new token", async () => {
     const t = setup({ adbDevices: 'emulator-5554\tdevice\n', url: 'https://everframe.dev/api/v1' });
     expect(await linkCommand(t.deps)).toBe(0);
     expect(settingsCalls(t.calls)).toEqual([
+      ['delete', 'global', 'everframe_token'],
       ['put', 'global', 'everframe_token_origin', 'https://everframe.dev'],
       ['put', 'global', 'everframe_token', TOKEN],
     ]);
@@ -110,6 +111,7 @@ describe('link token origin', () => {
     const t = setup({ adbDevices: 'emulator-5554\tdevice\n', url: '' });
     expect(await linkCommand(t.deps)).toBe(0);
     expect(settingsCalls(t.calls)).toEqual([
+      ['delete', 'global', 'everframe_token'],
       ['delete', 'global', 'everframe_token_origin'],
       ['put', 'global', 'everframe_token', TOKEN],
     ]);

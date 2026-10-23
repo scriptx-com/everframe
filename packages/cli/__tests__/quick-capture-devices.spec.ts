@@ -176,6 +176,7 @@ describe('device commands', () => {
     await triggerEmulator(run, 'adb', 'emulator-5554');
     const settings = ['-s', 'emulator-5554', 'shell', 'settings'];
     expect(run.mock.calls).toEqual([
+      ['adb', [...settings, 'delete', 'global', 'everframe_token']],
       ['adb', [...settings, 'put', 'global', 'everframe_token_origin', 'https://everframe.dev']],
       ['adb', [...settings, 'put', 'global', 'everframe_token', 'TOK']],
       ['adb', [...settings, 'delete', 'global', 'everframe_token']],
@@ -192,12 +193,47 @@ describe('token origin', () => {
     const run = vi.fn(async () => ok());
     await pushToken(run, 'adb', 'emulator-5554', 'TOK', null);
     expect(run.mock.calls).toEqual([
+      ['adb', [...settings, 'delete', 'global', 'everframe_token']],
       ['adb', [...settings, 'delete', 'global', 'everframe_token_origin']],
       ['adb', [...settings, 'put', 'global', 'everframe_token', 'TOK']],
     ]);
     const failing = vi.fn(async () => ({ stdout: '', stderr: 'no', code: 1 }));
     expect((await pushToken(failing, 'adb', 'emulator-5554', 'TOK', 'https://a.dev')).code).toBe(1);
     expect(failing.mock.calls).toHaveLength(1);
+  });
+
+  it('never leaves an old token paired with a new origin', async () => {
+    const settings = ['-s', 'emulator-5554', 'shell', 'settings'];
+    // The old token cannot be removed: nothing else is written.
+    const stuck = vi.fn(async () => ({ stdout: '', stderr: 'no', code: 1 }));
+    expect((await pushToken(stuck, 'adb', 'emulator-5554', 'TOK', 'https://b.dev')).code).toBe(1);
+    expect(stuck.mock.calls).toEqual([
+      ['adb', [...settings, 'delete', 'global', 'everframe_token']],
+    ]);
+    // The new origin cannot be written: the emulator is left with no token.
+    let n = 0;
+    const originFails = vi.fn(async (_cmd: string, _args: string[]) =>
+      n++ === 1 ? { stdout: '', stderr: 'no', code: 1 } : ok(),
+    );
+    expect(
+      (await pushToken(originFails, 'adb', 'emulator-5554', 'TOK', 'https://b.dev')).code,
+    ).toBe(1);
+    expect(originFails.mock.calls.map(([, a]) => a.slice(4))).toEqual([
+      ['delete', 'global', 'everframe_token'],
+      ['put', 'global', 'everframe_token_origin', 'https://b.dev'],
+    ]);
+  });
+
+  it('keeps the origin when the token cannot be removed', async () => {
+    const failing = vi.fn(async (_cmd: string, _args: string[]) => ({
+      stdout: '',
+      stderr: 'no',
+      code: 1,
+    }));
+    expect((await clearToken(failing, 'adb', 'emulator-5554')).code).toBe(1);
+    expect(failing.mock.calls).toHaveLength(1);
+    expect(failing.mock.calls[0]![1]).toContain('everframe_token');
+    expect(failing.mock.calls[0]![1]).not.toContain('everframe_token_origin');
   });
 
   it('derives the origin from an http(s) URL only', () => {
