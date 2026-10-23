@@ -144,6 +144,36 @@ class CompanionSubmissionComposerTest {
         assertEquals(listOf("network"), inputs.excluded)
     }
 
+    /** `Inputs` is a data class: its `toString()` must not print either credential. */
+    @Test
+    fun inputs_toStringRedactsCredentials() {
+        val activity = Robolectric.buildActivity(android.app.Activity::class.java).create().get()
+        val inputs = CompanionSubmissionComposer.Inputs(
+            capture = Everframe.__replayFreeze(),
+            activity = activity,
+            captureBitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888),
+            title = "visible-title",
+            description = "d",
+            includeLogs = true,
+            includeNetwork = true,
+            includeMetadata = true,
+            hostExtra = null,
+            companionAttribution = "attr-secret-456",
+            capturedSession = Everframe.captureSessionSnapshot(),
+            captureToken = "cap-secret-123",
+        )
+        val text = inputs.toString()
+        assertFalse(text, text.contains("cap-secret-123"))
+        assertFalse(text, text.contains("attr-secret-456"))
+        assertTrue(text, text.contains("captureToken=<redacted>"))
+        assertTrue(text, text.contains("companionAttribution=<redacted>"))
+        assertTrue("other fields still print", text.contains("visible-title"))
+
+        val bare = inputs.copy(captureToken = null, companionAttribution = null).toString()
+        assertTrue(bare, bare.contains("captureToken=null"))
+        assertTrue(bare, bare.contains("companionAttribution=null"))
+    }
+
     /**
      * Contract 2: submit() without a configured Everframe returns
      * `Cancelled("no_config")` — never throws, never NPEs. Mirrors iOS
@@ -683,6 +713,63 @@ class CompanionSubmissionComposerTest {
     }
 
     /**
+     * Simulator quick capture: `Inputs.quickCapture` reaches the envelope,
+     * `Inputs.captureToken` reaches the live request's header, and
+     * `annotated = false` declares the raw shot a plain `screenshot`; the
+     * default `Inputs` send neither and stay `annotated-screenshot`.
+     */
+    @Test
+    fun `quickCapture and captureToken thread through to the request, defaults send neither`() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val activity = Robolectric.buildActivity(android.app.Activity::class.java).create().get()
+            Everframe.start(
+                activity.applicationContext,
+                EverframeConfig(appId = "test-app-id", sdkKey = "txx_live_test1234567890", environment = Environment.production),
+            )
+            val client = OkHttpClient.Builder()
+                .connectTimeout(2, TimeUnit.SECONDS).readTimeout(2, TimeUnit.SECONDS).writeTimeout(2, TimeUnit.SECONDS)
+                .build()
+            CompanionSubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
+                ReportSubmitter(cfg, outbox, uploader = MultipartUploader(client), endpointOverride = server.url("/").toString())
+            }
+            fun send(quick: Boolean, token: String?, annotated: Boolean = true): okhttp3.mockwebserver.RecordedRequest {
+                server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+                val inputs = CompanionSubmissionComposer.Inputs(
+                    capture = Everframe.__replayFreeze(),
+                    activity = activity,
+                    captureBitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888),
+                    title = "t", description = "d",
+                    includeLogs = false, includeNetwork = false, includeMetadata = false,
+                    hostExtra = null, companionAttribution = null,
+                    capturedSession = Everframe.captureSessionSnapshot(),
+                    quickCapture = quick, captureToken = token, annotated = annotated,
+                )
+                val result = runBlocking { CompanionSubmissionComposer.submit(inputs) }
+                assertTrue("expected Submitted, got $result", result is ReportResult.Submitted)
+                return server.takeRequest(10, TimeUnit.SECONDS)!!
+            }
+            val quick = send(true, "cap_tok_1", annotated = false)
+            assertEquals("cap_tok_1", quick.getHeader("X-Everframe-Capture-Token"))
+            val quickBody = quick.body.readUtf8()
+            assertTrue(quickBody.contains("\"quickCapture\":true"))
+            assertTrue("raw shot is a plain screenshot", quickBody.contains("\"kind\":\"screenshot\""))
+            assertFalse(quickBody.contains("\"kind\":\"annotated-screenshot\""))
+
+            val normal = send(false, null)
+            org.junit.Assert.assertNull(normal.getHeader("X-Everframe-Capture-Token"))
+            val normalBody = normal.body.readUtf8()
+            assertTrue(!normalBody.contains("quickCapture"))
+            assertTrue("companion default stays annotated", normalBody.contains("\"kind\":\"annotated-screenshot\""))
+            assertFalse(normalBody.contains("\"kind\":\"screenshot\""))
+        } finally {
+            CompanionSubmissionComposer.__submitterFactoryForTesting = null
+            server.shutdown()
+        }
+    }
+
+    /**
      * Final whole-branch review, Important 2 (companion path). The test
      * above proves the ordinary same-session case attaches the header; this
      * proves the header is withheld when a `start(projectB)` lands between
@@ -843,6 +930,62 @@ class CompanionSubmissionComposerTest {
         afterCapture: (android.content.Context) -> Unit = {},
     ): ReportResult = composeAndCaptureResultInternal(userAtSubmitBoundary, afterCapture)
 
+    // ---- Host replay (quick capture with host evidence) ----
+
+    private fun sha(bytes: ByteArray) = java.security.MessageDigest.getInstance("SHA-256")
+        .digest(bytes).joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
+    private fun png(color: Int): ByteArray {
+        val bitmap = Bitmap.createBitmap(4, 2, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(color)
+        return java.io.ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+    }
+
+    /** A valid masked Flutter image timeline (same shape as `HostImageVTreeAttachmentTest`). */
+    private fun hostTimeline(): ByteArray {
+        val first = png(0xff00ff00.toInt())
+        val a = sha(first).take(16)
+        val b64 = java.util.Base64.getEncoder().encodeToString(first)
+        return """{"version":"everframe-vtree-v1","originEpochMs":12345,"viewport":{"width":4,"height":2,"scale":1},
+          "frames":[{"timestamp":0,"ops":[{"op":"add","parent":"","index":0,
+          "node":{"id":"flutter-root","role":"image","frame":{"x":0,"y":0,"w":4,"h":2},
+          "imageRef":"$a","children":[]}}]}],
+          "assets":{"$a":{"mime":"image/png","w":4,"h":2,"b64":"$b64"}}}""".toByteArray()
+    }
+
+    /** The bytes the Flutter reporter path ships as `replay.json` ride the composer the same way. */
+    @Test
+    fun `host replay bytes ship as the replay part`() {
+        val entry = composeAndCaptureOutboxEntry(hostReplayVTree = hostTimeline(), replayEnabled = true)
+        val replay = entry.attachmentRefs.singleOrNull { it.name == "replay" }
+        assertNotNull("the host timeline must ship as the replay part", replay)
+        assertEquals("replay.json", replay!!.filename)
+        assertEquals("application/octet-stream", replay.contentType)
+    }
+
+    /** An empty host replay keeps replay off: no host timeline and no native video. */
+    @Test
+    fun `empty host replay ships no replay part`() {
+        val entry = composeAndCaptureOutboxEntry(hostReplayVTree = ByteArray(0), replayEnabled = true)
+        assertTrue(entry.attachmentRefs.none { it.name == "replay" })
+    }
+
+    /** The dashboard's `replayEnabled` still gates the host timeline. */
+    @Test
+    fun `host replay is dropped while replay is disabled`() {
+        val entry = composeAndCaptureOutboxEntry(hostReplayVTree = hostTimeline(), replayEnabled = false)
+        assertTrue(entry.attachmentRefs.none { it.name == "replay" })
+    }
+
+    /** Quick capture with Flutter evidence labels the envelope as the Flutter SDK; the default stays native. */
+    @Test
+    fun `sdkName input labels the envelope`() {
+        fun sdkName(entry: OutboxEntry) = Json.parseToJsonElement(String(entry.envelopeBytes)).jsonObject["sdk"]!!
+            .jsonObject["name"]!!.jsonPrimitive.content
+        assertEquals("everframe-android", sdkName(composeAndCaptureOutboxEntry()))
+        assertEquals("everframe-flutter", sdkName(composeAndCaptureOutboxEntry(sdkName = "everframe-flutter")))
+    }
+
     private fun composeAndCaptureOutboxEntry(
         userAtSubmitBoundary: TXUser? = null,
         afterCapture: (android.content.Context) -> Unit = {},
@@ -856,12 +999,18 @@ class CompanionSubmissionComposerTest {
          *  matches production before any config fetch) — callers that want a
          *  subject actually captured must opt in. */
         identityEnabledAtSubmitBoundary: Boolean = false,
+        hostReplayVTree: ByteArray? = null,
+        replayEnabled: Boolean = false,
+        sdkName: String? = null,
     ): OutboxEntry {
         val result = composeAndCaptureResultInternal(
             userAtSubmitBoundary,
             afterCapture,
             identityTokenAtSubmitBoundary,
             identityEnabledAtSubmitBoundary,
+            hostReplayVTree,
+            replayEnabled,
+            sdkName,
         )
         assertTrue(
             "expected Queued (no ingest server in unit tests), got $result",
@@ -901,6 +1050,12 @@ class CompanionSubmissionComposerTest {
          *  matches production before any config fetch) — callers that want a
          *  subject actually captured must opt in. */
         identityEnabledAtSubmitBoundary: Boolean = false,
+        /** Threaded into `Inputs.hostReplayVTree`. */
+        hostReplayVTree: ByteArray? = null,
+        /** Overrides the replay config with `replayEnabled = true` when set. */
+        replayEnabled: Boolean = false,
+        /** Threaded into `Inputs.sdkName`; null keeps its default. */
+        sdkName: String? = null,
     ): ReportResult {
         val controller: ActivityController<android.app.Activity> =
             Robolectric.buildActivity(android.app.Activity::class.java).create()
@@ -921,6 +1076,13 @@ class CompanionSubmissionComposerTest {
                 replayDurationSec = 30,
                 samplingRate = 1.0,
                 identity = dev.everframe.config.IdentityConfigWire(enabled = true),
+            )
+        }
+        if (replayEnabled) {
+            Everframe.__replayConfigOverrideForTesting = dev.everframe.config.ReplayConfig(
+                replayEnabled = true,
+                replayDurationSec = 30,
+                samplingRate = 1.0,
             )
         }
 
@@ -946,7 +1108,8 @@ class CompanionSubmissionComposerTest {
             // THE SUBMIT BOUNDARY — user + session epoch + identity subject,
             // atomically.
             capturedSession = Everframe.captureSessionSnapshot(),
-        )
+            hostReplayVTree = hostReplayVTree,
+        ).let { if (sdkName != null) it.copy(sdkName = sdkName) else it }
         afterCapture(context)
 
         capturedOutbox = JSONLOutbox(java.io.File(java.nio.file.Files.createTempDirectory("composer-outbox").toFile(), "outbox.jsonl"),

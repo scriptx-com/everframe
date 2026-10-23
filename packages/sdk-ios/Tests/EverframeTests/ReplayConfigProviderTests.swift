@@ -705,8 +705,51 @@ final class ReplayConfigProviderTests: XCTestCase {
         // these blocks arrive, and widening it should have to be deliberate.
         XCTAssertEqual(
             req?.value(forHTTPHeaderField: "X-Everframe-SDK-Features"),
-            "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly"
+            "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey"
         )
+    }
+
+    // MARK: - captureHotkey (simulator quick capture)
+
+    func testDecodesCaptureHotkeyBlock() async {
+        let c = await decodedConfig(json: #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"captureHotkey":{"enabled":true,"binding":"Shift Shift"}}"#)
+        XCTAssertEqual(c.captureHotkey, .init(enabled: true, binding: "Shift Shift"))
+    }
+
+    func testAbsentCaptureHotkeyIsNil() async {
+        let c = await decodedConfig(json: #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1}"#)
+        XCTAssertNil(c.captureHotkey)
+        XCTAssertNil(ReplayConfig.off.captureHotkey)
+    }
+
+    func testCaptureHotkeyWithoutBindingDecodes() async {
+        let c = await decodedConfig(json: #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"captureHotkey":{"enabled":true}}"#)
+        XCTAssertEqual(c.captureHotkey?.enabled, true)
+        XCTAssertNil(c.captureHotkey?.binding)
+    }
+
+    func testDecodesCaptureHotkeyReplayFlag() async {
+        let on = await decodedConfig(json: #"{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1,"captureHotkey":{"enabled":true,"replay":true}}"#)
+        XCTAssertEqual(on.captureHotkey, .init(enabled: true, replay: true))
+        let off = await decodedConfig(json: #"{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1,"captureHotkey":{"enabled":true,"replay":false}}"#)
+        XCTAssertEqual(off.captureHotkey?.replay, false)
+    }
+
+    func testAbsentCaptureHotkeyReplayFlagIsNil() async {
+        let c = await decodedConfig(json: #"{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1,"captureHotkey":{"enabled":true,"binding":"Shift Shift"}}"#)
+        XCTAssertEqual(c.captureHotkey, .init(enabled: true, binding: "Shift Shift"))
+        XCTAssertNil(c.captureHotkey?.replay)
+    }
+
+    /// A malformed flag degrades to nil on its own: the block, its binding and
+    /// the rest of the config survive.
+    func testMalformedCaptureHotkeyReplayFlagIsNilNotWholeBlock() async {
+        for raw in [#""yes""#, "1", "null", #"{"on":true}"#] {
+            let c = await decodedConfig(json: #"{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1,"captureHotkey":{"enabled":true,"binding":"Mod+Shift+B","replay":"# + raw + "}}")
+            XCTAssertTrue(c.replayEnabled, raw)
+            XCTAssertEqual(c.captureHotkey, .init(enabled: true, binding: "Mod+Shift+B"), raw)
+            XCTAssertNil(c.captureHotkey?.replay, raw)
+        }
     }
 
     // MARK: - crashOnlySamplingRate (crash-only sessions spec 2026-10-12)

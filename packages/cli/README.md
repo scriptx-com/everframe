@@ -544,3 +544,78 @@ The service must support the additive `vcs` manifest field before using these
 tooling versions. Older clients remain supported by the updated service. Deploy
 server support before publishing the new tooling; do not strip provenance in
 response to an arbitrary upload failure.
+
+## Quick capture
+
+Quick capture files a report from a debug iOS simulator or Android emulator
+without opening the reporter. The CLI signs you in, so the capture is attributed
+to you, and triggers the capture from your computer.
+
+```sh
+npx @everframe/cli login     # sign in once in your browser
+npx @everframe/cli capture   # capture the booted simulator or emulator
+```
+
+Quick capture needs a debug build of an app that has the quick capture trigger
+turned on in the dashboard. The Kotlin Multiplatform SDK has no quick capture
+yet. Flutter apps must also call `enableQuickCapture` (see the Flutter README).
+
+### Commands
+
+- `login [--url <api-url>] [--no-browser]` opens the Everframe sign-in page and
+  saves a capture token in `~/.everframe/credentials` once you click Allow. The
+  URL is always printed first. The sign-in callback goes to `127.0.0.1` on the
+  machine running the browser, so open the URL in a browser on the same machine
+  as the CLI, or over SSH forward the printed port with
+  `ssh -L <port>:127.0.0.1:<port>`; `--no-browser` skips opening the browser. Login waits up to five minutes. If
+  Android emulators are running it also links them, and it still succeeds when
+  `adb` is missing or no emulator is running (it then prints
+  `Run npx @everframe/cli link after starting one.`). `--url` takes the Everframe
+  API URL; `EVERFRAME_API_URL` works too.
+- `link` copies your saved login to every running Android emulator. Run it after
+  starting an emulator that was not running during `login`.
+- `capture [--device <udid|name|serial>]` triggers one capture on the booted iOS
+  simulator (iOS only; tvOS and watchOS simulators are ignored) or running Android emulator. With several booted, it lists them and
+  exits 2 instead of picking one; choose with `--device`. It prints
+  `Capture sent to <name>.`
+- `logout` revokes the token, deletes `~/.everframe/credentials` and clears it
+  from running emulators. If Everframe is unreachable it still removes the local
+  login and tells you to revoke the token in Settings → Agents.
+- `hotkey [--key <combo>]` listens for a global shortcut on macOS (below).
+
+### What each command touches
+
+| Command   | Reads or changes                                                                                                                        |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `login`   | Writes `~/.everframe/credentials`; writes `everframe_token` and `everframe_token_origin` on running emulators.                          |
+| `link`    | Writes `everframe_token` and `everframe_token_origin` on running emulators only (`adb shell settings put global`).                      |
+| `capture` | Posts the Darwin notification `com.everframe.capture` to the simulator, or sends the `com.everframe.CAPTURE` broadcast to the emulator. |
+| `logout`  | Revokes the token, deletes the credentials file, deletes `everframe_token` and `everframe_token_origin` (`settings delete global`).     |
+| `hotkey`  | Compiles a helper into `~/.everframe/bin`, then runs the same emulator broadcast as `capture`.                                          |
+
+The credentials file holds your capture token, the Everframe URL and your email
+as JSON. The directory is mode `0700` and the file `0600`. iOS simulators read
+it straight from your Mac, so they need no `link`. The token is written only to
+emulators (`emulator-<port>`), never to a physical device, and is never printed.
+
+## Quick capture hotkey for Android emulators (macOS)
+
+The Android emulator does not pass ⌘, ⌃ or ⌥ through to the app, so on macOS
+the CLI can listen for a global hotkey instead:
+
+```sh
+npx @everframe/cli hotkey            # ⌘⇧B by default
+npx @everframe/cli hotkey --key Ctrl+Alt+5
+```
+
+Press the combo with an emulator window in front and that emulator captures a
+report. The hotkey is registered only while a standalone emulator window is the
+front app, so ⌘⇧B keeps working everywhere else. It needs no Accessibility
+permission. The first run compiles a small Swift helper into `~/.everframe/bin`,
+which needs the Xcode Command Line Tools (`xcode-select --install`). Press
+Ctrl+C to stop.
+
+Emulators embedded in Android Studio are not separate windows. Turn off
+Settings → Tools → Emulator → "Launch in the Running Devices tool window", or
+run `npx @everframe/cli capture` instead. On Windows and Linux, bind
+`npx @everframe/cli capture` to a keyboard shortcut in your desktop settings.

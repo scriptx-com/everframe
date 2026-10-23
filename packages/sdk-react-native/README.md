@@ -710,6 +710,25 @@ In React Native and Expo development builds, use
 `shakeToReport: { enabled: !__DEV__ }` because the React Native development
 menu also uses shake. Production remains enabled by default.
 
+#### Quick capture on simulators and emulators
+
+Debug builds on an iOS simulator or Android emulator can file a report without
+opening the reporter: double Shift on the simulator, or
+`npx @everframe/cli capture` (and `npx @everframe/cli hotkey` on macOS) from
+your terminal. Run `npx @everframe/cli login` once so captures are attributed
+to you. It stays dark until the dashboard turns the capture hotkey on for the
+app, and never runs on devices or release builds. To opt this app out locally:
+
+```tsx
+<EverframeProvider
+  config={{ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx', quickCapture: { enabled: false } }}
+>
+```
+
+`quickCapture.enabled` defaults to `true`; a local `true` never overrides a
+dashboard disable. A session started with `capture.screenshot` off ignores quick
+capture.
+
 All other gestures and keys are host-owned. The host app
 calls `useEverframe().open()` (or the top-level `open()`)
 from whatever trigger makes sense for the target form factor.

@@ -1262,6 +1262,16 @@ public final class Everframe: @unchecked Sendable {
             localEnabled: config.shakeToReportEnabled && config.reporterEnabled,
             ifCurrent: vitalsStillNewest
         )
+        #if canImport(UIKit) && targetEnvironment(simulator)
+        // Simulator quick capture: same crash-only rule as shake, debug builds only. Device builds
+        // never arm it, so they skip even the debug-build check.
+        QuickCapture.shared.beginSession(
+            localEnabled: config.quickCaptureEnabled && config.reporterEnabled,
+            debug: DebugBuild.current(configured: config.debugBuild),
+            screenshot: config.capture.screenshot,
+            ifCurrent: vitalsStillNewest
+        )
+        #endif
 
         NetworkBodyCaptureGate.shared.reset()
         NetworkBodyRingBuffer.shared.clear()
@@ -2171,6 +2181,27 @@ public final class Everframe: @unchecked Sendable {
         }
     }
 
+    #if canImport(UIKit)
+    /// Simulator quick capture's host evidence hook, for hosts that render and
+    /// mask their own pixels (the Flutter plugin, which starts the SDK with
+    /// `capture.screenshot = false`). While a provider is installed, a quick
+    /// capture calls it instead of taking the native screenshot and submits the
+    /// returned image (as an unannotated shot) and `hostReplayVTree` exactly as
+    /// the reporter submits host-rendered evidence. A nil result fails the
+    /// capture. Without a provider, a session with `capture.screenshot == false`
+    /// ignores quick capture (`screenshot_disabled`).
+    ///
+    /// Pass nil to remove it. `kill()` clears it; `start()` does not. Inert on
+    /// devices and release builds, where quick capture never arms. `public` only
+    /// for host plugins in other modules; the `__` prefix marks it as an
+    /// Everframe SDK seam.
+    public func __setQuickCaptureEvidenceProvider(
+        _ provider: (@MainActor () async -> QuickCaptureHostEvidence?)?
+    ) {
+        QuickCapture.shared.setEvidenceProvider(provider)
+    }
+    #endif
+
     /// Synchronous drain — see `__consumePendingAttachments()`'s doc comment
     /// for why this is split out.
     private func drainPendingAttachmentsLocked() -> String? {
@@ -2211,6 +2242,10 @@ public final class Everframe: @unchecked Sendable {
     // these in their own guard so breadcrumbs can never block the replay seam
     // or a report.
     @MainActor private var replayReporterOwner: UUID?
+
+    /// True while a reporter, companion or quick capture holds the frozen replay
+    /// and evidence. Set from the freeze, which comes before `isPresenting` flips.
+    @MainActor internal var __replayHasReporterOwner: Bool { replayReporterOwner != nil }
 
     /// Retain this owner through presentation and pass it back on close. Older
     /// presentations cannot discard a newer companion/host capture.
@@ -2428,6 +2463,9 @@ public final class Everframe: @unchecked Sendable {
         VitalsRuntime.shared.shutdown(dropPending: true, ifCurrent: stillThisKill)
         VitalsServerConfigBox.shared.publish(nil, ifCurrent: stillThisKill)
         ShakeToReportTrigger.shared.teardown(ifCurrent: stillThisKill)
+        #if canImport(UIKit)
+        QuickCapture.shared.teardown(ifCurrent: stillThisKill)
+        #endif
         // 04-04: uninstall stderr intercept and restore the original FD so the
         // host's stderr pipeline returns to baseline. Idempotent.
         LogCapture.uninstall()
@@ -2605,7 +2643,11 @@ public final class Everframe: @unchecked Sendable {
     public let companion = CompanionAPI()
 }
 
-public enum ReporterTrigger: String, Sendable { case button, shake, menu, companion }
+public enum ReporterTrigger: String, Sendable {
+    case button, shake, menu, companion
+    /// Simulator quick capture (double Shift by default); files a report with no reporter UI.
+    case quickCapture = "quick_capture"
+}
 
 public final class ReportAPI: ObservableObject, @unchecked Sendable {
     @TaskLocal public static var currentTrigger: ReporterTrigger = .button

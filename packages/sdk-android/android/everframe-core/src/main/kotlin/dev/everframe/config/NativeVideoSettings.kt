@@ -49,12 +49,18 @@ object NativeVideoSettingsSerializer : KSerializer<NativeVideoSettings> {
 /** Spec 2026-10-11 (C2): the allowed `nativeVideo.framesPerSecond` values, everywhere in this SDK. */
 internal val NATIVE_VIDEO_FRAME_RATES = setOf(1, 2, 5, 10)
 
+/**
+ * The recorder settings a confirmed config allows, or null for no recording. `forced` (emulator quick
+ * capture's `captureHotkey.replay`) records when `replayEnabled` is false; it never stops a recording
+ * `replayEnabled` allows, and never overrides `locallyDisabled`.
+ */
 fun effectiveNativeVideo(
     config: ReplayConfig,
     refreshSucceeded: Boolean,
     locallyDisabled: Boolean = false,
     sdkInt: Int = android.os.Build.VERSION.SDK_INT,
+    forced: Boolean = false,
 ): NativeVideoSettings? {
-    if (sdkInt < 29 || !refreshSucceeded || locallyDisabled || !config.replayEnabled) return null
+    if (sdkInt < 29 || !refreshSucceeded || locallyDisabled || !(config.replayEnabled || forced)) return null
     return config.nativeVideo?.takeIf { it.framesPerSecond in NATIVE_VIDEO_FRAME_RATES }
 }

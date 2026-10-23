@@ -105,6 +105,17 @@ done
 unzip -p "${CORE_CLASSES}" dev/everframe/diagnostics/ReportDeliveryStatus.class | strings | grep -Fx toJson >/dev/null ||
     fail "${CORE_AAR} release ReportDeliveryStatus has no toJson()"
 
+# The Flutter plugin (compiled separately against this AAR) constructs
+# QuickCaptureHostEvidence from a ScreenshotCapture.CaptureResult. Nothing in core
+# constructs the evidence, so without keep rules R8 renames it and drops the constructor.
+for evidence_type in 'quickcapture/QuickCaptureHostEvidence' 'capture/ScreenshotCapture$CaptureResult'; do
+    grep -Fx "dev/everframe/${evidence_type}.class" <<<"${CORE_ENTRIES}" >/dev/null ||
+        fail "${CORE_AAR} is missing dev.everframe.${evidence_type//\//.} from its release classes"
+done
+unzip -p "${CORE_CLASSES}" dev/everframe/quickcapture/QuickCaptureHostEvidence.class | strings |
+    grep -F '(Ldev/everframe/capture/ScreenshotCapture$CaptureResult;[BLjava/lang/String;)V' >/dev/null ||
+    fail "${CORE_AAR} release QuickCaptureHostEvidence has no (CaptureResult, ByteArray?, String?) constructor"
+
 REPORTER_AAR="${GROUP_DIRECTORY}/reporter-ui/${VERSION}/reporter-ui-${VERSION}.aar"
 unzip -p "${REPORTER_AAR}" classes.jar >"${REPORTER_CLASSES}"
 unzip -Z1 "${REPORTER_CLASSES}" | grep -Fx 'dev/everframe/ui/EFReporterFromImage.class' >/dev/null ||

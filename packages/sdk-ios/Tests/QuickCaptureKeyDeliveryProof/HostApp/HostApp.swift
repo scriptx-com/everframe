@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 ScriptX
+//
+// Arms `QuickCapture.shared` behind the production `UIWindow.sendEvent` hook
+// and reports each submit on screen. Everything after the hotkey match is
+// stubbed: no network, no replay freeze, no toast. What stays real is the path
+// under test, from the simulator's HID keyboard through UIKit's event dispatch
+// into the SDK's window hook, the key mapping, the matcher and the gate.
+import UIKit
+@testable import EverframeKit
+
+@MainActor
+enum Harness {
+    static weak var status: UILabel?
+    static var submits = 0
+
+    static func arm() {
+        let args = ProcessInfo.processInfo.arguments
+        Everframe.captureGate = true
+        BreadcrumbTapNavAdapters.install()
+        let qc = QuickCapture.shared
+        qc.isApplicationActive = { true }
+        qc.showToast = { _ in }
+        // XCTest waits for the app to settle after each key, so two Shift taps
+        // land seconds apart. A real double tap is well under the 0.4 s default.
+        qc.doubleShiftWindow = 60
+        qc.lifecycle = QuickCapture.Lifecycle(open: { UUID() }, didClose: { _ in }, cancel: { _ in })
+        qc.submit = { inputs in
+            submits += 1
+            show("submits=\(submits) quickCapture=\(inputs.quickCapture)")
+            return .submitted(reportId: UUID())
+        }
+        qc.beginSession(localEnabled: true, debug: true)
+        if !args.contains("--remote-disabled") {
+            qc.publish(remote: CaptureHotkeyConfigWire(
+                enabled: true, binding: argument(after: "--binding", in: args)))
+        }
+        show("submits=0 armed=\(qc.isArmed)")
+    }
+
+    static func show(_ text: String) {
+        status?.text = text
+        status?.accessibilityValue = text
+    }
+
+    private static func argument(after flag: String, in args: [String]) -> String? {
+        guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
+        return args[i + 1]
+    }
+}
+
+final class RootViewController: UIViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.accessibilityIdentifier = "status"
+        label.isAccessibilityElement = true
+        view.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+        ])
+        Harness.status = label
+        Harness.arm()
+    }
+}
+
+@main
+final class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication, configurationForConnecting session: UISceneSession,
+        options: UIScene.ConnectionOptions
+    ) -> UISceneConfiguration {
+        let config = UISceneConfiguration(name: nil, sessionRole: session.role)
+        config.delegateClass = SceneDelegate.self
+        return config
+    }
+}
+
+final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
+        guard let scene = scene as? UIWindowScene else { return }
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = RootViewController()
+        window.makeKeyAndVisible()
+        self.window = window
+    }
+}

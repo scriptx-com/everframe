@@ -170,6 +170,11 @@ public enum ReporterSubmission {
         /// never enters the envelope. nil for every in-app reporter submit.
         /// SECURITY: never log.
         public let companionAttribution: String?
+        /// Simulator quick-capture: marks the envelope `quickCapture: true`.
+        public let quickCapture: Bool
+        /// Quick-capture token, sent as `X-Everframe-Capture-Token`; never
+        /// enters the envelope or the outbox. SECURITY: never log.
+        public let captureToken: String?
 
         public init(
             captureResult: ScreenshotCapture.Result,
@@ -184,7 +189,9 @@ public enum ReporterSubmission {
             hostReplayVTree: Data? = nil,
             sdkName: String = "everframe-ios",
             capturedSession: EFCapturedSession,
-            companionAttribution: String? = nil
+            companionAttribution: String? = nil,
+            quickCapture: Bool = false,
+            captureToken: String? = nil
         ) {
             self.captureResult = captureResult
             self.shots = shots
@@ -205,6 +212,8 @@ public enum ReporterSubmission {
             self.sdkName = sdkName
             self.capturedSession = capturedSession
             self.companionAttribution = companionAttribution
+            self.quickCapture = quickCapture
+            self.captureToken = captureToken
         }
     }
 
@@ -564,7 +573,8 @@ public enum ReporterSubmission {
             // same as the crash path — there is no freeze/takeFrozen
             // lifecycle for resources (unlike breadcrumbs/bodies above), so
             // a plain `.snapshot()` read is the whole fix.
-            resources: ResourceRingBuffer.shared.snapshot()
+            resources: ResourceRingBuffer.shared.snapshot(),
+            quickCapture: inputs.quickCapture
             ).0
         }
         var envelopeBytes = try encodeEnvelope()
@@ -728,6 +738,9 @@ public enum ReporterSubmission {
             // Companion-only; nil (and therefore header-less) on every
             // in-app reporter submit. SECURITY: never log.
             companionAttribution: inputs.companionAttribution,
+            // Quick-capture only; never persisted to the outbox.
+            // SECURITY: never log.
+            captureToken: inputs.captureToken,
             identitySubject: capturedEpochStillCurrent ? inputs.capturedSession.user.identitySubject : nil,
             identityToken: identityToken
             )

@@ -35,6 +35,12 @@ object ReportAuthorizationFactory {
         entryEndpoint: String,
         entrySdkKey: String,
         hostReplay: Boolean = false,
+        /**
+         * Emulator quick capture currently forces replay for this entry's own project (see
+         * [dev.everframe.quickcapture.QuickCapture.forcesReplay]). It stands in for `replayEnabled` only:
+         * the stored route's refresh must still succeed and carry video settings.
+         */
+        forcedReplay: Boolean = false,
     ): ReportAuthorization {
         // endpointAtInitiation documents the drain snapshot; only the stored route can authorize its media.
         val provider = ReplayConfigProvider.make(baseUrl = entryEndpoint.trimEnd('/').removeSuffix("/api/ingest"), sdkKey = entrySdkKey,
@@ -42,7 +48,7 @@ object ReportAuthorizationFactory {
         val succeeded = provider.refresh(force = true)
         val authorizedAt = SystemClock.elapsedRealtime()
         val confirmed = if (hostReplay) succeeded && provider.current.replayEnabled
-            else effectiveNativeVideo(provider.current, succeeded) != null
+            else effectiveNativeVideo(provider.current, succeeded, forced = forcedReplay) != null
         return LockedReportAuthorization({ !session.isRevoked }, {
             session.captureConsent && confirmed && SystemClock.elapsedRealtime() - authorizedAt in 0 until 30_000
         })

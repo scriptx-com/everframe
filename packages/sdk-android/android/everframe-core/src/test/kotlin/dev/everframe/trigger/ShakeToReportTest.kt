@@ -107,6 +107,17 @@ class ShakeToReportTest {
     }
 
     @Test
+    fun `an in-flight quick capture holds shake off`() {
+        val gate = ShakeToReportGate(localEnabled = true)
+        gate.foreground = true
+        gate.remoteEnabled = true
+
+        assertFalse(gate.tryBegin(presenting = false, quickCaptureInFlight = true))
+        assertTrue(gate.tryBegin(presenting = false, quickCaptureInFlight = false))
+        gate.complete()
+    }
+
+    @Test
     fun `television devices are excluded by ui mode or system feature`() {
         assertTrue(
             ShakeToReportTrigger.isTelevision(

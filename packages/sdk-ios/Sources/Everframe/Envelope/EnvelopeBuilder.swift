@@ -192,7 +192,11 @@ public struct EnvelopeBuilder {
         /// the trim helpers above) keeps this call site from drifting apart
         /// from the ring's own limit; a stamp exceeding the server's cap
         /// rejects the WHOLE report, non-retryably.
-        resources: [ResourceSample]? = nil
+        resources: [ResourceSample]? = nil,
+        /// Simulator quick-capture marker. Written to the envelope only when
+        /// true; false leaves `quickCapture` nil so the key is omitted and
+        /// normal envelopes stay byte-identical.
+        quickCapture: Bool = false
     ) throws -> (bytes: Data, idempotencyKey: String) {
         let redactedLogs = Self.trimLogs(logs.map {
             LogRow(timestamp: $0.timestamp, level: $0.level, tag: $0.tag, message: redactor.redact($0.message))
@@ -273,7 +277,8 @@ public struct EnvelopeBuilder {
             networkBodies: bodiesForPayload,
             resources: cappedResources,
             vitalsGenerated: vitalsGenerated,
-            sessionId: stamp?.sessionId
+            sessionId: stamp?.sessionId,
+            quickCapture: quickCapture
         )
 
         let bytes = try Self.makeJSONEncoder().encode(envelope)
@@ -329,7 +334,8 @@ public struct EnvelopeBuilder {
         networkBodies: [EverframeNetworkBody]?,
         resources: [ResourceSample]?,
         vitalsGenerated: [EverframeVital]?,
-        sessionId: String?
+        sessionId: String?,
+        quickCapture: Bool
     ) throws -> EverframeReportEnvelope {
         let now = Date()
 
@@ -522,6 +528,7 @@ public struct EnvelopeBuilder {
             context: context,
             payload: payload,
             protocolVersion: EverframeProtocolVersion.the10,
+            quickCapture: quickCapture ? true : nil,
             reporter: reporter,
             reportID: reportId.uuidString,
             sdk: EverframeSDK(

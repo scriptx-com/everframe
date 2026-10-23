@@ -144,6 +144,11 @@ data class EverframeConfig(
     val loadedJsBundle: LoadedJsBundle? = null,
     /** Local interaction privacy policy; omitted means structural capture without values. */
     val interactions: dev.everframe.capture.InteractionEventPolicy = dev.everframe.capture.InteractionEventPolicy.parse(null),
+    /**
+     * Simulator quick capture (debug emulator builds only). Set `false` to opt out locally; the
+     * dashboard's `captureHotkey` block must also enable it.
+     */
+    val quickCaptureEnabled: Boolean = true,
 )
 
 /**

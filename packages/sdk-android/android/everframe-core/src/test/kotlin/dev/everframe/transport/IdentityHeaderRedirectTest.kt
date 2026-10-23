@@ -192,4 +192,36 @@ class IdentityHeaderRedirectTest {
             second.getHeader(IDENTITY_TOKEN_HEADER),
         )
     }
+
+    /** Capture token: stripped on a cross-origin redirect, the report still submits. */
+    @Test
+    fun `a cross-origin redirect strips the capture token header`() = runBlocking {
+        serverA.enqueue(
+            MockResponse().setResponseCode(302)
+                .setHeader("Location", serverB.url("/api/ingest").toString()),
+        )
+        serverB.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+        val submitter = ReportSubmitter(config = makeConfig(), outbox = outbox,
+            endpointOverride = serverA.url("/api/ingest").toString())
+
+        val result = submitter.submit("{}".toByteArray(), "idem-redirect-3", emptyList(), captureToken = "cap_tok")
+
+        assertTrue("got $result", result is ReportResult.Submitted)
+        assertEquals("cap_tok", serverA.takeRequest().getHeader("X-Everframe-Capture-Token"))
+        assertNull(serverB.takeRequest().getHeader("X-Everframe-Capture-Token"))
+    }
+
+    @Test
+    fun `a same-origin redirect keeps the capture token header`() = runBlocking {
+        serverA.enqueue(MockResponse().setResponseCode(302).setHeader("Location", "/api/ingest/"))
+        serverA.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+        val submitter = ReportSubmitter(config = makeConfig(), outbox = outbox,
+            endpointOverride = serverA.url("/api/ingest").toString())
+
+        val result = submitter.submit("{}".toByteArray(), "idem-redirect-4", emptyList(), captureToken = "cap_tok")
+
+        assertTrue("got $result", result is ReportResult.Submitted)
+        assertEquals("cap_tok", serverA.takeRequest().getHeader("X-Everframe-Capture-Token"))
+        assertEquals("cap_tok", serverA.takeRequest().getHeader("X-Everframe-Capture-Token"))
+    }
 }

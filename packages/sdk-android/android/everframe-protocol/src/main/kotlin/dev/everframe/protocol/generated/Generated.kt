@@ -24,6 +24,7 @@ data class ReportEnvelope (
     val context: Context,
     val payload: Payload,
     val protocolVersion: ProtocolVersion,
+    val quickCapture: Boolean? = null,
     val reporter: Reporter,
 
     @SerialName("reportId")

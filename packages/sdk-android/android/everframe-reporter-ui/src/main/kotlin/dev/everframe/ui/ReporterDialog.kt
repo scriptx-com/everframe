@@ -34,6 +34,7 @@ import dev.everframe.Everframe
 import dev.everframe.capture.ScreenshotCapture
 import dev.everframe.capture.video.FrozenReportCapture
 import dev.everframe.capture.video.NativeVideoAttachment
+import dev.everframe.transport.HostImageVTreeAttachment
 import dev.everframe.transport.ReportAuthorizationFactory
 import dev.everframe.capture.DeviceMetadata
 import dev.everframe.capture.sharedLogBuffer

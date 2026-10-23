@@ -1130,6 +1130,15 @@ object Everframe {
             currentActivity = currentActivity,
             isCurrent = { currentStartEpochVolatile() == epoch },
         )
+        // Emulator quick capture: same crash-only rule as shake; the receiver registers only on a
+        // debug build running on an emulator.
+        dev.everframe.quickcapture.QuickCapture.install(
+            context = context,
+            localEnabled = config.quickCaptureEnabled && config.reporterEnabled,
+            debug = dev.everframe.capture.DeviceMetadata.isDebugBuild(context, config.debugBuild),
+            screenshot = config.capture.screenshot,
+            isCurrent = { currentStartEpochVolatile() == epoch },
+        )
 
         // WeakReference: the heavy-init coroutine must not extend the
         // Activity's lifetime if it is destroyed between start() and install.
@@ -1572,6 +1581,7 @@ object Everframe {
             dev.everframe.vitals.VitalsRuntime.shutdown(dropPending = true, ifCurrent = stillThisKill)
             dev.everframe.vitals.VitalsServerConfigSignal.publish(null, stillThisKill)
             dev.everframe.trigger.ShakeToReportTrigger.teardown(stillThisKill)
+            dev.everframe.quickcapture.QuickCapture.teardown(stillThisKill)
         }
     }
 
@@ -2283,6 +2293,23 @@ object Everframe {
         }
     }
 
+    /**
+     * Emulator quick capture's host evidence hook, for hosts that render and mask their own pixels (the
+     * Flutter plugin, which starts the SDK with `capture.screenshot = false`). While a provider is
+     * installed, a quick capture calls it instead of taking the native screenshot and submits the
+     * returned screenshot (unannotated) and `hostReplayVTree` exactly as the reporter submits
+     * host-rendered evidence. A null result or a thrown exception fails the capture. Without a provider,
+     * a session with `capture.screenshot == false` ignores quick capture (`screenshot_disabled`).
+     *
+     * Pass null to remove it. `kill()` clears it; `start()` does not. Inert on real devices and release
+     * builds, where quick capture never arms. Public only for host plugins in other modules; the `__`
+     * prefix marks it as an SDK seam.
+     */
+    @JvmStatic
+    fun __setQuickCaptureEvidenceProvider(provider: (suspend () -> dev.everframe.quickcapture.QuickCaptureHostEvidence?)?) {
+        dev.everframe.quickcapture.QuickCapture.setEvidenceProvider(provider)
+    }
+
     /** Blocks video synchronously; close only after main-thread tagging or surface destruction. */
     @JvmStatic
     fun __beginSensitiveRegistration(): AutoCloseable =
@@ -2390,6 +2417,14 @@ object Everframe {
         (_replaySession?.freezeOwnedCapture() ?: FrozenReportCapture.empty(currentStartEpochVolatile()))
             .withState(captured).withReporterBoundary(boundary)
     }
+
+    /**
+     * True while a reporter, companion or quick capture holds the installed session's frozen replay and
+     * evidence. The in-app reporter freezes before its dialog shows and the companion never marks itself
+     * presenting, so this, not `report.isPresenting`, says another capture owns the freeze. False without
+     * an installed session, where a freeze binds no owner.
+     */
+    internal val __replayHasReporterOwner: Boolean get() = _replaySession?.hasReportOwner == true
 
     /** Explicit boundary for a host-owned reporter. Invalid triggers and gated sessions are ignored. */
     @JvmStatic

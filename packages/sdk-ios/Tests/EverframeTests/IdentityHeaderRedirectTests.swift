@@ -146,4 +146,43 @@ final class IdentityHeaderRedirectTests: XCTestCase {
             "a same-origin redirect (same scheme+host+port, only the path changed) must keep the identity header"
         )
     }
+
+    /// The quick-capture token is a bearer credential too: stripped on a
+    /// cross-origin redirect, kept on a same-origin one.
+    func testACrossOriginRedirectStripsTheCaptureTokenHeader() async throws {
+        serverA.respond = { [serverB] _ in
+            (302, ["Location": serverB!.url.appendingPathComponent("api/ingest").absoluteString], Data())
+        }
+        serverB.respond = { _ in (200, ["Content-Type": "application/json"], Data("{}".utf8)) }
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "app"), outbox: makeOutbox())
+
+        let result = try await submitter.submit(
+            envelopeBytes: Data("{}".utf8), idempotencyKey: "idem-redirect-3", attachments: [],
+            captureToken: "cap_tok", endpoint: serverA.url.absoluteString)
+
+        guard case .submitted = result else { return XCTFail("got \(result)") }
+        XCTAssertEqual(serverA.recorded.first?.headers["X-Everframe-Capture-Token"], "cap_tok")
+        XCTAssertEqual(serverB.recorded.count, 1)
+        XCTAssertNil(serverB.recorded.first?.headers["X-Everframe-Capture-Token"])
+    }
+
+    func testASameOriginRedirectKeepsTheCaptureTokenHeader() async throws {
+        var redirectedOnce = false
+        serverA.respond = { request in
+            if request.path == "/api/ingest" && !redirectedOnce {
+                redirectedOnce = true
+                return (302, ["Location": "/api/ingest/"], Data())
+            }
+            return (200, ["Content-Type": "application/json"], Data("{}".utf8))
+        }
+        let submitter = ReportSubmitter(config: EverframeConfig(sdkKey: "app"), outbox: makeOutbox())
+
+        let result = try await submitter.submit(
+            envelopeBytes: Data("{}".utf8), idempotencyKey: "idem-redirect-4", attachments: [],
+            captureToken: "cap_tok", endpoint: serverA.url.absoluteString)
+
+        guard case .submitted = result else { return XCTFail("got \(result)") }
+        XCTAssertEqual(serverA.recorded.count, 2)
+        XCTAssertEqual(serverA.recorded.last?.headers["X-Everframe-Capture-Token"], "cap_tok")
+    }
 }

@@ -48,6 +48,13 @@ final class EverframeConfigEquatableTests: XCTestCase {
         XCTAssertNotEqual(makeConfig(), changed)
     }
 
+    func test_a_differing_quickCaptureEnabled_compares_unequal() {
+        var changed = makeConfig()
+        XCTAssertTrue(changed.quickCaptureEnabled)
+        changed.quickCaptureEnabled = false
+        XCTAssertNotEqual(makeConfig(), changed)
+    }
+
     /// `NSRegularExpression` is a class with identity equality, so this is the one comparison
     /// that cannot be synthesized: equal patterns must compare equal even as distinct objects.
     func test_redaction_patterns_compare_by_pattern_and_options_not_identity() throws {

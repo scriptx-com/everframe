@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-package dev.everframe.ui
+package dev.everframe.transport
 
 import dev.everframe.protocol.generated.Attachment
 import dev.everframe.protocol.generated.AttachmentKind
@@ -9,15 +9,19 @@ import dev.everframe.protocol.generated.VOpAdd
 import dev.everframe.protocol.generated.VOpSet
 import dev.everframe.protocol.generated.VTreeTimeline
 import dev.everframe.protocol.generated.VTreeVersion
-import dev.everframe.transport.ReportSubmitter
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import java.security.MessageDigest
 import java.util.Base64
 
-/** Narrow wire adapter for already-masked Flutter and KMP image timelines. */
-internal object HostImageVTreeAttachment {
+/**
+ * Narrow wire adapter for already-masked Flutter and KMP image timelines.
+ *
+ * Public only so `:everframe-reporter-ui` can reach it; the core composer uses it for quick
+ * capture with host evidence. Treat as SDK-internal.
+ */
+object HostImageVTreeAttachment {
     private const val MAX_BYTES = 8 * 1024 * 1024
     private val json = Json { ignoreUnknownKeys = false }
 

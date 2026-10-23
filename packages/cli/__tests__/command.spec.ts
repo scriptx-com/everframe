@@ -11,6 +11,23 @@ import { DEFAULT_API_URL } from '../src/defaults.js';
 import { main } from '../src/index.js';
 
 describe('main', () => {
+  it('dispatches hotkey, rejecting an invalid --key without building the helper', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      expect(await main(['hotkey', '--key', 'Shift+B'], {})).toBe(1);
+      const message = String(error.mock.calls[0]?.[0]);
+      expect(message).toMatch(
+        process.platform === 'darwin' ? /Cmd\+Shift\+B/ : /The hotkey helper runs on macOS/,
+      );
+      expect(await main(['hotkey', '--help'], {})).toBe(0);
+      expect(String(log.mock.calls[0]?.[0])).toContain('everframe hotkey [--key <combo>]');
+    } finally {
+      error.mockRestore();
+      log.mockRestore();
+    }
+  });
+
   it('rejects the delete flag for Hermes uploads', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     try {

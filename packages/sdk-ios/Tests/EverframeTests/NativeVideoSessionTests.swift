@@ -294,6 +294,39 @@ private actor LateSnapshotRecorder: NativeVideoRecording {
         #expect(session.state == .buffering)
         #expect(allocations == 1)
     }
+    // Quick capture's `captureHotkey.replay` (debug simulators): a forced session
+    // records whatever its draw, and the draw still decides once forcing ends.
+    @Test func forcedReplayRecordsASampledOutSessionAndStopsWhenForcingEnds() {
+        var draws = 0, allocations = 0
+        let (session, scheduler) = countingSession(draw: 0.9, draws: { draws += 1 }, allocations: { allocations += 1 })
+        defer { session.stop() }
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0.1)
+        #expect(session.state == .idle)
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0.1, forced: true)
+        #expect(session.state == .buffering); #expect(scheduler.fps == 5)
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0.1)
+        #expect(session.state == .idle); #expect(scheduler.fps == nil)
+        #expect(draws == 1); #expect(allocations == 1)
+    }
+    @Test func forcedReplayStillTakesTheSessionsOneDrawAtTheConfiguredRate() {
+        var draws = 0, allocations = 0
+        let (session, _) = countingSession(draw: 0.3, draws: { draws += 1 }, allocations: { allocations += 1 })
+        defer { session.stop() }
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0.1, forced: true)
+        #expect(session.state == .buffering)
+        // Unforced, the draw taken at the config's rate stands: 0.3 is out at 0.1
+        // and stays out after a later rate change.
+        session.apply(settings: NativeVideoSettings(), samplingRate: 1)
+        #expect(session.state == .idle)
+        #expect(draws == 1); #expect(allocations == 1)
+    }
+    @Test func forcedReplayNeedsSettings() {
+        var allocations = 0
+        let (session, _) = countingSession(draw: 0, draws: {}, allocations: { allocations += 1 })
+        defer { session.stop() }
+        session.apply(settings: nil, samplingRate: 1, forced: true)
+        #expect(session.state == .idle); #expect(allocations == 0)
+    }
     @Test func eachCoverageSamplesAtItsOwnRate() {
         #expect(ReplayCoverage.report.samplingRate(report: 0.4, crashOnly: 0.9) == 0.4)
         #expect(ReplayCoverage.crashOnly.samplingRate(report: 0.4, crashOnly: 0.9) == 0.9)

@@ -1,6 +1,11 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
+## Unreleased
+
+- Simulator quick capture for Flutter apps on the iOS simulator and Android emulator (debug builds only). The native SDK never takes its own screenshot in a Flutter app, so quick capture stays ignored until `enableQuickCapture(boundaryKey:, sensitiveRegions:, replayBuffer:)` supplies masked Flutter evidence. Each capture then sends the same masked screenshot as `openReporter`, plus, when session replay is enabled for the app, a snapshot of the replay buffer's masked frames. The dashboard's capture-hotkey replay force does not apply to Flutter replay. A capture whose masked frame cannot be produced safely fails, and no image is sent. `disableQuickCapture()` removes the registration.
+- `start(quickCapture: false)` opts the app out of quick capture.
+
 ## 1.4.0
 
 - Align the plugin and its Android, iOS, and web SDK dependency versions with the coordinated Everframe 1.4.0 release.

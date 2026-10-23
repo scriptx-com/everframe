@@ -178,6 +178,15 @@ class ReportSubmitter(
          */
         identityToken: String? = null,
         authorization: ReportAuthorization? = null,
+        /**
+         * Simulator quick-capture token — rides this live POST only, as
+         * `X-Everframe-Capture-Token`. Null (the default) for every other
+         * submit. Deliberately NOT persisted into the outbox (the single
+         * `outbox.enqueue` below never sees it), so a retried or drained upload
+         * goes out without it and ingest treats it as a shared-inbox capture.
+         * SECURITY: never log.
+         */
+        captureToken: String? = null,
     ): ReportResult {
         val capturedAuthorization = authorization ?: ReportAuthorizationFactory.forCapture(Everframe.captureSessionSnapshot(), null)
         if (!Everframe.captureGate || !capturedAuthorization.evaluate().reportAllowed) {
@@ -193,13 +202,14 @@ class ReportSubmitter(
         var candidate = toEntry(reportId, prepared.first.copyOf(), idempotencyKey,
             attachments.filter { it.name in names }.map { it.copy(data = it.data.copyOf()) }, identitySubject)
         require(candidate.reportId.length <= 256 && candidate.reportId.toByteArray(Charsets.UTF_8).size <= 256)
-        listOfNotNull(candidate.endpoint, candidate.sdkKey, candidate.idempotencyKey, candidate.identitySubject).forEach {
+        listOfNotNull(candidate.endpoint, candidate.sdkKey, candidate.idempotencyKey, candidate.identitySubject, captureToken).forEach {
             require(it.length <= 16_384 && it.toByteArray(Charsets.UTF_8).size <= 16_384) { "Captured routing field exceeds limit" }
         }
         val result = try {
             uploadObserved(TransportOrigin.LIVE_SUBMIT) {
                 uploader.upload(candidate.endpoint, candidate.sdkKey, candidate.idempotencyKey, candidate.envelopeBytes,
-                    candidate.parts(), companionAttribution, identityToken, capturedAuthorization)
+                    candidate.parts(), companionAttribution, identityToken, capturedAuthorization,
+                    captureToken)
             }
         } catch (_: ReportAuthorizationCancelled) {
             return ReportResult.Cancelled("kill_switch")
@@ -355,11 +365,19 @@ class ReportSubmitter(
             // its upgrade requests that pass when it finishes.
             if (dev.everframe.crash.ErrorReplayHolds.isHeld(entry.reportId)) return@drainOwned false
             try {
+                val hostReplay = entry.attachmentRefs.any { it.name == "replay" &&
+                    it.filename == "replay.json" && it.contentType == "application/octet-stream" }
+                // A quick capture queued offline keeps the replay `captureHotkey.replay` forced, but only while
+                // quick capture still forces replay for the project and endpoint this entry belongs to.
+                val forcedReplay = !hostReplay &&
+                    entry.sdkKey == config.sdkKey &&
+                    entry.endpoint == endpointAtInitiation &&
+                    endpointUrl == endpointAtInitiation &&
+                    currentEpoch() == epochAtInitiation &&
+                    dev.everframe.quickcapture.QuickCapture.forcesReplay
                 val authority = OutboxDrainAuthorization(outbox.store, pending.token,
                     ReportAuthorizationFactory.forPending(drainSession, endpointAtInitiation,
-                        entry.endpoint, entry.sdkKey,
-                        hostReplay = entry.attachmentRefs.any { it.name == "replay" &&
-                            it.filename == "replay.json" && it.contentType == "application/octet-stream" }))
+                        entry.endpoint, entry.sdkKey, hostReplay = hostReplay, forcedReplay = forcedReplay))
                 val parts = entry.attachmentRefs.map { ref ->
                     MultipartUploader.Part(
                         name = ref.name,
@@ -603,7 +621,11 @@ internal object IdentityHeaderRedirectGuard : Interceptor {
         val request = if (sameOrigin) {
             chain.request()
         } else {
-            chain.request().newBuilder().removeHeader(IDENTITY_TOKEN_HEADER).build()
+            chain.request().newBuilder()
+                .removeHeader(IDENTITY_TOKEN_HEADER)
+                // SECURITY: the quick-capture token is a bearer credential too.
+                .removeHeader(MultipartUploader.CAPTURE_TOKEN_HEADER)
+                .build()
         }
         return chain.proceed(request)
     }

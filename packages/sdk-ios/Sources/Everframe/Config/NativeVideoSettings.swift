@@ -27,7 +27,10 @@ public struct NativeVideoSettings: Decodable, Sendable, Equatable {
     }
 }
 
-public func effectiveNativeVideo(config: ReplayConfig, fetchConfirmed: Bool) -> NativeVideoSettings? {
-    guard fetchConfirmed, config.replayEnabled else { return nil }
+/// The recorder settings a confirmed config allows, or nil for no recording.
+/// `forced` (simulator quick capture's `captureHotkey.replay`) records when
+/// `replayEnabled` is false; it never stops a recording `replayEnabled` allows.
+public func effectiveNativeVideo(config: ReplayConfig, fetchConfirmed: Bool, forced: Bool = false) -> NativeVideoSettings? {
+    guard fetchConfirmed, config.replayEnabled || forced else { return nil }
     return config.nativeVideo
 }

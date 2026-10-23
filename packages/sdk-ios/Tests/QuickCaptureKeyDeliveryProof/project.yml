@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 ScriptX
+#
+# Quick capture key-delivery proof: a host app that arms `QuickCapture.shared`
+# behind the production `UIWindow.sendEvent` hook, and an XCUITest that types
+# real hardware-keyboard events into it. See README.md.
+name: QuickCaptureKeyDeliveryProof
+options:
+  bundleIdPrefix: dev.everframe
+packages:
+  Everframe:
+    path: ../..
+settings:
+  base:
+    SWIFT_VERSION: '5.10'
+    IPHONEOS_DEPLOYMENT_TARGET: '15.0'
+    CODE_SIGNING_ALLOWED: NO
+    CODE_SIGN_IDENTITY: ''
+    GENERATE_INFOPLIST_FILE: YES
+    # `@testable import EverframeKit` in the host app.
+    ENABLE_TESTABILITY: YES
+targets:
+  QuickCaptureKeyHost:
+    type: application
+    platform: iOS
+    sources: [HostApp]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.everframe.quickcapture-key-host
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+    dependencies:
+      - package: Everframe
+        product: Everframe
+  QuickCaptureKeyDeliveryUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    settings:
+      base:
+        TEST_TARGET_NAME: QuickCaptureKeyHost
+    dependencies:
+      - target: QuickCaptureKeyHost
+schemes:
+  QuickCaptureKeyDeliveryProof:
+    build:
+      targets:
+        QuickCaptureKeyHost: all
+        QuickCaptureKeyDeliveryUITests: [test]
+    test:
+      config: Debug
+      targets: [QuickCaptureKeyDeliveryUITests]

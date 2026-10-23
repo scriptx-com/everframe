@@ -19,6 +19,7 @@ public struct EverframeReportEnvelope: Codable {
     public let context: EverframeContext
     public let payload: EverframePayload
     public let protocolVersion: EverframeProtocolVersion
+    public let quickCapture: Bool?
     public let reporter: EverframeReporter
     public let reportID: String
     public let sdk: EverframeSDK
@@ -27,20 +28,21 @@ public struct EverframeReportEnvelope: Codable {
     public let submittedAt: Date
 
     public enum CodingKeys: String, CodingKey {
-        case attachments, captureControl, captures, context, payload, protocolVersion, reporter
+        case attachments, captureControl, captures, context, payload, protocolVersion, quickCapture, reporter
         case reportID = "reportId"
         case sdk
         case sessionID = "sessionId"
         case source, submittedAt
     }
 
-    public init(attachments: [EverframeAttachment], captureControl: EverframeCaptureControl, captures: EverframeCaptures, context: EverframeContext, payload: EverframePayload, protocolVersion: EverframeProtocolVersion, reporter: EverframeReporter, reportID: String, sdk: EverframeSDK, sessionID: String?, source: EverframeReportEnvelopeSource?, submittedAt: Date) {
+    public init(attachments: [EverframeAttachment], captureControl: EverframeCaptureControl, captures: EverframeCaptures, context: EverframeContext, payload: EverframePayload, protocolVersion: EverframeProtocolVersion, quickCapture: Bool?, reporter: EverframeReporter, reportID: String, sdk: EverframeSDK, sessionID: String?, source: EverframeReportEnvelopeSource?, submittedAt: Date) {
         self.attachments = attachments
         self.captureControl = captureControl
         self.captures = captures
         self.context = context
         self.payload = payload
         self.protocolVersion = protocolVersion
+        self.quickCapture = quickCapture
         self.reporter = reporter
         self.reportID = reportID
         self.sdk = sdk
@@ -75,6 +77,7 @@ public extension EverframeReportEnvelope {
         context: EverframeContext? = nil,
         payload: EverframePayload? = nil,
         protocolVersion: EverframeProtocolVersion? = nil,
+        quickCapture: Bool?? = nil,
         reporter: EverframeReporter? = nil,
         reportID: String? = nil,
         sdk: EverframeSDK? = nil,
@@ -89,6 +92,7 @@ public extension EverframeReportEnvelope {
             context: context ?? self.context,
             payload: payload ?? self.payload,
             protocolVersion: protocolVersion ?? self.protocolVersion,
+            quickCapture: quickCapture ?? self.quickCapture,
             reporter: reporter ?? self.reporter,
             reportID: reportID ?? self.reportID,
             sdk: sdk ?? self.sdk,

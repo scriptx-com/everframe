@@ -262,4 +262,19 @@ class MultipartUploaderTest {
         assertNotNull(result.responseBodyPreview)
         assertTrue(result.responseBodyPreview!!.contains("oops"))
     }
+
+    @Test
+    fun `capture token is sent as the capture token header`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(200))
+        MultipartUploader(client).upload(server.url("/").toString(), "k", "i", "{}".toByteArray(), emptyList(),
+            captureToken = "cap_tok")
+        assertEquals("cap_tok", server.takeRequestOrFail().getHeader("X-Everframe-Capture-Token"))
+    }
+
+    @Test
+    fun `no capture token header when the token is null`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(200))
+        MultipartUploader(client).upload(server.url("/").toString(), "k", "i", "{}".toByteArray(), emptyList())
+        org.junit.Assert.assertNull(server.takeRequestOrFail().getHeader("X-Everframe-Capture-Token"))
+    }
 }

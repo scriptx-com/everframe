@@ -22,8 +22,12 @@
 //     either move the `ReporterIncludes` data class down into :everframe-core
 //     (touches the UI module's public surface) or shape the composer's
 //     `Inputs` to avoid the UI type (which is what we do below — raw booleans).
-//   • The duplication is small (~40 lines of envelope-build glue). When a
-//     third caller appears we can promote.
+//   • The duplication is small (~40 lines of envelope-build glue). The third
+//     caller has since appeared (simulator quick capture), and we still keep
+//     the duplication: the composer now has two UI-less callers (the companion
+//     bridge and quick capture), and `ReporterDialog.submitBaked` stays in sync
+//     with it for everything except `quickCapture` and `captureToken`, which
+//     only the UI-less callers set.
 //
 // Documented as a deliberate, time-boxed duplication in 06.2-13-SUMMARY.md.
 //
@@ -41,6 +45,7 @@ import android.graphics.Bitmap
 import dev.everframe.Everframe
 import dev.everframe.capture.video.FrozenReportCapture
 import dev.everframe.capture.video.NativeVideoAttachment
+import dev.everframe.transport.HostImageVTreeAttachment
 import dev.everframe.transport.ReportAuthorizationFactory
 import dev.everframe.capture.DeviceMetadata
 import dev.everframe.capture.sharedLogBuffer
@@ -180,7 +185,44 @@ object CompanionSubmissionComposer {
          *  surface toggles per-section (the phone reporter SPA sends a flat
          *  `includes` map), so this is derived from the booleans above. */
         val excluded: List<String> = emptyList(),
-    )
+        /** Simulator quick capture: stamps `quickCapture: true` on the envelope.
+         *  False for the phone-driven companion path. */
+        val quickCapture: Boolean = false,
+        /** Simulator quick-capture token, sent only as the live upload's
+         *  `X-Everframe-Capture-Token` header and never persisted to the outbox.
+         *  SECURITY: never log. */
+        val captureToken: String? = null,
+        /** True when [captureBitmap] went through the reporter's annotation
+         *  canvas (the companion path). Simulator quick capture sends the raw
+         *  screenshot and passes false, so the attachment is declared a plain
+         *  `screenshot` instead of `annotated-screenshot`. */
+        val annotated: Boolean = true,
+        /**
+         * Host-rendered, already masked replay timeline (Flutter or KMP), exactly what
+         * `ReporterDialog` receives as `hostReplayVTree` from `EFReporterFromImage`. Non-null means
+         * the host owns replay for this report: native video is never attached, and an empty array
+         * keeps it that way when the host had no safe frames. Null (the companion path) keeps the
+         * native video. Set only by simulator quick capture with host evidence.
+         */
+        val hostReplayVTree: ByteArray? = null,
+        /** `sdk.name` on the envelope. Simulator quick capture passes the host's identity
+         *  (`everframe-flutter`) with host evidence, as `EFReporterFromImage` does for its reports. */
+        val sdkName: String = "everframe-android",
+    ) {
+        /** The generated `toString()` would print both credentials into any log
+         *  or crash message that interpolates the inputs. */
+        override fun toString(): String =
+            "Inputs(activity=$activity, captureBitmap=$captureBitmap, capture=$capture, " +
+                "extraShotPngs=${extraShotPngs.size}, title=$title, description=$description, " +
+                "includeLogs=$includeLogs, includeNetwork=$includeNetwork, includeMetadata=$includeMetadata, " +
+                "extraOverrides=$extraOverrides, hostExtra=$hostExtra, " +
+                "companionAttribution=${redact(companionAttribution)}, capturedSession=$capturedSession, " +
+                "excluded=$excluded, quickCapture=$quickCapture, captureToken=${redact(captureToken)}, " +
+                "annotated=$annotated, hostReplayVTree=${hostReplayVTree?.let { "${it.size} bytes" }}, " +
+                "sdkName=$sdkName)"
+
+        private fun redact(secret: String?): String? = secret?.let { "<redacted>" }
+    }
 
     /**
      * Compose + submit. Returns the same `ReportResult` that
@@ -230,11 +272,12 @@ object CompanionSubmissionComposer {
             // 3. Declare the screenshot attachment so parser.ts can pair the
             //    multipart 'screenshot' part with envelope.attachments[]
             //    (ReporterDialog.kt:267-275 parity).
+            val screenshotKind = if (inputs.annotated) AttachmentKind.AnnotatedScreenshot else AttachmentKind.Screenshot
             val screenshotAttachment = Attachment(
                 byteLength = pngBytes.size.toDouble(),
                 contentType = "image/png",
                 height = null,
-                kind = AttachmentKind.AnnotatedScreenshot,
+                kind = screenshotKind,
                 partName = "screenshot",
                 sha256 = sha,
                 width = null,
@@ -255,7 +298,7 @@ object CompanionSubmissionComposer {
                     byteLength = bytes.size.toDouble(),
                     contentType = "image/png",
                     height = null,
-                    kind = AttachmentKind.AnnotatedScreenshot,
+                    kind = screenshotKind,
                     partName = name,
                     sha256 = hex,
                     width = null,
@@ -297,11 +340,19 @@ object CompanionSubmissionComposer {
                 }
             val capturedNetworkBodies = if (inputs.includeNetwork && inputs.capture.matchesSession(inputs.capturedSession))
                 inputs.capture.takeNetworkBodies() else null
-            val video = if (inputs.capture.matchesSession(inputs.capturedSession)) {
+            // Host replay follows `ReporterDialog.submitBaked`: the host's own authorization, its
+            // timeline only while that allows replay, and never native video beside it.
+            val hostReplayVTree = inputs.hostReplayVTree
+            val hostAuthorization = hostReplayVTree?.let {
+                ReportAuthorizationFactory.forHostReplay(inputs.capturedSession, inputs.capture)
+            }
+            val hostReplay = if (hostReplayVTree != null && hostAuthorization!!.evaluate().replayAllowed)
+                HostImageVTreeAttachment.build(hostReplayVTree) else null
+            val video = if (hostReplayVTree == null && inputs.capture.matchesSession(inputs.capturedSession)) {
                 inputs.capture.exportVideo()?.let { NativeVideoAttachment().build(it) }
             } else null
-            val replayPart = video?.part
-            val replayEnvelopeAttachment = video?.envelope
+            val replayPart = hostReplay?.second ?: video?.part
+            val replayEnvelopeAttachment = hostReplay?.first ?: video?.envelope
 
             // 5. Build envelope — same EnvelopeBuilder call shape as
             //    ReporterDialog.kt:325-349 with the metadata gate applied via
@@ -315,6 +366,7 @@ object CompanionSubmissionComposer {
             val descriptionClamped = inputs.description.take(DESCRIPTION_MAX_CHARS)
             val encoded = builder.buildEncoded(
                 sdkVersion = Everframe.SDK_VERSION,
+                sdkName = inputs.sdkName,
                 title = titleClamped,
                 description = descriptionClamped,
                 formFactor = DeviceMetadata.formFactor(device),
@@ -372,6 +424,7 @@ object CompanionSubmissionComposer {
                 // throws and returns an empty list when the sampler is
                 // off/never started.
                 resources = sharedResourceBuffer.snapshot(),
+                quickCapture = inputs.quickCapture,
             )
 
             // 6. Ship via ReportSubmitter (isolated OkHttpClient — no
@@ -475,7 +528,10 @@ object CompanionSubmissionComposer {
                 companionAttribution = inputs.companionAttribution,
                 identitySubject = if (identity.epochStillCurrent) inputs.capturedSession.user.identitySubject else null,
                 identityToken = identity.token,
-                authorization = ReportAuthorizationFactory.forCapture(inputs.capturedSession, inputs.capture),
+                authorization = hostAuthorization
+                    ?: ReportAuthorizationFactory.forCapture(inputs.capturedSession, inputs.capture),
+                // SECURITY: never log. Live upload only; see ReportSubmitter.submit.
+                captureToken = inputs.captureToken,
             )
         } ?: ReportResult.Cancelled("submit_guard_failed")
         } finally { inputs.capture.finishConsumption() }

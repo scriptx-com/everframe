@@ -109,6 +109,77 @@ class ReplayConfigProviderTest {
         assertNull(p.current.shakeToReport)
     }
 
+    @Test
+    fun `captureHotkey block is negotiated and decoded leniently`() = runTest {
+        var body = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"captureHotkey":{"enabled":true,"binding":"Shift Shift","future":"ignored"}}"""
+        val p = provider(fetcher = { request ->
+            assertTrue(request.header("X-Everframe-SDK-Features")!!.split(',').map(String::trim).contains("capturehotkey"))
+            response(200, body)
+        })
+
+        assertTrue(p.refresh(force = true))
+        assertEquals(CaptureHotkeyConfigWire(enabled = true, binding = "Shift Shift"), p.current.captureHotkey)
+
+        body = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"captureHotkey":{"enabled":true}}"""
+        assertTrue(p.refresh(force = true))
+        assertEquals(true, p.current.captureHotkey?.enabled)
+        assertNull(p.current.captureHotkey?.binding)
+
+        body = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0}"""
+        assertTrue(p.refresh(force = true))
+        assertNull(p.current.captureHotkey)
+        assertNull(ReplayConfig.OFF.captureHotkey)
+    }
+
+    @Test
+    fun `malformed captureHotkey block degrades to null and keeps the rest of the config`() = runTest {
+        for (bad in listOf(""""yes"""", """{"enabled":"yes"}""", """{"enabled":true,"binding":5}""")) {
+            val p = provider(fetcher = {
+                response(200, """{"replayEnabled":true,"replayDurationSec":45,"samplingRate":0.5,"captureHotkey":$bad}""")
+            })
+            assertTrue(p.refresh(force = true))
+            assertNull(p.current.captureHotkey)
+            assertTrue(p.current.replayEnabled)
+            assertEquals(45, p.current.replayDurationSec)
+        }
+    }
+
+    @Test
+    fun `captureHotkey replay flag decodes and is null when absent`() = runTest {
+        var body = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"captureHotkey":{"enabled":true,"replay":true}}"""
+        val p = provider(fetcher = { response(200, body) })
+
+        assertTrue(p.refresh(force = true))
+        assertEquals(CaptureHotkeyConfigWire(enabled = true, replay = true), p.current.captureHotkey)
+
+        body = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"captureHotkey":{"enabled":true,"replay":false}}"""
+        assertTrue(p.refresh(force = true))
+        assertEquals(false, p.current.captureHotkey?.replay)
+
+        body = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"captureHotkey":{"enabled":true,"binding":"Shift Shift"}}"""
+        assertTrue(p.refresh(force = true))
+        assertEquals(CaptureHotkeyConfigWire(enabled = true, binding = "Shift Shift"), p.current.captureHotkey)
+        assertNull(p.current.captureHotkey?.replay)
+    }
+
+    @Test
+    fun `malformed captureHotkey replay flag is null and keeps the block`() = runTest {
+        for (bad in listOf(""""yes"""", "1", "null", """{"on":true}""", "[true]")) {
+            val p = provider(fetcher = {
+                response(200, """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"captureHotkey":{"enabled":true,"binding":"Shift Shift","replay":$bad}}""")
+            })
+            assertTrue(p.refresh(force = true))
+            assertEquals("replay=$bad", CaptureHotkeyConfigWire(enabled = true, binding = "Shift Shift", replay = null), p.current.captureHotkey)
+        }
+    }
+
+    @Test
+    fun `quickCaptureEnabled defaults to true`() {
+        val c = EverframeConfig(appId = "app", sdkKey = "txx_live_test1234567890")
+        assertTrue(c.quickCaptureEnabled)
+        assertFalse(c.copy(quickCaptureEnabled = false).quickCaptureEnabled)
+    }
+
     private fun nativeVideoBody(json: String) =
         """{"replayEnabled":true,"replayDurationSec":30,"samplingRate":1.0,"nativeVideo":$json}"""
 
@@ -468,7 +539,7 @@ class ReplayConfigProviderTest {
         // that declare it, so this header is the whole reason any of these
         // blocks arrive. Adding a capability here is a real contract change and
         // should have to be made on purpose.
-        assertEquals("networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, nativevideo, nativevideolowfps", seen?.header("X-Everframe-SDK-Features"))
+        assertEquals("networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, nativevideo, nativevideolowfps", seen?.header("X-Everframe-SDK-Features"))
     }
 
     @Test

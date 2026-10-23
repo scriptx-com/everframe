@@ -173,6 +173,8 @@ export type ConfigOpts = {
   companionBadgeEnabled?: boolean;
   /** Local veto for native mobile shake-to-report. Absent defaults to enabled. */
   shakeToReportEnabled?: boolean;
+  /** Local veto for simulator/emulator quick capture. Absent defaults to enabled. */
+  quickCaptureEnabled?: boolean;
   /**
    * Crash-only session switch. `true` turns off every on-device way to open the reporter, keeps
    * network bodies off and samples replay with the server's crash-only rate until a companion

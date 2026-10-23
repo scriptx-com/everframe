@@ -4,12 +4,14 @@ package dev.everframe.flutter
 
 import android.app.Activity
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import dev.everframe.Everframe
+import dev.everframe.capture.ScreenshotCapture
 import dev.everframe.capture.SensitiveRectRegistry
 import dev.everframe.config.CaptureConfig
 import dev.everframe.config.Environment
@@ -18,6 +20,7 @@ import dev.everframe.config.ReleaseHealthConfig
 import dev.everframe.config.ReportResult
 import dev.everframe.config.TXUser
 import dev.everframe.crash.CrashReporter
+import dev.everframe.quickcapture.QuickCaptureHostEvidence
 import dev.everframe.ui.EFReporterFromImage
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.android.FlutterView
@@ -30,9 +33,54 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
+
+/**
+ * The masked Flutter evidence Dart sends with `openReporter` and returns for `quickCaptureEvidence`.
+ * One decoder for both, so they cannot drift.
+ */
+private class FlutterMaskedEvidence(
+    val maskedPng: ByteArray,
+    val pixelRatio: Double?,
+    val replayVTree: ByteArray?,
+) {
+    /**
+     * The same checks and decode `EFReporterFromImage.open` applies to `maskedPng` before it builds the
+     * reporter's capture: PNG signature and size bound, bounds-only decode, `image/png`, positive size,
+     * longest edge at most 2048. Decodes off the main thread.
+     */
+    suspend fun screenshot(): ScreenshotCapture.CaptureResult? {
+        if (maskedPng.size !in 8..10_000_000 ||
+            !maskedPng.copyOf(8).contentEquals(byteArrayOf(137.toByte(), 80, 78, 71, 13, 10, 26, 10))
+        ) return null
+        val bitmap = withContext(Dispatchers.Default) {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(maskedPng, 0, maskedPng.size, bounds)
+            if (bounds.outMimeType != "image/png" ||
+                bounds.outWidth <= 0 || bounds.outHeight <= 0 ||
+                maxOf(bounds.outWidth, bounds.outHeight) > 2048) null
+            else BitmapFactory.decodeByteArray(maskedPng, 0, maskedPng.size)
+        } ?: return null
+        return ScreenshotCapture.CaptureResult(bitmap, bitmap.width, bitmap.height, maskedPng)
+    }
+
+    companion object {
+        fun from(args: Any?): FlutterMaskedEvidence? {
+            val map = args as? Map<*, *> ?: return null
+            val maskedPng = map["maskedPng"] as? ByteArray ?: return null
+            return FlutterMaskedEvidence(
+                maskedPng,
+                (map["pixelRatio"] as? Number)?.toDouble(),
+                map["replayVTree"] as? ByteArray,
+            )
+        }
+    }
+}
 
 /** Android bridge to the native Everframe reporter. */
 class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
@@ -41,6 +89,8 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
     private var activity: Activity? = null
     private lateinit var scope: CoroutineScope
     private var activeMarkers: List<View> = emptyList()
+    /** Dart's `enableQuickCapture` registration. Survives `kill` so a later `start` reinstalls the provider. */
+    private var quickCaptureHostEnabled = false
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -51,6 +101,13 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
+        // The provider calls this engine's channel, so it must not outlive it. The provider is
+        // SDK-global: with several engines, any registered engine's detach clears it, and quick
+        // capture then fails closed (ignored) until an engine calls `enableQuickCapture` again.
+        if (quickCaptureHostEnabled) {
+            quickCaptureHostEnabled = false
+            Everframe.__setQuickCaptureEvidenceProvider(null)
+        }
         clearMarkers()
         scope.cancel()
     }
@@ -81,7 +138,10 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
                         capture = CaptureConfig(screenshot = false, crash = crash),
                         releaseHealth = ReleaseHealthConfig(enabled = crash && call.argument<Boolean>("releaseHealth") != false),
                         debugBuild = call.argument<Boolean>("debugBuild"),
+                        quickCaptureEnabled = call.argument<Boolean>("quickCapture") ?: true,
                     ), activity)
+                    // `start` keeps no provider from an earlier session's `kill`.
+                    if (quickCaptureHostEnabled) installQuickCaptureProvider()
                     result.success(null)
                 }
                 "openReporter" -> {
@@ -96,15 +156,15 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
                     if (activeMarkers.isNotEmpty()) {
                         return result.error("reporter_busy", "Reporter is already open", null)
                     }
-                    val maskedPng = call.argument<ByteArray>("maskedPng")
+                    val evidence = FlutterMaskedEvidence.from(call.arguments)
                         ?: return result.error("privacy_unverified", "Masked Flutter screenshot is unavailable", null)
-                    val markers = installSensitiveMarkers(call, host)
+                    val markers = installSensitiveMarkers(evidence.pixelRatio, call.argument<Any>("sensitiveRects"), host)
                         ?: return result.error("privacy_unverified", "Sensitive Flutter geometry is unavailable", null)
                     activeMarkers = markers
                     scope.launch {
                         try {
-                            val outcome = EFReporterFromImage.open(host, maskedPng,
-                                call.argument<ByteArray>("replayVTree"), sdkName = "everframe-flutter")
+                            val outcome = EFReporterFromImage.open(host, evidence.maskedPng,
+                                evidence.replayVTree, sdkName = "everframe-flutter")
                             result.success(when (outcome) {
                                 is ReportResult.Submitted -> mapOf("status" to "submitted", "reportId" to outcome.reportId.toString())
                                 is ReportResult.Queued -> mapOf("status" to "queued", "reportId" to outcome.reportId.toString())
@@ -152,7 +212,19 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
                     if (accepted) Everframe.requestOutboxDrain()
                     result.success(accepted)
                 }
-                "kill" -> { clearMarkers(); Everframe.kill(); result.success(null) }
+                "setQuickCaptureHost" -> {
+                    val enabled = call.argument<Boolean>("enabled")
+                        ?: return result.error("invalid_arguments", "enabled required", null)
+                    quickCaptureHostEnabled = enabled
+                    if (enabled) installQuickCaptureProvider() else Everframe.__setQuickCaptureEvidenceProvider(null)
+                    result.success(null)
+                }
+                "kill" -> {
+                    clearMarkers()
+                    Everframe.__setQuickCaptureEvidenceProvider(null)
+                    Everframe.kill()
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         } catch (error: Throwable) {
@@ -160,11 +232,37 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
         }
     }
 
-    private fun installSensitiveMarkers(call: MethodCall, host: Activity): List<View>? {
-        val ratio = (call.argument<Any>("pixelRatio") as? Number)?.toDouble() ?: return null
+    /**
+     * Quick capture asks Dart for the masked Flutter frame instead of taking a native screenshot. The SDK
+     * runs the provider off the main thread and bounds it; the channel call hops to the main thread. A null,
+     * invalid or failed reply yields null, which fails the capture: the SDK never falls back to an unmasked
+     * image.
+     */
+    private fun installQuickCaptureProvider() {
+        val channel = channel
+        Everframe.__setQuickCaptureEvidenceProvider {
+            val reply = withContext(Dispatchers.Main) {
+                suspendCancellableCoroutine<Any?> { continuation ->
+                    channel.invokeMethod("quickCaptureEvidence", null, object : MethodChannel.Result {
+                        override fun success(result: Any?) { if (continuation.isActive) continuation.resume(result) }
+                        override fun error(code: String, message: String?, details: Any?) {
+                            if (continuation.isActive) continuation.resume(null)
+                        }
+                        override fun notImplemented() { if (continuation.isActive) continuation.resume(null) }
+                    })
+                }
+            }
+            val evidence = FlutterMaskedEvidence.from(reply) ?: return@__setQuickCaptureEvidenceProvider null
+            val screenshot = evidence.screenshot() ?: return@__setQuickCaptureEvidenceProvider null
+            QuickCaptureHostEvidence(screenshot, evidence.replayVTree, sdkName = "everframe-flutter")
+        }
+    }
+
+    private fun installSensitiveMarkers(pixelRatio: Double?, sensitiveRects: Any?, host: Activity): List<View>? {
+        val ratio = pixelRatio ?: return null
         val nativeRatio = host.resources.displayMetrics.density.toDouble()
         if (!ratio.isFinite() || ratio <= 0 || abs(ratio - nativeRatio) > 0.02) return null
-        val rects = call.argument<Any>("sensitiveRects") as? List<*> ?: return null
+        val rects = sensitiveRects as? List<*> ?: return null
         val content = host.findViewById<FrameLayout>(android.R.id.content) ?: return null
         val flutterView = findFlutterView(content) ?: return null
         if (content.width <= 0 || content.height <= 0 || flutterView.width <= 0 || flutterView.height <= 0) return null

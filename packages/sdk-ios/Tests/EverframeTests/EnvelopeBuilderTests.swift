@@ -39,6 +39,22 @@ struct EnvelopeBuilderTests {
         }
     }
     #endif
+    @Test func testQuickCaptureFieldWrittenWhenTrue() throws {
+        let (bytes, _) = try makeBuilder().buildEncoded(reportId: UUID(), sdkVersion: "1.0.0", quickCapture: true)
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+        let report = try decoder.decode(EverframeReportEnvelope.self, from: bytes)
+        #expect(report.quickCapture == true)
+    }
+
+    @Test func testQuickCaptureOmittedByDefault() throws {
+        let (bytes, _) = try makeBuilder().buildEncoded(reportId: UUID(), sdkVersion: "1.0.0")
+        let object = try #require(JSONSerialization.jsonObject(with: bytes) as? [String: Any])
+        #expect(object["quickCapture"] == nil)
+        let (explicitFalse, _) = try makeBuilder().buildEncoded(reportId: UUID(), sdkVersion: "1.0.0", quickCapture: false)
+        let object2 = try #require(JSONSerialization.jsonObject(with: explicitFalse) as? [String: Any])
+        #expect(object2["quickCapture"] == nil)
+    }
+
     private func makeBuilder() -> EnvelopeBuilder {
         EnvelopeBuilder(redactor: RedactionEngine())
     }

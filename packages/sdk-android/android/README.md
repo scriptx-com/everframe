@@ -126,6 +126,74 @@ requests no permission, declares no required sensor feature, and safely no-ops
 when the device has no accelerometer. Android TV and Leanback devices are
 excluded.
 
+### Quick capture (debug emulators)
+
+While you test a debug build on an Android emulator, send one broadcast to file
+a report without opening the reporter:
+
+```sh
+adb shell am broadcast -a com.everframe.CAPTURE
+```
+
+The SDK takes the screenshot first, freezes the replay window, logs,
+breadcrumbs and network the same way the reporter does, uploads the report at
+once, and then shows a short toast: `Captured · <device name>`,
+`Captured · uploads when online` when the upload was queued, or
+`Capture failed`. The toast is a system window, so it is never part of the
+screenshot. Title and description stay empty; you fill them in on the
+dashboard. Like the reporter, a quick capture consumes the pending
+`Everframe.setExtra` payload.
+
+- **Trigger.** Run `npx @everframe/cli capture`, which sends the broadcast
+  action `com.everframe.CAPTURE` to the running emulator. On macOS,
+  `npx @everframe/cli hotkey` does the same from a global shortcut while a
+  standalone emulator window is in front. You can also send the broadcast
+  yourself with the `adb` command above. The receiver reads nothing from the
+  broadcast. A session started with `capture.screenshot = false` ignores it
+  (dropped as `screenshot_disabled`); Kotlin Multiplatform apps start that way
+  today, so they get no quick capture for now.
+- **Debug emulators only.** The receiver is registered only in a debuggable
+  build running on an emulator, never on a device or in a release build. It
+  also needs `reporterEnabled` and the dashboard's capture hotkey setting, and
+  it does nothing while the reporter is on screen, while another capture holds
+  the frozen replay, or while a capture is still uploading. Shake-to-report is
+  ignored while a quick capture is in flight, but an explicit `report.open()`
+  during that upload still opens the reporter, and that report may then miss
+  the frozen replay and evidence.
+- **Replay.** When the dashboard's capture hotkey setting also turns on
+  replay (`captureHotkey.replay`), session replay records while quick capture
+  is armed, even if the app's replay setting is off. It records regardless of
+  the sampling rate, because this is your own debug session; the replay
+  duration and frame rate still come from the app's settings. The flag only
+  ever turns replay on. When quick capture disarms, replay follows the app's
+  replay setting again: at the next config refresh when the dashboard setting
+  changes, and at once on `kill()` or on a `start()` with
+  `quickCaptureEnabled = false`. A queued report with a native video replay
+  from the same project and session keeps it when a retry in that session runs
+  while quick capture still forces replay. A retry at the next app launch runs
+  before the dashboard config arrives, so it sends the capture without its
+  replay. Native video replay never records frames that show Jetpack Compose
+  content, so quick captures taken on Compose screens carry the screenshot,
+  logs and metadata but no replay.
+- **Opt out** locally with `EverframeConfig(..., quickCaptureEnabled = false)`.
+  Local `true` never overrides a dashboard disable.
+- **Token.** Run `npx @everframe/cli login` once; it saves your capture token
+  and copies it to running emulators. Start an emulator later? Run
+  `npx @everframe/cli link`. The token lives in the emulator's global setting
+  `everframe_token`, and the capture is attributed to you. It is read fresh at
+  every capture, sent only on the quick-capture upload, and never logged. The
+  CLI also writes `everframe_token_origin`, the server that issued the token;
+  the token is only sent to that server, so a capture to any other ingest
+  endpoint goes out without it.
+  Without it, captures land in the app's shared inbox. A capture that is queued
+  offline and retried later goes out without the token. Without the CLI, set it
+  yourself (with no `everframe_token_origin`, the token goes to the SDK's ingest
+  endpoint):
+
+  ```sh
+  adb shell settings put global everframe_token <token>
+  ```
+
 ### Crash-only sessions
 
 `EverframeConfig(..., reporterEnabled = false)` reports crashes and errors

@@ -6,7 +6,10 @@ import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
 enum class ReporterTrigger(val value: String) {
-    Button("button"), Shake("shake"), Menu("menu"), Companion("companion");
+    Button("button"), Shake("shake"), Menu("menu"), Companion("companion"),
+
+    /** Emulator quick capture (`adb shell am broadcast -a com.everframe.CAPTURE`); files a report with no reporter UI. */
+    QuickCapture("quick_capture");
 
     companion object Parser {
         fun fromValue(value: String): ReporterTrigger? = entries.firstOrNull { it.value == value }

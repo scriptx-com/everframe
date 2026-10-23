@@ -123,6 +123,9 @@ public struct EverframeConfig: Sendable, Equatable {
     /// unchanged. CLIENT VETO only, a flat `Bool` like `shakeToReportEnabled`. Mirrors Android's
     /// `EverframeConfig.reporterEnabled`.
     public var reporterEnabled: Bool
+    /// Simulator quick capture (debug simulator builds only). Set `false` to opt out locally; the
+    /// dashboard's `captureHotkey` block must also enable it.
+    public var quickCaptureEnabled: Bool = true
 
     public enum Environment: Sendable, Equatable {
         case development

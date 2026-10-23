@@ -440,6 +440,78 @@ duplicate-true posts.
 For the cross-SDK contract statement see the top-level
 [README.md](../../README.md#triggers-are-a-host-app-concern).
 
+## Quick capture (simulators)
+
+While you test a build in the iOS simulator, double-tap **Shift** to
+file a report without opening the reporter. The tvOS simulator is not yet
+verified. The SDK takes the
+screenshot first, freezes the replay window, logs, breadcrumbs and network the
+same way the reporter does, uploads the report at once, and then shows a short
+toast: `Captured · <device name>`, `Captured · uploads when online` when the
+upload was queued, or `Capture failed`. The toast is never part of the
+screenshot. Title and description stay empty; you fill them in on the
+dashboard. Like the reporter, a quick capture consumes the pending
+`Everframe.shared.setExtra` payload.
+
+- **Trigger.** Double Shift by default. The dashboard's per-app capture hotkey
+  setting can pick a chord such as `Mod+Shift+B` instead. Modifier presses
+  reach the app even while the simulator window's sidebar has focus; a chord
+  with a letter needs a click on the device screen first, and a click on the
+  screen is a tap the app sees.
+- **Simulators only.** It never runs on a physical device. Every simulator
+  build counts as a debug build, Release configuration included, unless the
+  app sets `EverframeConfig.debugBuild = false`.
+  It also needs `reporterEnabled` and the dashboard's capture hotkey setting,
+  and it does nothing while the reporter is on screen or a capture is still
+  uploading. Shake-to-report is ignored while a quick capture is in flight,
+  but an explicit `report.open()` during that upload still opens the reporter,
+  and either report may then miss part of the frozen replay and evidence.
+- **Replay.** When the dashboard's capture hotkey setting also turns on
+  replay (`captureHotkey.replay`), session replay records while quick capture
+  is armed, even if the app's replay setting is off. It records regardless of
+  the sampling rate, because this is your own debug session; the replay
+  duration and frame rate still come from the app's settings. The flag only
+  ever turns replay on. When quick capture disarms, replay follows the app's
+  replay setting again: at the next config refresh when the dashboard setting
+  changes, and at once on `kill()` or on a `start()` with
+  `quickCaptureEnabled = false`. A queued report with a native video replay
+  from the same project and session keeps it when a retry in that session runs
+  while quick capture still forces replay. A retry at the next app launch runs
+  before the dashboard config arrives, so it sends the capture without its
+  replay; the launch drain also removes it from the queued entry.
+- **Opt out** locally by setting `quickCaptureEnabled` to `false` on your
+  config before `start`. Local `true` never overrides a dashboard disable.
+
+  ```swift
+  var config = EverframeConfig(sdkKey: "…")
+  config.quickCaptureEnabled = false
+  try Everframe.shared.start(config: config)
+  ```
+
+- **Capture from your Mac.** `npx @everframe/cli capture` posts the Darwin
+  notification `com.everframe.capture` to the booted simulator
+  (`xcrun simctl spawn <udid> notifyutil -p com.everframe.capture`), which
+  files the same capture as the double-Shift trigger. It follows the same
+  gates: a simulator build (not opted out with `debugBuild = false`) with the
+  dashboard's capture hotkey setting on, and nothing happens while the reporter
+  is on screen or a capture is uploading. With several simulators booted, pass `--device <udid>`.
+- **No screenshot, no capture.** A session started with
+  `capture.screenshot = false` ignores quick capture and uploads nothing, unless
+  a host plugin (Flutter's `enableQuickCapture`) supplies masked evidence; the
+  trigger is dropped as `screenshot_disabled`. Kotlin Multiplatform apps start
+  that way today, so they get no quick capture for now.
+- **Token file.** Run `npx @everframe/cli login` once. It writes
+  `~/.everframe/credentials` with your capture token (as JSON with `token`,
+  `url` and `email`), and the capture is attributed to you. The SDK reads
+  `$SIMULATOR_HOST_HOME/.everframe/credentials` on your Mac (normally the same
+  file) fresh at every capture, sends the token only on the quick-capture
+  upload, and never logs it. The token is only sent to the server it was
+  issued by: when the file's `url` names a different origin than the SDK's
+  ingest endpoint, the capture goes out without it. Without it, captures land
+  in the app's shared inbox. A capture that is queued offline and retried later goes out without
+  the token. If you cannot use the CLI, create the file yourself as
+  `{"token": "<token>"}`.
+
 ---
 
 ## Public API
@@ -585,7 +657,7 @@ MIT. See top-level `LICENSE`.
 
 ### Reporter interaction origins
 
-Reporter opens now write `custom` breadcrumbs with message `reporter_opened` and data `{ source: "everframe_reporter", trigger: "button" | "shake" | "menu" | "companion" }` before evidence freezes. Close/cancel writes `reporter_closed` with the same source discriminator to the live trail. Pending interaction summaries precede the opened marker. Existing `report.open()` remains valid and defaults to `button`; native shake and companion requests identify their own triggers.
+Reporter opens now write `custom` breadcrumbs with message `reporter_opened` and data `{ source: "everframe_reporter", trigger: "button" | "shake" | "menu" | "companion" | "quick_capture" }` before evidence freezes. Close/cancel writes `reporter_closed` with the same source discriminator to the live trail. Pending interaction summaries precede the opened marker. Existing `report.open()` remains valid and defaults to `button`; native shake, companion requests and simulator quick captures identify their own triggers.
 
 Native target annotations accept `reporterTrigger: "button" | "menu"`. This marks only the bound target's matching activation with top-level breadcrumb data `origin: "reporter"` and `trigger`; it never identifies an unrelated preceding tap or key. Supported RN/Expo developer-tool surfaces receive `data.origin: "devtools"` from native framework identity, without label matching. All existing capture gates, masking and registration lifetime rules apply. See the [React Native reporter-origin contract](../sdk-react-native/README.md#reporter-boundaries-and-developer-tools) for lifecycle handling, host-owned flow markers and remote-input limitations.
 
