@@ -429,6 +429,8 @@ internal object DeviceLink {
             dev.everframe.quickcapture.CaptureGesture.isArmed(dev.everframe.quickcapture.CaptureGesture.currentInput(isTv = false)),
             isCurrent,
         )
+        // The TV remote gesture follows the link too (a linked TV swallows the binding's keys).
+        if (isCurrent()) dev.everframe.quickcapture.QuickCapture.rearmTvGesture()
     }
 
     private inline fun safely(block: () -> Unit) {

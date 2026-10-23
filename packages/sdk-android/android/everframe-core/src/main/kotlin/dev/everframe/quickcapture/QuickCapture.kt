@@ -34,6 +34,12 @@
 // ([dev.everframe.devicelink.DeviceLink.beginAttempt]); a `device_unlinked` refusal forgets the token and
 // shows `This device was unlinked` ([QuickCaptureOutcome.Unlinked]).
 //
+// TVs. The gesture is the dashboard's remote binding (`captureGesture.tv`), recognised by `TvGestureDetector` in
+// the same window callback. [QuickCapture.armedTvBinding] arms it on a TV while the mode rule has something to
+// do (`CaptureGesture.isArmed`: capture allowed, or linking enabled) and the kill switch is open; on a linked
+// device the binding's keys are swallowed once the gesture is recognised, never before and never on an
+// unlinked device.
+//
 // The block's `replay` flag also records session replay while quick capture is armed, whatever the
 // app's `replayEnabled` ([QuickCapture.forcesReplay]): on linked devices and debug builds only, never on an
 // unlinked release build.
@@ -61,6 +67,7 @@ import dev.everframe.capture.ScreenshotCapture
 import dev.everframe.capture.SensitiveRectRegistry
 import dev.everframe.capture.video.FrozenReportCapture
 import dev.everframe.companion.CompanionSubmissionComposer
+import dev.everframe.config.CaptureGestureConfigWire
 import dev.everframe.config.CaptureHotkeyConfigWire
 import dev.everframe.config.IngestEndpoint
 import dev.everframe.config.ReportResult
@@ -190,6 +197,15 @@ internal object QuickCapture {
      * change; read lock-free on each key event.
      */
     @Volatile private var chordWhileArmed: AndroidCaptureChord? = null
+
+    /** This session runs on a TV (the TV gesture never arms anywhere else). Set by [install]. */
+    @Volatile private var isTv = false
+
+    /** The dashboard's TV binding from the latest config, armed or not. */
+    @Volatile private var publishedTvBinding: TvGestureBinding? = null
+
+    /** [publishedTvBinding] while the TV gesture is armed, else null. Read lock-free on each key event. */
+    @Volatile private var tvBindingWhileArmed: TvGestureBinding? = null
     private val inFlight = AtomicBoolean(false)
 
     /** The session's `capture.screenshot`. */
@@ -229,6 +245,9 @@ internal object QuickCapture {
             remoteEnabled = false
             remoteReplay = false
             chordWhileArmed = null
+            isTv = runCatching { dev.everframe.trigger.ShakeToReportTrigger.isTelevision(context) }.getOrDefault(false)
+            publishedTvBinding = null
+            tvBindingWhileArmed = null
             if (!debug || !localEnabled || !isEmulator()) return
             val app = context.applicationContext ?: context
             val next = Receiver()
@@ -264,6 +283,44 @@ internal object QuickCapture {
             }
         }
     }
+
+    /**
+     * The dashboard's `captureGesture` block from each config refresh. ReplaySession publishes it after the
+     * `captureHotkey` and `deviceLinking` blocks, so the arming below sees this config's switches.
+     */
+    fun publishGesture(wire: CaptureGestureConfigWire?, isCurrent: () -> Boolean = { true }) {
+        synchronized(lock) {
+            if (!isCurrent()) return
+            // An equal binding keeps its instance, so a routine refresh never resets a press in progress.
+            val next = wire?.tv
+            if (next != publishedTvBinding) publishedTvBinding = next
+        }
+        rearmTvGesture()
+    }
+
+    /**
+     * Recomputes [armedTvBinding] from the published binding and the mode rule's inputs. Called on every gesture
+     * publish and whenever the device link changes (linked, replaced, forgotten).
+     */
+    fun rearmTvGesture() {
+        val binding = publishedTvBinding
+        val armed = binding != null && isTv && CaptureGesture.isArmed(CaptureGesture.currentInput(isTv = true))
+        synchronized(lock) {
+            // A publish or teardown that raced this computation wins: re-read under the lock.
+            tvBindingWhileArmed = if (armed && publishedTvBinding === binding) binding else null
+        }
+    }
+
+    /**
+     * The TV binding to detect, or null while the TV gesture is disarmed (not a TV, no binding, quick capture
+     * off, nothing for the mode rule to do) or the kill switch is closed. Disarmed, it costs one volatile read
+     * per key event. The same instance is returned until the binding or the arming changes.
+     */
+    val armedTvBinding: TvGestureBinding?
+        get() {
+            val binding = tvBindingWhileArmed ?: return null
+            return binding.takeIf { Everframe.captureGate }
+        }
 
     /**
      * The chord to capture on, or null while quick capture is disarmed or the kill switch is closed. Two
@@ -338,6 +395,8 @@ internal object QuickCapture {
             remoteEnabled = false
             remoteReplay = false
             chordWhileArmed = null
+            publishedTvBinding = null
+            tvBindingWhileArmed = null
             screenshot = true
             evidenceProvider = null
         }

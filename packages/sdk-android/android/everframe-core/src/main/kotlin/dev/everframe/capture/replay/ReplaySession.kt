@@ -204,6 +204,10 @@ class ReplaySession(
         dev.everframe.devicelink.DeviceLink.applyConfig(
             latest.deviceLinking?.let { if (succeeded) it else it.copy(link = null) },
         ) { currentGenerationValid(capturedEpoch) }
+        // The TV remote gesture, armed from this config's switches and the link applied just above.
+        dev.everframe.quickcapture.QuickCapture.publishGesture(latest.captureGesture) {
+            currentGenerationValid(capturedEpoch)
+        }
         // Shake listens while the capture gesture is armed (quick capture allowed, or linking enabled).
         dev.everframe.trigger.ShakeToReportTrigger.publishGestureArmed(
             dev.everframe.quickcapture.CaptureGesture.isArmed(dev.everframe.quickcapture.CaptureGesture.currentInput(isTv = false)),
