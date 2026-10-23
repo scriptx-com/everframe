@@ -1,0 +1,21 @@
+packages/sdk-web/__tests__/quickcapture/key-listener.spec.ts
+  s_f1c043e85606b2::t_9bc84f9aee1634 82,303-367
+packages/sdk-web/src/quickcapture/key-listener.ts
+  s_f1c043e85606b2::t_a206473b85462d 18-19,46-83,108-109,241
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9d79de05547169284045c4e4521f56498864eac0",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
