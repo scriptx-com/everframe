@@ -78,38 +78,46 @@ final class QuickCaptureTests: XCTestCase {
         return reason.map { $0 == got } ?? true
     }
 
-    private func postCaptureNotification() async {
+    private func postCaptureNotification() {
         CFNotificationCenterPostNotification(
             CFNotificationCenterGetDarwinNotifyCenter(),
             CFNotificationName(QuickCapture.darwinCaptureNotification as CFString), nil, nil, true)
-        try? await Task.sleep(nanoseconds: 500_000_000)
     }
 
     func testDarwinNotificationTriggersCaptureWhenArmed() async {
         let qc = makeArmed()
-        var calls = 0
-        qc.triggerOverride = { calls += 1 }
-        await postCaptureNotification()
-        XCTAssertEqual(calls, 1)
+        let fired = expectation(description: "capture triggered")
+        fired.assertForOverFulfill = true
+        qc.triggerOverride = { fired.fulfill() }
+        postCaptureNotification()
+        // A short extra wait so a duplicate delivery would over-fulfill.
+        await fulfillment(of: [fired], timeout: 5)
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        withExtendedLifetime(qc) {}
     }
 
     func testDarwinNotificationIgnoredWhenDisarmed() async {
         let qc = makeArmed()
         qc.publish(remote: nil)
-        var calls = 0
-        qc.triggerOverride = { calls += 1 }
-        await postCaptureNotification()
-        XCTAssertEqual(calls, 0)
+        let fired = expectation(description: "capture triggered")
+        fired.isInverted = true
+        qc.triggerOverride = { fired.fulfill() }
+        postCaptureNotification()
+        await fulfillment(of: [fired], timeout: 0.5)
+        withExtendedLifetime(qc) {}
     }
 
     func testDarwinObserverRegisteredOnce() async {
         let qc = makeArmed()
         qc.beginSession(localEnabled: true, debug: true)
         qc.publish(remote: CaptureHotkeyConfigWire(enabled: true))
-        var calls = 0
-        qc.triggerOverride = { calls += 1 }
-        await postCaptureNotification()
-        XCTAssertEqual(calls, 1)
+        let fired = expectation(description: "capture triggered")
+        fired.assertForOverFulfill = true
+        qc.triggerOverride = { fired.fulfill() }
+        postCaptureNotification()
+        await fulfillment(of: [fired], timeout: 5)
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        withExtendedLifetime(qc) {}
     }
 
     func testIgnoredWithoutRemoteBlock() async {
