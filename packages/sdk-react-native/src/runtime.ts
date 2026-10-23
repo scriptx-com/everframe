@@ -235,16 +235,23 @@ export interface RuntimeConfig
     position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
   };
   /**
-   * Native mobile shake gesture. Enabled by default; the dashboard remains
-   * authoritative. React Native/Expo development builds should normally use
-   * `{ enabled: !__DEV__ }` to avoid overlapping with the development menu.
+   * Whether a shake opens the reporter on an unlinked release build. Enabled
+   * by default; the dashboard remains authoritative. It does not stop shake
+   * from taking a quick capture on a linked phone or a debug build, nor from
+   * answering a dashboard link window: that is `quickCapture`'s job. React
+   * Native/Expo development builds should normally use `{ enabled: !__DEV__ }`
+   * to avoid opening the reporter over the development menu.
    */
   shakeToReport?: {
     enabled?: boolean;
   };
   /**
-   * Simulator/emulator quick capture. Enabled by default and armed only on
-   * debug simulator or emulator builds; `{ enabled: false }` opts this app out.
+   * Quick capture: a report filed with no UI and titled on the dashboard.
+   * Simulators and emulators use ⇧B in debug builds. Real phones use shake
+   * when the device is linked on the dashboard (any build) or the build is a
+   * debug build (`__DEV__`, or `debugBuild`). Enabled by default; the
+   * dashboard remains authoritative. `{ enabled: false }` opts this app out
+   * of both, and of device linking.
    */
   quickCapture?: {
     enabled?: boolean;
