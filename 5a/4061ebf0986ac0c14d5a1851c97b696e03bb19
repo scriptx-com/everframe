@@ -1,0 +1,23 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/DeviceLinkStore.kt
+  s_f1c043e85606b2::t_c9b39ac0db9c4f 147,149,151-152
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/CaptureGesture.kt
+  s_f1c043e85606b2::t_435266909ed041 52-57,102-110,121-122
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/CaptureGestureTest.kt
+  s_f1c043e85606b2::t_367315a847dbd9 106-107,125-143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a4061ebf0986ac0c14d5a1851c97b696e03bb19",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
