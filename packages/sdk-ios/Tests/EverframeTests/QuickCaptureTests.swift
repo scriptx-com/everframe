@@ -888,22 +888,108 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertEqual(submitted.count, 1)
     }
 
-    /// The production probe, against a real focused `UITextField`. A nil-targeted
-    /// action reaches a window's first responder only through a scene, and a
-    /// SwiftPM test bundle has none, so this skips there; the key-delivery proof
-    /// (Tests/QuickCaptureKeyDeliveryProof) runs the same probe in a scene app.
+    /// The production probe, against a real focused `UITextField` in the
+    /// window the key is sent to and, failing that, the app's windows (here the
+    /// screenshot override, since a SwiftPM test bundle has no scenes).
     func testFocusedTextFieldIsFoundAsEditableFirstResponder() throws {
-        try XCTSkipIf(UIApplication.shared.connectedScenes.isEmpty, "no UIScene in this test host")
         let field = UITextField(frame: CGRect(x: 0, y: 0, width: 100, height: 30))
-        hostWindow.addSubview(field)
+        let container = UIView(frame: hostWindow.bounds)
+        container.addSubview(field)
+        hostWindow.addSubview(container)
         hostWindow.makeKeyAndVisible()
-        defer { field.resignFirstResponder(); field.removeFromSuperview() }
+        defer { field.resignFirstResponder(); container.removeFromSuperview() }
         XCTAssertFalse(QuickCaptureTextInput.firstResponderIsEditable(), "nothing focused yet")
         try XCTSkipUnless(field.becomeFirstResponder(), "this test host cannot focus a text field")
+        XCTAssertTrue(QuickCaptureTextInput.currentFirstResponder(preferring: hostWindow) === field)
         XCTAssertTrue(QuickCaptureTextInput.currentFirstResponder() === field)
         XCTAssertTrue(QuickCaptureTextInput.firstResponderIsEditable())
         field.resignFirstResponder()
         XCTAssertFalse(QuickCaptureTextInput.firstResponderIsEditable())
+    }
+
+    /// The probe must not go through `UIApplication.sendAction`: the SDK's tap
+    /// instrumentation records any action there, so every Shift+B would leave a
+    /// `tap unknown` breadcrumb in the trail and in the capture's evidence.
+    func testTextFocusProbeRecordsNoTapBreadcrumb() async throws {
+        try await withGlobalCaptureStateLock {
+            Everframe.captureGate = true
+            TapBreadcrumbAdapter.install()
+            BreadcrumbRingBuffer.shared.applyConfig(BreadcrumbsConfigWire(
+                enabled: true, kinds: ["tap"], maxCount: 50, byteBudget: 16384, consoleEntryCap: 1024))
+            BreadcrumbRingBuffer.shared.clear()
+            defer {
+                BreadcrumbRingBuffer.shared.applyConfig(nil)
+                BreadcrumbRingBuffer.shared.clear()
+            }
+            let didSubmit = expectation(description: "submit")
+            didSubmit.assertForOverFulfill = false
+            let qc = makeArmed(submit: { [unowned self] inputs in
+                self.submitted.append(inputs)
+                didSubmit.fulfill()
+                return .submitted(reportId: UUID())
+            })
+            qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Shift+B"))
+
+            // Not suppressed: nothing focused, so the chord fires.
+            qc.handle(shiftB())
+            await fulfillment(of: [didSubmit], timeout: 5)
+
+            // Suppressed: a focused field.
+            let field = UITextField(frame: CGRect(x: 0, y: 0, width: 100, height: 30))
+            hostWindow.addSubview(field)
+            hostWindow.makeKeyAndVisible()
+            defer { field.resignFirstResponder(); field.removeFromSuperview() }
+            if field.becomeFirstResponder() {
+                qc.handle(shiftB(at: 1))
+                try await Task.sleep(nanoseconds: 200_000_000)
+                XCTAssertEqual(submitted.count, 1, "the focused field keeps Shift+B")
+            }
+
+            // A real tap crumb lands, so an empty trail below is not a disabled buffer.
+            BreadcrumbRingBuffer.shared.addInteraction(
+                message: "tap sentinel", data: [:], captureRevision: BreadcrumbRingBuffer.shared.captureRevision())
+            BreadcrumbRingBuffer.shared.freeze()
+            let taps = (BreadcrumbRingBuffer.shared.takeFrozen() ?? []).filter { $0.kind == .tap }
+            XCTAssertEqual(taps.map(\.message), ["tap sentinel"], "the probe must not look like a tap")
+        }
+    }
+
+    /// A field that resigns first responder in its own editing callback (on the
+    /// character itself) must still keep Shift+B: the guard judges the focus
+    /// the key was typed into, read before UIKit delivers the key.
+    func testFieldThatResignsOnTheCharacterStillSuppressesTheCapture() async throws {
+        let qc = makeArmed()
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Shift+B"))
+        let field = UITextField(frame: CGRect(x: 0, y: 0, width: 100, height: 30))
+        hostWindow.addSubview(field)
+        hostWindow.makeKeyAndVisible()
+        defer { field.removeFromSuperview() }
+        try XCTSkipUnless(field.becomeFirstResponder(), "this test host cannot focus a text field")
+
+        let pending = qc.prepareKeyDelivery([(shiftB(), nil)], window: hostWindow)
+        // What UIKit's delivery does to such a field: it takes the character and resigns.
+        field.resignFirstResponder()
+        qc.completeKeyDelivery(pending)
+
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertEqual(freezes, 0)
+    }
+
+    /// Keys that cannot complete the chord never pay for the focus probe.
+    func testPrepareKeyDeliveryProbesOnlyAChordKey() {
+        let qc = makeArmed()
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Shift+B"))
+        let other = qc.prepareKeyDelivery([
+            (.down(key: .character("a"), modifiers: [.shift], isRepeat: false, at: 0), nil),
+            (.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0), nil),
+        ], window: hostWindow)
+        XCTAssertEqual(other.probedForTesting, [false, false])
+        let chord = qc.prepareKeyDelivery([(shiftB(), nil)], window: hostWindow)
+        XCTAssertEqual(chord.probedForTesting, [true])
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Mod+Shift+B"))
+        let command = qc.prepareKeyDelivery([(shiftB([.command, .shift]), nil)], window: hostWindow)
+        XCTAssertEqual(command.probedForTesting, [false], "a ⌘ chord never looks at the focus")
     }
 
     func testEditableTextInputClassification() {
@@ -912,14 +998,16 @@ final class QuickCaptureTests: XCTestCase {
             func insertText(_ text: String) {}
             func deleteBackward() {}
         }
-        let readOnly = UITextView()
-        readOnly.isEditable = false
         let disabled = UITextField()
         disabled.isEnabled = false
         XCTAssertTrue(QuickCaptureTextInput.isEditable(UITextField()))
         XCTAssertTrue(QuickCaptureTextInput.isEditable(UITextView()))
         XCTAssertTrue(QuickCaptureTextInput.isEditable(CustomKeyInput()), "React Native, Flutter and custom editors")
+        #if !os(tvOS)
+        let readOnly = UITextView()
+        readOnly.isEditable = false
         XCTAssertFalse(QuickCaptureTextInput.isEditable(readOnly))
+        #endif
         XCTAssertFalse(QuickCaptureTextInput.isEditable(disabled))
         XCTAssertFalse(QuickCaptureTextInput.isEditable(UIButton()))
         XCTAssertFalse(QuickCaptureTextInput.isEditable(UIView()))

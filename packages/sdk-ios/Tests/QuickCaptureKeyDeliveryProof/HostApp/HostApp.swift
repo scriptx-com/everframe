@@ -12,7 +12,17 @@ import UIKit
 @MainActor
 enum Harness {
     static weak var status: UILabel?
+    static weak var crumbs: UILabel?
     static var submits = 0
+
+    /// Tap breadcrumbs with no view behind them (`tap unknown`): what a
+    /// nil-targeted action through the SDK's `sendAction` instrumentation
+    /// records. Quick capture's focus probe must never add one.
+    static func showCrumbs() {
+        let count = BreadcrumbRingBuffer.shared.snapshot().filter { $0.kind == .tap && $0.message == "tap unknown" }.count
+        crumbs?.text = "unknownTaps=\(count)"
+        crumbs?.accessibilityValue = "unknownTaps=\(count)"
+    }
 
     static func arm() {
         let args = ProcessInfo.processInfo.arguments
@@ -36,6 +46,10 @@ enum Harness {
                 enabled: true, binding: argument(after: "--binding", in: args)))
         }
         show("submits=0 armed=\(qc.isArmed)")
+        showCrumbs()
+        Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
+            MainActor.assumeIsolated { showCrumbs() }
+        }
     }
 
     static func show(_ text: String) {
@@ -46,6 +60,18 @@ enum Harness {
     private static func argument(after flag: String, in args: [String]) -> String? {
         guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
         return args[i + 1]
+    }
+}
+
+/// `--resigning-field`: the field resigns first responder as soon as a key
+/// press reaches it, inside UIKit's delivery of that press, as some search and
+/// PIN fields do.
+final class ResigningTextField: UITextField {
+    var resignsOnPress = false
+
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        super.pressesBegan(presses, with: event)
+        if resignsOnPress { resignFirstResponder() }
     }
 }
 
@@ -63,7 +89,8 @@ final class RootViewController: UIViewController {
             label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
         ])
         // A text field to focus, for the bindings that stand aside while typing.
-        let field = UITextField()
+        let field = ResigningTextField()
+        field.resignsOnPress = ProcessInfo.processInfo.arguments.contains("--resigning-field")
         field.translatesAutoresizingMaskIntoConstraints = false
         field.accessibilityIdentifier = "field"
         field.borderStyle = .roundedRect
@@ -74,7 +101,17 @@ final class RootViewController: UIViewController {
             field.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 24),
             field.widthAnchor.constraint(equalToConstant: 200),
         ])
+        let crumbs = UILabel()
+        crumbs.translatesAutoresizingMaskIntoConstraints = false
+        crumbs.accessibilityIdentifier = "crumbs"
+        crumbs.isAccessibilityElement = true
+        view.addSubview(crumbs)
+        NSLayoutConstraint.activate([
+            crumbs.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            crumbs.topAnchor.constraint(equalTo: field.bottomAnchor, constant: 24),
+        ])
         Harness.status = label
+        Harness.crumbs = crumbs
         Harness.arm()
     }
 }

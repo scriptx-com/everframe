@@ -54,11 +54,18 @@ final class QuickCaptureKeyDeliveryUITests: XCTestCase {
         XCTAssertTrue(waitForStatus("submits=1 quickCapture=true"), statusText())
     }
 
+    private var unknownTaps: String {
+        let crumbs = app.staticTexts["crumbs"]
+        return (crumbs.value as? String) ?? crumbs.label
+    }
+
     func testShiftBFiresOutsideATextField() {
         launch(["--binding", "Shift+B"])
         XCTAssertEqual(statusText(), "submits=0 armed=true")
         app.typeKey("b", modifierFlags: [.shift])
         XCTAssertTrue(waitForStatus("submits=1 quickCapture=true"), statusText())
+        sleep(1)
+        XCTAssertEqual(unknownTaps, "unknownTaps=0", "the focus probe must not record a tap breadcrumb")
     }
 
     /// The production first-responder probe, in a scene app: Shift+B typed into
@@ -71,6 +78,19 @@ final class QuickCaptureKeyDeliveryUITests: XCTestCase {
         sleep(1)
         XCTAssertEqual(statusText(), "submits=0 armed=true")
         XCTAssertEqual(field.value as? String, "B")
+        XCTAssertEqual(unknownTaps, "unknownTaps=0", "the focus probe must not record a tap breadcrumb")
+    }
+
+    /// The guard reads the focus before UIKit delivers the key: a field that
+    /// resigns first responder while that press is delivered to it still keeps
+    /// Shift+B.
+    func testShiftBInAFieldThatResignsOnTheCharacterTypesInstead() {
+        launch(["--binding", "Shift+B", "--resigning-field"])
+        let field = app.textFields["field"]
+        field.tap()
+        app.typeKey("b", modifierFlags: [.shift])
+        sleep(1)
+        XCTAssertEqual(statusText(), "submits=0 armed=true")
     }
 
     func testCommandChordFiresWithATextFieldFocused() {

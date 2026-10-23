@@ -540,6 +540,21 @@ enum WindowTapBreadcrumbAdapter {
                         snapshot = InteractionTargetResolver.resolve(view)
                     }
                 } else { pressStarts.removeObject(forKey: window) }
+                #if targetEnvironment(simulator)
+                // Simulator quick capture reads key-downs here, before delivery,
+                // so its text-field guard sees the focus the key was typed into
+                // (a field may resign in its own editing callback). `isArmed` is
+                // checked before the presses are read, so a disarmed session
+                // never builds a key event. Match the class, not `event.type`:
+                // UIKit delivers hardware-keyboard keys as
+                // `UIPhysicalKeyboardEvent`, a `UIPressesEvent` subclass whose
+                // `type` is not `.presses`.
+                var quickCaptureKeys: QuickCapture.KeyDelivery?
+                if let presses = event as? UIPressesEvent, QuickCapture.shared.isArmed {
+                    quickCaptureKeys = QuickCapture.shared.prepareKeyDelivery(
+                        quickCaptureKeyEvents(presses.allPresses).map { ($0.0, Optional($0.1)) }, window: window)
+                }
+                #endif
                 // Capture immutable evidence before callbacks mutate views, screen, or focus.
                 // Emission stays after delivery so sendAction deduplication remains effective.
                 withDispatchSnapshot(snapshot, eventTimestamp: event.timestamp) {
@@ -554,17 +569,9 @@ enum WindowTapBreadcrumbAdapter {
                 }
                 #endif
                 #if targetEnvironment(simulator)
-                // Simulator quick capture observes key-downs only; the event was
-                // already delivered unchanged above. `isArmed` is checked before
-                // the presses are read, so a disarmed session never builds a key event. Device builds
-                // compile none of this. Match the class, not `event.type`: UIKit
-                // delivers hardware-keyboard keys as `UIPhysicalKeyboardEvent`, a
-                // `UIPressesEvent` subclass whose `type` is not `.presses`.
-                if let presses = event as? UIPressesEvent, QuickCapture.shared.isArmed {
-                    for (keyEvent, press) in quickCaptureKeyEvents(presses.allPresses) {
-                        QuickCapture.shared.handle(keyEvent, press: press)
-                    }
-                }
+                // The key was delivered unchanged above; now it may fire. Device
+                // builds compile none of this.
+                if let quickCaptureKeys { QuickCapture.shared.completeKeyDelivery(quickCaptureKeys) }
                 #endif
                 if let snapshot { recordSnapshot(snapshot, eventTimestamp: event.timestamp, remoteButton: remoteButton) }
             }

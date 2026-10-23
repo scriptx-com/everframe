@@ -175,7 +175,8 @@ final class QuickCapture {
     /// The double-Shift window. The key-delivery proof widens it, because
     /// XCTest spaces synthesized key presses seconds apart.
     var doubleShiftWindow: TimeInterval = CaptureHotkeyMatcher.defaultWindow
-    /// True while an editable text input is first responder.
+    /// True while an editable text input is first responder. Asked only when a
+    /// key reaches `handle` without a pre-delivery answer.
     var isEditingText: @MainActor () -> Bool = { QuickCaptureTextInput.firstResponderIsEditable() }
 
     // MARK: State
@@ -316,7 +317,11 @@ final class QuickCapture {
     /// Feeds one key-down. Never blocks: a match starts `capture()` on its own task.
     /// `press` names the physical press; one already fed is dropped (see
     /// `CapturePressDeduplicator`).
-    func handle(_ event: CaptureKeyEvent, press: CapturePressID? = nil) {
+    ///
+    /// `editingText` is whether an editable text input was first responder
+    /// before UIKit delivered this key (see `prepareKeyDelivery`). nil asks
+    /// `isEditingText` now, after delivery.
+    func handle(_ event: CaptureKeyEvent, press: CapturePressID? = nil, editingText: Bool? = nil) {
         guard isSimulator else { return }
         let (reason, binding, _) = gate.evaluation
         guard reason == nil else { matcher = nil; return }
@@ -326,8 +331,37 @@ final class QuickCapture {
         }
         guard matcher?.feed(event) == true else { return }
         // Shift+B in a text field is a capital B, not a capture.
-        if binding.yieldsToTextInput, isEditingText() { return }
+        if binding.yieldsToTextInput, editingText ?? isEditingText() { return }
         startCapture()
+    }
+
+    /// One key event's pending quick-capture work, read before UIKit delivers it.
+    struct KeyDelivery {
+        fileprivate var keys: [(event: CaptureKeyEvent, press: CapturePressID?, editingText: Bool?)]
+
+        /// Per key: whether the focus was probed before delivery.
+        var probedForTesting: [Bool] { keys.map { $0.editingText != nil } }
+    }
+
+    /// Called from the `UIWindow.sendEvent` hook BEFORE the event is delivered,
+    /// only while armed. For a key that completes a typing chord (such as
+    /// Shift+B) it records whether an editable text input is first responder
+    /// now: a field can resign in its own editing callback, and the guard must
+    /// judge the focus the key was typed into. Other keys cost nothing more.
+    func prepareKeyDelivery(_ keys: [(CaptureKeyEvent, CapturePressID?)], window: UIWindow?) -> KeyDelivery {
+        let binding = gate.evaluation.binding
+        let guarded = binding.yieldsToTextInput
+        return KeyDelivery(keys: keys.map { event, press in
+            let editing: Bool? = guarded && binding.chordMatches(event)
+                ? QuickCaptureTextInput.firstResponderIsEditable(preferring: window)
+                : nil
+            return (event, press, editing)
+        })
+    }
+
+    /// Called from the hook AFTER the event was delivered unchanged.
+    func completeKeyDelivery(_ delivery: KeyDelivery) {
+        for key in delivery.keys { handle(key.event, press: key.press, editingText: key.editingText) }
     }
 
     // MARK: Pipeline
@@ -487,43 +521,68 @@ final class QuickCapture {
         }
     }
 }
-/// Finds the first responder from the `UIWindow.sendEvent` hook and decides
-/// whether it takes typing. UIKit has no public first-responder getter, so a
-/// nil-targeted action walks the responder chain and the first responder
-/// answers it.
+/// Finds the first responder and decides whether it takes typing. It walks the
+/// window's view hierarchy for the view that `isFirstResponder`, rather than
+/// sending a nil-targeted action: the SDK's own `sendAction` instrumentation
+/// would record that action as a tap breadcrumb. Runs only for a key that
+/// completes a typing chord.
 @MainActor
 enum QuickCaptureTextInput {
-    fileprivate static weak var reported: UIResponder?
-
-    static func firstResponderIsEditable() -> Bool {
-        isEditable(currentFirstResponder())
+    /// `preferring` is searched first (the window the key was sent to), then
+    /// the app's other visible windows.
+    static func firstResponderIsEditable(preferring window: UIWindow? = nil) -> Bool {
+        isEditable(currentFirstResponder(preferring: window))
     }
 
-    static func currentFirstResponder() -> UIResponder? {
-        reported = nil
-        defer { reported = nil }
-        UIApplication.shared.sendAction(
-            #selector(UIResponder.everframeQuickCaptureReportFirstResponder(_:)), to: nil, from: nil, for: nil)
-        return reported
+    static func currentFirstResponder(preferring window: UIWindow? = nil) -> UIResponder? {
+        if let window, let found = firstResponder(in: window) { return found }
+        for candidate in candidateWindows() where candidate !== window {
+            if let found = firstResponder(in: candidate) { return found }
+        }
+        return nil
+    }
+
+    /// The first responder among `view` and its descendants.
+    static func firstResponder(in view: UIView) -> UIView? {
+        if view.isFirstResponder { return view }
+        for subview in view.subviews {
+            if let found = firstResponder(in: subview) { return found }
+        }
+        return nil
+    }
+
+    /// Visible windows of the foreground scene, key window first; the
+    /// screenshot test override when one is set (a SwiftPM test bundle has no
+    /// scenes).
+    private static func candidateWindows() -> [UIWindow] {
+        let windows: [UIWindow]
+        if let override = ScreenshotCapture.__windowsOverrideForTesting {
+            windows = override
+        } else {
+            windows = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .filter { $0.activationState == .foregroundActive }
+                .flatMap(\.windows)
+        }
+        return windows.filter { !$0.isHidden }.sorted { $0.isKeyWindow && !$1.isKeyWindow }
     }
 
     /// An enabled `UITextField`, an editable `UITextView`, or any other
     /// responder that accepts key input (`UIKeyInput`, which `UITextInput`
     /// extends): React Native and Flutter text inputs, SwiftUI text fields and
-    /// custom editors. A read-only, selectable text view does not count.
+    /// custom editors. A read-only, selectable text view does not count on
+    /// iOS; tvOS has no `isEditable`, so a first-responder text view counts
+    /// there.
     static func isEditable(_ responder: UIResponder?) -> Bool {
         guard let responder else { return false }
+        #if os(tvOS)
+        if responder is UITextView { return true }
+        #else
         if let textView = responder as? UITextView { return textView.isEditable }
+        #endif
         if let textField = responder as? UITextField { return textField.isEnabled }
         return responder is UIKeyInput
     }
 }
 
-extension UIResponder {
-    /// The `QuickCaptureTextInput` probe's action. Only the first responder
-    /// (or, with none, the first responder-chain object) receives it.
-    @objc func everframeQuickCaptureReportFirstResponder(_ sender: Any?) {
-        QuickCaptureTextInput.reported = self
-    }
-}
 #endif
