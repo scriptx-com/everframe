@@ -10,6 +10,8 @@ The debug SDK takes its ingest endpoint from `EVERFRAME_DEV_INGEST_URL` when it 
     EVERFRAME_DEV_INGEST_URL=http://10.0.2.2:<port> ./gradlew -PquickCaptureQualification=true \
       -PquickCaptureHost.sdkKey=<local key> :quick-capture-host:installDebug
 
+Add `-PquickCaptureHost.releaseMode=true` to start the SDK with `debugBuild = false`: the host still reaches the local platform, and quick capture follows the release-build rules (no capture while unlinked, only the link hello).
+
 Shake a throwaway emulator with ten alternating impulses, 60 ms apart:
 
     for i in $(seq 1 10); do adb -s emulator-<port> emu sensor set acceleration 25:0:9.8; sleep 0.06; \

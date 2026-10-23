@@ -14,6 +14,10 @@ android {
         // A synthetic key from your local platform; never a production key. Never logged.
         val key = providers.gradleProperty("quickCaptureHost.sdkKey").orNull ?: ""
         buildConfigField("String", "HOST_SDK_KEY", "\"${key.replace("\\", "").replace("\"", "")}\"")
+        // -PquickCaptureHost.releaseMode=true starts the SDK with `debugBuild = false`, so the debug host (which
+        // still reaches the local platform) follows the release-build rules of real-device quick capture.
+        val releaseMode = providers.gradleProperty("quickCaptureHost.releaseMode").orNull == "true"
+        buildConfigField("Boolean", "HOST_DEBUG_BUILD", if (releaseMode) "Boolean.FALSE" else "null")
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
