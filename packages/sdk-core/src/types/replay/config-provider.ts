@@ -101,6 +101,12 @@ export type NetworkBodiesServerConfig = z.infer<typeof NetworkBodiesServerConfig
 const NetworkBodiesServerConfigLenient = NetworkBodiesServerConfig.optional().catch(undefined);
 
 /**
+ * @deprecated Everframe Companion has been removed. No SDK declares
+ * `companionbadge` or reads this block any more. It stays declared because
+ * the response schema is `.strict()`: an older server, or a stale cached
+ * config, may still send it, and an undeclared key would fail the whole
+ * parse. Removed at the next major.
+ *
  * Companion name-badge dashboard override (plan 2026-08-25). Emitted only
  * when this SDK declared `companionbadge` in X-Everframe-SDK-Features. Nested
  * `.strip()` + `.catch(undefined)` — same posture as networkBodies: a
@@ -127,6 +133,7 @@ export const CompanionBadgeServerConfig = z
       .catch(undefined),
   })
   .strip();
+/** @deprecated Everframe Companion has been removed; removed at the next major. */
 export type CompanionBadgeServerConfig = z.infer<typeof CompanionBadgeServerConfig>;
 
 const CompanionBadgeServerConfigLenient = CompanionBadgeServerConfig.optional().catch(undefined);
@@ -271,6 +278,8 @@ export const ReplayConfigResponse = z
     networkBodies: NetworkBodiesServerConfigLenient,
     replies: RepliesConfig.optional(),
     identity: IdentityConfig.optional(),
+    // Deprecated (Companion removed): parsed and never read. Kept because the
+    // schema is .strict() and older servers may still send it.
     companionBadge: CompanionBadgeServerConfigLenient,
     branding: BrandingServerConfigLenient,
     // Session Vitals (spec 2026-09-01). Flat top-level fields, matching
@@ -628,6 +637,9 @@ export function getNetworkBodiesConfig(cfg: ReplayConfig): NetworkBodiesConfig {
 }
 
 /**
+ * @deprecated Everframe Companion has been removed and nothing reads the badge
+ * block any more. Removed at the next major.
+ *
  * The raw server badge block, or undefined when unset/malformed/not
  * negotiated. Deliberately NOT overlaid with defaults here — precedence is
  * per-field at the badge (server field → inline option → default), so the

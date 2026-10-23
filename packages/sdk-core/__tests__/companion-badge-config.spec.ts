@@ -1,38 +1,35 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
+//
+// Companion was removed: no SDK reads the `companionBadge` block any more and
+// none declares `companionbadge`. An older server, or a stale cached config,
+// can still send the block, and the response schema is `.strict()`, so the
+// field must stay declared. These are guard tests: they fail if anyone drops
+// the field from the schema.
 import { describe, expect, it } from 'vitest';
-import { ReplayConfigResponse, getCompanionBadgeServerConfig } from '../src/index.js';
+import { ReplayConfigResponse } from '../src/index.js';
 
 const BASE = { replayEnabled: true, replayDurationSec: 30, samplingRate: 1 };
 
-describe('companionBadge server config', () => {
-  it('parses a valid block', () => {
-    const cfg = ReplayConfigResponse.parse({
+describe('companionBadge server config (deprecated, parsed and unread)', () => {
+  it('a config carrying a companionBadge block still parses and its other blocks apply', () => {
+    const parsed = ReplayConfigResponse.safeParse({
       ...BASE,
-      companionBadge: { enabled: false, position: 'top-left' },
+      companionBadge: { enabled: true, position: 'top-left' },
+      reportHotkey: { binding: 'Shift+B' },
     });
-    expect(getCompanionBadgeServerConfig(cfg)).toEqual({ enabled: false, position: 'top-left' });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.reportHotkey?.binding).toBe('Shift+B');
+    expect(parsed.data?.replayEnabled).toBe(true);
   });
-  it('returns undefined when the block is absent', () => {
-    expect(getCompanionBadgeServerConfig(ReplayConfigResponse.parse(BASE))).toBeUndefined();
-  });
-  it('degrades a malformed block to undefined without failing the whole parse', () => {
-    const cfg = ReplayConfigResponse.parse({ ...BASE, companionBadge: { enabled: 'yes' } });
-    expect(cfg.replayEnabled).toBe(true);
-    expect(getCompanionBadgeServerConfig(cfg)).toBeUndefined();
-  });
-  it('strips unknown nested fields instead of failing', () => {
-    const cfg = ReplayConfigResponse.parse({
+
+  it('a malformed companionBadge block never fails the whole parse', () => {
+    const parsed = ReplayConfigResponse.safeParse({
       ...BASE,
-      companionBadge: { enabled: true, position: 'top-right', future: 1 },
+      companionBadge: { enabled: 'yes' },
+      reportHotkey: { binding: 'Shift+B' },
     });
-    expect(getCompanionBadgeServerConfig(cfg)).toEqual({ enabled: true, position: 'top-right' });
-  });
-  it('an unrecognized position degrades only the position, never the enabled override', () => {
-    const cfg = ReplayConfigResponse.parse({
-      ...BASE,
-      companionBadge: { enabled: false, position: 'center' },
-    });
-    expect(getCompanionBadgeServerConfig(cfg)).toEqual({ enabled: false });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.reportHotkey?.binding).toBe('Shift+B');
   });
 });
