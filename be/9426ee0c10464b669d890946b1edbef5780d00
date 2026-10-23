@@ -1,0 +1,61 @@
+README.md
+  s_f1c043e85606b2::t_6a4865b1e86055 20
+examples/android-compose/app/build.gradle.kts
+  s_f1c043e85606b2::t_84617db102bab1 8-9
+examples/android-views/app/src/main/java/com/example/viewssample/MainActivity.java
+  s_f1c043e85606b2::t_edea0eeca3f5ef 22,42-45,47,54-57
+examples/ios-native/SampleAppTV/ContentView.swift
+  s_f1c043e85606b2::t_461b00b6c7e5d1 4-5,16
+examples/ios-native/SampleAppTV/README.md
+  s_f1c043e85606b2::t_fc389997db401a 10,12-14
+examples/ios-native/SampleAppTV/SampleAppTV.swift
+  s_f1c043e85606b2::t_a1f48472abb7cf 6-8
+examples/ios-native/SampleAppTV/TVPlaybackScreen.swift
+  s_f1c043e85606b2::t_9567f0b60314f6 6-7
+examples/react-native/README.md
+  s_f1c043e85606b2::t_0cc863ab6cc95d 105-107,201
+examples/react-native/src/App.tsx
+  s_f1c043e85606b2::t_a04f5c6e06c912 164
+examples/react-native/src/components/ReportFab.tsx
+  s_f1c043e85606b2::t_f75cdcfde8d56a 9-11,34,58,98
+examples/react-native/src/components/TabBar.tsx
+  s_f1c043e85606b2::t_c78bce03d852d8 15
+examples/react-native/src/screens/Home.tsx
+  s_f1c043e85606b2::t_e148ff79614e15 101
+examples/react-web/README.md
+  s_f1c043e85606b2::t_a840f577d470e8 140
+examples/smarttv-tester/README.md
+  s_f1c043e85606b2::t_89aee2218ebc53 8-10,19,80,82-84,87
+examples/smarttv-tester/src/App.tsx
+  s_f1c043e85606b2::t_686fe426408f3c 4-5,7-8,29,53
+examples/smarttv-tester/src/config.ts
+  s_f1c043e85606b2::t_c927a16dee5a9e 3-6
+examples/smarttv-tester/src/main.tsx
+  s_f1c043e85606b2::t_9e6621e2e8eaac 4-5,10
+examples/smarttv-tester/vite.config.ts
+  s_f1c043e85606b2::t_e0c0317c148462 41-42,53,63
+examples/tvos-replay/Sources/App.swift
+  s_f1c043e85606b2::t_5b4afd0e021c0c 29
+examples/tvos-replay/Tests/RNE2EProbeTests.swift
+  s_f1c043e85606b2::t_79eb91d5bc93b4 7,15-16
+examples/tvos-replay/Tests/RemoteRailTests.swift
+  s_f1c043e85606b2::t_57dce0950a5143 62
+public-boundary.json
+  s_f1c043e85606b2::t_3e340bdbe51d8f 106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be9426ee0c10464b669d890946b1edbef5780d00",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
