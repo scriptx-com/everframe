@@ -1,0 +1,35 @@
+.changeset/quick-capture-shift-b-android.md
+  s_f1c043e85606b2::t_d3f88e009a1c87 1-8
+.changeset/quick-capture-shift-b-cli.md
+  s_f1c043e85606b2::t_676cafebbd41e5 1-8
+.changeset/quick-capture-shift-b-ios.md
+  s_f1c043e85606b2::t_660f7031304e63 1-8
+.changeset/quick-capture-shift-b-react-native.md
+  s_f1c043e85606b2::t_291ec9e860a517 1-8
+packages/everframe_flutter/CHANGELOG.md
+  s_f1c043e85606b2::t_e91ba772e2f7ff 4-7
+packages/everframe_flutter/README.md
+  s_f1c043e85606b2::t_1647c61229a356 124-129
+packages/sdk-android/android/README.md
+  s_f1c043e85606b2::t_596b912728cdcd 131-133,148-164
+packages/sdk-ios/README.md
+  s_f1c043e85606b2::t_0830b34bc05328 445-446,456-466,500
+packages/sdk-react-native/README.md
+  s_f1c043e85606b2::t_d861ed2f5aeef8 716-720
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "34e86488a1fd80ca3d5fa053fda0638c644bbc41",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
