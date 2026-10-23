@@ -1,0 +1,39 @@
+packages/sdk-ios/Sources/Everframe/Config/EverframeConfig.swift
+  s_f1c043e85606b2::t_c42dd9cb34dfbb 126-129
+packages/sdk-ios/Sources/Everframe/Config/ReplayConfigProvider.swift
+  s_f1c043e85606b2::t_9113c74e0da31d 618
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_f1c043e85606b2::t_d694534c880641 1278-1279,1290
+packages/sdk-ios/Sources/Everframe/QuickCapture/CaptureGestureRouter.swift
+  s_f1c043e85606b2::t_9c757cf3edf279 4-7,40-41,47-52,57
+packages/sdk-ios/Sources/Everframe/QuickCapture/CaptureGestureRule.swift
+  s_f1c043e85606b2::t_b0fe848ef397d9 6-14,18-22,33-34,44-52,68-70
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCapture.swift
+  s_f1c043e85606b2::t_600782950bb165 5-8,21,89-91,93,209,484-486
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCaptureHostMode.swift
+  s_f1c043e85606b2::t_234dbeb9f44c2c 5-23,28-31,33-35,41-42,44,46,52,54
+packages/sdk-ios/Tests/EverframeTests/CaptureGestureRouterTests.swift
+  s_f1c043e85606b2::t_cd9d6bfb8f3ce0 72-86
+packages/sdk-ios/Tests/EverframeTests/CaptureGestureRuleTests.swift
+  s_f1c043e85606b2::t_1895280187c59d 19-69
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkWireTests.swift
+  s_f1c043e85606b2::t_1ef9ab8ab53963 115-141
+packages/sdk-ios/Tests/EverframeTests/QuickCaptureDeviceTests.swift
+  s_f1c043e85606b2::t_bd3266be5d67cb 327-336
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25ba20ee7a3de6d9ff39e6c758dc1351b296cae2",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
