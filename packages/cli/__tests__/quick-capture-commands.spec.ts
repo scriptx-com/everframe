@@ -8,7 +8,6 @@ import { captureCommand, linkCommand } from '../src/quick-capture/commands.js';
 import { writeCredentials } from '../src/quick-capture/credentials.js';
 
 const TOKEN = `evf_cap_${'Z'.repeat(32)}`;
-const mac = process.platform === 'darwin';
 
 function setup(opts: {
   adbDevices?: string;
@@ -34,7 +33,7 @@ function setup(opts: {
       return { stdout: JSON.stringify(devices ? { devices } : {}), stderr: '', code: 0 };
     }
     if (args.includes('put') && opts.failPush?.includes(args[1] as string))
-      return { stdout: '', stderr: 'boom', code: 1 };
+      return { stdout: '', stderr: `boom ${TOKEN}`, code: 1 };
     if (opts.triggerFail && (args.includes('notifyutil') || args.includes('broadcast')))
       return { stdout: '', stderr: `failed ${TOKEN}`, code: 1 };
     return { stdout: '', stderr: '', code: 0 };
@@ -45,7 +44,7 @@ function setup(opts: {
     calls,
     out,
     err,
-    deps: { run, env, home, out: (s: string) => out.push(s), err: (s: string) => err.push(s) },
+    deps: { run, env, home, platform: 'darwin' as const, out: (s: string) => out.push(s), err: (s: string) => err.push(s) },
   };
 }
 
@@ -116,10 +115,11 @@ describe('capture', () => {
   it('--device with no match fails without firing', async () => {
     const t = setup({ adbDevices: 'emulator-5554\tdevice\n' });
     expect(await captureCommand(t.deps, { device: 'nope' })).toBe(1);
+    expect(t.err).toEqual(['No booted simulator or running emulator matches nope.']);
     expect(triggers(t.calls)).toHaveLength(0);
   });
 
-  it.runIf(mac)('--device matches simulator udid or exact name', async () => {
+  it('--device matches simulator udid or exact name', async () => {
     const sims = [
       { udid: 'U1', name: 'iPhone 16' },
       { udid: 'U2', name: 'iPad' },

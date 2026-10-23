@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   clearToken,
+  defaultRunner,
   findAdb,
   listBootedSimulators,
   listEmulators,
@@ -73,20 +74,22 @@ describe('listBootedSimulators', () => {
         }),
       ),
     );
-    const sims = await listBootedSimulators(run);
-    if (process.platform === 'darwin') {
-      expect(sims).toEqual([{ udid: 'U1', name: 'iPhone 16' }]);
-      expect(run).toHaveBeenCalledWith('xcrun', ['simctl', 'list', 'devices', 'booted', '--json']);
-    } else {
-      expect(sims).toEqual([]);
-    }
+    const sims = await listBootedSimulators(run, 'darwin');
+    expect(sims).toEqual([{ udid: 'U1', name: 'iPhone 16' }]);
+    expect(run).toHaveBeenCalledWith('xcrun', ['simctl', 'list', 'devices', 'booted', '--json']);
+  });
+
+  it('is empty off macOS without running xcrun', async () => {
+    const run = vi.fn(async () => ok('{}'));
+    expect(await listBootedSimulators(run, 'linux')).toEqual([]);
+    expect(run).not.toHaveBeenCalled();
   });
 
   it('is empty when xcrun fails or prints junk', async () => {
-    expect(await listBootedSimulators(async () => ({ stdout: '', stderr: '', code: 1 }))).toEqual(
+    expect(await listBootedSimulators(async () => ({ stdout: '', stderr: '', code: 1 }), 'darwin')).toEqual(
       [],
     );
-    expect(await listBootedSimulators(async () => ok('not json'))).toEqual([]);
+    expect(await listBootedSimulators(async () => ok('not json'), 'darwin')).toEqual([]);
   });
 });
 
@@ -103,5 +106,17 @@ describe('device commands', () => {
       ['xcrun', ['simctl', 'spawn', 'U1', 'notifyutil', '-p', 'com.everframe.capture']],
       ['adb', ['-s', 'emulator-5554', 'shell', 'am', 'broadcast', '-a', 'com.everframe.CAPTURE']],
     ]);
+  });
+});
+
+describe('defaultRunner', () => {
+  it('never surfaces the command line (and so a token) on failure', async () => {
+    const token = `evf_cap_${'Q'.repeat(32)}`;
+    const failed = await defaultRunner(process.execPath, ['-e', 'process.exit(3)', token]);
+    expect(failed.code).toBe(3);
+    const missing = await defaultRunner('/nonexistent/evf-adb', ['put', token]);
+    expect(missing.code).not.toBe(0);
+    expect(JSON.stringify([failed, missing])).not.toContain(token);
+    expect(missing.stderr).toBe("Couldn't run evf-adb");
   });
 });

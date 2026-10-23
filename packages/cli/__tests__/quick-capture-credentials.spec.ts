@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { mkdirSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -40,6 +40,17 @@ describe('credentials', () => {
     expect(readCredentials(h)).toBeNull();
     writeFileSync(credentialsPath(h), '"str"');
     expect(readCredentials(h)).toBeNull();
+  });
+
+  it('tightens a pre-existing 0755 directory and 0644 file', () => {
+    const h = home();
+    mkdirSync(join(h, '.everframe'), { mode: 0o755 });
+    chmodSync(join(h, '.everframe'), 0o755);
+    writeFileSync(credentialsPath(h), '{}', { mode: 0o644 });
+    chmodSync(credentialsPath(h), 0o644);
+    writeCredentials(creds, h);
+    expect(statSync(join(h, '.everframe')).mode & 0o777).toBe(0o700);
+    expect(statSync(credentialsPath(h)).mode & 0o777).toBe(0o600);
   });
 
   it('leaves no temp file after an overwrite', () => {

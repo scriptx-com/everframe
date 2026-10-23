@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { execFile } from 'node:child_process';
 import { accessSync, constants } from 'node:fs';
-import { delimiter, join } from 'node:path';
+import { basename, delimiter, join } from 'node:path';
 
 export interface RunResult {
   stdout: string;
@@ -17,7 +17,9 @@ export const defaultRunner: Runner = (cmd, args) =>
     execFile(cmd, args, { timeout: 15_000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (!error) return resolve({ stdout, stderr, code: 0 });
       const code = typeof error.code === 'number' ? error.code : 127;
-      resolve({ stdout: stdout ?? '', stderr: stderr || error.message, code });
+      // error.message embeds the full command line (arguments included), so it
+      // is never surfaced: a pushed token would leak through it.
+      resolve({ stdout: stdout ?? '', stderr: stderr || `Couldn't run ${basename(cmd)}`, code });
     });
   });
 
@@ -62,8 +64,11 @@ export interface Simulator {
   name: string;
 }
 
-export async function listBootedSimulators(run: Runner): Promise<Simulator[]> {
-  if (process.platform !== 'darwin') return [];
+export async function listBootedSimulators(
+  run: Runner,
+  platform: NodeJS.Platform = process.platform,
+): Promise<Simulator[]> {
+  if (platform !== 'darwin') return [];
   const result = await run('xcrun', ['simctl', 'list', 'devices', 'booted', '--json']);
   if (result.code !== 0) return [];
   try {

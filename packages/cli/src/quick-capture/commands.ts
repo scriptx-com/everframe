@@ -16,6 +16,8 @@ export interface QuickCaptureDeps {
   run: Runner;
   env: NodeJS.ProcessEnv;
   home: string;
+  /** Defaults to process.platform; simulators exist only on darwin. */
+  platform?: NodeJS.Platform;
   out: (s: string) => void;
   err: (s: string) => void;
 }
@@ -69,7 +71,7 @@ export async function captureCommand(
   options: { device?: string } = {},
 ): Promise<number> {
   const targets: Target[] = [];
-  for (const sim of await listBootedSimulators(deps.run)) {
+  for (const sim of await listBootedSimulators(deps.run, deps.platform)) {
     targets.push({
       id: sim.udid,
       name: sim.name,
