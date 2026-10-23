@@ -393,6 +393,35 @@ class DeviceLinkTest {
     }
 
     @Test
+    fun aStaleAttemptNeverTakesOverTheNextInstallation() = runTest {
+        val scopeB = "scope-b"
+        val clientB = FakeClient()
+        install()
+        client.helloResult = HelloResult.Pending(uuid, 47)
+        client.checkResults.add(CheckResult.Linked(tokA, DeviceLinkOwner.User("Ann")))
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var restarted = false
+        // start(B) lands after A's hello claimed the attempt and before A publishes its job, and B's own
+        // takeover begins at once.
+        DeviceLink.scopeProvider = {
+            if (!restarted) {
+                restarted = true
+                DeviceLink.install(store, clientB, scopeB, { device }, { true })
+                DeviceLink.beginAttempt("b-attempt", 12, "b".repeat(40))
+            }
+            CoroutineScope(dispatcher)
+        }
+        DeviceLink.sendHello()
+        runCurrent()
+        advanceTimeBy(3_001); runCurrent()
+        assertTrue("A's token was stored under B's scope", store.load(scopeB)?.token != tokA)
+        assertTrue(DeviceLink.current?.token != tokA)
+        assertTrue("B's attempt keeps its claim", DeviceLink.attemptInFlight)
+        assertEquals(1, clientB.checks.size)
+        assertFalse(toasts.any { it.startsWith("Linked") })
+    }
+
+    @Test
     fun aHangingCheckEndsTheAttemptAtItsDeadline() = runTest {
         install()
         client.hangChecks = true

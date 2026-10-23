@@ -163,10 +163,10 @@ internal object QuickCapture {
     @Volatile
     internal var evidenceTimeoutMs: Long = EVIDENCE_TIMEOUT_MS
 
-    /** Starts a takeover attempt named by an ingest `linkPending` answer. */
+    /** Starts a takeover attempt named by an ingest `linkPending` answer, for the scope of the link it carried. */
     @Volatile
-    internal var beginLinkAttempt: (attemptId: String, number: Int, nonce: String) -> Unit =
-        { id, number, nonce -> DeviceLink.beginAttempt(id, number, nonce) }
+    internal var beginLinkAttempt: (attemptId: String, number: Int, nonce: String, scope: String) -> Unit =
+        { id, number, nonce, scope -> DeviceLink.beginAttempt(id, number, nonce, forScope = scope) }
 
     /** The capture the latest broadcast started. Tests await it; production never reads it. */
     @Volatile
@@ -514,7 +514,11 @@ internal object QuickCapture {
                     },
                     deviceLink = (attribution as? CaptureAttribution.Linked)?.let { linked ->
                         DeviceLinkUpload(linked.nonce) { pending ->
-                            beginLinkAttempt(pending.attemptId, pending.number, linked.nonce)
+                            // The answer can arrive after a restart: only this capture's own session, while its
+                            // link's scope is still the active one, may start the attempt.
+                            if (isCurrent(capturedSession) && DeviceLink.activeScope == linked.link.scope) {
+                                beginLinkAttempt(pending.attemptId, pending.number, linked.nonce, linked.link.scope)
+                            }
                         }
                     },
                     // The raw screenshot: no annotation canvas ran.
@@ -612,7 +616,7 @@ internal object QuickCapture {
         screenshotter = { activity, rects -> ScreenshotCapture.captureBeforeReporter(activity, rects) }
         freezer = { Everframe.__replayFreeze(it) }
         evidenceTimeoutMs = EVIDENCE_TIMEOUT_MS
-        beginLinkAttempt = { id, number, nonce -> DeviceLink.beginAttempt(id, number, nonce) }
+        beginLinkAttempt = { id, number, nonce, scope -> DeviceLink.beginAttempt(id, number, nonce, forScope = scope) }
         __lastTrigger = null
         inFlight.set(false)
     }

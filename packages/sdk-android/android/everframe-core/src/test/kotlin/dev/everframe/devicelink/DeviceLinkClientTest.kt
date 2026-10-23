@@ -209,6 +209,21 @@ class DeviceLinkClientTest {
     }
 
     @Test
+    fun aStalledBodyIsAbandonedAtTheDeadlineToo() = runBlocking {
+        // The headers arrive at once; the body never comes within the deadline.
+        server.enqueue(json("{\"status\":\"pending\"}").setBodyDelay(5, TimeUnit.SECONDS))
+        val slow = DeviceLinkClient(
+            server.url("/api/ingest/").toString(), "sdk-key-1",
+            OkHttpClient.Builder().readTimeout(30, TimeUnit.SECONDS).build(),
+        )
+        val started = System.nanoTime()
+        val result = kotlinx.coroutines.withTimeoutOrNull(300) { slow.check(uuid, nonce) }
+        val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
+        assertNull(result)
+        assertTrue("the check ran ${elapsedMs}ms past its 300ms deadline", elapsedMs < 2_000)
+    }
+
+    @Test
     fun aCancelledCheckAbandonsTheCallAtOnce() = runBlocking {
         server.enqueue(json("{\"status\":\"pending\"}").setHeadersDelay(5, TimeUnit.SECONDS))
         val slow = DeviceLinkClient(

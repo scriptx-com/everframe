@@ -77,7 +77,7 @@ class QuickCaptureRealDeviceTest {
             submits += inputs
             submitResult(inputs)
         }
-        QuickCapture.beginLinkAttempt = { id, number, nonce -> attempts += Triple(id, number, nonce) }
+        QuickCapture.beginLinkAttempt = { id, number, nonce, _ -> attempts += Triple(id, number, nonce) }
         DeviceLink.toaster = { text -> Handler(Looper.getMainLooper()).post { Toast.makeText(app, text, Toast.LENGTH_SHORT).show() } }
         DeviceLink.refreshConfig = {}
         Settings.Global.putString(app.contentResolver, CaptureTokenReader.SETTINGS_KEY, null)
@@ -267,6 +267,23 @@ class QuickCaptureRealDeviceTest {
         assertEquals(id, attemptId)
         assertEquals(47, number)
         assertTrue(nonce == submits.single().deviceLink!!.nonce)
+    }
+
+    @Test
+    fun aLinkPendingArrivingAfterARestartIsDropped() {
+        link()
+        arm(debug = false)
+        val id = "6c1e2f6a-1b7e-4b43-9a55-0e0c2b8f3e10"
+        submitResult = { inputs ->
+            // start(B) lands while A's upload is out: the link state now belongs to project B.
+            DeviceLink.__setCurrentForTesting(
+                StoredDeviceLink("evf_dev_" + "Pr0B".repeat(8), DeviceLinkOwner.User("Bea"), DeviceLinkScope.of(IngestEndpoint.url, "txx_live_projectb000000")!!),
+            )
+            inputs.deviceLink!!.onLinkPending(LinkPending(id, 47))
+            ReportResult.Submitted(UUID.randomUUID())
+        }
+        assertEquals(QuickCaptureOutcome.Sent, capture())
+        assertTrue("A's linkPending started an attempt against B", attempts.isEmpty())
     }
 
     @Test

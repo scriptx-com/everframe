@@ -130,9 +130,9 @@ internal class DeviceLinkClient(
             )
         }
         try {
-            post(url, body).use { resp ->
-                if (resp.code != 200) return@use HelloResult.Stop
-                val obj = parseObject(resp.peekBody(MAX_BODY_BYTES).string()) ?: return@use HelloResult.Stop
+            post(url, body).let { resp ->
+                if (resp.code != 200) return@let HelloResult.Stop
+                val obj = parseObject(resp.body ?: "") ?: return@let HelloResult.Stop
                 when (obj.string("status")) {
                     "none" -> HelloResult.None
                     "pending" -> {
@@ -158,13 +158,13 @@ internal class DeviceLinkClient(
             ?.build()
             ?: return@withContext CheckResult.Stop
         try {
-            post(url, buildJsonObject { put("attemptNonce", nonce) }).use { resp ->
+            post(url, buildJsonObject { put("attemptNonce", nonce) }).let { resp ->
                 when {
                     resp.code == 429 -> CheckResult.Stop
                     resp.code >= 500 -> CheckResult.Retry
                     resp.code != 200 -> CheckResult.Expired
                     else -> {
-                        val obj = parseObject(resp.peekBody(MAX_BODY_BYTES).string()) ?: return@use CheckResult.Retry
+                        val obj = parseObject(resp.body ?: "") ?: return@let CheckResult.Retry
                         when (obj.string("status")) {
                             "pending" -> CheckResult.Pending
                             "expired" -> CheckResult.Expired
@@ -195,8 +195,15 @@ internal class DeviceLinkClient(
         return CheckResult.Linked(token!!, parsed)
     }
 
-    /** Cancelling the caller cancels the HTTP call, so a deadline ends a hung request at once. */
-    private suspend fun post(url: HttpUrl, body: JsonObject): Response = suspendCancellableCoroutine { cont ->
+    /** A link response: its status and, for a 200, up to [MAX_BODY_BYTES] of its body. */
+    private class LinkResponse(val code: Int, val body: String?)
+
+    /**
+     * Cancelling the caller cancels the HTTP call until its body has been read, so a deadline ends a request
+     * that hangs before its headers or in the middle of its body. The body is read on OkHttp's callback thread
+     * while the caller is still suspended here.
+     */
+    private suspend fun post(url: HttpUrl, body: JsonObject): LinkResponse = suspendCancellableCoroutine { cont ->
         val call = client.newCall(
             Request.Builder()
                 .url(url)
@@ -212,7 +219,14 @@ internal class DeviceLinkClient(
             }
 
             override fun onResponse(call: Call, response: Response) {
-                cont.resume(response) { _ -> response.close() }
+                val read = try {
+                    response.use { LinkResponse(it.code, if (it.code == 200) it.peekBody(MAX_BODY_BYTES).string() else null) }
+                } catch (e: Throwable) {
+                    // Cancelled mid-body, a broken stream, or anything else: the caller treats it as a failure.
+                    cont.resumeWithException(e)
+                    return
+                }
+                cont.resume(read) { _ -> }
             }
         })
     }

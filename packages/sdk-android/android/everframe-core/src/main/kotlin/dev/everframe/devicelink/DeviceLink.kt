@@ -16,7 +16,10 @@
 //
 // ONE ATTEMPT AT A TIME. A second gesture (or a double shake) while a hello or
 // an attempt is in flight is dropped, and a hello is never sent within 5 s of
-// the previous one, nor before the stored link has loaded.
+// the previous one, nor before the stored link has loaded. The slot is held by
+// a claim tied to the installation (`start()`) and scope it was taken in, so
+// an attempt begun before a restart can neither take over the next
+// installation's slot nor store its token under the next project's scope.
 //
 // CONFIG. `GET /api/config` carries the stored token, and its `deviceLinking`
 // block says whether linking is on and, for that token, whether it is still
@@ -89,9 +92,17 @@ internal object DeviceLink {
     @Volatile var linkingEnabled: Boolean = false
         private set
 
+    /** One hello-or-attempt's hold on the single attempt slot, for the installation and scope it began in. */
+    private class AttemptClaim(val installation: Long, val scope: String)
+
+    /** Bumped by every [install] and [teardown]; a claim from an earlier installation is stale. */
+    private var installation = 0L
+
+    /** The claim holding the attempt slot, or null. Written under [lock]. */
+    @Volatile private var claim: AttemptClaim? = null
+
     /** True while a hello is out or an attempt is being checked. */
-    @Volatile var attemptInFlight: Boolean = false
-        private set
+    val attemptInFlight: Boolean get() = claim != null
 
     /**
      * Called from `start()`. Loads the link stored for [scope] synchronously; a null scope (unparseable
@@ -121,7 +132,8 @@ internal object DeviceLink {
             lastHelloAt = null
             lastRequestedToken = null
             linkingEnabled = false
-            attemptInFlight = false
+            installation++
+            claim = null
             current = loaded
             isLoaded = true
             old
@@ -188,17 +200,20 @@ internal object DeviceLink {
         val nonce: String
         val api: DeviceLinkApi
         val describe: () -> HelloDevice?
+        val claimed: AttemptClaim
         synchronized(lock) {
-            if (!isLoaded || !linkingEnabled || current != null || scope == null || attemptInFlight) return
+            val s = scope
+            if (!isLoaded || !linkingEnabled || current != null || s == null || claim != null) return
             val t = now()
             lastHelloAt?.let { if (t - it < helloDebounceMs) return }
             api = client ?: return
             lastHelloAt = t
-            attemptInFlight = true
+            claimed = AttemptClaim(installation, s)
+            claim = claimed
             nonce = LinkNonce.generate() // SECURITY: never log
             describe = device
         }
-        launchOwned { owner ->
+        launchOwned(claimed) { owner ->
             val result = try {
                 val d = runCatching { describe() }.getOrNull()
                 if (d == null) HelloResult.Stop else api.hello(nonce, d)
@@ -211,15 +226,25 @@ internal object DeviceLink {
         }
     }
 
-    /** A takeover: the ingest answer to this device's upload named a pending attempt. Dropped if one runs. */
-    fun beginAttempt(attemptId: String, number: Int, nonce: String) {
+    /** The scope the loaded link state belongs to, or null before it loads. */
+    val activeScope: String? get() = synchronized(lock) { scope.takeIf { isLoaded } }
+
+    /**
+     * A takeover: the ingest answer to this device's upload named a pending attempt. Dropped if one runs, and
+     * when [forScope] (the scope of the link that upload carried) is not the active scope.
+     */
+    fun beginAttempt(attemptId: String, number: Int, nonce: String, forScope: String? = null) {
         val api: DeviceLinkApi
+        val claimed: AttemptClaim
         synchronized(lock) {
-            if (!isLoaded || scope == null || attemptInFlight) return
+            val s = scope
+            if (!isLoaded || s == null || claim != null) return
+            if (forScope != null && forScope != s) return
             api = client ?: return
-            attemptInFlight = true
+            claimed = AttemptClaim(installation, s)
+            claim = claimed
         }
-        launchOwned { owner -> runAttempt(owner, api, attemptId, number, nonce) }
+        launchOwned(claimed) { owner -> runAttempt(owner, api, attemptId, number, nonce) }
     }
 
     /**
@@ -257,7 +282,8 @@ internal object DeviceLink {
             isLoaded = false
             current = null
             linkingEnabled = false
-            attemptInFlight = false
+            installation++
+            claim = null
             old
         }
         previous?.cancel()
@@ -278,24 +304,25 @@ internal object DeviceLink {
 
     // ---- Attempt loop ----
 
-    /** Launches [block] as the single owned job; [block] gets its own Job to compare against [job]. */
-    private fun launchOwned(block: suspend (Job) -> Unit) {
+    /**
+     * Launches [block] as the job of [claimed]. Published only while [claimed] still holds the slot: an
+     * install or teardown between the claim and here (and any claim taken after it) cancels this job unstarted.
+     * Completion releases the slot only for its own claim.
+     */
+    private fun launchOwned(claimed: AttemptClaim, block: suspend (AttemptClaim) -> Unit) {
         val started = scopeProvider().launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
             val self = coroutineContext[Job]!!
             try {
-                block(self)
+                block(claimed)
             } finally {
                 synchronized(lock) {
-                    if (job === self) {
-                        job = null
-                        attemptInFlight = false
-                    }
+                    if (claim === claimed) claim = null
+                    if (job === self) job = null
                 }
             }
         }
         synchronized(lock) {
-            if (!attemptInFlight) {
-                // A teardown landed between the claim and here.
+            if (claim !== claimed) {
                 started.cancel()
                 return
             }
@@ -304,7 +331,7 @@ internal object DeviceLink {
         started.start()
     }
 
-    private suspend fun runAttempt(owner: Job, api: DeviceLinkApi, attemptId: String, number: Int, nonce: String) {
+    private suspend fun runAttempt(owner: AttemptClaim, api: DeviceLinkApi, attemptId: String, number: Int, nonce: String) {
         safely { showBanner(number) }
         try {
             val startedAt = now()
@@ -335,13 +362,22 @@ internal object DeviceLink {
         }
     }
 
-    private fun onLinked(owner: Job, result: CheckResult.Linked) {
-        val linked: StoredDeviceLink
+    private fun onLinked(owner: AttemptClaim, result: CheckResult.Linked) {
+        // Stored under the scope the attempt began in, never under whichever scope is live now.
+        val linked = StoredDeviceLink(result.token, result.owner, owner.scope)
         synchronized(lock) {
-            if (job !== owner || !sessionIsCurrent()) return
-            val s = scope ?: return
+            // A cancellation can race a check that already returned, so a claim from an earlier installation
+            // can get here. Nothing is stored after a kill.
+            if (!isLoaded) return
+            if (scope != owner.scope || !sessionIsCurrent()) {
+                // Another project is live: keep the token for its own scope only while the live installation
+                // is unlinked (the store holds one link, and a live link must stand). The live gate is unchanged.
+                if (current == null) runCatching { store?.save(linked) }
+                return
+            }
+            // The attempt's own installation, or a restart of the same project: this is the live scope's link.
+            if (claim !== owner && owner.installation == installation) return
             val st = store ?: return
-            linked = StoredDeviceLink(result.token, result.owner, s)
             // A failed save leaves the device unlinked, silently.
             if (!st.save(linked)) return
             current = linked
@@ -397,6 +433,7 @@ internal object DeviceLink {
     internal fun __setCurrentForTesting(link: StoredDeviceLink?, enabled: Boolean = true) {
         synchronized(lock) {
             current = link
+            if (link != null) scope = link.scope
             linkingEnabled = enabled
             isLoaded = true
         }
