@@ -87,6 +87,8 @@ final class DeviceLinkCoordinator {
         let hostMode: QuickCaptureHostMode
         let transport: DeviceLinkTransport
         let generation: Int
+        /// `Everframe`'s start epoch for the `start()` that began this session.
+        let startEpoch: Int
     }
 
     var seams: Seams = .live
@@ -117,7 +119,7 @@ final class DeviceLinkCoordinator {
 
     nonisolated func beginSession(
         endpoint: URL, sdkKey: String, hostMode: QuickCaptureHostMode,
-        transport: DeviceLinkTransport, ifCurrent: () -> Bool = { true }
+        transport: DeviceLinkTransport, startEpoch: Int = 0, ifCurrent: () -> Bool = { true }
     ) {
         let newGeneration: Int
         lock.lock()
@@ -125,7 +127,7 @@ final class DeviceLinkCoordinator {
         generation += 1
         newGeneration = generation
         session = Session(endpoint: endpoint, sdkKey: sdkKey, hostMode: hostMode,
-                          transport: transport, generation: newGeneration)
+                          transport: transport, generation: newGeneration, startEpoch: startEpoch)
         remote = nil
         lock.unlock()
         onMain { $0.endAttempt(olderThan: newGeneration) }
@@ -146,8 +148,11 @@ final class DeviceLinkCoordinator {
             case .unlinked:
                 unlinked = store.clear(endpoint: session.endpoint, sdkKey: session.sdkKey, ifFingerprint: fingerprint)
             case .linked:
-                if let owner = link.owner {
-                    store.updateOwner(owner, endpoint: session.endpoint, sdkKey: session.sdkKey, ifFingerprint: fingerprint)
+                if let owner = link.owner,
+                   !store.updateOwner(owner, endpoint: session.endpoint, sdkKey: session.sdkKey, ifFingerprint: fingerprint) {
+                    // A refused write that took the stored link with it leaves
+                    // the device unlinked; a refused one that kept it changes nothing.
+                    unlinked = store.link(endpoint: session.endpoint, sdkKey: session.sdkKey) == nil
                 }
             }
         }
@@ -200,6 +205,11 @@ final class DeviceLinkCoordinator {
         return session?.sdkKey
     }
 
+    nonisolated var __sessionStartEpochForTesting: Int? {
+        lock.lock(); defer { lock.unlock() }
+        return session?.startEpoch
+    }
+
     nonisolated func __setStoreForTesting(_ newStore: DeviceLinkStore) {
         lock.lock(); defer { lock.unlock() }
         store = newStore
@@ -215,7 +225,11 @@ final class DeviceLinkCoordinator {
         return session?.generation == generation
     }
 
-    private enum SaveResult { case saved, superseded, failed }
+    private enum SaveResult: Equatable {
+        case saved, superseded
+        /// `lostLink`: a link was stored before the write and is gone after it.
+        case failed(lostLink: Bool)
+    }
 
     /// Stores `link` for session `generation`'s origin and key, in the same
     /// critical section that checks that session is still current: a
@@ -224,7 +238,15 @@ final class DeviceLinkCoordinator {
     nonisolated private func save(_ link: DeviceLink, ifGeneration generation: Int) -> SaveResult {
         lock.lock(); defer { lock.unlock() }
         guard let session, session.generation == generation else { return .superseded }
-        return store.save(link, endpoint: session.endpoint, sdkKey: session.sdkKey) ? .saved : .failed
+        let hadLink = store.link(endpoint: session.endpoint, sdkKey: session.sdkKey) != nil
+        if store.save(link, endpoint: session.endpoint, sdkKey: session.sdkKey) { return .saved }
+        return .failed(lostLink: hadLink && store.link(endpoint: session.endpoint, sdkKey: session.sdkKey) == nil)
+    }
+
+    /// The store, read under the lock: a reply can outlive its session.
+    nonisolated private func currentStore() -> DeviceLinkStore {
+        lock.lock(); defer { lock.unlock() }
+        return store
     }
 
     /// `seams.linkChanged`, fenced to session `generation`.
@@ -267,24 +289,28 @@ final class DeviceLinkCoordinator {
     }
 
     /// A capture upload's reply says a teammate is taking this device over.
-    /// Checks the attempt with that upload's nonce. Ignored while an attempt runs.
+    /// Checks the attempt with that upload's nonce. Ignored while an attempt
+    /// runs, and unless this session is the one the upload was taken in:
+    /// `startEpoch` is that upload's `Everframe` start epoch, compared with
+    /// the session's own in the same snapshot that admits it.
     @discardableResult
-    func followIngestPending(_ pending: DeviceLinkPending, nonce: String) -> Task<Void, Never>? {
-        guard attempt == nil, let (session, _) = snapshot(), session.hostMode == .device else { return nil }
+    func followIngestPending(_ pending: DeviceLinkPending, nonce: String, startEpoch: Int) -> Task<Void, Never>? {
+        guard attempt == nil, let (session, _) = snapshot(), session.hostMode == .device,
+              session.startEpoch == startEpoch else { return nil }
         return startAttempt(session: session) { coordinator, _ in
             await coordinator.poll(session: session, attemptId: pending.attemptId, number: pending.number, nonce: nonce)
         }
     }
 
     /// Ingest answered `403 device_unlinked` to a capture sent with
-    /// `sentToken`. Clears the link only while that token is still stored.
+    /// `sentToken` for `endpoint` and `sdkKey`. Clears that scope's link only
+    /// while that token is still stored, even after the session moved on, and
+    /// drops the live gate only when that scope is still this session's.
     /// Shows no toast: quick capture shows "This device was unlinked".
-    func handleDeviceUnlinked(sentToken: String) {
-        guard let (session, store) = snapshot() else { return }
-        if store.clear(endpoint: session.endpoint, sdkKey: session.sdkKey,
-                       ifFingerprint: DeviceLinkToken.fingerprint(sentToken)) {
-            notifyLinkChanged(false, generation: session.generation)
-        }
+    func handleDeviceUnlinked(sentToken: String, endpoint: URL, sdkKey: String) {
+        guard currentStore().clear(endpoint: endpoint, sdkKey: sdkKey,
+                                   ifFingerprint: DeviceLinkToken.fingerprint(sentToken)) else { return }
+        handleStoredLinkCleared(endpoint: endpoint, sdkKey: sdkKey)
     }
 
     /// The outbox drain cleared a stored link (ingest answered `403
@@ -359,10 +385,12 @@ final class DeviceLinkCoordinator {
                 let saved = save(DeviceLink(token: token, owner: owner), ifGeneration: session.generation)
                 if saved == .superseded { return }
                 hideBannerOnce()
-                // The Keychain refused the token: the device stays unlinked, and
-                // says so rather than announcing a link it does not hold.
-                if saved == .failed {
+                // The Keychain refused the token: the device keeps whatever it
+                // held, and says so rather than announcing a link it does not
+                // hold. A write that lost the previous link unlinks the device.
+                if case let .failed(lostLink) = saved {
                     if isCurrent(session.generation) { seams.showToast(Self.saveFailedToastText) }
+                    if lostLink { notifyLinkChanged(false, generation: session.generation) }
                     return
                 }
                 // The Keychain write can block, and start() runs on any thread.

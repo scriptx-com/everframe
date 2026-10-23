@@ -1282,6 +1282,7 @@ public final class Everframe: @unchecked Sendable {
             sdkKey: config.sdkKey,
             hostMode: .current,
             transport: DeviceLinkClient(baseURL: IngestEndpoint.url, sdkKey: config.sdkKey),
+            startEpoch: epoch,
             ifCurrent: vitalsStillNewest
         )
         #if canImport(UIKit)

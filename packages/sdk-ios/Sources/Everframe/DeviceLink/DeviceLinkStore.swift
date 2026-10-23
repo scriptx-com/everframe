@@ -32,6 +32,20 @@ protocol DeviceLinkSecureStore: Sendable {
 struct KeychainDeviceLinkSecureStore: DeviceLinkSecureStore {
     static let service = "dev.everframe.device-link"
 
+    /// The Security calls, injected so the replace logic runs in host tests.
+    struct Calls: Sendable {
+        var copyMatching: @Sendable (CFDictionary, UnsafeMutablePointer<CFTypeRef?>?) -> OSStatus
+        var add: @Sendable (CFDictionary, UnsafeMutablePointer<CFTypeRef?>?) -> OSStatus
+        var update: @Sendable (CFDictionary, CFDictionary) -> OSStatus
+        var delete: @Sendable (CFDictionary) -> OSStatus
+
+        static let live = Calls(
+            copyMatching: { SecItemCopyMatching($0, $1) }, add: { SecItemAdd($0, $1) },
+            update: { SecItemUpdate($0, $1) }, delete: { SecItemDelete($0) })
+    }
+
+    var calls: Calls = .live
+
     private func baseQuery(account: String) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
@@ -45,22 +59,26 @@ struct KeychainDeviceLinkSecureStore: DeviceLinkSecureStore {
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        let status = calls.copyMatching(query as CFDictionary, &item)
         return status == errSecSuccess ? (item as? Data) : nil
     }
 
+    /// Replaces an existing item in place (`SecItemUpdate`), so a failed write
+    /// leaves the previous value stored; adds one only when none exists.
     func write(_ data: Data, account: String) -> Bool {
-        // Delete then add, as `DeviceKey` does, so a stale value is replaced.
         let query = baseQuery(account: account)
-        SecItemDelete(query as CFDictionary)
-        var attrs = query
-        attrs[kSecValueData as String] = data
-        attrs[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        return SecItemAdd(attrs as CFDictionary, nil) == errSecSuccess
+        let changes: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]
+        let updated = calls.update(query as CFDictionary, changes as CFDictionary)
+        guard updated == errSecItemNotFound else { return updated == errSecSuccess }
+        let attrs = query.merging(changes) { _, new in new }
+        return calls.add(attrs as CFDictionary, nil) == errSecSuccess
     }
 
     func delete(account: String) {
-        SecItemDelete(baseQuery(account: account) as CFDictionary)
+        _ = calls.delete(baseQuery(account: account) as CFDictionary)
     }
 }
 

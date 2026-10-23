@@ -214,12 +214,15 @@ final class QuickCapture {
     /// A fresh takeover nonce per linked upload. SECURITY: never log it.
     var makeLinkNonce: () -> String = { DeviceLinkNonce.make() }
     /// An ingest reply said a teammate is taking this device over.
-    var linkPendingReceived: @MainActor (DeviceLinkPending, String) -> Void = {
-        DeviceLinkCoordinator.shared.followIngestPending($0, nonce: $1)
+    var linkPendingReceived: @MainActor (DeviceLinkPending, String, Int) -> Void = {
+        DeviceLinkCoordinator.shared.followIngestPending($0, nonce: $1, startEpoch: $2)
     }
-    /// Ingest refused the token this capture was sent with.
-    var deviceUnlinked: @MainActor (String) -> Void = {
-        DeviceLinkCoordinator.shared.handleDeviceUnlinked(sentToken: $0)
+    /// Ingest refused the token this capture was sent with, for the origin
+    /// and SDK key the capture was taken under (nil key before `start()`).
+    var deviceUnlinked: @MainActor (_ sentToken: String, _ endpoint: URL, _ sdkKey: String?) -> Void = {
+        token, endpoint, sdkKey in
+        guard let sdkKey else { return }
+        DeviceLinkCoordinator.shared.handleDeviceUnlinked(sentToken: token, endpoint: endpoint, sdkKey: sdkKey)
     }
     var isApplicationActive: @MainActor () -> Bool = { UIApplication.shared.applicationState == .active }
     var lifecycle: Lifecycle = .live
@@ -466,6 +469,8 @@ final class QuickCapture {
         let linkNonce: String?
         /// The device token this capture was sent with, linked devices only.
         let deviceToken: String?
+        /// The ingest origin and SDK key `deviceToken` was looked up for.
+        var deviceScope: (endpoint: URL, sdkKey: String?)?
         let confirmText: String
     }
 
@@ -515,10 +520,12 @@ final class QuickCapture {
                 linkNonce: nil, deviceToken: nil,
                 confirmText: QuickCaptureToast.confirmedText(deviceName: deviceName))
         case .device:
-            if let link = deviceLink(IngestEndpoint.url, capturedSession.config?.sdkKey),
-               DeviceLinkToken.isValid(link.token) {
+            // Read once: the lookup and a later unlink name the same scope.
+            let endpoint = IngestEndpoint.url
+            let sdkKey = capturedSession.config?.sdkKey
+            if let link = deviceLink(endpoint, sdkKey), DeviceLinkToken.isValid(link.token) {
                 return Attribution(captureToken: link.token, linkNonce: makeLinkNonce(), deviceToken: link.token,
-                                   confirmText: link.owner.capturedToastText)
+                                   deviceScope: (endpoint, sdkKey), confirmText: link.owner.capturedToastText)
             }
             guard gate.isDebug else { return nil }
             return Attribution(captureToken: nil, linkNonce: nil, deviceToken: nil,
@@ -636,7 +643,7 @@ final class QuickCapture {
                         // the session this upload was taken in: drop it then,
                         // rather than follow it with this upload's nonce.
                         guard let self, self.isCurrent(startEpoch: startEpoch) else { return }
-                        self.linkPendingReceived(pending, nonce)
+                        self.linkPendingReceived(pending, nonce, startEpoch)
                     }
                 }
             }
@@ -657,7 +664,9 @@ final class QuickCapture {
         } catch DeviceLinkRejection.deviceUnlinked {
             // Nothing was stored. Forget the token this capture was sent with.
             lifecycle.cancel(owner)
-            if let token = attribution.deviceToken { deviceUnlinked(token) }
+            if let token = attribution.deviceToken, let scope = attribution.deviceScope {
+                deviceUnlinked(token, scope.endpoint, scope.sdkKey)
+            }
             return .unlinked
         } catch {
             // A terminal upload error: `ReporterSubmission` queues only retryable ones.

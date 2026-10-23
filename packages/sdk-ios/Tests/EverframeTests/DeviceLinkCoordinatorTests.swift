@@ -251,7 +251,7 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
         XCTAssertTrue(c.isAttemptActive)
         while await gate.arrivals == 0 { await Task.yield() }
         XCTAssertNil(c.sendHelloIfIdle())
-        XCTAssertNil(c.followIngestPending(.init(attemptId: UUID(), number: 9), nonce: DeviceLinkNonce.make()))
+        XCTAssertNil(c.followIngestPending(.init(attemptId: UUID(), number: 9), nonce: DeviceLinkNonce.make(), startEpoch: 0))
         await gate.release()
         await task?.value
         XCTAssertEqual(transport.hellos, 1)
@@ -277,7 +277,7 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
         let nonce = String(repeating: "N", count: 32)
         let transport = ScriptedTransport(checks: [.reply(.pending), .reply(.linked(token: otherToken, owner: .user(name: "Aurimas")))])
         let c = makeEnabled(transport)
-        await c.followIngestPending(.init(attemptId: id, number: 12), nonce: nonce)?.value
+        await c.followIngestPending(.init(attemptId: id, number: 12), nonce: nonce, startEpoch: 0)?.value
         XCTAssertEqual(transport.checks.count, 2)
         XCTAssertTrue(transport.checks.allSatisfy { $0.0 == id && $0.1 == nonce })
         XCTAssertEqual(transport.hellos, 0)
@@ -295,7 +295,7 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
         let c = makeEnabled(transport)
         let task = c.sendHelloIfIdle()
         while await gate.arrivals == 0 { await Task.yield() }
-        XCTAssertNil(c.followIngestPending(.init(attemptId: UUID(), number: 9), nonce: DeviceLinkNonce.make()))
+        XCTAssertNil(c.followIngestPending(.init(attemptId: UUID(), number: 9), nonce: DeviceLinkNonce.make(), startEpoch: 0))
         await gate.release()
         await task?.value
         XCTAssertEqual(banners, [5])
@@ -304,7 +304,7 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
 
     func testIngestPendingIgnoredOutsideDevice() {
         let c = makeEnabled(ScriptedTransport(), hostMode: .simulator)
-        XCTAssertNil(c.followIngestPending(.init(attemptId: UUID(), number: 9), nonce: DeviceLinkNonce.make()))
+        XCTAssertNil(c.followIngestPending(.init(attemptId: UUID(), number: 9), nonce: DeviceLinkNonce.make(), startEpoch: 0))
     }
 
     func testConfigUnlinkedClearsOnlyMatchingToken() {
@@ -354,10 +354,10 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
     func testDeviceUnlinkedClearsOnlyTheTokenSent() {
         store.save(DeviceLink(token: otherToken, owner: .team), endpoint: ingest, sdkKey: "k")
         let c = makeEnabled(ScriptedTransport())
-        c.handleDeviceUnlinked(sentToken: fixtureToken)
+        c.handleDeviceUnlinked(sentToken: fixtureToken, endpoint: ingest, sdkKey: "k")
         XCTAssertTrue(storedToken() == otherToken)
         XCTAssertEqual(linkChanges, [])
-        c.handleDeviceUnlinked(sentToken: otherToken)
+        c.handleDeviceUnlinked(sentToken: otherToken, endpoint: ingest, sdkKey: "k")
         XCTAssertNil(storedToken())
         XCTAssertEqual(linkChanges, [false])
         XCTAssertEqual(toasts, [])
@@ -443,7 +443,7 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
     func testIngestPendingQueuedBeforeASessionChangeShowsNoBanner() async {
         let transport = ScriptedTransport(checks: [.reply(.pending)])
         let c = makeEnabled(transport)
-        let task = c.followIngestPending(.init(attemptId: UUID(), number: 21), nonce: DeviceLinkNonce.make())
+        let task = c.followIngestPending(.init(attemptId: UUID(), number: 21), nonce: DeviceLinkNonce.make(), startEpoch: 0)
         c.teardown()
         await task?.value
         XCTAssertEqual(banners, [])
@@ -451,7 +451,7 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
         XCTAssertEqual(transport.checks.count, 0)
 
         let replaced = makeEnabled(ScriptedTransport(checks: [.reply(.pending)]))
-        let second = replaced.followIngestPending(.init(attemptId: UUID(), number: 22), nonce: DeviceLinkNonce.make())
+        let second = replaced.followIngestPending(.init(attemptId: UUID(), number: 22), nonce: DeviceLinkNonce.make(), startEpoch: 0)
         replaced.beginSession(endpoint: ingest, sdkKey: "k2", hostMode: .device, transport: ScriptedTransport())
         await second?.value
         XCTAssertEqual(banners, [])
@@ -486,6 +486,70 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
         XCTAssertNil(makeEnabled(ScriptedTransport(), hostMode: .simulator).link(endpoint: ingest, sdkKey: "k"))
         c.teardown()
         XCTAssertNil(c.link(endpoint: ingest, sdkKey: "k"))
+    }
+
+    /// A `device_unlinked` for an upload sent under key "k" that lands after
+    /// the session moved on still clears "k"'s revoked token, and leaves the
+    /// newer session's gate alone.
+    func testDeviceUnlinkedAfterTheSessionMovedOnClearsTheUploadsScope() {
+        store.save(DeviceLink(token: fixtureToken, owner: .team), endpoint: ingest, sdkKey: "k")
+        store.save(DeviceLink(token: otherToken, owner: .team), endpoint: ingest, sdkKey: "k2")
+        let c = makeEnabled(ScriptedTransport())
+        c.beginSession(endpoint: ingest, sdkKey: "k2", hostMode: .device, transport: ScriptedTransport())
+        c.handleDeviceUnlinked(sentToken: fixtureToken, endpoint: ingest, sdkKey: "k")
+        XCTAssertTrue(storedToken() == nil)
+        XCTAssertTrue(store.link(endpoint: ingest, sdkKey: "k2")?.token == otherToken)
+        XCTAssertEqual(linkChanges, [])
+
+        // After kill() too, and only for the token the upload was sent with.
+        store.save(DeviceLink(token: otherToken, owner: .team), endpoint: ingest, sdkKey: "k")
+        c.teardown()
+        c.handleDeviceUnlinked(sentToken: fixtureToken, endpoint: ingest, sdkKey: "k")
+        XCTAssertTrue(storedToken() == otherToken)
+        c.handleDeviceUnlinked(sentToken: otherToken, endpoint: ingest, sdkKey: "k")
+        XCTAssertTrue(storedToken() == nil)
+        XCTAssertEqual(linkChanges, [])
+    }
+
+    /// An ingest takeover is admitted only by the session its upload was taken in.
+    func testIngestPendingFromAnotherStartEpochIsRejected() async {
+        let c = makeCoordinator()
+        c.beginSession(endpoint: ingest, sdkKey: "k", hostMode: .device,
+                       transport: ScriptedTransport(checks: [.stop]), startEpoch: 7)
+        c.publish(remote: .init(enabled: true))
+        XCTAssertNil(c.followIngestPending(.init(attemptId: UUID(), number: 3), nonce: DeviceLinkNonce.make(), startEpoch: 6))
+        XCTAssertEqual(banners, [])
+        let admitted = c.followIngestPending(.init(attemptId: UUID(), number: 3), nonce: DeviceLinkNonce.make(), startEpoch: 7)
+        XCTAssertNotNil(admitted)
+        await admitted?.value
+        XCTAssertEqual(banners, [3])
+    }
+
+    /// A takeover whose write fails after the old item is already gone: the
+    /// device has lost its link, so the gate drops with it.
+    func testFailedReplaceThatLostTheOldLinkUnlinks() async {
+        let losing = LosingDeviceLinkSecureStore()
+        store = DeviceLinkStore(secure: losing)
+        store.save(DeviceLink(token: fixtureToken, owner: .team), endpoint: ingest, sdkKey: "k")
+        losing.loseWrites = true
+        let c = makeEnabled(ScriptedTransport(checks: [.reply(.linked(token: otherToken, owner: .team))]))
+        await c.followIngestPending(.init(attemptId: UUID(), number: 2), nonce: DeviceLinkNonce.make(), startEpoch: 0)?.value
+        XCTAssertNil(c.currentLink)
+        XCTAssertEqual(linkChanges, [false])
+        XCTAssertEqual(toasts, ["Linking failed"])
+    }
+
+    /// The same for a config owner refresh whose write loses the item.
+    func testFailedOwnerUpdateThatLostTheLinkUnlinks() {
+        let losing = LosingDeviceLinkSecureStore()
+        store = DeviceLinkStore(secure: losing)
+        store.save(DeviceLink(token: fixtureToken, owner: .team), endpoint: ingest, sdkKey: "k")
+        losing.loseWrites = true
+        let c = makeEnabled(ScriptedTransport())
+        c.publish(remote: .init(enabled: true, link: .init(status: .linked, owner: .user(name: "Jonas")),
+                                requestTokenFingerprint: DeviceLinkToken.fingerprint(fixtureToken)))
+        XCTAssertNil(c.currentLink)
+        XCTAssertEqual(linkChanges, [false])
     }
 
     func testTeardownCancelsPollingAndHidesBanner() async {
@@ -573,4 +637,18 @@ private final class RefusingDeviceLinkSecureStore: DeviceLinkSecureStore, @unche
     func read(account: String) -> Data? { nil }
     func write(_ data: Data, account: String) -> Bool { false }
     func delete(account: String) {}
+}
+
+/// A Keychain whose writes, once `loseWrites` is set, remove the item and fail:
+/// a replace that lost the old value.
+private final class LosingDeviceLinkSecureStore: DeviceLinkSecureStore, @unchecked Sendable {
+    private let inner = InMemoryDeviceLinkSecureStore()
+    var loseWrites = false
+    func read(account: String) -> Data? { inner.read(account: account) }
+    func delete(account: String) { inner.delete(account: account) }
+    func write(_ data: Data, account: String) -> Bool {
+        guard loseWrites else { return inner.write(data, account: account) }
+        inner.delete(account: account)
+        return false
+    }
 }

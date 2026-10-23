@@ -19,6 +19,8 @@ final class QuickCaptureDeviceTests: XCTestCase {
     private var cancels: [UUID] = []
     private var forwarded: [(Int, String)] = []
     private var unlinkedTokens: [String] = []
+    private var unlinkedScopes: [(URL, String?)] = []
+    private var forwardedEpochs: [Int] = []
     private var savedCaptureGate = false
 
     override func setUp() async throws {
@@ -36,6 +38,8 @@ final class QuickCaptureDeviceTests: XCTestCase {
         cancels = []
         forwarded = []
         unlinkedTokens = []
+        unlinkedScopes = []
+        forwardedEpochs = []
     }
 
     override func tearDown() async throws {
@@ -60,8 +64,14 @@ final class QuickCaptureDeviceTests: XCTestCase {
             didClose: { _ in },
             cancel: { [unowned self] in self.cancels.append($0) })
         qc.deviceLink = { _, _ in link }
-        qc.linkPendingReceived = { [unowned self] in self.forwarded.append(($0.number, $1)) }
-        qc.deviceUnlinked = { [unowned self] in self.unlinkedTokens.append($0) }
+        qc.linkPendingReceived = { [unowned self] pending, nonce, epoch in
+            self.forwarded.append((pending.number, nonce))
+            self.forwardedEpochs.append(epoch)
+        }
+        qc.deviceUnlinked = { [unowned self] token, endpoint, sdkKey in
+            self.unlinkedTokens.append(token)
+            self.unlinkedScopes.append((endpoint, sdkKey))
+        }
         qc.submit = submit ?? { [unowned self] inputs in
             self.submitted.append(inputs)
             return .submitted(reportId: UUID())
@@ -168,6 +178,8 @@ final class QuickCaptureDeviceTests: XCTestCase {
         XCTAssertEqual(forwarded.count, 1)
         XCTAssertEqual(forwarded.first?.0, 47)
         XCTAssertTrue(forwarded.first?.1 == nonce)
+        // The upload's own start epoch goes with it, for the coordinator to admit.
+        XCTAssertEqual(forwardedEpochs, [Everframe.shared.currentStartEpoch])
         XCTAssertNotNil(nonce)
     }
 
@@ -217,6 +229,9 @@ final class QuickCaptureDeviceTests: XCTestCase {
         XCTAssertEqual(outcome, .unlinked)
         XCTAssertEqual(toasts, ["Captured · Aurimas", "This device was unlinked"])
         XCTAssertTrue(unlinkedTokens == [fixtureToken])
+        // The scope the capture was taken under (no key before start()).
+        XCTAssertEqual(unlinkedScopes.map(\.0), [IngestEndpoint.url])
+        XCTAssertEqual(unlinkedScopes.map(\.1), [nil])
         XCTAssertEqual(cancels.count, 1)
     }
 

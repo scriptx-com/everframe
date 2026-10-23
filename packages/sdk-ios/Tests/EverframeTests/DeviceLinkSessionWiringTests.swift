@@ -14,6 +14,13 @@ final class DeviceLinkSessionWiringTests: XCTestCase {
         XCTAssertEqual(DeviceLinkCoordinator.shared.__sessionKeyForTesting, key)
     }
 
+    /// The link session carries its start() epoch, which admits ingest takeovers.
+    func testStartTagsTheLinkSessionWithItsEpoch() throws {
+        defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil) }
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: key, capture: CaptureConfig(logs: false), releaseHealth: nil))
+        XCTAssertEqual(DeviceLinkCoordinator.shared.__sessionStartEpochForTesting, Everframe.shared.currentStartEpoch)
+    }
+
     func testKillEndsTheLinkSession() throws {
         defer { Everframe.__setConfigForTesting(nil) }
         try Everframe.shared.start(config: EverframeConfig(sdkKey: key, capture: CaptureConfig(logs: false), releaseHealth: nil))

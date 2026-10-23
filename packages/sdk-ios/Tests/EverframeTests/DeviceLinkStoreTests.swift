@@ -91,3 +91,99 @@ final class DeviceLinkStoreTests: XCTestCase {
         XCTAssertNil(DeviceLinkStore.account(endpoint: URL(string: "https:///nohost")!, sdkKey: "k"))
     }
 }
+
+/// The Keychain replace: an existing item is updated in place, so a failed
+/// write never leaves the device without its previous link.
+final class KeychainDeviceLinkReplaceTests: XCTestCase {
+    func testReplacingUpdatesInPlaceWithoutDeleting() {
+        let keychain = FakeKeychain()
+        let secure = KeychainDeviceLinkSecureStore(calls: keychain.calls)
+        XCTAssertTrue(secure.write(Data("old".utf8), account: "a"))
+        keychain.failAdd = true
+        XCTAssertTrue(secure.write(Data("new".utf8), account: "a"))
+        XCTAssertEqual(secure.read(account: "a"), Data("new".utf8))
+        XCTAssertFalse(keychain.log.contains("delete"))
+        XCTAssertTrue(keychain.updatedWithAccessibility)
+    }
+
+    func testAFailedReplaceKeepsTheOldItem() {
+        let keychain = FakeKeychain()
+        let secure = KeychainDeviceLinkSecureStore(calls: keychain.calls)
+        XCTAssertTrue(secure.write(Data("old".utf8), account: "a"))
+        keychain.failAdd = true
+        keychain.failUpdate = true
+        XCTAssertFalse(secure.write(Data("new".utf8), account: "a"))
+        XCTAssertEqual(secure.read(account: "a"), Data("old".utf8))
+    }
+
+    func testAFirstWriteAdds() {
+        let keychain = FakeKeychain()
+        let secure = KeychainDeviceLinkSecureStore(calls: keychain.calls)
+        XCTAssertTrue(secure.write(Data("v".utf8), account: "a"))
+        XCTAssertEqual(secure.read(account: "a"), Data("v".utf8))
+        XCTAssertFalse(keychain.log.contains("delete"))
+        secure.delete(account: "a")
+        XCTAssertNil(secure.read(account: "a"))
+    }
+}
+
+/// An in-memory stand-in for the Security item calls, keyed by account.
+private final class FakeKeychain: @unchecked Sendable {
+    private let lock = NSLock()
+    private var items: [String: Data] = [:]
+    private var entries: [String] = []
+    private var updatedAccessible = false
+    var failAdd = false
+    var failUpdate = false
+
+    var log: [String] { lock.lock(); defer { lock.unlock() }; return entries }
+    var updatedWithAccessibility: Bool { lock.lock(); defer { lock.unlock() }; return updatedAccessible }
+
+    var calls: KeychainDeviceLinkSecureStore.Calls {
+        KeychainDeviceLinkSecureStore.Calls(
+            copyMatching: { [self] query, out in copy(query, out) },
+            add: { [self] attrs, _ in add(attrs) },
+            update: { [self] query, attrs in update(query, attrs) },
+            delete: { [self] query in delete(query) })
+    }
+
+    private func account(_ dictionary: CFDictionary) -> String {
+        (dictionary as NSDictionary)[kSecAttrAccount as String] as? String ?? ""
+    }
+
+    private func copy(_ query: CFDictionary, _ out: UnsafeMutablePointer<CFTypeRef?>?) -> OSStatus {
+        lock.lock(); defer { lock.unlock() }
+        guard let data = items[account(query)] else { return errSecItemNotFound }
+        out?.pointee = data as CFData
+        return errSecSuccess
+    }
+
+    private func add(_ attrs: CFDictionary) -> OSStatus {
+        lock.lock(); defer { lock.unlock() }
+        entries.append("add")
+        if failAdd { return errSecIO }
+        let key = account(attrs)
+        guard items[key] == nil else { return errSecDuplicateItem }
+        items[key] = (attrs as NSDictionary)[kSecValueData as String] as? Data
+        return errSecSuccess
+    }
+
+    private func update(_ query: CFDictionary, _ attrs: CFDictionary) -> OSStatus {
+        lock.lock(); defer { lock.unlock() }
+        entries.append("update")
+        let key = account(query)
+        guard items[key] != nil else { return errSecItemNotFound }
+        if failUpdate { return errSecIO }
+        let changes = attrs as NSDictionary
+        items[key] = changes[kSecValueData as String] as? Data
+        updatedAccessible = (changes[kSecAttrAccessible as String] as? String)
+            == (kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String)
+        return errSecSuccess
+    }
+
+    private func delete(_ query: CFDictionary) -> OSStatus {
+        lock.lock(); defer { lock.unlock() }
+        entries.append("delete")
+        return items.removeValue(forKey: account(query)) == nil ? errSecItemNotFound : errSecSuccess
+    }
+}
