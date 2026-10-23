@@ -486,13 +486,26 @@ dashboard. Like the reporter, a quick capture consumes the pending
   try Everframe.shared.start(config: config)
   ```
 
-- **Token file.** When `$SIMULATOR_HOST_HOME/.everframe/credentials` on your
-  Mac (normally `~/.everframe/credentials`) holds your capture token as JSON,
-  `{"token": "<token>"}`, the capture is attributed to you. The Everframe CLI
-  will write this file (coming soon); until then, create it yourself. It is read fresh at every capture, sent only
-  on the quick-capture upload, and never logged. Without it, captures land in
-  the app's shared inbox. A capture that is queued offline and retried later
-  goes out without the token.
+- **Capture from your Mac.** `npx @everframe/cli capture` posts the Darwin
+  notification `com.everframe.capture` to the booted simulator
+  (`xcrun simctl spawn <udid> notifyutil -p com.everframe.capture`), which
+  files the same capture as the double-Shift trigger. It follows the same
+  gates: a debug simulator build with the dashboard's capture hotkey setting
+  on, and nothing happens while the reporter is on screen or a capture is
+  uploading. With several simulators booted, pass `--device <udid>`.
+- **No screenshot, no capture.** A session started with
+  `capture.screenshot = false` ignores quick capture and uploads nothing; the
+  trigger is dropped as `screenshot_disabled`. Kotlin Multiplatform apps start
+  that way today, so they get no quick capture for now.
+- **Token file.** Run `npx @everframe/cli login` once. It writes
+  `~/.everframe/credentials` with your capture token (as JSON with `token`,
+  `url` and `email`), and the capture is attributed to you. The SDK reads
+  `$SIMULATOR_HOST_HOME/.everframe/credentials` on your Mac (normally the same
+  file) fresh at every capture, sends the token only on the quick-capture
+  upload, and never logs it. Without it, captures land in the app's shared
+  inbox. A capture that is queued offline and retried later goes out without
+  the token. If you cannot use the CLI, create the file yourself as
+  `{"token": "<token>"}`.
 
 ---
 

@@ -144,9 +144,14 @@ screenshot. Title and description stay empty; you fill them in on the
 dashboard. Like the reporter, a quick capture consumes the pending
 `Everframe.setExtra` payload.
 
-- **Trigger.** The broadcast action `com.everframe.CAPTURE`. A host-side
-  keyboard trigger arrives with the Everframe CLI; until then, send the
-  broadcast yourself. The receiver reads nothing from the broadcast.
+- **Trigger.** Run `npx @everframe/cli capture`, which sends the broadcast
+  action `com.everframe.CAPTURE` to the running emulator. On macOS,
+  `npx @everframe/cli hotkey` does the same from a global shortcut while a
+  standalone emulator window is in front. You can also send the broadcast
+  yourself with the `adb` command above. The receiver reads nothing from the
+  broadcast. A session started with `capture.screenshot = false` ignores it
+  (dropped as `screenshot_disabled`); Kotlin Multiplatform apps start that way
+  today, so they get no quick capture for now.
 - **Debug emulators only.** The receiver is registered only in a debuggable
   build running on an emulator, never on a device or in a release build. It
   also needs `reporterEnabled` and the dashboard's capture hotkey setting, and
@@ -172,12 +177,18 @@ dashboard. Like the reporter, a quick capture consumes the pending
   logs and metadata but no replay.
 - **Opt out** locally with `EverframeConfig(..., quickCaptureEnabled = false)`.
   Local `true` never overrides a dashboard disable.
-- **Token.** When the emulator's global setting `everframe_token` holds your
-  capture token (`adb shell settings put global everframe_token <token>`), the
-  capture is attributed to you. It is read fresh at every capture, sent only on
-  the quick-capture upload, and never logged. Without it, captures land in the
-  app's shared inbox. A capture that is queued offline and retried later goes
-  out without the token.
+- **Token.** Run `npx @everframe/cli login` once; it saves your capture token
+  and copies it to running emulators. Start an emulator later? Run
+  `npx @everframe/cli link`. The token lives in the emulator's global setting
+  `everframe_token`, and the capture is attributed to you. It is read fresh at
+  every capture, sent only on the quick-capture upload, and never logged.
+  Without it, captures land in the app's shared inbox. A capture that is queued
+  offline and retried later goes out without the token. Without the CLI, set it
+  yourself:
+
+  ```sh
+  adb shell settings put global everframe_token <token>
+  ```
 
 ### Crash-only sessions
 

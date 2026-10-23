@@ -23,6 +23,8 @@ arrives, so it sends the capture without its replay, and the launch drain remove
 entry. A key press that UIKit delivers twice is counted
 once.
 
+`npx @everframe/cli capture` triggers a capture on a booted simulator through the Darwin notification `com.everframe.capture`, with the same gates as the double-Shift trigger (a debug simulator build with the dashboard setting on, armed, nothing in flight). `npx @everframe/cli login` writes the `~/.everframe/credentials` file the SDK reads for attribution.
+
 A session started with `capture.screenshot = false` ignores quick capture unless
 the host has installed an evidence provider with
 `Everframe.__setQuickCaptureEvidenceProvider`. That SDK seam is for host plugins,
@@ -32,3 +34,5 @@ replay themselves. Such a session never uploads an unmasked native screenshot.
 The public `ReporterTrigger` enum gained a `quickCapture` case (raw value
 `quick_capture`). Host code that switches exhaustively over `ReporterTrigger`
 needs a `default` branch.
+
+Kotlin Multiplatform apps start sessions with screenshots off, so quick capture is ignored for them (`screenshot_disabled`) for now.
