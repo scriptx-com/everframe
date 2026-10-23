@@ -866,7 +866,14 @@ async function drainOutboxInternal(
       //     app's store, and never counted toward `provisionedThreadIds`
       //     (Finding 2) since this app has no thread to wake a poller for.
       const isThisApp = itemSdkKey === opts.config.sdkKey;
-      const itemDeviceToken = isThisApp ? deviceToken : undefined;
+      // Real-device quick capture: a queued quick capture (linked, under a
+      // fingerprint, or an unlinked debug one) is retried exactly like its
+      // live upload, which never carries the reply device token and never
+      // adopts one. The identity-token policy below is unchanged.
+      const isQuickCapture =
+        itemFingerprint !== undefined ||
+        (envelope as { quickCapture?: unknown }).quickCapture === true;
+      const itemDeviceToken = isThisApp && !isQuickCapture ? deviceToken : undefined;
       const itemOptOut = isThisApp ? repliesOptOut : true;
       // Same app-scoping as deviceToken/repliesOptOut above — a foreign
       // item's identity context isn't THIS app's to present (host.setIdentityToken
@@ -945,7 +952,7 @@ async function drainOutboxInternal(
         enqueuedSubjects.delete(item.reportId);
         forgetErrorReplay(item.reportId);
         submitted += 1;
-        if (isThisApp) {
+        if (isThisApp && !isQuickCapture) {
           // Round-6 PR-review Finding 2 (HIGH) — surface a provisioned
           // thread so the caller (Provider) can wake the idle poller; only
           // THIS app's items count here (a foreign item never provisions a

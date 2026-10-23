@@ -189,4 +189,76 @@ describe('draining fingerprinted quick captures', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(outbox.deleted).toEqual([]);
   });
+
+  describe('reply credentials', () => {
+    function credentials() {
+      return {
+        load: vi.fn(async () => null),
+        save: vi.fn(async (_t: string) => undefined),
+        clear: vi.fn(async () => undefined),
+        randomBytes: (n: number) => new Uint8Array(n).fill(7),
+      };
+    }
+    function plainItem(reportId: string, payload: Record<string, unknown>): OutboxItem {
+      return {
+        reportId,
+        enqueuedAt: 1,
+        attempts: 0,
+        payload: new TextEncoder().encode(JSON.stringify({ reportId, ...payload })),
+        metadata: { url: URL_, sdkKey: 'key-1' },
+      };
+    }
+
+    it('a queued linked quick capture is retried without the reply device token', async () => {
+      const fetchSpy = fetchReturning(200, { device: { token: 'evf_minted' } });
+      const creds = credentials();
+      const outbox = fakeOutbox([
+        item('r1', { url: URL_, sdkKey: 'key-1', deviceLinkFingerprint: FP }),
+        plainItem('r2', {}), // control: an ordinary report in the same drain
+      ]);
+      await drainOutbox({
+        outbox,
+        config,
+        sdkVersion: 't',
+        fetch: fetchSpy as unknown as typeof fetch,
+        credentials: creds,
+        deviceLinks: links({ token: TOKEN, fingerprint: FP }),
+      });
+      const [quick, ordinary] = fetchSpy.mock.calls.map(([, init]) => new Headers(init.headers));
+      expect(quick!.has('X-Everframe-Device-Token')).toBe(false);
+      expect(quick!.get('X-Everframe-Capture-Token')).toBe(TOKEN);
+      expect(ordinary!.has('X-Everframe-Device-Token')).toBe(true);
+    });
+
+    it('a queued unlinked quick capture is retried without the reply device token', async () => {
+      const fetchSpy = fetchReturning(200, {});
+      const outbox = fakeOutbox([plainItem('r3', { quickCapture: true })]);
+      await drainOutbox({
+        outbox,
+        config,
+        sdkVersion: 't',
+        fetch: fetchSpy as unknown as typeof fetch,
+        credentials: credentials(),
+      });
+      expect(new Headers(fetchSpy.mock.calls[0]![1].headers).has('X-Everframe-Device-Token')).toBe(
+        false,
+      );
+    });
+
+    it('a reply token minted on a quick-capture retry is never adopted', async () => {
+      const fetchSpy = fetchReturning(200, { device: { token: 'evf_minted' } });
+      const creds = credentials();
+      const outbox = fakeOutbox([plainItem('r4', { quickCapture: true })]);
+      // An ordinary drain with no store item still mints once for the batch;
+      // what must not happen is persisting the token a quick capture's reply carried.
+      await drainOutbox({
+        outbox,
+        config,
+        sdkVersion: 't',
+        fetch: fetchSpy as unknown as typeof fetch,
+        credentials: creds,
+      });
+      expect(creds.save.mock.calls.some(([t]) => t === 'evf_minted')).toBe(false);
+    });
+  });
 });
