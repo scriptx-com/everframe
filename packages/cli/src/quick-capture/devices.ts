@@ -12,9 +12,9 @@ export interface RunResult {
 export type Runner = (cmd: string, args: string[]) => Promise<RunResult>;
 
 /** Runs a command with an argument array (never a shell); never rejects. */
-export const defaultRunner: Runner = (cmd, args) =>
+export const runnerWithTimeout = (timeoutMs: number): Runner => (cmd, args) =>
   new Promise((resolve) => {
-    execFile(cmd, args, { timeout: 15_000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
+    execFile(cmd, args, { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (!error) return resolve({ stdout, stderr, code: 0 });
       const code = typeof error.code === 'number' ? error.code : 127;
       // error.message embeds the full command line (arguments included), so it
@@ -22,6 +22,8 @@ export const defaultRunner: Runner = (cmd, args) =>
       resolve({ stdout: stdout ?? '', stderr: stderr || `Couldn't run ${basename(cmd)}`, code });
     });
   });
+
+export const defaultRunner: Runner = runnerWithTimeout(15_000);
 
 const executable = (path: string): boolean => {
   try {

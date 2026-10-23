@@ -544,3 +544,25 @@ The service must support the additive `vcs` manifest field before using these
 tooling versions. Older clients remain supported by the updated service. Deploy
 server support before publishing the new tooling; do not strip provenance in
 response to an arbitrary upload failure.
+
+## Quick capture hotkey for Android emulators (macOS)
+
+The Android emulator does not pass ⌘, ⌃ or ⌥ through to the app, so on macOS
+the CLI can listen for a global hotkey instead:
+
+```sh
+npx @everframe/cli hotkey            # ⌘⇧B by default
+npx @everframe/cli hotkey --key Ctrl+Alt+5
+```
+
+Press the combo with an emulator window in front and that emulator captures a
+report. The hotkey is registered only while a standalone emulator window is the
+front app, so ⌘⇧B keeps working everywhere else. It needs no Accessibility
+permission. The first run compiles a small Swift helper into `~/.everframe/bin`,
+which needs the Xcode Command Line Tools (`xcode-select --install`). Press
+Ctrl+C to stop.
+
+Emulators embedded in Android Studio are not separate windows. Turn off
+Settings → Tools → Emulator → "Launch in the Running Devices tool window", or
+run `npx @everframe/cli capture` instead. On Windows and Linux, bind
+`npx @everframe/cli capture` to a keyboard shortcut in your desktop settings.
