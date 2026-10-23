@@ -22,6 +22,9 @@
 package dev.everframe.config
 
 import androidx.annotation.VisibleForTesting
+import dev.everframe.devicelink.DeviceLinkOwner
+import dev.everframe.devicelink.DeviceLinkToken
+import dev.everframe.transport.MultipartUploader
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -37,6 +40,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.doubleOrNull
@@ -526,6 +530,58 @@ private object CaptureHotkeyConfigWireSerializer : KSerializer<CaptureHotkeyConf
     }
 }
 
+/**
+ * Real-device quick capture: the per-app device-linking switch and, when the config request carried an
+ * `evf_dev_` token, that token's link status. Negotiated with the `devicelinking` capability.
+ *
+ * Decoded element-wise: a non-object block or a non-boolean `enabled` makes the whole block absent; `link`
+ * is lenient. An unknown `status` reads as unlinked, and `linked` with a missing or unknown owner kind reads
+ * as no link information (`link = null`), so the device keeps its token and never trusts an owner it can't
+ * name.
+ */
+@Serializable(with = DeviceLinkingConfigWireSerializer::class)
+data class DeviceLinkingConfigWire(val enabled: Boolean, val link: DeviceLinkStatusWire? = null)
+
+/** [linked] is `status == "linked"`; [owner] is non-null only when linked. */
+data class DeviceLinkStatusWire(val linked: Boolean, val owner: DeviceLinkOwner? = null)
+
+internal object DeviceLinkingConfigWireSerializer : KSerializer<DeviceLinkingConfigWire> {
+    @Serializable
+    private data class Surrogate(val enabled: Boolean)
+
+    internal val INVALID = DeviceLinkingConfigWire(enabled = false)
+    override val descriptor = Surrogate.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): DeviceLinkingConfigWire = try {
+        val obj = (decoder as JsonDecoder).decodeJsonElement() as? JsonObject
+        val enabled = (obj?.get("enabled") as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull
+        if (obj == null || enabled == null) INVALID else DeviceLinkingConfigWire(enabled, decodeLink(obj["link"]))
+    } catch (_: Throwable) {
+        INVALID
+    }
+
+    private fun decodeLink(element: kotlinx.serialization.json.JsonElement?): DeviceLinkStatusWire? {
+        val link = element as? JsonObject ?: return null
+        val status = (link["status"] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
+        if (status != "linked") return DeviceLinkStatusWire(linked = false)
+        val owner = link["owner"] as? JsonObject ?: return null
+        return when ((owner["kind"] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull) {
+            "user" -> DeviceLinkStatusWire(
+                linked = true,
+                owner = DeviceLinkOwner.User(
+                    (owner["name"] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull ?: "",
+                ),
+            )
+            "team" -> DeviceLinkStatusWire(linked = true, owner = DeviceLinkOwner.Team)
+            else -> null
+        }
+    }
+
+    override fun serialize(encoder: Encoder, value: DeviceLinkingConfigWire) {
+        encoder.encodeSerializableValue(Surrogate.serializer(), Surrogate(value.enabled))
+    }
+}
+
 /** Decodes a JSON boolean; anything else (string "true", number, null) → null. Per-field leniency for a top-level scalar. */
 object LenientBooleanSerializer : KSerializer<Boolean?> {
     override val descriptor = PrimitiveSerialDescriptor("LenientBoolean", PrimitiveKind.BOOLEAN).nullable
@@ -574,6 +630,8 @@ data class ReplayConfig(
      * session then records nothing.
      */
     val crashOnlySamplingRate: Double? = null,
+    /** Real-device quick capture, negotiated via `devicelinking`; null from an older server. */
+    val deviceLinking: DeviceLinkingConfigWire? = null,
 ) {
     companion object {
         /**
@@ -613,6 +671,7 @@ private data class ReplayConfigWire(
     @Serializable(with = LenientDoubleSerializer::class) val vitalsSampleRate: Double? = null,
     val nativeVideo: NativeVideoSettings? = null,
     @Serializable(with = LenientDoubleSerializer::class) val crashOnlySamplingRate: Double? = null,
+    val deviceLinking: DeviceLinkingConfigWire? = null,
 )
 
 /**
@@ -645,6 +704,12 @@ class ReplayConfigProvider(
      * error, and a throw here is swallowed for the same reason.
      */
     private val installIdProvider: () -> String? = { null },
+    /**
+     * Real-device quick capture: the stored device link token, asked for on every fetch. The header is
+     * attached only for a valid `evf_dev_` token, never for an emulator capture token, and a throw is
+     * swallowed. SECURITY: never log.
+     */
+    private val captureTokenProvider: () -> String? = { null },
 ) {
     /**
      * Sequence issuance and cache commit, moved as ONE value so neither can
@@ -772,6 +837,11 @@ class ReplayConfigProvider(
                 .header("Authorization", "Bearer $sdkKey")
                 .header("Accept", "application/json")
                 .header("X-Everframe-SDK-Features", SDK_FEATURES_HEADER_VALUE)
+                .apply {
+                    // SECURITY: never log. Only ever written into this header.
+                    val token = runCatching { captureTokenProvider() }.getOrNull()
+                    if (DeviceLinkToken.isValid(token)) header(MultipartUploader.CAPTURE_TOKEN_HEADER, token!!)
+                }
                 .build()
 
             fetcher.fetch(req).use { resp ->
@@ -814,6 +884,9 @@ class ReplayConfigProvider(
                     // Unlike samplingRate, a bad crash-only rate degrades this field alone: it only ever
                     // lowers coverage, and null already means "record no crash-only session".
                     crashOnlySamplingRate = wire.crashOnlySamplingRate?.takeIf { it in 0.0..1.0 },
+                    deviceLinking = wire.deviceLinking?.takeUnless {
+                        it === DeviceLinkingConfigWireSerializer.INVALID
+                    },
                 )
                 __beforeCommitHookForTesting()
                 // F43: commit succeeds ONLY if [state] still shows `mySeq`
@@ -879,10 +952,12 @@ class ReplayConfigProvider(
          * without it get 5. `crashonly` (spec 2026-10-12) asks for `crashOnlySamplingRate`, which this
          * strict decoder would otherwise reject as an unknown key. `capturetextguard` tells the server
          * quick capture stands aside while a text editor has focus, so it may send a plain-key or Shift+key
-         * `captureHotkey.binding`; callers without it get `Shift Shift`.
+         * `captureHotkey.binding`; callers without it get `Shift Shift`. `devicelinking` (real-device quick
+         * capture) asks for the `deviceLinking` block: the per-app linking switch and, for a request carrying
+         * an `evf_dev_` token, that token's link status.
          */
         val SDK_FEATURES_HEADER_VALUE: String
-            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard" +
+            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking" +
                 if (android.os.Build.VERSION.SDK_INT >= 29) ", nativevideo, nativevideolowfps" else ""
 
         /**
@@ -895,6 +970,7 @@ class ReplayConfigProvider(
             sdkKey: String,
             fetcher: ConfigFetcher,
             installIdProvider: () -> String? = { null },
+            captureTokenProvider: () -> String? = { null },
         ): ReplayConfigProvider {
             val trimmed = baseUrl.trimEnd('/')
             val configUrl = if (trimmed.endsWith("/api/config")) trimmed else "$trimmed/api/config"
@@ -903,6 +979,7 @@ class ReplayConfigProvider(
                 sdkKey = sdkKey,
                 fetcher = fetcher,
                 installIdProvider = installIdProvider,
+                captureTokenProvider = captureTokenProvider,
             )
         }
     }

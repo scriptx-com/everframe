@@ -19,10 +19,13 @@ internal object DeviceLinkToken {
     fun isValid(raw: String?): Boolean = raw != null && SHAPE.matches(raw)
 }
 
-/** Who a linked device files captures for. */
-internal sealed interface DeviceLinkOwner {
-    data class User(val name: String) : DeviceLinkOwner
-    data object Team : DeviceLinkOwner
+/**
+ * Who a linked device files captures for. Public only because the negotiated [dev.everframe.config.ReplayConfig]
+ * carries it in its `deviceLinking` block; apps never need it.
+ */
+public sealed interface DeviceLinkOwner {
+    public data class User(val name: String) : DeviceLinkOwner
+    public data object Team : DeviceLinkOwner
 }
 
 private const val MAX_DISPLAY_NAME = 40
