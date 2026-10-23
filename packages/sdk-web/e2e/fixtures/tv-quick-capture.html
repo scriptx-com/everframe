@@ -1,0 +1,42 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Everframe TV quick capture e2e fixture</title>
+<style>
+  body { margin: 0; font: 24px/1.4 sans-serif; background: #101418; color: #eee; }
+  h1 { margin: 40px; font-weight: normal; }
+  #rail { display: flex; padding: 40px; }
+  .tile { flex: 0 0 280px; height: 160px; margin-right: 24px; border-radius: 12px; background: #345; }
+  .tile:focus { outline: 6px solid #fc0; }
+</style>
+</head>
+<body>
+  <h1>Home</h1>
+  <div id="rail">
+    <div class="tile" id="tile-1" tabindex="0"></div>
+    <div class="tile" id="tile-2" tabindex="0"></div>
+  </div>
+  <!-- See plain.html: the import map stands in for a consumer's bundler. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "modern-screenshot": "/vendor/modern-screenshot.js",
+      "@zumer/snapdom": "/vendor/snapdom.js",
+      "rrweb": "/vendor/rrweb.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import { init } from '/dist/index.js';
+    // Counts what reaches the app, the way a player's key handler would see it.
+    window.__appKeys = { downs: 0, ups: 0 };
+    document.addEventListener('keydown', () => { window.__appKeys.downs += 1; });
+    document.addEventListener('keyup', () => { window.__appKeys.ups += 1; });
+    document.getElementById('tile-1').focus();
+    window.__everframe = init({ sdkKey: 'pk_e2e', appVersion: '0.0.0-e2e' });
+  </script>
+</body>
+</html>

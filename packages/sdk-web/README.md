@@ -376,6 +376,98 @@ and is flagged `screenshot_render_failed`. If nothing could be captured, it is
 flagged `screenshot_unavailable`. A blank image is never sent as a real
 screenshot.
 
+## Quick capture on Samsung and LG TVs
+
+On a Samsung Tizen or LG webOS TV app, a team member can link the TV to
+themselves with the remote, then press the same remote gesture to file a quick
+capture. A quick capture includes a screenshot (or TV snapshot), the replay
+window, logs, breadcrumbs and network activity, and arrives as a draft
+attributed to them. End users' TVs keep behaving exactly as before. Desktop
+browsers are not covered yet: this needs a Tizen or webOS user agent, and every
+other browser gets none of it (no new request, no new chunk).
+
+**Linking.** On the dashboard open **Settings → Devices → Link a device**, do
+the capture gesture on the TV, and pick the number the TV shows
+(`Linking to Everframe · 47`). The TV then toasts `Linked to <name>`.
+
+What the gesture does (only while the app's quick capture is on in the
+dashboard):
+
+| TV state                | Gesture                                                                   |
+| ----------------------- | ------------------------------------------------------------------------- |
+| Linked to a member      | Quick capture with the device token. Toast `Captured · <name>`.           |
+| Linked as a team device | Quick capture. Toast `Captured · team device`.                            |
+| Unlinked, debug build   | Shared quick capture with no token. Also starts linking if linking is on. |
+| Unlinked, release build | Nothing visible. Starts linking if linking is on.                         |
+
+A TV is a debug build only when you pass `debugBuild: true` to `init()` (or the
+React provider config). Everything else counts as release, including apps
+served from a LAN or loopback address.
+
+**The gesture.** The default is a 1.5 s long press of Play/Pause. On the
+dashboard you can set another binding:
+
+- `longPress`: one key held for 500–5000 ms;
+- `sequence`: 2–8 keys pressed in order within 300–5000 ms;
+- `chord`: 2–4 different keys held together.
+
+| Key name                                 | LG webOS `keyCode`          | Samsung Tizen `keyCode`                                                                    |
+| ---------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------ |
+| `DPAD_UP` / `DOWN` / `LEFT` / `RIGHT`    | 38 / 40 / 37 / 39           | 38 / 40 / 37 / 39                                                                          |
+| `DPAD_CENTER`                            | 13                          | 13                                                                                         |
+| `BACK`                                   | 461                         | 10009                                                                                      |
+| `MENU`                                   | not mapped                  | `Menu` when the TV has it                                                                  |
+| `MEDIA_PLAY_PAUSE`                       | 415 (Play), 19 (Pause), 179 | `MediaPlayPause` (10252), 179; Play 415 and Pause 19 only on a TV without `MediaPlayPause` |
+| `MEDIA_FAST_FORWARD` / `MEDIA_REWIND`    | 417 / 412                   | `MediaFastForward` / `MediaRewind` (417 / 412)                                             |
+| `PROG_RED` / `GREEN` / `YELLOW` / `BLUE` | 403–406                     | `ColorF0Red`…`ColorF3Blue` (403–406)                                                       |
+| `A`–`Z`, `0`–`9`, `SHIFT`                | 65–90, 48–57, 16            | the same                                                                                   |
+
+On Tizen the codes come from `tizen.tvinputdevice.getKey()` when the TV has
+it, then from the table. When an engine reports `keyCode` 0, the SDK reads
+`KeyboardEvent.key` instead (`ArrowUp`, `Enter`, `MediaPlayPause`, …). A
+binding that uses letters, digits or `SHIFT` does nothing while a text field
+has focus.
+
+If your Tizen app does not register `MediaPlayPause` itself, use an arrow-key
+sequence such as `DPAD_UP, DPAD_UP, DPAD_DOWN, DPAD_DOWN` within 1000 ms.
+Arrow keys reach every web TV app without registration (see Tizen below).
+
+**Key handling.** The SDK listens on `window` in the capture phase. The first
+keydown of a press always reaches your app, so a long Play/Pause toggles
+playback once. On a linked TV the SDK swallows the rest of a recognized
+gesture: a long press's later repeats, or a sequence's or chord's completing
+key with its repeats and keyup. A long press's keyup still reaches your app.
+An unlinked TV never swallows a key. Normal use (Play/Pause taps, holding the
+D-pad to scroll a rail) never triggers a capture.
+
+**Tizen.** Media, color and digit keys reach a Tizen app only after
+`tizen.tvinputdevice.registerKey()`, and the app needs the
+`http://tizen.org/privilege/tv.inputdevice` privilege in `config.xml`. The SDK
+registers the binding's keys only on a linked TV or a debug build, and never
+unregisters a key. On an unlinked release TV it registers nothing, so the
+default binding works there only if your app registers `MediaPlayPause`
+itself (most video apps do). Otherwise, use an arrow-key sequence.
+
+**Record on device.** When a member starts "record on device" for a linked TV
+on the dashboard, the TV toasts `Recording remote keys for 10 seconds`,
+records up to 32 key presses (registering every Tizen key it can), and
+uploads them. It then toasts `Keys sent to Everframe`, and the dashboard turns
+the presses into a binding. A linked TV refetches its config when it comes back
+to the foreground, at most every 10 s, so it notices a recording request made
+while the app was in the background.
+
+**Storage.** The device token is kept in `localStorage`, scoped to the ingest
+origin and the SDK key. It is never logged, never put in a URL, and never
+captured in network evidence. If storage is blocked, the link lasts for the
+session.
+
+**Turning it off.** `quickCapture: { disabled: true }` in the `init()` config
+turns all of this off on that build: no linking, no gesture, no key listener.
+
+**Hosted apps.** A packaged TV app that loads its pages from a web origin
+makes cross-origin requests to the Everframe API. The device-link endpoints
+answer CORS preflights for this.
+
 ## Component names in reports are React-only
 
 When `@everframe/react` captures a report, it resolves the focused element to
