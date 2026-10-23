@@ -1,0 +1,22 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/DeviceLinkClient.kt
+  s_f1c043e85606b2::t_fa379332913c63 1-200
+  s_f1c043e85606b2::t_d347c8e284e085 201
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/devicelink/DeviceLinkClientTest.kt
+  s_f1c043e85606b2::t_8d10809771ba77 1-200
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1fa096afdb4e0d57d6fa801acc4f38ae334b8efa",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
