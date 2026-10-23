@@ -293,14 +293,17 @@ final class QuickCapture {
         #endif
     }
 
+    /// The simulator's capture notification goes through the mode rule, the
+    /// same as a shake: quick capture while armed, and on a simulator running
+    /// as a real device (`EVERFRAME_SIMULATE_DEVICE=1`) a link hello as well.
     func darwinNotificationReceived() {
-        guard isArmed else { return }
-        startCapture()
+        CaptureGestureRouter.make(for: self, coordinator: .shared).handle(.simulatorNotification)
     }
 
-    private func startCapture() {
+    /// Starts `capture(trigger:)` on its own task, or the test override.
+    func startCapture(trigger: QuickCaptureTrigger = .hotkey) {
         if let triggerOverride { triggerOverride(); return }
-        Task { @MainActor in _ = await self.capture() }
+        Task { @MainActor in _ = await self.capture(trigger: trigger) }
     }
 
     nonisolated func publish(remote: CaptureHotkeyConfigWire?, ifCurrent: () -> Bool = { true }) {
