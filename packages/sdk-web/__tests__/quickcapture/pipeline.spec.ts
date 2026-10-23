@@ -563,13 +563,42 @@ describe('quick-capture pipeline', () => {
         return c;
       });
     });
+    let reporterOpen = false;
+    adapter['__isReporterOpen'] = () => reporterOpen;
     const p = qc.capture();
     await vi.waitFor(() => expect(lifecycle.complete).toHaveBeenCalledTimes(1));
-    seq += 1; // the reporter opens mid-export
+    seq += 1; // the reporter opens mid-export and freezes its own evidence
+    reporterOpen = true;
     exported.resolve(REPLAY);
     expect(await p).toBe('submitted');
     // The resumed buffer is frozen again for the reporter that opened meanwhile.
     expect(lifecycle.freeze).toHaveBeenCalledTimes(2);
     expect(lifecycleState).toBe('FROZEN');
+  });
+
+  it('a reporter opened and cancelled during the replay export leaves no orphaned freeze', async () => {
+    let seq = 0;
+    let reporterOpen = false;
+    adapter['__reporterOpenSeq'] = () => seq;
+    adapter['__isReporterOpen'] = () => reporterOpen;
+    const exported = deferred<ReplayCapture | null>();
+    lifecycle.complete.mockImplementationOnce(() =>
+      exported.promise.then((c) => {
+        lifecycleState = 'BUFFERING';
+        return c;
+      }),
+    );
+    const p = qc.capture();
+    await vi.waitFor(() => expect(lifecycle.complete).toHaveBeenCalledTimes(1));
+    seq += 1; // the reporter opens...
+    reporterOpen = true;
+    reporterOpen = false; // ...and is cancelled before the export finishes
+    exported.resolve(REPLAY);
+    expect(await p).toBe('submitted');
+    expect(lifecycle.freeze).toHaveBeenCalledTimes(1); // only the capture's own
+    expect(lifecycleState).toBe('BUFFERING');
+    // A later gesture is not blocked by a stray freeze.
+    clock += CAPTURE_COOLDOWN_MS;
+    expect(await qc.capture()).toBe('submitted');
   });
 });

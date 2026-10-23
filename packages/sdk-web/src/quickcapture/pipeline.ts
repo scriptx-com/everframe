@@ -92,6 +92,16 @@ export function createQuickCapture(deps: QuickCaptureDeps): QuickCapture {
     return safe(() => (read ? read() : 0), 0);
   }
 
+  /**
+   * The reporter's actual state: a pending open() or evidence it froze.
+   * Read after the capture took its own breadcrumbs and bodies, so a frozen
+   * buffer here is the reporter's.
+   */
+  function reporterStillOpen(): boolean {
+    const read = (host.adapter as { __isReporterOpen?: () => boolean }).__isReporterOpen;
+    return safe(() => (read ? read() === true : false), false);
+  }
+
   /** Resume live capture after a capture that will not be sent. */
   function unwind(): void {
     const adapter = host.adapter;
@@ -216,8 +226,11 @@ export function createQuickCapture(deps: QuickCaptureDeps): QuickCapture {
       }
       // A reporter that opened during the export found the replay still
       // frozen (its freeze() was a no-op) and complete() then resumed the
-      // buffer: freeze it again so the reporter holds a frozen window.
-      if (reporterOpened()) guard(() => lifecycle?.freeze());
+      // buffer: freeze it again so the reporter holds a frozen window. Only
+      // while that reporter still holds its evidence: one opened and
+      // cancelled meanwhile has already resumed, and a freeze now would be
+      // orphaned (recording stopped, later captures shut out).
+      if (reporterOpened() && reporterStillOpen()) guard(() => lifecycle?.freeze());
       try {
         if (capture && capture.bytes.byteLength > 0) {
           bundle.replaySha256 = await sha256HexOfBytes(capture.bytes);
