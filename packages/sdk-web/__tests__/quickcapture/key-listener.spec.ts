@@ -3,6 +3,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { KeyInput } from '../../src/quickcapture/gesture-detector.js';
+import { GestureRecorder } from '../../src/quickcapture/recorder.js';
 import {
   installRemoteKeyListener,
   type RemoteKeyListener,
@@ -363,6 +364,59 @@ describe('installRemoteKeyListener', () => {
     field.focus();
     s.c.advance(1600);
     expect(s.onGesture).not.toHaveBeenCalled();
+  });
+
+  it('key-only events (keyCode 0) keep a distinct identity per key, so a chord completes', () => {
+    const s = setup();
+    s.setBinding({ kind: 'chord', keys: ['PROG_RED', 'PROG_BLUE'] });
+    s.listener.rearm();
+    const app = appCounter();
+    press('keydown', 0, { key: 'ColorF0Red' });
+    const blue = press('keydown', 0, { key: 'ColorF3Blue' });
+    expect(s.onGesture).toHaveBeenCalledTimes(1);
+    expect(blue.defaultPrevented).toBe(true);
+    // Blue's keyup is swallowed with it; Red's is the app's.
+    expect(press('keyup', 0, { key: 'ColorF3Blue' }).defaultPrevented).toBe(true);
+    expect(press('keyup', 0, { key: 'ColorF0Red' }).defaultPrevented).toBe(false);
+    expect(app).toMatchObject({ downs: 1, ups: 1 });
+  });
+
+  it('key-only events that are not contract keys do not collide with each other', () => {
+    const s = setup();
+    s.setBinding({
+      kind: 'sequence',
+      keys: ['DPAD_UP', 'DPAD_UP', 'DPAD_DOWN', 'DPAD_DOWN'],
+      windowMs: 1000,
+    });
+    s.listener.rearm();
+    // An unmapped key held while ↑ is pressed must not make ↑ look like a repeat.
+    press('keydown', 0, { key: 'Unidentified' });
+    press('keydown', 0, { key: 'ArrowUp' });
+    press('keyup', 0, { key: 'ArrowUp' });
+    press('keydown', 0, { key: 'ArrowUp' });
+    press('keyup', 0, { key: 'ArrowUp' });
+    press('keydown', 0, { key: 'ArrowDown' });
+    press('keyup', 0, { key: 'ArrowDown' });
+    press('keydown', 0, { key: 'ArrowDown' });
+    expect(s.onGesture).toHaveBeenCalledTimes(1);
+  });
+
+  it('a recording keeps every key-only press', () => {
+    const s = setup({ armedBinding: () => null });
+    const recorder = new GestureRecorder();
+    s.setRecording(recorder);
+    s.listener.rearm();
+    press('keydown', 0, { key: 'ColorF0Red' });
+    s.c.advance(100);
+    press('keydown', 0, { key: 'ColorF3Blue' });
+    s.c.advance(200);
+    press('keyup', 0, { key: 'ColorF3Blue' });
+    s.c.advance(300);
+    press('keyup', 0, { key: 'ColorF0Red' });
+    expect(recorder.finish(1000)).toEqual([
+      { key: 'PROG_RED', downMs: 0, upMs: 300 },
+      { key: 'PROG_BLUE', downMs: 100, upMs: 200 },
+    ]);
   });
 
   it('a pending hold does not fire after the binding changes or a recording starts', () => {

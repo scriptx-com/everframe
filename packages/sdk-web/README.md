@@ -440,7 +440,7 @@ key with its repeats and keyup. A long press's keyup still reaches your app.
 An unlinked TV never swallows a key. Normal use (Play/Pause taps, holding the
 D-pad to scroll a rail) never triggers a capture.
 
-**Tizen.** Media, color and digit keys reach a Tizen app only after
+**Tizen.** Menu, media, color and digit keys reach a Tizen app only after
 `tizen.tvinputdevice.registerKey()`, and the app needs the
 `http://tizen.org/privilege/tv.inputdevice` privilege in `config.xml`. The SDK
 registers the binding's keys only on a linked TV or a debug build, and never

@@ -21,8 +21,7 @@ interface TizenInputDevice {
   registerKey?(name: string): void;
 }
 
-// Task 12's registrable Tizen names (media, color and digit keys), plus Menu,
-// which the spike registers only to learn its code.
+// Task 12's registrable Tizen names (Menu, media, color and digit keys).
 const TIZEN_KEYS = [
   'MediaPlayPause',
   'MediaPlay',

@@ -19,6 +19,7 @@ const SUPPORTED: Array<[string, number]> = [
   ['ColorF1Green', 404],
   ['ColorF2Yellow', 405],
   ['ColorF3Blue', 406],
+  ['Menu', 18],
   ['0', 48],
   ['1', 49],
   ['2', 50],
@@ -49,7 +50,7 @@ function device(supported: Array<[string, number]> = SUPPORTED) {
 }
 
 describe('tizenKeyNamesFor', () => {
-  it('maps media, color and digit keys and nothing else', () => {
+  it('maps Menu, media, color and digit keys and nothing else', () => {
     expect(tizenKeyNamesFor(['MEDIA_PLAY_PAUSE'])).toEqual(['MediaPlayPause']);
     expect(
       tizenKeyNamesFor([
@@ -70,6 +71,7 @@ describe('tizenKeyNamesFor', () => {
         'PROG_RED',
       ]),
     ).toEqual([
+      'Menu',
       'MediaFastForward',
       'MediaRewind',
       'ColorF0Red',
@@ -79,7 +81,8 @@ describe('tizenKeyNamesFor', () => {
       '0',
       '9',
     ]);
-    expect(ALL_TIZEN_KEY_NAMES).toHaveLength(3 + 4 + 10);
+    expect(ALL_TIZEN_KEY_NAMES).toHaveLength(1 + 3 + 4 + 10);
+    expect(ALL_TIZEN_KEY_NAMES).toContain('Menu');
   });
 });
 
@@ -90,6 +93,16 @@ describe('registerTizenKeys', () => {
     expect(d.registerKeyBatch).toHaveBeenCalledTimes(1);
     expect(d.registerKeyBatch.mock.calls[0]![0]).toEqual(['MediaPlayPause']);
     expect(d.registerKey).not.toHaveBeenCalled();
+  });
+
+  it('registers Menu for a MENU binding on a TV that has it, and skips it otherwise', () => {
+    const d = device();
+    registerTizenKeys(d, tizenKeyNamesFor(['MENU']));
+    expect(d.registerKeyBatch.mock.calls[0]![0]).toEqual(['Menu']);
+    const without = device(SUPPORTED.filter(([n]) => n !== 'Menu'));
+    registerTizenKeys(without, tizenKeyNamesFor(['MENU']));
+    expect(without.registerKeyBatch).not.toHaveBeenCalled();
+    expect(without.registerKey).not.toHaveBeenCalled();
   });
 
   it('registers nothing for an arrow-key binding', () => {

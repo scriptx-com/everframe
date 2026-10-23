@@ -173,12 +173,32 @@ export function installRemoteKeyListener(deps: RemoteKeyListenerDeps): RemoteKey
     h.handle = safe(() => timers.set(run, Math.max(0, deadline - now())), null);
   }
 
+  // Engines that report keyCode 0 identify keys only by `key`. The detector
+  // and recorder track held keys by code, so each such key gets a stable
+  // synthetic negative code (contract keys by name, others by `key`).
+  const keyOnlyCodes: { [identity: string]: number } = {};
+  let nextKeyOnlyCode = -1;
+  function keyOnlyCode(identity: string): number {
+    let c = keyOnlyCodes[identity];
+    if (c === undefined) {
+      c = nextKeyOnlyCode;
+      nextKeyOnlyCode -= 1;
+      keyOnlyCodes[identity] = c;
+    }
+    return c;
+  }
+
   function inputFor(ev: KeyboardEvent): KeyInput {
-    const code = typeof ev.keyCode === 'number' && ev.keyCode !== 0 ? ev.keyCode : ev.which || 0;
+    let code = typeof ev.keyCode === 'number' && ev.keyCode !== 0 ? ev.keyCode : ev.which || 0;
     const key = typeof ev.key === 'string' ? ev.key : '';
+    const name = keyMap.nameFor(code, key);
+    if (code === 0) {
+      if (name !== null) code = keyOnlyCode(`name:${name}`);
+      else if (key.length > 0) code = keyOnlyCode(`key:${key}`);
+    }
     return {
       type: ev.type === 'keyup' ? 'up' : 'down',
-      name: keyMap.nameFor(code, key),
+      name,
       code,
       shift: ev.shiftKey === true,
       repeat: ev.repeat === true,

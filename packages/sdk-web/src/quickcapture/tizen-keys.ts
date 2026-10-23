@@ -3,7 +3,7 @@
 //
 // Real-device quick capture (Samsung Tizen): registering remote keys so they
 // reach the page. Arrows, Enter and Back are delivered without registration;
-// media, color and digit keys need `tizen.tvinputdevice.registerKey` and the
+// Menu, media, color and digit keys need `tizen.tvinputdevice.registerKey` and the
 // app's `http://tizen.org/privilege/tv.inputdevice` privilege. Lazy chunk.
 //
 // The SDK registers only on a linked TV or a debug build (and for the whole
@@ -35,6 +35,7 @@ export function tizenInputDevice(win?: unknown): TizenInputDevice | null {
 }
 
 const TIZEN_NAMES: { [name: string]: string } = {
+  MENU: 'Menu',
   MEDIA_PLAY_PAUSE: 'MediaPlayPause',
   MEDIA_FAST_FORWARD: 'MediaFastForward',
   MEDIA_REWIND: 'MediaRewind',

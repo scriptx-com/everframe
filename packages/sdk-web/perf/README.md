@@ -238,8 +238,8 @@ phase as `{type, key, code, keyCode, repeat, dtMs, focus}`, plus `blur`,
 canvas stream, so no media file is needed). Each line is posted to `/results`,
 printed and appended to `out/keys.jsonl`. `?focus=tile` (the default) focuses
 a tile; `?focus=video` focuses the video. On Tizen the page first posts
-`tizen.tvinputdevice.getSupportedKeys()` and registers every supported media,
-color and digit key, plus `Menu` to learn its code.
+`tizen.tvinputdevice.getSupportedKeys()` and registers every supported Menu,
+media, color and digit key.
 
 ```sh
 node perf/tv-device-harness.mjs --page keys --target chrome79 --host <LAN IP> --package
