@@ -1,0 +1,21 @@
+.changeset/quick-capture-shift-b-android.md
+  s_f1c043e85606b2::t_c1de464dd0535f 8
+packages/sdk-android/android/README.md
+  s_f1c043e85606b2::t_51c4649d26247a 157-158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "64e3aa1b72250143a81b1df9761b22511366c399",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
