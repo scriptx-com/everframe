@@ -1,0 +1,25 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/CaptureTokenReader.kt
+  s_f1c043e85606b2::t_19d45f9c0b6474 30-48
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/CaptureTokenReaderTest.kt
+  s_f1c043e85606b2::t_8b9aac4c1fa47a 63-91
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCapture.swift
+  s_f1c043e85606b2::t_e1441130bceb95 374,399-408
+packages/sdk-ios/Tests/EverframeTests/QuickCaptureTests.swift
+  s_f1c043e85606b2::t_a85d62c9669053 437-488
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7da1bbffae3e061dc9a90c3502211fe4f27e420",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
