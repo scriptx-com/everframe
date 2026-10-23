@@ -611,7 +611,7 @@ final class QuickCapture {
             captureToken: attribution.captureToken,
             linkNonce: attribution.linkNonce,
             onIngestAccepted: attribution.linkNonce.map { nonce in
-                { [weak self] body in
+                { @Sendable [weak self] body in
                     guard let pending = DeviceLinkPending.fromIngestBody(body) else { return }
                     Task { @MainActor in self?.linkPendingReceived(pending, nonce) }
                 }

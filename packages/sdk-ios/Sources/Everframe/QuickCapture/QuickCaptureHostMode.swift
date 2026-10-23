@@ -26,17 +26,16 @@ enum QuickCaptureHostMode: Equatable, Sendable {
     }
 
     static let current: Self = {
-        #if targetEnvironment(simulator)
-        let isSimulator = true
-        #else
-        let isSimulator = false
-        #endif
         #if os(iOS) && !targetEnvironment(macCatalyst)
         let isPhoneOS = true
         #else
         let isPhoneOS = false
         #endif
-        return resolve(isSimulator: isSimulator, isPhoneOS: isPhoneOS,
-                       environment: isSimulator ? ProcessInfo.processInfo.environment : [:])
+        #if targetEnvironment(simulator)
+        // The test switch is read only in simulator builds.
+        return resolve(isSimulator: true, isPhoneOS: isPhoneOS, environment: ProcessInfo.processInfo.environment)
+        #else
+        return resolve(isSimulator: false, isPhoneOS: isPhoneOS, environment: [:])
+        #endif
     }()
 }
