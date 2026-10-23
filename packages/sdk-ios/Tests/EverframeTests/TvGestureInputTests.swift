@@ -40,6 +40,7 @@ final class TvGestureInputTests: XCTestCase {
     private var editing = false
     private var objects: [NSObject] = []
     private var input: TvGestureInput!
+    private var activeRecording: GestureRecording?
 
     override func setUp() async throws {
         now = 100
@@ -49,6 +50,7 @@ final class TvGestureInputTests: XCTestCase {
         binding = .default
         editing = false
         objects = []
+        activeRecording = nil
         input = TvGestureInput(seams: TvGestureInput.Seams(
             now: { [unowned self] in self.now },
             schedule: { [unowned self] delay, body in
@@ -61,7 +63,12 @@ final class TvGestureInputTests: XCTestCase {
                 self.routes.append(source)
                 return self.decision
             },
-            isEditingText: { [unowned self] _ in self.editing }))
+            isEditingText: { [unowned self] _ in self.editing },
+            recording: { [unowned self] in self.activeRecording?.isActive == true ? self.activeRecording : nil }))
+    }
+
+    override func tearDown() async throws {
+        activeRecording?.teardown()
     }
 
     private var linked: CaptureGestureDecision {
@@ -322,6 +329,43 @@ final class TvGestureInputTests: XCTestCase {
             TvKeyEvent(key: "DPAD_LEFT", phase: .down, press: other, at: 100.7),
         ], window: nil))
         XCTAssertTrue(input.handle([], window: nil))
+    }
+
+    func testRecordingDeliversEveryKeyAndNeverFires() async {
+        decision = linked
+        let recording = GestureRecording(seams: GestureRecording.Seams(
+            now: { [unowned self] in self.now },
+            wallNow: { Date(timeIntervalSince1970: 1_000_000) },
+            sleep: { seconds in try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) },
+            showToast: { _ in },
+            snapshot: { (fixtureToken, URL(string: "https://ingest.example")!, "k") },
+            transport: { endpoint, key in DeviceLinkClient(baseURL: endpoint, sdkKey: key) }))
+        recording.onRequest(DeviceLinkRecordingRequest(id: "rec-1", expiresAt: Date(timeIntervalSince1970: 2_000_000)),
+                            isCurrent: { true })
+        XCTAssertTrue(recording.isActive)
+        activeRecording = recording
+        binding = nil
+        XCTAssertTrue(input.needsPresses, "a recording reads presses even with no binding armed")
+        binding = .default
+        let p = press()
+        XCTAssertTrue(send(play, .down, p, at: 100))
+        XCTAssertTrue(timers.isEmpty, "no hold is scheduled while recording")
+        XCTAssertTrue(send(play, .up, p, at: 101.62))
+        binding = konami
+        XCTAssertTrue(tap(["DPAD_UP", "DPAD_UP", "DPAD_DOWN", "DPAD_DOWN"], from: 102).allSatisfy { $0.down && $0.up })
+        XCTAssertEqual(routes, [])
+        let recorded = recording.__eventsForTesting(now: 105)
+        XCTAssertEqual(recorded.map(\.key), [play, "DPAD_UP", "DPAD_UP", "DPAD_DOWN", "DPAD_DOWN"])
+        XCTAssertEqual(recorded.first, RecordedKey(key: play, downMs: 0, upMs: 1620))
+        // A hold that began before the recording never fires during it.
+        activeRecording = nil
+        binding = .default
+        let held = press()
+        XCTAssertTrue(send(play, .down, held, at: 110))
+        activeRecording = recording
+        now = 111.5
+        timers.last?.run()
+        XCTAssertEqual(routes, [])
     }
 
     func testResetForgetsSwallowedPressesAndTheTimer() {

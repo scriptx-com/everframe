@@ -1285,6 +1285,11 @@ public final class Everframe: @unchecked Sendable {
             startEpoch: epoch,
             ifCurrent: vitalsStillNewest
         )
+        #if os(tvOS)
+        // A linked Apple TV refetches its config on returning to the foreground (at most every
+        // 10 s), so a Record on device request from the dashboard reaches it.
+        DeviceLinkForegroundRefresh.installLive(ifCurrent: vitalsStillNewest)
+        #endif
         #if canImport(UIKit)
         // Quick capture: same crash-only rule as shake. It arms in a debug build (simulators
         // always count as debug), or on a real iPhone, iPad or Apple TV that holds a device link.
@@ -2492,6 +2497,9 @@ public final class Everframe: @unchecked Sendable {
         VitalsServerConfigBox.shared.publish(nil, ifCurrent: stillThisKill)
         ShakeToReportTrigger.shared.teardown(ifCurrent: stillThisKill)
         DeviceLinkCoordinator.shared.teardown(ifCurrent: stillThisKill)
+        #if os(tvOS)
+        DeviceLinkForegroundRefresh.removeLive(ifCurrent: stillThisKill)
+        #endif
         #if canImport(UIKit)
         QuickCapture.shared.teardown(ifCurrent: stillThisKill)
         // Forget a remote gesture in progress, its pending hold timer and swallowed presses.

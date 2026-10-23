@@ -36,6 +36,16 @@ final class DeviceLinkSessionWiringTests: XCTestCase {
         XCTAssertEqual(DeviceLinkCoordinator.shared.__sessionKeyForTesting, other)
     }
 
+    #if os(tvOS)
+    func testStartInstallsTheForegroundRefreshAndKillRemovesIt() throws {
+        defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil) }
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: key, capture: CaptureConfig(logs: false), releaseHealth: nil))
+        XCTAssertTrue(DeviceLinkForegroundRefresh.__isLiveInstalledForTesting)
+        Everframe.shared.kill()
+        XCTAssertFalse(DeviceLinkForegroundRefresh.__isLiveInstalledForTesting)
+    }
+    #endif
+
     #if canImport(UIKit)
     /// A config apply publishes the app's TV binding to quick capture, under
     /// the session's epoch guard, right after the `captureHotkey` block.

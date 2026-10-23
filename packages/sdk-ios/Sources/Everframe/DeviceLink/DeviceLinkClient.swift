@@ -4,9 +4,11 @@
 // The device-link endpoints, authenticated with the SDK key:
 //   POST /api/device-link/hello
 //   POST /api/device-link/attempts/:attemptId/check
+//   POST /api/device-link/recordings/:recordingId (Record on device)
 //
-// Requests never follow a redirect: their bodies carry the attempt nonce. They
-// carry no device token and no query string.
+// Requests never follow a redirect: their bodies carry the attempt nonce, and a
+// recording carries the device token. Only a recording carries a device token;
+// none carries a query string.
 //
 // SECURITY: never log a request, a response or a body.
 import Foundation
@@ -45,7 +47,7 @@ final class DeviceLinkNoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unc
     }
 }
 
-struct DeviceLinkClient: DeviceLinkTransport {
+struct DeviceLinkClient: DeviceLinkTransport, GestureRecordingTransport {
     static let timeout: TimeInterval = 10
 
     /// Process-lifetime session: ephemeral, never captured by the SDK's own
@@ -105,14 +107,34 @@ struct DeviceLinkClient: DeviceLinkTransport {
         }
     }
 
+    /// Posts a finished Record on device recording with the device token.
+    /// True only on `204`. The id is one path segment, limited to
+    /// `^[0-9A-Za-z-]{1,64}$`; anything else is never sent.
+    func postRecording(recordingId: String, token: String, events: [RecordedKey]) async -> Bool {
+        guard DeviceLinkRecordingRequest.isValidId(recordingId), DeviceLinkToken.isValid(token),
+              let segment = recordingId.addingPercentEncoding(withAllowedCharacters: Self.pathSegmentAllowed),
+              let body = try? JSONEncoder().encode(RecordingBody(events: events)) else { return false }
+        guard let (status, _) = await post(path: "recordings/\(segment)", body: body,
+                                          headers: ["X-Everframe-Capture-Token": token]) else { return false }
+        return status == 204
+    }
+
+    /// The id's alphabet; its characters need no escaping in a path segment.
+    private static let pathSegmentAllowed = CharacterSet(charactersIn: "-").union(.alphanumerics)
+
+    private struct RecordingBody: Encodable {
+        let events: [RecordedKey]
+    }
+
     /// The status and body, or nil on a transport error or a non-HTTP response.
-    private func post(path: String, body: Data) async -> (Int, Data)? {
+    private func post(path: String, body: Data, headers: [String: String] = [:]) async -> (Int, Data)? {
         var request = URLRequest(url: Self.url(base: baseURL, path: path))
         request.httpMethod = "POST"
         request.timeoutInterval = Self.timeout
         request.setValue("Bearer \(sdkKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
         request.httpBody = body
         guard let (data, response) = try? await fetcher.data(for: request),
               let http = response as? HTTPURLResponse else { return nil }

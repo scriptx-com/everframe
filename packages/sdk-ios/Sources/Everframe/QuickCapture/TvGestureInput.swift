@@ -15,6 +15,8 @@
 //   seen in the last 8 is answered as it was the first time and never counted again.
 // - A binding that types (letters, digits, SHIFT) stands aside while a text
 //   input is being edited.
+// - While Record on device runs, every press goes to the recording and is
+//   delivered; nothing fires.
 //
 // Compiled wherever UIKit is, so iPhone simulators run the logic too; only
 // tvOS installs the hook.
@@ -36,6 +38,8 @@ final class TvGestureInput {
         var armedBinding: @MainActor () -> TvGestureBinding?
         var route: @MainActor (CaptureGestureSource) -> CaptureGestureDecision
         var isEditingText: @MainActor (UIWindow?) -> Bool
+        /// The Record on device recording in progress, if any.
+        var recording: @MainActor () -> GestureRecording? = { nil }
 
         @MainActor static var live: Seams {
             Seams(
@@ -43,7 +47,8 @@ final class TvGestureInput {
                 schedule: { delay, body in LiveTimer(delay: delay, body: body) },
                 armedBinding: { QuickCapture.shared.armedTvBinding },
                 route: { CaptureGestureRouter.live.handle($0) },
-                isEditingText: { QuickCaptureTextInput.firstResponderIsEditable(preferring: $0) })
+                isEditingText: { QuickCaptureTextInput.firstResponderIsEditable(preferring: $0) },
+                recording: { GestureRecording.shared.isActive ? GestureRecording.shared : nil })
         }
     }
 
@@ -89,7 +94,7 @@ final class TvGestureInput {
 
     /// Whether the hook must read presses at all.
     var needsPresses: Bool {
-        !swallowed.isEmpty || detector != nil || seams.armedBinding() != nil
+        !swallowed.isEmpty || detector != nil || seams.armedBinding() != nil || seams.recording() != nil
     }
 
     /// Feeds one press event's changing presses. Returns whether to deliver
@@ -140,6 +145,13 @@ final class TvGestureInput {
     private func judge(_ event: TvKeyEvent, window: UIWindow?) -> Bool {
         // A swallowed press's release is swallowed, whatever happened since.
         let releasesSwallowed = event.phase != .down && swallowed.remove(event.press) != nil
+
+        if let recording = seams.recording() {
+            recording.feed(event)
+            detector = nil
+            cancelTimer()
+            return releasesSwallowed
+        }
 
         guard let binding = seams.armedBinding() else {
             detector = nil
@@ -195,7 +207,8 @@ final class TvGestureInput {
         // The state can change while the key is held: a refresh that changed
         // the binding, unlinked or disarmed the device, or a text input that
         // took focus. Nothing fires late.
-        guard seams.armedBinding() == binding, var current = detector, current.binding == binding else {
+        guard seams.recording() == nil, seams.armedBinding() == binding, var current = detector,
+              current.binding == binding else {
             detector = nil
             return
         }
