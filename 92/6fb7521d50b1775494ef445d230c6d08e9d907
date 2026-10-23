@@ -1,0 +1,27 @@
+packages/sdk-android/tests/quick-capture-host/README.md
+  s_f1c043e85606b2::t_cd157f31ba9e7d 17-31
+packages/sdk-android/tests/quick-capture-host/app/build.gradle.kts
+  s_f1c043e85606b2::t_c83fadd59a9434 26-28
+packages/sdk-android/tests/quick-capture-host/app/src/main/AndroidManifest.xml
+  s_f1c043e85606b2::t_d91f89762d18b1 5-7,14,17-18
+packages/sdk-android/tests/quick-capture-host/app/src/main/kotlin/dev/everframe/qualification/quickcapture/SpikeActivity.kt
+  s_f1c043e85606b2::t_449fa010e54805 1-94
+packages/sdk-android/tests/quick-capture-host/tools/hid_remote.py
+  s_f1c043e85606b2::t_0aeb36ed796a5a 1-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "926fb7521d50b1775494ef445d230c6d08e9d907",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
