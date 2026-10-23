@@ -55,7 +55,7 @@ const ADVICE: Record<string, string> = {
   source_map_empty:
     'source_map_empty: the --source-map file is zero bytes. It was truncated or still being written; rebuild and run collect only after the bundle phase has completed.',
   source_map_too_large:
-    'source_map_too_large: the composed map exceeds the 32 MiB per-map limit the API enforces. Reduce or split the bundle.',
+    'source_map_too_large: the composed map exceeds the 256 MiB per-map limit the API enforces. Reduce or split the bundle.',
   // Raised by `sourcemaps upload-hermes --manifest` when the bytes on disk
   // no longer hash to what `build collect` recorded.
   staged_bundle_changed:

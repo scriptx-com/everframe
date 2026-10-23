@@ -5,6 +5,7 @@ import { mkdtemp, mkdir, realpath, symlink, truncate, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { JS_MAP_MAX_BYTES } from '@everframe/protocol';
 import { collectBuild } from '../src/manifest.js';
 
 const sha = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -104,14 +105,14 @@ describe('collectBuild', () => {
     ).rejects.toThrow('symlink_cycle');
   });
 
-  it('enforces the aggregate 256 MiB map limit', async () => {
+  it('enforces the aggregate 1 GiB map limit', async () => {
     const root = await fixture();
-    for (let index = 0; index < 9; index += 1) {
+    for (let index = 0; index < 5; index += 1) {
       const js = join(root, 'chunks', `${index}.js`);
       const map = `${js}.map`;
       await writeFile(js, 'x');
       await writeFile(map, '');
-      await truncate(map, 32 * 1024 * 1024);
+      await truncate(map, JS_MAP_MAX_BYTES);
     }
     await expect(
       collectBuild({ buildId: 'b', root, urlPrefix: 'https://cdn.example/' }),
@@ -119,12 +120,24 @@ describe('collectBuild', () => {
   }, 15_000);
 });
 
-it('rejects a sparse map one byte above the local 32 MiB stat limit', async () => {
+it('accepts a map above the former 32 MiB limit', async () => {
   const root = await fixture();
   const js = join(root, 'chunks', 'large.js');
   await writeFile(js, 'x');
   await writeFile(`${js}.map`, '');
   await truncate(`${js}.map`, 32 * 1024 * 1024 + 1);
+  const local = await collectBuild({ buildId: 'b', root, urlPrefix: 'https://cdn.example/' });
+  expect(local.manifest.artifacts.find((a) => a.url.endsWith('large.js'))?.mapBytes).toBe(
+    32 * 1024 * 1024 + 1,
+  );
+});
+
+it('rejects a sparse map one byte above the local 256 MiB stat limit', async () => {
+  const root = await fixture();
+  const js = join(root, 'chunks', 'large.js');
+  await writeFile(js, 'x');
+  await writeFile(`${js}.map`, '');
+  await truncate(`${js}.map`, JS_MAP_MAX_BYTES + 1);
   await expect(
     collectBuild({ buildId: 'b', root, urlPrefix: 'https://cdn.example/' }),
   ).rejects.toThrow('source_map_too_large');

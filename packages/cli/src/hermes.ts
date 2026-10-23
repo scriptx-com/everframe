@@ -3,7 +3,7 @@
 import { open, realpath, stat } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { BuildVcs } from '@everframe/protocol';
-import { hermesAssetUrl, parseManifest } from '@everframe/protocol';
+import { JS_MAP_MAX_BYTES, hermesAssetUrl, parseManifest } from '@everframe/protocol';
 import { checkedRealPath, hashFile, type LocalBuild } from './manifest.js';
 
 export interface CollectHermesBuildOptions {
@@ -33,7 +33,7 @@ export async function collectHermesBuild(options: CollectHermesBuildOptions): Pr
   if (bundleMetadata.dev === mapMetadata.dev && bundleMetadata.ino === mapMetadata.ino)
     throw new Error('same_input_file');
   if (!bundleMetadata.isFile() || !mapMetadata.isFile()) throw new Error('invalid_input_file');
-  if (mapMetadata.size <= 0 || mapMetadata.size > 32 * 1024 * 1024)
+  if (mapMetadata.size <= 0 || mapMetadata.size > JS_MAP_MAX_BYTES)
     throw new Error('source_map_too_large');
 
   const handle = await open(bundlePath, 'r');

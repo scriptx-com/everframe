@@ -8,7 +8,7 @@ import { finished } from 'node:stream/promises';
 import { snapshotArtifactFile, verifyDsymFile } from './upload-snapshot.js';
 import { isIP } from 'node:net';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
-import { ELF_MAX_BYTES, type BuildUploadStatus } from '@everframe/protocol';
+import { ELF_MAX_BYTES, JS_MAP_MAX_BYTES, type BuildUploadStatus } from '@everframe/protocol';
 import { collectBuild, hashFile, type LocalBuild } from './manifest.js';
 
 export interface UploadOptions {
@@ -299,7 +299,7 @@ async function readCheckedMapping(
   root: string,
   path: string,
   artifact: { mapBytes: number; mapSha256: string },
-  maxBytes = 32 * 1024 * 1024,
+  maxBytes = JS_MAP_MAX_BYTES,
 ): Promise<Buffer> {
   const expected = artifact.mapBytes;
   if (!Number.isSafeInteger(expected) || expected <= 0 || expected > maxBytes)
@@ -346,19 +346,14 @@ async function verifyCollectedFiles(local: LocalBuild, defaultRoot: string): Pro
     const mapPath = local.mapPaths.get(artifact.url);
     if (!mapPath) throw new Error('invalid_local_build');
     const roots = local.fileRoots?.get(artifact.url);
-    if (local.manifest.version === 4 || local.manifest.version === 3) {
-      // Streamed check: neither a dSYM nor an R8 mapping is buffered.
+    if (local.manifest.version !== 5) {
+      // Streamed check: no map, R8 mapping or dSYM is buffered.
       await verifyDsymFile(
         await ensurePathInRoot(roots?.mapRoot ?? defaultRoot, mapPath),
         artifact,
       );
     } else {
-      await readCheckedMapping(
-        roots?.mapRoot ?? defaultRoot,
-        mapPath,
-        artifact,
-        local.manifest.version === 5 ? ELF_MAX_BYTES : undefined,
-      );
+      await readCheckedMapping(roots?.mapRoot ?? defaultRoot, mapPath, artifact, ELF_MAX_BYTES);
     }
     if (
       local.manifest.version === 3 ||
@@ -421,16 +416,16 @@ export async function uploadCollectedBuild(
       const mapPath = local.mapPaths.get(artifact.url);
       if (!mapPath) throw new Error('invalid_local_build');
       const roots = local.fileRoots?.get(artifact.url);
-      // dSYMs and R8 mappings can be hundreds of MiB: stream a private copy
-      // instead of buffering. Text mappings shrink about tenfold with gzip.
+      // Maps, R8 mappings and dSYMs can be hundreds of MiB: stream a private copy
+      // instead of buffering. Text shrinks about tenfold with gzip.
       const snapshot =
-        local.manifest.version === 4 || local.manifest.version === 3
+        local.manifest.version !== 5
           ? await snapshotArtifactFile(
               await ensurePathInRoot(roots?.mapRoot ?? options.root, mapPath),
               artifact,
               {
                 gzip:
-                  local.manifest.version === 3 && status.uploadEncodings?.includes('gzip') === true,
+                  local.manifest.version !== 4 && status.uploadEncodings?.includes('gzip') === true,
               },
             )
           : undefined;
@@ -442,7 +437,7 @@ export async function uploadCollectedBuild(
               roots?.mapRoot ?? options.root,
               mapPath,
               artifact,
-              local.manifest.version === 5 ? ELF_MAX_BYTES : undefined,
+              ELF_MAX_BYTES,
             );
         const uploadUrl = `${buildsUrl}/${encodeURIComponent(status.buildUuid)}/artifacts/${encodeURIComponent(remote.artifactUuid)}`;
         uploaded = await request(

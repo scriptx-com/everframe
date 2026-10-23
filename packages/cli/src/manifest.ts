@@ -5,6 +5,8 @@ import { createReadStream } from 'node:fs';
 import { lstat, readdir, realpath, stat } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import {
+  JS_BUILD_MAPS_MAX_BYTES,
+  JS_MAP_MAX_BYTES,
   normalizeAssetUrl,
   parseManifest,
   type SourceMapManifest,
@@ -19,9 +21,6 @@ export interface LocalBuild {
   fileRoots?: Map<string, { generatedRoot?: string; mapRoot: string }>;
   uncovered: string[];
 }
-
-const MAP_MAX_BYTES = 32 * 1024 * 1024;
-const BUILD_MAX_BYTES = 256 * 1024 * 1024;
 
 function isInside(root: string, path: string): boolean {
   const child = relative(root, path);
@@ -108,9 +107,9 @@ export async function collectBuild(
     const generatedPath = files.get(generatedRelative)!;
     const mapPath = files.get(`${generatedRelative}.map`)!;
     const mapBytes = (await stat(mapPath)).size;
-    if (mapBytes <= 0 || mapBytes > MAP_MAX_BYTES) throw new Error('source_map_too_large');
+    if (mapBytes <= 0 || mapBytes > JS_MAP_MAX_BYTES) throw new Error('source_map_too_large');
     totalBytes += mapBytes;
-    if (totalBytes > BUILD_MAX_BYTES) throw new Error('build_too_large');
+    if (totalBytes > JS_BUILD_MAPS_MAX_BYTES) throw new Error('build_too_large');
     const url = normalizeAssetUrl(
       prefix
         ? new URL(encodePath(generatedRelative), prefix).href

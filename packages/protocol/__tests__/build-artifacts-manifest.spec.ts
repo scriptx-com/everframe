@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it } from 'vitest';
 import {
+  JS_MAP_MAX_BYTES,
   R8_ASSET_URL,
   R8_MAX_BYTES,
   artifactKind,
@@ -106,7 +107,7 @@ describe('parseManifest', () => {
     ).toThrow();
   });
 
-  it.each([0, -1, 1.5, 32 * 1024 * 1024 + 1])(
+  it.each([0, -1, 1.5, JS_MAP_MAX_BYTES + 1])(
     'rejects an invalid map byte count: %s',
     (mapBytes) => {
       expect(() =>
@@ -119,14 +120,24 @@ describe('parseManifest', () => {
     },
   );
 
-  it('rejects more than 256 MiB of maps in one build', () => {
+  it('accepts a map of exactly 256 MiB', () => {
+    expect(
+      parseManifest({
+        version: 1,
+        buildId: 'web-abc',
+        artifacts: [{ ...artifact, mapBytes: JS_MAP_MAX_BYTES, url: 'https://cdn.example/app.js' }],
+      }).artifacts[0]?.mapBytes,
+    ).toBe(JS_MAP_MAX_BYTES);
+  });
+
+  it('rejects more than 1 GiB of maps in one build', () => {
     expect(() =>
       parseManifest({
         version: 1,
         buildId: 'web-abc',
-        artifacts: Array.from({ length: 9 }, (_, index) => ({
+        artifacts: Array.from({ length: 5 }, (_, index) => ({
           ...artifact,
-          mapBytes: 32 * 1024 * 1024,
+          mapBytes: JS_MAP_MAX_BYTES,
           url: `https://cdn.example/${index}.js`,
         })),
       }),
@@ -211,7 +222,7 @@ describe('Hermes manifest identity', () => {
     { buildId: 'a\u0000b' },
     { buildId: 'a\ud800b' },
     { artifacts: [{ ...valid.artifacts[0], mapBytes: 0 }] },
-    { artifacts: [{ ...valid.artifacts[0], mapBytes: 32 * 1024 * 1024 + 1 }] },
+    { artifacts: [{ ...valid.artifacts[0], mapBytes: JS_MAP_MAX_BYTES + 1 }] },
   ])('rejects an invalid version-2 field set: %j', (change) => {
     expect(() => parseManifest({ ...valid, ...change })).toThrow();
   });
@@ -327,9 +338,9 @@ describe('R8 manifest identity', () => {
     expect(() => parseManifest({ ...valid, ...change })).toThrow();
   });
 
-  it('accepts R8 mappings up to 512 MiB, far above the 32 MiB JavaScript map limit', () => {
+  it('accepts R8 mappings up to 512 MiB, above the 256 MiB JavaScript map limit', () => {
     expect(R8_MAX_BYTES).toBe(512 * 1024 * 1024);
-    for (const mapBytes of [32 * 1024 * 1024 + 1, 70_769_438, R8_MAX_BYTES]) {
+    for (const mapBytes of [JS_MAP_MAX_BYTES + 1, 70_769_438, R8_MAX_BYTES]) {
       const manifest = parseManifest({
         ...valid,
         artifacts: [{ ...valid.artifacts[0], mapBytes }],

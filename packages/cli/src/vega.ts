@@ -10,12 +10,12 @@
 // <id> with the asset hermes://vega/<id>.bundle.
 import { open, readdir, realpath, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { JS_MAP_MAX_BYTES } from '@everframe/protocol';
 import { collectHermesBuild } from './hermes.js';
 import { checkedRealPath, hashFile, type LocalBuild } from './manifest.js';
 
 export const VEGA_DEFAULT_DIR = 'build/lib/rn-bundles/Release';
 const MAP_NAME = /^([0-9a-f]{64})\.bundle\.map$/;
-const MAP_MAX_BYTES = 32 * 1024 * 1024;
 const ID_FIELD = /"x_amazon_bundleId"\s*:\s*"([^"]*)"/;
 
 export interface VegaBuild {
@@ -29,12 +29,12 @@ export interface CollectedVegaBuilds {
   stale: string[];
 }
 
-/** The id the Vega CLI wrote into the map, read without parsing a 32 MiB JSON. */
+/** The id the Vega CLI wrote into the map, read without parsing the whole JSON. */
 async function amazonBundleId(path: string): Promise<string | undefined> {
   const handle = await open(path, 'r');
   try {
     const size = (await handle.stat()).size;
-    if (size <= 0 || size > MAP_MAX_BYTES) throw new Error('source_map_too_large');
+    if (size <= 0 || size > JS_MAP_MAX_BYTES) throw new Error('source_map_too_large');
     // addBundleId() rewrites the map with JSON.stringify, which puts the new
     // key last; check the tail first, then the head.
     const window = Math.min(size, 4096);

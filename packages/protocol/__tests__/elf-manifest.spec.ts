@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it } from 'vitest';
-import { artifactKind, parseManifest } from '../src/build-artifacts.js';
+import { JS_MAP_MAX_BYTES, artifactKind, parseManifest } from '../src/build-artifacts.js';
 const sha = 'a'.repeat(64);
 const input = {
   version: 5,
@@ -60,7 +60,7 @@ describe('raw ELF upload manifest', () => {
             url: '~/app.js',
             generatedSha256: sha,
             mapSha256: sha,
-            mapBytes: 32 * 1024 * 1024 + 1,
+            mapBytes: JS_MAP_MAX_BYTES + 1,
           },
         ],
       }),
