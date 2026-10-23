@@ -549,12 +549,19 @@ response to an arbitrary upload failure.
 
 Quick capture files a report from a debug iOS simulator or Android emulator
 without opening the reporter. The CLI signs you in, so the capture is attributed
-to you, and triggers the capture from your computer.
+to you. To capture, press ⇧B in the app (outside a text field), or trigger it
+from your computer:
 
 ```sh
 npx @everframe/cli login     # sign in once in your browser
 npx @everframe/cli capture   # capture the booted simulator or emulator
 ```
+
+⇧B is the default on both platforms. iOS simulators also take the other
+bindings you can pick in the dashboard (double Shift, ⌘ combos). Android
+emulators drop ⌘, ⌃ and ⌥ and never pass a lone Shift, so Android uses the
+dashboard binding only when it is Shift plus a letter or digit and ⇧B
+otherwise. `capture` works whatever the binding.
 
 Quick capture needs a debug build of an app that has the quick capture trigger
 turned on in the dashboard. The Kotlin Multiplatform SDK has no quick capture
@@ -581,7 +588,8 @@ yet. Flutter apps must also call `enableQuickCapture` (see the Flutter README).
 - `logout` revokes the token, deletes `~/.everframe/credentials` and clears it
   from running emulators. If Everframe is unreachable it still removes the local
   login and tells you to revoke the token in Settings → Agents.
-- `hotkey [--key <combo>]` listens for a global shortcut on macOS (below).
+- `hotkey` is no longer needed: it prints a pointer to ⇧B and exits 0. It still
+  accepts its old `--key` flag, so existing scripts keep working.
 
 ### What each command touches
 
@@ -591,31 +599,9 @@ yet. Flutter apps must also call `enableQuickCapture` (see the Flutter README).
 | `link`    | Writes `everframe_token` and `everframe_token_origin` on running emulators only (`adb shell settings put global`).                      |
 | `capture` | Posts the Darwin notification `com.everframe.capture` to the simulator, or sends the `com.everframe.CAPTURE` broadcast to the emulator. |
 | `logout`  | Revokes the token, deletes the credentials file, deletes `everframe_token` and `everframe_token_origin` (`settings delete global`).     |
-| `hotkey`  | Compiles a helper into `~/.everframe/bin`, then runs the same emulator broadcast as `capture`.                                          |
+| `hotkey`  | Nothing. It prints one line and exits.                                                                                                  |
 
 The credentials file holds your capture token, the Everframe URL and your email
 as JSON. The directory is mode `0700` and the file `0600`. iOS simulators read
 it straight from your Mac, so they need no `link`. The token is written only to
 emulators (`emulator-<port>`), never to a physical device, and is never printed.
-
-## Quick capture hotkey for Android emulators (macOS)
-
-The Android emulator does not pass ⌘, ⌃ or ⌥ through to the app, so on macOS
-the CLI can listen for a global hotkey instead:
-
-```sh
-npx @everframe/cli hotkey            # ⌘⇧B by default
-npx @everframe/cli hotkey --key Ctrl+Alt+5
-```
-
-Press the combo with an emulator window in front and that emulator captures a
-report. The hotkey is registered only while a standalone emulator window is the
-front app, so ⌘⇧B keeps working everywhere else. It needs no Accessibility
-permission. The first run compiles a small Swift helper into `~/.everframe/bin`,
-which needs the Xcode Command Line Tools (`xcode-select --install`). Press
-Ctrl+C to stop.
-
-Emulators embedded in Android Studio are not separate windows. Turn off
-Settings → Tools → Emulator → "Launch in the Running Devices tool window", or
-run `npx @everframe/cli capture` instead. On Windows and Linux, bind
-`npx @everframe/cli capture` to a keyboard shortcut in your desktop settings.

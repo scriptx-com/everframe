@@ -11,17 +11,22 @@ import { DEFAULT_API_URL } from '../src/defaults.js';
 import { main } from '../src/index.js';
 
 describe('main', () => {
-  it('dispatches hotkey, rejecting an invalid --key without building the helper', async () => {
+  it('answers the retired hotkey command with one line and exit 0, old flags included', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const expected =
+      'The hotkey command is no longer needed: press Shift+B in the emulator (outside a text field) to capture. npx @everframe/cli capture still works.';
     try {
-      expect(await main(['hotkey', '--key', 'Shift+B'], {})).toBe(1);
-      const message = String(error.mock.calls[0]?.[0]);
-      expect(message).toMatch(
-        process.platform === 'darwin' ? /Cmd\+Shift\+B/ : /The hotkey helper runs on macOS/,
-      );
+      expect(await main(['hotkey'], {})).toBe(0);
+      expect(await main(['hotkey', '--key', 'Cmd+Shift+B'], {})).toBe(0);
+      expect(await main(['hotkey', '--key=Ctrl+Alt+5'], {})).toBe(0);
+      expect(log.mock.calls).toEqual([[expected], [expected], [expected]]);
+      expect(error).not.toHaveBeenCalled();
+      log.mockClear();
       expect(await main(['hotkey', '--help'], {})).toBe(0);
-      expect(String(log.mock.calls[0]?.[0])).toContain('everframe hotkey [--key <combo>]');
+      const help = String(log.mock.calls[0]?.[0]);
+      expect(help).not.toContain('everframe hotkey');
+      expect(help).toContain('press Shift+B outside a text field');
     } finally {
       error.mockRestore();
       log.mockRestore();
