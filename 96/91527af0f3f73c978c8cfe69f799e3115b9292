@@ -1,0 +1,35 @@
+.changeset/quick-capture-android.md
+  s_f1c043e85606b2::t_710bf177512785 26-27,45-46
+.changeset/quick-capture-cli.md
+  s_f1c043e85606b2::t_33ab8ff4820058 1-16
+.changeset/quick-capture-ios.md
+  s_f1c043e85606b2::t_4240cb7664c3c3 26-27,37-38
+.changeset/quick-capture-react-native.md
+  s_f1c043e85606b2::t_6316811ee03e0c 1-8
+packages/cli/README.md
+  s_f1c043e85606b2::t_97c23d1549dbc3 548-598
+packages/everframe_flutter/README.md
+  s_f1c043e85606b2::t_787d8a4807d780 126
+packages/sdk-android/android/README.md
+  s_f1c043e85606b2::t_51b8a9395aa139 147-154,180-191
+packages/sdk-ios/README.md
+  s_f1c043e85606b2::t_b0ed30cc694c2f 489-508
+packages/sdk-react-native/README.md
+  s_f1c043e85606b2::t_ff96b6cea38a8b 713-731
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9691527af0f3f73c978c8cfe69f799e3115b9292",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
