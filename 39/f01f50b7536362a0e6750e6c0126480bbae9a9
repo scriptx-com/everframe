@@ -1,0 +1,37 @@
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkCoordinator.swift
+  s_55f5b03efcef8d::t_8f46af9c29c4ad 255-267
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCapture.swift
+  s_f1c043e85606b2::t_f633292c3db77b 537-541,617,620-626
+packages/sdk-ios/Sources/Everframe/Transport/ReportSubmitter.swift
+  s_f1c043e85606b2::t_ca38e219086572 377-379,385-390,405-406,579-584
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkCoordinatorTests.swift
+  s_f1c043e85606b2::t_f18f36b439965f 366-399
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkOutboxTests.swift
+  s_f1c043e85606b2::t_37ecb8a28ea0b4 47,49-50,128-154,167-179
+packages/sdk-ios/Tests/EverframeTests/QuickCaptureDeviceTests.swift
+  s_f1c043e85606b2::t_1de7a93dd9f7dc 174-202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "39f01f50b7536362a0e6750e6c0126480bbae9a9",
+  "prompts": {},
+  "sessions": {
+    "s_55f5b03efcef8d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16a95-64a2-7d81-b8ab-35640d4aab85",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
