@@ -13,7 +13,8 @@
 //   Sequence   only first DOWNs count (autorepeat is never a step); the last N key names must equal the
 //              binding within windowMs. The completing DOWN, its repeats and its UP are consumed.
 //   Chord      fires on the first DOWN that completes the held set (SHIFT also counts as held while the
-//              event's meta state says so). That key's DOWN, repeats and UP are consumed.
+//              event's meta state says so). That key's DOWN, repeats and UP are consumed; a second completion
+//              while it is still held keeps it suppressed until its own UP.
 //
 // Normal navigation never fires: a held D-pad only repeats (never a new step), and a tapped Play/Pause is
 // released long before the deadline. Not thread-safe: the main thread only.
@@ -51,8 +52,12 @@ internal class TvGestureDetector(val binding: TvGestureBinding) {
     // ---- Chord ----
     private val held = HashSet<String>()
 
-    /** Sequence and chord: the key whose completing DOWN fired, until its UP. Its events are consumed. */
-    private var firedKey: Int? = null
+    /**
+     * Sequence and chord: the keys whose completing DOWN fired, each until its own UP. Their events are consumed.
+     * Overlapping chord completions (RED+BLUE, then RED released and pressed again while BLUE is held) add a key
+     * without releasing the earlier one.
+     */
+    private val firedKeys = HashSet<Int>()
 
     fun onKey(keyCode: Int, action: Int, repeatCount: Int, metaState: Int, eventTimeMs: Long, downTimeMs: Long): KeyVerdict =
         when (binding) {
@@ -75,7 +80,7 @@ internal class TvGestureDetector(val binding: TvGestureBinding) {
         holdFired = false
         steps.clear()
         held.clear()
-        firedKey = null
+        firedKeys.clear()
     }
 
     private fun longPress(
@@ -131,7 +136,7 @@ internal class TvGestureDetector(val binding: TvGestureBinding) {
         val matches = steps.map { it.first } == b.keys && eventTimeMs - steps.first().second <= b.windowMs
         if (!matches) return KeyVerdict.PASS
         steps.clear()
-        firedKey = keyCode
+        firedKeys += keyCode
         return KeyVerdict(fire = true, consume = true)
     }
 
@@ -155,21 +160,21 @@ internal class TvGestureDetector(val binding: TvGestureBinding) {
         val shift = metaState and KeyEvent.META_SHIFT_ON != 0
         val complete = b.keys.all { it in held || (it == RemoteKeys.SHIFT && shift) }
         if (!complete) return KeyVerdict.PASS
-        firedKey = keyCode
+        firedKeys += keyCode
         return KeyVerdict(fire = true, consume = true)
     }
 
-    /** The fired key's repeats and UP are consumed; a fresh DOWN of it (its UP was lost) is judged anew. */
+    /** A fired key's repeats and UP are consumed; a fresh DOWN of it (its UP was lost) is judged anew. */
     private fun firedVerdict(keyCode: Int, action: Int, repeatCount: Int): KeyVerdict? {
-        if (keyCode != firedKey) return null
+        if (keyCode !in firedKeys) return null
         return when {
             action == KeyEvent.ACTION_UP -> {
-                firedKey = null
+                firedKeys -= keyCode
                 KeyVerdict(consume = true)
             }
             action == KeyEvent.ACTION_DOWN && repeatCount > 0 -> KeyVerdict(consume = true)
             else -> {
-                firedKey = null
+                firedKeys -= keyCode
                 null
             }
         }

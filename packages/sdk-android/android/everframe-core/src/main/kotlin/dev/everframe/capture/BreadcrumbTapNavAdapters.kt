@@ -414,9 +414,11 @@ internal class TXWindowCallbackWrapper(
     private var tvDetector: TvGestureDetector? = null
     private var tvDetectorBinding: TvGestureBinding? = null
 
-    /** The fired gesture's key and whether its device swallows keys, until that key's key-up. */
-    private var tvGestureKey: Int? = null
-    private var tvSwallow = false
+    /**
+     * Each fired gesture key and whether its gesture's device swallows keys, until that key's own key-up. More
+     * than one when chord completions overlap.
+     */
+    private val tvGestureKeys = HashMap<Int, Boolean>()
 
     /** The key whose hold timer is pending. */
     private var tvHoldKey: Int? = null
@@ -445,29 +447,33 @@ internal class TXWindowCallbackWrapper(
             tvDetectorBinding = binding
         }
         val detector = tvDetector ?: return event
-        if (binding.typesText() && tvGestureKey == null && isEditingText()) return event
+        if (binding.typesText() && tvGestureKeys.isEmpty() && isEditingText()) {
+            // Typing stays typing. Whatever was pending is dropped: a key pressed before the field took focus
+            // must not complete a gesture later, and keys whose releases are skipped here must not stay held.
+            detector.reset()
+            cancelTvHold()
+            return event
+        }
         val verdict = detector.onKey(event.keyCode, event.action, event.repeatCount, event.metaState, event.eventTime, event.downTime)
         verdict.holdDeadlineMs?.let { scheduleTvHold(detector, event.keyCode, it) }
         if (event.action == KeyEvent.ACTION_UP && event.keyCode == tvHoldKey) cancelTvHold()
+        // A fresh press of a key whose release was lost is the app's unless it fires again.
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) tvGestureKeys.remove(event.keyCode)
         if (verdict.fire) onTvGesture(event.keyCode)
-        val swallow = tvSwallow && tvGestureKey == event.keyCode
+        val swallow = tvGestureKeys[event.keyCode] == true
         val out = when {
             swallow && verdict.consume -> null
             swallow && verdict.cancelUp -> KeyEvent.changeFlags(event, event.flags or KeyEvent.FLAG_CANCELED)
             else -> event
         }
-        if (event.action == KeyEvent.ACTION_UP && event.keyCode == tvGestureKey) {
-            tvGestureKey = null
-            tvSwallow = false
-        }
+        if (event.action == KeyEvent.ACTION_UP) tvGestureKeys.remove(event.keyCode)
         return out
     }
 
     /** Runs the mode rule once per gesture; its `swallowKeys` holds until the gesture key's key-up. */
     private fun onTvGesture(keyCode: Int) {
         val decision = dev.everframe.quickcapture.CaptureGesture.onGesture(dev.everframe.quickcapture.GestureSource.Remote)
-        tvGestureKey = keyCode
-        tvSwallow = decision.swallowKeys
+        tvGestureKeys[keyCode] = decision.swallowKeys
     }
 
     private fun scheduleTvHold(detector: TvGestureDetector, keyCode: Int, deadline: Long) {
@@ -477,6 +483,15 @@ internal class TXWindowCallbackWrapper(
             txGuardVoid("TXWindowCallbackWrapper.tvHold") {
                 if (tvDetector !== detector || tvHoldKey != keyCode) return@txGuardVoid
                 tvHoldKey = null
+                // A remote without autorepeat sends nothing between the DOWN and the UP, so nothing else noticed
+                // a change meanwhile: the binding replaced or disarmed, a recording started, a text field focused.
+                val binding = QuickCapture.armedTvBinding
+                if (binding == null || binding !== tvDetectorBinding || GestureRecording.active != null ||
+                    (binding.typesText() && isEditingText())
+                ) {
+                    resetTvGesture()
+                    return@txGuardVoid
+                }
                 if (detector.onHoldTimer(SystemClock.uptimeMillis())) onTvGesture(keyCode)
             }
         }, tvHoldToken, deadline)
@@ -492,8 +507,7 @@ internal class TXWindowCallbackWrapper(
         cancelTvHold()
         tvDetector = null
         tvDetectorBinding = null
-        tvGestureKey = null
-        tvSwallow = false
+        tvGestureKeys.clear()
     }
 
     private fun TvGestureBinding.typesText(): Boolean {

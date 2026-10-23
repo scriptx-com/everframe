@@ -180,6 +180,24 @@ class TvGestureDetectorTest {
     }
 
     @Test
+    fun overlappingChordCompletionsKeepEveryFiredKeySuppressed() {
+        val d = TvGestureDetector(TvGestureBinding.Chord(setOf("PROG_RED", "PROG_BLUE")))
+        val red = KeyEvent.KEYCODE_PROG_RED
+        val blue = KeyEvent.KEYCODE_PROG_BLUE
+        assertEquals(KeyVerdict(), d.down(red, 0))
+        assertEquals(KeyVerdict(fire = true, consume = true), d.down(blue, 100))
+        assertEquals(KeyVerdict(), d.up(red, 200, downTime = 0))
+        // RED pressed again while BLUE is still held completes the chord a second time.
+        assertEquals(KeyVerdict(fire = true, consume = true), d.down(red, 300))
+        assertEquals("BLUE stays suppressed until its own release", KeyVerdict(consume = true), d.down(blue, 500, repeat = 1, downTime = 100))
+        assertEquals(KeyVerdict(consume = true), d.up(blue, 600, downTime = 100))
+        assertEquals(KeyVerdict(consume = true), d.down(red, 700, repeat = 1, downTime = 300))
+        assertEquals(KeyVerdict(consume = true), d.up(red, 800, downTime = 300))
+        // Both released: the keys are the app's again.
+        assertEquals(KeyVerdict(), d.down(blue, 900))
+    }
+
+    @Test
     fun resetClearsState() {
         val lp = TvGestureDetector(longPress)
         lp.down(playPause, 0)

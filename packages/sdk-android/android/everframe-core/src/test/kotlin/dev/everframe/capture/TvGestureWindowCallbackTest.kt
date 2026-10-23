@@ -17,7 +17,9 @@ import androidx.test.core.app.ApplicationProvider
 import dev.everframe.Everframe
 import dev.everframe.config.CaptureGestureConfigWire
 import dev.everframe.config.CaptureHotkeyConfigWire
+import dev.everframe.config.RecordingRequestWire
 import dev.everframe.devicelink.DeviceLink
+import dev.everframe.devicelink.GestureRecording
 import dev.everframe.devicelink.DeviceLinkOwner
 import dev.everframe.devicelink.StoredDeviceLink
 import dev.everframe.quickcapture.CaptureGesture
@@ -73,6 +75,8 @@ class TvGestureWindowCallbackTest {
         CaptureGesture.helloSender = { hellos++ }
         DeviceLink.refreshConfig = {}
         DeviceLink.toaster = {}
+        GestureRecording.toaster = {}
+        GestureRecording.api = { null }
     }
 
     @After
@@ -80,6 +84,7 @@ class TvGestureWindowCallbackTest {
         QuickCapture.teardown()
         QuickCapture.__resetForTesting()
         CaptureGesture.__resetForTesting()
+        GestureRecording.__resetForTesting()
         DeviceLink.__resetForTesting()
         Everframe.captureGate = priorCaptureGate
     }
@@ -279,6 +284,95 @@ class TvGestureWindowCallbackTest {
         assertSame(late, delegate.keys[2])
         assertSame(up, delegate.keys[3])
         assertFalse(up.isCanceled)
+    }
+
+    @Test
+    fun pendingHoldDoesNotFireAfterTheBindingChanges() {
+        arm(longPress, linked = true)
+        val (wrapper, _) = wrap()
+        wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, playPause, SystemClock.uptimeMillis()))
+        // A remote without autorepeat sends nothing more until the key-up.
+        QuickCapture.publishGesture(CaptureGestureConfigWire(TvGestureBinding.LongPress("MEDIA_PLAY_PAUSE", 3000)))
+        idle(1600)
+        assertEquals(0, captures)
+    }
+
+    @Test
+    fun pendingHoldDoesNotFireAfterTheBindingIsGone() {
+        arm(longPress, linked = true)
+        val (wrapper, _) = wrap()
+        wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, playPause, SystemClock.uptimeMillis()))
+        QuickCapture.publishGesture(CaptureGestureConfigWire(null))
+        idle(1600)
+        assertEquals(0, captures)
+
+        arm(longPress, linked = true)
+        wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_UP, playPause, SystemClock.uptimeMillis()))
+        wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, playPause, SystemClock.uptimeMillis()))
+        Everframe.captureGate = false
+        idle(1600)
+        assertEquals("kill switch closed while held", 0, captures)
+    }
+
+    @Test
+    fun pendingHoldDoesNotFireOnceARecordingStarts() {
+        arm(longPress, linked = true)
+        val (wrapper, _) = wrap()
+        wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, playPause, SystemClock.uptimeMillis()))
+        GestureRecording.onRequest(RecordingRequestWire("0b7f5a52-8f0e-4a3a-9d3e-6a1d2c4b5e6f", System.currentTimeMillis() + 60_000)) { true }
+        assertNotNull(GestureRecording.active)
+        idle(1600)
+        assertEquals(0, captures)
+    }
+
+    @Test
+    fun pendingHoldOfATypingKeyDoesNotFireOnceATextFieldHasFocus() {
+        arm(TvGestureBinding.LongPress("A", 1500), linked = true)
+        val field = EditText(activity)
+        val other = android.widget.Button(activity)
+        activity.setContentView(android.widget.LinearLayout(activity).apply { addView(other); addView(field) })
+        other.requestFocus()
+        val (wrapper, _) = wrap()
+        wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_A, SystemClock.uptimeMillis()))
+        field.requestFocus()
+        idle(1600)
+        assertEquals(0, captures)
+    }
+
+    @Test
+    fun chordKeysWhoseReleaseWasSkippedWhileEditingAreDropped() {
+        arm(TvGestureBinding.Chord(setOf("A", "B")), linked = true)
+        val field = EditText(activity)
+        val other = android.widget.Button(activity)
+        activity.setContentView(android.widget.LinearLayout(activity).apply { addView(other); addView(field) })
+        other.requestFocus()
+        val (wrapper, delegate) = wrap()
+        val t = SystemClock.uptimeMillis()
+        wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_A, t))
+        field.requestFocus()
+        wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_A, t, t + 100)) // skipped: editing
+        other.requestFocus()
+        val b = key(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_B, t + 300)
+        assertFalse("A is no longer held", wrapper.dispatchKeyEvent(b))
+        assertSame(b, delegate.keys.last())
+        assertEquals(0, captures)
+    }
+
+    @Test
+    fun overlappingLinkedChordKeepsBothKeysSwallowed() {
+        arm(TvGestureBinding.Chord(setOf("PROG_RED", "PROG_BLUE")), linked = true)
+        val (wrapper, delegate) = wrap()
+        val red = KeyEvent.KEYCODE_PROG_RED
+        val blue = KeyEvent.KEYCODE_PROG_BLUE
+        val t = SystemClock.uptimeMillis()
+        assertFalse(wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, red, t)))
+        assertTrue(wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, blue, t + 100)))
+        assertFalse(wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_UP, red, t, t + 200)))
+        assertTrue(wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, red, t + 300)))
+        assertTrue("BLUE's repeat", wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, blue, t + 100, t + 500, repeat = 1)))
+        assertTrue("BLUE's key-up", wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_UP, blue, t + 100, t + 600)))
+        assertTrue("RED's key-up", wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_UP, red, t + 300, t + 700)))
+        assertEquals(2, delegate.keys.size) // RED's first DOWN and UP
     }
 
     @Test
