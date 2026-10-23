@@ -154,6 +154,8 @@ dashboard. Like the reporter, a quick capture consumes the pending
   ⌘ combos). The chord is skipped while a text field has focus (an `EditText`,
   a React Native `TextInput`, a Compose or Flutter text field), so typing a
   capital B stays typing; otherwise the SDK keeps the key press from the app.
+  ⇧B is not seen while a dialog or a React Native `Modal` is in front, because
+  those windows dispatch keys themselves; use `npx @everframe/cli capture` there.
   `npx @everframe/cli capture` sends the broadcast action
   `com.everframe.CAPTURE` to the running emulator whatever the binding, and you
   can also send it yourself with the `adb` command above. The receiver reads
