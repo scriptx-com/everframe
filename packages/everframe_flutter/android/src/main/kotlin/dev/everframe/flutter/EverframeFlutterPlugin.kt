@@ -101,6 +101,9 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
+        // The provider calls this engine's channel, so it must not outlive it. The provider is
+        // SDK-global: with several engines, any registered engine's detach clears it, and quick
+        // capture then fails closed (ignored) until an engine calls `enableQuickCapture` again.
         if (quickCaptureHostEnabled) {
             quickCaptureHostEnabled = false
             Everframe.__setQuickCaptureEvidenceProvider(null)

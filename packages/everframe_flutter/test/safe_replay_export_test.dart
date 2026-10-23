@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:everframe_flutter/everframe_flutter.dart';
+import 'package:everframe_flutter/src/safe_replay_export.dart'
+    show exportSafeReplaySnapshot;
 import 'package:flutter_test/flutter_test.dart';
 
 Future<Uint8List> png(int color) async {
@@ -19,6 +21,10 @@ Future<Uint8List> png(int color) async {
   image.dispose();
   return data!.buffer.asUint8List();
 }
+
+final throwsRevoked = throwsA(
+  isA<StateError>().having((error) => error.message, 'message', contains('revoked')),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -92,5 +98,35 @@ void main() {
     final timeline = jsonDecode(utf8.decode(exportSafeReplayVTree(buffer, scale: 1)))
         as Map<String, dynamic>;
     expect(timeline['frames'], hasLength(SafeReplayBuffer.maxFrames));
+  });
+
+  test('a live buffer snapshot exports without freezing it', () async {
+    final buffer = SafeReplayBuffer(validate: (_) async => true);
+    expect(await buffer.append(await png(0xff00ff00)), true);
+    final timeline = jsonDecode(
+            utf8.decode(exportSafeReplaySnapshot(buffer, scale: 1)))
+        as Map<String, dynamic>;
+    expect((timeline['frames'] as List).length, 1);
+    expect(buffer.frozen, false);
+    expect(await buffer.append(await png(0xff0000ff)), true);
+  });
+
+  test('a snapshot refuses a revoked buffer', () async {
+    final buffer = SafeReplayBuffer(validate: (_) async => true);
+    expect(await buffer.append(await png(0xff00ff00)), true);
+    // A missing frame revokes the replay, as a failed mask does.
+    expect(await buffer.append(null), false);
+    expect(buffer.revoked, true);
+    expect(() => exportSafeReplaySnapshot(buffer, scale: 1), throwsRevoked);
+  });
+
+  test('a snapshot refuses a buffer revoked by an unsafe frame', () async {
+    var safe = true;
+    final buffer = SafeReplayBuffer(validate: (_) async => safe);
+    expect(await buffer.append(await png(0xff00ff00)), true);
+    safe = false;
+    expect(await buffer.append(await png(0xff0000ff)), false);
+    expect(buffer.revoked, true);
+    expect(() => exportSafeReplaySnapshot(buffer, scale: 1), throwsRevoked);
   });
 }

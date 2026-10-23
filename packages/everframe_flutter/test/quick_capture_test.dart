@@ -71,6 +71,20 @@ Widget probe(GlobalKey boundary, SensitiveRegionRegistry registry,
       ),
     );
 
+/// Runs [onRead] when the capture reads sensitive geometry, which happens
+/// after the frame and before the masked image is encoded.
+class _ObservedRegistry extends SensitiveRegionRegistry {
+  _ObservedRegistry(this.onRead);
+
+  final void Function() onRead;
+
+  @override
+  List<ui.Rect>? rectsInView(GlobalKey boundaryKey) {
+    onRead();
+    return super.rectsInView(boundaryKey);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final calls = <MethodCall>[];
@@ -205,5 +219,95 @@ void main() {
     expect(calls.map((call) => call.method).toSet(), {'setQuickCaptureHost'});
     // A late native request after disabling gets no image.
     expect(await nativeAsksForEvidence(), isNull);
+  });
+
+  testWidgets('a revoked replay buffer sends the masked frame without replay',
+      (tester) async {
+    final registry = SensitiveRegionRegistry();
+    final boundary = GlobalKey();
+    await tester.pumpWidget(probe(boundary, registry));
+    final replay = SafeReplayBuffer();
+    final frame =
+        await tester.runAsync(() => captureRegisteredFrame(boundary, registry));
+    expect(await tester.runAsync(() => replay.append(frame)), true);
+    // A failed mask revokes the replay.
+    expect(await tester.runAsync(() => replay.append(null)), false);
+    expect(replay.revoked, true);
+    await const EverframeNativeBridge().enableQuickCapture(
+      boundaryKey: boundary,
+      sensitiveRegions: registry,
+      replayBuffer: replay,
+    );
+
+    final pending = tester.runAsync(nativeAsksForEvidence);
+    await tester.pump();
+    final evidence = await pending as Map<Object?, Object?>;
+    expect(evidence['maskedPng'], isA<Uint8List>());
+    expect(evidence.containsKey('replayVTree'), false);
+  });
+
+  testWidgets('quickCaptureEvidence answers null after 4 s without a frame',
+      (tester) async {
+    final registry = SensitiveRegionRegistry();
+    final boundary = GlobalKey();
+    await tester.pumpWidget(probe(boundary, registry));
+    await const EverframeNativeBridge().enableQuickCapture(
+      boundaryKey: boundary,
+      sensitiveRegions: registry,
+    );
+    // A paused app renders no frames, so the capture never gets one.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+
+    var answered = false;
+    Object? answer = 'pending';
+    unawaited(nativeAsksForEvidence().then((value) {
+      answered = true;
+      answer = value;
+    }));
+    await tester.pump(const Duration(milliseconds: 3900));
+    expect(answered, false);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(answered, true);
+    expect(answer, isNull);
+
+    // Let the abandoned capture's frame wait finish inside this test; with
+    // the boundary gone it fails closed.
+    await tester.pumpWidget(const SizedBox());
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+  });
+
+  testWidgets('a registration replaced during a capture gets no image',
+      (tester) async {
+    const bridge = EverframeNativeBridge();
+    final boundary = GlobalKey();
+    var replace = true;
+    late final _ObservedRegistry registry;
+    registry = _ObservedRegistry(() {
+      if (!replace) return;
+      replace = false;
+      unawaited(bridge.enableQuickCapture(
+        boundaryKey: boundary,
+        sensitiveRegions: registry,
+      ));
+    });
+    await tester.pumpWidget(probe(boundary, registry));
+    await bridge.enableQuickCapture(
+      boundaryKey: boundary,
+      sensitiveRegions: registry,
+    );
+
+    final first = tester.runAsync(nativeAsksForEvidence);
+    await tester.pump();
+    expect(await first, isNull);
+    expect(calls.map((call) => call.arguments), [
+      {'enabled': true},
+      {'enabled': true},
+    ]);
+
+    // The replacement registration answers the next capture.
+    final second = tester.runAsync(nativeAsksForEvidence);
+    await tester.pump();
+    expect(await second, isA<Map<Object?, Object?>>());
   });
 }

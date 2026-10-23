@@ -52,6 +52,16 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
             channel: channel)
     }
 
+    /// The provider calls this engine's channel, so it must not outlive it. The
+    /// provider is SDK-global: with several engines, any registered engine's
+    /// detach clears it, and quick capture then fails closed (ignored) until an
+    /// engine calls `enableQuickCapture` again.
+    public func detachFromEngine(for registrar: FlutterPluginRegistrar) {
+        guard quickCaptureHostEnabled else { return }
+        quickCaptureHostEnabled = false
+        Everframe.shared.__setQuickCaptureEvidenceProvider(nil)
+    }
+
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         let args = call.arguments as? [String: Any] ?? [:]
         switch call.method {
