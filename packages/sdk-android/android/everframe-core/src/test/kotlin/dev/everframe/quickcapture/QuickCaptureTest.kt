@@ -29,6 +29,9 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -488,6 +491,101 @@ class QuickCaptureTest {
         assertEquals(QuickCaptureOutcome.Failed, broadcast())
         Everframe.report.__setPresenting(false)
 
+        assertEquals(0, freezes.get())
+        assertTrue(submits.isEmpty())
+    }
+
+    /** A provider that never answers fails the capture at the timeout, with no native fallback. */
+    @Test
+    fun providerTimeoutFailsWithoutNativeScreenshot() {
+        armWithScreenshotDisabled()
+        val nativeShots = AtomicInteger()
+        QuickCapture.screenshotter = { _, _ -> nativeShots.incrementAndGet(); null }
+        QuickCapture.evidenceTimeoutMs = 100
+        Everframe.__setQuickCaptureEvidenceProvider { awaitCancellation() }
+        val started = System.currentTimeMillis()
+
+        assertEquals(QuickCaptureOutcome.Failed, broadcast())
+
+        assertTrue(System.currentTimeMillis() - started < 5_000)
+        assertEquals(0, nativeShots.get())
+        assertEquals(0, freezes.get())
+        assertTrue(submits.isEmpty())
+        assertFalse(QuickCapture.isCapturing)
+    }
+
+    /** The wait ends at the timeout even when the provider ignores cancellation. */
+    @Test
+    fun providerIgnoringCancellationStillTimesOut() {
+        armWithScreenshotDisabled()
+        QuickCapture.evidenceTimeoutMs = 100
+        val release = java.util.concurrent.CountDownLatch(1)
+        Everframe.__setQuickCaptureEvidenceProvider {
+            release.await(10, java.util.concurrent.TimeUnit.SECONDS)
+            QuickCaptureHostEvidence(hostShot(), null)
+        }
+        try {
+            assertEquals(QuickCaptureOutcome.Failed, broadcast())
+            assertTrue(submits.isEmpty())
+        } finally {
+            release.countDown()
+        }
+    }
+
+    @Test
+    fun evidenceTimeoutDefaultsToFiveSeconds() {
+        assertEquals(5_000L, QuickCapture.evidenceTimeoutMs)
+    }
+
+    /**
+     * A new session while the host renders (a superseding start(), or the start() after a kill()): the image
+     * belongs to the previous session, so the epoch check fails the capture.
+     */
+    @Test
+    fun providerAcrossANewSessionFailsWithoutFreezing() {
+        armWithScreenshotDisabled()
+        Everframe.__setQuickCaptureEvidenceProvider {
+            Everframe.start(app, EverframeConfig(
+                appId = "qc-app", sdkKey = "txx_live_quickcapture0002", environment = Environment.production,
+            ))
+            QuickCaptureHostEvidence(hostShot(), null)
+        }
+        try {
+            assertEquals(QuickCaptureOutcome.Failed, broadcast())
+            assertEquals(0, freezes.get())
+            assertTrue(submits.isEmpty())
+        } finally {
+            Everframe.kill()
+        }
+    }
+
+    /** kill() cancels every SDK-scope child, so a capture waiting on its provider ends with nothing frozen. */
+    @Test
+    fun killDuringProviderCancelsTheCapture() {
+        armWithScreenshotDisabled()
+        Everframe.__setQuickCaptureEvidenceProvider {
+            Everframe.kill()
+            // As a following start(): the gate is open again.
+            Everframe.captureGate = true
+            QuickCaptureHostEvidence(hostShot(), null)
+        }
+        val job = trigger()
+        val outcome = runCatching { awaitMain(job) }
+        assertTrue("the capture is cancelled, got $outcome",
+            outcome.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+        assertEquals(0, freezes.get())
+        assertTrue(submits.isEmpty())
+        assertFalse(QuickCapture.isCapturing)
+    }
+
+    @Test
+    fun providerWhileActivityFinishesFails() {
+        armWithScreenshotDisabled()
+        Everframe.__setQuickCaptureEvidenceProvider {
+            withContext(Dispatchers.Main) { activity.finish() }
+            QuickCaptureHostEvidence(hostShot(), null)
+        }
+        assertEquals(QuickCaptureOutcome.Failed, broadcast())
         assertEquals(0, freezes.get())
         assertTrue(submits.isEmpty())
     }

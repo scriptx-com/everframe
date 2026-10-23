@@ -30,7 +30,7 @@ import UIKit
 /// and, optionally, the host's masked replay timeline (the same bytes the
 /// reporter takes as `hostReplayVTree`). SDK seam for host plugins; see
 /// `Everframe.__setQuickCaptureEvidenceProvider`.
-public struct QuickCaptureHostEvidence {
+public struct QuickCaptureHostEvidence: Sendable {
     public let image: UIImage
     public let hostReplayVTree: Data?
 
@@ -43,6 +43,27 @@ public struct QuickCaptureHostEvidence {
 /// Supplies host evidence at capture time. nil means the host could not produce
 /// safe evidence, and the capture fails.
 typealias QuickCaptureEvidenceProvider = @MainActor () async -> QuickCaptureHostEvidence?
+
+/// Resumes the evidence wait exactly once: with the provider's answer, or with
+/// nil when the timeout fires first.
+@MainActor
+private final class QuickCaptureEvidenceWait {
+    private var continuation: CheckedContinuation<QuickCaptureHostEvidence?, Never>?
+    var timer: Task<Void, Never>?
+    var work: Task<Void, Never>?
+
+    init(_ continuation: CheckedContinuation<QuickCaptureHostEvidence?, Never>) {
+        self.continuation = continuation
+    }
+
+    func finish(_ evidence: QuickCaptureHostEvidence?) {
+        guard let continuation else { return }
+        self.continuation = nil
+        timer?.cancel()
+        work?.cancel()
+        continuation.resume(returning: evidence)
+    }
+}
 
 enum QuickCaptureOutcome: Equatable {
     case ignored(reason: String)
@@ -131,6 +152,8 @@ final class QuickCapture {
     var showToast: @MainActor (String) -> Void = { QuickCaptureToast.show(text: $0) }
     /// The native screenshot. Never called while a host evidence provider is installed.
     var screenshotter: @MainActor () -> ScreenshotCapture.Result? = { ScreenshotCapture.captureKeyWindow() }
+    /// How long a host evidence provider may take before the capture fails.
+    var evidenceTimeout: TimeInterval = 5
     /// Replaces the task `handle` and the Darwin notification start on a trigger.
     var triggerOverride: (@MainActor () -> Void)?
     /// The double-Shift window. The key-delivery proof widens it, because
@@ -285,6 +308,24 @@ final class QuickCapture {
 
     // MARK: Pipeline
 
+    /// The provider's answer, or nil after `evidenceTimeout`. Returns at the
+    /// timeout even when the provider never does; the provider's task is
+    /// cancelled and its late answer dropped.
+    private func awaitEvidence(_ provider: @escaping QuickCaptureEvidenceProvider) async -> QuickCaptureHostEvidence? {
+        let timeout = UInt64(max(0, evidenceTimeout) * 1_000_000_000)
+        return await withCheckedContinuation { continuation in
+            let wait = QuickCaptureEvidenceWait(continuation)
+            wait.work = Task { @MainActor in
+                let evidence = await provider()
+                wait.finish(evidence)
+            }
+            wait.timer = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: timeout)
+                wait.finish(nil)
+            }
+        }
+    }
+
     func capture() async -> QuickCaptureOutcome {
         // Read once: the gate and the pipeline must agree on the provider.
         let provider = currentEvidenceProvider()
@@ -322,13 +363,18 @@ final class QuickCapture {
         let shot: ScreenshotCapture.Result
         let hostReplayVTree: Data?
         if let provider {
-            // The host's masked evidence replaces the native screenshot entirely.
-            guard let evidence = await provider(),
+            // The host's masked evidence replaces the native screenshot entirely;
+            // a nil answer, or none within the timeout, fails without a fallback.
+            let epoch = Everframe.shared.currentStartEpoch
+            guard let evidence = await awaitEvidence(provider),
                   evidence.image.size.width > 0, evidence.image.size.height > 0 else { return .failed }
             // The host rendered asynchronously. A kill() in that window means
-            // nothing may freeze or ship, and a reporter that opened (or froze)
-            // meanwhile owns the evidence this capture would freeze over.
-            guard Everframe.captureGate, !Everframe.shared.report.isPresenting,
+            // nothing may freeze or ship; a kill() then start() means the image
+            // belongs to the previous session; a reporter that opened (or froze)
+            // meanwhile owns the evidence this capture would freeze over; and an
+            // app that left the foreground is no longer what the host rendered.
+            guard Everframe.captureGate, Everframe.shared.currentStartEpoch == epoch,
+                  isApplicationActive(), !Everframe.shared.report.isPresenting,
                   !Everframe.shared.__replayHasReporterOwner else { return .failed }
             let image = evidence.image
             shot = ScreenshotCapture.Result(

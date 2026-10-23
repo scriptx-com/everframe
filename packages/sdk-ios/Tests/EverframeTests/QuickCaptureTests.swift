@@ -344,6 +344,70 @@ final class QuickCaptureTests: XCTestCase {
         }
     }
 
+    /// A provider that never answers fails the capture at the timeout, with no
+    /// native fallback.
+    func testProviderTimeoutFailsWithoutNativeScreenshot() async {
+        let qc = makeArmedWithScreenshotDisabled()
+        var nativeShots = 0
+        qc.screenshotter = { nativeShots += 1; return nil }
+        qc.evidenceTimeout = 0.1
+        qc.setEvidenceProvider {
+            // Never answers within the test (an hour, and cancellation ends it early).
+            try? await Task.sleep(nanoseconds: 3_600_000_000_000)
+            return nil
+        }
+        let started = Date()
+
+        let outcome = await qc.capture()
+
+        guard case .failed = outcome else { return XCTFail("expected .failed, got \(outcome)") }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5)
+        XCTAssertEqual(nativeShots, 0)
+        XCTAssertEqual(freezes, 0)
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertFalse(qc.isCapturing)
+    }
+
+    func testEvidenceTimeoutDefaultsToFiveSeconds() {
+        XCTAssertEqual(QuickCapture().evidenceTimeout, 5)
+    }
+
+    /// kill() then start() while the host renders: the image belongs to the
+    /// previous session and must not ship under the new one.
+    func testProviderAcrossARestartFailsWithoutFreezing() async {
+        await withGlobalCaptureStateLock {
+            Everframe.captureGate = true
+            let qc = makeArmedWithScreenshotDisabled()
+            let image = solidImage()
+            qc.setEvidenceProvider {
+                Everframe.shared.kill()
+                // As a following start(): the gate is open again, the epoch has moved.
+                Everframe.captureGate = true
+                return QuickCaptureHostEvidence(image: image, hostReplayVTree: nil)
+            }
+            let outcome = await qc.capture()
+            Everframe.__setConfigForTesting(nil)
+            guard case .failed = outcome else { return XCTFail("expected .failed, got \(outcome)") }
+            XCTAssertEqual(freezes, 0)
+            XCTAssertTrue(submitted.isEmpty)
+        }
+    }
+
+    func testProviderWhileAppLeavesTheForegroundFails() async {
+        let qc = makeArmedWithScreenshotDisabled()
+        var active = true
+        qc.isApplicationActive = { active }
+        let image = solidImage()
+        qc.setEvidenceProvider {
+            active = false
+            return QuickCaptureHostEvidence(image: image, hostReplayVTree: nil)
+        }
+        let outcome = await qc.capture()
+        guard case .failed = outcome else { return XCTFail("expected .failed, got \(outcome)") }
+        XCTAssertEqual(freezes, 0)
+        XCTAssertTrue(submitted.isEmpty)
+    }
+
     func testScreenshotDisabledWithoutProviderIsIgnored() async {
         let qc = makeArmedWithScreenshotDisabled()
         var nativeShots = 0

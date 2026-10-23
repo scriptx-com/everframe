@@ -51,7 +51,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Host-rendered evidence for one quick capture. [screenshot] is already masked, built the way
@@ -84,6 +87,8 @@ internal object QuickCapture {
      */
     const val BROADCAST_PERMISSION: String = "android.permission.DUMP"
 
+    internal const val EVIDENCE_TIMEOUT_MS: Long = 5_000
+
     // ---- Test seams ----
 
     @Volatile
@@ -99,6 +104,10 @@ internal object QuickCapture {
     /** The reporter-open boundary and freeze, counted in tests. */
     @Volatile
     internal var freezer: (ReporterTrigger) -> FrozenReportCapture = { Everframe.__replayFreeze(it) }
+
+    /** How long a host evidence provider may take before the capture fails. */
+    @Volatile
+    internal var evidenceTimeoutMs: Long = EVIDENCE_TIMEOUT_MS
 
     /** The capture the latest broadcast started. Tests await it; production never reads it. */
     @Volatile
@@ -276,17 +285,18 @@ internal object QuickCapture {
         val shot: ScreenshotCapture.CaptureResult
         val hostReplayVTree: ByteArray?
         if (provider != null) {
-            // The host's masked evidence replaces the native screenshot entirely.
-            val evidence = try {
-                provider()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Throwable) {
-                null
-            } ?: return QuickCaptureOutcome.Failed
-            // The host rendered asynchronously. A kill() in that window means nothing may freeze or ship,
-            // and a reporter that opened (or froze) meanwhile owns the evidence this capture would freeze.
-            if (!Everframe.captureGate || Everframe.report.isPresenting.value || Everframe.__replayHasReporterOwner) {
+            // The host's masked evidence replaces the native screenshot entirely; a null answer, a throw, or
+            // no answer within the timeout fails without a fallback.
+            val epoch = Everframe.currentStartEpochVolatile()
+            val evidence = awaitEvidence(provider) ?: return QuickCaptureOutcome.Failed
+            // The host rendered asynchronously. A kill() in that window means nothing may freeze or ship; a
+            // kill() then start() means the image belongs to the previous session; a finished activity is no
+            // longer what the host rendered; and a reporter that opened (or froze) meanwhile owns the evidence
+            // this capture would freeze.
+            if (!Everframe.captureGate || Everframe.currentStartEpochVolatile() != epoch ||
+                activity.isFinishing || activity.isDestroyed ||
+                Everframe.report.isPresenting.value || Everframe.__replayHasReporterOwner
+            ) {
                 return QuickCaptureOutcome.Failed
             }
             shot = evidence.screenshot
@@ -346,6 +356,26 @@ internal object QuickCapture {
         }
     }
 
+    /**
+     * The provider's answer, or null on a throw or after [evidenceTimeoutMs]. The provider runs as its own
+     * child of the SDK scope, so the wait ends at the timeout even when the provider ignores cancellation;
+     * it is cancelled either way and a late answer is dropped.
+     */
+    private suspend fun awaitEvidence(provider: suspend () -> QuickCaptureHostEvidence?): QuickCaptureHostEvidence? {
+        val answer = Everframe.sdkScope.async { provider() }
+        return try {
+            withTimeoutOrNull(evidenceTimeoutMs) { answer.await() }
+        } catch (e: CancellationException) {
+            // Our own cancellation propagates; a provider that cancelled itself is a failed answer.
+            if (!currentCoroutineContext().isActive) throw e
+            null
+        } catch (_: Throwable) {
+            null
+        } finally {
+            answer.cancel()
+        }
+    }
+
     internal fun toastText(outcome: QuickCaptureOutcome, deviceName: String): String? = when (outcome) {
         QuickCaptureOutcome.Sent -> "Captured · $deviceName"
         QuickCaptureOutcome.Queued -> "Captured · uploads when online"
@@ -365,6 +395,7 @@ internal object QuickCapture {
         isEmulator = EmulatorEnvironment::isEmulator
         screenshotter = { activity, rects -> ScreenshotCapture.captureBeforeReporter(activity, rects) }
         freezer = { Everframe.__replayFreeze(it) }
+        evidenceTimeoutMs = EVIDENCE_TIMEOUT_MS
         __lastTrigger = null
         inFlight.set(false)
     }
