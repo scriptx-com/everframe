@@ -1,0 +1,29 @@
+packages/sdk-ios/Sources/Everframe/QuickCapture/CaptureHotkey.swift
+  s_f1c043e85606b2::t_92bcfdb868c9fe 48-55
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCapture.swift
+  s_f1c043e85606b2::t_47abf320fe13b6 4-5,17-21,171-172,321-322,474-512
+packages/sdk-ios/Tests/EverframeTests/CaptureHotkeyTests.swift
+  s_f1c043e85606b2::t_d43f8dbfcf5adf 21-30
+packages/sdk-ios/Tests/EverframeTests/QuickCaptureTests.swift
+  s_f1c043e85606b2::t_1874033603ff0c 832-928
+packages/sdk-ios/Tests/QuickCaptureKeyDeliveryProof/HostApp/HostApp.swift
+  s_f1c043e85606b2::t_4d528650a4b1e7 65-76
+packages/sdk-ios/Tests/QuickCaptureKeyDeliveryProof/UITests/QuickCaptureKeyDeliveryUITests.swift
+  s_f1c043e85606b2::t_adede092e0ac60 57-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f42f2b20f81d6f341998417be8974567774e0627",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
