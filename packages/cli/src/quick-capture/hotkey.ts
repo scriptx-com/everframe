@@ -30,75 +30,80 @@ const SHIFT = 512;
 const OPTION = 2048;
 const CONTROL = 4096;
 
-const MODIFIER_TOKENS: Record<string, number> = {
-  cmd: CMD,
-  command: CMD,
-  '⌘': CMD,
-  ctrl: CONTROL,
-  control: CONTROL,
-  '⌃': CONTROL,
-  alt: OPTION,
-  opt: OPTION,
-  option: OPTION,
-  '⌥': OPTION,
-  shift: SHIFT,
-  '⇧': SHIFT,
-};
+// Maps, not plain objects, so inherited keys like `constructor` or `__proto__` never match.
+const MODIFIER_TOKENS = new Map<string, number>(
+  Object.entries({
+    cmd: CMD,
+    command: CMD,
+    '⌘': CMD,
+    ctrl: CONTROL,
+    control: CONTROL,
+    '⌃': CONTROL,
+    alt: OPTION,
+    opt: OPTION,
+    option: OPTION,
+    '⌥': OPTION,
+    shift: SHIFT,
+    '⇧': SHIFT,
+  }),
+);
 
 // kVK_ANSI_* and kVK_F* virtual key codes (HIToolbox/Events.h).
-const KEY_CODES: Record<string, number> = {
-  A: 0x00,
-  S: 0x01,
-  D: 0x02,
-  F: 0x03,
-  H: 0x04,
-  G: 0x05,
-  Z: 0x06,
-  X: 0x07,
-  C: 0x08,
-  V: 0x09,
-  B: 0x0b,
-  Q: 0x0c,
-  W: 0x0d,
-  E: 0x0e,
-  R: 0x0f,
-  Y: 0x10,
-  T: 0x11,
-  O: 0x1f,
-  U: 0x20,
-  I: 0x22,
-  P: 0x23,
-  L: 0x25,
-  J: 0x26,
-  K: 0x28,
-  N: 0x2d,
-  M: 0x2e,
-  '1': 0x12,
-  '2': 0x13,
-  '3': 0x14,
-  '4': 0x15,
-  '6': 0x16,
-  '5': 0x17,
-  '9': 0x19,
-  '7': 0x1a,
-  '8': 0x1c,
-  '0': 0x1d,
-  F1: 0x7a,
-  F2: 0x78,
-  F3: 0x63,
-  F4: 0x76,
-  F5: 0x60,
-  F6: 0x61,
-  F7: 0x62,
-  F8: 0x64,
-  F9: 0x65,
-  F10: 0x6d,
-  F11: 0x67,
-  F12: 0x6f,
-};
+const KEY_CODES = new Map<string, number>(
+  Object.entries({
+    A: 0x00,
+    S: 0x01,
+    D: 0x02,
+    F: 0x03,
+    H: 0x04,
+    G: 0x05,
+    Z: 0x06,
+    X: 0x07,
+    C: 0x08,
+    V: 0x09,
+    B: 0x0b,
+    Q: 0x0c,
+    W: 0x0d,
+    E: 0x0e,
+    R: 0x0f,
+    Y: 0x10,
+    T: 0x11,
+    O: 0x1f,
+    U: 0x20,
+    I: 0x22,
+    P: 0x23,
+    L: 0x25,
+    J: 0x26,
+    K: 0x28,
+    N: 0x2d,
+    M: 0x2e,
+    '1': 0x12,
+    '2': 0x13,
+    '3': 0x14,
+    '4': 0x15,
+    '6': 0x16,
+    '5': 0x17,
+    '9': 0x19,
+    '7': 0x1a,
+    '8': 0x1c,
+    '0': 0x1d,
+    F1: 0x7a,
+    F2: 0x78,
+    F3: 0x63,
+    F4: 0x76,
+    F5: 0x60,
+    F6: 0x61,
+    F7: 0x62,
+    F8: 0x64,
+    F9: 0x65,
+    F10: 0x6d,
+    F11: 0x67,
+    F12: 0x6f,
+  }),
+);
 
 const ACCEPTED =
-  'Use a combo like Cmd+Shift+B: Cmd, Ctrl or Alt (plus Shift if you like) and one key from A-Z, 0-9 or F1-F12.';
+  'Use a combo like Cmd+Shift+B: Cmd or Ctrl (plus Alt or Shift if you like) and one key from A-Z, 0-9 or F1-F12.';
 
 export const DEFAULT_HOTKEY = 'Cmd+Shift+B';
 
@@ -107,24 +112,25 @@ export function parseHotkey(spec: string): Hotkey {
   let key: string | undefined;
   for (const raw of spec.split('+')) {
     const token = raw.trim();
-    const modifier = MODIFIER_TOKENS[token.toLowerCase()];
+    const modifier = MODIFIER_TOKENS.get(token.toLowerCase());
     if (modifier !== undefined) {
       modifiers |= modifier;
       continue;
     }
     const upper = token.toUpperCase();
-    if (key !== undefined || KEY_CODES[upper] === undefined)
+    if (key !== undefined || !KEY_CODES.has(upper))
       throw new Error(`Invalid --key "${spec}". ${ACCEPTED}`);
     key = upper;
   }
-  if (key === undefined || (modifiers & (CMD | CONTROL | OPTION)) === 0) {
+  // macOS 15+ refuses hotkeys whose only modifiers are Option or Option+Shift.
+  if (key === undefined || (modifiers & (CMD | CONTROL)) === 0) {
     throw new Error(`Invalid --key "${spec}". ${ACCEPTED}`);
   }
-  return { keyCode: KEY_CODES[key] as number, modifiers };
+  return { keyCode: KEY_CODES.get(key) as number, modifiers };
 }
 
 export function formatHotkey(hotkey: Hotkey): string {
-  const key = Object.entries(KEY_CODES).find(([, code]) => code === hotkey.keyCode)?.[0] ?? '?';
+  const key = [...KEY_CODES].find(([, code]) => code === hotkey.keyCode)?.[0] ?? '?';
   return (
     (hotkey.modifiers & CMD ? '⌘' : '') +
     (hotkey.modifiers & CONTROL ? '⌃' : '') +
@@ -220,7 +226,10 @@ export async function serialForPid(run: Runner, adb: string, pid: number): Promi
 }
 
 export interface HelperProcess {
-  stdout: { on(event: 'data', listener: (chunk: Buffer | string) => void): unknown } | null;
+  stdout: {
+    setEncoding(encoding: BufferEncoding): unknown;
+    on(event: 'data', listener: (chunk: string) => void): unknown;
+  } | null;
   /** 'close' rather than 'exit': it fires only after stdout is drained, so a final error line is never lost. */
   on(
     event: 'close',
@@ -300,8 +309,12 @@ export async function hotkeyCommand(
 
     const capture = async (pid: number) => {
       const adb = findAdb(deps.env);
-      const serial = adb ? await serialForPid(deps.run, adb, pid) : null;
-      if (!adb || !serial) {
+      if (!adb) {
+        deps.err("Couldn't find adb. Install the Android SDK platform-tools or set ANDROID_HOME.");
+        return;
+      }
+      const serial = await serialForPid(deps.run, adb, pid);
+      if (!serial) {
         deps.err("Couldn't match the front emulator window to a running emulator.");
         return;
       }
@@ -338,8 +351,10 @@ export async function hotkeyCommand(
     };
 
     let buffered = '';
+    // Decode as UTF-8 at the stream so a ⌘ split across two chunks stays intact.
+    child.stdout?.setEncoding('utf8');
     child.stdout?.on('data', (chunk) => {
-      buffered += chunk.toString();
+      buffered += chunk;
       let newline = buffered.indexOf('\n');
       while (newline !== -1) {
         const line = buffered.slice(0, newline).trim();

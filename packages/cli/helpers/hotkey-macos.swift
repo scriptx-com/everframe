@@ -162,7 +162,9 @@ guard let keyCode = uintArgument("--keycode"), let modifiers = uintArgument("--m
 
 MainActor.assumeIsolated {
   let app = NSApplication.shared
-  app.setActivationPolicy(.prohibited)
+  // .accessory: no Dock icon or menu bar, and the most widely used setup for
+  // RegisterEventHotKey plus NSWorkspace activation notifications.
+  app.setActivationPolicy(.accessory)
   let helper = HotkeyHelper(keyCode: keyCode, modifiers: modifiers)
   HotkeyHelper.shared = helper
   helper.start()

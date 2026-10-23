@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
 import { chmodSync, existsSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -29,11 +30,11 @@ describe('parseHotkey', () => {
       modifiers: 4096 + 2048 + 512,
     });
     expect(parseHotkey('⌃+⌥+A')).toEqual({ keyCode: 0, modifiers: 4096 + 2048 });
-    expect(parseHotkey('Option+F1')).toEqual({ keyCode: 0x7a, modifiers: 2048 });
+    expect(parseHotkey('Ctrl+F1')).toEqual({ keyCode: 0x7a, modifiers: 4096 });
     expect(parseHotkey('Cmd+0')).toEqual({ keyCode: 0x1d, modifiers: 256 });
   });
 
-  it('rejects combos without Cmd, Ctrl or Alt, without a key, or with two keys', () => {
+  it('rejects combos without Cmd or Ctrl, without a key, with two keys, or with unknown tokens', () => {
     for (const bad of [
       'Shift+B',
       'B',
@@ -44,6 +45,15 @@ describe('parseHotkey', () => {
       'Cmd+F13',
       '',
       'Cmd++B',
+      // macOS 15+ refuses hotkeys whose only modifiers are Option or Option+Shift.
+      'Option+F1',
+      'Alt+Shift+B',
+      // Inherited object keys are not tokens.
+      'Cmd+constructor+B',
+      'Cmd+__proto__+B',
+      'Cmd+toString+B',
+      'constructor+B',
+      'Cmd+hasOwnProperty',
     ]) {
       expect(() => parseHotkey(bad), bad).toThrow(/Cmd\+Shift\+B/);
     }
@@ -183,7 +193,16 @@ describe('helper cache', () => {
 });
 
 class FakeHelper extends EventEmitter implements HelperProcess {
-  stdout = new EventEmitter();
+  stdout = new PassThrough();
+  encoding: string | undefined;
+  constructor() {
+    super();
+    const setEncoding = this.stdout.setEncoding.bind(this.stdout);
+    this.stdout.setEncoding = (encoding: BufferEncoding) => {
+      this.encoding = encoding;
+      return setEncoding(encoding);
+    };
+  }
   killed: (NodeJS.Signals | number | undefined)[] = [];
   kill(signal?: NodeJS.Signals | number) {
     this.killed.push(signal);
@@ -191,12 +210,17 @@ class FakeHelper extends EventEmitter implements HelperProcess {
     return true;
   }
   send(event: object) {
-    this.stdout.emit('data', Buffer.from(`${JSON.stringify(event)}\n`));
+    this.stdout.write(Buffer.from(`${JSON.stringify(event)}\n`));
   }
 }
 
 function commandSetup(
-  opts: { platform?: NodeJS.Platform; swiftc?: boolean; triggerFails?: boolean } = {},
+  opts: {
+    platform?: NodeJS.Platform;
+    swiftc?: boolean;
+    triggerFails?: boolean;
+    adb?: boolean;
+  } = {},
 ) {
   const home = mkdtempSync(join(tmpdir(), 'evf-hotkey-cmd-'));
   const sdk = mkdtempSync(join(tmpdir(), 'evf-hotkey-sdk-'));
@@ -232,7 +256,7 @@ function commandSetup(
   const err: string[] = [];
   const deps = {
     run,
-    env: { ANDROID_HOME: sdk, PATH: '' },
+    env: opts.adb === false ? { PATH: '/nonexistent' } : { ANDROID_HOME: sdk, PATH: '' },
     home,
     platform: opts.platform ?? ('darwin' as NodeJS.Platform),
     out: (s: string) => out.push(s),
@@ -331,6 +355,33 @@ describe('hotkeyCommand', () => {
     expect(await done).toBe(0);
   });
 
+  it('names adb as the problem when it is not installed', async () => {
+    const t = commandSetup({ adb: false });
+    const done = hotkeyCommand(t.deps);
+    await flush();
+    t.helper.send({ event: 'pressed', pid: 77 });
+    await flush();
+    expect(t.err).toEqual([
+      "Couldn't find adb. Install the Android SDK platform-tools or set ANDROID_HOME.",
+    ]);
+    expect(t.calls).toEqual([]);
+    t.signals.emit('SIGINT');
+    expect(await done).toBe(0);
+  });
+
+  it('reads the helper stream as UTF-8, even when a character spans two chunks', async () => {
+    const t = commandSetup();
+    const done = hotkeyCommand(t.deps);
+    await flush();
+    expect(t.helper.encoding).toBe('utf8');
+    const line = Buffer.from(`${JSON.stringify({ event: 'error', message: '⌘⇧B is taken.' })}\n`);
+    const cut = line.indexOf(Buffer.from('⌘')) + 1;
+    t.helper.stdout.write(line.subarray(0, cut));
+    t.helper.stdout.write(line.subarray(cut));
+    expect(await done).toBe(1);
+    expect(t.err).toEqual(['⌘⇧B is taken.']);
+  });
+
   it('reports a failed trigger without exiting', async () => {
     const t = commandSetup({ triggerFails: true });
     const done = hotkeyCommand(t.deps);
@@ -376,8 +427,8 @@ describe('hotkeyCommand', () => {
     const t = commandSetup();
     const done = hotkeyCommand(t.deps);
     await flush();
-    t.helper.stdout.emit('data', Buffer.from('garbage\n{"event":"pre'));
-    t.helper.stdout.emit('data', Buffer.from('ssed","pid":77}\n'));
+    t.helper.stdout.write(Buffer.from('garbage\n{"event":"pre'));
+    t.helper.stdout.write(Buffer.from('ssed","pid":77}\n'));
     await flush();
     expect(t.out).toContain('Capture sent to emulator-5556.');
     t.signals.emit('SIGINT');
