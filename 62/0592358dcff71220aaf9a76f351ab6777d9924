@@ -1,0 +1,28 @@
+examples/tvos-replay/Tests/QuickCaptureRemoteTests.swift
+  s_f1c043e85606b2::t_8e631ae59e78d5 1-69
+  s_f1c043e85606b2::t_7b8493df55da35 70-125
+.changeset/real-device-quick-capture-tvos.md
+  s_f1c043e85606b2::t_021c677592c602 1-8
+examples/tvos-replay/README.md
+  s_f1c043e85606b2::t_fa24e1574cbf5f 42-90
+examples/tvos-replay/Tests/PressProbeTests.swift
+  s_f1c043e85606b2::t_78f03721e48a08 57-69
+packages/sdk-ios/README.md
+  s_f1c043e85606b2::t_1076fa24c8a2da 447-450,588,596-661
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "620592358dcff71220aaf9a76f351ab6777d9924",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
