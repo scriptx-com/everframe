@@ -208,6 +208,9 @@ object CompanionSubmissionComposer {
         /** `sdk.name` on the envelope. Simulator quick capture passes the host's identity
          *  (`everframe-flutter`) with host evidence, as `EFReporterFromImage` does for its reports. */
         val sdkName: String = "everframe-android",
+        /** Real-device quick capture from a linked device: the link nonce and the `linkPending` callback.
+         *  Null for every other submit. SECURITY: never log. */
+        val deviceLink: dev.everframe.devicelink.DeviceLinkUpload? = null,
     ) {
         /** The generated `toString()` would print both credentials into any log
          *  or crash message that interpolates the inputs. */
@@ -219,7 +222,7 @@ object CompanionSubmissionComposer {
                 "companionAttribution=${redact(companionAttribution)}, capturedSession=$capturedSession, " +
                 "excluded=$excluded, quickCapture=$quickCapture, captureToken=${redact(captureToken)}, " +
                 "annotated=$annotated, hostReplayVTree=${hostReplayVTree?.let { "${it.size} bytes" }}, " +
-                "sdkName=$sdkName)"
+                "sdkName=$sdkName, deviceLink=${deviceLink?.let { "<redacted>" }})"
 
         private fun redact(secret: String?): String? = secret?.let { "<redacted>" }
     }
@@ -532,6 +535,7 @@ object CompanionSubmissionComposer {
                     ?: ReportAuthorizationFactory.forCapture(inputs.capturedSession, inputs.capture),
                 // SECURITY: never log. Live upload only; see ReportSubmitter.submit.
                 captureToken = inputs.captureToken,
+                deviceLink = inputs.deviceLink,
             )
         } ?: ReportResult.Cancelled("submit_guard_failed")
         } finally { inputs.capture.finishConsumption() }

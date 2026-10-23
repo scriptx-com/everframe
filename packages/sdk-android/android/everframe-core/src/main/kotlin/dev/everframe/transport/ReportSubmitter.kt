@@ -40,6 +40,10 @@ import dev.everframe.identity.IdentityTokenHolder
 import dev.everframe.identity.resolveIdentityHeader
 import dev.everframe.outbox.JSONLOutbox
 import dev.everframe.outbox.OutboxEntry
+import dev.everframe.devicelink.DeviceLinkFingerprint
+import dev.everframe.devicelink.DeviceLinkToken
+import dev.everframe.devicelink.DeviceLinkUpload
+import dev.everframe.devicelink.IngestLinkResponse
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -74,8 +78,24 @@ class ReportSubmitter(
     private val endpointUrl: String get() = endpointOverride ?: IngestEndpoint.url
     private var diagnostics: ReportDiagnostics.Handle? = null
 
+    /**
+     * Real-device quick capture: the device link token stored for an entry's endpoint and SDK key, or null.
+     * A drain sends a fingerprinted entry only with a token whose fingerprint matches. SECURITY: never log.
+     */
+    internal var deviceLinkTokenLookup: (endpoint: String, sdkKey: String) -> String? = { endpoint, sdkKey ->
+        dev.everframe.devicelink.DeviceLink.current
+            ?.takeIf { it.scope == dev.everframe.devicelink.DeviceLinkScope.of(endpoint, sdkKey) }?.token
+    }
+
+    /** False until this session's stored link has loaded; a fingerprinted entry then waits for a later drain. */
+    internal var deviceLinkLoaded: () -> Boolean = { dev.everframe.devicelink.DeviceLink.isLoaded }
+
     internal fun observing(owner: ReportDiagnostics.Handle?): ReportSubmitter =
-        ReportSubmitter(config, outbox, uploader, endpointOverride).also { it.diagnostics = owner }
+        ReportSubmitter(config, outbox, uploader, endpointOverride).also {
+            it.diagnostics = owner
+            it.deviceLinkTokenLookup = deviceLinkTokenLookup
+            it.deviceLinkLoaded = deviceLinkLoaded
+        }
 
     /** Internal cross-module SDK wiring; independent customer submitters remain unobserved. */
     @androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)
@@ -187,6 +207,14 @@ class ReportSubmitter(
          * SECURITY: never log.
          */
         captureToken: String? = null,
+        /**
+         * Real-device quick capture from a LINKED device; [captureToken] is then its `evf_dev_` token. The
+         * nonce rides the live POST as `X-Everframe-Link-Nonce`; a 2xx `linkPending` answer is handed to
+         * [DeviceLinkUpload.onLinkPending]; `403 device_unlinked` returns `Cancelled("device_unlinked")`; a
+         * transient failure queues the capture with the token's fingerprint, never the token. Null for every
+         * other submit. SECURITY: never log.
+         */
+        deviceLink: DeviceLinkUpload? = null,
     ): ReportResult {
         val capturedAuthorization = authorization ?: ReportAuthorizationFactory.forCapture(Everframe.captureSessionSnapshot(), null)
         if (!Everframe.captureGate || !capturedAuthorization.evaluate().reportAllowed) {
@@ -209,7 +237,7 @@ class ReportSubmitter(
             uploadObserved(TransportOrigin.LIVE_SUBMIT) {
                 uploader.upload(candidate.endpoint, candidate.sdkKey, candidate.idempotencyKey, candidate.envelopeBytes,
                     candidate.parts(), companionAttribution, identityToken, capturedAuthorization,
-                    captureToken)
+                    captureToken, deviceLink?.nonce)
             }
         } catch (_: ReportAuthorizationCancelled) {
             return ReportResult.Cancelled("kill_switch")
@@ -222,12 +250,34 @@ class ReportSubmitter(
             null
         }
         if (result != null) {
-            if (result.statusCode in 200..299) return ReportResult.Submitted(reportId)
+            if (result.statusCode in 200..299) {
+                if (deviceLink != null) {
+                    IngestLinkResponse.parseLinkPending(result.successBody)?.let { pending ->
+                        try {
+                            deviceLink.onLinkPending(pending)
+                        } catch (_: Throwable) {
+                            // A takeover prompt never decides the outcome of an upload that landed.
+                        }
+                    }
+                }
+                return ReportResult.Submitted(reportId)
+            }
+            // A revoked device token: nothing was stored, and the capture must not fall back to the shared inbox.
+            if (deviceLink != null && IngestLinkResponse.isDeviceUnlinked(result.statusCode, result.responseBodyPreview)) {
+                return ReportResult.Cancelled(IngestLinkResponse.DEVICE_UNLINKED)
+            }
             if (RetryPolicy.classify(result.statusCode, result.headers, null) == RetryPolicy.Classification.Terminal) {
                 throw EverframeTransportError.ServerError(result.statusCode, result.responseBodyPreview)
             }
             candidate = candidate.withPayload(result.effectiveEnvelope ?: candidate.envelopeBytes,
                 result.effectiveParts ?: candidate.parts())
+        }
+        // A linked capture is queued with its token's fingerprint, never the token: a drain sends it only while
+        // that same token is stored. Without a usable token there is nothing to bind it to, so it is not queued.
+        if (deviceLink != null) {
+            val token = captureToken?.takeIf { DeviceLinkToken.isValid(it) }
+                ?: return ReportResult.Cancelled(IngestLinkResponse.NOT_QUEUED)
+            candidate = candidate.copy(deviceLinkFingerprint = DeviceLinkFingerprint.of(token))
         }
         // Storage exceptions are outside the network catch. Only optional revocation permits
         // a second admission, with the same captured identity/route and permanently omitted video.
@@ -364,6 +414,16 @@ class ReportSubmitter(
             // Spec 2026-10-11: an error waiting up to 3 s for its replay stays queued for the next pass;
             // its upgrade requests that pass when it finishes.
             if (dev.everframe.crash.ErrorReplayHolds.isHeld(entry.reportId)) return@drainOwned false
+            // A linked capture goes out only with the token it was taken under (matched by fingerprint), and is
+            // deleted unsent once that token is replaced or gone. Before the stored link loads it waits.
+            val linkedToken: String? = entry.deviceLinkFingerprint?.let { fingerprint ->
+                if (!runCatching { deviceLinkLoaded() }.getOrDefault(false)) return@drainOwned false
+                val stored = runCatching { deviceLinkTokenLookup(entry.endpoint, entry.sdkKey) }.getOrNull() // SECURITY: never log
+                if (stored == null || !DeviceLinkToken.isValid(stored) || DeviceLinkFingerprint.of(stored) != fingerprint) {
+                    return@drainOwned true
+                }
+                stored
+            }
             try {
                 val hostReplay = entry.attachmentRefs.any { it.name == "replay" &&
                     it.filename == "replay.json" && it.contentType == "application/octet-stream" }
@@ -471,7 +531,13 @@ class ReportSubmitter(
                     attachments = parts,
                     identityToken = identityToken,
                     authorization = authority,
+                    // SECURITY: never log. No link nonce on a retry: takeover rides live uploads only.
+                    captureToken = linkedToken,
                 ) }
+                // The token was revoked: the server stored nothing and never will for this token.
+                if (linkedToken != null && IngestLinkResponse.isDeviceUnlinked(r.statusCode, r.responseBodyPreview)) {
+                    return@drainOwned true
+                }
                 // 2xx → drop from outbox. Anything else (transient or terminal)
                 // → keep entry; next drain pass will retry. Terminal status on
                 // a drained entry is a known oddity (server changed its mind);

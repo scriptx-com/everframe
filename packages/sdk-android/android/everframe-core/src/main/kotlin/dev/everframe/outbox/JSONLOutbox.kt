@@ -47,6 +47,13 @@ data class OutboxEntry(
      * attributed on drain, however the holder is configured by then.
      */
     val identitySubject: String? = null,
+    /**
+     * Real-device quick capture: the fingerprint (16 lowercase hex characters, the first 8 bytes of SHA-256)
+     * of the device link token a linked capture was taken under. Never the token. A drain sends the entry
+     * with the stored token only while that token has this fingerprint, and deletes it otherwise. Null for
+     * every other entry, including entries written before this field existed.
+     */
+    val deviceLinkFingerprint: String? = null,
 ) {
     @Serializable
     data class AttachmentRef(
@@ -82,7 +89,7 @@ data class OutboxEntry(
             envelopeBytes.contentEquals(other.envelopeBytes) &&
             idempotencyKey == other.idempotencyKey && attachmentRefs == other.attachmentRefs &&
             sdkKey == other.sdkKey && endpoint == other.endpoint &&
-            identitySubject == other.identitySubject
+            identitySubject == other.identitySubject && deviceLinkFingerprint == other.deviceLinkFingerprint
     }
     override fun hashCode(): Int {
         var r = reportId.hashCode()
@@ -93,6 +100,7 @@ data class OutboxEntry(
         r = 31 * r + sdkKey.hashCode()
         r = 31 * r + endpoint.hashCode()
         r = 31 * r + (identitySubject?.hashCode() ?: 0)
+        r = 31 * r + (deviceLinkFingerprint?.hashCode() ?: 0)
         return r
     }
 }

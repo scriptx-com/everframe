@@ -156,13 +156,19 @@ internal class OutboxCipher(
         val subjectBytes = entry.identitySubject?.let {
             checkedUtf8(it, limits.maxRoutingFieldBytes, "identitySubject")
         }
+        entry.deviceLinkFingerprint?.let {
+            require(it.length == FINGERPRINT_CHARS && it.all { c -> c in '0'..'9' || c in 'a'..'f' }) {
+                "deviceLinkFingerprint is not 16 lowercase hex characters"
+            }
+        }
         require(entry.envelopeBytes.size <= limits.maxEnvelopeBytes) { "Envelope exceeds limit" }
         require(entry.attachmentRefs.size <= limits.maxAttachments) { "Too many attachments" }
 
         var payloadBytes = entry.envelopeBytes.size.toLong()
         var encodedBytes = 4L + reportIdBytes.size + 8L + 4L + entry.envelopeBytes.size +
             4L + idempotencyBytes.size + 4L + sdkKeyBytes.size + 4L + endpointBytes.size + 1L +
-            (subjectBytes?.let { 4L + it.size } ?: 0L) + 4L
+            (subjectBytes?.let { 4L + it.size } ?: 0L) + 4L +
+            (entry.deviceLinkFingerprint?.let { 1L + 4L + FINGERPRINT_CHARS } ?: 0L)
         val names = HashSet<String>()
         entry.attachmentRefs.forEach { attachment ->
             require(attachment.name != ENVELOPE_PART_NAME) { "Attachment name is reserved" }
@@ -209,6 +215,13 @@ internal class OutboxCipher(
             output.writeBlob(it.data)
             output.writeUtf8(it.sha256Hex)
         }
+        // Optional trailing fields, so an entry without them is byte-identical to the format before they
+        // existed. An older SDK reading an entry with a fingerprint rejects it as trailing data, so a linked
+        // capture is dropped rather than sent without its token.
+        entry.deviceLinkFingerprint?.let {
+            output.writeByte(TRAILER_DEVICE_LINK_FINGERPRINT)
+            output.writeUtf8(it)
+        }
     }
 
     private fun readEntry(plaintext: ByteArray): OutboxEntry {
@@ -246,7 +259,17 @@ internal class OutboxCipher(
             attachments += OutboxEntry.AttachmentRef(name, filename, contentType, data, sha256Hex)
         }
         require(payloadBytes <= limits.maxPayloadBytes) { "Payload exceeds limit" }
-        require(input.read() == -1) { "Trailing plaintext data" }
+        var deviceLinkFingerprint: String? = null
+        val trailer = input.read()
+        if (trailer != -1) {
+            require(trailer == TRAILER_DEVICE_LINK_FINGERPRINT) { "Trailing plaintext data" }
+            val fingerprint = input.readUtf8(FINGERPRINT_CHARS, "deviceLinkFingerprint")
+            require(fingerprint.length == FINGERPRINT_CHARS && fingerprint.all { it in '0'..'9' || it in 'a'..'f' }) {
+                "Invalid deviceLinkFingerprint"
+            }
+            deviceLinkFingerprint = fingerprint
+            require(input.read() == -1) { "Trailing plaintext data" }
+        }
         return OutboxEntry(
             reportId = reportId,
             createdAt = createdAt,
@@ -256,6 +279,7 @@ internal class OutboxCipher(
             sdkKey = sdkKey,
             endpoint = endpoint,
             identitySubject = identitySubject,
+            deviceLinkFingerprint = deviceLinkFingerprint,
         )
     }
 
@@ -381,6 +405,8 @@ internal class OutboxCipher(
         const val CHUNK_BYTES = 64 * 1024
         const val TRANSFORMATION = "AES/GCM/NoPadding"
         const val ENVELOPE_PART_NAME = "envelope"
+        const val TRAILER_DEVICE_LINK_FINGERPRINT = 1
+        const val FINGERPRINT_CHARS = 16
     }
 }
 
