@@ -39,6 +39,55 @@ you control, pass these launch environment values:
 - `REPLAY_TV_ERROR_AFTER=<seconds>`: optional; reports one handled error that long after the SDK starts, to check that an error carries a replay.
 - `REPLAY_TV_RUN=<label>`: optional; names the run in the error message.
 
+- `REPLAY_TV_RELEASE_MODE=1`: optional; starts the SDK as a release build
+  (`debugBuild: false`), so the unlinked-release quick capture rules can be
+  checked in a simulator.
+
+## Remote press probe
+
+`REPLAY_TV_PRESS_PROBE=1` replaces the rails with a row of four Play/Pause
+targets: a `UIButton`, a view with a Play/Pause `UITapGestureRecognizer`, an
+embedded `AVPlayerViewController` (playing a 10 s movie written at launch from
+procedural frames) and a SwiftUI button with `onPlayPauseCommand`. Every press
+the window receives, and what each target does with it, is logged to the
+console and to `press-probe.log` in the app's caches, as
+`EvfTvProbe type=<press> phase=<began|ended|cancelled> t=<ms> focus=<id>` and
+`EvfTvProbe action=<target>:<event> t=<ms>` (`action=app:` lines are presses
+that reached the app's views). `REPLAY_TV_PROBE_DROP` withholds presses at the
+window the way an SDK would: `<press>:<began|ended>` pairs, comma-separated,
+or `<press>:heldEnded` for only the release of a press held at least 1.4 s.
+
+`PressProbeTests` drives the probe and skips unless the runner has
+`REPLAY_TV_PRESS_PROBE=1`:
+
+```sh
+TEST_RUNNER_REPLAY_TV_PRESS_PROBE=1 \
+TEST_RUNNER_REPLAY_TV_PROBE_DROP=playPause:heldEnded \
+xcodebuild test -project ReplayTV.xcodeproj -scheme ReplayTV \
+  -destination 'platform=tvOS Simulator,name=<your throwaway simulator>' \
+  -only-testing:ReplayTVUITests/PressProbeTests
+xcrun simctl get_app_container <udid> dev.everframe.replaytv data   # then Library/Caches/press-probe.log
+```
+
+## Quick capture UI test
+
+`QuickCaptureRemoteTests` holds Play/Pause with `XCUIRemote` and checks the
+quick-capture toast, the link banner (focus keeps moving in the rails while it
+shows) and Record on device. It runs the app as a real Apple TV
+(`EVERFRAME_SIMULATE_DEVICE=1`) against a backend you control, and skips
+without a loopback `EVERFRAME_DEV_INGEST_URL` and a non-production
+`EVERFRAME_E2E_SDK_KEY` in the runner's environment (`TEST_RUNNER_` prefix).
+Build with `'SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) DEBUG'` so the
+SDK reads the development ingest URL, and with
+`CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-` (sign to run locally): the
+device token lives in the Keychain, which an unsigned simulator app cannot
+write, so linking fails without it. Optional switches:
+`REPLAY_TV_EXPECT_BANNER=1` (a link window is open on the backend),
+`REPLAY_TV_EXPECT_LINK=1` (the backend then approves the link),
+`REPLAY_TV_RELEASE_MODE=1`, and `REPLAY_TV_EXPECT_RECORDING=1` with
+`REPLAY_TV_CONTROL_URL` (a loopback URL that makes the backend ask for a
+recording).
+
 The `ReplayPhone` scheme builds the same fixture for an iPhone
 (`xcodebuild build -project ReplayTV.xcodeproj -scheme ReplayPhone`).
 

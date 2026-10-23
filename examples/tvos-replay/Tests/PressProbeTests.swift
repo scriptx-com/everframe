@@ -54,6 +54,19 @@ final class PressProbeTests: XCTestCase {
         }
     }
 
+    /// Ordinary remote use: Play/Pause taps, a held arrow, and ↑↑↓↓.
+    func testNormalUse() {
+        focus("probe-player")
+        XCUIRemote.shared.press(.playPause)
+        pause()
+        XCUIRemote.shared.press(.playPause)
+        pause()
+        XCUIRemote.shared.press(.down, forDuration: 2.0)
+        pause()
+        for button: XCUIRemote.Button in [.up, .up, .down, .down] { XCUIRemote.shared.press(button) }
+        pause()
+    }
+
     func testHeldArrow() {
         focus("probe-button")
         XCUIRemote.shared.press(.down, forDuration: 2.0)
