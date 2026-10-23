@@ -1,0 +1,43 @@
+.changeset/quick-capture-android.md
+  s_f1c043e85606b2::t_790278a72173db 26-31
+.changeset/quick-capture-ios.md
+  s_f1c043e85606b2::t_d23ec9af53425b 26-31
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_f1c043e85606b2::t_4832b3f519cc59 1139,2296-2312
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionSubmissionComposer.kt
+  s_f1c043e85606b2::t_817c13a6404b8a 48,200-207,218,339-347,350-351,526-527
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/QuickCapture.kt
+  s_f1c043e85606b2::t_2a59ad12dd4861 23-28,56-67,116-117,120-129,139,141-147,153,207-208,231-233,241,251,260-262,271-302,332
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/HostImageVTreeAttachment.kt
+  s_f1c043e85606b2::t_26414ed31545d1 3,18-24
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/companion/CompanionSubmissionComposerTest.kt
+  s_f1c043e85606b2::t_76d942a753e744 933-979,993-994,1001-1002,1042-1045,1068-1074,1098
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/QuickCaptureTest.kt
+  s_f1c043e85606b2::t_b997d86aea8702 19-21,397-562
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/transport/HostImageVTreeAttachmentTest.kt
+  s_f1c043e85606b2::t_69cb1cbb8a5e11 3
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialog.kt
+  s_f1c043e85606b2::t_9058d11af8b57e 37
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_f1c043e85606b2::t_090410dc49c2c0 1271,2184-2204
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCapture.swift
+  s_f1c043e85606b2::t_20ea3ea7a9dfd9 19-25,29-46,63,65,69,83-88,132-133,147-148,173-176,179,224-241,289-291,294,300,313-315,321-347,362
+packages/sdk-ios/Tests/EverframeTests/QuickCaptureTests.swift
+  s_f1c043e85606b2::t_fc3da1f86ff452 247-402
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5655761c3ce93568d775a20a333065ca50b27806",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
