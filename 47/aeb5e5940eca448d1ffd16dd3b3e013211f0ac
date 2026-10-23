@@ -1,0 +1,45 @@
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/EverframeDeviceLinkWiringTest.kt
+  s_f1c043e85606b2::t_0a4ab880687b12 1-136
+.changeset/android-device-linking.md
+  s_f1c043e85606b2::t_dfb075bc43696a 1-15
+.changeset/react-native-android-device-linking.md
+  s_f1c043e85606b2::t_480ab9bb9fee71 1-8
+packages/sdk-android/android/README.md
+  s_f1c043e85606b2::t_c83fb00a94b06a 127-200,241
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_f1c043e85606b2::t_2dd7f3b6185b84 645-648,1420-1421
+packages/sdk-android/android/settings.gradle.kts
+  s_f1c043e85606b2::t_2be6e576a3ccd3 50-55
+packages/sdk-android/tests/quick-capture-host/README.md
+  s_f1c043e85606b2::t_62973ec2883339 1-16
+packages/sdk-android/tests/quick-capture-host/app/.gitignore
+  s_f1c043e85606b2::t_6118cb57691df4 1-3
+packages/sdk-android/tests/quick-capture-host/app/build.gradle.kts
+  s_f1c043e85606b2::t_c0a21a2a09b89e 1-26
+packages/sdk-android/tests/quick-capture-host/app/src/main/AndroidManifest.xml
+  s_f1c043e85606b2::t_0e55a5104c76c7 1-14
+packages/sdk-android/tests/quick-capture-host/app/src/main/kotlin/dev/everframe/qualification/quickcapture/HostActivity.kt
+  s_f1c043e85606b2::t_b4ea9dc7fc8746 1-22
+packages/sdk-android/tests/quick-capture-host/app/src/main/kotlin/dev/everframe/qualification/quickcapture/HostApplication.kt
+  s_f1c043e85606b2::t_8a77571238d388 1-15
+packages/sdk-android/tests/quick-capture-host/app/src/main/res/xml/network_security_config.xml
+  s_f1c043e85606b2::t_0648ab2017b8cf 1-5
+packages/sdk-react-native/README.md
+  s_f1c043e85606b2::t_ae423a2a5b79c0 711-714,725-726,738-753
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "47aeb5e5940eca448d1ffd16dd3b3e013211f0ac",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
