@@ -50,7 +50,7 @@ internal object DeviceLink {
     @Volatile internal var showBanner: (Int) -> Unit = { LinkBanner.show(it) }
     @Volatile internal var hideBanner: () -> Unit = { LinkBanner.hide() }
     /** Called after the stored link changes (linked, replaced, forgotten), so gesture arming can follow. */
-    @Volatile internal var onLinkChanged: () -> Unit = {}
+    @Volatile internal var onLinkChanged: () -> Unit = { publishGestureArmed() }
     @Volatile internal var scopeProvider: () -> CoroutineScope = { Everframe.sdkScope }
     @Volatile internal var checkIntervalMs: Long = 3_000L
     @Volatile internal var checkWindowMs: Long = 150_000L
@@ -301,6 +301,14 @@ internal object DeviceLink {
         safely { refreshConfig() }
     }
 
+    private fun publishGestureArmed() {
+        val isCurrent = synchronized(lock) { sessionIsCurrent }
+        dev.everframe.trigger.ShakeToReportTrigger.publishGestureArmed(
+            dev.everframe.quickcapture.CaptureGesture.isArmed(dev.everframe.quickcapture.CaptureGesture.currentInput(isTv = false)),
+            isCurrent,
+        )
+    }
+
     private inline fun safely(block: () -> Unit) {
         try {
             block()
@@ -325,7 +333,7 @@ internal object DeviceLink {
         refreshConfig = { Everframe.sdkScope.launch { runCatching { Everframe._replaySession?.refreshConfigNow() } } }
         showBanner = { LinkBanner.show(it) }
         hideBanner = { LinkBanner.hide() }
-        onLinkChanged = {}
+        onLinkChanged = { publishGestureArmed() }
         scopeProvider = { Everframe.sdkScope }
         checkIntervalMs = 3_000L
         checkWindowMs = 150_000L

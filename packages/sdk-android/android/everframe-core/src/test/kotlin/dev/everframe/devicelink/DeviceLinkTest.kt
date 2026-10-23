@@ -45,6 +45,7 @@ class DeviceLinkTest {
     private val banners = mutableListOf<Int?>()
     private var refreshes = 0
     private var bannerNumber: Int? = null
+    private var linkChanges = 0
 
     private val device = HelloDevice(model = "Pixel 9", osVersion = "15", appVersion = "1.0.0", sdk = "android/x", formFactor = "phone")
 
@@ -69,6 +70,7 @@ class DeviceLinkTest {
         DeviceLink.refreshConfig = { refreshes++ }
         DeviceLink.showBanner = { bannerNumber = it; banners += it }
         DeviceLink.hideBanner = { bannerNumber = null; banners += null }
+        DeviceLink.onLinkChanged = { linkChanges++ }
         DeviceLink.install(store, client, scope, { device }, isCurrent)
         if (linkingEnabled) DeviceLink.applyConfig(DeviceLinkingConfigWire(true, null), isCurrent)
     }
@@ -151,6 +153,7 @@ class DeviceLinkTest {
         assertEquals(listOf("Linked to Aurimas"), toasts)
         assertNull(bannerNumber)
         assertEquals(1, refreshes)
+        assertEquals("gesture arming follows the link", 1, linkChanges)
         assertFalse(DeviceLink.attemptInFlight)
     }
 
@@ -287,6 +290,7 @@ class DeviceLinkTest {
         assertFalse(file.exists())
         assertEquals(listOf("This device was unlinked"), toasts)
         assertEquals(1, refreshes)
+        assertEquals(1, linkChanges)
     }
 
     @Test

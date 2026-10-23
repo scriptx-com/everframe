@@ -198,6 +198,10 @@ class ReplaySession(
         dev.everframe.devicelink.DeviceLink.applyConfig(
             latest.deviceLinking?.let { if (succeeded) it else it.copy(link = null) },
         ) { currentGenerationValid(capturedEpoch) }
+        // Shake listens while the capture gesture is armed (quick capture allowed, or linking enabled).
+        dev.everframe.trigger.ShakeToReportTrigger.publishGestureArmed(
+            dev.everframe.quickcapture.CaptureGesture.isArmed(dev.everframe.quickcapture.CaptureGesture.currentInput(isTv = false)),
+        ) { currentGenerationValid(capturedEpoch) }
         if (!wasIdentityEnabled && isIdentityEnabled(latest) && currentGenerationValid(capturedEpoch)) Everframe.__warmIdentityToken()
         sharedBreadcrumbBuffer.applyConfig(latest.breadcrumbs) { currentGenerationValid(capturedEpoch) }
         // Report Resource Window (spec 2026-09-05). `windowSec` is read LIVE

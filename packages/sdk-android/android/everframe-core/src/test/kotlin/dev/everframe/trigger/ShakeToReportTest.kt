@@ -2,14 +2,42 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 package dev.everframe.trigger
 
+import android.app.Application
+import android.content.Context
 import android.content.res.Configuration
+import android.hardware.Sensor
 import android.hardware.SensorManager
+import android.os.Looper
+import androidx.test.core.app.ApplicationProvider
+import dev.everframe.Everframe
+import dev.everframe.config.CaptureHotkeyConfigWire
 import dev.everframe.config.EverframeConfig
+import dev.everframe.devicelink.DeviceLink
+import dev.everframe.quickcapture.CaptureGesture
+import dev.everframe.quickcapture.QuickCapture
+import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowSensor
 
+@RunWith(RobolectricTestRunner::class)
 class ShakeToReportTest {
+    @After
+    fun tearDownGesture() {
+        ShakeToReportTrigger.teardown()
+        ShakeToReportTrigger.__resetForTesting()
+        shadowOf(Looper.getMainLooper()).idle()
+        CaptureGesture.__resetForTesting()
+        QuickCapture.teardown()
+        QuickCapture.__resetForTesting()
+        DeviceLink.__resetForTesting()
+    }
+
     @Test
     fun `local option defaults enabled`() {
         assertTrue(EverframeConfig(appId = "app", sdkKey = "key").shakeToReportEnabled)
@@ -141,4 +169,139 @@ class ShakeToReportTest {
             ),
         )
     }
+
+    // ---- real-device quick capture: shake for capture and linking ----
+
+    @Test
+    fun `shake listens while gesture armed even with shake-to-report off`() {
+        val gate = ShakeToReportGate(localEnabled = false)
+        gate.remoteEnabled = false
+        gate.foreground = true
+        assertFalse(gate.shouldListen())
+        gate.gestureArmed = true
+        assertTrue(gate.shouldListen())
+        // Armed shake never opens the reporter by itself: that still needs both shake-to-report switches.
+        assertFalse(gate.tryBegin(presenting = false))
+    }
+
+    @Test
+    fun `shake does not listen in background or when nothing wants it`() {
+        val gate = ShakeToReportGate(localEnabled = true)
+        gate.remoteEnabled = true
+        gate.gestureArmed = true
+        assertFalse("background", gate.shouldListen())
+        gate.foreground = true
+        assertTrue(gate.shouldListen())
+        gate.gestureArmed = false
+        assertTrue("shake-to-report alone", gate.shouldListen())
+        gate.remoteEnabled = false
+        assertFalse("nothing wants it", gate.shouldListen())
+        gate.remoteEnabled = null
+        gate.localEnabled = false
+        assertFalse(gate.shouldListen())
+    }
+
+    @Test
+    fun `crash-only session never installs shake`() {
+        val app: Application = ApplicationProvider.getApplicationContext()
+        val sensors = addAccelerometer(app)
+        ShakeToReportTrigger.install(app, localEnabled = false, reporterEnabled = false, currentActivity = null, isCurrent = { true })
+        idleMain()
+        ShakeToReportTrigger.publishGestureArmed(true) { true }
+        ShakeToReportTrigger.__setForegroundForTesting(true)
+        idleMain()
+        assertFalse(shadowOf(sensors).hasListener(ShakeToReportTrigger))
+
+        // The same session with the reporter on (shake-to-report off) does listen while armed.
+        ShakeToReportTrigger.install(app, localEnabled = false, reporterEnabled = true, currentActivity = null, isCurrent = { true })
+        idleMain()
+        ShakeToReportTrigger.__setForegroundForTesting(true)
+        ShakeToReportTrigger.publishGestureArmed(true) { true }
+        idleMain()
+        assertTrue(shadowOf(sensors).hasListener(ShakeToReportTrigger))
+        ShakeToReportTrigger.publishGestureArmed(false) { true }
+        idleMain()
+        assertFalse(shadowOf(sensors).hasListener(ShakeToReportTrigger))
+        ShakeToReportTrigger.publishGestureArmed(true) { false }
+        idleMain()
+        assertFalse("a stale publish changes nothing", shadowOf(sensors).hasListener(ShakeToReportTrigger))
+    }
+
+    @Test
+    fun `shake on unlinked release phone opens the reporter only when shake-to-report allows it`() {
+        val app: Application = ApplicationProvider.getApplicationContext()
+        Everframe.captureGate = true
+        try {
+            DeviceLink.__setCurrentForTesting(null, enabled = true)
+            QuickCapture.install(app, localEnabled = true, debug = false)
+            QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = true))
+            var hellos = 0
+            var captures = 0
+            var opens = 0
+            CaptureGesture.helloSender = { hellos++ }
+            CaptureGesture.captureTrigger = { captures++ }
+            ShakeToReportTrigger.reporterOpener = { opens++ }
+
+            for (shakeToReport in listOf(true, false)) {
+                ShakeToReportTrigger.install(app, localEnabled = shakeToReport, reporterEnabled = true, currentActivity = null, isCurrent = { true })
+                idleMain()
+                ShakeToReportTrigger.publishRemote(true) { true }
+                ShakeToReportTrigger.__setForegroundForTesting(true)
+                idleMain()
+                ShakeToReportTrigger.onShake()
+                idleMain()
+            }
+            assertEquals("a hello on every shake", 2, hellos)
+            assertEquals("never a capture on an unlinked release phone", 0, captures)
+            assertEquals("the reporter only with shake-to-report on", 1, opens)
+        } finally {
+            Everframe.captureGate = false
+        }
+    }
+
+    @Test
+    fun `shake while a quick capture is in flight is ignored`() {
+        val app: Application = ApplicationProvider.getApplicationContext()
+        Everframe.captureGate = true
+        try {
+            DeviceLink.__setCurrentForTesting(null, enabled = true)
+            QuickCapture.install(app, localEnabled = true, debug = true)
+            QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = true))
+            var hellos = 0
+            var captures = 0
+            var opens = 0
+            CaptureGesture.helloSender = { hellos++ }
+            CaptureGesture.captureTrigger = { captures++ }
+            ShakeToReportTrigger.reporterOpener = { opens++ }
+            ShakeToReportTrigger.install(app, localEnabled = true, reporterEnabled = true, currentActivity = null, isCurrent = { true })
+            idleMain()
+            ShakeToReportTrigger.publishRemote(true) { true }
+            ShakeToReportTrigger.__setForegroundForTesting(true)
+
+            QuickCapture.__setCapturingForTesting(true)
+            ShakeToReportTrigger.onShake()
+            idleMain()
+            assertEquals(0, captures + hellos + opens)
+
+            QuickCapture.__setCapturingForTesting(false)
+            ShakeToReportTrigger.onShake()
+            idleMain()
+            assertEquals("debug build: a shared capture and a hello", 1, captures)
+            assertEquals(1, hellos)
+            assertEquals("no reporter when the shake captured", 0, opens)
+        } finally {
+            QuickCapture.__setCapturingForTesting(false)
+            Everframe.captureGate = false
+        }
+    }
+
+    private fun addAccelerometer(context: Context): SensorManager {
+        val sensors = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        if (sensors.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) == null) {
+            shadowOf(sensors).addSensor(ShadowSensor.newInstance(Sensor.TYPE_ACCELEROMETER))
+        }
+        return sensors
+    }
+
+    private fun idleMain() = shadowOf(Looper.getMainLooper()).idle()
 }

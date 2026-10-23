@@ -1127,6 +1127,9 @@ object Everframe {
         dev.everframe.trigger.ShakeToReportTrigger.install(
             context = context,
             localEnabled = dev.everframe.trigger.ShakeToReportTrigger.localEnabled(config),
+            // Real-device quick capture: shake also runs for a capture or a link hello while the gesture is
+            // armed, but never in a crash-only session.
+            reporterEnabled = config.reporterEnabled,
             currentActivity = currentActivity,
             isCurrent = { currentStartEpochVolatile() == epoch },
         )

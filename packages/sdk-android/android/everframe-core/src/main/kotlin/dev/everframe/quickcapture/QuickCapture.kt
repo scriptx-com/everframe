@@ -294,6 +294,15 @@ internal object QuickCapture {
      */
     val isAllowedOnThisDevice: Boolean get() = debug || DeviceLink.current != null
 
+    /** The session's build type, as `start()` installed it. */
+    val isDebugBuild: Boolean get() = debug
+
+    /**
+     * Quick capture as the gesture sees it: the local `quickCaptureEnabled && reporterEnabled`, the dashboard's
+     * `captureHotkey.enabled`, and the kill switch. Whether this device may capture is the mode rule's call.
+     */
+    val gestureCaptureEnabled: Boolean get() = localEnabled && remoteEnabled && Everframe.captureGate
+
     /** A linked device files under its token with a fresh nonce; otherwise the emulator's adb token, if any. */
     fun resolveAttribution(appContext: Context): CaptureAttribution {
         DeviceLink.current?.let { return CaptureAttribution.Linked(it, LinkNonce.generate()) }
@@ -562,6 +571,9 @@ internal object QuickCapture {
         val named = runCatching { Settings.Global.getString(context.contentResolver, Settings.Global.DEVICE_NAME) }.getOrNull()
         return named?.takeIf { it.isNotBlank() } ?: Build.MODEL ?: "emulator"
     }
+
+    /** Tests only: hold or release the one-capture-at-a-time claim. */
+    internal fun __setCapturingForTesting(capturing: Boolean) = inFlight.set(capturing)
 
     /** Tests only: restore the production seams and forget the last trigger. */
     internal fun __resetForTesting() {
