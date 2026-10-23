@@ -67,6 +67,7 @@ import dev.everframe.config.ReportResult
 import dev.everframe.config.ReporterTrigger
 import dev.everframe.devicelink.DeviceLink
 import dev.everframe.devicelink.DeviceLinkCopy
+import dev.everframe.devicelink.DeviceLinkScope
 import dev.everframe.devicelink.DeviceLinkUpload
 import dev.everframe.devicelink.IngestLinkResponse
 import dev.everframe.devicelink.LinkNonce
@@ -303,9 +304,18 @@ internal object QuickCapture {
      */
     val gestureCaptureEnabled: Boolean get() = localEnabled && remoteEnabled && Everframe.captureGate
 
-    /** A linked device files under its token with a fresh nonce; otherwise the emulator's adb token, if any. */
-    fun resolveAttribution(appContext: Context): CaptureAttribution {
-        DeviceLink.current?.let { return CaptureAttribution.Linked(it, LinkNonce.generate()) }
+    /**
+     * A linked device files under its token with a fresh nonce; otherwise the emulator's adb token, if any.
+     * Null when the loaded link belongs to another scope than [capturedSession]'s ingest origin and SDK key (a
+     * restart whose link load has not landed yet, or one that replaced the session this capture belongs to):
+     * that token must never ride a capture filed under this session's key.
+     */
+    internal fun resolveAttribution(appContext: Context, capturedSession: TXCapturedSession): CaptureAttribution? {
+        DeviceLink.current?.let { link ->
+            val sdkKey = capturedSession.config?.sdkKey ?: return null
+            if (link.scope != DeviceLinkScope.of(IngestEndpoint.url, sdkKey)) return null
+            return CaptureAttribution.Linked(link, LinkNonce.generate())
+        }
         // Read fresh per capture, only for the origin that issued it; the composer posts to `IngestEndpoint.url`.
         return if (isEmulator()) CaptureAttribution.Shared(CaptureTokenReader.read(appContext, IngestEndpoint.url))
         else CaptureAttribution.Shared(null)
@@ -360,11 +370,20 @@ internal object QuickCapture {
             // not freeze over or consume. Checked after the claim, so no capture of ours can slip between.
             if (Everframe.__replayHasReporterOwner) return QuickCaptureOutcome.Ignored("capture_frozen")
             val appContext = activity!!.applicationContext
-            // Resolved once: the toast, the token and the nonce all describe the same attribution.
-            val attribution = resolveAttribution(appContext)
+            // The session this capture belongs to, taken once before the attribution and any evidence, and
+            // carried to the submission. Its epoch is read in the same critical section as its config, so
+            // every later check and the routing agree on one session.
+            val capturedSession = Everframe.captureSessionSnapshot()
+            // Resolved once, against that session: the toast, the token and the nonce all describe the same
+            // attribution. A link for another scope, or a restart since the snapshot, refuses the capture.
+            val attribution = resolveAttribution(appContext, capturedSession)
+            if (attribution == null || !isCurrent(capturedSession)) {
+                toastText(QuickCaptureOutcome.Failed)?.let { toast(appContext, it) }
+                return QuickCaptureOutcome.Failed
+            }
             // Shown once the capture is handed off, before the upload finishes: the upload either succeeds or
             // queues the report, so only a rejection needs a second word.
-            var outcome = runPipeline(appContext, activity, provider, attribution) {
+            var outcome = runPipeline(appContext, activity, provider, attribution, capturedSession) {
                 toast(appContext, confirmedText(attribution, deviceName(appContext)))
             }
             if (outcome == QuickCaptureOutcome.Unlinked) {
@@ -404,15 +423,13 @@ internal object QuickCapture {
         activity: Activity,
         provider: (suspend () -> QuickCaptureHostEvidence?)?,
         attribution: CaptureAttribution,
+        // Taken by `capture()` before the attribution; nothing after the screenshot reads the session again.
+        capturedSession: TXCapturedSession,
         confirm: suspend () -> Unit,
     ): QuickCaptureOutcome {
         val shot: ScreenshotCapture.CaptureResult
         val hostReplayVTree: ByteArray?
         val sdkName: String
-        // The session this capture belongs to, taken once before any evidence and carried to the submission.
-        // Its epoch is read in the same critical section as its config, so the check below and the routing
-        // agree on one session; nothing after the screenshot reads the session again.
-        val capturedSession = Everframe.captureSessionSnapshot()
         if (provider != null) {
             // The host's masked evidence replaces the native screenshot entirely; a null answer, a throw, or
             // no answer within the timeout fails without a fallback.

@@ -22,7 +22,11 @@
 // block says whether linking is on and, for that token, whether it is still
 // linked. A status is applied only when it describes the token the latest
 // config request carried, so a response for a token that has since been
-// replaced never unlinks the new one.
+// replaced never unlinks the new one. A config request gets the token only
+// when it is built for the scope (ingest origin and SDK key) the link was
+// loaded for, while that link state is current, so a session left over from
+// an earlier `start()` never sends the new project's token. The refresh a
+// link change asks for dies with the link state ([teardown], [install]).
 //
 // SECURITY: never log, print or toast a token or a nonce.
 
@@ -37,6 +41,7 @@ import dev.everframe.config.DeviceLinkingConfigWire
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -44,9 +49,7 @@ internal object DeviceLink {
     // ---- Test seams ----
 
     @Volatile internal var toaster: (String) -> Unit = { text -> defaultToast(text) }
-    @Volatile internal var refreshConfig: () -> Unit = {
-        Everframe.sdkScope.launch { runCatching { Everframe._replaySession?.refreshConfigNow() } }
-    }
+    @Volatile internal var refreshConfig: () -> Unit = { launchConfigRefresh() }
     @Volatile internal var showBanner: (Int) -> Unit = { LinkBanner.show(it) }
     @Volatile internal var hideBanner: () -> Unit = { LinkBanner.hide() }
     /** Called after the stored link changes (linked, replaced, forgotten), so gesture arming can follow. */
@@ -56,6 +59,8 @@ internal object DeviceLink {
     @Volatile internal var checkWindowMs: Long = 150_000L
     @Volatile internal var helloDebounceMs: Long = 5_000L
     @Volatile internal var now: () -> Long = { android.os.SystemClock.elapsedRealtime() }
+    /** Tests only: runs between a config's unlinked status and the forget it causes. */
+    @Volatile internal var __beforeConfigForgetForTesting: () -> Unit = {}
 
     // ---- State (written under [lock]) ----
 
@@ -68,6 +73,8 @@ internal object DeviceLink {
     private var appContext: Context? = null
     private var job: Job? = null
     private var lastHelloAt: Long? = null
+    /** Parent of the config refreshes a link change asks for; cancelled by [teardown] and [install]. */
+    private var refreshes: Job = SupervisorJob()
 
     /** The token the latest config request carried. SECURITY: never log. */
     @Volatile private var lastRequestedToken: String? = null
@@ -102,6 +109,8 @@ internal object DeviceLink {
             if (!isCurrent()) return
             val old = job
             job = null
+            refreshes.cancel()
+            refreshes = SupervisorJob()
             this.store = store
             this.client = client
             this.scope = scope
@@ -120,16 +129,35 @@ internal object DeviceLink {
         context?.let { runCatching { LinkBanner.install(it) } }
     }
 
-    /** The token for `GET /api/config`. SECURITY: never log. */
-    fun tokenForRequest(): String? {
-        val token = current?.token
+    /**
+     * The token for a `GET /api/config` built for [scope] (that request's ingest origin and SDK key). Null
+     * unless the loaded link belongs to [scope] and this link state is still current. SECURITY: never log.
+     */
+    fun tokenForRequest(scope: String?): String? = synchronized(lock) {
+        if (!isLoaded || scope == null || scope != this.scope || !sessionIsCurrent()) return null
+        val token = current?.takeIf { it.scope == scope }?.token
         lastRequestedToken = token
-        return token
+        token
+    }
+
+    /**
+     * The token for a capture queued under [scope], for the outbox drain: the loaded link when [scope] is the
+     * active one, else the link stored for [scope] (the store keeps one link, for the scope that saved it
+     * last). Null when no token is stored for [scope] or the link state has not loaded. SECURITY: never log.
+     */
+    fun tokenForQueuedCapture(scope: String?): String? {
+        if (scope == null) return null
+        val other = synchronized(lock) {
+            if (!isLoaded) return null
+            if (scope == this.scope) return current?.takeIf { it.scope == scope }?.token
+            store
+        } ?: return null
+        return runCatching { other.load(scope)?.token }.getOrNull()
     }
 
     /** The `deviceLinking` block of each config apply. */
     fun applyConfig(wire: DeviceLinkingConfigWire?, isCurrent: () -> Boolean) {
-        var forgetNow = false
+        var forgetToken: String? = null // SECURITY: never log
         synchronized(lock) {
             if (!isCurrent() || !isLoaded) return
             linkingEnabled = wire?.enabled == true
@@ -138,7 +166,7 @@ internal object DeviceLink {
             // A status describes the token its request carried; anything else is about a replaced token.
             if (lastRequestedToken != cur.token) return
             if (!link.linked) {
-                forgetNow = true
+                forgetToken = cur.token
             } else {
                 val owner = link.owner
                 if (owner != null && owner != cur.owner) {
@@ -147,7 +175,11 @@ internal object DeviceLink {
                 }
             }
         }
-        if (forgetNow) forget()
+        // Only the token this status describes: a takeover may have replaced it since the lock was released.
+        forgetToken?.let { token ->
+            __beforeConfigForgetForTesting()
+            forget(onlyIfToken = token)
+        }
     }
 
     /** Fire and forget. Sent only by an unlinked, loaded device with linking enabled; see the file header. */
@@ -212,6 +244,8 @@ internal object DeviceLink {
             if (!isCurrent()) return
             val old = job
             job = null
+            refreshes.cancel()
+            refreshes = SupervisorJob()
             store = null
             client = null
             scope = null
@@ -227,6 +261,18 @@ internal object DeviceLink {
         }
         previous?.cancel()
         safely { hideBanner() }
+    }
+
+    /**
+     * Refreshes the config of the session current now, as a child of [refreshes], so a teardown or the next
+     * install cancels it before it can fetch. `refreshConfigNow` also checks its session's generation first.
+     */
+    private fun launchConfigRefresh() {
+        val session = Everframe._replaySession ?: return
+        synchronized(lock) {
+            if (!isLoaded) return
+            scopeProvider().launch(refreshes) { runCatching { session.refreshConfigNow() } }
+        }
     }
 
     // ---- Attempt loop ----
@@ -330,7 +376,7 @@ internal object DeviceLink {
     internal fun __resetForTesting() {
         teardown()
         toaster = { text -> defaultToast(text) }
-        refreshConfig = { Everframe.sdkScope.launch { runCatching { Everframe._replaySession?.refreshConfigNow() } } }
+        refreshConfig = { launchConfigRefresh() }
         showBanner = { LinkBanner.show(it) }
         hideBanner = { LinkBanner.hide() }
         onLinkChanged = { publishGestureArmed() }
@@ -339,6 +385,7 @@ internal object DeviceLink {
         checkWindowMs = 150_000L
         helloDebounceMs = 5_000L
         now = { android.os.SystemClock.elapsedRealtime() }
+        __beforeConfigForgetForTesting = {}
     }
 
     /** Tests only: a linked state without a store round trip. */

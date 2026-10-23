@@ -1208,6 +1208,22 @@ object Everframe {
             txGuardVoid("start.breadcrumbTapNavAdapters") {
                 BreadcrumbTapNavAdapters.install(context, currentActivityRef?.get())
             }
+            // Real-device quick capture: load the stored device link before the launch drain (so a capture
+            // a previous process queued under the device token is sent now, not skipped until some later
+            // drain) and before the first config fetch (`start.replay` below), so that fetch already carries
+            // the token. A synchronous read of one small file.
+            txGuardVoid("start.deviceLink") {
+                val linkContext = context.applicationContext
+                dev.everframe.devicelink.DeviceLink.install(
+                    store = __deviceLinkStoreFactoryForTesting?.invoke(linkContext)
+                        ?: dev.everframe.devicelink.DeviceLinkStore.forContext(linkContext),
+                    client = dev.everframe.devicelink.DeviceLinkClient(IngestEndpoint.url, config.sdkKey),
+                    scope = dev.everframe.devicelink.DeviceLinkScope.of(IngestEndpoint.url, config.sdkKey),
+                    device = { dev.everframe.devicelink.HelloDevice.collect(linkContext, config.debugBuild) },
+                    isCurrent = { currentStartEpochVolatile() == epoch },
+                    context = linkContext,
+                )
+            }
             // Plan 05-06 (Wave-4 single-writer): drain outbox once at start, then
             // invoke the resolver-indirection installers. Drain runs FIRST so any
             // queued reports from prior sessions ship before new ones can fail-and-
@@ -1412,20 +1428,6 @@ object Everframe {
             // suspension point; see that field's doc comment for why)
             // discards the install instead of arming a session built from a
             // config `kill()` already tore down.
-            // Real-device quick capture: load the stored device link before the first config fetch
-            // (`start.replay` below), so that fetch already carries the token.
-            txGuardVoid("start.deviceLink") {
-                val linkContext = context.applicationContext
-                dev.everframe.devicelink.DeviceLink.install(
-                    store = __deviceLinkStoreFactoryForTesting?.invoke(linkContext)
-                        ?: dev.everframe.devicelink.DeviceLinkStore.forContext(linkContext),
-                    client = dev.everframe.devicelink.DeviceLinkClient(IngestEndpoint.url, config.sdkKey),
-                    scope = dev.everframe.devicelink.DeviceLinkScope.of(IngestEndpoint.url, config.sdkKey),
-                    device = { dev.everframe.devicelink.HelloDevice.collect(linkContext, config.debugBuild) },
-                    isCurrent = { currentStartEpochVolatile() == epoch },
-                    context = linkContext,
-                )
-            }
             txGuardVoid("start.replay") {
                 // MAI meter Plan 2b-ii. The client veto is applied by BUILDING
                 // NOTHING: `enabled = false` returns a supplier that computes

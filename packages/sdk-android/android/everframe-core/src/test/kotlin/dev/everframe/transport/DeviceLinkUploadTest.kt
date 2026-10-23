@@ -68,6 +68,7 @@ class DeviceLinkUploadTest {
     private var linkLoaded = true
     private val ingestResponses = LinkedBlockingQueue<MockResponse>()
     private val ingestSeen = AtomicInteger()
+    private lateinit var http: OkHttpClient
 
     @Before
     fun setUp() {
@@ -83,7 +84,7 @@ class DeviceLinkUploadTest {
             }
         }
         server.start()
-        val http = OkHttpClient.Builder()
+        http = OkHttpClient.Builder()
             .connectTimeout(2, TimeUnit.SECONDS)
             .readTimeout(1, TimeUnit.SECONDS)
             .writeTimeout(2, TimeUnit.SECONDS)
@@ -103,6 +104,7 @@ class DeviceLinkUploadTest {
 
     @After
     fun tearDown() {
+        dev.everframe.devicelink.DeviceLink.__resetForTesting()
         server.shutdown()
         Everframe.captureGate = false
     }
@@ -314,6 +316,39 @@ class DeviceLinkUploadTest {
         storedToken = token
         ingestResponses.add(MockResponse().setResponseCode(200).setBody("{}"))
         drain()
+        assertTrue(takeIngest().getHeader("X-Everframe-Capture-Token") == token)
+        assertTrue(entries().isEmpty())
+    }
+
+    @Test
+    fun aQueuedLinkedCaptureSurvivesASwitchToAnUnlinkedScope() {
+        // Production lookups: the token is resolved for the ENTRY's scope, not the active one.
+        val production = ReportSubmitter(
+            config = EverframeConfig(appId = "app-id", sdkKey = "test-sdk-key"),
+            outbox = outbox,
+            uploader = MultipartUploader(http),
+            endpointOverride = server.url("/api/ingest").toString(),
+        )
+        val linkStore = dev.everframe.devicelink.DeviceLinkStore(
+            File(tmp.newFolder("link"), "device-link-v1.bin"),
+            dev.everframe.devicelink.JceTestDeviceLinkKeyProvider(),
+        )
+        val scopeA = dev.everframe.devicelink.DeviceLinkScope.of(server.url("/api/ingest").toString(), "test-sdk-key")!!
+        val scopeB = dev.everframe.devicelink.DeviceLinkScope.of("https://other.example", "other-key")!!
+        assertTrue(linkStore.save(dev.everframe.devicelink.StoredDeviceLink(token, dev.everframe.devicelink.DeviceLinkOwner.Team, scopeA)))
+        val device = { dev.everframe.devicelink.HelloDevice(model = "m", osVersion = "15", appVersion = "1", sdk = "android/x", formFactor = "phone") }
+        dev.everframe.devicelink.DeviceLink.install(linkStore, dev.everframe.devicelink.DeviceLinkTest.FakeClient(), scopeA, device, { true })
+        ingestResponses.add(MockResponse().setResponseCode(503))
+        runBlocking { assertTrue(production.submit("{}".toByteArray(), "idem-a", emptyList(), captureToken = token, deviceLink = link()) is ReportResult.Queued) }
+        takeIngest()
+
+        // start(B): a project this device is not linked to.
+        dev.everframe.devicelink.DeviceLink.install(linkStore, dev.everframe.devicelink.DeviceLinkTest.FakeClient(), scopeB, device, { true })
+        assertNull(dev.everframe.devicelink.DeviceLink.current)
+        val before = ingestCount()
+        ingestResponses.add(MockResponse().setResponseCode(200).setBody("{}"))
+        runBlocking { production.drainOutbox(IdentityTokenHolder(), { ReplayConfig.OFF }, 0, { 0 }) }
+        assertEquals("A's capture is still delivered, with A's token", before + 1, ingestCount())
         assertTrue(takeIngest().getHeader("X-Everframe-Capture-Token") == token)
         assertTrue(entries().isEmpty())
     }

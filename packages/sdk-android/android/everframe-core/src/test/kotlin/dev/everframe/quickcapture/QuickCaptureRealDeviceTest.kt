@@ -21,7 +21,10 @@ import dev.everframe.companion.CompanionSubmissionComposer
 import dev.everframe.config.CaptureHotkeyConfigWire
 import dev.everframe.config.ReportResult
 import dev.everframe.devicelink.DeviceLink
+import dev.everframe.config.EverframeConfig
+import dev.everframe.config.IngestEndpoint
 import dev.everframe.devicelink.DeviceLinkOwner
+import dev.everframe.devicelink.DeviceLinkScope
 import dev.everframe.devicelink.IngestLinkResponse
 import dev.everframe.devicelink.LinkPending
 import dev.everframe.devicelink.StoredDeviceLink
@@ -78,6 +81,7 @@ class QuickCaptureRealDeviceTest {
         DeviceLink.toaster = { text -> Handler(Looper.getMainLooper()).post { Toast.makeText(app, text, Toast.LENGTH_SHORT).show() } }
         DeviceLink.refreshConfig = {}
         Settings.Global.putString(app.contentResolver, CaptureTokenReader.SETTINGS_KEY, null)
+        Everframe.__setConfigForTesting(EverframeConfig(appId = "app-id", sdkKey = sdkKey))
     }
 
     @After
@@ -87,13 +91,18 @@ class QuickCaptureRealDeviceTest {
         DeviceLink.__resetForTesting()
         Everframe.__activitySupplier = priorSupplier
         Everframe.captureGate = priorCaptureGate
+        Everframe.__setConfigForTesting(null)
         Everframe.report.__setPresenting(false)
         Settings.Global.putString(app.contentResolver, CaptureTokenReader.SETTINGS_KEY, null)
         Settings.Global.putString(app.contentResolver, CaptureTokenReader.ORIGIN_SETTINGS_KEY, null)
     }
 
+    private val sdkKey = "txx_live_quickcapture00001"
+    private val scope: String get() = DeviceLinkScope.of(IngestEndpoint.url, sdkKey)!!
+
+    /** A link for the started project's scope (its ingest origin and SDK key). */
     private fun link(owner: DeviceLinkOwner = DeviceLinkOwner.User("Aurimas")) =
-        DeviceLink.__setCurrentForTesting(StoredDeviceLink(token, owner, "scope"))
+        DeviceLink.__setCurrentForTesting(StoredDeviceLink(token, owner, scope))
 
     private fun arm(debug: Boolean, localEnabled: Boolean = true, remote: CaptureHotkeyConfigWire? = CaptureHotkeyConfigWire(enabled = true)) {
         QuickCapture.install(app, localEnabled = localEnabled, debug = debug)
@@ -110,6 +119,20 @@ class QuickCaptureRealDeviceTest {
         assertEquals(expected.toList().toString(), expected.size, ShadowToast.shownToastCount())
         expected.forEach { assertTrue(it, ShadowToast.showedToast(it)) }
         if (expected.isNotEmpty()) assertEquals(expected.last(), ShadowToast.getTextOfLatestToast())
+    }
+
+    @Test
+    fun aLinkForAnotherProjectIsNeverSentWithThisProjectsKey() {
+        // The link state still holds project A's link while the session (and its key) is project B's: a
+        // restart whose link load has not landed yet.
+        DeviceLink.__setCurrentForTesting(
+            StoredDeviceLink(token, DeviceLinkOwner.User("Aurimas"), DeviceLinkScope.of(IngestEndpoint.url, "txx_live_projecta000000")!!),
+        )
+        arm(debug = false)
+        val outcome = capture()
+        assertTrue("A's token rode a capture filed under B's key", submits.none { it.captureToken == token })
+        assertTrue(submits.none { it.deviceLink != null })
+        assertEquals(QuickCaptureOutcome.Failed, outcome)
     }
 
     @Test
@@ -195,7 +218,7 @@ class QuickCaptureRealDeviceTest {
     fun unlinkedResultForAReplacedTokenKeepsTheNewLink() {
         link()
         arm(debug = false)
-        val newer = StoredDeviceLink("evf_dev_" + "N3wr".repeat(8), DeviceLinkOwner.User("Jonas"), "scope")
+        val newer = StoredDeviceLink("evf_dev_" + "N3wr".repeat(8), DeviceLinkOwner.User("Jonas"), scope)
         submitResult = {
             DeviceLink.__setCurrentForTesting(newer) // a takeover finished while this upload was out
             ReportResult.Cancelled(IngestLinkResponse.DEVICE_UNLINKED)

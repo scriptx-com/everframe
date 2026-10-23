@@ -92,13 +92,13 @@ class DeviceLinkTest {
         install()
         assertTrue(DeviceLink.isLoaded)
         assertTrue(DeviceLink.current?.token == tokA)
-        assertTrue(DeviceLink.tokenForRequest() == tokA)
+        assertTrue(DeviceLink.tokenForRequest(scope) == tokA)
         DeviceLink.teardown()
         assertFalse(DeviceLink.isLoaded)
 
         DeviceLink.install(store, client, "other-scope", { device }, { true })
         assertNull(DeviceLink.current)
-        assertNull(DeviceLink.tokenForRequest())
+        assertNull(DeviceLink.tokenForRequest(scope))
         assertTrue("kept for its own scope", file.exists())
         DeviceLink.teardown()
 
@@ -281,7 +281,7 @@ class DeviceLinkTest {
     fun configUnlinkedForgetsAndToastsOnce() = runTest {
         assertTrue(store.save(StoredDeviceLink(tokA, DeviceLinkOwner.User("Aurimas"), scope)))
         install()
-        DeviceLink.tokenForRequest() // the config request carried this token
+        DeviceLink.tokenForRequest(scope) // the config request carried this token
         val unlinked = DeviceLinkingConfigWire(true, DeviceLinkStatusWire(false, null))
         DeviceLink.applyConfig(unlinked) { true }
         DeviceLink.applyConfig(unlinked) { true }
@@ -307,7 +307,7 @@ class DeviceLinkTest {
     fun configOwnerRenameUpdatesTheStoredOwner() = runTest {
         assertTrue(store.save(StoredDeviceLink(tokA, DeviceLinkOwner.User("Ann"), scope)))
         install()
-        DeviceLink.tokenForRequest()
+        DeviceLink.tokenForRequest(scope)
         DeviceLink.applyConfig(DeviceLinkingConfigWire(true, DeviceLinkStatusWire(true, DeviceLinkOwner.User("Ann Lee")))) { true }
         assertEquals(DeviceLinkOwner.User("Ann Lee"), DeviceLink.current?.owner)
         assertEquals(DeviceLinkOwner.User("Ann Lee"), store.load(scope)?.owner)
@@ -319,7 +319,7 @@ class DeviceLinkTest {
     fun configWithoutLinkKeepsTheToken() = runTest {
         assertTrue(store.save(StoredDeviceLink(tokA, DeviceLinkOwner.Team, scope)))
         install()
-        DeviceLink.tokenForRequest()
+        DeviceLink.tokenForRequest(scope)
         DeviceLink.applyConfig(DeviceLinkingConfigWire(true, null)) { true }
         assertTrue(DeviceLink.current?.token == tokA)
         assertTrue(DeviceLink.linkingEnabled)
@@ -347,7 +347,7 @@ class DeviceLinkTest {
     fun staleApplyIsIgnored() = runTest {
         assertTrue(store.save(StoredDeviceLink(tokA, DeviceLinkOwner.Team, scope)))
         install(linkingEnabled = false)
-        DeviceLink.tokenForRequest()
+        DeviceLink.tokenForRequest(scope)
         DeviceLink.applyConfig(DeviceLinkingConfigWire(true, DeviceLinkStatusWire(false, null))) { false }
         assertFalse(DeviceLink.linkingEnabled)
         assertNotNull(DeviceLink.current)
@@ -372,6 +372,23 @@ class DeviceLinkTest {
         assertTrue(store.save(StoredDeviceLink(tokA, DeviceLinkOwner.Team, scope)))
         install()
         assertFalse(DeviceLink.current.toString().contains(tokA))
+    }
+
+    @Test
+    fun anUnlinkedConfigNeverForgetsATokenATakeoverJustInstalled() = runTest {
+        assertTrue(store.save(StoredDeviceLink(tokA, DeviceLinkOwner.User("Ann"), scope)))
+        install()
+        assertTrue(DeviceLink.tokenForRequest(scope) == tokA)
+        // The takeover lands after the status was read and before the forget runs.
+        DeviceLink.__beforeConfigForgetForTesting = {
+            val taken = StoredDeviceLink(tokB, DeviceLinkOwner.User("Bob"), scope)
+            assertTrue(store.save(taken))
+            DeviceLink.__setCurrentForTesting(taken)
+        }
+        DeviceLink.applyConfig(DeviceLinkingConfigWire(true, DeviceLinkStatusWire(linked = false, owner = null))) { true }
+        assertTrue("the takeover's token is kept", DeviceLink.current?.token == tokB)
+        assertTrue("and stays stored", store.load(scope)?.token == tokB)
+        assertFalse(toasts.contains(DeviceLinkCopy.UNLINKED))
     }
 
     internal class FakeClient : DeviceLinkApi {

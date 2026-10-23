@@ -79,12 +79,13 @@ class ReportSubmitter(
     private var diagnostics: ReportDiagnostics.Handle? = null
 
     /**
-     * Real-device quick capture: the device link token stored for an entry's endpoint and SDK key, or null.
-     * A drain sends a fingerprinted entry only with a token whose fingerprint matches. SECURITY: never log.
+     * Real-device quick capture: the device link token stored for an entry's endpoint and SDK key (the
+     * ENTRY's scope, not the active project's), or null. A drain sends a fingerprinted entry only with a
+     * token whose fingerprint matches, so a switch to another project neither drops nor misroutes it.
+     * SECURITY: never log.
      */
     internal var deviceLinkTokenLookup: (endpoint: String, sdkKey: String) -> String? = { endpoint, sdkKey ->
-        dev.everframe.devicelink.DeviceLink.current
-            ?.takeIf { it.scope == dev.everframe.devicelink.DeviceLinkScope.of(endpoint, sdkKey) }?.token
+        dev.everframe.devicelink.DeviceLink.tokenForQueuedCapture(dev.everframe.devicelink.DeviceLinkScope.of(endpoint, sdkKey))
     }
 
     /** False until this session's stored link has loaded; a fingerprinted entry then waits for a later drain. */

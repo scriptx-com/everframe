@@ -50,6 +50,7 @@ class EverframeDeviceLinkWiringTest {
     private val context: Context get() = ApplicationProvider.getApplicationContext()
     private lateinit var server: MockWebServer
     private val configTokens = CopyOnWriteArrayList<String>()
+    private val ingestTokens = CopyOnWriteArrayList<String>()
     private val token = "evf_dev_" + "W1re".repeat(8)
     private val sdkKey = "txx_live_test1234567890"
     private lateinit var store: DeviceLinkStore
@@ -65,6 +66,10 @@ class EverframeDeviceLinkWiringTest {
                         MockResponse().setResponseCode(200).setBody(
                             """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"deviceLinking":{"enabled":true}}""",
                         )
+                    }
+                    request.path!!.startsWith("/api/ingest") -> {
+                        ingestTokens += request.getHeader("X-Everframe-Capture-Token") ?: "<none>"
+                        MockResponse().setResponseCode(200).setBody("{}")
                     }
                     request.path!!.contains("/api/device-link/attempts/") ->
                         MockResponse().setResponseCode(200).setBody("""{"status":"pending"}""")
@@ -84,8 +89,25 @@ class EverframeDeviceLinkWiringTest {
         Everframe.__deviceLinkStoreFactoryForTesting = null
         DeviceLink.__resetForTesting()
         LinkBanner.__resetForTesting()
+        restoreOutbox?.invoke()
         EndpointOverride.current = null
         server.shutdown()
+    }
+
+    private var restoreOutbox: (() -> Unit)? = null
+
+    /** Installs a test-keyed outbox as the SDK's shared one, as a previous process left it. */
+    private fun installSharedOutbox(): dev.everframe.outbox.JSONLOutbox {
+        val field = Everframe::class.java.getDeclaredField("sharedOutbox").apply { isAccessible = true }
+        val previous = field.get(Everframe)
+        val outbox = dev.everframe.outbox.JSONLOutbox(
+            File(tmp.newFolder("outbox"), "outbox.jsonl"),
+            keys = dev.everframe.outbox.JceTestOutboxKeyProvider(),
+            ops = dev.everframe.outbox.JvmOutboxFileOps(),
+        )
+        field.set(Everframe, outbox)
+        restoreOutbox = { field.set(Everframe, previous) }
+        return outbox
     }
 
     private fun config() = EverframeConfig(appId = "test-app-id", sdkKey = sdkKey, capture = CaptureConfig(logs = false))
@@ -132,5 +154,30 @@ class EverframeDeviceLinkWiringTest {
         assertFalse(DeviceLink.attemptInFlight)
         assertFalse(DeviceLink.isLoaded)
         assertNull(LinkBanner.visibleNumber)
+    }
+
+    @Test
+    fun coldLaunchDrainSendsAQueuedLinkedCapture() {
+        val endpoint = EndpointOverride.current!!
+        val scope = DeviceLinkScope.of(endpoint, sdkKey)!!
+        assertTrue(store.save(StoredDeviceLink(token, DeviceLinkOwner.User("Aurimas"), scope)))
+        val outbox = installSharedOutbox()
+        kotlinx.coroutines.runBlocking {
+            outbox.enqueue(
+                dev.everframe.outbox.OutboxEntry(
+                    reportId = "22222222-2222-4222-8222-222222222222",
+                    createdAt = System.currentTimeMillis(),
+                    envelopeBytes = "{}".toByteArray(),
+                    idempotencyKey = "idem-linked",
+                    attachmentRefs = emptyList(),
+                    sdkKey = sdkKey,
+                    endpoint = endpoint,
+                    deviceLinkFingerprint = dev.everframe.devicelink.DeviceLinkFingerprint.of(token),
+                ),
+            )
+        }
+        Everframe.start(context, config())
+        idleUntil("the launch drain never sent the queued linked capture") { ingestTokens.isNotEmpty() }
+        assertTrue("sent with the stored token", ingestTokens.single() == token)
     }
 }
