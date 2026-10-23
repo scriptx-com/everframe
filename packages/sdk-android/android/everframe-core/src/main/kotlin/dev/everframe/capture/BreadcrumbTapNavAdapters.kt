@@ -75,6 +75,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import androidx.annotation.VisibleForTesting
+import dev.everframe.devicelink.GestureRecording
 import dev.everframe.envelope.txGuard
 import dev.everframe.envelope.txGuardVoid
 import dev.everframe.protocol.generated.BreadcrumbKind
@@ -362,11 +363,21 @@ internal class TXWindowCallbackWrapper(
     private var consumedCaptureKey: Int? = null
 
     override fun dispatchKeyEvent(original: KeyEvent): Boolean {
-        if (txGuard("TXWindowCallbackWrapper.quickCaptureKey") { consumeQuickCaptureKey(original) } == true) return true
+        // "Record on device": while a recording runs, every key is recorded and reaches the app untouched; the
+        // emulator chord and the TV gesture stand aside, so recording a binding never also captures.
+        val recorder = GestureRecording.active
+        if (recorder != null) {
+            txGuardVoid("TXWindowCallbackWrapper.recordKey") {
+                recorder.onKey(original.keyCode, original.action, original.repeatCount, original.eventTime)
+                resetTvGesture()
+            }
+        } else if (txGuard("TXWindowCallbackWrapper.quickCaptureKey") { consumeQuickCaptureKey(original) } == true) {
+            return true
+        }
         // The TV capture gesture: null means swallowed (linked devices only, after detection); otherwise the
         // original event, or on a linked device the gesture's key-up as a canceled copy. A failure delivers
         // the original.
-        val event = if (QuickCapture.armedTvBinding == null && tvDetector == null) {
+        val event = if (recorder != null || (QuickCapture.armedTvBinding == null && tvDetector == null)) {
             original
         } else {
             val step = txGuard("TXWindowCallbackWrapper.tvGesture") { TvGestureStep(handleTvGesture(original)) }

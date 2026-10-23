@@ -31,6 +31,12 @@
 // an earlier `start()` never sends the new project's token. The refresh a
 // link change asks for dies with the link state ([teardown], [install]).
 //
+// RECORD ON DEVICE. A linked device's config may name a pending gesture
+// recording; [applyConfig] hands it to [GestureRecording]. Bringing the app to
+// the foreground refreshes config while linked (at most every 10 s), so a
+// recording request reaches the device without a relaunch. Unlinked devices
+// keep today's config traffic.
+//
 // SECURITY: never log, print or toast a token or a nonce.
 
 package dev.everframe.devicelink
@@ -39,6 +45,9 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import dev.everframe.Everframe
 import dev.everframe.config.DeviceLinkingConfigWire
 import kotlinx.coroutines.CancellationException
@@ -70,6 +79,10 @@ internal object DeviceLink {
     @Volatile internal var startingScope: () -> String? = { defaultStartingScope() }
     /** Tests only: runs between a config's unlinked status and the forget it causes. */
     @Volatile internal var __beforeConfigForgetForTesting: () -> Unit = {}
+    @Volatile internal var lifecycleOwner: () -> LifecycleOwner = { ProcessLifecycleOwner.get() }
+
+    /** Foreground config refreshes while linked are at least this far apart. */
+    internal const val FOREGROUND_REFRESH_MS: Long = 10_000L
 
     // ---- State (written under [lock]) ----
 
@@ -84,6 +97,8 @@ internal object DeviceLink {
     private var lastHelloAt: Long? = null
     /** Parent of the config refreshes a link change asks for; cancelled by [teardown] and [install]. */
     private var refreshes: Job = SupervisorJob()
+    private var lastForegroundRefreshAt: Long? = null
+    private var observing = false
 
     /** The token the latest config request carried. SECURITY: never log. */
     @Volatile private var lastRequestedToken: String? = null
@@ -140,6 +155,8 @@ internal object DeviceLink {
             sessionIsCurrent = isCurrent
             appContext = context?.applicationContext ?: context
             lastHelloAt = null
+            // start() fetches config itself; the foreground observer's first ON_START is that same launch.
+            lastForegroundRefreshAt = now()
             lastRequestedToken = null
             linkingEnabled = false
             installation++
@@ -149,7 +166,54 @@ internal object DeviceLink {
             old
         }
         previous?.cancel()
-        context?.let { runCatching { LinkBanner.install(it) } }
+        context?.let {
+            runCatching { LinkBanner.install(it) }
+            observeForeground()
+        }
+    }
+
+    /** The gesture-recording endpoint, from the installed client. */
+    val recordingApi: GestureRecordingApi? get() = synchronized(lock) { client as? GestureRecordingApi }
+
+    /** Linked devices refresh config when the app comes to the foreground; see the file header. */
+    internal val foregroundObserver: DefaultLifecycleObserver = object : DefaultLifecycleObserver {
+        override fun onStart(owner: LifecycleOwner) {
+            safely { onForeground() }
+        }
+    }
+
+    private fun onForeground() {
+        synchronized(lock) {
+            if (!isLoaded || current == null) return
+            val t = now()
+            lastForegroundRefreshAt?.let { if (t - it < FOREGROUND_REFRESH_MS) return }
+            lastForegroundRefreshAt = t
+        }
+        refreshConfig()
+    }
+
+    private fun observeForeground() {
+        Handler(Looper.getMainLooper()).post {
+            safely {
+                synchronized(lock) {
+                    if (observing || !isLoaded) return@post
+                    observing = true
+                }
+                lifecycleOwner().lifecycle.addObserver(foregroundObserver)
+            }
+        }
+    }
+
+    private fun stopObservingForeground() {
+        Handler(Looper.getMainLooper()).post {
+            safely {
+                synchronized(lock) {
+                    if (!observing || isLoaded) return@post
+                    observing = false
+                }
+                lifecycleOwner().lifecycle.removeObserver(foregroundObserver)
+            }
+        }
     }
 
     /**
@@ -181,6 +245,7 @@ internal object DeviceLink {
     /** The `deviceLinking` block of each config apply. */
     fun applyConfig(wire: DeviceLinkingConfigWire?, isCurrent: () -> Boolean) {
         var forgetToken: String? = null // SECURITY: never log
+        var recording: dev.everframe.config.RecordingRequestWire? = null
         synchronized(lock) {
             if (!isCurrent() || !isLoaded) return
             linkingEnabled = wire?.enabled == true
@@ -196,6 +261,7 @@ internal object DeviceLink {
                     val renamed = StoredDeviceLink(cur.token, owner, cur.scope)
                     if (store?.save(renamed) == true) current = renamed
                 }
+                recording = link.recording
             }
         }
         // Only the token this status describes: a takeover may have replaced it since the lock was released.
@@ -203,6 +269,7 @@ internal object DeviceLink {
             __beforeConfigForgetForTesting()
             forget(onlyIfToken = token)
         }
+        recording?.let { request -> safely { GestureRecording.onRequest(request, isCurrent) } }
     }
 
     /** Fire and forget. Sent only by an unlinked, loaded device with linking enabled; see the file header. */
@@ -288,6 +355,7 @@ internal object DeviceLink {
             device = { null }
             sessionIsCurrent = { false }
             lastHelloAt = null
+            lastForegroundRefreshAt = null
             lastRequestedToken = null
             isLoaded = false
             current = null
@@ -298,6 +366,8 @@ internal object DeviceLink {
             old
         }
         previous?.cancel()
+        safely { GestureRecording.teardown() }
+        safely { stopObservingForeground() }
         safely { hideBanner() }
     }
 
@@ -465,6 +535,7 @@ internal object DeviceLink {
         now = { android.os.SystemClock.elapsedRealtime() }
         startingScope = { defaultStartingScope() }
         __beforeConfigForgetForTesting = {}
+        lifecycleOwner = { ProcessLifecycleOwner.get() }
     }
 
     /** Tests only: a linked state without a store round trip. */
