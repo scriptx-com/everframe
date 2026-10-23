@@ -51,6 +51,16 @@ class CaptureTokenReaderTest {
     }
 
     @Test
+    fun hostLoopbackMatchesTheEmulatorAliasOnly() {
+        assertEquals("abc123", tokenFor("http://localhost:8787", ingest = "http://10.0.2.2:8787"))
+        assertEquals("abc123", tokenFor("http://127.0.0.1:8787", ingest = "http://10.0.2.2:8787"))
+        assertNull(tokenFor("http://localhost:8788", ingest = "http://10.0.2.2:8787"))
+        assertNull(tokenFor("https://localhost:8787", ingest = "http://10.0.2.2:8787"))
+        assertNull(tokenFor("http://10.0.2.2:8787", ingest = "http://localhost:8787"))
+        assertNull(tokenFor("http://localhost:8787", ingest = "http://192.168.1.5:8787"))
+    }
+
+    @Test
     fun noRecordedOriginKeepsTheToken() {
         assertEquals("abc123", tokenFor(null))
     }

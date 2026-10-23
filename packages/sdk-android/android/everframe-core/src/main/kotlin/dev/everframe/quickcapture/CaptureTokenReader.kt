@@ -47,11 +47,22 @@ internal object CaptureTokenReader {
         return trimmed
     }
 
-    /** Scheme, host (case-insensitive) and port, with default ports filled in. Unparseable never matches. */
+    /**
+     * Scheme, host (case-insensitive) and port, with default ports filled in. Unparseable never
+     * matches. The emulator reaches the host's loopback as 10.0.2.2, so a token issued by
+     * `localhost` or `127.0.0.1` also matches an ingest endpoint on 10.0.2.2 with the same scheme
+     * and port: both name the developer's own machine.
+     */
     internal fun sameOrigin(a: String, b: String): Boolean {
-        val left = originOf(a) ?: return false
-        return left == originOf(b)
+        val issued = originOf(a) ?: return false
+        val ingest = originOf(b) ?: return false
+        if (issued == ingest) return true
+        return issued.second in HOST_LOOPBACK && ingest.second == EMULATOR_HOST_ALIAS &&
+            issued.first == ingest.first && issued.third == ingest.third
     }
+
+    private val HOST_LOOPBACK = setOf("localhost", "127.0.0.1")
+    private const val EMULATOR_HOST_ALIAS = "10.0.2.2"
 
     private fun originOf(url: String): Triple<String, String, Int>? {
         val uri = runCatching { URI(url.trim()) }.getOrNull() ?: return null
