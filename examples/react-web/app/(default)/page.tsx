@@ -8,11 +8,9 @@
 //   - the component name `Home` (ui-tree-noise-filter.spec.ts)
 //   - data-testid="cc-number" / "bearer-token" with the canonical PII strings
 //     (seeded-pii.spec.ts), plus the Sensitive block and password input
-//   - the companion section testids (CompanionQR)
 'use client';
 import Link from 'next/link';
 import { useEverframe, Sensitive } from '@everframe/react';
-import { CompanionQR } from './CompanionQR';
 import { SpecimenPlate } from '../components/SpecimenPlate';
 import { getSpecimen } from '../lib/specimens';
 
@@ -125,11 +123,6 @@ export default function Home() {
             defaultValue="hunter2"
           />
         </div>
-      </section>
-
-      <section className="card">
-        <span className="fixture-note">fixture · phone-companion relay pairing</span>
-        <CompanionQR />
       </section>
 
       <footer className="site-footer">

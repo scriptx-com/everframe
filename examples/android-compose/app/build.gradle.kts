@@ -5,8 +5,8 @@
 //
 // Single phone/tablet APK (the layout adapts via UI-SPEC tablet breakpoints).
 // The Android TV flavor was retired alongside the on-device :everframe-tv
-// modal Activity — TV reporting now goes through the phone companion flow,
-// which doesn't need a dedicated leanback sample variant.
+// modal Activity; Android TV uses device linking and the quick-capture remote
+// gesture, which need no dedicated leanback sample variant.
 //
 // Dependencies flow through the composite build at ../../android (see
 // settings.gradle.kts) so local SDK changes are picked up without a publish

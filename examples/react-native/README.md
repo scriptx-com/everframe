@@ -34,8 +34,6 @@ incompatible with react-native-tvos@0.85.3-0 (see `App.tsx` header).
 - **Profile** (`Form.tsx`) — seeded PII card (canonical test-card + bearer
   strings), redacted vs public TextInput comparison, `setExtra()` demo, and a
   `setUser()` sign-in / switch / sign-out control (see **Recognition** below)
-- **Companion** — phone-companion QR pairing (relay connects when the tab
-  first opens)
 
 Android autolinking explicitly excludes the unused `react-native-safe-area-context`
 module. The sample uses manual insets; registering that module's Fabric descriptors
@@ -104,8 +102,9 @@ Maestro testIDs: `sign-in-collector-8891`, `sign-in-collector-2277`,
 The floating **Report a bug** button (`src/components/ReportFab.tsx`) is
 pinned to the bottom-right corner of every tab. It carries the Maestro
 testIDs `open-reporter-button` + `submitted`, and owns the TV remote trigger
-(Apple TV long-press Play/Pause; Android TV Menu). On Apple TV it opens the
-Companion tab for phone-assisted reporting; Android TV opens the native reporter.
+(Apple TV long-press Play/Pause; Android TV Menu). Android TV opens the native
+reporter; Apple TV has no on-device reporter, so there `open()` resolves as
+cancelled.
 
 > **Cross-tool coexistence is intentionally NOT proved here.** Earlier
 > revisions bundled `@sentry/react-native` + `@bugsnag/react-native` to
@@ -199,7 +198,7 @@ The app opens to a screen with:
 ## Trigger recipes (host-app snippets)
 
 For an on-device reporter, wire `useEverframe().open()` to your own host trigger.
-On Apple TV, use the companion flow shown in this sample.
+Apple TV has no on-device reporter.
 
 ### Button (this sample's choice)
 

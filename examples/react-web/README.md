@@ -137,7 +137,7 @@ recognition can never fail or stall a report.
 ## Routes
 
 - `/` — "Field desk": hero + seeded PII profile (redaction fixtures), `<Sensitive>`,
-  password input, phone-companion QR pairing, `useEverframe().open()` button
+  password input, `useEverframe().open()` button
 - `/specimens` — illustrated catalog grid with order filters (click breadcrumbs,
   image capture targets)
 - `/specimens/[id]` — specimen detail: facts, a `<Sensitive>` note, and
@@ -182,6 +182,5 @@ keep these intact when editing:
   `Everframe Web SDK Example`, and the page component is named `Home`
 - the canonical PII strings under `cc-number` / `bearer-token`, plus
   `sensitive-block` and `password-input`
-- companion testids: `companion-section`, `companion-pair-url`, `companion-status`
 - `everframe-bubble` opens the reporter on `/` and `/strict-csp`
 - `/strict-csp` renders `strict-csp-heading`, `csp-marker`, `cc-number`

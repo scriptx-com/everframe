@@ -19,6 +19,7 @@ import dev.everframe.config.ReleaseHealthConfig;
 import dev.everframe.config.ReportResult;
 import dev.everframe.config.EverframeConfig;
 import dev.everframe.config.VitalsConfig;
+import dev.everframe.capture.InteractionEventPolicy;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -38,17 +39,22 @@ public class MainActivity extends AppCompatActivity {
                 CaptureConfig.defaults,
                 /* bubble (host-installed hint) */ true,
                 /* useDynamicColor */ false,
-                /* companionDeviceId */ null,
-                /* companionBadgeEnabled */ true,
+                // Java has no named arguments, so the three deprecated Companion
+                // slots (Companion was removed) keep their defaults: ignored.
+                /* companionDeviceId (deprecated) */ null,
+                /* companionBadgeEnabled (deprecated) */ true,
                 /* shakeToReportEnabled */ true,
-                /* companionBadgePosition */ null,
+                /* companionBadgePosition (deprecated) */ null,
                 /* theme */ null,
                 /* installIdentifierEnabled */ true,
                 new VitalsConfig(),
                 /* r8MappingId */ null,
                 new ReleaseHealthConfig(),
                 /* debugBuild (detected when null) */ null,
-                /* reporterEnabled */ true
+                /* reporterEnabled */ true,
+                /* loadedJsBundle */ null,
+                InteractionEventPolicy.Companion.parse(null),
+                /* quickCaptureEnabled */ true
             )
         );
 

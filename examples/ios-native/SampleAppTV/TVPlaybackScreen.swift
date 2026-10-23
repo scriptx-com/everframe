@@ -3,9 +3,8 @@
 //
 // Session Vitals demo (tvOS): same recipe as SampleApp/Screens/PlaybackScreen.swift
 // — AVKit's VideoPlayer over an AVPlayer this screen owns, attached with
-// trackPlayer(). "Open reporter" is dropped here: reporting on tvOS is
-// companion-only (see SampleAppTV/ContentView.swift), there is no on-device
-// modal reporter to open. onDisappear detaches explicitly (the recommended
+// trackPlayer(). "Open reporter" is dropped here: there is no on-device
+// modal reporter on tvOS. onDisappear detaches explicitly (the recommended
 // path) and then drops the player, which would also self-detach via the
 // release sentinel.
 import AVKit

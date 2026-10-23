@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// SampleAppTV ContentView. Reporting on tvOS is companion-only — navigate to
-// the "Companion QR" screen, scan with a phone, file the report from the
-// phone-side reporter SPA. The on-device modal reporter was removed.
+// SampleAppTV ContentView. tvOS has no on-device reporter; crashes, errors
+// and session replay are still captured.
 
 import SwiftUI
 import EverframeKit
@@ -14,7 +13,7 @@ struct ContentView: View {
             VStack(spacing: 32) {
                 Text("Everframe Sample (Apple TV)")
                     .font(.largeTitle)
-                Text("To file a report, open Companion QR below and scan it with your phone.")
+                Text("Crashes, errors and session replay are captured on Apple TV.")
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 24) {
@@ -23,7 +22,6 @@ struct ContentView: View {
                     NavigationLink("Login (mock)", destination: TVLoginScreen())
                     NavigationLink("Payment (mock)", destination: TVPaymentScreen())
                     NavigationLink("Playback", destination: TVPlaybackScreen())
-                    NavigationLink("Companion QR", destination: CompanionQRView())
                 }
                 .padding(.top, 24)
             }

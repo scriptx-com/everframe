@@ -5,9 +5,9 @@
 
 A Tizen/webOS tester app with a minimal spatial focus manager. Use it to
 exercise remote-control input (arrows / OK / Back with the platform key
-codes), confirm which Chromium milestone a TV engine reports, and pair a
-phone through the Everframe companion QR — on a device, in a browser, or in
-a downloaded desktop Chromium matching a TV's engine version.
+codes), confirm which Chromium milestone a TV engine reports, and run the
+Everframe Web SDK — on a device, in a browser, or in a downloaded desktop
+Chromium matching a TV's engine version.
 
 ## What's inside
 
@@ -16,9 +16,7 @@ a downloaded desktop Chromium matching a TV's engine version.
   in `__tests__/spatial.spec.ts`); `FocusManager.tsx` is the React layer
   (`FocusProvider` + `useFocusable`). Back is Tizen `10009`, webOS `461`,
   Escape on desktop.
-- `src/components/` — focus grid, raw keydown log, device/engine info, and
-  the Everframe companion overlay (same host contract as
-  `examples/react-tv-sample`).
+- `src/components/` — focus grid, raw keydown log and device/engine info.
 - `platforms/tizen`, `platforms/webos` — `config.xml` / `appinfo.json` and
   icons merged into the staged package.
 - Builds go through `@vitejs/plugin-legacy` (`chrome>=38`), so the packaged
@@ -79,28 +77,11 @@ Known milestones: 38 47 53 56 63 68 69 76 79 85 87 94 108 120 130 132.
 Rough engine map: webOS 3/4/5/6 ≈ 38/53/68/79 · Tizen 3/4/5/6 ≈ 47/56/63/76 ·
 recent models 85–94+.
 
-## Everframe companion
+## Everframe SDK
 
-The tester **auto-connects on launch** (like a production TV host advertising
-on boot), so it appears on the project's companion page without touching the
-remote. The sidebar's **Connect companion** button re-opens (and its
-Disconnect twin closes) the app-level relay session — `src/companion/useCompanionConnection.ts`
-drives the SDK's `companion.start()` singleton and reports live status (and
-the dashboard pairing code) next to the button. The "Pair phone" tile reuses
-that session (connecting first if needed) and opens the QR overlay.
-`main.tsx` mounts `EverframeProvider`, which supplies the companion host seam —
-that's what enables the phone's **live view**, multi-shot capture, and real
-report submission from the TV.
-
-Two build-time inputs, both read from the repo-root `.env` (a real env var
-overrides):
+`main.tsx` mounts `EverframeProvider`, so the tester reports crashes, errors,
+breadcrumbs and session replay from the TV browser. One build-time input, read
+from the repo-root `.env` (a real env var overrides):
 
 - `EVERFRAME_KEY_WEB` — the Web app's SDK key (`evf_live_…` from the
-  dashboard). With it the device announces itself and **appears on the
-  project's companion page**; without it the relay still pairs but the
-  device is invisible to the dashboard (the sidebar warns about this).
-- `EVERFRAME_INGEST_URL` — optional endpoint override. Unset, the URL baked
-  into `@everframe/react` at its build applies — run `pnpm build:web-sdk` at
-  the repo root for local dev, or the SDK dist points at production. On a
-  real TV set it to your dev machine's LAN address
-  (`http://<lan-ip>:8787`) — `localhost` is the TV itself.
+  dashboard).

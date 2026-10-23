@@ -3,12 +3,9 @@
 //
 // SampleAppTV — exercises the Everframe SDK on Apple TV.
 //
-// Reporting on tvOS is COMPANION-ONLY: the on-device modal reporter was
-// removed (Phase 06.2 follow-up). To file a report from this app, navigate
-// to the "Companion QR" screen, scan the QR code with a phone, and use the
-// phone-side reporter SPA. The TV-side companion plumbing lives in
-// Everframe's core (RelayWSClient + CompanionCaptureBridge); no separate
-// `EverframeReporterUI` import is needed here.
+// tvOS has no on-device reporter (the modal reporter was removed in a Phase
+// 06.2 follow-up), so no `EverframeReporterUI` import is needed here.
+// Crashes, errors and session replay are still captured.
 
 import SwiftUI
 import EverframeKit

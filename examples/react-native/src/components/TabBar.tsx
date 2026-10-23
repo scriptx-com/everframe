@@ -12,7 +12,7 @@ import React from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { color, radius } from '../theme';
 
-export type TabKey = 'desk' | 'specimens' | 'log' | 'profile' | 'companion' | 'playback';
+export type TabKey = 'desk' | 'specimens' | 'log' | 'profile' | 'playback';
 
 /**
  * Is the Playback (Session Vitals) tab available on this platform?
@@ -34,7 +34,6 @@ export const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'specimens', label: 'Specimens' },
   { key: 'log', label: 'Log' },
   { key: 'profile', label: 'Profile' },
-  { key: 'companion', label: 'Companion' },
   ...(PLAYBACK_SUPPORTED ? [{ key: 'playback' as const, label: 'Playback' }] : []),
 ];
 

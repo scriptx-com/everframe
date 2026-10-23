@@ -6,8 +6,9 @@
 // trigger machinery (feedback_triggers_are_host_concern.md); this is the
 // canonical host wiring, now app-global instead of Home-screen-local:
 //   - Phone: one Pressable calling useEverframe().open().
-//   - TV:    TVEventHandler → Apple TV long-press Play/Pause opens the
-//            Companion tab; Android TV KEYCODE_MENU opens the native reporter.
+//   - TV:    TVEventHandler → Apple TV long-press Play/Pause and Android TV
+//            KEYCODE_MENU call the same open(). Apple TV has no on-device
+//            reporter, so there open() resolves as cancelled.
 //
 // Maestro contract (maestro/reporter-smoke.yaml):
 //   - testID "open-reporter-button" is visible on launch and tappable.
@@ -30,7 +31,7 @@ import { color, font, radius } from '../theme';
 // avoid double-fires for one press (down + up).
 const KEY_ACTION_UP = 1;
 
-export function ReportFab({ onCompanion }: { onCompanion: () => void }): React.JSX.Element {
+export function ReportFab(): React.JSX.Element {
   const { open } = useEverframe();
   const [submitted, setSubmitted] = useState(false);
   // open() resolves when the reporter closes; the ref guards re-entry so a
@@ -38,10 +39,6 @@ export function ReportFab({ onCompanion }: { onCompanion: () => void }): React.J
   const busy = useRef(false);
 
   const onOpenReporter = useCallback(async () => {
-    if (Platform.isTV && Platform.OS === 'ios') {
-      onCompanion();
-      return;
-    }
     if (busy.current) return;
     busy.current = true;
     setSubmitted(false);
@@ -58,7 +55,7 @@ export function ReportFab({ onCompanion }: { onCompanion: () => void }): React.J
     } finally {
       busy.current = false;
     }
-  }, [open, onCompanion]);
+  }, [open]);
 
   // TV-only remote-key trigger. Phone path is unchanged: early-returns when
   // `Platform.isTV` is false.
@@ -98,9 +95,7 @@ export function ReportFab({ onCompanion }: { onCompanion: () => void }): React.J
       )}
       <Pressable
         testID="open-reporter-button"
-        accessibilityLabel={
-          Platform.isTV && Platform.OS === 'ios' ? 'Open companion reporter' : 'Open Reporter'
-        }
+        accessibilityLabel="Open Reporter"
         accessibilityRole="button"
         // TV: land initial focus here so the remote can press OK immediately.
         hasTVPreferredFocus={Platform.isTV}

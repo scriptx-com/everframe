@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// EverframeProvider mounts the companion HOST SEAM — without it the phone's
-// live view and shot requests are refused with capture_unavailable and a
-// phone-driven submit degrades to report.failed("submit_unavailable"). The
-// sdkKey is the same Web SDK key the companion announces with.
+// EverframeProvider starts the Web SDK for the tester: crashes, errors,
+// breadcrumbs and session replay from a real TV browser.
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EverframeProvider } from '@everframe/react';
 import { App } from './App.js';
-import { SDK_KEY } from './companion/useCompanionConnection.js';
+import { SDK_KEY } from './config.js';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('smarttv-tester: missing #root');

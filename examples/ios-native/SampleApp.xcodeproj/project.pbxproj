@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		09B2985B666065941948A150 /* CompanionQRView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0B7B0A78158AA0E309C0F44 /* CompanionQRView.swift */; };
 		10F8551FC79F3184C47F9AD6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 839721CEF32CC72E34A49468 /* Assets.xcassets */; };
 		12ED70AD6A5CFD29596D7BA5 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 9E4AE6A151AC02EEB2306104 /* README.md */; };
 		1B9C956EF6F5B8E242A0CAE8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3434713EC1AEB7A7B7675EDE /* Assets.xcassets */; };
@@ -47,7 +46,6 @@
 		CAE18D629F59BF68EEB9A38C /* DetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailScreen.swift; sourceTree = "<group>"; };
 		CC130F77C76D7E76DC3B24F7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		DD0E01F9D77DC91660EB290F /* SampleApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SampleApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		F0B7B0A78158AA0E309C0F44 /* CompanionQRView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionQRView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,7 +86,6 @@
 			isa = PBXGroup;
 			children = (
 				839721CEF32CC72E34A49468 /* Assets.xcassets */,
-				F0B7B0A78158AA0E309C0F44 /* CompanionQRView.swift */,
 				CC130F77C76D7E76DC3B24F7 /* ContentView.swift */,
 				9E4AE6A151AC02EEB2306104 /* README.md */,
 				5E88B6F5B0B9F9123B8C4318 /* SampleAppTV.swift */,
@@ -342,7 +339,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				09B2985B666065941948A150 /* CompanionQRView.swift in Sources */,
 				9D841CE74913AAC918A763F5 /* ContentView.swift in Sources */,
 				D7F9A4124CE67E4FB42DFC70 /* SampleAppTV.swift in Sources */,
 				6BB772A3C486FBAABA051BFF /* TVPlaybackScreen.swift in Sources */,
