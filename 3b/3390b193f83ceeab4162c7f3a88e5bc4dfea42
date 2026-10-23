@@ -1,0 +1,27 @@
+.changeset/quick-capture-android.md
+  s_f1c043e85606b2::t_f662c8dc627f17 31-33
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/QuickCapture.kt
+  s_f1c043e85606b2::t_6017399d5a452d 54-55,57,90-91,108-111,288-299,359-378,398
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/QuickCaptureTest.kt
+  s_f1c043e85606b2::t_09a7ef8cf94981 32-34,498-592
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCapture.swift
+  s_f1c043e85606b2::t_b4b038769281e0 33,47-67,155-156,311-328,366-369,372-377
+packages/sdk-ios/Tests/EverframeTests/QuickCaptureTests.swift
+  s_f1c043e85606b2::t_ec03ceb68b5efa 347-410
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3b3390b193f83ceeab4162c7f3a88e5bc4dfea42",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
