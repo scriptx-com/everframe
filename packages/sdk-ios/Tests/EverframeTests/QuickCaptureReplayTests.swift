@@ -212,11 +212,56 @@ struct QuickCaptureReplayTests {
         }
     }
 
-    /// Devices and release builds never arm quick capture, so the flag never
+    /// Unlinked release builds never arm quick capture, so the flag never
     /// reaches their replay.
     @Test func aReleaseBuildNeverForcesReplay() async {
         await withArmedQuickCapture {
             QuickCapture.shared.beginSession(localEnabled: true, debug: false)
+            let session = session([config(replayEnabled: false, hotkey: forcing)])
+            defer { session.teardown() }
+            await session.refreshConfigNow()
+            #expect(!QuickCapture.shared.forcesReplay)
+            #expect(session.__lifecycleStateForTesting() == .idle)
+        }
+    }
+
+    /// On a real iPhone or iPad: `hostMode` is `.device` for the body, and the
+    /// session is a release or debug build, linked or not.
+    private func onRealDevice(debug: Bool, linked: Bool, _ body: @MainActor () async throws -> Void) async rethrows {
+        try await withArmedQuickCapture {
+            let savedMode = QuickCapture.shared.hostMode
+            QuickCapture.shared.hostMode = .device
+            defer { QuickCapture.shared.hostMode = savedMode }
+            QuickCapture.shared.beginSession(localEnabled: true, debug: debug)
+            QuickCapture.shared.setLinked(linked)
+            try await body()
+        }
+    }
+
+    /// A linked device, even a release build, records while the flag is set.
+    @Test func aLinkedReleaseDeviceForcesReplay() async {
+        await onRealDevice(debug: false, linked: true) {
+            let session = session([config(replayEnabled: false, hotkey: forcing)])
+            defer { session.teardown() }
+            await session.refreshConfigNow()
+            #expect(QuickCapture.shared.forcesReplay)
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+        }
+    }
+
+    @Test func aDebugDeviceForcesReplay() async {
+        await onRealDevice(debug: true, linked: false) {
+            let session = session([config(replayEnabled: false, hotkey: forcing)])
+            defer { session.teardown() }
+            await session.refreshConfigNow()
+            #expect(QuickCapture.shared.forcesReplay)
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+        }
+    }
+
+    /// End users' devices never start recording because of quick capture.
+    @Test func anUnlinkedReleaseDeviceNeverForcesReplay() async {
+        await onRealDevice(debug: false, linked: false) {
             let session = session([config(replayEnabled: false, hotkey: forcing)])
             defer { session.teardown() }
             await session.refreshConfigNow()
