@@ -3,7 +3,7 @@
 import type { Stats } from 'node:fs';
 import { open, readFile, stat, type FileHandle } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { parseStagedBuild, type StagedBuild } from '@everframe/protocol';
+import { JS_MAP_MAX_BYTES, parseStagedBuild, type StagedBuild } from '@everframe/protocol';
 import { hashFile } from './manifest.js';
 import { collectNativeIdentity, type RunCommand } from './native-identity.js';
 import { readPartial, writeComplete, writePointer } from './staging-io.js';
@@ -11,7 +11,6 @@ import { readPartial, writeComplete, writePointer } from './staging-io.js';
 import { readBundleIdentity, assertCompiledBuildIdentity } from './bundle-identity.js';
 
 const HERMES_MAGIC = Buffer.from([0xc6, 0x1f, 0xbc, 0x03, 0xc1, 0x03, 0x19, 0x1f]);
-const MAP_MAX_BYTES = 32 * 1024 * 1024;
 
 export interface CollectOptions {
   stagingDir: string;
@@ -65,7 +64,7 @@ export async function collectStagedBuild(options: CollectOptions): Promise<Stage
 
   const mapStat = await statSourceMap(mapPath);
   if (mapStat.size <= 0) throw new Error('source_map_empty');
-  if (mapStat.size > MAP_MAX_BYTES) throw new Error('source_map_too_large');
+  if (mapStat.size > JS_MAP_MAX_BYTES) throw new Error('source_map_too_large');
 
   let sourceMap: unknown;
   try {

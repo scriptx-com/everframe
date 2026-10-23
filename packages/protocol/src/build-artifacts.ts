@@ -58,12 +58,20 @@ export interface SourceMapManifestV2 {
   ];
 }
 
+/**
+ * One JavaScript source map (web, Hermes, Vega). The server parses a map whole, so the ceiling
+ * stays well under V8's longest string; release React Native maps already pass 32 MiB.
+ */
+export const JS_MAP_MAX_BYTES = 256 * 1024 * 1024;
+/** All the maps of one web build together. */
+export const JS_BUILD_MAPS_MAX_BYTES = 1024 * 1024 * 1024;
+
 export const R8_ASSET_URL = 'r8://android/mapping.txt';
 /**
  * R8 mappings grow with the app and its dependencies, not with the shipped
  * bundle: a Compose sample's is 67.5 MiB, and large apps reach several hundred
  * MiB. The server streams them and loads only the classes a crash names, so they
- * share the dSYM per-file ceiling instead of the 32 MiB JavaScript map limit.
+ * share the dSYM per-file ceiling instead of the JavaScript map limit.
  */
 export const R8_MAX_BYTES = 512 * 1024 * 1024;
 
@@ -156,8 +164,6 @@ const BUILD_ID_MAX_CHARS = 200;
 const ASSET_URL_MAX_CHARS = 2048;
 const ARTIFACTS_MAX = 500;
 const MANIFEST_MAX_BYTES = 1024 * 1024;
-const MAP_MAX_BYTES = 32 * 1024 * 1024;
-const BUILD_MAPS_MAX_BYTES = 256 * 1024 * 1024;
 
 const Sha256Schema = z.string().regex(/^[0-9a-f]{64}$/);
 
@@ -181,7 +187,7 @@ const ArtifactSchema = z
     url: z.string().min(1).max(ASSET_URL_MAX_CHARS),
     generatedSha256: Sha256Schema,
     mapSha256: Sha256Schema,
-    mapBytes: z.number().int().positive().max(MAP_MAX_BYTES),
+    mapBytes: z.number().int().positive().max(JS_MAP_MAX_BYTES),
   })
   .strict();
 
@@ -464,7 +470,7 @@ export function parseManifest(input: unknown): SourceMapManifest {
       mapBytes: artifact.mapBytes,
     };
   });
-  if (totalBytes > BUILD_MAPS_MAX_BYTES) {
+  if (totalBytes > JS_BUILD_MAPS_MAX_BYTES) {
     throw new SourceMapManifestError('build_too_large');
   }
   artifacts.sort((left, right) => (left.url < right.url ? -1 : left.url > right.url ? 1 : 0));

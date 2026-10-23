@@ -7,6 +7,7 @@ import { mkdtemp, link, mkdir, readFile, symlink, truncate, writeFile } from 'no
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { JS_MAP_MAX_BYTES } from '@everframe/protocol';
 import { collectHermesBuild } from '../src/hermes.js';
 import { main } from '../src/index.js';
 import { uploadCollectedBuild } from '../src/upload.js';
@@ -154,9 +155,9 @@ describe('collectHermesBuild', () => {
     ).rejects.toThrow('same_input_file');
   });
 
-  it('rejects a sparse source map above 32 MiB without parsing JSON', async () => {
+  it('rejects a sparse source map above 256 MiB without parsing JSON', async () => {
     const f = await fixture();
-    await truncate(f.sourceMapPath, 32 * 1024 * 1024 + 1);
+    await truncate(f.sourceMapPath, JS_MAP_MAX_BYTES + 1);
     await expect(
       collectHermesBuild({
         buildId: 'b',
