@@ -348,13 +348,64 @@ class QuickCaptureTest {
     }
 
     @Test
-    fun queuedUploadReleasesTheFreezeAndSaysSo() {
+    fun queuedUploadReleasesTheFreezeAndAddsNoSecondToast() {
         installReplaySession()
         arm()
         submitResult = { ReportResult.Queued(UUID.randomUUID()) }
         assertEquals(QuickCaptureOutcome.Queued, broadcast())
         assertFalse(Everframe.__replayHasReporterOwner)
-        assertEquals("Captured · uploads when online", ShadowToast.getTextOfLatestToast())
+        assertEquals("only the confirmation: a queued capture is not lost", 1, ShadowToast.shownToastCount())
+        assertEquals(confirmed(), ShadowToast.getTextOfLatestToast())
+    }
+
+    @Test
+    fun confirmationToastIsShownBeforeTheUploadFinishes() {
+        arm()
+        val release = CompletableDeferred<Unit>()
+        val entered = CompletableDeferred<Unit>()
+        submitResult = {
+            entered.complete(Unit)
+            release.await()
+            ReportResult.Submitted(UUID.randomUUID())
+        }
+        val pending = trigger()
+        awaitMain(entered)
+        idleMain()
+        assertEquals("confirmed while the upload is still running", confirmed(), ShadowToast.getTextOfLatestToast())
+        assertEquals(1, ShadowToast.shownToastCount())
+        assertTrue("a second capture stays blocked until the upload finishes", QuickCapture.isCapturing)
+
+        release.complete(Unit)
+        assertEquals(QuickCaptureOutcome.Sent, awaitMain(pending))
+        assertEquals("a sent capture says nothing more", 1, ShadowToast.shownToastCount())
+        assertFalse(QuickCapture.isCapturing)
+    }
+
+    @Test
+    fun rejectedUploadFollowsTheConfirmationWithAFailureToast() {
+        installReplaySession()
+        arm()
+        submitResult = { ReportResult.Cancelled("submit_guard_failed") }
+        assertEquals(QuickCaptureOutcome.Rejected, broadcast())
+        assertEquals(2, ShadowToast.shownToastCount())
+        assertTrue(ShadowToast.showedToast(confirmed()))
+        assertEquals("Capture didn't upload", ShadowToast.getTextOfLatestToast())
+        assertFalse(Everframe.__replayHasReporterOwner)
+    }
+
+    @Test
+    fun gateIgnoredTriggersShowNoConfirmation() {
+        arm()
+        Everframe.report.__setPresenting(true)
+        assertEquals(QuickCaptureOutcome.Ignored("reporter_presenting"), broadcast())
+        Everframe.report.__setPresenting(false)
+        Everframe.captureGate = false
+        assertEquals(QuickCaptureOutcome.Ignored("kill_switch"), broadcast())
+        Everframe.captureGate = true
+        armWithScreenshotDisabled()
+        assertEquals(QuickCaptureOutcome.Ignored("screenshot_disabled"), broadcast())
+        assertEquals(0, ShadowToast.shownToastCount())
+        assertTrue(submits.isEmpty())
     }
 
     @Test
@@ -376,10 +427,10 @@ class QuickCaptureTest {
         installReplaySession()
         arm()
         submitResult = { ReportResult.Cancelled("revoked") }
-        assertEquals(QuickCaptureOutcome.Failed, broadcast())
+        assertEquals(QuickCaptureOutcome.Rejected, broadcast())
         assertFalse("a failed capture releases the frozen replay", Everframe.__replayHasReporterOwner)
         assertFreezeReusable()
-        assertEquals("Capture failed", ShadowToast.getTextOfLatestToast())
+        assertEquals("Capture didn't upload", ShadowToast.getTextOfLatestToast())
         assertFalse(QuickCapture.isCapturing)
     }
 
@@ -388,10 +439,11 @@ class QuickCaptureTest {
         installReplaySession()
         arm()
         submitResult = { error("boom") }
-        assertEquals(QuickCaptureOutcome.Failed, broadcast())
+        assertEquals(QuickCaptureOutcome.Rejected, broadcast())
         assertFalse(Everframe.__replayHasReporterOwner)
         assertFreezeReusable()
-        assertEquals("Capture failed", ShadowToast.getTextOfLatestToast())
+        assertEquals(2, ShadowToast.shownToastCount())
+        assertEquals("Capture didn't upload", ShadowToast.getTextOfLatestToast())
     }
 
     @Test
@@ -401,6 +453,7 @@ class QuickCaptureTest {
         assertEquals(QuickCaptureOutcome.Failed, broadcast())
         assertEquals(0, freezes.get())
         assertTrue(submits.isEmpty())
+        assertEquals("an evidence failure is never confirmed", 1, ShadowToast.shownToastCount())
         assertEquals("Capture failed", ShadowToast.getTextOfLatestToast())
     }
 
@@ -870,10 +923,12 @@ class QuickCaptureTest {
 
     @Test
     fun toastCopy() {
-        assertEquals("Captured · Pixel", QuickCapture.toastText(QuickCaptureOutcome.Sent, "Pixel"))
-        assertEquals("Captured · uploads when online", QuickCapture.toastText(QuickCaptureOutcome.Queued, "Pixel"))
-        assertEquals("Capture failed", QuickCapture.toastText(QuickCaptureOutcome.Failed, "Pixel"))
-        assertNull(QuickCapture.toastText(QuickCaptureOutcome.Ignored("in_flight"), "Pixel"))
+        assertEquals("Captured · Pixel", QuickCapture.confirmedText("Pixel"))
+        assertNull(QuickCapture.toastText(QuickCaptureOutcome.Sent))
+        assertNull(QuickCapture.toastText(QuickCaptureOutcome.Queued))
+        assertEquals("Capture failed", QuickCapture.toastText(QuickCaptureOutcome.Failed))
+        assertEquals("Capture didn't upload", QuickCapture.toastText(QuickCaptureOutcome.Rejected))
+        assertNull(QuickCapture.toastText(QuickCaptureOutcome.Ignored("in_flight")))
     }
 
     // ---- in-app chord (Shift+B) ----
@@ -1111,6 +1166,8 @@ class QuickCaptureTest {
 
     private fun shiftKey(action: Int) =
         KeyEvent(0L, 0L, action, KeyEvent.KEYCODE_SHIFT_LEFT, 0, if (action == KeyEvent.ACTION_DOWN) SHIFT else 0)
+
+    private fun confirmed() = QuickCapture.confirmedText(QuickCapture.deviceName(app))
 
     private fun receivers() = shadowOf(app).registeredReceivers.filter { it.intentFilter.hasAction(QuickCapture.ACTION) }
 

@@ -3,9 +3,11 @@
 //
 // Simulator quick capture: a hotkey (the dashboard's binding, Shift+B by
 // default) pressed in a debug simulator files a report with no UI. The SDK takes the screenshot,
-// freezes replay and evidence exactly as the reporter does at open, submits
-// with `quickCapture: true` plus the developer's capture token, then shows a
-// short toast. Title and description stay empty: the dashboard fills them in.
+// freezes replay and evidence exactly as the reporter does at open, shows a
+// short `Captured` toast as soon as the frozen capture is handed to the
+// submission, then submits with `quickCapture: true` plus the developer's
+// capture token. Only an upload that is rejected and not queued shows a
+// second toast. Title and description stay empty: the dashboard fills them in.
 //
 // Inert unless every gate holds: a simulator, a debug build, the local
 // `quickCaptureEnabled` and `reporterEnabled` options, the dashboard's
@@ -78,7 +80,12 @@ enum QuickCaptureOutcome: Equatable {
     case ignored(reason: String)
     case sent
     case queued
+    /// No capture was handed to the submission: the evidence could not be
+    /// taken or frozen. No `Captured` toast.
     case failed
+    /// The capture was handed off and confirmed, then the submission was
+    /// cancelled or threw, so nothing was sent and nothing is queued.
+    case rejected
 }
 
 /// Session configuration, written from `start()`/`kill()` (any thread) and
@@ -349,9 +356,14 @@ final class QuickCapture {
         if let reason = ignoreReason(hasProvider: provider != nil) { return .ignored(reason: reason) }
         inFlight = true
         defer { inFlight = false }
-        let outcome = await runPipeline(provider: provider)
         let deviceName = environment["SIMULATOR_DEVICE_NAME"] ?? UIDevice.current.name
-        if let text = QuickCaptureToast.text(for: outcome, deviceName: deviceName) { showToast(text) }
+        // Confirmed once the capture is handed off, before the upload finishes:
+        // the upload either succeeds or queues the report, so only a rejection
+        // needs a second word.
+        let outcome = await runPipeline(provider: provider) { [showToast] in
+            showToast(QuickCaptureToast.confirmedText(deviceName: deviceName))
+        }
+        if let text = QuickCaptureToast.text(for: outcome) { showToast(text) }
         return outcome
     }
 
@@ -382,7 +394,9 @@ final class QuickCapture {
 
     /// `EFReporterPresenter.openAndAwait` minus the UI: screenshot first, then
     /// the reporter-open boundary and freeze, then submit and release.
-    private func runPipeline(provider: QuickCaptureEvidenceProvider?) async -> QuickCaptureOutcome {
+    private func runPipeline(
+        provider: QuickCaptureEvidenceProvider?, confirm: @MainActor () -> Void
+    ) async -> QuickCaptureOutcome {
         let shot: ScreenshotCapture.Result
         let hostReplayVTree: Data?
         let sdkName: String
@@ -453,6 +467,7 @@ final class QuickCapture {
             // `IngestEndpoint.url`.
             captureToken: CaptureTokenReader.read(environment: environment, ingestEndpoint: IngestEndpoint.url)
         )
+        confirm()
         do {
             switch try await submit(inputs) {
             case .submitted:
@@ -463,11 +478,12 @@ final class QuickCapture {
                 return .queued
             case .cancelled:
                 lifecycle.cancel(owner)
-                return .failed
+                return .rejected
             }
         } catch {
+            // A terminal upload error: `ReporterSubmission` queues only retryable ones.
             lifecycle.cancel(owner)
-            return .failed
+            return .rejected
         }
     }
 }

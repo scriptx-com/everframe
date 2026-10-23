@@ -659,7 +659,7 @@ final class QuickCaptureTests: XCTestCase {
 
         let failing = makeArmed(submit: { _ in throw Boom() })
         let failedOutcome = await failing.capture()
-        guard case .failed = failedOutcome else { return XCTFail("expected .failed, got \(failedOutcome)") }
+        guard case .rejected = failedOutcome else { return XCTFail("expected .rejected, got \(failedOutcome)") }
         XCTAssertEqual(cancels.count, 1)
         XCTAssertEqual(closes.count, 1)
     }
@@ -685,7 +685,7 @@ final class QuickCaptureTests: XCTestCase {
         let failing = makeArmed(submit: { _ in throw Boom() })
         failing.lifecycle = .live
         let failedOutcome = await failing.capture()
-        guard case .failed = failedOutcome else { return XCTFail("expected .failed, got \(failedOutcome)") }
+        guard case .rejected = failedOutcome else { return XCTFail("expected .rejected, got \(failedOutcome)") }
         XCTAssertFalse(Everframe.shared.__replayHasReporterOwner, "a failed capture must release the freeze owner")
         XCTAssertNil(BreadcrumbRingBuffer.shared.takeFrozen(), "released via cancel: the frozen snapshot is discarded")
 
@@ -926,6 +926,70 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertFalse(QuickCaptureTextInput.isEditable(nil))
     }
 
+    // MARK: Toasts
+
+    func testConfirmationToastIsShownBeforeTheUploadFinishes() async {
+        var released = false
+        let entered = expectation(description: "submit entered")
+        let qc = makeArmed(submit: { _ in
+            entered.fulfill()
+            while !released { try? await Task.sleep(nanoseconds: 10_000_000) }
+            return .submitted(reportId: UUID())
+        })
+        var toasts: [String] = []
+        qc.showToast = { toasts.append($0) }
+        let pending = Task { await qc.capture() }
+        await fulfillment(of: [entered], timeout: 5)
+        XCTAssertEqual(toasts, ["Captured · iPhone Test"], "confirmed while the upload is still running")
+        XCTAssertTrue(qc.isCapturing, "a second capture stays blocked until the upload finishes")
+
+        released = true
+        let outcome = await pending.value
+        XCTAssertEqual(outcome, .sent)
+        XCTAssertEqual(toasts, ["Captured · iPhone Test"], "a sent capture says nothing more")
+        XCTAssertFalse(qc.isCapturing)
+    }
+
+    func testQueuedUploadAddsNoSecondToast() async {
+        let qc = makeArmed(submit: { _ in .queued(reportId: UUID()) })
+        var toasts: [String] = []
+        qc.showToast = { toasts.append($0) }
+        let outcome = await qc.capture()
+        XCTAssertEqual(outcome, .queued)
+        XCTAssertEqual(toasts, ["Captured · iPhone Test"])
+    }
+
+    func testRejectedUploadFollowsTheConfirmationWithAFailureToast() async {
+        struct Rejected: Error {}
+        for submit in [
+            { (_: ReporterSubmission.Inputs) async throws -> ReportResult in .cancelled },
+            { (_: ReporterSubmission.Inputs) async throws -> ReportResult in throw Rejected() },
+        ] {
+            let qc = makeArmed(submit: submit)
+            var toasts: [String] = []
+            qc.showToast = { toasts.append($0) }
+            let outcome = await qc.capture()
+            XCTAssertEqual(outcome, .rejected)
+            XCTAssertEqual(toasts, ["Captured · iPhone Test", "Capture didn't upload"])
+        }
+        XCTAssertEqual(cancels.count, 2)
+    }
+
+    func testGateIgnoredCapturesShowNoConfirmation() async {
+        let qc = makeArmed()
+        var toasts: [String] = []
+        qc.showToast = { toasts.append($0) }
+        ReportAPI.__performSetPresenting(true)
+        let presenting = await qc.capture()
+        XCTAssertTrue(isIgnored(presenting, reason: "reporter_presenting"), "\(presenting)")
+        ReportAPI.__performSetPresenting(false)
+        qc.isApplicationActive = { false }
+        let inactive = await qc.capture()
+        XCTAssertTrue(isIgnored(inactive, reason: "inactive"), "\(inactive)")
+        XCTAssertTrue(toasts.isEmpty)
+        XCTAssertTrue(submitted.isEmpty)
+    }
+
     func testToastWindowExcludedFromScreenshot() {
         let toast = EFQuickCaptureToastWindow(frame: CGRect(x: 0, y: 0, width: 120, height: 40))
         toast.windowLevel = .normal - 1
@@ -943,10 +1007,12 @@ final class QuickCaptureTests: XCTestCase {
     }
 
     func testToastCopy() {
-        XCTAssertEqual(QuickCaptureToast.text(for: .sent, deviceName: "iPhone 18 Pro"), "Captured · iPhone 18 Pro")
-        XCTAssertEqual(QuickCaptureToast.text(for: .queued, deviceName: "iPhone 18 Pro"), "Captured · uploads when online")
-        XCTAssertEqual(QuickCaptureToast.text(for: .failed, deviceName: "iPhone 18 Pro"), "Capture failed")
-        XCTAssertNil(QuickCaptureToast.text(for: .ignored(reason: "in_flight"), deviceName: "iPhone 18 Pro"))
+        XCTAssertEqual(QuickCaptureToast.confirmedText(deviceName: "iPhone 18 Pro"), "Captured · iPhone 18 Pro")
+        XCTAssertNil(QuickCaptureToast.text(for: .sent))
+        XCTAssertNil(QuickCaptureToast.text(for: .queued))
+        XCTAssertEqual(QuickCaptureToast.text(for: .failed), "Capture failed")
+        XCTAssertEqual(QuickCaptureToast.text(for: .rejected), "Capture didn't upload")
+        XCTAssertNil(QuickCaptureToast.text(for: .ignored(reason: "in_flight")))
         XCTAssertEqual(QuickCaptureToast.windowLevel, .alert + 2)
     }
 

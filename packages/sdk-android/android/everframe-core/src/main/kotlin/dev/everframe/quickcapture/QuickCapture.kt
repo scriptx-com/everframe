@@ -5,8 +5,10 @@
 // deliver it, see [AndroidCaptureChord]), or `adb shell am broadcast -a com.everframe.CAPTURE`, sent to a
 // debug build on an emulator files a report with no UI. The SDK
 // takes the screenshot, freezes replay and evidence exactly as the reporter
-// does at open, submits with `quickCapture: true` plus the developer's capture
-// token, then shows a short toast. Title and description stay empty: the
+// does at open, and shows a short `Captured` toast as soon as the frozen capture
+// is handed to the submitter. It then submits with `quickCapture: true` plus the
+// developer's capture token; only an upload that is rejected and not queued
+// shows a second toast. Title and description stay empty: the
 // dashboard fills them in. Android twin of iOS `QuickCapture.swift`.
 //
 // The receiver is registered only on a debug build, on an emulator, with the
@@ -81,7 +83,12 @@ internal sealed interface QuickCaptureOutcome {
     data class Ignored(val reason: String) : QuickCaptureOutcome
     data object Sent : QuickCaptureOutcome
     data object Queued : QuickCaptureOutcome
+
+    /** No capture was handed to the submitter: the evidence could not be taken or frozen. No `Captured` toast. */
     data object Failed : QuickCaptureOutcome
+
+    /** The capture was handed off and confirmed, then the submission was cancelled or rejected and not queued. */
+    data object Rejected : QuickCaptureOutcome
 }
 
 internal object QuickCapture {
@@ -293,10 +300,10 @@ internal object QuickCapture {
             // not freeze over or consume. Checked after the claim, so no capture of ours can slip between.
             if (Everframe.__replayHasReporterOwner) return QuickCaptureOutcome.Ignored("capture_frozen")
             val appContext = activity!!.applicationContext
-            val outcome = runPipeline(appContext, activity, provider)
-            toastText(outcome, deviceName(appContext))?.let { text ->
-                withContext(Dispatchers.Main) { Toast.makeText(appContext, text, Toast.LENGTH_SHORT).show() }
-            }
+            // Shown once the capture is handed off, before the upload finishes: the upload either succeeds or
+            // queues the report, so only a rejection needs a second word.
+            val outcome = runPipeline(appContext, activity, provider) { toast(appContext, confirmedText(deviceName(appContext))) }
+            toastText(outcome)?.let { toast(appContext, it) }
             return outcome
         } finally {
             inFlight.set(false)
@@ -327,6 +334,7 @@ internal object QuickCapture {
         appContext: Context,
         activity: Activity,
         provider: (suspend () -> QuickCaptureHostEvidence?)?,
+        confirm: suspend () -> Unit,
     ): QuickCaptureOutcome {
         val shot: ScreenshotCapture.CaptureResult
         val hostReplayVTree: ByteArray?
@@ -370,6 +378,9 @@ internal object QuickCapture {
         } catch (_: Throwable) {
             return QuickCaptureOutcome.Failed
         }
+        // Set once the capture is confirmed and handed to the submitter: a failure after that is a rejected
+        // upload, not a capture that never happened.
+        var handedOff = false
         try {
             // Consume-once host payload, exactly as the reporter drains it at open.
             val hostExtra = Everframe.consumePendingAttachments()?.takeIf { it.isNotEmpty() }
@@ -379,6 +390,8 @@ internal object QuickCapture {
                 capture.cancel()
                 return QuickCaptureOutcome.Failed
             }
+            confirm()
+            handedOff = true
             val result = submitter(
                 CompanionSubmissionComposer.Inputs(
                     activity = activity,
@@ -405,14 +418,16 @@ internal object QuickCapture {
             return when (result) {
                 is ReportResult.Submitted -> QuickCaptureOutcome.Sent.also { capture.finishConsumption() }
                 is ReportResult.Queued -> QuickCaptureOutcome.Queued.also { capture.finishConsumption() }
-                is ReportResult.Cancelled -> QuickCaptureOutcome.Failed.also { capture.cancel() }
+                // Cancelled (kill switch, revoked session) or a terminal rejection the composer turned into one:
+                // nothing was sent and nothing is queued.
+                is ReportResult.Cancelled -> QuickCaptureOutcome.Rejected.also { capture.cancel() }
             }
         } catch (e: CancellationException) {
             capture.cancel()
             throw e
         } catch (_: Throwable) {
             capture.cancel()
-            return QuickCaptureOutcome.Failed
+            return if (handedOff) QuickCaptureOutcome.Rejected else QuickCaptureOutcome.Failed
         }
     }
 
@@ -440,11 +455,27 @@ internal object QuickCapture {
         }
     }
 
-    internal fun toastText(outcome: QuickCaptureOutcome, deviceName: String): String? = when (outcome) {
-        QuickCaptureOutcome.Sent -> "Captured · $deviceName"
-        QuickCaptureOutcome.Queued -> "Captured · uploads when online"
+    /** The toast shown when the capture is handed off, before its upload finishes. */
+    internal fun confirmedText(deviceName: String): String = "Captured · $deviceName"
+
+    /**
+     * The toast after the pipeline ends, if any. A sent or queued capture was already confirmed and says nothing
+     * more; an ignored trigger never says anything.
+     */
+    internal fun toastText(outcome: QuickCaptureOutcome): String? = when (outcome) {
+        QuickCaptureOutcome.Sent, QuickCaptureOutcome.Queued, is QuickCaptureOutcome.Ignored -> null
         QuickCaptureOutcome.Failed -> "Capture failed"
-        is QuickCaptureOutcome.Ignored -> null
+        QuickCaptureOutcome.Rejected -> "Capture didn't upload"
+    }
+
+    /** A toast never decides a capture's outcome: a failure to show one is dropped. */
+    private suspend fun toast(appContext: Context, text: String) {
+        try {
+            withContext(Dispatchers.Main) { Toast.makeText(appContext, text, Toast.LENGTH_SHORT).show() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+        }
     }
 
     /** Shown in the local toast only, never sent. */

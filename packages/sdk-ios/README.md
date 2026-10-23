@@ -446,9 +446,12 @@ While you test a build in the iOS simulator, press **⇧B** (outside a text
 field) to file a report without opening the reporter. The tvOS simulator is not yet
 verified. The SDK takes the
 screenshot first, freezes the replay window, logs, breadcrumbs and network the
-same way the reporter does, uploads the report at once, and then shows a short
-toast: `Captured · <device name>`, `Captured · uploads when online` when the
-upload was queued, or `Capture failed`. The toast is never part of the
+same way the reporter does, shows a short `Captured · <device name>` toast as
+soon as the capture is handed to the upload, and uploads the report at once. A
+report that cannot upload right now is queued and sent later, with no further
+toast. Only an upload that is rejected and not queued adds
+`Capture didn't upload`; a capture whose screenshot or freeze fails shows
+`Capture failed` instead of `Captured`. The toast is never part of the
 screenshot. Title and description stay empty; you fill them in on the
 dashboard. Like the reporter, a quick capture consumes the pending
 `Everframe.shared.setExtra` payload.
