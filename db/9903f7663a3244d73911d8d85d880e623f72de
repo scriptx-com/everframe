@@ -1,0 +1,33 @@
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkCoordinator.swift
+  s_f1c043e85606b2::t_23a7f25ce83004 90-91,122,130,151-155,208-212,228-232,241-249,292-295,297-299,306-308,310-313,388-391,393
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkStore.swift
+  s_f1c043e85606b2::t_c752a937b6250a 35-48,62,66-67,70-77,81
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_f1c043e85606b2::t_4c76ac74df578b 1285
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCapture.swift
+  s_f1c043e85606b2::t_8ae23db006bcec 217-218,220-225,472-473,523-526,528,646,667-669
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkCoordinatorTests.swift
+  s_f1c043e85606b2::t_7f1c0f59e69b01 254,280,298,307,357,360,446,454,491-554,641-654
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkSessionWiringTests.swift
+  s_f1c043e85606b2::t_3760c461587fd9 17-23
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkStoreTests.swift
+  s_f1c043e85606b2::t_6e86bf5f4b3ee6 94-189
+packages/sdk-ios/Tests/EverframeTests/QuickCaptureDeviceTests.swift
+  s_f1c043e85606b2::t_83a971c78624fe 22-23,41-42,67-74,181-182,232-234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "db9903f7663a3244d73911d8d85d880e623f72de",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
