@@ -1,0 +1,33 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbTapNavAdapters.kt
+  s_f1c043e85606b2::t_704b11e84baa6e 78,366-376,380
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/DeviceLink.kt
+  s_f1c043e85606b2::t_3239636339b9b3 27-32,41-43,68-71,84-85,127-128,137-184,197,213,217,288,297-298,414
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/DeviceLinkClient.kt
+  s_f1c043e85606b2::t_13144d64df8071 4-5,11,18-19,26,100,173-203,217,223
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/DeviceLinkCopy.kt
+  s_f1c043e85606b2::t_0c65ba18fdf572 25-28
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/GestureRecording.kt
+  s_f1c043e85606b2::t_72faadd57a977c 1-119
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/GestureRecorder.kt
+  s_f1c043e85606b2::t_b88726bbdc8e8e 1-54
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/devicelink/GestureRecordingTest.kt
+  s_f1c043e85606b2::t_088f9c22f89f74 1-298
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/GestureRecorderTest.kt
+  s_f1c043e85606b2::t_1722b40b472d4a 1-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7039039eec13b1beefaa0c9b021cb5d5c3f38609",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
