@@ -442,8 +442,8 @@ For the cross-SDK contract statement see the top-level
 
 ## Quick capture (simulators)
 
-While you test a build in the iOS simulator, double-tap **Shift** to
-file a report without opening the reporter. The tvOS simulator is not yet
+While you test a build in the iOS simulator, press **⇧B** (outside a text
+field) to file a report without opening the reporter. The tvOS simulator is not yet
 verified. The SDK takes the
 screenshot first, freezes the replay window, logs, breadcrumbs and network the
 same way the reporter does, uploads the report at once, and then shows a short
@@ -453,11 +453,17 @@ screenshot. Title and description stay empty; you fill them in on the
 dashboard. Like the reporter, a quick capture consumes the pending
 `Everframe.shared.setExtra` payload.
 
-- **Trigger.** Double Shift by default. The dashboard's per-app capture hotkey
-  setting can pick a chord such as `Mod+Shift+B` instead. Modifier presses
-  reach the app even while the simulator window's sidebar has focus; a chord
-  with a letter needs a click on the device screen first, and a click on the
-  screen is a tap the app sees.
+- **Trigger.** ⇧B by default, the same gesture as on Android emulators. The
+  dashboard's per-app capture hotkey setting can pick another binding: double
+  Shift, or a chord such as `Mod+Shift+B`. A binding that is also ordinary
+  typing (a key alone or with Shift only, such as ⇧B) is skipped while an
+  editable text input is first responder (`UITextField`, an editable
+  `UITextView`, React Native and Flutter text inputs), so typing a capital B
+  stays typing. Double Shift and chords with ⌘, ⌃ or ⌥ fire whatever has
+  focus. The key press still reaches the app. Modifier presses reach the app
+  even while the simulator window's sidebar has focus; a chord with a letter
+  needs a click on the device screen first, and a click on the screen is a tap
+  the app sees.
 - **Simulators only.** It never runs on a physical device. Every simulator
   build counts as a debug build, Release configuration included, unless the
   app sets `EverframeConfig.debugBuild = false`.
@@ -491,7 +497,7 @@ dashboard. Like the reporter, a quick capture consumes the pending
 - **Capture from your Mac.** `npx @everframe/cli capture` posts the Darwin
   notification `com.everframe.capture` to the booted simulator
   (`xcrun simctl spawn <udid> notifyutil -p com.everframe.capture`), which
-  files the same capture as the double-Shift trigger. It follows the same
+  files the same capture as the hotkey. It follows the same
   gates: a simulator build (not opted out with `debugBuild = false`) with the
   dashboard's capture hotkey setting on, and nothing happens while the reporter
   is on screen or a capture is uploading. With several simulators booted, pass `--device <udid>`.

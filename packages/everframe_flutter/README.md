@@ -121,8 +121,12 @@ macOS remains an unreleased probe.
 
 ## Quick capture
 
-In a debug iOS simulator or Android emulator, simulator quick capture files a
-report from a hotkey or `npx @everframe/cli capture`, with no reporter UI.
+In a debug iOS simulator or Android emulator, quick capture files a report when
+you press ⇧B in the app (outside a text field) or run
+`npx @everframe/cli capture`, with no reporter UI. iOS simulators also take the
+other bindings the dashboard offers (double Shift, ⌘ combos); Android emulators
+use the dashboard binding only when it is Shift plus a letter or digit, and ⇧B
+otherwise.
 Run `npx @everframe/cli login` once so captures are attributed to you.
 Flutter masks in Dart, so the native SDK never takes its own screenshot in a
 Flutter app. It ignores quick capture until you supply the masked Flutter frame:

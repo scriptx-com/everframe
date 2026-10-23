@@ -713,9 +713,11 @@ menu also uses shake. Production remains enabled by default.
 #### Quick capture on simulators and emulators
 
 Debug builds on an iOS simulator or Android emulator can file a report without
-opening the reporter: double Shift on the simulator, or
-`npx @everframe/cli capture` (and `npx @everframe/cli hotkey` on macOS) from
-your terminal. Run `npx @everframe/cli login` once so captures are attributed
+opening the reporter: press ⇧B in the app (outside a `TextInput`), or run
+`npx @everframe/cli capture` from your terminal. iOS simulators also take the
+other bindings the dashboard offers (double Shift, ⌘ combos); Android
+emulators use the dashboard binding only when it is Shift plus a letter or
+digit, and ⇧B otherwise. Run `npx @everframe/cli login` once so captures are attributed
 to you. It stays dark until the dashboard turns the capture hotkey on for the
 app, and never runs on devices or release builds. To opt this app out locally:
 

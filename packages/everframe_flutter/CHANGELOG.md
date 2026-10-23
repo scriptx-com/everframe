@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
+## Unreleased
+
+- Quick capture's gesture is ⇧B in the app on both the iOS simulator and the Android emulator, skipped while a text field has focus. The native SDKs handle the key, so no Dart change is needed; this needs native Everframe 1.5.1. iOS simulators also take the dashboard's other bindings (double Shift, ⌘ combos); Android emulators use the dashboard binding only when it is Shift plus a letter or digit, and ⇧B otherwise. `npx @everframe/cli capture` still works.
+
 ## 1.5.0
 
 - Simulator quick capture for Flutter apps on the iOS simulator and Android emulator (debug builds only). The native SDK never takes its own screenshot in a Flutter app, so quick capture stays ignored until `enableQuickCapture(boundaryKey:, sensitiveRegions:, replayBuffer:)` supplies masked Flutter evidence. Each capture then sends the same masked screenshot as `openReporter`, plus, when session replay is enabled for the app, a snapshot of the replay buffer's masked frames. The dashboard's capture-hotkey replay force does not apply to Flutter replay. A capture whose masked frame cannot be produced safely fails, and no image is sent. `disableQuickCapture()` removes the registration.
