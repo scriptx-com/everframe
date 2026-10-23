@@ -542,7 +542,7 @@ class ReplayConfigProviderTest {
         // that declare it, so this header is the whole reason any of these
         // blocks arrive. Adding a capability here is a real contract change and
         // should have to be made on purpose.
-        assertEquals("networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking, capturegesture, nativevideo, nativevideolowfps", seen?.header("X-Everframe-SDK-Features"))
+        assertEquals("networkbodies, identity, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking, capturegesture, nativevideo, nativevideolowfps", seen?.header("X-Everframe-SDK-Features"))
     }
 
     @Test
@@ -1032,15 +1032,12 @@ class ReplayConfigProviderTest {
         assertEquals(false, p.current.networkBodies?.captureBodies)
     }
 
-    // ==================== companion badge dashboard config (2026-08-25) ====================
+    // ==================== companion badge block (deprecated: Companion removed) ====================
     //
-    // Server-driven companion name-badge override, sent ONLY when this SDK
-    // declares `companionbadge` in X-Everframe-SDK-Features. `position` is decoded
-    // verbatim as a STRING here (the wire shape); resolution to a
-    // CompanionBadgePosition, including the fallback for an unrecognised
-    // value, happens at the badge (parseCompanionBadgePositionOrNull) — this
-    // decoder's only job is scoped leniency on unknown nested fields, same
-    // posture as identity above.
+    // Nothing reads the block any more and this SDK no longer declares
+    // `companionbadge`, but a config from an older server or a stale cache may
+    // still carry it. This decoder runs with `ignoreUnknownKeys = false`, so the
+    // field must stay declared or the whole config would fail to parse.
 
     @Test
     fun `decodes companionBadge block`() = runTest {
@@ -1085,8 +1082,8 @@ class ReplayConfigProviderTest {
     }
 
     @Test
-    fun `features header advertises companionbadge`() {
-        assertTrue(
+    fun `features header no longer advertises companionbadge`() {
+        assertFalse(
             ReplayConfigProvider.SDK_FEATURES_HEADER_VALUE.contains("companionbadge"),
         )
     }

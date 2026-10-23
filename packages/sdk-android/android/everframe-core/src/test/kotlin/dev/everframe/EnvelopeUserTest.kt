@@ -461,7 +461,7 @@ class EnvelopeUserTest {
 
     /**
      * Independent review, P1 — the crash path has the identical shape to
-     * `ReporterDialog.kt`/`CompanionSubmissionComposer.kt`'s live-submit fix.
+     * `ReporterDialog.kt`/`SubmissionComposer.kt`'s live-submit fix.
      * `captured.user.resolve()` (asserted just above by `a crash is anonymous
      * when another project starts during processing`) already drops the
      * self-declared USER on an epoch mismatch — but the raw

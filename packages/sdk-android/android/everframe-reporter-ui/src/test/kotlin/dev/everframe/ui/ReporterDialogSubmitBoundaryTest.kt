@@ -19,7 +19,7 @@
 // environment has no ingest server, so `ReportSubmitter` classifies the
 // connection failure as retryable and enqueues the envelope to the `JSONLOutbox`
 // — which is exactly where we read the produced bytes from (the same technique
-// `CompanionSubmissionComposerTest` uses for the sibling path).
+// `SubmissionComposerTest` uses for the sibling path).
 package dev.everframe.ui
 
 import android.graphics.Bitmap
@@ -564,7 +564,7 @@ class ReporterDialogSubmitBoundaryTest {
      * bytes it queued. `submitBaked` posts to the main looper (replay read),
      * which under Robolectric's PAUSED looper only advances when this thread
      * idles it — so the call runs on another dispatcher while this thread
-     * drains, mirroring `CompanionSubmissionComposerTest`.
+     * drains, mirroring `SubmissionComposerTest`.
      */
     private fun submitAndCaptureEnvelopeBytes(
         userAtSendTap: TXUser?,

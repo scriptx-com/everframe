@@ -19,7 +19,6 @@ import dev.everframe.capture.ScreenshotCapture
 import dev.everframe.capture.TXWindowCallbackWrapper
 import dev.everframe.capture.replay.ReplaySession
 import dev.everframe.capture.video.FrozenReportCapture
-import dev.everframe.companion.CompanionSubmissionComposer
 import dev.everframe.config.CaptureConfig
 import dev.everframe.config.Environment
 import dev.everframe.config.EverframeConfig
@@ -58,9 +57,9 @@ import org.robolectric.shadows.ShadowToast
 class QuickCaptureTest {
     private val app: Application = ApplicationProvider.getApplicationContext()
     private lateinit var activity: Activity
-    private val submits = CopyOnWriteArrayList<CompanionSubmissionComposer.Inputs>()
+    private val submits = CopyOnWriteArrayList<SubmissionComposer.Inputs>()
     private val freezes = AtomicInteger()
-    private var submitResult: suspend (CompanionSubmissionComposer.Inputs) -> ReportResult =
+    private var submitResult: suspend (SubmissionComposer.Inputs) -> ReportResult =
         { ReportResult.Submitted(UUID.randomUUID()) }
     private var priorSupplier: (() -> Activity?)? = null
     private var priorCaptureGate = false
@@ -271,9 +270,8 @@ class QuickCaptureTest {
     fun ignoredWhileAnotherCaptureHoldsTheFreeze() {
         installReplaySession()
         arm()
-        // The companion freezes without marking the reporter presenting, and the
-        // in-app reporter freezes before its dialog shows.
-        val held = Everframe.__replayFreeze(ReporterTrigger.Companion)
+        // The in-app reporter freezes before its dialog shows.
+        val held = Everframe.__replayFreeze(ReporterTrigger.Button)
         try {
             assertTrue(Everframe.__replayHasReporterOwner)
             assertEquals(QuickCaptureOutcome.Ignored("capture_frozen"), broadcast())
@@ -327,7 +325,6 @@ class QuickCaptureTest {
         assertEquals("", inputs.title)
         assertEquals("", inputs.description)
         assertTrue(inputs.includeLogs && inputs.includeNetwork && inputs.includeMetadata)
-        assertNull(inputs.companionAttribution)
         assertSame(activity, inputs.activity)
         assertEquals("""{"host":"payload"}""", inputs.hostExtra)
         assertNull("the pending extra is consumed once", runBlocking { Everframe.consumePendingAttachments() })

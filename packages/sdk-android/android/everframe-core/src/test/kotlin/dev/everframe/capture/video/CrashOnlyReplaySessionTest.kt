@@ -2,8 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Crash-only sessions (spec 2026-10-12): a session started with reporterEnabled = false samples replay at
-// the server's crashOnlySamplingRate and keeps network bodies off, until a companion bond upgrades it to
-// report coverage for the rest of the session. Error replays follow recording: with no recorder,
+// the server's crashOnlySamplingRate and keeps network bodies off for the whole session. Error replays follow recording: with no recorder,
 // beginErrorReplay() returns null, so an error carries no replay and no replay_omitted flag
 // (ErrorReplayCaptureTest's "without a recording the error is stored exactly as before").
 
@@ -14,8 +13,6 @@ import dev.everframe.Everframe
 import dev.everframe.capture.NetworkBodyCaptureState
 import dev.everframe.capture.replay.ReplayCoverage
 import dev.everframe.capture.replay.ReplaySession
-import dev.everframe.companion.Companion
-import dev.everframe.companion.CompanionState
 import dev.everframe.config.CaptureConfig
 import dev.everframe.config.ConfigFetcher
 import dev.everframe.config.EverframeConfig
@@ -73,7 +70,6 @@ class CrashOnlyReplaySessionTest {
     @Before fun setUp() {
         dev.everframe.shared.SharedData.init(ApplicationProvider.getApplicationContext())
         NetworkBodyCaptureState.resetForTesting()
-        Companion.__setState(CompanionState.Unpaired)
         Everframe.captureGate = true
         Everframe.__setConfigForTesting(config(reporterEnabled = false))
         session = buildSession()
@@ -110,9 +106,8 @@ class CrashOnlyReplaySessionTest {
 
     @After fun tearDown() {
         session.teardown(); drainMain()
-        // kill() is the production reset: it ends the upgrade, the config and the gate together.
+        // kill() is the production reset: it ends the config and the gate together.
         Everframe.kill()
-        Companion.__setState(CompanionState.Unpaired)
         NetworkBodyCaptureState.resetForTesting()
         h.root.deleteRecursively()
     }
@@ -159,67 +154,6 @@ class CrashOnlyReplaySessionTest {
         assertTrue(NetworkBodyCaptureState.isActive)
     }
 
-    @Test fun aCompanionBondUpgradesTheRunningSessionToReportCoverage() {
-        refresh()
-        assertEquals(0, recorders.get())
-        Everframe._replaySession = session
-        try {
-            Everframe.__onCompanionMemberAttached()
-            assertFalse("the upgrade is visible at once", Everframe.crashOnlyCoverage())
-            // The bond forces a refresh of the installed session on the SDK scope.
-            val deadline = System.currentTimeMillis() + 5_000
-            while (lifecycle() != NativeVideoRecorder.State.BUFFERING) {
-                assertTrue("the bond's refresh never started recording", System.currentTimeMillis() < deadline)
-                Thread.sleep(10)
-            }
-            drainMain()
-        } finally { Everframe._replaySession = null }
-        assertEquals(1, recorders.get())
-        assertTrue("server body rules apply from the bond on", NetworkBodyCaptureState.isActive)
-        assertTrue("errors after the bond carry replays", errorReplayAttaches())
-    }
-
-    @Test fun theUpgradeOutlivesLaterRefreshesAndADetach() {
-        refresh()
-        Everframe.__onCompanionMemberAttached() // No installed session: the next refresh reads the upgrade.
-        refresh()
-        assertEquals(1, recorders.get())
-        Companion.__setAttachedUserName(null)
-        Companion.__setState(CompanionState.Unpaired)
-        refresh(); refresh()
-        assertFalse(Everframe.crashOnlyCoverage())
-        assertEquals("the recording is kept, never revoked and restarted", 1, recorders.get())
-        assertEquals(NativeVideoRecorder.State.BUFFERING, lifecycle())
-        assertTrue(NetworkBodyCaptureState.isActive)
-    }
-
-    @Test fun anUpgradeKeepsAnAlreadySampledCrashOnlyRecording() {
-        crashOnlyRate = "1.0"
-        refresh()
-        assertEquals(1, recorders.get())
-        Everframe.__onCompanionMemberAttached()
-        refresh()
-        assertEquals("one draw for both kinds: the upgrade never restarts or stops it", 1, recorders.get())
-        assertEquals(NativeVideoRecorder.State.BUFFERING, lifecycle())
-    }
-
-    @Test fun anUpgradeKeepsRecordingWhenTheCrashOnlyRateIsAboveTheReportRate() {
-        // Every draw passes a crash-only rate of 1 and none passes a report rate of 0. Sampling an
-        // upgraded session at samplingRate alone would revoke this recording on the next refresh.
-        reportRate = "0.0"
-        crashOnlyRate = "1.0"
-        refresh()
-        assertEquals(1, recorders.get())
-        Everframe.__onCompanionMemberAttached()
-        refresh(); refresh()
-        assertEquals(ReplayCoverage.Upgraded, Everframe.replayCoverage())
-        assertEquals("the upgrade keeps the recording", 1, recorders.get())
-        assertEquals(NativeVideoRecorder.State.BUFFERING, lifecycle())
-        assertTrue(errorReplayAttaches())
-    }
-
-    private fun upgrade() { Everframe.__onCompanionMemberAttached(); runBlocking { session.applyCompanionUpgrade() }; drainMain() }
-
     @Test fun anAdmittedCrashOnlySessionKeepsRecordingWhenTheRateDrops() {
         crashOnlyRate = "1.0"
         refresh()
@@ -248,150 +182,9 @@ class CrashOnlyReplaySessionTest {
         assertEquals("a no is not sticky: a raised rate admits the session", 1, recorders.get())
     }
 
-    @Test fun anUpgradeInheritsTheCrashOnlyAdmissionAfterBothRatesDrop() {
-        crashOnlyRate = "1.0"
-        refresh()
-        assertEquals(1, recorders.get())
-        crashOnlyRate = "0.0"; reportRate = "0.0"
-        upgrade()
-        refresh()
-        assertEquals(ReplayCoverage.Upgraded, Everframe.replayCoverage())
-        assertEquals("neither live rate admits the draw, the admission carries over", 1, recorders.get())
-        assertEquals(NativeVideoRecorder.State.BUFFERING, lifecycle())
-    }
-
-    @Test fun theBondReappliesTheConfirmedConfigWithoutFetching() {
-        refresh()
-        assertEquals(0, recorders.get())
-        val before = fetches.get()
-        serverDown = true
-        Everframe._replaySession = session
-        try {
-            Everframe.__onCompanionMemberAttached()
-            val deadline = System.currentTimeMillis() + 5_000
-            while (lifecycle() != NativeVideoRecorder.State.BUFFERING) {
-                assertTrue("the bond never started recording", System.currentTimeMillis() < deadline)
-                Thread.sleep(10)
-            }
-            drainMain()
-        } finally { Everframe._replaySession = null }
-        assertEquals("the upgrade uses the confirmed config, no fetch", before, fetches.get())
-        assertEquals(1, recorders.get())
-        assertTrue(NetworkBodyCaptureState.isActive)
-    }
-
-    @Test fun anUnreachableServerAtTheBondNeverRevokesTheCrashOnlyRecording() {
-        crashOnlyRate = "1.0"
-        refresh()
-        assertEquals(1, recorders.get())
-        serverDown = true
-        val before = fetches.get()
-        upgrade()
-        assertEquals(before, fetches.get())
-        assertEquals("the recording survives the upgrade", 1, recorders.get())
-        assertEquals(NativeVideoRecorder.State.BUFFERING, lifecycle())
-        assertTrue(errorReplayAttaches())
-    }
-
-    @Test fun aBondWithNoConfirmedConfigFetches() {
-        serverDown = true
-        refresh()
-        assertEquals(0, recorders.get())
-        serverDown = false
-        val before = fetches.get()
-        upgrade()
-        assertEquals("a failed last refresh leaves nothing to re-apply", before + 1, fetches.get())
-        assertEquals(1, recorders.get())
-    }
-
-    @Test fun upgradedCoverageSamplesAtTheHigherOfBothRates() {
+    @Test fun eachCoverageSamplesAtItsOwnRate() {
         assertEquals(0.4, ReplayCoverage.Report.samplingRate(0.4, 0.9), 0.0)
         assertEquals(0.9, ReplayCoverage.CrashOnly.samplingRate(0.4, 0.9), 0.0)
         assertEquals(0.0, ReplayCoverage.CrashOnly.samplingRate(0.4, null), 0.0)
-        assertEquals(0.9, ReplayCoverage.Upgraded.samplingRate(0.4, 0.9), 0.0)
-        assertEquals(0.4, ReplayCoverage.Upgraded.samplingRate(0.4, 0.1), 0.0)
-        assertEquals(0.4, ReplayCoverage.Upgraded.samplingRate(0.4, null), 0.0)
-    }
-
-    @Test fun aCrashOnlySessionThatStartsWhileCompanionIsBondedStartsUpgraded() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        Companion.__setState(CompanionState.Paired)
-        Everframe.start(context, config(reporterEnabled = false))
-        assertEquals("no new pair.bonded comes for a bond that already exists",
-            ReplayCoverage.Upgraded, Everframe.replayCoverage())
-
-        Companion.__beginReport("c1")
-        Everframe.start(context, config(reporterEnabled = false))
-        assertEquals("a companion report in progress is a bond", ReplayCoverage.Upgraded, Everframe.replayCoverage())
-
-        Companion.__setState(CompanionState.PhoneDisconnected)
-        Everframe.start(context, config(reporterEnabled = false))
-        assertEquals("a phone away inside the grace window is still bonded",
-            ReplayCoverage.Upgraded, Everframe.replayCoverage())
-    }
-
-    @Test fun theStartUpgradeNeedsABondAndACrashOnlySession() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        Everframe.start(context, config(reporterEnabled = false))
-        assertEquals("unpaired: crash-only", ReplayCoverage.CrashOnly, Everframe.replayCoverage())
-
-        // Backgrounding enters PhoneDisconnected without any bond (RelayWSClient.onStop).
-        Companion.__setState(CompanionState.PhoneDisconnected)
-        Everframe.start(context, config(reporterEnabled = false))
-        assertEquals("a backgrounded, never-bonded companion is no bond",
-            ReplayCoverage.CrashOnly, Everframe.replayCoverage())
-
-        Companion.__setState(CompanionState.Paired)
-        Everframe.start(context, config(reporterEnabled = true))
-        assertEquals("a report session is never upgraded", ReplayCoverage.Report, Everframe.replayCoverage())
-
-        // A detach ends the bond: the next start is crash-only again.
-        Companion.__setState(CompanionState.Unpaired)
-        Everframe.start(context, config(reporterEnabled = false))
-        assertEquals(ReplayCoverage.CrashOnly, Everframe.replayCoverage())
-    }
-
-    @Test fun aStartWhileBondedRecordsFromItsFirstRefresh() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        Companion.__setState(CompanionState.Paired)
-        Everframe.start(context, config(reporterEnabled = false))
-        // A session belongs to the start that built it: build one for this start.
-        session.teardown(); drainMain()
-        session = buildSession()
-        refresh()
-        assertEquals("the upgraded session records at samplingRate", 1, recorders.get())
-        assertTrue(NetworkBodyCaptureState.isActive)
-    }
-
-    @Test fun killEndsTheUpgrade() {
-        Everframe.__onCompanionMemberAttached()
-        assertFalse(Everframe.crashOnlyCoverage())
-        Everframe.kill()
-        Everframe.captureGate = true
-        Everframe.__setConfigForTesting(config(reporterEnabled = false))
-        assertTrue("the next crash-only session starts without coverage", Everframe.crashOnlyCoverage())
-    }
-
-    @Test fun aBondOutsideARunningCrashOnlySessionUpgradesNothing() {
-        Everframe.captureGate = false
-        Everframe.__onCompanionMemberAttached()
-        Everframe.captureGate = true
-        assertTrue("a bond while capture is off is not this session's upgrade", Everframe.crashOnlyCoverage())
-
-        Everframe.__setConfigForTesting(config(reporterEnabled = true))
-        Everframe.__onCompanionMemberAttached()
-        Everframe.__setConfigForTesting(config(reporterEnabled = false))
-        assertTrue("a report session has nothing to upgrade", Everframe.crashOnlyCoverage())
-        refresh()
-        assertEquals(0, recorders.get())
-    }
-
-    @Test fun aNewStartEndsTheUpgrade() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        Everframe.start(context, config(reporterEnabled = false))
-        Everframe.__onCompanionMemberAttached()
-        assertFalse(Everframe.crashOnlyCoverage())
-        Everframe.start(context, config(reporterEnabled = false))
-        assertTrue("a bond upgrades one session only", Everframe.crashOnlyCoverage())
     }
 }

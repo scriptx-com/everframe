@@ -3,7 +3,7 @@
 //
 // Task 9 review fix (spec 2026-08-12) — `TXUserExtras.from(TXUser?)` is the
 // single mapping used by all three real `buildEncoded` call sites
-// (CompanionSubmissionComposer, CrashReporter, ReporterDialog). It's a plain
+// (SubmissionComposer, CrashReporter, ReporterDialog). It's a plain
 // Kotlin function with no Android/Compose dependency, so it's covered here
 // directly rather than only indirectly through each call site's own
 // (heavier, Robolectric-backed) test — this one test now covers the mapping

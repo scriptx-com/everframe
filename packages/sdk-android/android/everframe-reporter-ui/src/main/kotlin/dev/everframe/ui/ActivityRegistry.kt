@@ -23,29 +23,14 @@ internal object ActivityRegistry : Application.ActivityLifecycleCallbacks {
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
     override fun onActivityStarted(activity: Activity) {}
     override fun onActivityResumed(activity: Activity) {
-        if (current.get() !== activity) CompanionPinPresenter.onActivityGone()
         current = java.lang.ref.WeakReference(activity)
-        // Re-present a held attach-PIN challenge (spec 2026-08-19) — see
-        // CompanionPinPresenter's own doc for why this is gated on the
-        // flow's CURRENT value rather than replaying whatever landed while
-        // backgrounded.
-        CompanionPinPresenter.onActivityResumed()
     }
     override fun onActivityPaused(activity: Activity) {
-        if (current.get() === activity) {
-            current.clear()
-            // Dialog-vs-Activity-death guard: an AlertDialog leaks if its
-            // Activity finishes underneath it. The challenge stays in the
-            // flow; the next resume re-presents it.
-            CompanionPinPresenter.onActivityGone()
-        }
+        if (current.get() === activity) current.clear()
     }
     override fun onActivityStopped(activity: Activity) {}
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
     override fun onActivityDestroyed(activity: Activity) {
-        if (current.get() === activity) {
-            current.clear()
-            CompanionPinPresenter.onActivityGone()
-        }
+        if (current.get() === activity) current.clear()
     }
 }

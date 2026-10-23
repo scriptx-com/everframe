@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Plan 06.2-13 Task 2 — JVM unit tests for `CompanionSubmissionComposer`.
+// JVM unit tests for `SubmissionComposer` (the quick-capture submit pipeline,
+// originally written for Companion in Plan 06.2-13 Task 2).
 //
 // Contract under test:
 //   1. `Inputs` carries hostExtra + the include-flag booleans + a baked
@@ -22,7 +23,7 @@
 // inject one, and the identity-header tests below use it to reach a real
 // MockWebServer request.
 
-package dev.everframe.companion
+package dev.everframe.quickcapture
 
 import dev.everframe.outbox.JceTestOutboxKeyProvider
 import dev.everframe.outbox.JvmOutboxFileOps
@@ -92,7 +93,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
-class CompanionSubmissionComposerTest {
+class SubmissionComposerTest {
     private lateinit var capturedOutbox: JSONLOutbox
 
     // Defense in depth: even though the two replay tests below reset the
@@ -103,7 +104,7 @@ class CompanionSubmissionComposerTest {
     // pattern.
     @After
     fun tearDown() {
-        CompanionSubmissionComposer.__submitterFactoryForTesting = null
+        SubmissionComposer.__submitterFactoryForTesting = null
         Everframe.kill()
         sharedResourceBuffer.clear()
     }
@@ -118,7 +119,7 @@ class CompanionSubmissionComposerTest {
             Robolectric.buildActivity(android.app.Activity::class.java).create()
         val bitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
 
-        val inputs = CompanionSubmissionComposer.Inputs(
+        val inputs = SubmissionComposer.Inputs(
             capture = Everframe.__replayFreeze(),
             activity = controller.get(),
             captureBitmap = bitmap,
@@ -128,8 +129,7 @@ class CompanionSubmissionComposerTest {
             includeNetwork = false,
             includeMetadata = true,
             extraOverrides = emptyMap(),
-            hostExtra = "host-companion-extra",
-            companionAttribution = null,
+            hostExtra = "host-composer-extra",
             capturedSession = Everframe.captureSessionSnapshot(),
             excluded = listOf("network"),
         )
@@ -138,7 +138,7 @@ class CompanionSubmissionComposerTest {
         // wire frames; verifying the data class shape keeps the bridge code
         // path compile-checked against future field renames.
         assertEquals("Phone-submitted title", inputs.title)
-        assertEquals("host-companion-extra", inputs.hostExtra)
+        assertEquals("host-composer-extra", inputs.hostExtra)
         assertTrue(inputs.includeLogs)
         assertTrue(!inputs.includeNetwork)
         assertEquals(listOf("network"), inputs.excluded)
@@ -148,7 +148,7 @@ class CompanionSubmissionComposerTest {
     @Test
     fun inputs_toStringRedactsCredentials() {
         val activity = Robolectric.buildActivity(android.app.Activity::class.java).create().get()
-        val inputs = CompanionSubmissionComposer.Inputs(
+        val inputs = SubmissionComposer.Inputs(
             capture = Everframe.__replayFreeze(),
             activity = activity,
             captureBitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888),
@@ -158,20 +158,16 @@ class CompanionSubmissionComposerTest {
             includeNetwork = true,
             includeMetadata = true,
             hostExtra = null,
-            companionAttribution = "attr-secret-456",
             capturedSession = Everframe.captureSessionSnapshot(),
             captureToken = "cap-secret-123",
         )
         val text = inputs.toString()
         assertFalse(text, text.contains("cap-secret-123"))
-        assertFalse(text, text.contains("attr-secret-456"))
         assertTrue(text, text.contains("captureToken=<redacted>"))
-        assertTrue(text, text.contains("companionAttribution=<redacted>"))
         assertTrue("other fields still print", text.contains("visible-title"))
 
-        val bare = inputs.copy(captureToken = null, companionAttribution = null).toString()
+        val bare = inputs.copy(captureToken = null).toString()
         assertTrue(bare, bare.contains("captureToken=null"))
-        assertTrue(bare, bare.contains("companionAttribution=null"))
     }
 
     /** Real-device quick capture: neither the device token nor the link nonce prints. */
@@ -180,7 +176,7 @@ class CompanionSubmissionComposerTest {
         val activity = Robolectric.buildActivity(android.app.Activity::class.java).create().get()
         val token = "evf_dev_" + "Sc7t".repeat(8)
         val nonce = dev.everframe.devicelink.LinkNonce.generate()
-        val inputs = CompanionSubmissionComposer.Inputs(
+        val inputs = SubmissionComposer.Inputs(
             capture = Everframe.__replayFreeze(),
             activity = activity,
             captureBitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888),
@@ -190,7 +186,6 @@ class CompanionSubmissionComposerTest {
             includeNetwork = true,
             includeMetadata = true,
             hostExtra = null,
-            companionAttribution = null,
             capturedSession = Everframe.captureSessionSnapshot(),
             captureToken = token,
             deviceLink = dev.everframe.devicelink.DeviceLinkUpload(nonce) {},
@@ -212,7 +207,7 @@ class CompanionSubmissionComposerTest {
         val controller = Robolectric.buildActivity(android.app.Activity::class.java).create()
         val bitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
 
-        val inputs = CompanionSubmissionComposer.Inputs(
+        val inputs = SubmissionComposer.Inputs(
             capture = Everframe.__replayFreeze(),
             activity = controller.get(),
             captureBitmap = bitmap,
@@ -222,11 +217,10 @@ class CompanionSubmissionComposerTest {
             includeNetwork = true,
             includeMetadata = true,
             hostExtra = null,
-            companionAttribution = null,
             capturedSession = Everframe.captureSessionSnapshot(),
         )
 
-        val result = CompanionSubmissionComposer.submit(inputs)
+        val result = SubmissionComposer.submit(inputs)
         // Everframe.currentConfig is null in this test (no Everframe.start
         // call) — composer must short-circuit. If a prior test mutated
         // currentConfig the composer would still return a deterministic
@@ -244,7 +238,7 @@ class CompanionSubmissionComposerTest {
     // path. ---
 
     @Test
-    fun `composer stamps payload_resources on a companion-submitted report`() {
+    fun `composer stamps payload_resources on a composer-submitted report`() {
         // Pushed from the `afterCapture` seam, i.e. AFTER `start()` — the
         // ring's push is gated on `Everframe.captureGate`, which is closed
         // until then, so a push before the drive is silently a no-op.
@@ -292,7 +286,7 @@ class CompanionSubmissionComposerTest {
             deviceScreenHeight = 1920.0,
             devicePixelRatio = 2.0,
             attachments = emptyList(),
-            userExtra = "host-companion-extra",
+            userExtra = "host-composer-extra",
             excluded = listOf("network"),
         )
 
@@ -308,7 +302,7 @@ class CompanionSubmissionComposerTest {
     }
 
     /**
-     * External review, finding 3 (Serious) — companion path. `submit()` used
+     * External review, finding 3 (Serious) — composer path. `submit()` used
      * to read `Everframe.currentUser` inline, AFTER PNG encoding, device
      * metadata collection, ring-buffer snapshotting and replay serialization.
      * Those stages run for hundreds of milliseconds to seconds after the phone
@@ -340,7 +334,7 @@ class CompanionSubmissionComposerTest {
     }
 
     /**
-     * External review, finding 1 (Serious) — companion path. The submit-boundary
+     * External review, finding 1 (Serious) — composer path. The submit-boundary
      * snapshot above fixed WHO, but not WHERE: `submit()` reads
      * `Everframe.currentConfig` — which carries the SDK key, i.e. the project the
      * envelope is uploaded to — long after the capture. A `start(projectB)` in
@@ -406,7 +400,7 @@ class CompanionSubmissionComposerTest {
         // Dispatchers.IO, and building a Robolectric Activity off the main
         // thread does not work.
         val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
-        CompanionSubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
+        SubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
             factoryRan = true
             // The revocation lands HERE — past the early fast-path check,
             // immediately before the upload. The restart re-opens captureGate,
@@ -441,7 +435,7 @@ class CompanionSubmissionComposerTest {
      * submits under (register item 1's key binding).
      */
     @Test
-    fun `a companion report is enqueued under the project it was captured in`() {
+    fun `a composer report is enqueued under the project it was captured in`() {
         val entry = composeAndCaptureOutboxEntry(
             userAtSubmitBoundary = TXUser(id = "alice", email = "alice@x.com", displayName = "Alice"),
             afterCapture = { ctx ->
@@ -463,7 +457,7 @@ class CompanionSubmissionComposerTest {
             Everframe.currentConfig?.sdkKey,
         )
         assertEquals(
-            "the companion report must ship under the key of the project it was captured in",
+            "the composer report must ship under the key of the project it was captured in",
             "txx_live_test1234567890",
             entry.sdkKey,
         )
@@ -472,7 +466,7 @@ class CompanionSubmissionComposerTest {
     // ---- Identity subject at the submit boundary (native identity Task 8b) ----
 
     /**
-     * Native identity Task 8b — the companion path's half of the live-submit
+     * Native identity Task 8b — the composer path's half of the live-submit
      * wiring. `Inputs.capturedSession.user.identitySubject` must reach the
      * queued `OutboxEntry` exactly like the self-declared user does above, so
      * a later drain can attribute the report — the entry-level evidence for
@@ -509,7 +503,7 @@ class CompanionSubmissionComposerTest {
      * subject, and (2) that exact entry then drains WITHOUT a header even
      * when a live token's `sub` would have matched. Mutation-verified:
      * reverting the `epochStillCurrent` gate on `identitySubject` in
-     * `CompanionSubmissionComposer.kt` makes part (1) fail (subject
+     * `SubmissionComposer.kt` makes part (1) fail (subject
      * un-nulled); reverting `resolveIdentityHeader`'s own `capturedSubject
      * == null` guard would make part (2) fail (not touched by this fix —
      * that guard already exists and is covered by
@@ -522,7 +516,7 @@ class CompanionSubmissionComposerTest {
      * `inputs.capturedSession.config` (not a live re-read) decides `cfg`,
      * the switch to project B changes the EPOCH (nulling the subject, still
      * this test's point) but no longer the DESTINATION — the entry ships
-     * under the project it was captured in, exactly like `a companion
+     * under the project it was captured in, exactly like `a composer
      * report is enqueued under the project it was captured in` above.
      * Updated to assert that, and Part 2 now drains against the CAPTURED
      * project's config to match what the entry actually carries.
@@ -627,7 +621,7 @@ class CompanionSubmissionComposerTest {
     /**
      * Fix round 1 finding (Important 2). The `identitySubject`-on-the-entry
      * test above cannot catch `identityToken` being dropped at the
-     * `submitter.submit(...)` call site (`CompanionSubmissionComposer.kt:519`):
+     * `submitter.submit(...)` call site (`SubmissionComposer.kt:519`):
      * `identityToken` is deliberately NEVER persisted onto `OutboxEntry` (only
      * `identitySubject` is — the token is short-lived and must not be
      * written to durable storage), so a mutation that resolves the token
@@ -696,7 +690,7 @@ class CompanionSubmissionComposerTest {
             val client = OkHttpClient.Builder()
                 .connectTimeout(2, TimeUnit.SECONDS).readTimeout(2, TimeUnit.SECONDS).writeTimeout(2, TimeUnit.SECONDS)
                 .build()
-            CompanionSubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
+            SubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
                 ReportSubmitter(
                     config = cfg, outbox = outbox,
                     uploader = MultipartUploader(client),
@@ -706,7 +700,7 @@ class CompanionSubmissionComposerTest {
             try {
                 server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
                 val bitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
-                val inputs = CompanionSubmissionComposer.Inputs(
+                val inputs = SubmissionComposer.Inputs(
             capture = Everframe.__replayFreeze(),
                     activity = activity,
                     captureBitmap = bitmap,
@@ -716,13 +710,12 @@ class CompanionSubmissionComposerTest {
                     includeNetwork = false,
                     includeMetadata = false,
                     hostExtra = null,
-                    companionAttribution = null,
                     capturedSession = capturedSession,
                 )
-                val result = runBlocking { CompanionSubmissionComposer.submit(inputs) }
+                val result = runBlocking { SubmissionComposer.submit(inputs) }
                 assertTrue("expected Submitted, got $result", result is ReportResult.Submitted)
             } finally {
-                CompanionSubmissionComposer.__submitterFactoryForTesting = null
+                SubmissionComposer.__submitterFactoryForTesting = null
             }
 
             val request = server.takeRequest(10, TimeUnit.SECONDS)
@@ -759,22 +752,22 @@ class CompanionSubmissionComposerTest {
             val client = OkHttpClient.Builder()
                 .connectTimeout(2, TimeUnit.SECONDS).readTimeout(2, TimeUnit.SECONDS).writeTimeout(2, TimeUnit.SECONDS)
                 .build()
-            CompanionSubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
+            SubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
                 ReportSubmitter(cfg, outbox, uploader = MultipartUploader(client), endpointOverride = server.url("/").toString())
             }
             fun send(quick: Boolean, token: String?, annotated: Boolean = true): okhttp3.mockwebserver.RecordedRequest {
                 server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-                val inputs = CompanionSubmissionComposer.Inputs(
+                val inputs = SubmissionComposer.Inputs(
                     capture = Everframe.__replayFreeze(),
                     activity = activity,
                     captureBitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888),
                     title = "t", description = "d",
                     includeLogs = false, includeNetwork = false, includeMetadata = false,
-                    hostExtra = null, companionAttribution = null,
+                    hostExtra = null,
                     capturedSession = Everframe.captureSessionSnapshot(),
                     quickCapture = quick, captureToken = token, annotated = annotated,
                 )
-                val result = runBlocking { CompanionSubmissionComposer.submit(inputs) }
+                val result = runBlocking { SubmissionComposer.submit(inputs) }
                 assertTrue("expected Submitted, got $result", result is ReportResult.Submitted)
                 return server.takeRequest(10, TimeUnit.SECONDS)!!
             }
@@ -789,16 +782,16 @@ class CompanionSubmissionComposerTest {
             org.junit.Assert.assertNull(normal.getHeader("X-Everframe-Capture-Token"))
             val normalBody = normal.body.readUtf8()
             assertTrue(!normalBody.contains("quickCapture"))
-            assertTrue("companion default stays annotated", normalBody.contains("\"kind\":\"annotated-screenshot\""))
+            assertTrue("composer default stays annotated", normalBody.contains("\"kind\":\"annotated-screenshot\""))
             assertFalse(normalBody.contains("\"kind\":\"screenshot\""))
         } finally {
-            CompanionSubmissionComposer.__submitterFactoryForTesting = null
+            SubmissionComposer.__submitterFactoryForTesting = null
             server.shutdown()
         }
     }
 
     /**
-     * Final whole-branch review, Important 2 (companion path). The test
+     * Final whole-branch review, Important 2 (composer path). The test
      * above proves the ordinary same-session case attaches the header; this
      * proves the header is withheld when a `start(projectB)` lands between
      * the submit-boundary capture and the actual submit — even though
@@ -809,7 +802,7 @@ class CompanionSubmissionComposerTest {
      * `Everframe.__resolveIdentityToken`, a subject match alone would let
      * project B's live bearer credential ship on a report that otherwise
      * still belongs to project A. Mutation-verified: reverting
-     * `CompanionSubmissionComposer.kt`'s call back to a direct
+     * `SubmissionComposer.kt`'s call back to a direct
      * `resolveIdentityHeader(...)` (dropping the epoch argument) makes this
      * test fail.
      */
@@ -892,7 +885,7 @@ class CompanionSubmissionComposerTest {
             val client = OkHttpClient.Builder()
                 .connectTimeout(2, TimeUnit.SECONDS).readTimeout(2, TimeUnit.SECONDS).writeTimeout(2, TimeUnit.SECONDS)
                 .build()
-            CompanionSubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
+            SubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
                 ReportSubmitter(
                     config = cfg, outbox = outbox,
                     uploader = MultipartUploader(client),
@@ -902,7 +895,7 @@ class CompanionSubmissionComposerTest {
             try {
                 server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
                 val bitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
-                val inputs = CompanionSubmissionComposer.Inputs(
+                val inputs = SubmissionComposer.Inputs(
             capture = Everframe.__replayFreeze(),
                     activity = activity,
                     captureBitmap = bitmap,
@@ -912,15 +905,14 @@ class CompanionSubmissionComposerTest {
                     includeNetwork = false,
                     includeMetadata = false,
                     hostExtra = null,
-                    companionAttribution = null,
                     // THE ORIGINAL capture — project A's epoch, from before
                     // the switch above.
                     capturedSession = capturedSession,
                 )
-                val result = runBlocking { CompanionSubmissionComposer.submit(inputs) }
+                val result = runBlocking { SubmissionComposer.submit(inputs) }
                 assertTrue("expected Submitted, got $result", result is ReportResult.Submitted)
             } finally {
-                CompanionSubmissionComposer.__submitterFactoryForTesting = null
+                SubmissionComposer.__submitterFactoryForTesting = null
             }
 
             val request = server.takeRequest(10, TimeUnit.SECONDS)
@@ -938,11 +930,11 @@ class CompanionSubmissionComposerTest {
     }
 
     /**
-     * Drives one full `CompanionSubmissionComposer.submit(...)` call and
+     * Drives one full `SubmissionComposer.submit(...)` call and
      * returns the single `OutboxEntry` it queues. `submit()` marshals the
      * replay read onto `Dispatchers.Main` (Task 6 step 4); under Robolectric's
      * PAUSED LooperMode a posted Handler runnable never runs on its own
-     * (same reasoning as `CompanionFreezeLifecycleTest`'s `idle()` calls), so
+     * (Robolectric's main looper must be idled), so
      * `submit()` must run on a dispatcher OTHER than this test's thread while
      * this thread repeatedly drains the main looper — running it inline via
      * `runBlocking` on this thread would deadlock (this thread would be
@@ -1122,7 +1114,7 @@ class CompanionSubmissionComposerTest {
         }
 
         val bitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
-        val inputs = CompanionSubmissionComposer.Inputs(
+        val inputs = SubmissionComposer.Inputs(
             capture = Everframe.__replayFreeze(),
             activity = activity,
             captureBitmap = bitmap,
@@ -1132,7 +1124,6 @@ class CompanionSubmissionComposerTest {
             includeNetwork = false,
             includeMetadata = false,
             hostExtra = null,
-            companionAttribution = null,
             // THE SUBMIT BOUNDARY — user + session epoch + identity subject,
             // atomically.
             capturedSession = Everframe.captureSessionSnapshot(),
@@ -1142,13 +1133,13 @@ class CompanionSubmissionComposerTest {
 
         capturedOutbox = JSONLOutbox(java.io.File(java.nio.file.Files.createTempDirectory("composer-outbox").toFile(), "outbox.jsonl"),
             keys = JceTestOutboxKeyProvider(), ops = JvmOutboxFileOps())
-        if (CompanionSubmissionComposer.__submitterFactoryForTesting == null) CompanionSubmissionComposer.__submitterFactoryForTesting = { cfg, _ ->
+        if (SubmissionComposer.__submitterFactoryForTesting == null) SubmissionComposer.__submitterFactoryForTesting = { cfg, _ ->
             ReportSubmitter(cfg, capturedOutbox, uploader = dev.everframe.transport.MultipartUploader(OkHttpClient.Builder()
                 .addInterceptor { throw java.io.IOException("offline test") }.build()))
         }
         val resultRef = AtomicReference<ReportResult?>(null)
         CoroutineScope(Dispatchers.IO).launch {
-            resultRef.set(CompanionSubmissionComposer.submit(inputs))
+            resultRef.set(SubmissionComposer.submit(inputs))
         }
         // The unit-test environment has no ingest server: the isolated
         // OkHttpClient's connect to the debug-variant INGEST_URL

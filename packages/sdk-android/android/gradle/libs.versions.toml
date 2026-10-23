@@ -34,7 +34,7 @@ mockwebserver = "4.12.0"            # OkHttp MockWebServer — JVM unit tests fo
 androidx-startup = "1.2.0"          # androidx.startup Initializer — Plan 05-06 wires reporter resolvers at module-load
 androidx-activity-compose = "1.9.3" # ComponentActivity + Compose hosting — Plan 05-06 reporter UI
 compose-animation = "1.7.5"         # Plan 05-06 reporter UI (NOT in :everframe-core; Compose-isolation gate stays green)
-androidx-lifecycle = "2.8.6"        # Plan 06.2-08 — ProcessLifecycleOwner for RelayWSClient background hook (host already pulls lifecycle-runtime-ktx 2.8.6 in example apps)
+androidx-lifecycle = "2.8.6"        # ProcessLifecycleOwner for lifecycle breadcrumbs and release health (host already pulls lifecycle-runtime-ktx 2.8.6 in example apps)
 media3 = "1.8.0"                    # AAR minCompileSdk=35 matches this repo; 1.11 needs 36
 
 [libraries]
@@ -71,7 +71,7 @@ mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", versio
 androidx-startup-runtime = { group = "androidx.startup", name = "startup-runtime", version.ref = "androidx-startup" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "androidx-activity-compose" }
 compose-animation = { group = "androidx.compose.animation", name = "animation", version.ref = "compose-animation" }
-# Plan 06.2-08 — ProcessLifecycleOwner for RelayWSClient (foreground/background hook).
+# ProcessLifecycleOwner (foreground/background hook for breadcrumbs and release health).
 # `lifecycle-process` provides the app-process observer; `lifecycle-common` is its
 # transitive `DefaultLifecycleObserver`/`LifecycleOwner` carrier. Both are
 # AndroidX with no Compose/Material reach (Compose-isolation gate stays green).

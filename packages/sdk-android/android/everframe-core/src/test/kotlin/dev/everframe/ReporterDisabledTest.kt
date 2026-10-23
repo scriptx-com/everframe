@@ -3,7 +3,7 @@
 //
 // Crash-only sessions (spec 2026-10-12): `report.open()` in a session started with reporterEnabled = false
 // fails with ReporterDisabledException instead of resolving as cancelled, because the host asked for
-// something its own configuration turned off. A companion bond does not lift it.
+// something its own configuration turned off.
 package dev.everframe
 
 import android.os.Looper
@@ -52,12 +52,6 @@ class ReporterDisabledTest {
         assertTrue("got $failure", failure is ReporterDisabledException)
         assertTrue(failure is IllegalStateException)
         assertEquals("The reporter is turned off for this session (reporterEnabled = false).", failure!!.message)
-        assertEquals(0, opened)
-    }
-
-    @Test fun aCompanionBondDoesNotTurnTheEntryPointsBackOn() {
-        Everframe.__onCompanionMemberAttached()
-        assertTrue(openFailure() is ReporterDisabledException)
         assertEquals(0, opened)
     }
 

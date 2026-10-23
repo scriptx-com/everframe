@@ -7,7 +7,7 @@
 // without it (ingest then files it in the shared inbox).
 //
 // Drives the real `ReportSubmitter` -> `MultipartUploader` pair against
-// MockWebServer. Setup mirrors `CompanionAttributionHeaderTest`.
+// MockWebServer.
 
 package dev.everframe.transport
 

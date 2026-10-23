@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 
-package dev.everframe.companion
+package dev.everframe.quickcapture
 
 import android.app.Activity
 import android.graphics.Bitmap
@@ -24,12 +24,12 @@ import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29])
-class CompanionOwnedVideoSubmissionTest {
+class SubmissionComposerOwnedVideoTest {
     @Test fun liveOwnerShipsMeasuredVideoWithScreenshot() = drive("live")
     @Test fun cancelAfterVideoAssemblyPreservesTitleAndScreenshotOnly() = drive("cancel")
     @Test fun killAndPublicRestartAfterVideoAssemblyStartsNoRequest() = drive("kill")
 
-    @Test fun optionalVideoCannotRejectCompanionWhenExtraShotsReachPayloadBudget() = drive("budget")
+    @Test fun optionalVideoCannotRejectASubmitWhenExtraShotsReachPayloadBudget() = drive("budget")
 
     private fun drive(action: String) = runBlocking {
         val activity = Robolectric.buildActivity(Activity::class.java).create().get()
@@ -55,15 +55,15 @@ class CompanionOwnedVideoSubmissionTest {
         val server = MockWebServer().apply { start(); enqueue(MockResponse().setResponseCode(200)) }
         val assembled = CountDownLatch(1)
         val release = CountDownLatch(1)
-        CompanionSubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
+        SubmissionComposer.__submitterFactoryForTesting = { cfg, outbox ->
             assembled.countDown()
             check(release.await(5, TimeUnit.SECONDS))
             ReportSubmitter(cfg, outbox, MultipartUploader(OkHttpClient()), server.url("/").toString())
         }
-        val pending = async(Dispatchers.Default) { CompanionSubmissionComposer.submit(CompanionSubmissionComposer.Inputs(
+        val pending = async(Dispatchers.Default) { SubmissionComposer.submit(SubmissionComposer.Inputs(
             activity = activity, captureBitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888), capture = capture,
             title = "original title", description = "original description", includeLogs = false, includeNetwork = false,
-            includeMetadata = false, hostExtra = null, companionAttribution = null, capturedSession = session,
+            includeMetadata = false, hostExtra = null, capturedSession = session,
             extraShotPngs = if (action == "budget") listOf(ByteArray(23_000_000)) else emptyList())) }
         try {
             val deadline = System.nanoTime() + 5_000_000_000L
@@ -96,7 +96,7 @@ class CompanionOwnedVideoSubmissionTest {
                 if (action == "live") { assertTrue(parsed.contains("replayStartEpochMs")); assertTrue(parsed.contains("400")) }
             }
         } finally {
-            release.countDown(); pending.cancel(); capture.cancel(); CompanionSubmissionComposer.__submitterFactoryForTesting = null
+            release.countDown(); pending.cancel(); capture.cancel(); SubmissionComposer.__submitterFactoryForTesting = null
             Everframe.kill(); server.shutdown(); h.root.deleteRecursively()
         }
     }

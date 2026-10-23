@@ -30,7 +30,6 @@ import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
-import dev.everframe.companion.PreviewCapture
 import dev.everframe.envelope.txGuardSuspend
 import java.io.ByteArrayOutputStream
 import kotlin.coroutines.resume
@@ -81,11 +80,11 @@ object ScreenshotCapture {
         val srcBitmap = acquireBakedWindowBitmap(activity, sensitiveRects)
             ?: return@txGuardSuspend null
 
-        // Task 11b review, finding 3 — same reasoning as capturePreviewFrame
-        // below, and it bites harder here: a shot request runs this on
-        // `CompanionPreviewSession`'s Main scope, and a PNG encode at quality
-        // 100 of a ~1.9 MP bitmap is hundreds of milliseconds of UI-thread
-        // stall on mid-range hardware.
+        // Task 11b review, finding 3 — the scale and the encode run OFF the
+        // caller's thread: a PNG encode at quality 100 of a ~1.9 MP bitmap is
+        // hundreds of milliseconds of UI-thread stall on mid-range hardware.
+        // Only the post-acquisition work moves — the rect walk and
+        // `PixelCopy.request` above must stay where the caller put them.
         withContext(Dispatchers.Default) {
             val w = srcBitmap.width
             val h = srcBitmap.height
@@ -105,8 +104,7 @@ object ScreenshotCapture {
 
             val baos = ByteArrayOutputStream()
             finalBitmap.compress(Bitmap.CompressFormat.PNG, 100, baos)
-            // NOT recycled here, unlike capturePreviewFrame: `CaptureResult`
-            // hands this bitmap to the caller, which owns it from here on.
+            // NOT recycled here: `CaptureResult` hands this bitmap to the caller, which owns it from here on.
             CaptureResult(
                 bitmap = finalBitmap,
                 widthPx = finalBitmap.width,
@@ -117,85 +115,11 @@ object ScreenshotCapture {
     }
 
     /**
-     * A preview frame: same PixelCopy acquisition as `captureBeforeReporter`,
-     * then downscaled to `maxEdgePx` and JPEG-encoded at `quality`.
-     *
-     * Deliberately NOT PNG at MAX_EDGE_PX like the report path — spec
-     * 2026-07-17 §3 budgets ~480p JPEG at quality ~0.6 for 1-2 fps, and a
-     * report-grade frame at that rate would exceed the relay's per-pair byte
-     * cap several times over while pinning the device's CPU for pixels that
-     * are discarded a half-second later.
-     *
-     * Sensitive-rect baking still applies: a preview streams the live screen
-     * to another human's browser, so masking matters MORE here, not less.
-     *
-     * Returns null on any failure (DEFE-02 soft-degrade — the session stops
-     * with `capture_unavailable` rather than crashing a report). This is
-     * `CompanionCaptureBridge.__previewProvider`'s implementation, installed
-     * by `EverframeModule.startCompanion` (Task 11b).
-     */
-    suspend fun capturePreviewFrame(
-        activity: Activity,
-        sensitiveRects: List<Rect> = emptyList(),
-        maxEdgePx: Int = 854,
-        quality: Int = 60,
-    ): PreviewCapture? = txGuardSuspend("screenshot-preview") {
-        val srcBitmap = acquireBakedWindowBitmap(activity, sensitiveRects)
-            ?: return@txGuardSuspend null
-
-        // Task 11b review, finding 3: the scale and the encode move OFF the
-        // caller's thread. `CompanionPreviewSession`'s scope is
-        // `Dispatchers.Main`, so this ran `createScaledBitmap` plus a JPEG
-        // encode on the UI thread every 500 ms for up to two minutes. An x86
-        // emulator on a desktop CPU never shows it; a mid-range phone does.
-        // Only the post-acquisition work moves — the rect walk and
-        // `PixelCopy.request` above must stay where the caller put them.
-        withContext(Dispatchers.Default) {
-            val w = srcBitmap.width
-            val h = srcBitmap.height
-
-            // Downscale if longer edge exceeds maxEdgePx (same shaping rule as
-            // captureBeforeReporter, at the preview's own — much smaller — cap).
-            val maxEdge = maxOf(w, h)
-            val finalBitmap: Bitmap = if (maxEdge > maxEdgePx) {
-                val scale = maxEdgePx.toFloat() / maxEdge
-                val tw = (w * scale).toInt().coerceAtLeast(1)
-                val th = (h * scale).toInt().coerceAtLeast(1)
-                val scaled = Bitmap.createScaledBitmap(srcBitmap, tw, th, true)
-                srcBitmap.recycle()
-                scaled
-            } else {
-                srcBitmap
-            }
-
-            val baos = ByteArrayOutputStream()
-            finalBitmap.compress(Bitmap.CompressFormat.JPEG, quality, baos)
-            val outWidth = finalBitmap.width
-            val outHeight = finalBitmap.height
-            // Task 11b review, finding 1: recycled once the bytes are out.
-            // Nothing downstream holds this bitmap — PreviewCapture carries
-            // only the encoded bytes — and at ~2 frames/second a session
-            // otherwise leaves ~240 full-window ARGB_8888 allocations (~10 MB
-            // each at 1080x2400) for the GC to chase. Reclaimable rather than
-            // leaked, which is exactly why it never showed up in a short run.
-            finalBitmap.recycle()
-            PreviewCapture(
-                bytes = baos.toByteArray(),
-                width = outWidth,
-                height = outHeight,
-                mime = "image/jpeg",
-            )
-        }
-    }
-
-    /**
-     * Shared by [captureBeforeReporter] and [capturePreviewFrame]: acquire the
-     * host Activity window's pixels via PixelCopy into a full-window-sized
-     * bitmap, then bake sensitive rects black PRE-encode (PRIV-03). Callers
-     * diverge only on what happens AFTER this — downscale target and encode
-     * format. Returns null on any failure (missing window, zero-size window,
-     * or a failed/thrown PixelCopy request) so both callers share one
-     * DEFE-02 soft-degrade path instead of two copies of it.
+     * Used by [captureBeforeReporter]: acquire the host Activity window's
+     * pixels via PixelCopy into a full-window-sized bitmap, then bake
+     * sensitive rects black PRE-encode (PRIV-03). Returns null on any failure
+     * (missing window, zero-size window, or a failed/thrown PixelCopy request)
+     * — the DEFE-02 soft-degrade path.
      */
     private suspend fun acquireBakedWindowBitmap(
         activity: Activity,

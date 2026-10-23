@@ -1,35 +1,18 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Plan 06.2-13 Task 2 — shared envelope-build + submit pipeline for the
-// Android companion path.
+// Shared envelope-build + submit pipeline for the UI-less report paths in
+// :everframe-core (simulator and real-device quick capture). Originally
+// written for the Companion capture bridge (Plan 06.2-13); moved here and
+// renamed when Companion was removed.
 //
-// Mirrors iOS `ReporterSubmission.swift` (Plan 06.2-12). On iOS the companion
-// bridge and the in-process modal call the SAME `ReporterSubmission.submit(...)`
-// because both live in the `Everframe` module. On Android the modal's submit
-// composition lives inline inside `ReporterDialog.kt:285-325` in the
-// `:everframe-reporter-ui` module — which `:everframe-core` (where the companion
-// bridge lives) CANNOT depend on without inverting the module graph.
-//
-// Design choice (Plan 06.2-13 §<tasks> Task 2 step 4): leave ReporterDialog
-// inline composition UNTOUCHED for now and ship this composer as a near-copy
-// specifically for the companion path. Rationale:
-//   • ReporterDialog's submit codepath is already shipping and exercised
-//     end-to-end (Plan 04, 05, 06.1). Refactoring it to consume this composer
-//     would touch a regression-sensitive path during a UAT-driven plan.
-//   • The composer is in :everframe-core; ReporterDialog is in :everframe-
-//     reporter-ui. To have ReporterDialog call this composer we'd need to
-//     either move the `ReporterIncludes` data class down into :everframe-core
-//     (touches the UI module's public surface) or shape the composer's
-//     `Inputs` to avoid the UI type (which is what we do below — raw booleans).
-//   • The duplication is small (~40 lines of envelope-build glue). The third
-//     caller has since appeared (simulator quick capture), and we still keep
-//     the duplication: the composer now has two UI-less callers (the companion
-//     bridge and quick capture), and `ReporterDialog.submitBaked` stays in sync
-//     with it for everything except `quickCapture` and `captureToken`, which
-//     only the UI-less callers set.
-//
-// Documented as a deliberate, time-boxed duplication in 06.2-13-SUMMARY.md.
+// Mirrors iOS `ReporterSubmission.swift`. On Android the modal's submit
+// composition lives inline inside `ReporterDialog.kt` in the
+// `:everframe-reporter-ui` module — which `:everframe-core` CANNOT depend on
+// without inverting the module graph — so this composer is a deliberate
+// near-copy of it. `ReporterDialog.submitBaked` stays in sync with it for
+// everything except `quickCapture`, `captureToken` and `deviceLink`, which
+// only the UI-less callers set.
 //
 // ENVELOPE PARITY INVARIANT: this file's `submit(...)` MUST produce a
 // byte-identical envelope to ReporterDialog.kt's inline composition for the
@@ -38,7 +21,7 @@
 // argument list — for now, code review + the documented duplication is the
 // guardrail.
 
-package dev.everframe.companion
+package dev.everframe.quickcapture
 
 import android.app.Activity
 import android.graphics.Bitmap
@@ -65,7 +48,7 @@ import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 
 /**
- * Singleton submit pipeline for the companion path. Stateless — every call
+ * Singleton submit pipeline for the UI-less report paths. Stateless — every call
  * builds a fresh `EnvelopeBuilder` + `ReportSubmitter`. Mirrors iOS
  * `ReporterSubmission` (an `enum` without cases — Swift's idiom for a
  * namespace; Kotlin's idiom is `object`).
@@ -75,7 +58,7 @@ private const val TITLE_MAX_CHARS: Int = 200
 /** Hard cap on report description length. Matches the Zod protocol schema and every UI surface. */
 private const val DESCRIPTION_MAX_CHARS: Int = 600
 
-object CompanionSubmissionComposer {
+object SubmissionComposer {
 
     /**
      * Test seam — supplies the [ReportSubmitter] this composer ships through.
@@ -84,17 +67,15 @@ object CompanionSubmissionComposer {
      * and therefore not redirectable at runtime).
      *
      * It exists so a test can point the real submit at a local server and
-     * assert on the request it receives — in particular that the
-     * `X-Everframe-Companion-Attribution` header carries the token snapshotted for
-     * that report. Nothing is short-circuited: the composer still builds the
-     * whole envelope and still calls `submit(…, companionAttribution =
-     * inputs.companionAttribution)` on whatever submitter it is handed.
+     * assert on the request it receives. Nothing is short-circuited: the
+     * composer still builds the whole envelope and still calls `submit(…)` on
+     * whatever submitter it is handed.
      */
     @JvmStatic
     internal var __submitterFactoryForTesting: ((EverframeConfig, JSONLOutbox) -> ReportSubmitter)? = null
 
     /**
-     * One companion submit's inputs. Field order + types mirror iOS
+     * One submit's inputs. Field order + types mirror iOS
      * `ReporterSubmission.Inputs` member-for-member where the platforms
      * translate cleanly. The notable differences:
      *
@@ -115,8 +96,8 @@ object CompanionSubmissionComposer {
         val captureBitmap: Bitmap,
         val capture: FrozenReportCapture,
         /**
-         * Baked PNGs for the EXTRA shots of a multi-shot submit, in the order
-         * the phone announced them in `report.submit.shots[]`.
+         * Baked PNGs for the EXTRA shots of a multi-shot submit, in shot
+         * order.
          *
          * Empty for a single-shot report, which keeps that envelope
          * byte-identical to the pre-multi-shot shape. Each entry becomes a
@@ -132,29 +113,12 @@ object CompanionSubmissionComposer {
         /** Caller-supplied extra keys merged into envelope.extra. Currently
          *  unused on Android — see KDoc above. */
         val extraOverrides: Map<String, String> = emptyMap(),
-        /** Host-attached opaque metadata string. Consumed by the bridge at
-         *  `report.request` time via `Everframe.consumePendingAttachments()`
-         *  and threaded through here. */
+        /** Host-attached opaque metadata string, consumed by the caller via
+         *  `Everframe.consumePendingAttachments()` and threaded through here. */
         val hostExtra: String?,
         /**
-         * Companion attribution token for THIS report — snapshotted by
-         * `RelayWSClient` when the report's `report.request` arrived and
-         * carried here by `CompanionCaptureBridge.__submitProvider`. Null on
-         * an ordinary QR bond, and null whenever the snapshot could not be
-         * matched; both mean "ship unattributed", never an error.
-         *
-         * Deliberately has NO default: every caller must state what this
-         * report is attributed to. A default of null would let a new call
-         * site silently drop attribution, and a default of "read the live
-         * session" is the exact defect this parameter exists to prevent.
-         *
-         * SECURITY: never log.
-         */
-        val companionAttribution: String?,
-        /**
          * Self-declared user (`setUser`, spec 2026-08-12) SNAPSHOTTED at the
-         * moment this report's submission began — when the paired
-         * `report.submit` + binary frames arrived, before any decode/bake.
+         * moment this report's submission began, before any decode/bake.
          *
          * External review, finding 3 (Serious). This composer used to read
          * `Everframe.currentUser` inline, after PNG encoding, device-metadata
@@ -163,8 +127,7 @@ object CompanionSubmissionComposer {
          * call landing in that window (sign-out/sign-in, account switch)
          * permanently grouped A's report under B.
          *
-         * Deliberately has NO default, for exactly the reason spelled out on
-         * [companionAttribution] above: every caller must state who this report
+         * Deliberately has NO default: every caller must state who this report
          * belongs to. A default of "read the live singleton" is the precise
          * defect this field exists to prevent, and a default of `null` would
          * let a new submit surface silently ship anonymous.
@@ -181,19 +144,16 @@ object CompanionSubmissionComposer {
          */
         val capturedSession: dev.everframe.TXCapturedSession,
         /** Sections the user explicitly toggled off in the reporter UI.
-         *  Lands in `captureControl.excluded`. Companion currently does not
-         *  surface toggles per-section (the phone reporter SPA sends a flat
-         *  `includes` map), so this is derived from the booleans above. */
+         *  Lands in `captureControl.excluded`. */
         val excluded: List<String> = emptyList(),
-        /** Simulator quick capture: stamps `quickCapture: true` on the envelope.
-         *  False for the phone-driven companion path. */
+        /** Quick capture: stamps `quickCapture: true` on the envelope. */
         val quickCapture: Boolean = false,
         /** Simulator quick-capture token, sent only as the live upload's
          *  `X-Everframe-Capture-Token` header and never persisted to the outbox.
          *  SECURITY: never log. */
         val captureToken: String? = null,
         /** True when [captureBitmap] went through the reporter's annotation
-         *  canvas (the companion path). Simulator quick capture sends the raw
+         *  canvas. Quick capture sends the raw
          *  screenshot and passes false, so the attachment is declared a plain
          *  `screenshot` instead of `annotated-screenshot`. */
         val annotated: Boolean = true,
@@ -201,8 +161,7 @@ object CompanionSubmissionComposer {
          * Host-rendered, already masked replay timeline (Flutter or KMP), exactly what
          * `ReporterDialog` receives as `hostReplayVTree` from `EFReporterFromImage`. Non-null means
          * the host owns replay for this report: native video is never attached, and an empty array
-         * keeps it that way when the host had no safe frames. Null (the companion path) keeps the
-         * native video. Set only by simulator quick capture with host evidence.
+         * keeps it that way when the host had no safe frames. Null keeps the native video. Set only by simulator quick capture with host evidence.
          */
         val hostReplayVTree: ByteArray? = null,
         /** `sdk.name` on the envelope. Simulator quick capture passes the host's identity
@@ -219,7 +178,7 @@ object CompanionSubmissionComposer {
                 "extraShotPngs=${extraShotPngs.size}, title=$title, description=$description, " +
                 "includeLogs=$includeLogs, includeNetwork=$includeNetwork, includeMetadata=$includeMetadata, " +
                 "extraOverrides=$extraOverrides, hostExtra=$hostExtra, " +
-                "companionAttribution=${redact(companionAttribution)}, capturedSession=$capturedSession, " +
+                "capturedSession=$capturedSession, " +
                 "excluded=$excluded, quickCapture=$quickCapture, captureToken=${redact(captureToken)}, " +
                 "annotated=$annotated, hostReplayVTree=${hostReplayVTree?.let { "${it.size} bytes" }}, " +
                 "sdkName=$sdkName, deviceLink=${deviceLink?.let { "<redacted>" }})"
@@ -260,7 +219,7 @@ object CompanionSubmissionComposer {
         // counter, not `captureGate`, because `start()` re-opens that gate.
         if (inputs.capturedSession.isRevoked) return ReportResult.Cancelled("revoked")
 
-        return txGuardSuspend("companion-submit") {
+        return txGuardSuspend("quick-capture-submit") {
             // 1. Encode baked PNG.
             val pngBytes = ByteArrayOutputStream().use { bos ->
                 inputs.captureBitmap.compress(Bitmap.CompressFormat.PNG, 100, bos)
@@ -290,8 +249,6 @@ object CompanionSubmissionComposer {
             //     shared `partName` helper so the suffixes match what the web
             //     reporter and iOS produce, and what the admin payload card
             //     parses (`/^(annotated-screenshot|screenshot)(?:-(\d+))?$/`).
-            //     Before this the phone's extra shots were dropped on the
-            //     device and the report completed with only the primary image.
             // Shared transport admits the measured aggregate, including replay and envelope.
             val extraShotEncoded = inputs.extraShotPngs.take(3).mapIndexed { i, bytes ->
                 Triple(partName("screenshot", i + 1), bytes, sha256Hex(bytes))
@@ -398,10 +355,9 @@ object CompanionSubmissionComposer {
                 // the submit boundary, NEVER a live `Everframe.currentUser`
                 // read. Everything above this line (PNG encode, device
                 // metadata, ring-buffer snapshots, replay serialization) runs
-                // after the phone tapped Send; a live read here attributed the
+                // after the capture; a live read here attributed the
                 // report to whoever `setUser` named by the time composition
-                // got round to it. Sibling of `inputs.companionAttribution`,
-                // pinned for the same class of reason.
+                // got round to it.
                 //
                 // External review, finding 1 (Serious) — `resolve()`, not the
                 // raw snapshot. `cfg` (read at the top of this function)
@@ -420,8 +376,8 @@ object CompanionSubmissionComposer {
                 // Ancillary data belongs to the exact reporter-open owner.
                 breadcrumbs = if (inputs.capture.matchesSession(inputs.capturedSession)) inputs.capture.takeBreadcrumbs() else null,
                 state = if (inputs.capture.matchesSession(inputs.capturedSession)) inputs.capture.takeState() else null,
-                // Report Resource Window (spec 2026-09-05) — gap class 3: the
-                // companion widget is a user-submitted-report build site too
+                // Report Resource Window (spec 2026-09-05) — gap class 3: quick
+                // capture is a user-submitted-report build site too
                 // (the feature's primary use case), so it must stamp
                 // resources the same as ReporterDialog.kt. `snapshot()` never
                 // throws and returns an empty list when the sampler is
@@ -514,21 +470,6 @@ object CompanionSubmissionComposer {
                 envelopeBytes = encoded.bytes,
                 idempotencyKey = encoded.idempotencyKey,
                 attachments = listOfNotNull(screenshotPart, replayPart) + extraShotParts,
-                // Companion attribution (spec 2026-08-07) — the token minted
-                // for THIS report's `report.request`, snapshotted there and
-                // carried through the bridge into `Inputs`. Null on an
-                // ordinary QR bond. Rides the ingest POST as
-                // `X-Everframe-Companion-Attribution`.
-                //
-                // MUST NOT be re-read from the live relay session here
-                // (PR-fix 1): this line runs seconds-to-minutes after the
-                // report was requested, and by then the pair may have been
-                // released and re-bonded to a different dashboard user. A
-                // late read hands this report that user's single-use token —
-                // mis-crediting this report and burning the token their own
-                // next report needed.
-                // SECURITY: never log.
-                companionAttribution = inputs.companionAttribution,
                 identitySubject = if (identity.epochStillCurrent) inputs.capturedSession.user.identitySubject else null,
                 identityToken = identity.token,
                 authorization = hostAuthorization

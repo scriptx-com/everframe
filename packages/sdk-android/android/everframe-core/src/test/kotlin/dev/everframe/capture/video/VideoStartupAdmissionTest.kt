@@ -277,7 +277,6 @@ class VideoStartupAdmissionTest {
         assertFalse(b!!.isTornDownForTesting)
         assertTrue("old captured job must be cancelled", oldJob.isCancelled)
         assertEquals(false, BrandingServerConfigSignal.flow.value?.watermark)
-        assertEquals(false, dev.everframe.companion.CompanionBadgeServerConfigSignal.flow.value?.enabled)
         assertEquals(theme, BrandingInlineTheme.flow.value)
         assertTrue("B's exact refresh loop must remain live", bRefreshJob!!.isActive)
         b!!.refreshConfigNow(); scheduler.drain()

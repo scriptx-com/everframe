@@ -4,8 +4,7 @@
 // Branding state shared between config plumbing and the reporter UI
 // (Android spec 2026-08-26).
 //
-// BrandingServerConfigSignal mirrors CompanionBadgeServerConfigSignal
-// (companion/CompanionBadge.kt): written by ReplaySession on every config
+// BrandingServerConfigSignal is written by ReplaySession on every config
 // commit, cleared by Everframe at both session boundaries (start() epoch
 // reset and kill()) so a dead/previous session's entitlement never outlives
 // it. Collected as Compose state by the reporter root, so a config landing
@@ -16,8 +15,7 @@ import androidx.annotation.RestrictTo
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.flow.MutableStateFlow
 
-// LIBRARY_GROUP (#136 review follow-up, paired deliberately with
-// CompanionBadgeServerConfigSignal): the signal is plumbing between
+// LIBRARY_GROUP (#136 review follow-up): the signal is plumbing between
 // everframe-core and everframe-reporter-ui (same dev.everframe library group),
 // never host API — a host writing the flow could spoof entitlement locally,
 // which is pointless (the server enforces at emission) but noisy.

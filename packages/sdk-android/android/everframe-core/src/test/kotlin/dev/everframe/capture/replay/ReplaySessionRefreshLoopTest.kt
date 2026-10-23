@@ -63,7 +63,7 @@ class ReplaySessionRefreshLoopTest {
         // `refreshConfigNow()` ends with `withContext(Dispatchers.Main) {
         // startBufferingIfEligible() }`. Under Robolectric's default PAUSED
         // LooperMode a posted Handler runnable never runs on its own (see
-        // CompanionSubmissionComposerTest's header comment for the same
+        // SubmissionComposerTest's header comment for the same
         // issue); UnconfinedTestDispatcher bypasses the real main Looper
         // entirely and runs the hop inline, so `runTest { session
         // .refreshConfigNow() }` completes without a separate drain thread.

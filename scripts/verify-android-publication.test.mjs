@@ -30,6 +30,11 @@ const coreClasses = {
   'dev/everframe/devicelink/SdkOverlayWindows.class': 'shown',
   'dev/everframe/devicelink/DeviceLinkUpload.class': 'class',
   'dev/everframe/devicelink/LinkPending.class': 'class',
+  'dev/everframe/companion/Companion.class': 'class',
+  'dev/everframe/companion/CompanionState.class': 'class',
+  'dev/everframe/companion/AttachChallengeInfo.class': 'class',
+  'dev/everframe/quickcapture/SubmissionComposer.class': 'class',
+  'dev/everframe/quickcapture/SubmissionComposer$Inputs.class': 'class',
 };
 
 function zip(destination, entries) {
@@ -354,6 +359,41 @@ test('rejects a release core AAR missing the device-link types reporter-ui names
       const result = verify(repository);
       assert.notEqual(result.status, 0, `accepted a core AAR for ${message}`);
       assert.match(`${result.stdout}\n${result.stderr}`, message);
+    } finally {
+      rmSync(repository, { recursive: true, force: true });
+    }
+  }
+});
+
+test('rejects a release core AAR missing the kept Companion stubs or the submit pipeline', () => {
+  const kept = [
+    'companion/Companion',
+    'companion/CompanionState',
+    'companion/AttachChallengeInfo',
+    'quickcapture/SubmissionComposer',
+    'quickcapture/SubmissionComposer$Inputs',
+  ];
+  for (const type of kept) {
+    const classes = Object.fromEntries(
+      Object.entries(coreClasses).filter(([name]) => name !== `dev/everframe/${type}.class`),
+    );
+    const repository = fixture();
+    try {
+      const prefix = path.join(repository, 'dev/everframe/core/0.9.0/core-0.9.0');
+      const jar = `${prefix}-classes.jar`;
+      zip(jar, { ...classes, 'dev/everframe/a.class': 'class' });
+      rmSync(`${prefix}.aar`);
+      zip(`${prefix}.aar`, {
+        'AndroidManifest.xml': '<manifest package="dev.everframe" />',
+        'classes.jar': readFileSync(jar),
+      });
+      rmSync(jar);
+      const result = verify(repository);
+      assert.notEqual(result.status, 0, `accepted a core AAR without ${type}`);
+      assert.match(
+        `${result.stdout}\n${result.stderr}`,
+        new RegExp(type.replaceAll('/', '\\.').replace('$', '\\$')),
+      );
     } finally {
       rmSync(repository, { recursive: true, force: true });
     }

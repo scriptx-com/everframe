@@ -172,10 +172,8 @@ internal object NetworkBreadcrumbAdapter {
 
 /**
  * Bridges `ProcessLifecycleOwner` foreground/background transitions into
- * `.lifecycle` crumbs. Pattern: `RelayWSClient`'s `DefaultLifecycleObserver`
- * registration (Companion/RelayWSClient.kt:103-131) — `addObserver()` MUST
- * run on the main thread (AndroidX contract), so `install()` marshals onto
- * main exactly like `RelayWSClient.start()` does. A single process-lifetime
+ * `.lifecycle` crumbs. `addObserver()` MUST run on the main thread (AndroidX
+ * contract), so `install()` marshals onto main. A single process-lifetime
  * `object` so install-once semantics hold across repeated `Everframe.start()`
  * calls (mirrors `LogCapture.install()`'s idempotency).
  */
@@ -197,7 +195,7 @@ internal object LifecycleBreadcrumbObserver : DefaultLifecycleObserver {
      * against a fresh subscription per test without leaking duplicate
      * observers across the (JVM-shared) test suite. Does NOT remove the
      * observer from ProcessLifecycleOwner (tests don't rely on that; they
-     * drive `onStart`/`onStop` directly per the RelayWSClientTest pattern).
+     * drive `onStart`/`onStop` directly).
      */
     @VisibleForTesting
     internal fun __resetForTesting() {

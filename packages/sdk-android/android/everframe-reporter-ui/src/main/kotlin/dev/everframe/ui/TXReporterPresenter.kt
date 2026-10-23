@@ -12,10 +12,8 @@
 // Steps 1-2 are atomic from the caller's perspective; the Dialog (step 3)
 // is constructed AFTER PixelCopy resolves so it cannot self-capture.
 //
-// Android TV note: the on-device :everframe-tv Activity was removed. Reporting
-// on Android TV now routes through the phone-companion (QR → phone browser SPA)
-// flow; hosts on TV form factor should not call report.open() and should drive
-// the companion path via CompanionCaptureBridge instead.
+// Android TV note: the on-device :everframe-tv Activity was removed. On
+// Android TV, link the device and use the quick-capture remote gesture.
 package dev.everframe.ui
 
 import android.app.Activity
@@ -178,7 +176,7 @@ internal class TXReporterPresenter(
 
             // 3. Show the phone/tablet Compose Dialog. (Android TV used to
             //    hand off to a separate :everframe-tv Activity; that module
-            //    was removed — TV reports go through the phone companion.)
+            //    was removed.)
             opened = true
             return@txGuardSuspend showDialog(activity, capture, reportCapture, hostExtraNormalized) {
                 reportCapture.__closeReporterBoundary()

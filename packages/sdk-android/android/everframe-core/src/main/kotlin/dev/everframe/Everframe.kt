@@ -209,10 +209,6 @@ object Everframe {
     // The crash capture this published start armed or is arming. Null with capture.crash off,
     // where no OS or native mechanism exists, and after kill(). Written under stateLock.
     @Volatile private var _crashCapture: dev.everframe.crash.CrashCaptureStart? = null
-    // Crash-only sessions (spec 2026-10-12): a companion bond upgraded this crash-only session to report
-    // coverage. Sticky for the session: a detach never clears it, only start()'s publication and kill() do.
-    // start()'s publication seeds it from a companion that is still bonded. Guarded by stateLock.
-    private var _crashOnlyUpgraded = false
 
     /**
      * Lock-free mirror of [_startEpoch] — see [currentStartEpochVolatile] for
@@ -231,10 +227,6 @@ object Everframe {
      * and `kill()` then `start(B)` (the gate is open again, but the revocation
      * happened after the capture). Only a counter `start()` never touches can
      * express the third.
-     *
-     * Deliberately NOT `CompanionAuthEpoch`, which has the right shape but is
-     * also bumped when a companion session ends (`companion/RelayWSClient.kt`)
-     * — reusing it would discard crashes on an unrelated event.
      */
     private var _killGeneration: Long = 0
     private val _killGenerationMirror = java.util.concurrent.atomic.AtomicLong(0)
@@ -828,7 +820,7 @@ object Everframe {
         // process-global rings, and the NEXT ORDINARY REPORT IN B shipped
         // them to a different customer's project: deterministic, no race
         // needed, unbounded until the rings roll over, on the ordinary
-        // reporter and companion paths. Same class as this spec's items 1 and
+        // reporter and quick-capture paths. Same class as this spec's items 1 and
         // 6, and the reason the old cost/benefit does not survive contact
         // with it.
         //
@@ -894,7 +886,7 @@ object Everframe {
         // Still OUTSIDE `stateLock`: `shutdown()` runs every integration's
         // customer `detach()`, and clearing a `StateFlow` runs its collectors
         // synchronously on this thread — neither may happen under `stateLock`
-        // (same reasoning as the companion/branding clears in `kill()`).
+        // (same reasoning as the branding clears in `kill()`).
         //
         // Round 2 additionally ran the teardown BEFORE the epoch bump, so that
         // A's epoch-bound transport was still live for A's final chunk +
@@ -1027,12 +1019,6 @@ object Everframe {
             stateEvidenceGeneration += 1
             stateRecorder.reset(initialState, System.currentTimeMillis().toDouble())
             _publishedStartEpoch = epoch
-            // Crash-only sessions: a bond upgrades one session only. The next one starts at its own kind,
-            // except that a crash-only session starting while companion is still bonded (a re-start, or a
-            // React Native reconfigure with the phone attached) starts upgraded: no new `pair.bonded` will
-            // come for a bond that already exists. Read inside this epoch-checked publication, so a
-            // superseded start seeds nothing.
-            _crashOnlyUpgraded = !config.reporterEnabled && dev.everframe.companion.Companion.__isBonded()
             // External review, finding 2 (Serious) — clear the self-declared
             // user (`setUser`, spec 2026-08-12) in the SAME `stateLock`
             // critical section that installs the new configuration, so no
@@ -1093,41 +1079,9 @@ object Everframe {
         displacedReplay?.teardown()
         if (!published) return
         startStateFacts(context, epoch)
-        dev.everframe.companion.CompanionBadgeServerConfigSignal.publish(null) { currentStartEpochVolatile() == epoch }
         dev.everframe.config.BrandingServerConfigSignal.publish(null) { currentStartEpochVolatile() == epoch }
         dev.everframe.config.BrandingInlineTheme.publish(config.theme) { currentStartEpochVolatile() == epoch }
 
-        // External review, finding NN3 — register the companion badge's
-        // Activity tracker HERE, at the earliest core entry point, instead of
-        // only at `startCompanion()` time. `CompanionActivityTracker` is an
-        // `Application.ActivityLifecycleCallbacks`: it only ever LEARNS the
-        // current Activity from a FUTURE `onActivityResumed` callback, so a
-        // host that calls `start()` well after its first Activity is already
-        // on screen (the common React Native shape — JS runs long after
-        // `MainActivity.onCreate`) left the tracker with `current = null`
-        // until the next pause/resume cycle if registration waited for
-        // `startCompanion()`. Registering here means the tracker is already
-        // listening by the time ANY Activity resumes, so
-        // `CompanionBadge.__activityProvider` (fed only when still null — see
-        // `installIfNeeded`'s own doc comment) is seeded long before a
-        // companion client ever attaches.
-        //
-        // ORDERING ASSUMPTION this relies on: `configure()`/`start()` runs
-        // before `startCompanion()` in every host's lifecycle (true today —
-        // the RN bridge's `configure()` calls `Everframe.start()` and
-        // `startCompanion()` is a separate, always-later JS call; a
-        // plain-native host calling `Everframe.startCompanion()` directly
-        // must likewise have already called `Everframe.start()`, since
-        // `startCompanion()` itself no-ops without `appContext`). `install
-        // IfNeeded` is idempotent (its own `AtomicBoolean` latch) and only
-        // ever populates `__activityProvider` when it is STILL null, so
-        // calling it again from `startCompanionInternal` below (kept as a
-        // fallback for the theoretical case a context reaches this facade
-        // some other way, without going through `start()`) is harmless, and
-        // an RN host's own `reactContext.currentActivity` provider —
-        // installed later, from `EverframeModule.startCompanion()` — is never
-        // clobbered by either call site.
-        dev.everframe.companion.CompanionActivityTracker.installIfNeeded(context)
         dev.everframe.trigger.ShakeToReportTrigger.install(
             context = context,
             localEnabled = dev.everframe.trigger.ShakeToReportTrigger.localEnabled(config),
@@ -1286,8 +1240,8 @@ object Everframe {
                 // AFTER this call returns (see `start.replay` below). So it
                 // is not only this drain's queued reports that ship
                 // anonymous during that window: ANY capture anywhere in the
-                // app — a crash, an in-app reporter submit, a companion
-                // submit — that lands before this call returns is ALSO
+                // app — a crash, an in-app reporter submit, a quick
+                // capture — that lands before this call returns is ALSO
                 // permanently anonymous, even if the host already called
                 // `setIdentityToken` moments after `start()`. Capture-time
                 // binding means there is no "catching up" a report captured
@@ -1489,13 +1443,6 @@ object Everframe {
      */
     @JvmStatic
     fun kill() {
-        // Companion capture is bound to an EPOCH, not just to this boolean.
-        // `kill()` lowers the gate and `start()` raises it again, so a capture
-        // suspended across both never observes `false` and would carry on
-        // streaming under the pre-kill request. Bumping the epoch cannot be
-        // undone by a later start().
-        dev.everframe.companion.CompanionAuthEpoch.invalidate()
-
         txGuardVoid("kill") {
             // Codex round-4, #2 — the epoch THIS kill established. Everything
             // below runs with `stateLock` released and takes an unbounded
@@ -1543,7 +1490,6 @@ object Everframe {
                 stateEvidenceGeneration += 1
                 stateRecorder.erase(); stateFacts?.stop(); stateFacts = null
                 _config = null
-                _crashOnlyUpgraded = false
                 _user = null
                 // Native identity Task 8 (Kotlin twin of iOS Task 4) — clear
                 // the verified-identity token in the SAME `stateLock`
@@ -1601,7 +1547,6 @@ object Everframe {
             }
             __reporterTriggersTeardown?.invoke()
             LogCapture.configure(enabled = false, isCurrent = stillThisKill)
-            dev.everframe.companion.CompanionBadgeServerConfigSignal.publish(null, stillThisKill)
             dev.everframe.config.BrandingServerConfigSignal.publish(null, stillThisKill)
             dev.everframe.config.BrandingInlineTheme.publish(null, stillThisKill)
             dev.everframe.vitals.VitalsRuntime.shutdown(dropPending = true, ifCurrent = stillThisKill)
@@ -1900,8 +1845,7 @@ object Everframe {
      * Serialises the ask-and-wait + drain sequence when a hook is installed
      * (review finding F5). Without this, two reports racing
      * [consumePendingAttachments] concurrently (e.g. the in-app modal
-     * reporter and the phone-companion capture path, both funnelling
-     * through this seam) can each suspend in the hook at once — JS then
+     * reporter and a quick capture, both funnelling through this seam) can each suspend in the hook at once — JS then
      * answers BOTH out of band via the single-slot `_pendingExtra` plus a
      * separate correlation-id ack, with no guarantee the ack order matches
      * the `setExtra()` write order relative to which caller's drain runs
@@ -2403,31 +2347,6 @@ object Everframe {
     @JvmStatic
     var __activitySupplier: (() -> android.app.Activity?)? = null
 
-    /**
-     * Set true by `:everframe-reporter-ui`'s installer when the built-in
-     * attach-PIN dialog is available (spec 2026-08-19). Read at announce time:
-     * `AttachPinUi.BUILTIN` only advertises `supportsAttachPin` when something
-     * will actually render the code. Same `:core` <- `:reporter-ui` seam shape
-     * as [__activitySupplier].
-     */
-    @JvmStatic
-    @Volatile
-    var __attachPinUiInstalled: Boolean = false
-
-    /**
-     * Set true by the RN bridge / other native hosts when the configured
-     * attach-PIN mode is not `builtin` — i.e. something OTHER than
-     * `CompanionPinPresenter` owns rendering the challenge (spec 2026-08-19).
-     * `CompanionPinPresenter.present` checks this at the top and returns
-     * without showing its dialog when set, so a host running its own custom
-     * surface never gets two PIN dialogs stacked on screen. The StateFlow
-     * itself ([dev.everframe.companion.Companion.attachChallenge]) is
-     * unaffected — a custom UI still needs to collect it.
-     */
-    @JvmStatic
-    @Volatile
-    var __attachPinUiSuppressed: Boolean = false
-
     /** Internal DEV host fixture only. Published release returns before reading SDK state. */
     @JvmStatic
     fun __nativeVideoDiagnostics(): String? {
@@ -2446,9 +2365,9 @@ object Everframe {
     }
 
     /**
-     * True while a reporter, companion or quick capture holds the installed session's frozen replay and
-     * evidence. The in-app reporter freezes before its dialog shows and the companion never marks itself
-     * presenting, so this, not `report.isPresenting`, says another capture owns the freeze. False without
+     * True while a reporter or quick capture holds the installed session's frozen replay and evidence.
+     * The in-app reporter freezes before its dialog shows, so this, not `report.isPresenting`, says
+     * another capture owns the freeze. False without
      * an installed session, where a freeze binds no owner.
      */
     internal val __replayHasReporterOwner: Boolean get() = _replaySession?.hasReportOwner == true
@@ -2525,7 +2444,7 @@ object Everframe {
      * always agrees with whatever the test just set). Widening this to
      * public — a read-only accessor, no new mutable surface — lets that test
      * check the REAL production accessor instead, matching
-     * `CompanionSubmissionComposerTest`'s equivalent (same-module) check.
+     * `SubmissionComposerTest`'s equivalent (same-module) check.
      */
     @JvmStatic
     fun currentReplayConfig(): ReplayConfig =
@@ -2632,243 +2551,42 @@ object Everframe {
      */
     data class IdentityResolution(val token: String?, val epochStillCurrent: Boolean)
 
-    // ---------------- Companion (Plan 06.2-08) ----------------
-    //
-    // Singleton accessor onto the Companion object so hosts can collect
-    // `Everframe.companion.state` / `Everframe.companion.pairUrl` without
-    // importing `dev.everframe.companion.Companion` directly. Field, not
-    // function, to mirror Swift's `Everframe.companion` static property.
-    //
-    // Auto-start of `RelayWSClient` is wired by Task 2 — `start()` does
-    // NOT spawn the WS here. Phase 06.2 Plan 09 adds the `enableCompanion`
-    // config flag and the resolver-indirection hook to install/teardown.
+    // ---------------- Companion (removed; deprecated no-op stubs) ----------------
 
+    /** The removed Companion surface. Every flow holds its idle value. */
+    @Deprecated(dev.everframe.companion.COMPANION_REMOVED_MESSAGE)
+    @Suppress("DEPRECATION")
     @JvmStatic
     val companion: dev.everframe.companion.Companion = dev.everframe.companion.Companion
 
-    // ---------------- Companion facade for pure-native hosts (external
-    // review, finding N3) ----------------
-    //
-    // Until this pair of methods, `EverframeModule.startCompanion()`/
-    // `stopCompanion()` (the RN bridge, `:sdk-react-native`) was the ONLY
-    // caller that ever built a `RelayWSClient` — a plain Kotlin/Java or
-    // Jetpack-Compose host with no RN bridge had no way to start companion
-    // at all, so `companionDeviceId`/`companionBadgeEnabled`/
-    // `companionBadgePosition` on `EverframeConfig` were dead config for that
-    // host shape: nothing ever read them into a client. This mirrors the RN
-    // bridge's own construction (deviceProvider off
-    // `CompanionDeviceFacts.current`, companionBadge off the same config
-    // fields, `parseCompanionBadgePosition` shared with that bridge) and is
-    // idempotent the same way: a second call while a client is already live
-    // is a no-op — call [stopCompanion] first to restart.
-    //
-    // Badge activity source: `CompanionBadge.__activityProvider` needs a
-    // live `Activity` to draw over. Core has no OTHER queryable "current
-    // Activity" to reuse (`BreadcrumbTapNavAdapters` only wraps
-    // `Window.callback` for tap crumbs, it never stores one), so
-    // [CompanionActivityTracker] installs a minimal tracker of its own the
-    // first time this runs, and only feeds `__activityProvider` when it is
-    // still null — an RN host's own `reactContext.currentActivity` provider
-    // (installed by `EverframeModule.startCompanion()`) is authoritative for
-    // that host and must never be clobbered by this path running in the same
-    // process.
-
-    @Volatile
-    private var _companionClient: dev.everframe.companion.RelayWSClient? = null
-
-    /** Test seam — mirrors `EverframeModule.companionClientForTesting()`. */
-    @VisibleForTesting
-    internal fun companionClientForTesting(): dev.everframe.companion.RelayWSClient? = _companionClient
-
-    /**
-     * External review, finding NN1 — before this pair, [_companionClient]
-     * (this facade) and `EverframeModule.companionClient` (the RN bridge,
-     * `:sdk-react-native`) were TWO INDEPENDENT fields, each with its own
-     * unsynchronized check-then-set. A hybrid app (a native host that also
-     * embeds an RN screen) could therefore construct and START two live
-     * `RelayWSClient`s racing over the SAME process-global `Companion`
-     * StateFlow object, and a `stopCompanion()` on either side cleared ITS
-     * OWN provider seams (`CompanionBadge.__activityProvider`,
-     * `CompanionCaptureBridge.__*Provider`) unconditionally, even when the
-     * client that was actually live belonged to the OTHER caller. Even
-     * within a single caller, the old `_companionClient?.let { return it }`
-     * check followed by a separate `_companionClient = client` assignment
-     * was two statements, not one — a second `start()` landing between them
-     * could still orphan a client.
-     *
-     * [_companionClient] is now [_companionClient]-here-and-here-only: the
-     * single slot BOTH this facade's own [startCompanionInternal]/
-     * [stopCompanion] below and `EverframeModule` (a separate Gradle module —
-     * these two seams are public, double-underscore-prefixed SDK-internal
-     * API, not Kotlin `internal`, for exactly that cross-module reason, the
-     * same idiom as [__attachPinUiSuppressed] / [__reporterTriggersInstaller]
-     * above) route every registration through. First caller to register
-     * wins; every other caller's own, already-constructed client is
-     * stillborn — `stop()` it and discard, never install a provider for it.
-     *
-     * `@Synchronized` locks on the `Everframe` singleton object itself,
-     * distinct from [stateLock] — companion-client ownership is independent
-     * of the config/user/epoch state that lock guards, and this method must
-     * never be reached from inside a [stateLock] critical section (it isn't,
-     * anywhere in this file) to avoid any risk of lock-ordering inversion.
-     */
-    @JvmStatic
-    @Synchronized
-    fun __registerCompanionClient(client: dev.everframe.companion.RelayWSClient): Boolean {
-        if (_companionClient != null) return false
-        _companionClient = client
-        return true
-    }
-
-    /**
-     * Releases the companion-client slot — but ONLY when [client] IS the one
-     * currently stored (identity, not equality). A caller whose own
-     * [__registerCompanionClient] call lost the race never actually owned
-     * the slot, so its `stop()`/teardown must not be able to clear whatever
-     * the WINNING caller installed; this identity check is what makes that
-     * safe, and is exactly what lets `EverframeModule.stopCompanion()` clear
-     * its own bridge providers unconditionally right after calling this —
-     * if the unregister was a no-op (a different, still-live client is
-     * registered), the caller's OWN client was never live in the first
-     * place and never installed any providers to clear.
-     */
-    @JvmStatic
-    @Synchronized
-    fun __unregisterCompanionClient(client: dev.everframe.companion.RelayWSClient) {
-        if (_companionClient === client) {
-            _companionClient = null
-        }
-    }
-
-    /**
-     * Starts the companion relay client for a host with no RN bridge.
-     * No-ops before [start] has run (there is no `appContext`/[currentConfig]
-     * yet to read the SDK key or the companion fields off of) and no-ops
-     * while a client from a prior call is still live.
-     */
+    /** Logs the Companion removal warning once per process. Opens nothing. */
+    @Deprecated(dev.everframe.companion.COMPANION_REMOVED_MESSAGE)
     @JvmStatic
     fun startCompanion() {
-        val context = appContext ?: return
-        startCompanionInternal(context = context, config = currentConfig)
+        dev.everframe.companion.CompanionDeprecation.warnOnce()
     }
 
-    /**
-     * The actual construction, factored out of [startCompanion] purely so a
-     * test can supply a `MockWebServer`-backed [okHttpClient]/[baseUrl] the
-     * way `RelayWSClientAnnounceTest` does for the RN-driven path — the
-     * public [startCompanion] always uses the real [okhttp3.OkHttpClient]
-     * and the build-time-baked `IngestEndpoint.url`. Returns the live
-     * client — freshly constructed by THIS call, or the one some OTHER
-     * caller (a concurrent call here, or the RN bridge) already registered,
-     * per [__registerCompanionClient]'s first-caller-wins contract — or null
-     * if none could be started.
-     */
-    @VisibleForTesting
-    internal fun startCompanionInternal(
-        context: Context,
-        config: EverframeConfig?,
-        okHttpClient: okhttp3.OkHttpClient = okhttp3.OkHttpClient(),
-        baseUrl: String = IngestEndpoint.url,
-    ): dev.everframe.companion.RelayWSClient? {
-        // Fast path — avoids constructing (and immediately discarding) a
-        // redundant RelayWSClient on the ordinary repeat-call case. Still
-        // race-prone by itself (two threads can both read null here), which
-        // is exactly why the construct-then-[__registerCompanionClient]
-        // sequence below, not this read, is what actually decides ownership.
-        _companionClient?.let { return it }
-        val client = dev.everframe.companion.RelayWSClient(
-            client = okHttpClient,
-            baseUrl = baseUrl,
-            sdkKey = config?.sdkKey?.takeIf { it.isNotBlank() },
-            deviceLabel = android.os.Build.MODEL?.takeIf { it.isNotBlank() },
-            deviceProvider = {
-                dev.everframe.companion.CompanionDeviceFacts.current(
-                    context,
-                    config?.companionDeviceId,
-                )
-            },
-            companionBadge = dev.everframe.companion.CompanionBadgeOptions(
-                enabled = config?.companionBadgeEnabled ?: true,
-                position = dev.everframe.companion.parseCompanionBadgePosition(
-                    config?.companionBadgePosition,
-                ),
-            ),
-        )
-        if (!__registerCompanionClient(client)) {
-            // Lost the race — some other caller (a concurrent call here, or
-            // the RN bridge) already claimed the slot. Discard without ever
-            // starting this client or installing a provider for it, and hand
-            // back whichever client actually won.
-            client.stop()
-            return _companionClient
-        }
-        // NN3 fallback — see start()'s own call for why this is normally
-        // already a no-op by the time we get here.
-        dev.everframe.companion.CompanionActivityTracker.installIfNeeded(context)
-        client.start()
-        return client
-    }
-
-    /** Idempotent — a no-op when [startCompanion] was never called or was
-     *  already stopped. Uses [__unregisterCompanionClient]'s identity check
-     *  so this can never clear a client some OTHER caller (the RN bridge)
-     *  registered after this facade's own client — which, per
-     *  [__registerCompanionClient]'s first-caller-wins contract, would only
-     *  ever happen if THIS facade's client had already been stopped some
-     *  other way. */
+    /** Does nothing. */
+    @Deprecated(dev.everframe.companion.COMPANION_REMOVED_MESSAGE)
     @JvmStatic
-    fun stopCompanion() {
-        val client = _companionClient ?: return
-        client.stop()
-        __unregisterCompanionClient(client)
-    }
-
-    /** Test seam — undoes [startCompanionInternal] without requiring a real
-     *  socket teardown, for tests that only assert on construction. */
-    @VisibleForTesting
-    internal fun __resetCompanionClientForTesting() {
-        _companionClient = null
-    }
+    fun stopCompanion() {}
 
     // ---------------- Crash-only sessions (spec 2026-10-12) ----------------
 
     /**
-     * True while the current session was started with `reporterEnabled = false` and no companion has
-     * bonded since: replay samples at the server's `crashOnlySamplingRate` (none when absent) and network
-     * bodies stay off. [ReplaySession] reads it on every config refresh, and an upgrade re-applies one.
+     * True while the current session was started with `reporterEnabled = false`: replay samples at the
+     * server's `crashOnlySamplingRate` (none when absent) and network bodies stay off. [ReplaySession]
+     * reads it on every config refresh.
      */
     internal fun crashOnlyCoverage(): Boolean = replayCoverage() == ReplayCoverage.CrashOnly
 
     /**
      * The current session's replay coverage kind: [ReplayCoverage.Report] unless the session was started
-     * with `reporterEnabled = false`, then [ReplayCoverage.CrashOnly] until a companion bond makes it
-     * [ReplayCoverage.Upgraded]. [ReplaySession] samples against [ReplayCoverage.samplingRate].
+     * with `reporterEnabled = false`, then [ReplayCoverage.CrashOnly]. [ReplaySession] samples against
+     * [ReplayCoverage.samplingRate].
      */
     internal fun replayCoverage(): ReplayCoverage = stateLock.withLock {
-        when {
-            _config?.reporterEnabled != false -> ReplayCoverage.Report
-            _crashOnlyUpgraded -> ReplayCoverage.Upgraded
-            else -> ReplayCoverage.CrashOnly
-        }
-    }
-
-    /**
-     * A companion bonded: a phone scanned the QR code, or a dashboard member attached. In a crash-only
-     * session this gives the rest of the session report coverage, so a report filed through companion has
-     * a replay from the bond on. A detach does not undo it, and the on-device entry points stay off.
-     *
-     * Called from `RelayWSClient`'s `pair.bonded` handler only, never from a `Paired` state change:
-     * finishing a companion report also returns the state to `Paired`.
-     */
-    internal fun __onCompanionMemberAttached() {
-        val session = stateLock.withLock {
-            if (!captureGate || _config?.reporterEnabled != false || _crashOnlyUpgraded) return
-            _crashOnlyUpgraded = true
-            _replaySession
-        } ?: return // A session installed later reads the upgrade on its first refresh.
-        // Re-applies the last confirmed config, fetching only when there is none, so a server that is
-        // unreachable at the bond never revokes a recording.
-        sdkScope.launch { txGuardSuspend("companion.crashOnlyUpgrade") { session.applyCompanionUpgrade() } }
+        if (_config?.reporterEnabled != false) ReplayCoverage.Report else ReplayCoverage.CrashOnly
     }
 
     // ---------------- Report API (resolver-backed) ----------------
@@ -2902,8 +2620,7 @@ object Everframe {
          * to `{ TXReporterPresenter().openReporter(activeActivity) }`.
          * Throws IllegalStateException if `:everframe-reporter-ui` is not on
          * the classpath, and [dev.everframe.config.ReporterDisabledException]
-         * in a crash-only session (`reporterEnabled = false`), including
-         * after a companion bond upgraded it.
+         * in a crash-only session (`reporterEnabled = false`).
          */
         suspend fun open(): ReportResult {
             if (Everframe.currentConfig?.reporterEnabled == false) throw dev.everframe.config.ReporterDisabledException()

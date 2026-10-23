@@ -113,21 +113,11 @@ class MultipartUploader(private val client: OkHttpClient) {
         envelopeBytes: ByteArray,
         attachments: List<Part>,
         /**
-         * Companion attribution token (spec 2026-08-07) for a report filed
-         * from the dashboard rather than by scanning the QR. When non-null it
-         * rides this POST as `X-Everframe-Companion-Attribution` so ingest can credit
-         * the report to the dashboard user who requested it. Null — the
-         * default, and every non-companion submit — sends no header at all.
-         * SECURITY: never log this value.
-         */
-        companionAttribution: String? = null,
-        /**
          * Verified-identity JWT (recognition spec 2026-08-06), already
          * resolved by the caller via `resolveIdentityHeader` — this function
          * does no gating of its own, it only attaches whatever it is handed.
          * Rides as [IDENTITY_TOKEN_HEADER]. `null` sends the report
-         * anonymously. Unlike [companionAttribution], the subject this token
-         * proves IS persisted (on `OutboxEntry.identitySubject`) — the token
+         * anonymously. The subject this token proves IS persisted (on `OutboxEntry.identitySubject`) — the token
          * itself never is; only what to compare a future token against.
          * SECURITY: never log this value.
          */
@@ -154,7 +144,7 @@ class MultipartUploader(private val client: OkHttpClient) {
         var payload = preparePayload(envelopeBytes, attachments, expected.replayAllowed)
         repeat(2) { attempt ->
             validatePayload(payload.first, payload.second)
-            listOfNotNull(endpoint, sdkKey, idempotencyKey, identityToken, companionAttribution, captureToken, linkNonce).forEach {
+            listOfNotNull(endpoint, sdkKey, idempotencyKey, identityToken, captureToken, linkNonce).forEach {
                 require(it.length <= 16_384 && it.toByteArray(Charsets.UTF_8).size <= 16_384) { "Routing/header field exceeds limit" }
             }
             val body = multipartBody(payload.first, payload.second)
@@ -174,18 +164,13 @@ class MultipartUploader(private val client: OkHttpClient) {
                 .header("Authorization", "Bearer $sdkKey")
                 .header("X-Everframe-Idempotency-Key", idempotencyKey)
                 .apply {
-                    // SECURITY: never log companionAttribution — it is only ever
+                    // SECURITY: never log identityToken — it is only ever
                     // written into this header.
-                    if (companionAttribution != null) {
-                        header("X-Everframe-Companion-Attribution", companionAttribution)
-                    }
-                    // SECURITY: never log identityToken — same posture as
-                    // companionAttribution above.
                     if (identityToken != null) {
                         header(IDENTITY_TOKEN_HEADER, identityToken)
                     }
                     // SECURITY: never log captureToken — same posture as
-                    // companionAttribution above.
+                    // identityToken above.
                     if (captureToken != null) {
                         header(CAPTURE_TOKEN_HEADER, captureToken)
                     }

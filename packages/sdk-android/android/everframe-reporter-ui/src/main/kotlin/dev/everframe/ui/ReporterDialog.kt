@@ -82,7 +82,7 @@ internal object ReporterDialog {
      * Test seam (final whole-branch review, Important 2) — when non-null,
      * `submitBaked` constructs its `ReportSubmitter` through this factory
      * instead of `ReportSubmitter(cfg, outbox)` directly. Production leaves
-     * it null. Mirrors `CompanionSubmissionComposer.__submitterFactoryForTesting`
+     * it null. Mirrors `SubmissionComposer.__submitterFactoryForTesting`
      * one module up — it exists so a test can point the real submit at a
      * local server and assert on the request it receives (in particular,
      * that `X-Everframe-Identity-Token` is withheld when the captured session's

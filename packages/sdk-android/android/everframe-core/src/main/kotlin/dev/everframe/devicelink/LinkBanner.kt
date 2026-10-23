@@ -9,8 +9,7 @@
 // Activity's window token, `FLAG_NOT_FOCUSABLE or FLAG_NOT_TOUCHABLE`, so it
 // never takes keys or touches and needs no permission. Being its own window
 // keeps it out of `PixelCopy` screenshots and the sensitive-view walk, both of
-// which read only the Activity's window. The same mechanics as the Companion
-// name badge, without depending on Companion code.
+// which read only the Activity's window.
 //
 // ABOVE SDK WINDOWS. A panel stays above its own parent window only, so a
 // later app window (the reporter dialog a shake can open) covers it. While an

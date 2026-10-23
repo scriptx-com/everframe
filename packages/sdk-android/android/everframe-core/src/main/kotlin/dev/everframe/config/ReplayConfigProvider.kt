@@ -294,12 +294,11 @@ private object IdentityConfigWireSerializer : KSerializer<IdentityConfigWire> {
 }
 
 /**
- * Server-driven companion name-badge override (plan 2026-08-25). Present
- * only when this SDK declared `companionbadge` in X-Everframe-SDK-Features.
- * `position` stays a STRING here (the wire shape); resolution to
- * [dev.everframe.companion.CompanionBadgePosition] happens at the badge via
- * parseCompanionBadgePositionOrNull, so an unrecognised future position
- * falls back to the inline option rather than a hard-coded corner.
+ * Deprecated: the removed Companion name-badge block (plan 2026-08-25). This
+ * SDK no longer declares `companionbadge` and nothing reads the block, but it
+ * stays declared and decoded because this decoder runs with
+ * `ignoreUnknownKeys = false`: a config from an older server or a stale cache
+ * that carries it must keep parsing. Removed at the next major.
  */
 @Serializable(with = CompanionBadgeConfigWireSerializer::class)
 data class CompanionBadgeConfigWire(
@@ -403,7 +402,7 @@ object BrandingConfigWireSerializer : KSerializer<BrandingConfigWire> {
  * Report Resource Window (spec 2026-09-05). Mirrors the server's
  * `resources: { enabled, windowSec }` block (the ingest API's config-route.ts).
  * Present only when this SDK declares `resources` in `X-Everframe-SDK-Features` —
- * same capability-negotiation doctrine as `identity`/`companionBadge`/
+ * same capability-negotiation doctrine as `identity`/
  * `branding` above. Without declaring the token the server never emits this
  * block at all, and the feature is silently, permanently off (the
  * negotiation gap gap-class-1 of the Task 12/13 review closes).
@@ -1055,10 +1054,11 @@ class ReplayConfigProvider(
          * `captureHotkey.binding`; callers without it get `Shift Shift`. `devicelinking` (real-device quick
          * capture) asks for the `deviceLinking` block: the per-app linking switch and, for a request carrying
          * an `evf_dev_` token, that token's link status. `capturegesture` asks for the `captureGesture` block (the
-         * app's TV remote binding) and for `deviceLinking.link.recording`.
+         * app's TV remote binding) and for `deviceLinking.link.recording`. `companionbadge` is no longer
+         * declared: Companion has been removed.
          */
         val SDK_FEATURES_HEADER_VALUE: String
-            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking, capturegesture" +
+            get() = "networkbodies, identity, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking, capturegesture" +
                 if (android.os.Build.VERSION.SDK_INT >= 29) ", nativevideo, nativevideolowfps" else ""
 
         /**

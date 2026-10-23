@@ -1161,7 +1161,7 @@ class ReportSubmitterTest {
     // `IdentityTokenHolder.kt`'s `invokeSafely` used to rethrow any
     // CancellationException unconditionally, so it propagated out of
     // `resolveIdentityHeader(...)` — and because the real call sites
-    // (`ReporterDialog.kt`, `CompanionSubmissionComposer.kt`) wrap their
+    // (`ReporterDialog.kt`, `SubmissionComposer.kt`) wrap their
     // WHOLE submit-building block in `txGuardSuspend("...") { ... } ?:
     // ReportResult.Cancelled("submit_guard_failed")`, that escaped exception
     // got caught there as a generic `Throwable`, abandoning the ENTIRE
@@ -1199,7 +1199,7 @@ class ReportSubmitterTest {
         // Reproduces the real call sites' wrapping shape exactly: the WHOLE
         // submit-building block, identity resolution included, runs inside
         // txGuardSuspend, and a null result becomes Cancelled — see
-        // ReporterDialog.kt / CompanionSubmissionComposer.kt.
+        // ReporterDialog.kt / SubmissionComposer.kt.
         val result: ReportResult = txGuardSuspend("test-submit") {
             val resolved = resolveIdentityHeader(
                 capturedSubject = "alice",
@@ -1263,7 +1263,7 @@ class ReportSubmitterTest {
         // Reproduces the real call sites' wrapping shape exactly: the WHOLE
         // submit-building block, identity resolution included, runs inside
         // txGuardSuspend, and a null result becomes Cancelled — see
-        // ReporterDialog.kt / CompanionSubmissionComposer.kt.
+        // ReporterDialog.kt / SubmissionComposer.kt.
         val result: ReportResult = txGuardSuspend("test-submit") {
             val resolved = resolveIdentityHeader(
                 capturedSubject = "alice",

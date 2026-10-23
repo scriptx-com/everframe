@@ -75,7 +75,7 @@ dependencies {
     // Final whole-branch review, Important 2 — ReporterDialogSubmitBoundaryTest's
     // identity-epoch case reaches a real (local) HTTP request via
     // ReporterDialog.__submitterFactoryForTesting, mirroring
-    // CompanionSubmissionComposerTest's identical use of these in :everframe-core.
+    // SubmissionComposerTest's identical use of these in :everframe-core.
     testImplementation(libs.mockwebserver)
     testImplementation(libs.okhttp)
     // ReporterDialogSingleFlightTest types into the real reporter dialog under
