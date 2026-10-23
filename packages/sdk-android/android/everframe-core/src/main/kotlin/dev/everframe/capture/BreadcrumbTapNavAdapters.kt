@@ -71,6 +71,7 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import androidx.annotation.VisibleForTesting
 import dev.everframe.envelope.txGuard
@@ -404,10 +405,22 @@ internal class TXWindowCallbackWrapper(
         val chord = dev.everframe.quickcapture.QuickCapture.armedChord ?: return false
         if (!chord.matches(event)) return false
         // Typing Shift+B into a field (EditText, React Native TextInput, Compose or Flutter text input) stays typing.
-        if (activity.window?.currentFocus?.onCheckIsTextEditor() == true) return false
+        if (isEditingText()) return false
         dev.everframe.quickcapture.QuickCapture.trigger()
         consumedCaptureKey = event.keyCode
         return true
+    }
+
+    /**
+     * A text field has the keyboard. The focused view's own answer first; then the input method's: Flutter
+     * keeps `FlutterView` focused while a Dart `TextField` edits, and `FlutterView` opens an input connection
+     * without overriding `onCheckIsTextEditor`. A failed IME lookup counts as not editing.
+     */
+    private fun isEditingText(): Boolean {
+        if (activity.window?.currentFocus?.onCheckIsTextEditor() == true) return true
+        return runCatching {
+            (activity.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.isAcceptingText == true
+        }.getOrDefault(false)
     }
 
     private fun remoteScrollContainer(focused: android.view.View?, keyCode: Int): Pair<android.view.View, String>? {

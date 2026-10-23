@@ -927,6 +927,38 @@ class QuickCaptureTest {
         assertEquals(2, delivered.size)
     }
 
+    /**
+     * Flutter: a Dart TextField edits through `FlutterView`, which opens an input connection but never says it
+     * is a text editor. The input method's active connection is what tells the SDK someone is typing.
+     */
+    @Test
+    @Config(shadows = [AcceptingTextInputMethodManager::class])
+    fun shiftBWhileTheInputMethodIsAcceptingTextIsTyping() {
+        arm()
+        val engineView = object : android.view.View(activity) {
+            override fun onCheckIsTextEditor(): Boolean = false
+            override fun onCreateInputConnection(outAttrs: android.view.inputmethod.EditorInfo): android.view.inputmethod.InputConnection =
+                android.view.inputmethod.BaseInputConnection(this, true)
+        }.apply { isFocusableInTouchMode = true }
+        activity.setContentView(engineView)
+        assertTrue(engineView.requestFocus())
+        val (wrapper, delivered) = wrap()
+
+        AcceptingTextInputMethodManager.accepting = true
+        try {
+            assertFalse(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+            assertFalse(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_UP, SHIFT)))
+            assertNull("no capture while the input method is taking text", QuickCapture.__lastTrigger)
+            assertEquals(2, delivered.size)
+        } finally {
+            AcceptingTextInputMethodManager.accepting = false
+        }
+
+        // The same view with no active input connection: the chord captures.
+        assertTrue(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+        assertEquals(QuickCaptureOutcome.Sent, awaitMain(QuickCapture.__lastTrigger!!))
+    }
+
     @Test
     fun shiftBOnAFocusedNonEditorViewTriggers() {
         arm()
@@ -1131,5 +1163,18 @@ class QuickCaptureTest {
 
     private companion object {
         const val SHIFT = KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
+    }
+}
+
+/** `isAcceptingText` is not shadowed by Robolectric; this reports an active input connection on demand. */
+@org.robolectric.annotation.Implements(android.view.inputmethod.InputMethodManager::class)
+class AcceptingTextInputMethodManager : org.robolectric.shadows.ShadowInputMethodManager() {
+    @org.robolectric.annotation.Implementation
+    protected fun isAcceptingText(): Boolean = accepting
+
+    companion object {
+        @Volatile
+        @JvmStatic
+        var accepting = false
     }
 }
