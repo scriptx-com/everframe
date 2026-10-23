@@ -1003,6 +1003,10 @@ public final class Everframe: @unchecked Sendable {
     /// with its SDK instance immediately before the launch `drainOutbox()` call,
     /// so a test can observe what native recovery queued before delivery
     /// begins. `nil` in production.
+    /// Test-only: replaces `start()`'s read of the stored device link, so a
+    /// test can run a second `start()` between that read and its write.
+    nonisolated(unsafe) internal static var __initialLinkedStateForTesting: (() -> Bool)?
+
     nonisolated(unsafe) internal static var __beforeLaunchDrainHookForTesting: (@Sendable (Everframe) async -> Void)?
 
     // MARK: - Session-supersession test seam (round-4 review Finding F16)
@@ -1290,8 +1294,10 @@ public final class Everframe: @unchecked Sendable {
             ifCurrent: vitalsStillNewest
         )
         // Set directly, not through the coordinator's `linkChanged`, so no config refresh fires
-        // at start: the session's first config fetch is already on its way.
-        QuickCapture.shared.setLinked(DeviceLinkCoordinator.shared.currentLink != nil)
+        // at start: the session's first config fetch is already on its way. Fenced like the
+        // calls above: a start() that superseded this one meanwhile owns the flag.
+        let linkedAtStart = Self.__initialLinkedStateForTesting?() ?? (DeviceLinkCoordinator.shared.currentLink != nil)
+        QuickCapture.shared.setLinked(linkedAtStart, ifCurrent: vitalsStillNewest)
         #endif
 
         NetworkBodyCaptureGate.shared.reset()

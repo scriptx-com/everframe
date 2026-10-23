@@ -33,6 +33,8 @@ final class DeviceLinkCoordinator {
     static let checkInterval: TimeInterval = 3
     static let checkDeadline: TimeInterval = 150
     static let rateLimitSilence: TimeInterval = 60
+    /// Shown when the server linked the device but the Keychain refused the token.
+    static let saveFailedToastText = "Linking failed"
 
     struct Seams {
         var showBanner: @MainActor (Int) -> Void
@@ -179,6 +181,18 @@ final class DeviceLinkCoordinator {
         return store.link(endpoint: session.endpoint, sdkKey: session.sdkKey)
     }
 
+    /// The stored link for `endpoint` and `sdkKey`, only while this session is
+    /// a `.device` session for that same origin and key. A capture asks with
+    /// its own session's scope, so a session that has since been replaced
+    /// never lends it another scope's token.
+    nonisolated func link(endpoint: URL, sdkKey: String) -> DeviceLink? {
+        lock.lock(); defer { lock.unlock() }
+        guard let session, session.hostMode == .device,
+              let account = DeviceLinkStore.account(endpoint: endpoint, sdkKey: sdkKey),
+              account == DeviceLinkStore.account(endpoint: session.endpoint, sdkKey: session.sdkKey) else { return nil }
+        return store.link(endpoint: endpoint, sdkKey: sdkKey)
+    }
+
     var isAttemptActive: Bool { attempt != nil }
 
     nonisolated var __sessionKeyForTesting: String? {
@@ -201,15 +215,16 @@ final class DeviceLinkCoordinator {
         return session?.generation == generation
     }
 
+    private enum SaveResult { case saved, superseded, failed }
+
     /// Stores `link` for session `generation`'s origin and key, in the same
     /// critical section that checks that session is still current: a
     /// `start()` or `kill()` waits for the write, and a late reply never
-    /// writes after its session ended. False when the session changed.
-    nonisolated private func save(_ link: DeviceLink, ifGeneration generation: Int) -> Bool {
+    /// writes after its session ended.
+    nonisolated private func save(_ link: DeviceLink, ifGeneration generation: Int) -> SaveResult {
         lock.lock(); defer { lock.unlock() }
-        guard let session, session.generation == generation else { return false }
-        store.save(link, endpoint: session.endpoint, sdkKey: session.sdkKey)
-        return true
+        guard let session, session.generation == generation else { return .superseded }
+        return store.save(link, endpoint: session.endpoint, sdkKey: session.sdkKey) ? .saved : .failed
     }
 
     /// `seams.linkChanged`, fenced to session `generation`.
@@ -318,6 +333,9 @@ final class DeviceLinkCoordinator {
     }
 
     private func poll(session: Session, attemptId: UUID, number: Int, nonce: String) async {
+        // A start() or kill() between queuing this attempt and its task
+        // running already ended it: showing the banner now would leave it up.
+        guard isCurrent(session.generation), !Task.isCancelled else { return }
         bannerVisible = true
         seams.showBanner(number)
         let start = seams.now()
@@ -338,8 +356,15 @@ final class DeviceLinkCoordinator {
                 // next session with that origin and key (which reads it at its
                 // own start), and the dashboard already shows the device as
                 // linked. Only this session's gate and toast are fenced.
-                guard save(DeviceLink(token: token, owner: owner), ifGeneration: session.generation) else { return }
+                let saved = save(DeviceLink(token: token, owner: owner), ifGeneration: session.generation)
+                if saved == .superseded { return }
                 hideBannerOnce()
+                // The Keychain refused the token: the device stays unlinked, and
+                // says so rather than announcing a link it does not hold.
+                if saved == .failed {
+                    if isCurrent(session.generation) { seams.showToast(Self.saveFailedToastText) }
+                    return
+                }
                 // The Keychain write can block, and start() runs on any thread.
                 guard isCurrent(session.generation) else { return }
                 seams.showToast(owner.linkedToastText)

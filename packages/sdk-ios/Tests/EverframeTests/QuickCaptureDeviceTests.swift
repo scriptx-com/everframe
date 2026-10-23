@@ -59,7 +59,7 @@ final class QuickCaptureDeviceTests: XCTestCase {
             open: { UUID() },
             didClose: { _ in },
             cancel: { [unowned self] in self.cancels.append($0) })
-        qc.deviceLink = { link }
+        qc.deviceLink = { _, _ in link }
         qc.linkPendingReceived = { [unowned self] in self.forwarded.append(($0.number, $1)) }
         qc.deviceUnlinked = { [unowned self] in self.unlinkedTokens.append($0) }
         qc.submit = submit ?? { [unowned self] inputs in
@@ -130,7 +130,7 @@ final class QuickCaptureDeviceTests: XCTestCase {
     /// must not fall back to a silent shared capture.
     func testLinkedFlagWithoutAStoredLinkIsIgnoredOnARelease() async {
         let qc = makeArmed(debug: false, link: DeviceLink(token: fixtureToken, owner: .team))
-        qc.deviceLink = { nil }
+        qc.deviceLink = { _, _ in nil }
         let outcome = await qc.capture()
         XCTAssertEqual(outcome, .ignored(reason: "not_debug"))
         XCTAssertTrue(submitted.isEmpty)
@@ -138,7 +138,7 @@ final class QuickCaptureDeviceTests: XCTestCase {
 
     func testSimulatorModeIsUnchanged() async {
         let qc = makeArmed(hostMode: .simulator, debug: true)
-        qc.deviceLink = { DeviceLink(token: fixtureToken, owner: .team) }
+        qc.deviceLink = { _, _ in DeviceLink(token: fixtureToken, owner: .team) }
         _ = await qc.capture()
         XCTAssertEqual(submitted.first?.captureToken, "t1")
         XCTAssertNil(submitted.first?.linkNonce)
@@ -227,6 +227,69 @@ final class QuickCaptureDeviceTests: XCTestCase {
         XCTAssertFalse(qc.isLinked)
         qc.setLinked(true, ifCurrent: { true })
         XCTAssertTrue(qc.isLinked)
+    }
+
+    /// Session A read its stored link, then session B started and finished
+    /// before A wrote it: B (unlinked) must not end up armed as linked.
+    func testAnOverlappingStartNeverMarksTheNewerSessionLinked() async throws {
+        try await withGlobalCaptureStateLock {
+            defer {
+                Everframe.__initialLinkedStateForTesting = nil
+                Everframe.shared.kill(); Everframe.__setConfigForTesting(nil); Everframe.captureGate = true
+            }
+            let projectA = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+            let projectB = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rV"
+            var startBError: Error?
+            Everframe.__initialLinkedStateForTesting = {
+                Everframe.__initialLinkedStateForTesting = nil
+                do {
+                    try Everframe.shared.start(config: EverframeConfig(
+                        sdkKey: projectB, capture: CaptureConfig(logs: false), releaseHealth: nil))
+                } catch { startBError = error }
+                return true
+            }
+            try Everframe.shared.start(config: EverframeConfig(
+                sdkKey: projectA, capture: CaptureConfig(logs: false), releaseHealth: nil))
+            XCTAssertNil(startBError)
+            XCTAssertEqual(Everframe.shared.currentConfig?.sdkKey, projectB)
+            XCTAssertFalse(QuickCapture.shared.isLinked)
+        }
+    }
+
+    /// A `start()` while the capture resolves its link: the capture belongs to
+    /// the session it snapshotted first, never sends that session's token
+    /// with the next session's key, and is dropped as superseded.
+    func testACaptureNeverSendsOneSessionsTokenWithAnothersKey() async throws {
+        try await withGlobalCaptureStateLock {
+            defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil); Everframe.captureGate = true }
+            let projectA = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+            let projectB = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rV"
+            try Everframe.shared.start(config: EverframeConfig(
+                sdkKey: projectA, capture: CaptureConfig(logs: false), releaseHealth: nil))
+            let qc = makeArmed(debug: false, link: DeviceLink(token: fixtureToken, owner: .team))
+            var restarted = false
+            var restartError: Error?
+            var askedKeys: [String?] = []
+            qc.deviceLink = { _, sdkKey in
+                askedKeys.append(sdkKey)
+                if !restarted {
+                    restarted = true
+                    do {
+                        try Everframe.shared.start(config: EverframeConfig(
+                            sdkKey: projectB, capture: CaptureConfig(logs: false), releaseHealth: nil))
+                    } catch { restartError = error }
+                }
+                return DeviceLink(token: fixtureToken, owner: .team)
+            }
+            let outcome = await qc.capture()
+            XCTAssertNil(restartError)
+            XCTAssertTrue(restarted)
+            XCTAssertEqual(askedKeys, [projectA])
+            XCTAssertFalse(submitted.contains { $0.captureToken == fixtureToken && $0.capturedSession.config?.sdkKey == projectB },
+                           "session A's device token was sent with session B's key")
+            XCTAssertTrue(submitted.isEmpty)
+            XCTAssertEqual(outcome, .failed)
+        }
     }
 
     func testUnlinkedToastCopy() {

@@ -25,6 +25,20 @@ final class DeviceLinkStoreTests: XCTestCase {
         XCTAssertNil(store.link(endpoint: URL(string: "https://ingest.example:8443")!, sdkKey: "k1"))
     }
 
+    func testSaveReportsWhetherTheLinkWasStored() {
+        XCTAssertTrue(store.save(DeviceLink(token: fixtureToken, owner: .team), endpoint: ingest, sdkKey: "k"))
+        XCTAssertFalse(store.save(DeviceLink(token: "evf_cap_x", owner: .team), endpoint: ingest, sdkKey: "k"))
+        XCTAssertFalse(store.save(DeviceLink(token: fixtureToken, owner: .team),
+                                  endpoint: URL(string: "ftp://ingest.example")!, sdkKey: "k"))
+        final class Refusing: DeviceLinkSecureStore, @unchecked Sendable {
+            func read(account: String) -> Data? { nil }
+            func write(_ data: Data, account: String) -> Bool { false }
+            func delete(account: String) {}
+        }
+        XCTAssertFalse(DeviceLinkStore(secure: Refusing())
+            .save(DeviceLink(token: fixtureToken, owner: .team), endpoint: ingest, sdkKey: "k"))
+    }
+
     func testSaveReplacesThePreviousLink() {
         store.save(DeviceLink(token: fixtureToken, owner: .user(name: "Jonas")), endpoint: ingest, sdkKey: "k")
         store.save(DeviceLink(token: otherToken, owner: .team), endpoint: ingest, sdkKey: "k")

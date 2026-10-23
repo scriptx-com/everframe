@@ -205,8 +205,12 @@ final class QuickCapture {
     var environment: [String: String] = ProcessInfo.processInfo.environment
     /// Simulator, real iPhone/iPad, or a host where quick capture never arms.
     var hostMode: QuickCaptureHostMode = .current
-    /// The real device's link, read once per capture. SECURITY: never log the token.
-    var deviceLink: @MainActor () -> DeviceLink? = { DeviceLinkCoordinator.shared.currentLink }
+    /// The real device's link for the capture's own session scope (ingest
+    /// origin and SDK key; nil before `start()`), read once per capture.
+    /// SECURITY: never log the token.
+    var deviceLink: @MainActor (_ endpoint: URL, _ sdkKey: String?) -> DeviceLink? = { endpoint, sdkKey in
+        sdkKey.flatMap { DeviceLinkCoordinator.shared.link(endpoint: endpoint, sdkKey: $0) }
+    }
     /// A fresh takeover nonce per linked upload. SECURITY: never log it.
     var makeLinkNonce: () -> String = { DeviceLinkNonce.make() }
     /// An ingest reply said a teammate is taking this device over.
@@ -476,13 +480,19 @@ final class QuickCapture {
             }
             return .ignored(reason: reason)
         }
-        guard let attribution = attribution() else { return .ignored(reason: "not_debug") }
+        // The session this capture belongs to, taken once before the link and
+        // any evidence and carried to the submission. Its epoch is read in the
+        // same critical section as its config, so the checks below and the
+        // routing agree on one session; nothing after this reads the session again.
+        let capturedSession = Everframe.shared.captureSessionSnapshot()
+        guard let attribution = attribution(for: capturedSession) else { return .ignored(reason: "not_debug") }
         inFlight = true
         defer { inFlight = false }
         // Confirmed once the capture is handed off, before the upload finishes:
         // the upload either succeeds or queues the report, so only a rejection
         // needs a second word.
-        let outcome = await runPipeline(provider: provider, attribution: attribution) { [showToast] in
+        let outcome = await runPipeline(provider: provider, attribution: attribution,
+                                        capturedSession: capturedSession) { [showToast] in
             showToast(attribution.confirmText)
         }
         if let text = QuickCaptureToast.text(for: outcome) { showToast(text) }
@@ -491,8 +501,10 @@ final class QuickCapture {
 
     /// nil when a real device has neither a link nor a debug build: the gate
     /// still said linked, but the token is gone, and an end user's device must
-    /// never file a silent shared capture.
-    private func attribution() -> Attribution? {
+    /// never file a silent shared capture. A device token is the one stored
+    /// for `capturedSession`'s own origin and key, the scope the submission
+    /// posts to, so it can never travel with another session's key.
+    private func attribution(for capturedSession: EFCapturedSession) -> Attribution? {
         let deviceName = environment["SIMULATOR_DEVICE_NAME"] ?? UIDevice.current.name
         switch hostMode {
         case .simulator:
@@ -503,7 +515,8 @@ final class QuickCapture {
                 linkNonce: nil, deviceToken: nil,
                 confirmText: QuickCaptureToast.confirmedText(deviceName: deviceName))
         case .device:
-            if let link = deviceLink(), DeviceLinkToken.isValid(link.token) {
+            if let link = deviceLink(IngestEndpoint.url, capturedSession.config?.sdkKey),
+               DeviceLinkToken.isValid(link.token) {
                 return Attribution(captureToken: link.token, linkNonce: makeLinkNonce(), deviceToken: link.token,
                                    confirmText: link.owner.capturedToastText)
             }
@@ -547,16 +560,14 @@ final class QuickCapture {
     /// `EFReporterPresenter.openAndAwait` minus the UI: screenshot first, then
     /// the reporter-open boundary and freeze, then submit and release.
     private func runPipeline(
-        provider: QuickCaptureEvidenceProvider?, attribution: Attribution, confirm: @MainActor () -> Void
+        provider: QuickCaptureEvidenceProvider?, attribution: Attribution, capturedSession: EFCapturedSession,
+        confirm: @MainActor () -> Void
     ) async -> QuickCaptureOutcome {
         let shot: ScreenshotCapture.Result
         let hostReplayVTree: Data?
         let sdkName: String
-        // The session this capture belongs to, taken once before any evidence
-        // and carried to the submission. Its epoch is read in the same critical
-        // section as its config, so the check below and the routing agree on
-        // one session; nothing after the screenshot reads the session again.
-        let capturedSession = Everframe.shared.captureSessionSnapshot()
+        // A start() or kill() while the link was resolved supersedes the capture.
+        guard isCurrent(capturedSession) else { return .failed }
         if let provider {
             // The host's masked evidence replaces the native screenshot entirely;
             // a nil answer, or none within the timeout, fails without a fallback.

@@ -437,6 +437,57 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
         XCTAssertTrue(store.link(endpoint: ingest, sdkKey: "k")?.token == fixtureToken)
     }
 
+    /// A `start()` or `kill()` between queuing an ingest takeover and its task
+    /// running ends that attempt before it begins: no banner is ever shown,
+    /// so none is left on screen.
+    func testIngestPendingQueuedBeforeASessionChangeShowsNoBanner() async {
+        let transport = ScriptedTransport(checks: [.reply(.pending)])
+        let c = makeEnabled(transport)
+        let task = c.followIngestPending(.init(attemptId: UUID(), number: 21), nonce: DeviceLinkNonce.make())
+        c.teardown()
+        await task?.value
+        XCTAssertEqual(banners, [])
+        XCTAssertEqual(hides, 0)
+        XCTAssertEqual(transport.checks.count, 0)
+
+        let replaced = makeEnabled(ScriptedTransport(checks: [.reply(.pending)]))
+        let second = replaced.followIngestPending(.init(attemptId: UUID(), number: 22), nonce: DeviceLinkNonce.make())
+        replaced.beginSession(endpoint: ingest, sdkKey: "k2", hostMode: .device, transport: ScriptedTransport())
+        await second?.value
+        XCTAssertEqual(banners, [])
+        XCTAssertEqual(hides, 0)
+    }
+
+    /// The Keychain refused the token: the device stays unlinked, the banner
+    /// goes, and the device says linking failed instead of "Linked to …".
+    func testFailedTokenWriteKeepsTheDeviceUnlinked() async {
+        store = DeviceLinkStore(secure: RefusingDeviceLinkSecureStore())
+        let transport = ScriptedTransport(hello: [.reply(.pending(attemptId: UUID(), number: 4))],
+                                          checks: [.reply(.linked(token: fixtureToken, owner: .user(name: "Aurimas")))])
+        let c = makeEnabled(transport)
+        await c.sendHelloIfIdle()?.value
+        XCTAssertNil(c.currentLink)
+        XCTAssertEqual(linkChanges, [])
+        XCTAssertEqual(banners, [4])
+        XCTAssertEqual(hides, 1)
+        XCTAssertEqual(toasts, ["Linking failed"])
+        XCTAssertFalse(c.isAttemptActive)
+    }
+
+    /// A capture's link lookup answers only for this `.device` session's own
+    /// origin and key.
+    func testLinkForAScopeAnswersOnlyForThisSession() {
+        store.save(DeviceLink(token: fixtureToken, owner: .team), endpoint: ingest, sdkKey: "k")
+        store.save(DeviceLink(token: otherToken, owner: .team), endpoint: ingest, sdkKey: "k2")
+        let c = makeEnabled(ScriptedTransport())
+        XCTAssertTrue(c.link(endpoint: URL(string: "https://INGEST.example/api/ingest")!, sdkKey: "k")?.token == fixtureToken)
+        XCTAssertNil(c.link(endpoint: ingest, sdkKey: "k2"))
+        XCTAssertNil(c.link(endpoint: URL(string: "https://elsewhere.example")!, sdkKey: "k"))
+        XCTAssertNil(makeEnabled(ScriptedTransport(), hostMode: .simulator).link(endpoint: ingest, sdkKey: "k"))
+        c.teardown()
+        XCTAssertNil(c.link(endpoint: ingest, sdkKey: "k"))
+    }
+
     func testTeardownCancelsPollingAndHidesBanner() async {
         let gate = CoordinatorTestGate()
         let transport = ScriptedTransport(hello: [.reply(.pending(attemptId: UUID(), number: 5))],
@@ -515,4 +566,11 @@ private final class FakeLinkedGate: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         if ifCurrent() { value = linked }
     }
+}
+
+/// A Keychain that refuses every write.
+private final class RefusingDeviceLinkSecureStore: DeviceLinkSecureStore, @unchecked Sendable {
+    func read(account: String) -> Data? { nil }
+    func write(_ data: Data, account: String) -> Bool { false }
+    func delete(account: String) {}
 }

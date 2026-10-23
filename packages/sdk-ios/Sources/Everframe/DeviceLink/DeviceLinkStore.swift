@@ -82,13 +82,15 @@ final class DeviceLinkStore: @unchecked Sendable {
         return readLocked(account: account)
     }
 
-    /// Stores `link`, replacing any previous one. An invalid token is refused.
-    func save(_ link: DeviceLink, endpoint: URL, sdkKey: String) {
+    /// Stores `link`, replacing any previous one. False when nothing was
+    /// stored: an invalid token, an unusable origin, or a refused write.
+    @discardableResult
+    func save(_ link: DeviceLink, endpoint: URL, sdkKey: String) -> Bool {
         guard DeviceLinkToken.isValid(link.token),
               let account = Self.account(endpoint: endpoint, sdkKey: sdkKey),
-              let data = try? JSONEncoder().encode(link) else { return }
+              let data = try? JSONEncoder().encode(link) else { return false }
         lock.lock(); defer { lock.unlock() }
-        _ = secure.write(data, account: account)
+        return secure.write(data, account: account)
     }
 
     /// Deletes the link only while the stored token's fingerprint is `ifFingerprint`.
