@@ -1,0 +1,25 @@
+packages/sdk-ios/Sources/Everframe/Capture/ScreenshotCapture.swift
+  s_f1c043e85606b2::t_7c927d6f43ec73 283-284,287
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkBanner.swift
+  s_f1c043e85606b2::t_e8c633a0d7e3f0 1-94
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkCoordinator.swift
+  s_f1c043e85606b2::t_63925ad1f8992c 50-59
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkBannerTests.swift
+  s_f1c043e85606b2::t_c712fe447761b7 1-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "940962eb96ab2a9271ea3c026984995eec6e82ec",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
