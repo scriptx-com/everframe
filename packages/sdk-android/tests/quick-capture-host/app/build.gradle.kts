@@ -23,4 +23,7 @@ android {
 dependencies {
     implementation(project(":everframe-core"))
     implementation(project(":everframe-reporter-ui"))
+    // TV spike only (SpikeActivity): the Media3 version the SDK's :everframe-media3 module builds against.
+    implementation("androidx.media3:media3-exoplayer:${libs.versions.media3.get()}")
+    implementation("androidx.media3:media3-ui:${libs.versions.media3.get()}")
 }
