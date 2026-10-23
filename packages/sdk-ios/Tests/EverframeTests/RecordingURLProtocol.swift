@@ -17,15 +17,22 @@ final class RecordingURLProtocol: URLProtocol {
         /// what distinguishes "no header" from a future accidental empty
         /// string.
         let identityToken: String?
+        /// `X-Everframe-Capture-Token`, nil when absent. SECURITY: tests
+        /// compare it, never print it.
+        var captureToken: String? = nil
+        /// `X-Everframe-Link-Nonce`, nil when absent.
+        var linkNonce: String? = nil
     }
 
     nonisolated(unsafe) static var recorded: [Record] = []
     nonisolated(unsafe) static var responseStatus: Int = 200
+    nonisolated(unsafe) static var responseBody = Data()
     nonisolated(unsafe) static var onRequest: (() -> Void)?
 
     static func reset() {
         recorded = []
         responseStatus = 200
+        responseBody = Data()
         onRequest = nil
     }
 
@@ -38,7 +45,9 @@ final class RecordingURLProtocol: URLProtocol {
         Self.recorded.append(Record(
             host: url.host ?? "",
             authorization: request.value(forHTTPHeaderField: "Authorization"),
-            identityToken: request.value(forHTTPHeaderField: IDENTITY_TOKEN_HEADER)))
+            identityToken: request.value(forHTTPHeaderField: IDENTITY_TOKEN_HEADER),
+            captureToken: request.value(forHTTPHeaderField: "X-Everframe-Capture-Token"),
+            linkNonce: request.value(forHTTPHeaderField: "X-Everframe-Link-Nonce")))
 
         let response = HTTPURLResponse(
             url: url,
@@ -46,7 +55,7 @@ final class RecordingURLProtocol: URLProtocol {
             httpVersion: "HTTP/1.1",
             headerFields: [:])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: Data())
+        client?.urlProtocol(self, didLoad: Self.responseBody)
         client?.urlProtocolDidFinishLoading(self)
     }
 

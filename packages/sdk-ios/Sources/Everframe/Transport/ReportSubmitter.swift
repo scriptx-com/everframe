@@ -61,7 +61,9 @@ public final class ReportSubmitter: Sendable {
                         diagnostics: diagnostics, diagnosticOrigin: diagnosticOrigin, appleDiagnosticsOnly: true)
     }
 
-    private func observeUpload(_ send: () async throws -> (Int, [AnyHashable: Any])) async throws -> (Int, [AnyHashable: Any]) {
+    private func observeUpload(
+        _ send: () async throws -> (Int, [AnyHashable: Any], Data)
+    ) async throws -> (Int, [AnyHashable: Any], Data) {
         do {
             let result = try await send()
             let outcome: ReportTransportOutcome
@@ -154,11 +156,41 @@ public final class ReportSubmitter: Sendable {
             identityToken: identityToken, alreadyPersisted: false)
     }
 
+    /// `submit`, plus device linking:
+    /// - `linkNonce` rides the upload as `X-Everframe-Link-Nonce` (a linked
+    ///   quick capture). SECURITY: never log it.
+    /// - `onAccepted` receives a 2xx response body, which may carry `linkPending`.
+    /// - A `403 {"error":"device_unlinked"}` to an upload sent with a valid
+    ///   `evf_dev_` token throws `DeviceLinkRejection.deviceUnlinked` and
+    ///   queues nothing: a capture its holder believed private must never be
+    ///   retried into another inbox.
+    func submit(
+        envelopeBytes: Data,
+        idempotencyKey: String,
+        attachments: [Attachment],
+        reportId: UUID = UUID(),
+        companionAttribution: String? = nil,
+        captureToken: String? = nil,
+        sdkKey: String? = nil,
+        endpoint: String? = nil,
+        identitySubject: String? = nil,
+        identityToken: String? = nil,
+        linkNonce: String?,
+        onAccepted: (@Sendable (Data) -> Void)?
+    ) async throws -> ReportResult {
+        try await performSubmit(envelopeBytes: envelopeBytes, idempotencyKey: idempotencyKey,
+            attachments: attachments, reportId: reportId, companionAttribution: companionAttribution,
+            captureToken: captureToken, sdkKey: sdkKey, endpoint: endpoint, identitySubject: identitySubject,
+            identityToken: identityToken, linkNonce: linkNonce, onAccepted: onAccepted, alreadyPersisted: false)
+    }
+
     private func performSubmit(
         envelopeBytes: Data, idempotencyKey: String, attachments: [Attachment], reportId: UUID,
         companionAttribution: String? = nil, captureToken: String? = nil,
         sdkKey: String? = nil, endpoint: String? = nil,
-        identitySubject: String? = nil, identityToken: String? = nil, alreadyPersisted: Bool
+        identitySubject: String? = nil, identityToken: String? = nil,
+        linkNonce: String? = nil, onAccepted: (@Sendable (Data) -> Void)? = nil,
+        alreadyPersisted: Bool
     ) async throws -> ReportResult {
 
         let effectiveKey = sdkKey ?? config.sdkKey
@@ -175,16 +207,21 @@ public final class ReportSubmitter: Sendable {
         }
 
         do {
-            let (status, headers) = try await observeUpload { try await uploader.upload(
+            let (status, headers, body) = try await observeUpload { try await uploader.send(
                 parts: parts,
                 idempotencyKey: idempotencyKey,
                 companionAttribution: companionAttribution,
                 captureToken: captureToken,
                 identityToken: identityToken,
+                linkNonce: linkNonce,
                 urlSession: session
             ) }
             if (200...299).contains(status) {
+                onAccepted?(body)
                 return .submitted(reportId: reportId)
+            }
+            if status == 403, DeviceLinkToken.isValid(captureToken), DeviceLinkRejection.isDeviceUnlinkedBody(body) {
+                throw DeviceLinkRejection.deviceUnlinked
             }
             switch RetryPolicy.classify(statusCode: status, headers: headers, error: nil) {
             case .retryable, .retryAfter:
@@ -704,6 +741,8 @@ final class IdentityHeaderRedirectGuard: NSObject, URLSessionTaskDelegate {
         stripped.setValue(nil, forHTTPHeaderField: IDENTITY_TOKEN_HEADER)
         // SECURITY: the quick-capture token is a bearer credential too.
         stripped.setValue(nil, forHTTPHeaderField: "X-Everframe-Capture-Token")
+        // The device-link takeover nonce answers a link attempt: same posture.
+        stripped.setValue(nil, forHTTPHeaderField: "X-Everframe-Link-Nonce")
         completionHandler(stripped)
     }
 
