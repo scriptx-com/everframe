@@ -708,10 +708,7 @@ dashboard disable.
 
 In React Native and Expo development builds, use
 `shakeToReport: { enabled: !__DEV__ }` because the React Native development
-menu also uses shake. Production remains enabled by default. On Android this
-only stops shake from opening the reporter: a debug build on a real Android
-device also takes a quick capture on shake while the dashboard's capture hotkey
-setting is on (see below), and the development menu still opens as usual.
+menu also uses shake. Production remains enabled by default.
 
 #### Quick capture on simulators and emulators
 
@@ -722,8 +719,7 @@ other bindings the dashboard offers (double Shift, ⌘ combos); Android
 emulators use the dashboard binding only when it is Shift plus a letter or
 digit, and ⇧B otherwise. Run `npx @everframe/cli login` once so captures are attributed
 to you. It stays dark until the dashboard turns the capture hotkey on for the
-app. On iOS it never runs on devices or release builds; Android real devices
-are covered below. To opt this app out locally:
+app, and never runs on devices or release builds. To opt this app out locally:
 
 ```tsx
 <EverframeProvider
@@ -734,22 +730,6 @@ are covered below. To opt this app out locally:
 `quickCapture.enabled` defaults to `true`; a local `true` never overrides a
 dashboard disable. A session started with `capture.screenshot` off ignores quick
 capture.
-
-#### Quick capture on real Android devices
-
-On a real Android phone the gesture is a shake, handled by the native Android
-SDK with no JavaScript changes. Link the phone to yourself once: open
-**Settings → Devices → Link a device** on the dashboard, shake the phone, and
-click the number its banner shows (`Linking to Everframe · 47`). The phone
-shows `Linked to <your name>`, and from then on a shake files a quick capture
-for you (`Captured · <your name>`), in debug and release builds. A debug build
-also takes shared captures on shake without linking. An unlinked release build
-behaves as before: shake opens the reporter if `shakeToReport` allows it, so end
-users see no change. `shakeToReport` decides only whether shake opens the
-reporter; it does not stop shake from capturing or linking. If you unlink the
-device on the dashboard, its next capture shows `This device was unlinked`. See
-the Android SDK README's "Quick capture on real phones" section for the full
-rules.
 
 All other gestures and keys are host-owned. The host app
 calls `useEverframe().open()` (or the top-level `open()`)
