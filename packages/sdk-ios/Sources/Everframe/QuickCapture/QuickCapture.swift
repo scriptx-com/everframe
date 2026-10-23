@@ -534,7 +534,11 @@ final class QuickCapture {
     /// The kill switch is open and no `start()` or `kill()` has run since
     /// `capturedSession` was taken.
     private func isCurrent(_ capturedSession: EFCapturedSession) -> Bool {
-        Everframe.captureGate && Everframe.shared.currentStartEpoch == capturedSession.user.startEpoch
+        isCurrent(startEpoch: capturedSession.user.startEpoch)
+    }
+
+    private func isCurrent(startEpoch: Int) -> Bool {
+        Everframe.captureGate && Everframe.shared.currentStartEpoch == startEpoch
     }
 
     /// `EFReporterPresenter.openAndAwait` minus the UI: screenshot first, then
@@ -610,10 +614,16 @@ final class QuickCapture {
             // SECURITY: never log.
             captureToken: attribution.captureToken,
             linkNonce: attribution.linkNonce,
-            onIngestAccepted: attribution.linkNonce.map { nonce in
+            onIngestAccepted: attribution.linkNonce.map { [startEpoch = capturedSession.user.startEpoch] nonce in
                 { @Sendable [weak self] body in
                     guard let pending = DeviceLinkPending.fromIngestBody(body) else { return }
-                    Task { @MainActor in self?.linkPendingReceived(pending, nonce) }
+                    Task { @MainActor in
+                        // The reply can land after `start()` or `kill()` replaced
+                        // the session this upload was taken in: drop it then,
+                        // rather than follow it with this upload's nonce.
+                        guard let self, self.isCurrent(startEpoch: startEpoch) else { return }
+                        self.linkPendingReceived(pending, nonce)
+                    }
                 }
             }
         )

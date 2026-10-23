@@ -171,6 +171,35 @@ final class QuickCaptureDeviceTests: XCTestCase {
         XCTAssertNotNil(nonce)
     }
 
+    /// A link-pending reply that lands after `start()` replaced the session
+    /// the upload was taken in belongs to that old session: it is dropped,
+    /// never followed with the old upload's nonce in the new session.
+    func testLateLinkPendingFromAPreviousSessionIsDropped() async throws {
+        try await withGlobalCaptureStateLock {
+            defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil); Everframe.captureGate = true }
+            let projectA = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+            let projectB = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rV"
+            try Everframe.shared.start(config: EverframeConfig(
+                sdkKey: projectA, capture: CaptureConfig(logs: false), releaseHealth: nil))
+            let body = linkPendingBody(number: 31)
+            var restartError: Error?
+            let qc = makeArmed(debug: false, link: DeviceLink(token: fixtureToken, owner: .team), submit: { inputs in
+                // The reply is read on the upload's thread; the session is
+                // replaced before its hop to the main actor runs.
+                inputs.onIngestAccepted?(body)
+                do {
+                    try Everframe.shared.start(config: EverframeConfig(
+                        sdkKey: projectB, capture: CaptureConfig(logs: false), releaseHealth: nil))
+                } catch { restartError = error }
+                return .submitted(reportId: UUID())
+            })
+            _ = await qc.capture()
+            for _ in 0..<200 { await Task.yield() }
+            XCTAssertNil(restartError)
+            XCTAssertTrue(forwarded.isEmpty)
+        }
+    }
+
     func testIngestBodyWithoutLinkPendingForwardsNothing() async {
         let qc = makeArmed(debug: false, link: DeviceLink(token: fixtureToken, owner: .team), submit: { inputs in
             inputs.onIngestAccepted?(Data(#"{"reportId":"r"}"#.utf8))

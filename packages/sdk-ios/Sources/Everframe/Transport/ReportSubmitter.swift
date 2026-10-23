@@ -374,13 +374,20 @@ public final class ReportSubmitter: Sendable {
     /// `drainOutbox`, reading device links from `deviceLinks`. An entry with a
     /// `deviceTokenFingerprint` is sent with the stored token only while that
     /// token's fingerprint still matches; otherwise it is removed unsent. A
-    /// `403 device_unlinked` removes it and clears that same token.
+    /// `403 device_unlinked` removes it and clears that same token, then hands
+    /// `linkCleared` the origin and SDK key it was stored under, so the live
+    /// session stops treating the device as linked.
     func drainOutbox(
         identityHolder: IdentityTokenHolder,
         currentReplayConfig: @escaping @Sendable () async -> ReplayConfig,
         epochAtInitiation: Int,
         currentEpoch: @escaping @Sendable () -> Int,
-        deviceLinks: DeviceLinkStore
+        deviceLinks: DeviceLinkStore,
+        linkCleared: @escaping @Sendable (_ endpoint: URL, _ sdkKey: String) async -> Void = { endpoint, sdkKey in
+            await MainActor.run {
+                DeviceLinkCoordinator.shared.handleStoredLinkCleared(endpoint: endpoint, sdkKey: sdkKey)
+            }
+        }
     ) async {
         // Read the clock before the entries: an error held for its replay can
         // be swapped only while its hold is live, so skipping it here is final.
@@ -395,7 +402,8 @@ public final class ReportSubmitter: Sendable {
                 deadline: expiry, epoch: epochAtInitiation, appleDiagnosticsOnly: appleDiagnosticsOnly) { [self] in
                 guard currentEpoch() == epochAtInitiation, !Task.isCancelled else { return }
                 await drainOutbox(identityHolder: identityHolder, currentReplayConfig: currentReplayConfig,
-                    epochAtInitiation: epochAtInitiation, currentEpoch: currentEpoch, deviceLinks: deviceLinks)
+                    epochAtInitiation: epochAtInitiation, currentEpoch: currentEpoch, deviceLinks: deviceLinks,
+                    linkCleared: linkCleared)
             }
         }
         for e in entries {
@@ -568,8 +576,12 @@ public final class ReportSubmitter: Sendable {
                 // The token this entry was taken with is revoked: drop the
                 // capture rather than file it anywhere else, and forget that token.
                 try? outbox.drain(where: { $0.reportId == e.reportId }, diagnostics: diagnostics, reason: .removedAfterTerminal)
-                if let fingerprint = e.deviceTokenFingerprint, let endpointURL = URL(string: e.endpoint) {
-                    deviceLinks.clear(endpoint: endpointURL, sdkKey: e.sdkKey, ifFingerprint: fingerprint)
+                // The session may already be armed on this link (`start()` sets
+                // the linked gate before its launch drain), and later config
+                // fetches carry no token to say otherwise: tell it.
+                if let fingerprint = e.deviceTokenFingerprint, let endpointURL = URL(string: e.endpoint),
+                   deviceLinks.clear(endpoint: endpointURL, sdkKey: e.sdkKey, ifFingerprint: fingerprint) {
+                    await linkCleared(endpointURL, e.sdkKey)
                 }
             } catch EverframeTransportError.serverError {
                 // submit throws serverError only for terminal HTTP statuses.

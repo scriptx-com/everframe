@@ -44,9 +44,10 @@ final class DeviceLinkOutboxTests: XCTestCase {
         RecordingURLProtocol.reset()
     }
 
-    private func drain() async {
+    private func drain(linkCleared: @escaping @Sendable (URL, String) async -> Void = { _, _ in }) async {
         await submitter.drainOutbox(identityHolder: IdentityTokenHolder(), currentReplayConfig: { .off },
-                                    epochAtInitiation: 0, currentEpoch: { 0 }, deviceLinks: store)
+                                    epochAtInitiation: 0, currentEpoch: { 0 }, deviceLinks: store,
+                                    linkCleared: linkCleared)
     }
 
     private func saveLink(_ token: String) {
@@ -124,6 +125,33 @@ final class DeviceLinkOutboxTests: XCTestCase {
         XCTAssertNil(store.link(endpoint: IngestEndpoint.url, sdkKey: "app"))
     }
 
+    /// A revoked token cleared by the drain is reported with the origin and
+    /// key it was stored under, so the live session drops its
+    /// linked gate (quick capture and forced replay) instead of staying armed.
+    func testDrainDeviceUnlinkedReportsTheClearedLink() async throws {
+        try await queue(captureToken: fixtureToken)
+        saveLink(fixtureToken)
+        RecordingURLProtocol.responseStatus = 403
+        RecordingURLProtocol.responseBody = Data(#"{"error":"device_unlinked"}"#.utf8)
+        let cleared = ClearedLinks()
+        await drain(linkCleared: { cleared.append($0, $1) })
+        XCTAssertNil(store.link(endpoint: IngestEndpoint.url, sdkKey: "app"))
+        let calls = cleared.all
+        XCTAssertEqual(calls.count, 1)
+        XCTAssertEqual(calls.first?.endpoint, IngestEndpoint.url.absoluteString)
+        XCTAssertEqual(calls.first?.sdkKey, "app")
+    }
+
+    /// Nothing to report when the drain sends no linked entry, or the send succeeds.
+    func testDrainReportsNoClearWithoutARevocation() async throws {
+        try await queue(captureToken: fixtureToken)
+        saveLink(fixtureToken)
+        let cleared = ClearedLinks()
+        await drain(linkCleared: { cleared.append($0, $1) })
+        XCTAssertTrue(cleared.all.isEmpty)
+        XCTAssertTrue(store.link(endpoint: IngestEndpoint.url, sdkKey: "app")?.token == fixtureToken)
+    }
+
     func testLegacyEntryWithoutFieldDecodesAndDrainsAsToday() async throws {
         let legacy = #"{"reportId":"\#(UUID())","createdAt":0,"envelopeBytes":"e30=","idempotencyKey":"legacy","attachmentRefs":[],"sdkKey":"app","endpoint":"\#(IngestEndpoint.url.absoluteString)"}"#
         let entry = try JSONDecoder().decode(OutboxEntry.self, from: Data(legacy.utf8))
@@ -134,5 +162,18 @@ final class DeviceLinkOutboxTests: XCTestCase {
         XCTAssertEqual(RecordingURLProtocol.recorded.count, 1)
         XCTAssertNil(RecordingURLProtocol.recorded.first?.captureToken)
         XCTAssertTrue(try outbox.hydrate().isEmpty)
+    }
+}
+
+private final class ClearedLinks: @unchecked Sendable {
+    private let lock = NSLock()
+    private var calls: [(endpoint: String, sdkKey: String)] = []
+    func append(_ endpoint: URL, _ sdkKey: String) {
+        lock.lock(); defer { lock.unlock() }
+        calls.append((endpoint.absoluteString, sdkKey))
+    }
+    var all: [(endpoint: String, sdkKey: String)] {
+        lock.lock(); defer { lock.unlock() }
+        return calls
     }
 }

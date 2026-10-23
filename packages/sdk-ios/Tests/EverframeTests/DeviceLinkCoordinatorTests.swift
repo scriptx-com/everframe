@@ -363,6 +363,40 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
         XCTAssertEqual(toasts, [])
     }
 
+    /// The outbox drain cleared this session's stored link: the session drops
+    /// its linked gate the way `handleDeviceUnlinked` does.
+    func testStoredLinkClearedElsewhereUnlinksTheMatchingSession() {
+        store.save(DeviceLink(token: fixtureToken, owner: .team), endpoint: ingest, sdkKey: "k")
+        let c = makeEnabled(ScriptedTransport())
+        store.clear(endpoint: ingest, sdkKey: "k", ifFingerprint: DeviceLinkToken.fingerprint(fixtureToken))
+        c.handleStoredLinkCleared(endpoint: URL(string: "https://INGEST.example:443/api/ingest")!, sdkKey: "k")
+        XCTAssertEqual(linkChanges, [false])
+        XCTAssertEqual(toasts, [])
+    }
+
+    /// A clear for another origin or key, a session outside `.device`, or a
+    /// link stored again since the clear, leaves the session's gate alone.
+    func testStoredLinkClearedIsScopedToTheSessionAndToken() {
+        let c = makeEnabled(ScriptedTransport())
+        c.handleStoredLinkCleared(endpoint: ingest, sdkKey: "other")
+        c.handleStoredLinkCleared(endpoint: URL(string: "https://elsewhere.example")!, sdkKey: "k")
+        XCTAssertEqual(linkChanges, [])
+
+        // A newer token was stored after the clear: that link stays.
+        store.save(DeviceLink(token: otherToken, owner: .team), endpoint: ingest, sdkKey: "k")
+        c.handleStoredLinkCleared(endpoint: ingest, sdkKey: "k")
+        XCTAssertEqual(linkChanges, [])
+        XCTAssertTrue(storedToken() == otherToken)
+
+        store.clear(endpoint: ingest, sdkKey: "k", ifFingerprint: DeviceLinkToken.fingerprint(otherToken))
+        let simulator = makeEnabled(ScriptedTransport(), hostMode: .simulator)
+        simulator.handleStoredLinkCleared(endpoint: ingest, sdkKey: "k")
+        let ended = makeEnabled(ScriptedTransport())
+        ended.teardown()
+        ended.handleStoredLinkCleared(endpoint: ingest, sdkKey: "k")
+        XCTAssertEqual(linkChanges, [])
+    }
+
     func testTeardownCancelsPollingAndHidesBanner() async {
         let gate = CoordinatorTestGate()
         let transport = ScriptedTransport(hello: [.reply(.pending(attemptId: UUID(), number: 5))],

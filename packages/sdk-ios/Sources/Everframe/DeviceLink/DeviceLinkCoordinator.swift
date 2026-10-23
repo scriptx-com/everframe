@@ -252,6 +252,19 @@ final class DeviceLinkCoordinator {
         }
     }
 
+    /// The outbox drain cleared a stored link (ingest answered `403
+    /// device_unlinked` to a queued capture sent with that token). Drops this
+    /// session's linked gate as `handleDeviceUnlinked` does, only when the
+    /// cleared link was this session's (same origin and SDK key, `.device`)
+    /// and no newer link has been stored for it since.
+    func handleStoredLinkCleared(endpoint: URL, sdkKey: String) {
+        guard let (session, store) = snapshot(), session.hostMode == .device,
+              let cleared = DeviceLinkStore.account(endpoint: endpoint, sdkKey: sdkKey),
+              cleared == DeviceLinkStore.account(endpoint: session.endpoint, sdkKey: session.sdkKey),
+              store.link(endpoint: session.endpoint, sdkKey: session.sdkKey) == nil else { return }
+        seams.linkChanged(false)
+    }
+
     private func startAttempt(
         session: Session, _ body: @escaping @MainActor (DeviceLinkCoordinator, Int) async -> Void
     ) -> Task<Void, Never> {
