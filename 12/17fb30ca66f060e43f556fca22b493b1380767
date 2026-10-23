@@ -1,0 +1,45 @@
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkClient.swift
+  s_f1c043e85606b2::t_2dc76a316cc0bb 7,9-11,50,110-128,130,137
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkCoordinator.swift
+  s_f1c043e85606b2::t_40b8c850d9e45f 52-55,83-88,151,162-170,176-182,194-198,227-235
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkForegroundRefresh.swift
+  s_f1c043e85606b2::t_c073c5e6cf4ea5 1-117
+packages/sdk-ios/Sources/Everframe/DeviceLink/GestureRecording.swift
+  s_f1c043e85606b2::t_337520f8721a2a 1-123
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_f1c043e85606b2::t_46672b8ebbfc16 1288-1292,2500-2502
+packages/sdk-ios/Sources/Everframe/QuickCapture/GestureRecorder.swift
+  s_f1c043e85606b2::t_d3dc572b3335aa 1-47
+packages/sdk-ios/Sources/Everframe/QuickCapture/TvGestureInput.swift
+  s_f1c043e85606b2::t_ff332a6d59979a 18-19,41-42,50-51,97,149-155,210-211
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkClientTests.swift
+  s_f1c043e85606b2::t_4c43be4b678e4b 145-185
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkCoordinatorTests.swift
+  s_f1c043e85606b2::t_68257f273a0fb8 96,106,120-121,357-404
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkForegroundRefreshTests.swift
+  s_f1c043e85606b2::t_9b1acf0d42d569 1-72
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkSessionWiringTests.swift
+  s_f1c043e85606b2::t_354dcf3ac890d1 39-48
+packages/sdk-ios/Tests/EverframeTests/GestureRecorderTests.swift
+  s_f1c043e85606b2::t_6820fdb969bf27 1-89
+packages/sdk-ios/Tests/EverframeTests/GestureRecordingTests.swift
+  s_f1c043e85606b2::t_b616d6ea135ccc 1-223
+packages/sdk-ios/Tests/EverframeTests/TvGestureInputTests.swift
+  s_f1c043e85606b2::t_76e40e4e522586 43,53,66-71,334-370
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1217fb30ca66f060e43f556fca22b493b1380767",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
