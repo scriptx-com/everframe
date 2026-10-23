@@ -109,4 +109,23 @@ class LinkBannerTest {
         dialog.dismiss()
         shadowOf(Looper.getMainLooper()).idle()
     }
+
+    @Test
+    fun anSdkWindowOfAPausedActivityNeverHostsTheBanner() {
+        LinkBanner.install(ApplicationProvider.getApplicationContext())
+        val first = Robolectric.buildActivity(Activity::class.java).setup()
+        val dialog = android.app.Dialog(first.get()).apply { show() }
+        shadowOf(Looper.getMainLooper()).idle()
+        // The reporter stays mounted in the first Activity while a second one comes to the foreground.
+        val handle = SdkOverlayWindows.shown(dialog.window!!)
+        first.pause()
+        val second = Robolectric.buildActivity(Activity::class.java).setup().get()
+        LinkBanner.activityProvider = { second }
+        LinkBanner.show(47)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals("the banner attached to the hidden reporter", second.window.decorView.windowToken, LinkBanner.attachedToken)
+        handle.close()
+        dialog.dismiss()
+        shadowOf(Looper.getMainLooper()).idle()
+    }
 }

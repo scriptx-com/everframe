@@ -134,6 +134,16 @@ internal object LinkBanner {
 
     internal fun overlays(): List<android.view.Window> = overlayWindows.toList()
 
+    /** The Activity a window's context belongs to (a dialog's context wraps its Activity), or null. */
+    private fun activityOf(context: Context?): Activity? {
+        var c = context
+        while (c != null) {
+            if (c is Activity) return c
+            c = (c as? android.content.ContextWrapper)?.baseContext ?: return null
+        }
+        return null
+    }
+
     /** Moves a showing banner to wherever it belongs now (the topmost SDK window, else the Activity). */
     private fun reattach() {
         val number = visibleNumber ?: return
@@ -144,8 +154,9 @@ internal object LinkBanner {
 
     private fun attach(activity: Activity, number: Int) {
         if (activity.isFinishing || activity.isDestroyed) return
-        // The topmost SDK window over the Activity, when one is showing; else the Activity's own window.
-        val overlay = overlayWindows.lastOrNull()
+        // The topmost SDK window over THIS Activity, when one is showing; else the Activity's own window. A
+        // reporter left mounted in an Activity that another one has since covered is not on screen.
+        val overlay = overlayWindows.lastOrNull { activityOf(it.context) === activity }
         val window = overlay ?: activity.window ?: return
         val manager = window.windowManager ?: activity.windowManager
         val decor = window.decorView

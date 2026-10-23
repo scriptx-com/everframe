@@ -71,6 +71,17 @@
 -keep class dev.everframe.quickcapture.QuickCaptureHostEvidence { *; }
 -keep class dev.everframe.capture.ScreenshotCapture$CaptureResult { *; }
 
+# Device linking (real-device quick capture). `:everframe-reporter-ui` runs its
+# own R8 pass against these release classes and names three device-link types:
+# the reporter dialog registers its window with `SdkOverlayWindows` (so the
+# linking banner stays above it), and its submission passes a
+# `DeviceLinkUpload?` (whose callback takes a `LinkPending`) through
+# `ReportSubmitter.submit`. The rest of the package stays obfuscated;
+# scripts/verify-android-publication.sh checks the published classes.
+-keep class dev.everframe.devicelink.SdkOverlayWindows { *; }
+-keep class dev.everframe.devicelink.DeviceLinkUpload { *; }
+-keep class dev.everframe.devicelink.LinkPending { *; }
+
 # TXScreen() navigation-marker composable (TXScreen.kt -> TXScreenKt facade).
 -keep class dev.everframe.TXScreenKt { *; }
 

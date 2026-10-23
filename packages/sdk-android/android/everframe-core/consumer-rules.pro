@@ -51,6 +51,13 @@
 -keep class dev.everframe.quickcapture.QuickCaptureHostEvidence { *; }
 -keep class dev.everframe.capture.ScreenshotCapture$CaptureResult { *; }
 
+# Device linking: the same keep as proguard-rules.pro. `:everframe-reporter-ui`
+# names `SdkOverlayWindows`, `DeviceLinkUpload` and `LinkPending`, so they must
+# survive the host app's R8 pass too.
+-keep class dev.everframe.devicelink.SdkOverlayWindows { *; }
+-keep class dev.everframe.devicelink.DeviceLinkUpload { *; }
+-keep class dev.everframe.devicelink.LinkPending { *; }
+
 # TXScreen() navigation-marker composable (TXScreen.kt -> TXScreenKt facade).
 -keep class dev.everframe.TXScreenKt { *; }
 
