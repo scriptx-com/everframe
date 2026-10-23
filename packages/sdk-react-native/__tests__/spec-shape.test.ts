@@ -3,7 +3,7 @@
 //
 // Locks the TurboModule surface for the JS↔native bridge. After the D-05/D-07
 // flip (2026-05-11) the bridge is THREE methods — native owns the report UI.
-// Plan 4 / Task 14 adds a 6th (non-companion) report method — `addBreadcrumb`
+// Plan 4 / Task 14 adds a 6th report method — `addBreadcrumb`
 // — a deliberate, documented D-decision (see NativeEverframe.ts header).
 // `reportCrash` (spec 2026-07-18) is the 8th — the ONLY sync method on the
 // spec at that time (non-void return forces sync codegen; see errors.ts). `setUser`

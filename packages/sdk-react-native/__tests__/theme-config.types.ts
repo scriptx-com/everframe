@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Compile-time guard, not a runtime test — the same NN4 idiom as
-// `companion-badge-config.types.ts`.
+// Compile-time guard, not a runtime test — the NN4 idiom.
 //
 // `ConfigOpts` declares 8 flat, wire-shaped theme fields (`themeBackground`,
 // `themeAccent`, …) purely for RN codegen, which cannot express the nested

@@ -8,8 +8,7 @@
 //     includeBuild("../../../packages/sdk-android/android")           // surfaces :everframe-core, :everframe-reporter-ui
 //   This library declares the two project deps below which resolve through the
 //   composite-build mechanism. The on-device :everframe-tv Activity was removed
-//   alongside the iOS tvOS modal — Android TV hosts route reporting through the
-//   phone-companion (QR → phone browser SPA) flow via CompanionCaptureBridge.
+//   alongside the iOS tvOS modal.
 //
 // CODEGEN:
 //   The `com.facebook.react` Gradle plugin reads `codegenConfig` from
@@ -81,17 +80,15 @@ android {
         }
     }
 
-    // Task 11 (Plan 5) — `EverframeModuleTest.kt` / `EverframeCompanionModuleTest.kt`
-    // exercise a `EverframeModule` contract that no longer exists on `main`
+    // Task 11 (Plan 5) — `EverframeModuleTest.kt` exercises a
+    // `EverframeModule` contract that no longer exists on `main`
     // (captureNow/submit/openAnnotationOverlay were removed by the
-    // D-05/D-07 flip; `startCompanion()` now takes zero args;
-    // `Companion.__setState`/`__setPairUrl` are `internal` to
-    // :everframe-core and unreachable from this separate Gradle module) —
+    // D-05/D-07 flip) —
     // confirmed pre-existing and unrelated to Task 11 (Plan 4 Task 14 first
     // hit this reproducing against unmodified HEAD; see
     // .superpowers/sdd/task-11-report.md for the full compile-error dump).
     // `compileDebugUnitTestKotlin` compiles the entire `test` source set as
-    // one Kotlin unit, so these two permanently-broken files block
+    // one Kotlin unit, so this permanently-broken file blocks
     // `RnReplayBridgeTest.kt` (Task 11's actual subject, itself fixed by the
     // `BridgeReactContext` swap in this same change) from ever compiling.
     // Excluded here — NOT deleted — pending a follow-up ticket to either
@@ -101,10 +98,7 @@ android {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>()
     .matching { it.name.endsWith("UnitTestKotlin") } // compileDebugUnitTestKotlin + compileReleaseUnitTestKotlin
     .configureEach {
-        exclude(
-            "**/EverframeModuleTest.kt",
-            "**/EverframeCompanionModuleTest.kt",
-        )
+        exclude("**/EverframeModuleTest.kt")
     }
 
 // Derive the native-AAR range from this package's own npm version (single
@@ -130,7 +124,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>()
 //
 // That window is not an edge case, it is every native minor. `package.json`
 // only reaches the new version when `changeset version` runs at RELEASE
-// time, so while the companion-attribution work sat unreleased, this file
+// time, so while one such feature sat unreleased, this file
 // resolved `0.4.+` -> the stale 0.4.4 AAR while the bridge source called
 // APIs added in native 0.5.0. Gradle resolved it happily (0.4.4 was in
 // mavenLocal from an earlier release) and the failure surfaced as three
@@ -193,11 +187,10 @@ dependencies {
     // relying on transitive promotion.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
-    // kotlinx-serialization-json — used by the companion capture provider
-    // to serialize the UITree to JSON before gzipping it for the relay
-    // tap-to-identify binary frame. Already on the classpath transitively
-    // via :everframe-protocol (implementation-scoped there), but we need a
-    // direct reference here to call the Json { } factory.
+    // kotlinx-serialization-json — used by the interaction-event
+    // registration to parse its options JSON. Already on the classpath
+    // transitively via :everframe-protocol (implementation-scoped there),
+    // but we need a direct reference here to call the Json factory.
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
     // Unit tests (Plan 06-03 Task 3). Versions mirror :everframe-core (see

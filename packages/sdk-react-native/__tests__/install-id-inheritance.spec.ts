@@ -14,8 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // `fileURLToPath(import.meta.url)` (not `new URL('.', import.meta.url)`) per
-// this package's existing convention (see rbridge-no-surface.test.ts,
-// companion-bridge-wiring.spec.ts) — the alternate form's `URLSearchParams`
+// this package's existing convention (see rbridge-no-surface.test.ts) — the alternate form's `URLSearchParams`
 // iterator type doesn't satisfy this package's node:url typings.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

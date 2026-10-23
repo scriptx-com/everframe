@@ -72,7 +72,7 @@ describe('RBRIDGE-01: no new JS replay/config/ingest surface on the bridge', () 
       });
     }
 
-    it('declares exactly the 19 locked report methods and no other non-companion report method', () => {
+    it('declares exactly the 19 locked report methods and no other report method', () => {
       const REPORT_METHODS = [
         'openReporter',
         // Explicit reporter attribution; existing no-argument open stays intact.
@@ -96,9 +96,7 @@ describe('RBRIDGE-01: no new JS replay/config/ingest surface on the bridge', () 
         // test's whole reason to exist: two NEW report methods added
         // DELIBERATELY, not a quiet widening of `setExtra` itself. Native
         // asks JS for a fresh resolver value (bounded, fail-open) right
-        // before draining pending attachments — mirrors the companion
-        // `reportRequested`/`signalCompanionReportRequestReady` handshake
-        // below. See both methods' doc comments on NativeEverframe.ts.
+        // before draining pending attachments. See both methods' doc comments on NativeEverframe.ts.
         'setExtraResolverActive',
         'signalExtraResolverReady',
         // Plan 4 / Task 14 — the 6th report method, a deliberate D-decision:
@@ -148,14 +146,8 @@ describe('RBRIDGE-01: no new JS replay/config/ingest surface on the bridge', () 
         ).toMatch(new RegExp(`\\b${m}\\s*\\(`));
       }
 
-      // Known companion methods (Phase 06.2 — pre-existing, NOT this phase, OUT OF SCOPE).
-      const COMPANION_METHODS = [
-        'startCompanion',
-        'stopCompanion',
-        'signalCompanionReportRequestReady',
-        'addListener',
-        'removeListeners',
-      ];
+      // NativeEventEmitter's required no-op pair (the extra-resolver event uses it).
+      const EMITTER_METHODS = ['addListener', 'removeListeners'];
 
       // Collect every method-like declaration inside the `interface Spec` body.
       const specBodyMatch = specCode.match(
@@ -167,11 +159,11 @@ describe('RBRIDGE-01: no new JS replay/config/ingest surface on the bridge', () 
         (m) => m[1],
       );
 
-      const known = new Set([...REPORT_METHODS, ...COMPANION_METHODS]);
+      const known = new Set([...REPORT_METHODS, ...EMITTER_METHODS]);
       const unexpected = declared.filter((m) => !known.has(m));
       expect(
         unexpected,
-        `RBRIDGE-01: no NEW (non-companion) report method may be added to the TurboModule — adding another report method requires a phase D-decision. Unexpected: ${unexpected.join(
+        `RBRIDGE-01: no NEW report method may be added to the TurboModule — adding another report method requires a phase D-decision. Unexpected: ${unexpected.join(
           ', ',
         )}`,
       ).toEqual([]);

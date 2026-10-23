@@ -5,7 +5,7 @@
 // slice) — the host-facing nested `RuntimeConfig.theme` (8 optional hex-string
 // roles) is flattened by `extractBridgeConfig` onto the 8 flat wire fields
 // `ConfigOpts` declares for codegen (RN codegen cannot express a nested
-// object in a struct field — same constraint `companionBadge` documents).
+// object in a struct field).
 // No hex validation happens here by design: both native ThemeResolvers
 // revalidate per-field and ignore invalid values (defense in depth exists
 // natively; the RN side is pure passthrough).

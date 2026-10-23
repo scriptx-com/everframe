@@ -4,26 +4,23 @@
 // setExtra resolver round trip (spec 2026-09-17 setExtra-resolver) — RN
 // parity for the resolver form @everframe/sdk-core / @everframe/web already
 // have. Native (Android/iOS) asks JS for a fresh value right before it
-// drains pending attachments for a report, mirroring the companion
-// `reportRequested`/`signalCompanionReportRequestReady` handshake in
-// `companion.ts`. This file exercises the JS half of that handshake end to
+// drains pending attachments for a report. This file exercises the JS half of that handshake end to
 // end: the real `src/runtime.ts`, the real `everframe.extra.resolveRequested`
 // listener it installs, real budgeting via `@everframe/sdk-core`'s
 // `budgetExtra`.
 //
 // WHAT THIS FILE ACTUALLY EXERCISES
 // The `react-native` mock below stands in for RN's `NativeEventEmitter` and
-// `TurboModuleRegistry` ONLY (mirrors `companion-code.spec.ts`'s harness). A
+// `TurboModuleRegistry` ONLY. A
 // payload pushed through the fake emitter under the event name travels
 // exactly the path a native `emitter.emit(...)` payload travels, so deleting
 // the listener in `runtime.ts` — or renaming the event constant on one side
 // only — turns these tests red.
 //
 // ORDERING NOTE: `runtime.ts` keeps the resolver, and the
-// `resolveRequested` listener subscription, at MODULE scope (matching
-// `companion.ts`'s own style — see runtime.ts's comment on
-// `_currentExtraResolver`). The listener is installed once and NEVER torn
-// down (mirrors `installReportRequestedHandler`), so "the listener isn't
+// `resolveRequested` listener subscription, at MODULE scope (see runtime.ts's
+// comment on `_currentExtraResolver`). The listener is installed once and
+// NEVER torn down, so "the listener isn't
 // installed yet" can only be observed by the FIRST test in this file that
 // exercises the resolver form — it runs first, deliberately. Every other
 // test's `afterEach` unmounts its runtime, which clears the resolver itself
@@ -35,7 +32,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 // mock in `vitest.setup.ts`, which stubs only TurboModuleRegistry + UI
 // primitives and has no NativeEventEmitter. `vi.mock` is hoisted, so the
 // listener registry has to live INSIDE the factory and be re-exported for
-// the tests to reach — same shape as `companion-code.spec.ts`.
+// the tests to reach.
 vi.mock('react-native', () => {
   const listeners = new Map<string, Set<(payload: unknown) => void>>();
   class FakeNativeEventEmitter {

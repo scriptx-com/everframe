@@ -76,8 +76,7 @@ export interface EverframeContextValue {
    * chance for the host to refresh a pushed snapshot first — see the fuller
    * rationale on `@everframe/sdk-core`'s `EverframeClient.setExtra`. The
    * resolver is stored, never called at registration time; native ASKS for
-   * it (a bounded round trip to JS, mirroring the companion
-   * `reportRequested` handshake) right before it drains pending attachments
+   * it (a bounded round trip to JS) right before it drains pending attachments
    * for a report, so it always sees current values with no effect to write
    * or keep in sync. A throwing resolver never breaks the report: it is
    * caught, warned, and `extra` is simply omitted from that report — same

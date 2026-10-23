@@ -17,8 +17,7 @@ import {
 import { __resetPlayerTokenCounterForTests } from '../src/vitals.js';
 
 // `fileURLToPath(import.meta.url)` per this package's existing convention
-// (see rbridge-no-surface.test.ts, companion-bridge-wiring.spec.ts,
-// install-id-inheritance.spec.ts) — `new URL(x, import.meta.url)` throws
+// (see rbridge-no-surface.test.ts, install-id-inheritance.spec.ts) — `new URL(x, import.meta.url)` throws
 // under the jsdom environment this spec needs for @testing-library/react.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const native = NativeEverframe as unknown as Record<string, ReturnType<typeof vi.fn>>;

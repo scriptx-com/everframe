@@ -40,8 +40,7 @@ export const REPORTER_DISABLED_CODE = 'EVERFRAME_REPORTER_DISABLED';
 /**
  * Rejected by `open()` when the host turned the reporter off
  * (`reporter: { disabled: true }`, a crash-only session). The session keeps
- * this for its whole life, including after a companion bond upgrades it:
- * reports then come through the companion, not through `open()`. Same name
+ * this for its whole life. Same name
  * as the web SDK's error of the same purpose.
  */
 export class EverframeReporterDisabledError extends Error {

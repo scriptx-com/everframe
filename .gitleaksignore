@@ -111,16 +111,11 @@ packages/sdk-ios/Tests/EverframeTests/EnvelopeUserTests.swift:generic-api-key:10
 packages/sdk-ios/Tests/EverframeTests/Fixtures/identity-token-native.v1.json:jwt:15
 packages/sdk-ios/Tests/EverframeTests/Fixtures/identity-token-native.v1.json:jwt:23
 packages/sdk-ios/Tests/EverframeTests/Fixtures/identity-token-native.v1.json:jwt:7
-packages/sdk-react-native/__tests__/companion-badge-config.types.ts:generic-api-key:26
-packages/sdk-react-native/__tests__/companion-badge-config.types.ts:generic-api-key:32
-packages/sdk-react-native/__tests__/companion-badge-config.types.ts:generic-api-key:40
 packages/sdk-react-native/__tests__/theme-config.types.ts:generic-api-key:22
 packages/sdk-react-native/__tests__/theme-config.types.ts:generic-api-key:28
 packages/sdk-react-native/__tests__/theme-config.types.ts:generic-api-key:34
 packages/sdk-react-native/__tests__/theme-config.types.ts:generic-api-key:40
 packages/sdk-react-native/__tests__/theme-config.types.ts:generic-api-key:48
-packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeCompanionOwnershipTest.kt:generic-api-key:134
-packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeCompanionOwnershipTest.kt:generic-api-key:157
 packages/sdk-web/__tests__/capture/replay/mask-zero-leak.spec.ts:jwt:29
 packages/sdk-web/__tests__/crash-reporting.spec.ts:jwt:241
 packages/sdk-web/__tests__/vitals/wiring.spec.ts:generic-api-key:375

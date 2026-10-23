@@ -25,7 +25,7 @@ describe('release-health native bridge contracts', () => {
     expect(swift).toContain('configureLock.lock()');
     expect(swift).toContain('defer { configureLock.unlock() }');
     expect(swift).toContain('configureAndPrepareReleaseHealth(');
-    expect(swift).toContain('forceRestart: companionAttachPinUi != newAttachPinUi');
+    expect(swift).toContain('forceRestart: false');
     expect(swift).not.toContain('Everframe.shared.currentConfig == cfg');
     expect(swift).toMatch(/if let applyHealth[\s\S]*?Task \{ _ = await applyHealth\(\) \}/);
     expect(swift).not.toMatch(/Task\s*\{\s*(?:_ = )?await Everframe.shared.setReleaseHealth/);

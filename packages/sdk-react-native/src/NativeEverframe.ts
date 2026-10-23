@@ -14,8 +14,7 @@
 //   It is imported from our structural compatibility alias because React
 //   Native 0.87 hides the old deep-import declaration by default.)
 // - The 4 report methods below (configure/openReporter/registerSensitiveRect/
-//   setExtra) plus the Plan 06.2-11 companion methods were the
-//   COMPLETE surface — adding another report method requires a phase
+//   setExtra) were the COMPLETE surface — adding another report method requires a phase
 //   D-decision (Plan 02/03 native impls inherit codegen headers).
 //   `addBreadcrumb` (Plan 4 / Task 14) IS that new D-decision: a manual
 //   breadcrumb escape hatch forwarding to the native singleton's coercion
@@ -50,24 +49,6 @@
 //   `UnsafeObject`, same split `addBreadcrumb`'s `data` already uses.
 //   `T | null` stays forbidden; CLEARING is expressed by calling with no
 //   argument.
-//   `ConfigOpts.attachPinUi` (spec 2026-08-19) is the next D-decision after
-//   that — a flat optional STRING, not `'builtin' | 'custom' | 'off'`: RN
-//   codegen cannot express a string-literal union in a struct field any more
-//   than `setUser`'s D-decision above could express one as a bridge method
-//   parameter type — same codegen ceiling, different call site (a
-//   `ConfigOpts` field here, rather than a whole method's parameter there).
-//   Unlike `setUser`'s escape hatch, this one needs no `UnsafeObject`
-//   widening: it's a plain `string`, which codegen already handles natively
-//   in a struct field — the union is only lost at the TYPE level, not the
-//   VALUE level. Each native side re-parses the string into its own
-//   `AttachPinUi` enum (`enum AttachPinUi: String` on iOS, `enum class
-//   AttachPinUi` on Android) and coerces anything unrecognised — including
-//   an absent field, which decodes as `undefined` and never reaches native
-//   at all — to `.builtin`/`BUILTIN`. This rides `configureSync()`, not a new
-//   bridge method: the flag is a startup-time preference, not a per-call
-//   argument, so it belongs beside `sdkKey`/`networkBodiesDisabled` on
-//   `ConfigOpts` — see `companion.ts`'s `everframe.companion.attachChallenge`
-//   event, the JS-facing half of this same D-decision.
 //   Session Vitals (spec 2026-09-06) is the next D-decision after that —
 //   FIVE methods (trackPlayer/detachPlayer/recordPlayerEvent/
 //   updatePlayerStats/trackVitals) and three flat ConfigOpts fields
@@ -81,10 +62,8 @@
 //   `setExtraResolverActive`/`signalExtraResolverReady` (spec 2026-09-17
 //   setExtra-resolver) is the next D-decision after that — RN parity for
 //   the resolver form of `setExtra` core/web already have. Native asks JS
-//   for a fresh value right before draining pending attachments (mirrors
-//   the companion `reportRequested`/`signalCompanionReportRequestReady`
-//   handshake below exactly), bounded and fail-open; see both methods' own
-//   doc comments.
+//   for a fresh value right before draining pending attachments, bounded
+//   and fail-open; see both methods' own doc comments.
 import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
 import type { UnsafeObject } from './codegen-types';
@@ -141,67 +120,21 @@ export type ConfigOpts = {
    * Absent means capture stays on.
    */
   crashReportingDisabled?: boolean;
-  /**
-   * Built-in attach-PIN surface mode (spec 2026-08-19): 'builtin' (default —
-   * the native SDK presents the code itself), 'custom' (host renders it from
-   * onAttachChallenge; the device still announces the capability), 'off'
-   * (legacy one-click dashboard attach, no PIN). Flat string, not a union —
-   * codegen cannot express string-literal unions; the natives coerce unknown
-   * values to 'builtin'.
-   */
-  attachPinUi?: string;
-  /**
-   * Explicit companion device-identity override (naming spec 2026-08-24) —
-   * an MDM id or provisioning serial the host already trusts. Hashed
-   * (SHA-256 → UUID shape) natively before it ever reaches the announce
-   * `device` block — see `CompanionDeviceId.resolve` (iOS) /
-   * `CompanionDeviceId.resolve` (Android). Flat optional string, same
-   * codegen shape as `attachPinUi` above. `undefined`/absent falls through
-   * to each native side's own Keychain/SSAID-then-stored-UUID chain.
-   */
-  companionDeviceId?: string;
-  /**
-   * Companion on-screen name-badge visibility (naming spec 2026-08-24,
-   * controller ruling / Task 6b) — "a production app that finds it
-   * intrusive turns it off in one line". `undefined`/absent defaults to
-   * `true` (badge shown) on both natives, matching
-   * `CompanionBadgeOptions.enabled`'s own default. Flat because RN codegen
-   * rejects nested objects, same constraint `networkBodiesDisabled` above
-   * documents — the host-facing nested `companionBadge: { enabled }` is
-   * flattened here by `extractBridgeConfig`.
-   */
-  companionBadgeEnabled?: boolean;
   /** Local veto for shake opening the reporter (not for shake quick capture). Absent defaults to enabled. */
   shakeToReportEnabled?: boolean;
   /** Local veto for quick capture (simulators, emulators and real phones) and device linking. Absent defaults to enabled. */
   quickCaptureEnabled?: boolean;
   /**
    * Crash-only session switch. `true` turns off every on-device way to open the reporter, keeps
-   * network bodies off and samples replay with the server's crash-only rate until a companion
-   * bond upgrades the session. Flattened by `extractBridgeConfig` from `reporter: { disabled }`.
+   * network bodies off and samples replay with the server's crash-only rate. Flattened by `extractBridgeConfig` from `reporter: { disabled }`.
    * Absent means a normal report session.
    */
   reporterDisabled?: boolean;
   /**
-   * Companion on-screen name-badge corner (naming spec 2026-08-24,
-   * controller ruling / Task 6b). Flat optional STRING, not a literal
-   * union — same codegen ceiling as `attachPinUi` above (RN codegen cannot
-   * express a string-literal union in a struct field): the host-facing
-   * `RuntimeConfig.companionBadge.position` narrows to the real
-   * `'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'` union and
-   * `extractBridgeConfig` passes it through unchanged onto this wire field.
-   * Each native side re-parses the string into its own
-   * `CompanionBadgePosition` enum, coercing `undefined`/an unrecognised
-   * value to `.bottomRight`/`BOTTOM_RIGHT` — the same default
-   * `CompanionBadgeOptions.position` already uses.
-   */
-  companionBadgePosition?: string;
-  /**
    * Inline reporter theme (reporter branding spec 2026-08-25, RN slice) —
    * 8 optional `#rrggbb` role strings, flattened from the host-facing nested
    * `RuntimeConfig.theme` by `extractBridgeConfig` (RN codegen cannot express
-   * a nested object in a struct field — the `companionBadge` constraint
-   * above). Pure passthrough: NO hex validation happens on the RN side; each
+   * a nested object in a struct field). Pure passthrough: NO hex validation happens on the RN side; each
    * native ThemeResolver revalidates per-field and ignores invalid values.
    * The theme only ever renders once the server entitles it (server
    * `watermark: false`) — the entitlement gate lives natively and cannot be
@@ -218,7 +151,7 @@ export type ConfigOpts = {
   /**
    * Session Vitals local config (spec 2026-09-06, RN). Three FLAT fields
    * flattened from the host-facing nested `RuntimeConfig.vitals` by
-   * `extractBridgeConfig` — same codegen reason as `companionBadge*`.
+   * `extractBridgeConfig` — RN codegen rejects nested objects.
    * `vitalsEnabled`: absent = follow the dashboard toggle; `false` = opt out
    * locally; `true` never forces it on. `vitalsSampleRate`: [0, 1], min()'d
    * with the server rate, clamped natively; absent = server rate.
@@ -331,8 +264,7 @@ export interface Spec extends TurboModule {
    */
   setExtraResolverActive(active: boolean): void;
   /**
-   * Companion-precedent-shaped ack (mirrors `signalCompanionReportRequestReady`
-   * below exactly): called by the JS-side `everframe.extra.resolveRequested`
+   * Ack: called by the JS-side `everframe.extra.resolveRequested`
    * listener once it has — IF a resolver is currently registered — invoked
    * it, budgeted the result exactly like `@everframe/sdk-core`'s
    * `resolveClientExtra`, and pushed it through the existing `setExtra`
@@ -436,39 +368,11 @@ export interface Spec extends TurboModule {
    */
   captureHandledException(crashJson: string): boolean;
 
-  // ---------------- Phone-companion (Plan 06.2-11) ----------------
-  //
-  // Opens a TV-side RelayWSClient against the build-time-baked ingest URL
-  // (IngestEndpoint.url on each native SDK) and forwards
-  // `Everframe.shared.companion` state + pairUrl signals to JS via the
-  // platform's RN event-emitter (RCTDeviceEventEmitter on Android, a
-  // dedicated RCTEventEmitter subclass on iOS). The bridge owns at most ONE
-  // RelayWSClient per process.
-  //
-  // Emitted events (both platforms — see `src/companion.ts`):
-  //   • `everframe.companion.state`            → 'unpaired' | 'paired' | 'report_in_progress' | 'phone_disconnected'
-  //   • `everframe.companion.pairUrl`          → string | null
-  //   • `everframe.companion.code`             → string | null
-  //   • `everframe.companion.attachedUserName` → string | null
-  //   • `everframe.companion.resolvedName`     → string | null (naming spec 2026-08-24)
-  //   • `everframe.companion.attachChallenge`  → { code, requestedByName, ttlMs } | null (spec 2026-08-19)
-  startCompanion(): void;
-  stopCompanion(): void;
-  /**
-   * Companion handshake: called by the JS-side `onReportRequested` listener
-   * once it is ready for native capture to proceed. (It used to walk the
-   * React fiber tree and attach it via `attachReactTree` first; both are
-   * gone — spec 2026-08-29.) Releases the native bridge's bounded wait.
-   *
-   * Bounded: if JS never calls back, the native side times out after
-   * ~250ms and captures anyway.
-   */
-  signalCompanionReportRequestReady(correlationId: string): void;
+  // ---------------- Native event emitter ----------------
   /**
    * RN's `NativeEventEmitter` contract requires `addListener` /
    * `removeListeners` to exist on the underlying native module — RN warns
-   * loudly otherwise. Both are intentional no-ops at the spec level: the
-   * native event-emitter subscriptions are installed by `startCompanion`.
+   * loudly otherwise. Both are intentional no-ops at the spec level.
    */
   addListener(eventName: string): void;
   removeListeners(count: number): void;

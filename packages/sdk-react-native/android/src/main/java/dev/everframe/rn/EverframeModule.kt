@@ -17,9 +17,6 @@
 //   recordScreen(name, data?)             → void           (spec 2026-07-14)
 //   reportCrash(crashJson)                → boolean (SYNC — spec 2026-07-18)
 //   setUser(user?)                        → void           (spec 2026-08-12)
-//   configure(opts.attachPinUi?)          → void           (spec 2026-08-19)
-//   startCompanion()/stopCompanion()      → void           (Plan 06.2-11)
-//   signalCompanionReportRequestReady(id) → void           (Plan 06.2-13)
 //   trackPlayer/detachPlayer/recordPlayerEvent/updatePlayerStats/
 //   trackVitals                           → void           (spec 2026-09-06)
 //   configureSync(opts.vitals*)           → boolean        (spec 2026-09-06)
@@ -57,24 +54,10 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ReadableType
 import com.facebook.react.bridge.UiThreadUtil
-import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.uimanager.UIManagerHelper
 import dev.everframe.Everframe
-import dev.everframe.capture.ScreenshotCapture
-import dev.everframe.capture.SensitiveRectRegistry
-import dev.everframe.companion.AttachChallengeInfo
-import dev.everframe.companion.AttachPinUi
-import dev.everframe.companion.CompanionBadge
-import dev.everframe.companion.CompanionBadgeOptions
-import dev.everframe.companion.CompanionCaptureBridge
-import dev.everframe.companion.CompanionDeviceFacts
-import dev.everframe.companion.CompanionState
-import dev.everframe.companion.CompanionSubmissionComposer
-import dev.everframe.companion.PreviewCapture
-import dev.everframe.companion.RelayWSClient
-import dev.everframe.companion.parseCompanionBadgePosition
 import dev.everframe.config.ReleaseHealthConfig
 import dev.everframe.config.ReleaseHealthBundleStatus
 import dev.everframe.config.CaptureConfig
@@ -83,22 +66,10 @@ import dev.everframe.config.ReportResult
 import dev.everframe.config.ReporterThemeOptions
 import dev.everframe.config.TXUser
 import dev.everframe.config.EverframeConfig
-import dev.everframe.protocol.generated.ReportAssembled
-import dev.everframe.protocol.generated.ReportAssembledCounts
-import dev.everframe.protocol.generated.ReportAssembledToggles
-import dev.everframe.protocol.generated.ReportSubmit
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import java.io.ByteArrayOutputStream
 import java.util.concurrent.ConcurrentHashMap
 
 @ReactModule(name = EverframeModule.NAME)
@@ -167,10 +138,8 @@ class EverframeModule(
 
     init {
         // Extra-resolver ask-and-wait (spec 2026-09-17 setExtra-resolver).
-        // Installed unconditionally, at construction — NOT gated behind
-        // startCompanion() the way the companion Combine/Flow subscriptions
-        // are, because this must also cover the plain in-app openReporter()
-        // path and native shake (both funnel through Everframe.report.open(),
+        // Installed unconditionally, at construction, because this must cover
+        // the plain in-app openReporter() path and native shake (both funnel through Everframe.report.open(),
         // which calls Everframe.consumePendingAttachments() — see that
         // property's doc comment on Everframe.kt). Reassigning on every
         // module construction is intentional and harmless: the newest
@@ -188,57 +157,12 @@ class EverframeModule(
         /** Crash-only sessions (spec 2026-10-12). The JS facade maps this exact code to `EverframeReporterDisabledError`. */
         internal const val REJECT_REPORTER_DISABLED: String = "EVERFRAME_REPORTER_DISABLED"
 
-        // Plan 06.2-11 — JS-side event names. Keep in lock-step with
-        // `packages/sdk-react-native/src/companion.ts` and the iOS
-        // `EverframeEventEmitter.swift` constants.
-        internal const val COMPANION_STATE_EVENT: String = "everframe.companion.state"
-        internal const val COMPANION_PAIR_URL_EVENT: String = "everframe.companion.pairUrl"
-
-        // Companion discovery (spec 2026-08-07). `code` is the short display
-        // code from `/api/companion/announce`, rendered beside the QR so a
-        // team member reading the TV screen can pick this device out of the
-        // dashboard list. `attachedUserName` is the dashboard member who
-        // attached, null on an ordinary QR bond. Both cross as String | null.
-        internal const val COMPANION_CODE_EVENT: String = "everframe.companion.code"
-        internal const val COMPANION_ATTACHED_USER_NAME_EVENT: String =
-            "everframe.companion.attachedUserName"
-        // Server-resolved device display name (naming spec 2026-08-24) — e.g.
-        // an org-configured friendly name for this device. Null before the
-        // first successful announce or when discovery never ran. Crosses as
-        // String | null.
-        internal const val COMPANION_RESOLVED_NAME_EVENT: String =
-            "everframe.companion.resolvedName"
-        // Pending dashboard-initiated attach-PIN challenge (spec
-        // 2026-08-19). `{ code, requestedByName, ttlMs }` or null — see
-        // `installCompanionCollectorsIfNeeded()`'s attachChallenge collector
-        // below for the full contract.
-        internal const val COMPANION_ATTACH_CHALLENGE_EVENT: String =
-            "everframe.companion.attachChallenge"
-        // Fired when a `report.request` arrives from the paired phone. The
-        // event and its `signalCompanionReportRequestReady` acknowledgement
-        // are the companion's JS-ready handshake — the bounded wait is part
-        // of the pairing flow.
-        internal const val COMPANION_REPORT_REQUESTED_EVENT: String = "everframe.companion.reportRequested"
-
-        // Spec 2026-09-17 setExtra-resolver — NOT a companion event (no
-        // "companion." prefix): fired for the plain in-app openReporter()
-        // path and native shake too, not just the phone-companion flow. See
+        // Spec 2026-09-17 setExtra-resolver: fired for the plain in-app
+        // openReporter() path and native shake. See
         // `awaitJsExtraResolve()` below and `packages/sdk-react-native/src/
         // runtime.ts`'s matching listener.
         internal const val EXTRA_RESOLVE_REQUESTED_EVENT: String = "everframe.extra.resolveRequested"
 
-        /**
-         * Stringify a `CompanionState` for the RN event payload. Snake_case
-         * mirrors the iOS `CompanionState.rawValue` shape ("unpaired",
-         * "paired", "report_in_progress", "phone_disconnected") so JS
-         * consumers can treat both platforms with a single union type.
-         */
-        internal fun CompanionState.toRnString(): String = when (this) {
-            CompanionState.Unpaired -> "unpaired"
-            CompanionState.Paired -> "paired"
-            CompanionState.ReportInProgress -> "report_in_progress"
-            CompanionState.PhoneDisconnected -> "phone_disconnected"
-        }
     }
 
     // getName() is inherited from NativeEverframeSpec (returns "Everframe").
@@ -306,16 +230,6 @@ class EverframeModule(
             // (`reporterDisabled`, flattened from `reporter: { disabled }`),
             // native stores the permission.
             val reporterDisabled = opts.takeIfHasBoolean("reporterDisabled") ?: false
-            // Attach-PIN UI mode (spec 2026-08-19) — a flat optional STRING
-            // field (codegen cannot express a string-literal union), parsed
-            // here and stashed for `startCompanion()` to read (the flag is a
-            // startup-time preference riding `configure()`, not a per-call
-            // argument; see NativeEverframe.ts's D-decision header note).
-            // Absent/unrecognised both coerce to BUILTIN, the safe default
-            // matching "host did nothing special". Parsed into a LOCAL: the
-            // idempotence gate below compares it against the stashed value
-            // before deciding, and only the start path adopts it.
-            val attachPinUi = parseAttachPinUi(opts.takeIfHasString("attachPinUi"))
 
             val config = EverframeConfig(
                 // The JS config carries no App ID, and the native SDK requires a
@@ -335,26 +249,9 @@ class EverframeModule(
                 // The JS facade always sends React Native's `__DEV__` (or the host's override). A missing
                 // or null key stays null so the native SDK decides for itself, as for any other caller.
                 debugBuild = opts.takeIfHasBoolean("debugBuild"),
-                // Explicit companion device-identity override (naming spec
-                // 2026-08-24) — read straight off the flat ConfigOpts field,
-                // same shape as attachPinUi above. Absent/blank falls
-                // through to the SSAID-then-stored-UUID chain inside
-                // CompanionDeviceId.resolve.
-                companionDeviceId = opts.takeIfHasString("companionDeviceId"),
-                // Companion on-screen name badge (naming spec 2026-08-24,
-                // controller ruling / Task 6b) — flat fields on ConfigOpts
-                // (RN codegen cannot express the nested `{enabled,
-                // position}` shape the JS facade's
-                // `RuntimeConfig.companionBadge` uses; `extractBridgeConfig`
-                // flattens it before it crosses). Absent `enabled` defaults
-                // to `true` (badge shown); `position` is stashed raw here
-                // and parsed into `CompanionBadgePosition` only at
-                // `startCompanion()` time, mirroring `attachPinUi`.
-                companionBadgeEnabled = opts.takeIfHasBoolean("companionBadgeEnabled") ?: true,
                 shakeToReportEnabled = opts.takeIfHasBoolean("shakeToReportEnabled") ?: true,
                 quickCaptureEnabled = opts.takeIfHasBoolean("quickCaptureEnabled") ?: true,
                 reporterEnabled = !reporterDisabled,
-                companionBadgePosition = opts.takeIfHasString("companionBadgePosition"),
                 // Inline reporter theme (reporter branding spec 2026-08-25,
                 // RN slice) — 8 flat optional STRING fields on ConfigOpts
                 // (RN codegen cannot express the nested `theme: { … }` shape
@@ -406,16 +303,11 @@ class EverframeModule(
             // So compare against what is actually INSTALLED. `EverframeConfig` is a data class,
             // so `==` is structural over every field a start would write, which makes the
             // comparison exhaustive by construction — a new config field can never be forgotten
-            // here the way a hand-maintained key list could be. The two extra terms:
+            // here the way a hand-maintained key list could be. The extra term:
             //   • `captureGate` — a killed SDK must be restarted even by an identical config,
             //     or the host is left with a dead SDK and no way to revive it.
-            //   • `attachPinUi` — the one bridge option that lands in module state instead of
-            //     in `EverframeConfig`, so config equality alone cannot see it change.
             interactionEventObserver.refresh(reactContext)
-            if (Everframe.captureGate &&
-                Everframe.currentConfig == config &&
-                companionAttachPinUi == attachPinUi
-            ) {
+            if (Everframe.captureGate && Everframe.currentConfig == config) {
                 android.util.Log.d(
                     "Everframe.rn",
                     "configure: SDK already running this exact config — skipping start()",
@@ -424,11 +316,6 @@ class EverframeModule(
                 completed = true
                 return@txGuardSurface
             }
-
-            // Stash the attach-PIN UI mode for startCompanion() to read (spec 2026-08-19). It
-            // is written only on the start path: the skip path above has already established
-            // that the stashed value equals the parsed one.
-            companionAttachPinUi = attachPinUi
 
             // Pass the live Activity: configure() runs from JS long after
             // MainActivity's onCreate, so without it the tap adapter's
@@ -467,7 +354,7 @@ class EverframeModule(
      *   { status: "cancelled" }
      *
      * Rejects with [REJECT_REPORTER_DISABLED] in a crash-only session
-     * (`reporterDisabled`), including after a companion bond upgraded it.
+     * (`reporterDisabled`).
      */
     @ReactMethod
     override fun openReporter(promise: Promise) {
@@ -575,8 +462,7 @@ class EverframeModule(
      * because it is written from the JS thread (this `@ReactMethod`) and
      * read from `awaitJsExtraResolve`, which runs wherever
      * `Everframe.consumePendingAttachments()`'s caller happens to run
-     * (Main for `openReporter()`/shake, the OkHttp WS thread for the
-     * companion path).
+     * (Main for `openReporter()`/shake).
      */
     @Volatile
     private var extraResolverActive: Boolean = false
@@ -857,8 +743,7 @@ class EverframeModule(
      * IO scope and is a silent no-op pre-start, so there is nothing a JVM
      * unit test could otherwise assert on). Production default forwards to
      * the core singleton; `RnReplayBridgeTest` swaps it to a recording
-     * lambda and restores it. Same `internal`-seam idiom as
-     * `hasCompanionClientForTesting()` above.
+     * lambda and restores it.
      */
     internal var __drainRequester: () -> Unit = { Everframe.requestOutboxDrain() }
 
@@ -889,762 +774,17 @@ class EverframeModule(
         sensitiveRegistration.register(viewTag)
     }
 
-    // ---------------- Companion (Plan 06.2-11) ----------------
-    //
-    // The bridge owns at most ONE live `RelayWSClient` per process.
-    // `startCompanion()` is idempotent: a second call while a client is
-    // already live is a no-op — the socket is NOT recreated. Call
-    // `stopCompanion()` first to tear the connection down before re-starting.
-    //
-    // External review, finding NN1 — "at most one per process" is now
-    // enforced ACROSS this bridge AND `Everframe.startCompanion()` (a plain-
-    // native host's own companion entry point), not just within this
-    // module: both route through `Everframe.__registerCompanionClient` /
-    // `__unregisterCompanionClient`, a single `@Synchronized` slot on the
-    // core facade. First caller wins; this bridge's `startCompanion()`
-    // discards its own just-built client (never starting it or installing
-    // any provider seam for it) when a native host already holds the slot,
-    // and its `stopCompanion()` only ever stops/unregisters the client THIS
-    // module itself registered.
-    //
-    // StateFlow collection lives on a module-owned `CoroutineScope` (Main +
-    // SupervisorJob, mirroring the precedent in CompanionCaptureBridge.kt's
-    // service scope shape). Collectors stay alive across stop/start cycles
-    // because the underlying `Everframe.companion` StateFlows survive the
-    // WS lifetime — re-installing on every start would race the initial
-    // `__setState(Unpaired)` emission on cold start and lose it.
-    //
-    // The events forwarded to JS mirror iOS exactly:
-    //   • `everframe.companion.state`            — snake_case CompanionState
-    //   • `everframe.companion.pairUrl`          — String | null
-    //   • `everframe.companion.code`             — String | null
-    //   • `everframe.companion.attachedUserName` — String | null
-    //   • `everframe.companion.attachChallenge`  — WritableMap{code,requestedByName,ttlMs} | null (spec 2026-08-19)
-    //
-    // The collector Jobs below are never cancelled: `companionScope` and the
-    // module live for the process, and the collectors deliberately outlive
-    // stop/start cycles (see above). The fields exist so the jobs are
-    // inspectable and so a future teardown path has something to cancel.
-    //
-    // Emission is via `RCTDeviceEventEmitter` (the default emitter); JS
-    // facade uses `new NativeEventEmitter()` on Android (no module ref
-    // needed — the default emitter is platform-supplied).
-
-    private val companionScope: CoroutineScope =
-        CoroutineScope(Dispatchers.Main + SupervisorJob())
-
-    @Volatile
-    private var companionClient: RelayWSClient? = null
-
-    @Volatile
-    private var companionCollectorsInstalled: Boolean = false
-
-    @Volatile
-    private var companionStateJob: Job? = null
-
-    @Volatile
-    private var companionPairUrlJob: Job? = null
-
-    @Volatile
-    private var companionCodeJob: Job? = null
-
-    @Volatile
-    private var companionAttachedUserNameJob: Job? = null
-
-    @Volatile
-    private var companionResolvedNameJob: Job? = null
-
-    @Volatile
-    private var companionAttachChallengeJob: Job? = null
-
-    /**
-     * The host's configured attach-PIN UI mode (spec 2026-08-19), parsed
-     * from `ConfigOpts.attachPinUi` at `configure()` time and read by
-     * `startCompanion()` — both to pass to `RelayWSClient` (the announce
-     * capability) and to set `Everframe.__attachPinUiSuppressed` (the
-     * built-in presenter's runtime silence flag). Defaults to `BUILTIN` —
-     * pre-existing behaviour for a host that never set the flag.
-     */
-    @Volatile
-    private var companionAttachPinUi: AttachPinUi = AttachPinUi.BUILTIN
-
-    /** Coerce the flat `ConfigOpts.attachPinUi` string into [AttachPinUi].
-     *  `null` (field absent) and any unrecognised value both degrade to
-     *  `BUILTIN`. */
-    private fun parseAttachPinUi(raw: String?): AttachPinUi = when (raw) {
-        "custom" -> AttachPinUi.CUSTOM
-        "off" -> AttachPinUi.OFF
-        else -> AttachPinUi.BUILTIN
-    }
-
-    // `parseCompanionBadgePosition` moved to `dev.everframe.companion`
-    // (CompanionBadge.kt) — external review, finding N3 — so the core
-    // facade's own native-host companion start path (`Everframe.startCompanion`)
-    // can share it instead of drifting a second copy. Imported above.
-
-    /** WritableMap has no `long` accessor — `ttlMs` crosses as a double, per
-     *  the spec's documented `everframe.companion.attachChallenge` payload
-     *  contract. Extracted so the collector body above stays as short as
-     *  its siblings. */
-    private fun AttachChallengeInfo.toWritableMap(): WritableMap =
-        Arguments.createMap().apply {
-            putString("code", code)
-            putString("requestedByName", requestedByName)
-            putDouble("ttlMs", ttlMs.toDouble())
-        }
-
-    /** Test seam — JVM unit test (`EverframeCompanionModuleTest.kt`) asserts
-     *  the bridge installs a client on startCompanion() and clears it on
-     *  stopCompanion(). Intentionally `internal` so it doesn't leak past
-     *  the module boundary. */
-    internal fun hasCompanionClientForTesting(): Boolean = companionClient != null
-
-    /** Test seam — the live client instance (or null), so tests can assert by
-     *  identity that a repeat `startCompanion()` did NOT recreate the socket. */
-    internal fun companionClientForTesting(): RelayWSClient? = companionClient
-
-    /**
-     * The SDK key the host already configured through `configure()`, or null
-     * when there isn't a usable one. Read straight off `Everframe`'s own config
-     * snapshot — deliberately NOT a second place a key can be configured, and
-     * NOT a new public surface (`currentConfig` is already public read-only).
-     *
-     * Null when `Everframe.start` never ran, and when the host configured a
-     * blank key. Both are "no dashboard presence", never "no socket".
-     */
-    private fun configuredSdkKey(): String? =
-        Everframe.currentConfig?.sdkKey?.takeIf { it.isNotBlank() }
-
-    /**
-     * Non-personal device label for the dashboard's device list — the platform
-     * model ("Chromecast", "AFTKA", "Pixel 8"). Deliberately
-     * `android.os.Build.MODEL` and not any user-assigned device name, which is
-     * commonly a person's name and would leak into a shared dashboard list as
-     * a side effect of turning companion on. The display code is the real
-     * disambiguator; the label is only a convenience.
-     *
-     * `Build.MODEL` is a platform type — it reads back null under plain JVM
-     * unit tests (unmocked android.jar), so the null-safe call is load-bearing
-     * and not defensive noise.
-     */
-    private fun companionDeviceLabel(): String? =
-        android.os.Build.MODEL?.takeIf { it.isNotBlank() }
-
-    @ReactMethod
-    override fun startCompanion() {
-        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
-            android.os.Handler(android.os.Looper.getMainLooper()).post { startCompanion() }
-            return
-        }
-        txGuardVoid("startCompanion") {
-            // Idempotent: a live client means a prior startCompanion already
-            // opened the socket. Do NOT recreate it — callers must
-            // stopCompanion() first. This keeps repeat starts from spinning up
-            // a second WS (which would race on `pair.created` / `__setPairUrl`).
-            if (companionClient != null) {
-                android.util.Log.i(
-                    "Everframe.rn",
-                    "startCompanion ignored — already running; call stopCompanion() first",
-                )
-                return@txGuardVoid
-            }
-
-            // Await the main-thread install before the relay can announce PIN capability.
-            // configureSync itself remains non-blocking with respect to main.
-            reporterBridge.scheduleInstall(reactContext)
-            installCompanionCollectorsIfNeeded()
-
-            // Runtime suppression of the built-in PIN presenter (spec
-            // 2026-08-19, controller ruling): a runtime flag, not an
-            // install-site gate. `:everframe-reporter-ui`'s
-            // `CompanionPinPresenter` is auto-installed via
-            // `ReporterResolverInstaller` (Startup or the bridge above) regardless of
-            // the configured mode, so `Everframe.__attachPinUiInstalled`
-            // stays an honest capability signal — only the PRESENTING is
-            // silenced, here, at the one site where the mode is already
-            // known (configure() precedes startCompanion() in every host's
-            // lifecycle).
-            Everframe.__attachPinUiSuppressed = companionAttachPinUi != AttachPinUi.BUILTIN
-
-            // RelayWSClient defaults baseUrl to IngestEndpoint.url —
-            // release AAR = https://everframe.dev, debug AAR =
-            // EVERFRAME_DEV_INGEST_URL env var or 10.0.2.2:8787 fallback.
-            //
-            // Companion discovery (spec 2026-08-07): announcing is what makes
-            // this device appear in the dashboard's Companion tab. It rides
-            // the SDK key the host ALREADY configured via `configure()` — we
-            // never ask for a second one. A null key takes the ticketless
-            // path: RelayWSClient builds no announcer and connects to plain
-            // `/relay/tv`, byte-identical to pre-companion behaviour.
-            // Announce must never be able to break reporting — no key means
-            // "no dashboard presence", never "no socket".
-            val client = RelayWSClient(
-                client = OkHttpClient(),
-                sdkKey = configuredSdkKey(),
-                deviceLabel = companionDeviceLabel(),
-                // Naming spec 2026-08-24 — resolved fresh on every announce
-                // attempt (see `RelayWSClient.deviceProvider`'s own doc for
-                // why no caching is needed here). `companionDeviceId` is read
-                // off the same `Everframe.currentConfig` snapshot
-                // `configuredSdkKey()` above already reads, not a second
-                // configuration surface.
-                deviceProvider = {
-                    CompanionDeviceFacts.current(
-                        reactContext.applicationContext,
-                        Everframe.currentConfig?.companionDeviceId,
-                    )
-                },
-                attachPinUi = companionAttachPinUi,
-                // Companion on-screen name badge (naming spec 2026-08-24,
-                // controller ruling / Task 6b) — same `Everframe.currentConfig`
-                // snapshot `deviceProvider` above already reads, read fresh
-                // at start time (a toggle/position can't affect anything
-                // before a relay client and its badge exist). `?: true`
-                // covers the same "never configured" edge `configuredSdkKey()`'s
-                // own null-safe chain already tolerates.
-                companionBadge = CompanionBadgeOptions(
-                    enabled = Everframe.currentConfig?.companionBadgeEnabled ?: true,
-                    position = parseCompanionBadgePosition(Everframe.currentConfig?.companionBadgePosition),
-                ),
-            )
-
-            // External review, finding NN1 — register through the core
-            // facade's SINGLE ownership slot instead of just assigning
-            // `companionClient` directly. First caller to register wins:
-            // a native host that already called `Everframe.startCompanion()`
-            // in this same process (or a concurrent RN start that beat us to
-            // it) keeps its client live, and OUR freshly-built one never
-            // goes anywhere near a provider seam or `client.start()` — a
-            // stale/duplicate RN provider must never be able to clobber
-            // whatever the winning caller installed. See
-            // `Everframe.__registerCompanionClient`'s own doc comment.
-            if (!Everframe.__registerCompanionClient(client)) {
-                // Log BEFORE the teardown attempt, not after: this warning is
-                // the one observable signal a host gets that its RN start was
-                // silently discarded, and it must fire even if `client.stop()`
-                // itself throws (DEFE-02 — a never-started client's teardown
-                // is best-effort cleanup, not load-bearing for correctness,
-                // since it was never registered/started in the first place).
-                android.util.Log.w(
-                    "Everframe.rn",
-                    "companion already started by the native facade — RN start ignored",
-                )
-                runCatching { client.stop() }
-                return@txGuardVoid
-            }
-
-            companionClient = client
-
-            // Plan 06.2-13 Task 3 — drop any prior bridge providers so a
-            // stale closure from a previous startCompanion doesn't double-
-            // handle frames against a now-defunct activity. Safe HERE, only
-            // after winning the registration race above — until then these
-            // providers may belong to someone else entirely.
-            CompanionCaptureBridge.__captureProvider = null
-            CompanionCaptureBridge.__submitProvider = null
-            // Task 11b — same reasoning for the preview-loop and shot-stash
-            // seams: null them before installing fresh ones so a stray call
-            // between stop and start can never run against a stale Activity.
-            CompanionCaptureBridge.__previewProvider = null
-            CompanionCaptureBridge.__shotCaptureProvider = null
-            companionCaptureStash.values.forEach { it.reportCapture.cancel() }
-            companionCaptureStash.clear()
-            // Task 6 (naming spec 2026-08-24) — same reasoning for the name
-            // badge's activity seam: null before installing fresh, exactly
-            // like the removed sharing indicator's own __activityProvider
-            // used to be handled here.
-            CompanionBadge.__activityProvider = null
-
-            installCompanionBridgeProviders()
-
-            client.start()
-            android.util.Log.i("Everframe.rn", "startCompanion: connected")
-        }
-    }
-
-    @ReactMethod
-    override fun stopCompanion() {
-        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
-            android.os.Handler(android.os.Looper.getMainLooper()).post { stopCompanion() }
-            return
-        }
-        txGuardVoid("stopCompanion") {
-            // External review, finding NN1 — only ever stop/unregister OUR
-            // OWN client. `companionClient` is non-null here ONLY when a
-            // prior `startCompanion()` on THIS module actually won the
-            // registration race above, so reaching this point already means
-            // we own the providers cleared below — a native host's own
-            // `Everframe.startCompanion()`-registered client (or one still
-            // live from a losing/no-op RN start) is untouched:
-            // `__unregisterCompanionClient`'s identity check would no-op
-            // against it anyway even if `companionClient` somehow pointed
-            // at a stale reference, but the early return means we never even
-            // ask.
-            val client = companionClient ?: return@txGuardVoid
-            client.stop()
-            Everframe.__unregisterCompanionClient(client)
-            companionClient = null
-            // Plan 06.2-13 Task 3 — uninstall bridge providers so the
-            // singleton can't keep firing against a stale activity.
-            CompanionCaptureBridge.__captureProvider = null
-            CompanionCaptureBridge.__submitProvider = null
-            // Task 11b — a preview/shot provider that outlives its session
-            // keeps a stale Activity alive and can capture a screen the
-            // session no longer owns; null both alongside the two above.
-            CompanionCaptureBridge.__previewProvider = null
-            CompanionCaptureBridge.__shotCaptureProvider = null
-            companionCaptureStash.values.forEach { it.reportCapture.cancel() }
-            companionCaptureStash.clear()
-            // Task 6 — a badge activity provider that outlives its session
-            // keeps a stale Activity alive for no reason; RelayWSClient.stop()
-            // (called just above) already tears down the badge's own
-            // subscription/view, this just drops the seam it would have used.
-            CompanionBadge.__activityProvider = null
-            // unclaimed per-report attribution snapshot goes with it. Any
-            // submit already in flight took its token synchronously before
-            // its coroutine was dispatched, so this cannot strip attribution
-            // from a report that is mid-upload.
-            CompanionCaptureBridge.__clearPendingAttribution()
-            // Note: in-flight submit coroutines launched by the bridge's
-            // own submitScope are NOT cancelled here — they're owned by
-            // the bridge object and survive a stop. The next start will
-            // install fresh providers; any straggling submit completes
-            // (or fails) against the now-disconnected WebSocket and the
-            // ws.send(report.completed/failed) becomes a silent drop.
-        }
-    }
-
-    // ---------------- Companion provider install (Plan 06.2-13) ----------------
-
-    /**
-     * Plan 06.2-13 Task 3+4 — per-correlation_id stash for capture state
-     * + drained host attachments. Held on the module (NOT on the bridge
-     * singleton) so stopCompanion() can clear it without bridge-internal
-     * state coupling. Mirrors the advisor's note: "ownership flipped (RN
-     * module owns the bridge install lifecycle)".
-     *
-     * `ConcurrentHashMap` because the OkHttp WS thread (write at
-     * report.request) can race with the bridge's submitScope (read at
-     * report.submit).
-     */
-    private data class CompanionCapture(
-        val capture: ScreenshotCapture.CaptureResult,
-        val reportCapture: dev.everframe.capture.video.FrozenReportCapture,
-        val hostExtra: String?,
-    )
-
-    private val companionCaptureStash = ConcurrentHashMap<String, CompanionCapture>()
-
-    /**
-     * Install both `__captureProvider` and `__submitProvider` on the
-     * `CompanionCaptureBridge` singleton. Closes over `reactContext` for
-     * activity acquisition (RN tracks the foreground activity via
-     * `getCurrentActivity()` — same surface `openReporter` uses).
-     */
-    private fun installCompanionBridgeProviders() {
-        // ----- __captureProvider -----
-        CompanionCaptureBridge.__captureProvider = { correlationId, reportCapture ->
-            val activity = reactContext.currentActivity
-            if (activity == null) {
-                android.util.Log.w(
-                    "Everframe.rn",
-                    "companion captureProvider: no foreground activity; emitting empty assembled",
-                )
-                emptyAssembledPayload(correlationId)
-            } else {
-                runCatching {
-                    // 0. Ask JS to walk the React fiber tree + attach it
-                    //    BEFORE we capture native state, then drain it. JS
-                    //    can no longer attach one (the TurboModule spec
-                    //    method is gone, spec 2026-08-29); the wait survives
-                    //    as the companion's JS-ready handshake. Bounded — we
-                    //    don't block capture forever if JS is non-responsive
-                    //    (DEFE-02).
-                    awaitJsReactTreeAttach(correlationId)
-                    // 1. Sensitive-rect walk before capture (mirrors
-                    //    TXReporterPresenter.kt:51-54).
-                    val rects = SensitiveRectRegistry.collectInWindowCoords(activity)
-                    // 2. Capture screenshot — suspend, so block on the
-                    //    OkHttp thread. PixelCopy callback is async; the
-                    //    runBlocking is bounded by the PixelCopy timeout
-                    //    inside ScreenshotCapture. Same pattern the
-                    //    in-process modal uses (TXReporterPresenter
-                    //    awaits the suspend directly).
-                    val capture = runBlocking {
-                        ScreenshotCapture.captureBeforeReporter(activity, rects)
-                    }
-                    if (capture == null) {
-                        emptyAssembledPayload(correlationId)
-                    } else {
-                        // 3. Drain host-attached payload — consume-once
-                        //    semantics, matches the iOS Plan 06.2-13
-                        //    Task 1 timing (request time, NOT submit
-                        //    time). A second back-to-back report sees
-                        //    nil here. `consumePendingAttachments` is
-                        //    `suspend` (spec 2026-09-17 setExtra-resolver —
-                        //    it asks JS for a fresh resolver value before
-                        //    draining); `runBlocking` here is safe for the
-                        //    same reason the screenshot capture above is —
-                        //    this whole provider runs on the OkHttp WS
-                        //    thread, never the UI thread.
-                        val hostExtraRaw =
-                            runBlocking { Everframe.consumePendingAttachments() }
-                        val hostExtra = hostExtraRaw?.takeIf { it.isNotEmpty() }
-
-                        // Serialize the short stash publication with owner teardown.
-                        val published = CompanionCaptureBridge.__publishCapture(correlationId, reportCapture) {
-                            companionCaptureStash.values.forEach { it.reportCapture.cancel() }
-                            companionCaptureStash.clear()
-                            companionCaptureStash[correlationId] = CompanionCapture(
-                                capture = capture,
-                                reportCapture = reportCapture,
-                                hostExtra = hostExtra,
-                            )
-                        }
-                        if (!published) {
-                            reportCapture.cancel()
-                            return@runCatching null
-                        }
-
-                        // 5. Re-encode the screenshot for the relay hop.
-                        //    Bitmap.CompressFormat.WEBP_LOSSY at q=85 cuts
-                        //    typical 1080p screenshot bytes by ~70-80% vs
-                        //    PNG (API 30+); WEBP (legacy, lossy when
-                        //    quality<100) covers API 24-29; JPEG @ q=85 is
-                        //    the universal fallback. The phone consumes
-                        //    via the announced mime — no branching on the
-                        //    receiver side.
-                        val (relayBytes, relayMime) = reencodeScreenshot(capture.bitmap, capture.pngBytes)
-
-                        // 6. Build the AssembledPayload (text frame +
-                        //    binary screenshot) for the bridge to ship.
-                        //
-                        //    NO second binary frame and NO `tree` metadata:
-                        //    tap-to-identify was removed (spec 2026-08-29),
-                        //    so nothing walks, gzips or announces a UI tree.
-                        //    `toggles.uiTree` / `counts.uiTreeNodes` stay on
-                        //    the wire because the generated relay types
-                        //    declare them non-optional, but they are now
-                        //    always false / 0. Announcing a tree the phone
-                        //    would then wait for is the failure mode this
-                        //    guards against — the relay protocol documents
-                        //    the absent case as supported.
-                        val toggles = ReportAssembledToggles(
-                            logs = true,
-                            metadata = true,
-                            network = true,
-                            screenshot = true,
-                            uiTree = false,
-                        )
-                        val counts = ReportAssembledCounts(
-                            breadcrumbs = dev.everframe.capture.sharedBreadcrumbBuffer.size.toLong(),
-                            logs = dev.everframe.capture.sharedLogBuffer.size().toLong(),
-                            network = dev.everframe.capture.sharedNetworkBuffer.size().toLong(),
-                            uiTreeNodes = 0L,
-                        )
-                        val assembled = ReportAssembled(
-                            correlationId = correlationId,
-                            counts = counts,
-                            mime = relayMime,
-                            size = relayBytes.size.toLong(),
-                            toggles = toggles,
-                            tree = null,
-                        )
-                        CompanionCaptureBridge.AssembledPayload(
-                            assembled = assembled,
-                            pngBytes = relayBytes,
-                        )
-                    }
-                }.getOrElse { t ->
-                    android.util.Log.w(
-                        "Everframe.rn",
-                        "companion captureProvider threw: ${t.javaClass.simpleName}: ${t.message}",
-                    )
-                    emptyAssembledPayload(correlationId)
-                }
-            }
-        }
-
-        // ----- __submitProvider -----
-        // Suspend lambda — the bridge's own submitScope handles dispatch.
-        // `companionAttribution` is the token the relay minted for THIS
-        // report's `report.request`, snapshotted by RelayWSClient at that
-        // moment and handed back here by the bridge (PR-fix 1). It is passed
-        // straight into Inputs and never re-derived from the live session:
-        // this closure survives stopCompanion() and can still be composing
-        // when a different dashboard user attaches.
-        // SECURITY: never log it.
-        CompanionCaptureBridge.__submitProvider = submit@{
-            submit: ReportSubmit,
-            bakedPng: ByteArray,
-            extraShotPngs: List<ByteArray>,
-            companionAttribution: String?,
-            reportCapture: dev.everframe.capture.video.FrozenReportCapture,
-            capturedSession: dev.everframe.TXCapturedSession
-            ->
-            val activity = reactContext.currentActivity
-            if (activity == null) {
-                reportCapture.cancel()
-                return@submit suspend { CompanionCaptureBridge.SubmitResult.Err("no_activity") }
-            }
-            val stash = companionCaptureStash[submit.correlationId]
-                ?: run { reportCapture.cancel(); return@submit suspend { CompanionCaptureBridge.SubmitResult.Err("no_capture") } }
-
-            if (stash.reportCapture !== reportCapture) {
-                reportCapture.cancel()
-                return@submit suspend { CompanionCaptureBridge.SubmitResult.Err("capture_mismatch") }
-            }
-            if (!companionCaptureStash.remove(submit.correlationId, stash)) {
-                reportCapture.cancel()
-                return@submit suspend { CompanionCaptureBridge.SubmitResult.Err("no_capture") }
-            }
-            // Everything below may be expensive; captured references already belong to this submit.
-            suspend work@{
-                // Decode baked PNG → Bitmap. If the phone sent corrupt bytes
-                // we fall back to the original capture bitmap so the user's
-                // annotations are lost but the report still ships (DEFE-02).
-                val bakedBitmap: android.graphics.Bitmap = try {
-                    android.graphics.BitmapFactory.decodeByteArray(
-                        bakedPng, 0, bakedPng.size,
-                    ) ?: stash.capture.bitmap
-                } catch (t: Throwable) {
-                    stash.capture.bitmap
-                }
-
-                // Tap-to-identify was removed (spec 2026-08-29). A phone running
-                // an older reporter SPA may still send `submit.reportTarget`; it
-                // is ignored rather than rejected, and nothing is resolved from it.
-
-                val inputs = CompanionSubmissionComposer.Inputs(
-                    activity = activity,
-                    captureBitmap = bakedBitmap,
-                    capture = reportCapture,
-                    // The phone's extra shots, already baked on its side and
-                    // delivered behind `shot.binary` markers. Passed through
-                    // verbatim: the composer names them `screenshot-N`.
-                    extraShotPngs = extraShotPngs,
-                    title = submit.title,
-                    description = submit.description.text,
-                    // Description-redactions integration deferred (matches iOS
-                    // Plan 12 — reporter SPA sends redactions:[] always).
-                    includeLogs = submit.includes.logs,
-                    includeNetwork = submit.includes.network,
-                    includeMetadata = submit.includes.metadata,
-                    hostExtra = stash.hostExtra,
-                    companionAttribution = companionAttribution,
-                    // Pinned to the snapshot taken at the submit boundary above.
-                    capturedSession = capturedSession,
-                )
-
-                val result = try {
-                    CompanionSubmissionComposer.submit(inputs)
-                } catch (t: Throwable) {
-                    android.util.Log.w(
-                        "Everframe.rn",
-                        "companion submitProvider threw: ${t.javaClass.simpleName}: ${t.message}",
-                    )
-                    return@work CompanionCaptureBridge.SubmitResult.Err("ingest_error")
-                }
-
-                when (result) {
-                    is ReportResult.Submitted ->
-                        CompanionCaptureBridge.SubmitResult.Ok(result.reportId.toString())
-                    is ReportResult.Queued ->
-                        CompanionCaptureBridge.SubmitResult.Ok(result.reportId.toString())
-                    is ReportResult.Cancelled ->
-                        CompanionCaptureBridge.SubmitResult.Err(result.reason)
-                }
-            }
-        }
-
-        // ----- __previewProvider (Task 11b) -----
-        // The 2fps preview loop's seam — low-res JPEG for the live-preview
-        // stream (~854px longest edge, quality ~60, see
-        // ScreenshotCapture.capturePreviewFrame's own defaults). Resolves
-        // the current Activity exactly like __captureProvider above; no
-        // foreground Activity (or a zero-size window) degrades to null,
-        // which CompanionPreviewSession's loop maps to `capture_unavailable`
-        // and stops — never a crash, never a throw (DEFE-02).
-        CompanionCaptureBridge.__previewProvider = previewProvider@{
-            val activity = reactContext.currentActivity ?: return@previewProvider null
-            val rects = SensitiveRectRegistry.collectInWindowCoords(activity)
-            ScreenshotCapture.capturePreviewFrame(activity, rects)
-        }
-
-        // ----- __shotCaptureProvider (Task 11b) -----
-        // The shot-stash seam — `shot.request`'s contract is "capture fresh
-        // now, at REPORT grade", which a preview-grade frame does not satisfy.
-        // `captureBeforeReporter` is reused rather than duplicated, so a shot
-        // is shaped exactly like the report's own screenshot: PNG, and
-        // downscaled to `ScreenshotCapture.MAX_EDGE_PX` (2048) on the longest
-        // edge. `mime` reflects the actual encode instead of asserting a
-        // format the bytes don't carry.
-        //
-        // Task 11b review, finding 4: this comment used to claim "full
-        // resolution" three times over while routing through a 2048-capped
-        // path. The cap is deliberate and stays — a shot is evidence attached
-        // to a report, and matching the primary screenshot's shaping is the
-        // point — but the claim was simply false, and the next person to port
-        // this (iOS) would have built an uncapped path to satisfy it.
-        CompanionCaptureBridge.__shotCaptureProvider = shotProvider@{
-            val activity = reactContext.currentActivity ?: return@shotProvider null
-            val rects = SensitiveRectRegistry.collectInWindowCoords(activity)
-            val capture = ScreenshotCapture.captureBeforeReporter(activity, rects)
-                ?: return@shotProvider null
-            // Task 11b review, finding 2: `CaptureResult` hands us ownership of
-            // this bitmap and only `pngBytes` travels onward, so it is released
-            // here rather than left for the GC — ~7.5 MB per shot otherwise.
-            capture.bitmap.recycle()
-            PreviewCapture(
-                bytes = capture.pngBytes,
-                width = capture.widthPx,
-                height = capture.heightPx,
-                mime = "image/png",
-            )
-        }
-
-        // ----- CompanionBadge.__activityProvider (Task 6, naming spec 2026-08-24) -----
-        // Same seam, same reasoning as every provider above: `:everframe-core`
-        // is a plain AAR and cannot resolve a foreground Activity on its own.
-        // Mirrors the removed `CompanionSharingIndicator.__activityProvider`
-        // install site this task's brief pointed at — resolved fresh on every
-        // call (never cached), exactly like `reactContext.currentActivity`
-        // is read fresh above for capture/preview/shot.
-        CompanionBadge.__activityProvider = { reactContext.currentActivity }
-    }
-
-    /**
-     * Helper — minimal AssembledPayload for the degraded-path. The bridge
-     * accepts a payload with empty pngBytes; the phone reporter SPA shows
-     * "0 bytes" in the assembled state and the user can still tap Send.
-     */
-    private fun emptyAssembledPayload(correlationId: String): CompanionCaptureBridge.AssembledPayload {
-        val toggles = ReportAssembledToggles(
-            logs = false, metadata = true, network = false, screenshot = false, uiTree = false,
-        )
-        val counts = ReportAssembledCounts(breadcrumbs = null, logs = 0L, network = 0L, uiTreeNodes = 0L)
-        val assembled = ReportAssembled(
-            correlationId = correlationId,
-            counts = counts,
-            mime = "image/png",
-            size = 0L,
-            toggles = toggles,
-        )
-        return CompanionCaptureBridge.AssembledPayload(
-            assembled = assembled,
-            pngBytes = ByteArray(0),
-        )
-    }
-
-    /**
-     * Re-encode the captured screenshot for the relay hop. Drops the
-     * envelope PNG fidelity (we keep `capture.pngBytes` separately for the
-     * eventual submit) in exchange for ~60-80% byte reduction on the
-     * phone-bound binary frame.
-     *
-     * Format preference, in order:
-     *   1. WEBP_LOSSY @ q=85 — API 30+; ~70-80% byte cut, no visible loss
-     *      for screenshot-class images.
-     *   2. WEBP (legacy enum, behaves as lossy when quality < 100) —
-     *      API 24-29. Same wire mime; encoder is older but bytes still
-     *      decode on every phone.
-     *   3. JPEG @ q=85 — universal fallback, ~50-60% byte cut.
-     *
-     * Returns the original PNG bytes unchanged when every encoder fails
-     * (DEFE-02: don't block the report flow on a re-encode failure).
-     */
-    private fun reencodeScreenshot(
-        bitmap: android.graphics.Bitmap,
-        fallbackPng: ByteArray,
-    ): Pair<ByteArray, String> {
-        // Try WEBP_LOSSY (API 30+), then legacy WEBP, then JPEG.
-        if (android.os.Build.VERSION.SDK_INT >= 30) {
-            val webp = runCatching {
-                val out = java.io.ByteArrayOutputStream()
-                @Suppress("DEPRECATION_ERROR")
-                // CompressFormat.WEBP_LOSSY introduced in API 30.
-                val ok = bitmap.compress(
-                    android.graphics.Bitmap.CompressFormat.WEBP_LOSSY, 85, out,
-                )
-                if (ok) out.toByteArray() else null
-            }.getOrNull()
-            if (webp != null && webp.size < fallbackPng.size) return Pair(webp, "image/webp")
-        }
-        val legacyWebp = runCatching {
-            val out = java.io.ByteArrayOutputStream()
-            @Suppress("DEPRECATION")
-            val ok = bitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP, 85, out)
-            if (ok) out.toByteArray() else null
-        }.getOrNull()
-        if (legacyWebp != null && legacyWebp.size < fallbackPng.size) {
-            return Pair(legacyWebp, "image/webp")
-        }
-        val jpeg = runCatching {
-            val out = java.io.ByteArrayOutputStream()
-            val ok = bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, out)
-            if (ok) out.toByteArray() else null
-        }.getOrNull()
-        if (jpeg != null && jpeg.size < fallbackPng.size) return Pair(jpeg, "image/jpeg")
-        return Pair(fallbackPng, "image/png")
-    }
-
-    /** Test seam — assert provider install/uninstall via the bridge. */
-    internal fun hasCompanionProvidersInstalledForTesting(): Boolean =
-        CompanionCaptureBridge.__captureProvider != null &&
-            CompanionCaptureBridge.__submitProvider != null
-
     @ReactMethod
     override fun addListener(eventName: String) {
         // No-op — RN NativeEventEmitter contract. RCTDeviceEventEmitter on
         // the JS side handles subscriber bookkeeping internally; we only
         // need to ensure the method is declared so RN's warning suppression
-        // is satisfied. State/pairUrl collectors are installed on first
-        // startCompanion(), not on first addListener().
+        // is satisfied.
     }
 
     @ReactMethod
     override fun removeListeners(count: Double) {
         // No-op — see addListener() comment.
-    }
-
-    /**
-     * Called by the JS companion module from the `everframe.companion
-     * .reportRequested` event handler once it is ready for capture to
-     * proceed. Releases the `awaitJsReactTreeAttach` waiter for this correlation id so the
-     * capture provider can proceed. Idempotent — late signals after the
-     * timeout fired are harmless.
-     */
-    @ReactMethod
-    override fun signalCompanionReportRequestReady(correlationId: String) {
-        pendingReactTreeAttachSignals.remove(correlationId)?.complete(Unit)
-    }
-
-    /** Per-correlation-id signals released by `signalCompanionReportRequestReady`. */
-    private val pendingReactTreeAttachSignals =
-        ConcurrentHashMap<String, kotlinx.coroutines.CompletableDeferred<Unit>>()
-
-    /**
-     * Emit `everframe.companion.reportRequested` then block up to 250ms
-     * waiting for JS to call back via `signalCompanionReportRequestReady`.
-     * The wait is bounded so a non-responsive JS thread can't stall the
-     * native capture path indefinitely (DEFE-02). Runs on the OkHttp WS
-     * thread — the surrounding `runCatching` block in the capture provider
-     * absorbs any throw.
-     *
-     * Returns silently when:
-     *   - JS signals ready (fast path, ~5-50ms on a healthy app)
-     *   - The 250ms timeout elapses (slow path)
-     */
-    private fun awaitJsReactTreeAttach(correlationId: String) {
-        val signal = kotlinx.coroutines.CompletableDeferred<Unit>()
-        pendingReactTreeAttachSignals[correlationId] = signal
-        val emitter = reactApplicationContext
-            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-        emitter.emit(COMPANION_REPORT_REQUESTED_EVENT, correlationId)
-        runBlocking {
-            kotlinx.coroutines.withTimeoutOrNull(250) { signal.await() }
-        }
-        pendingReactTreeAttachSignals.remove(correlationId)
     }
 
     // ---------------- Extra-resolver ask-and-wait (spec 2026-09-17 setExtra-resolver) ----------------
@@ -1655,8 +795,7 @@ class EverframeModule(
      * resolver is registered — pushed a freshly resolved value through the
      * ordinary `setExtra` method above. Releases `awaitJsExtraResolve`'s
      * bounded wait for this correlation id. Idempotent — a late signal
-     * after the 250ms timeout already fired is a harmless no-op, exactly
-     * like `signalCompanionReportRequestReady` above.
+     * after the 250ms timeout already fired is a harmless no-op.
      */
     @ReactMethod
     override fun signalExtraResolverReady(correlationId: String) {
@@ -1677,10 +816,9 @@ class EverframeModule(
      * before this feature landed (requirement: "no behaviour change
      * whatsoever").
      *
-     * Otherwise mirrors `awaitJsReactTreeAttach` exactly — emit
-     * `everframe.extra.resolveRequested`, then suspend up to 250ms for JS's
-     * `signalExtraResolverReady` ack. `suspend`, unlike
-     * `awaitJsReactTreeAttach`: this hook's caller
+     * Otherwise emit `everframe.extra.resolveRequested`, then suspend up to
+     * 250ms for JS's `signalExtraResolverReady` ack. `suspend`: this hook's
+     * caller
      * (`Everframe.consumePendingAttachments()`) may run on Android's Main
      * dispatcher (RN's `openReporter()`/native shake both funnel through
      * `Everframe.report.open()` there), so a real suspend point is required
@@ -1699,90 +837,6 @@ class EverframeModule(
             kotlinx.coroutines.withTimeoutOrNull(250) { signal.await() }
         } finally {
             pendingExtraResolveSignals.remove(correlationId)
-        }
-    }
-
-    /**
-     * Install StateFlow collectors on `Everframe.companion.state`, `.pairUrl`,
-     * `.code` and `.attachedUserName` that emit the matching
-     * `everframe.companion.*` device events. Idempotent — the
-     * `companionCollectorsInstalled` latch survives stop/start cycles because
-     * the underlying StateFlows on `Everframe.companion` outlive the
-     * RelayWSClient.
-     */
-    private fun installCompanionCollectorsIfNeeded() {
-        if (companionCollectorsInstalled) return
-        companionCollectorsInstalled = true
-
-        val emitter = reactApplicationContext
-            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-
-        companionStateJob = companionScope.launch {
-            Everframe.companion.state.collect { state ->
-                android.util.Log.i("Everframe.companion", "emit state=$state")
-                emitter.emit(COMPANION_STATE_EVENT, state.toRnString())
-            }
-        }
-        companionPairUrlJob = companionScope.launch {
-            Everframe.companion.pairUrl.collect { url ->
-                android.util.Log.i("Everframe.companion", "emit pairUrl=${if (url == null) "null" else "set"}")
-                // Both null and String cross to JS cleanly via the
-                // DeviceEventManager — null becomes `null` on the JS side.
-                emitter.emit(COMPANION_PAIR_URL_EVENT, url)
-            }
-        }
-        // Companion discovery (spec 2026-08-07). Same install-once lifecycle as
-        // the two above, and for the same reason: `Everframe.companion.code`
-        // is a StateFlow that outlives the RelayWSClient, so a collector
-        // installed on the FIRST start replays the current value and keeps
-        // delivering across stop/start cycles. Re-installing per start would
-        // race the initial emission and lose it.
-        companionCodeJob = companionScope.launch {
-            Everframe.companion.code.collect { code ->
-                android.util.Log.i("Everframe.companion", "emit code=${if (code == null) "null" else "set"}")
-                emitter.emit(COMPANION_CODE_EVENT, code)
-            }
-        }
-        companionAttachedUserNameJob = companionScope.launch {
-            Everframe.companion.attachedUserName.collect { name ->
-                // The NAME itself is not logged — it is a dashboard member's
-                // display name, and this log line goes to logcat.
-                android.util.Log.i(
-                    "Everframe.companion",
-                    "emit attachedUserName=${if (name == null) "null" else "set"}",
-                )
-                emitter.emit(COMPANION_ATTACHED_USER_NAME_EVENT, name)
-            }
-        }
-        // Resolved device display name (naming spec 2026-08-24). Same
-        // install-once lifecycle as the collectors above, and for the same
-        // reason: the StateFlow outlives the RelayWSClient, so a collector
-        // installed on the FIRST start replays the current value across
-        // stop/start cycles.
-        companionResolvedNameJob = companionScope.launch {
-            Everframe.companion.resolvedName.collect { name ->
-                android.util.Log.i(
-                    "Everframe.companion",
-                    "emit resolvedName=${if (name == null) "null" else "set"}",
-                )
-                emitter.emit(COMPANION_RESOLVED_NAME_EVENT, name)
-            }
-        }
-        // Attach-PIN challenge (spec 2026-08-19). Same install-once lifecycle
-        // as the collectors above, and for the same reason: the StateFlow
-        // outlives the RelayWSClient, so a collector installed on the FIRST
-        // start replays the current value across stop/start cycles. Payload
-        // conversion lives in `AttachChallengeInfo.toWritableMap()` below so
-        // this collector body stays as short as its siblings.
-        companionAttachChallengeJob = companionScope.launch {
-            Everframe.companion.attachChallenge.collect { challenge ->
-                // SECURITY: the PIN code itself is not logged.
-                android.util.Log.i(
-                    "Everframe.companion",
-                    "emit attachChallenge=${if (challenge == null) "null" else "set"}",
-                )
-                emitter.emit(COMPANION_ATTACH_CHALLENGE_EVENT, challenge?.toWritableMap())
-            }
         }
     }
 
@@ -1818,7 +872,7 @@ class EverframeModule(
         }
     }
 
-    // rewriteEmulatorLoopback removed — JS-side `apiBase` / `startCompanion`
-    // endpoint args are no longer plumbed through. The 10.0.2.2 emulator
+    // rewriteEmulatorLoopback removed — JS-side `apiBase` endpoint args are
+    // no longer plumbed through. The 10.0.2.2 emulator
     // alias is baked into the debug-variant BuildConfig.INGEST_URL fallback.
 }

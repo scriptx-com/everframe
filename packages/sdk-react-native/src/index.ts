@@ -24,7 +24,7 @@ export type { EverframeProviderProps } from './EverframeProvider.js';
 export { EverframeSensitive, useEverframeSensitiveRef } from './Sensitive.js';
 export { EverframeSensitive as Sensitive } from './Sensitive.js';
 
-// Top-level imperative open() + companion helpers (re-exported from the
+// Top-level imperative open() + helpers (re-exported from the
 // context seam) for non-component call sites.
 export {
   open,
@@ -72,12 +72,7 @@ export type { VitalsPlayerEventType } from '@everframe/protocol';
 // Bridge-level types still useful at the JS boundary.
 export type { ConfigOpts, Rect, Spec, EverframeUserSpec } from './NativeEverframe.js';
 
-// Phone-companion bridge (Plan 06.2-11). Namespace import mirrors the
-// `Everframe.shared.companion` / `Everframe.companion` shape on iOS / Android:
-//
-//   import { companion, useCompanion } from '@everframe/react-native';
-//   useEffect(() => { companion.start(endpoint); return () => companion.stop(); }, []);
-//   const { state, pairUrl } = useCompanion();
+// Companion (removed; deprecated no-op stubs kept until the next major).
 export * as companion from './companion.js';
 export { useCompanion } from './companion.js';
 export type { CompanionState } from './companion.js';

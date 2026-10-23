@@ -4,7 +4,6 @@ package dev.everframe.rn
 
 import android.app.Application
 import dev.everframe.Everframe
-import kotlinx.coroutines.Job
 
 /** Robolectric changes Application between tests; reporter process objects survive. */
 internal fun resetBridgeReporterState() {
@@ -16,11 +15,6 @@ internal fun resetBridgeReporterState() {
     application.set(state, null)
     registry.javaClass.getDeclaredField("current").apply { isAccessible = true }
         .set(null, java.lang.ref.WeakReference<android.app.Activity>(null))
-    val presenter = Class.forName("dev.everframe.ui.CompanionPinPresenter")
-    val collector = presenter.getDeclaredField("collector").apply { isAccessible = true }
-    (collector.get(null) as? Job)?.cancel()
-    collector.set(null, null)
     Everframe.report.__resolver = null
     Everframe.__activitySupplier = null
-    Everframe.__attachPinUiInstalled = false
 }
