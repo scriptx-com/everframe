@@ -1,0 +1,27 @@
+packages/sdk-ios/Tests/EverframeTests/CaptureGestureConfigTests.swift
+  s_f1c043e85606b2::t_f763b837b8955b 1-97
+packages/sdk-ios/Sources/Everframe/QuickCapture/TvGestureBinding.swift
+  s_f1c043e85606b2::t_588471d64ac8ab 1-125
+packages/sdk-ios/Sources/Everframe/Config/ReplayConfigProvider.swift
+  s_f1c043e85606b2::t_b0d3ad59330958 312-313,329-336,348-349,366,371-376,403-406,474,524-525,531,553,796-805
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkWire.swift
+  s_f1c043e85606b2::t_a5547356b4f026 230-264
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkingConfigTests.swift
+  s_f1c043e85606b2::t_30ff8681ea278c 45-48,50,77,83-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6d4b0cc5dffd2967417ed9ec65d9d6f58be79cb9",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
