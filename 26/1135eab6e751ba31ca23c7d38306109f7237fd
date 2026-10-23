@@ -1,0 +1,21 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/CaptureTokenReader.kt
+  s_f1c043e85606b2::t_b321a989f0b55f 50-55,57-61,64-66
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/CaptureTokenReaderTest.kt
+  s_f1c043e85606b2::t_7809582f73d104 53-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "261135eab6e751ba31ca23c7d38306109f7237fd",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
