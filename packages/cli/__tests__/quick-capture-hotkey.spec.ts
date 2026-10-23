@@ -94,14 +94,14 @@ describe('serialForPid', () => {
       devices,
       names,
     });
-    expect(await serialForPid(f.run, '/sdk/adb', 4242)).toBe('emulator-5556');
+    expect(await serialForPid(f.run, '/sdk/adb', 4242)).toEqual({ serial: 'emulator-5556' });
     expect(f.calls[0]).toEqual(['ps', ['-o', 'command=', '-p', '4242']]);
     expect(f.calls).toContainEqual(['/sdk/adb', ['-s', 'emulator-5556', 'emu', 'avd', 'name']]);
   });
 
   it('accepts the @AVD form the emulator launcher also uses', async () => {
     const f = fakeRun({ psCommand: `${QEMU} @Pixel_8\n`, devices, names });
-    expect(await serialForPid(f.run, '/sdk/adb', 1)).toBe('emulator-5554');
+    expect(await serialForPid(f.run, '/sdk/adb', 1)).toEqual({ serial: 'emulator-5554' });
   });
 
   it('returns null when no running emulator reports that AVD', async () => {
@@ -118,6 +118,35 @@ describe('serialForPid', () => {
       ),
     ).toBeNull();
     expect(await serialForPid(fakeRun({ devices, names }).run, '/sdk/adb', 1)).toBeNull();
+  });
+
+  it('uses -port to pick the serial even when two instances share the AVD', async () => {
+    const shared = { 'emulator-5554': 'Pixel_8', 'emulator-5556': 'Pixel_8' };
+    const f = fakeRun({
+      psCommand: `${QEMU} -avd Pixel_8 -read-only -port 5556\n`,
+      devices,
+      names: shared,
+    });
+    expect(await serialForPid(f.run, '/sdk/adb', 1)).toEqual({ serial: 'emulator-5556' });
+    expect(f.calls.some(([, a]) => a.includes('emu'))).toBe(false);
+  });
+
+  it('returns null when the -port serial is not a running emulator', async () => {
+    const shared = { 'emulator-5554': 'Pixel_8', 'emulator-5556': 'Pixel_8' };
+    const f = fakeRun({ psCommand: `${QEMU} -avd Pixel_8 -port 5558\n`, devices, names: shared });
+    expect(await serialForPid(f.run, '/sdk/adb', 1)).toBeNull();
+  });
+
+  it('refuses to guess when several running emulators report the same AVD', async () => {
+    const f = fakeRun({
+      psCommand: `${QEMU} -avd Pixel_8 -read-only\n`,
+      devices,
+      names: { 'emulator-5554': 'Pixel_8', 'emulator-5556': 'Pixel_8' },
+    });
+    expect(await serialForPid(f.run, '/sdk/adb', 1)).toEqual({
+      avd: 'Pixel_8',
+      ambiguous: ['emulator-5554', 'emulator-5556'],
+    });
   });
 });
 
@@ -229,6 +258,8 @@ function commandSetup(
     swiftc?: boolean;
     triggerFails?: boolean;
     adb?: boolean;
+    sharedAvd?: boolean;
+    gate?: Promise<void>;
   } = {},
 ) {
   const home = mkdtempSync(join(tmpdir(), 'evf-hotkey-cmd-'));
@@ -238,9 +269,12 @@ function commandSetup(
   chmodSync(join(sdk, 'platform-tools', 'adb'), 0o755);
   const adb = join(sdk, 'platform-tools', 'adb');
   const calls: [string, string[]][] = [];
-  const run = async (cmd: string, args: string[]) => {
+  const signals_: (AbortSignal | undefined)[] = [];
+  const run = async (cmd: string, args: string[], options?: { signal?: AbortSignal }) => {
     calls.push([cmd, args]);
+    signals_.push(options?.signal);
     if (cmd === 'ps') {
+      await opts.gate;
       const pid = args[3];
       return pid === '77'
         ? { stdout: `${QEMU} -avd Medium_Phone_API_35\n`, stderr: '', code: 0 }
@@ -249,7 +283,8 @@ function commandSetup(
     if (args[0] === 'devices')
       return { stdout: 'emulator-5554\tdevice\nemulator-5556\tdevice\n', stderr: '', code: 0 };
     if (args[2] === 'emu') {
-      const name = args[1] === 'emulator-5556' ? 'Medium_Phone_API_35' : 'Pixel_8';
+      const name =
+        args[1] === 'emulator-5556' || opts.sharedAvd ? 'Medium_Phone_API_35' : 'Pixel_8';
       return { stdout: `${name}\nOK\n`, stderr: '', code: 0 };
     }
     if (args.includes('broadcast'))
@@ -280,7 +315,7 @@ function commandSetup(
     },
     signals,
   };
-  return { deps, helper, spawned, signals, out, err, calls, adb };
+  return { deps, helper, spawned, signals, out, err, calls, adb, runSignals: signals_ };
 }
 
 const flush = () => new Promise((r) => setTimeout(r, 10));
@@ -389,6 +424,44 @@ describe('hotkeyCommand', () => {
     t.helper.stdout.write(line.subarray(cut));
     expect(await done).toBe(1);
     expect(t.err).toEqual(['⌘⇧B is taken.']);
+  });
+
+  it('points at capture --device when the front AVD runs in several emulators', async () => {
+    const t = commandSetup({ sharedAvd: true });
+    const done = hotkeyCommand(t.deps);
+    await flush();
+    t.helper.send({ event: 'pressed', pid: 77 });
+    await flush();
+    expect(t.err).toEqual([
+      'Several running emulators use AVD Medium_Phone_API_35, so the window in front is ambiguous. Run npx @everframe/cli capture --device <serial> with one of: emulator-5554, emulator-5556.',
+    ]);
+    expect(t.calls.some(([, a]) => a.includes('broadcast'))).toBe(false);
+    t.signals.emit('SIGINT');
+    expect(await done).toBe(0);
+  });
+
+  it('drops queued and in-flight presses once stopped', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const t = commandSetup({ gate });
+    const done = hotkeyCommand(t.deps);
+    await flush();
+    t.helper.send({ event: 'pressed', pid: 77 });
+    t.helper.send({ event: 'pressed', pid: 77 });
+    t.helper.send({ event: 'pressed', pid: 77 });
+    await flush();
+    t.signals.emit('SIGINT');
+    expect(await done).toBe(0);
+    // The press already running had its child aborted.
+    expect(t.runSignals.at(-1)?.aborted).toBe(true);
+    t.helper.send({ event: 'pressed', pid: 77 });
+    release();
+    await flush();
+    await flush();
+    expect(t.calls.filter(([cmd]) => cmd === 'ps')).toHaveLength(1);
+    expect(t.calls.some(([, a]) => a.includes('broadcast'))).toBe(false);
+    expect(t.out.filter((l) => l.startsWith('Capture sent'))).toEqual([]);
+    expect(t.err).toEqual([]);
   });
 
   it('reports a failed trigger without exiting', async () => {

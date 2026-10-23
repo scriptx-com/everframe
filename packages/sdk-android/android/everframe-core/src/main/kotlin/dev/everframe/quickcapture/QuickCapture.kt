@@ -60,12 +60,14 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Host-rendered evidence for one quick capture. [screenshot] is already masked, built the way
  * `EFReporterFromImage.open` builds it from the host's `maskedPng` (decoded bitmap, its size, and the
  * PNG bytes). [hostReplayVTree] is the host's masked replay timeline, the bytes the reporter takes as
- * `hostReplayVTree`; null means the host has no safe frames. SDK seam for host plugins; see
- * `Everframe.__setQuickCaptureEvidenceProvider`.
+ * `hostReplayVTree`; null means the host has no safe frames. [sdkName] is the host SDK's identity for
+ * `sdk.name`, as the host passes it to `EFReporterFromImage.open`; null keeps `everframe-android`.
+ * SDK seam for host plugins; see `Everframe.__setQuickCaptureEvidenceProvider`.
  */
 class QuickCaptureHostEvidence(
     val screenshot: ScreenshotCapture.CaptureResult,
     val hostReplayVTree: ByteArray?,
+    val sdkName: String? = null,
 )
 
 internal sealed interface QuickCaptureOutcome {
@@ -88,6 +90,11 @@ internal object QuickCapture {
     const val BROADCAST_PERMISSION: String = "android.permission.DUMP"
 
     internal const val EVIDENCE_TIMEOUT_MS: Long = 5_000
+
+    private const val NATIVE_SDK_NAME = "everframe-android"
+
+    /** The identities `EFReporterFromImage.open` accepts. */
+    private val HOST_SDK_NAMES = setOf(NATIVE_SDK_NAME, "everframe-flutter", "everframe-kmp")
 
     // ---- Test seams ----
 
@@ -284,21 +291,15 @@ internal object QuickCapture {
     ): QuickCaptureOutcome {
         val shot: ScreenshotCapture.CaptureResult
         val hostReplayVTree: ByteArray?
+        val sdkName: String
+        val epoch = Everframe.currentStartEpochVolatile()
         if (provider != null) {
             // The host's masked evidence replaces the native screenshot entirely; a null answer, a throw, or
             // no answer within the timeout fails without a fallback.
-            val epoch = Everframe.currentStartEpochVolatile()
             val evidence = awaitEvidence(provider) ?: return QuickCaptureOutcome.Failed
-            // The host rendered asynchronously. A kill() in that window means nothing may freeze or ship; a
-            // kill() then start() means the image belongs to the previous session; a finished activity is no
-            // longer what the host rendered; and a reporter that opened (or froze) meanwhile owns the evidence
-            // this capture would freeze.
-            if (!Everframe.captureGate || Everframe.currentStartEpochVolatile() != epoch ||
-                activity.isFinishing || activity.isDestroyed ||
-                Everframe.report.isPresenting.value || Everframe.__replayHasReporterOwner
-            ) {
-                return QuickCaptureOutcome.Failed
-            }
+            // As `EFReporterFromImage.open`: an identity outside the known SDKs is refused.
+            sdkName = evidence.sdkName ?: NATIVE_SDK_NAME
+            if (sdkName !in HOST_SDK_NAMES) return QuickCaptureOutcome.Failed
             shot = evidence.screenshot
             // As `EFReporterFromImage`: host evidence owns replay, and an empty value keeps the native
             // video fallback off.
@@ -309,6 +310,17 @@ internal object QuickCapture {
                 screenshotter(activity, SensitiveRectRegistry.collectInWindowCoords(activity))
             } ?: return QuickCaptureOutcome.Failed
             hostReplayVTree = null
+            sdkName = NATIVE_SDK_NAME
+        }
+        // Either screenshot was taken asynchronously (the host's render, or PixelCopy and PNG encoding). A
+        // kill() in that window means nothing may freeze or ship; a kill() then start() means the image
+        // belongs to the previous session; a finished activity is no longer what was captured; and a
+        // reporter that opened (or froze) meanwhile owns the evidence this capture would freeze.
+        if (!Everframe.captureGate || Everframe.currentStartEpochVolatile() != epoch ||
+            activity.isFinishing || activity.isDestroyed ||
+            Everframe.report.isPresenting.value || Everframe.__replayHasReporterOwner
+        ) {
+            return QuickCaptureOutcome.Failed
         }
         val capture = try {
             freezer(ReporterTrigger.QuickCapture)
@@ -340,6 +352,7 @@ internal object QuickCapture {
                     // The raw screenshot: no annotation canvas ran.
                     annotated = false,
                     hostReplayVTree = hostReplayVTree,
+                    sdkName = sdkName,
                 ),
             )
             return when (result) {

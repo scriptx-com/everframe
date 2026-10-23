@@ -78,6 +78,24 @@ const cb = (u: URL, path: string) => `http://127.0.0.1:${u.searchParams.get('por
 const b64 = (s: string) => createHash('sha256').update(s).digest('base64url');
 const all = (t: ReturnType<typeof setup>) => [...t.out, ...t.err].join('\n');
 
+/**
+ * Stands in for an origin that answers with a 307 to another host. Like
+ * Node's fetch, it follows the redirect (resending headers and body) unless
+ * the caller passed `redirect: 'error'`, in which case it rejects.
+ */
+function redirectingFetch(t: ReturnType<typeof setup>, followed: () => Response) {
+  const forwarded: { url: string; init: RequestInit }[] = [];
+  t.deps.fetch = (async (url: string | URL, init: RequestInit = {}) => {
+    t.fetchCalls.push({ url: String(url), init });
+    if (init.redirect === 'error') {
+      throw new TypeError('fetch failed', { cause: new Error('unexpected redirect') });
+    }
+    forwarded.push({ url: 'https://attacker.example/steal', init });
+    return followed();
+  }) as typeof fetch;
+  return forwarded;
+}
+
 describe('login', () => {
   it('builds the login URL from the default origin and completes with PKCE', async () => {
     const t = setup();
@@ -272,6 +290,24 @@ describe('login', () => {
     }
   });
 
+  it('refuses to follow a redirect on the code exchange', async () => {
+    const t = setup();
+    const forwarded = redirectingFetch(
+      t,
+      () =>
+        new Response(JSON.stringify({ token: TOKEN, email: 'dev@example.com' }), { status: 200 }),
+    );
+    const done = loginCommand(t.deps, {});
+    const u = await waitForUrl(t);
+    await fetch(cb(u, `/callback?state=${u.searchParams.get('state')}&code=${CODE}`));
+    expect(await done).toBe(1);
+    expect(t.fetchCalls[0]!.init.redirect).toBe('error');
+    expect(forwarded).toHaveLength(0);
+    expect(t.err).toEqual(['Login failed. Run the command again.']);
+    expect(existsSync(credentialsPath(t.home))).toBe(false);
+    expect(all(t)).not.toContain(CODE);
+  });
+
   it('times out', async () => {
     const t = setup();
     expect(await loginCommand({ ...t.deps, timeoutMs: 50 }, {})).toBe(1);
@@ -319,6 +355,20 @@ describe('logout', () => {
     writeCredentials({ token: TOKEN, url: 'garbage', email: 'e' }, t.home);
     expect(await logoutCommand(t.deps)).toBe(0);
     expect(t.fetchCalls).toHaveLength(0);
+    expect(t.err).toEqual([
+      "Couldn't reach Everframe to revoke the token; revoke it in Settings → Agents.",
+    ]);
+    expect(existsSync(credentialsPath(t.home))).toBe(false);
+    expect(all(t)).not.toContain(TOKEN);
+  });
+
+  it('refuses to follow a redirect on the revoke request', async () => {
+    const t = setup({ adb: false });
+    writeCredentials({ token: TOKEN, url: 'https://everframe.dev', email: 'e' }, t.home);
+    const forwarded = redirectingFetch(t, () => new Response(null, { status: 204 }));
+    expect(await logoutCommand(t.deps)).toBe(0);
+    expect(t.fetchCalls[0]!.init.redirect).toBe('error');
+    expect(forwarded).toHaveLength(0);
     expect(t.err).toEqual([
       "Couldn't reach Everframe to revoke the token; revoke it in Settings → Agents.",
     ]);

@@ -31,8 +31,8 @@ the host has installed an evidence provider with
 such as Flutter's, that mask their own pixels and supply the screenshot and
 replay themselves. Such a session never uploads an unmasked native screenshot. The `dev.everframe.quickcapture.QuickCaptureHostEvidence` class carries that evidence and is SDK-internal, for host plugins only.
 `HostImageVTreeAttachment` is now public in `dev.everframe.transport`, and
-`CompanionSubmissionComposer.Inputs` gained a defaulted `hostReplayVTree`
-parameter. Both are SDK-internal and not for use by host code.
+`CompanionSubmissionComposer.Inputs` gained defaulted `hostReplayVTree` and
+`sdkName` parameters. Both are SDK-internal and not for use by host code.
 
 The public `ReporterTrigger` enum gained a `QuickCapture` case (raw value
 `quick_capture`). Host code that uses an exhaustive `when` over `ReporterTrigger`

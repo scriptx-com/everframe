@@ -46,6 +46,12 @@ export function defaultOpenBrowser(
 
 const EXCHANGE_TIMEOUT_MS = 15_000;
 
+// fetch follows 307/308 by resending the headers and body, which would hand
+// the login code, verifier or capture token to whatever origin the redirect
+// names. Credential-bearing requests reject redirects instead; the rejection
+// lands in the same catch as a network error.
+const NO_REDIRECT = 'error' as const;
+
 const CLOSE_TAB = (line: string): string =>
   `<!doctype html><meta charset="utf-8"><title>Everframe</title><p>${line}</p>`;
 
@@ -218,6 +224,7 @@ async function exchange(
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ code, verifier }),
+      redirect: NO_REDIRECT,
       signal: AbortSignal.timeout(EXCHANGE_TIMEOUT_MS),
     });
     if (res.status !== 200) return null;
@@ -246,6 +253,7 @@ export async function logoutCommand(deps: LogoutDeps): Promise<number> {
       const res = await deps.fetch(`${origin}/api/cli/token/revoke`, {
         method: 'POST',
         headers: { 'X-Everframe-Capture-Token': credentials.token },
+        redirect: NO_REDIRECT,
         signal: AbortSignal.timeout(EXCHANGE_TIMEOUT_MS),
       });
       revoked = res.status === 204;

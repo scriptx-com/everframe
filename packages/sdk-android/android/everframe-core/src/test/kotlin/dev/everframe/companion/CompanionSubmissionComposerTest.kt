@@ -977,6 +977,15 @@ class CompanionSubmissionComposerTest {
         assertTrue(entry.attachmentRefs.none { it.name == "replay" })
     }
 
+    /** Quick capture with Flutter evidence labels the envelope as the Flutter SDK; the default stays native. */
+    @Test
+    fun `sdkName input labels the envelope`() {
+        fun sdkName(entry: OutboxEntry) = Json.parseToJsonElement(String(entry.envelopeBytes)).jsonObject["sdk"]!!
+            .jsonObject["name"]!!.jsonPrimitive.content
+        assertEquals("everframe-android", sdkName(composeAndCaptureOutboxEntry()))
+        assertEquals("everframe-flutter", sdkName(composeAndCaptureOutboxEntry(sdkName = "everframe-flutter")))
+    }
+
     private fun composeAndCaptureOutboxEntry(
         userAtSubmitBoundary: TXUser? = null,
         afterCapture: (android.content.Context) -> Unit = {},
@@ -992,6 +1001,7 @@ class CompanionSubmissionComposerTest {
         identityEnabledAtSubmitBoundary: Boolean = false,
         hostReplayVTree: ByteArray? = null,
         replayEnabled: Boolean = false,
+        sdkName: String? = null,
     ): OutboxEntry {
         val result = composeAndCaptureResultInternal(
             userAtSubmitBoundary,
@@ -1000,6 +1010,7 @@ class CompanionSubmissionComposerTest {
             identityEnabledAtSubmitBoundary,
             hostReplayVTree,
             replayEnabled,
+            sdkName,
         )
         assertTrue(
             "expected Queued (no ingest server in unit tests), got $result",
@@ -1043,6 +1054,8 @@ class CompanionSubmissionComposerTest {
         hostReplayVTree: ByteArray? = null,
         /** Overrides the replay config with `replayEnabled = true` when set. */
         replayEnabled: Boolean = false,
+        /** Threaded into `Inputs.sdkName`; null keeps its default. */
+        sdkName: String? = null,
     ): ReportResult {
         val controller: ActivityController<android.app.Activity> =
             Robolectric.buildActivity(android.app.Activity::class.java).create()
@@ -1096,7 +1109,7 @@ class CompanionSubmissionComposerTest {
             // atomically.
             capturedSession = Everframe.captureSessionSnapshot(),
             hostReplayVTree = hostReplayVTree,
-        )
+        ).let { if (sdkName != null) it.copy(sdkName = sdkName) else it }
         afterCapture(context)
 
         capturedOutbox = JSONLOutbox(java.io.File(java.nio.file.Files.createTempDirectory("composer-outbox").toFile(), "outbox.jsonl"),

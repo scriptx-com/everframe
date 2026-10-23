@@ -430,6 +430,44 @@ class QuickCaptureTest {
         assertEquals(1, freezes.get())
     }
 
+    /** As `EFReporterFromImage(sdkName = ...)`: the host's SDK identity labels the report. */
+    @Test
+    fun providerEvidenceCarriesTheHostSdkName() {
+        armWithScreenshotDisabled()
+        Everframe.__setQuickCaptureEvidenceProvider {
+            QuickCaptureHostEvidence(hostShot(), null, sdkName = "everframe-flutter")
+        }
+
+        assertEquals(QuickCaptureOutcome.Sent, broadcast())
+
+        assertEquals("everframe-flutter", submits.single().sdkName)
+    }
+
+    @Test
+    fun providerEvidenceWithoutSdkNameAndNativeCaptureKeepTheNativeName() {
+        armWithScreenshotDisabled()
+        Everframe.__setQuickCaptureEvidenceProvider { QuickCaptureHostEvidence(hostShot(), null) }
+        assertEquals(QuickCaptureOutcome.Sent, broadcast())
+        assertEquals("everframe-android", submits.single().sdkName)
+
+        submits.clear()
+        Everframe.__setQuickCaptureEvidenceProvider(null)
+        arm()
+        assertEquals(QuickCaptureOutcome.Sent, broadcast())
+        assertEquals("everframe-android", submits.single().sdkName)
+    }
+
+    @Test
+    fun providerEvidenceWithAnUnknownSdkNameFails() {
+        armWithScreenshotDisabled()
+        Everframe.__setQuickCaptureEvidenceProvider {
+            QuickCaptureHostEvidence(hostShot(), null, sdkName = "everframe-unknown")
+        }
+        assertEquals(QuickCaptureOutcome.Failed, broadcast())
+        assertEquals(0, freezes.get())
+        assertTrue(submits.isEmpty())
+    }
+
     /** Like `EFReporterFromImage`: host evidence without frames still owns replay. */
     @Test
     fun providerEvidenceWithoutReplaySendsEmptyHostReplay() {
@@ -557,6 +595,53 @@ class QuickCaptureTest {
         } finally {
             Everframe.kill()
         }
+    }
+
+    /**
+     * The native screenshot suspends too (PixelCopy, PNG encoding): a new session meanwhile means the image
+     * belongs to the previous one, so the same epoch check fails the capture.
+     */
+    @Test
+    fun nativeScreenshotAcrossANewSessionFailsWithoutFreezing() {
+        arm()
+        val native = QuickCapture.screenshotter
+        QuickCapture.screenshotter = { activity, rects ->
+            val shot = native(activity, rects)
+            Everframe.start(app, EverframeConfig(
+                appId = "qc-app", sdkKey = "txx_live_quickcapture0003", environment = Environment.production,
+            ))
+            shot
+        }
+        try {
+            assertEquals(QuickCaptureOutcome.Failed, broadcast())
+            assertEquals(0, freezes.get())
+            assertTrue(submits.isEmpty())
+        } finally {
+            Everframe.kill()
+        }
+    }
+
+    /** As the host branch: a kill() or a reporter opening during the native screenshot stops the capture. */
+    @Test
+    fun nativeScreenshotRaceWithKillOrReporterFailsWithoutFreezing() {
+        arm()
+        val native = QuickCapture.screenshotter
+        QuickCapture.screenshotter = { activity, rects ->
+            Everframe.captureGate = false
+            native(activity, rects)
+        }
+        assertEquals(QuickCaptureOutcome.Failed, broadcast())
+        Everframe.captureGate = true
+
+        QuickCapture.screenshotter = { activity, rects ->
+            Everframe.report.__setPresenting(true)
+            native(activity, rects)
+        }
+        assertEquals(QuickCaptureOutcome.Failed, broadcast())
+        Everframe.report.__setPresenting(false)
+
+        assertEquals(0, freezes.get())
+        assertTrue(submits.isEmpty())
     }
 
     /** kill() cancels every SDK-scope child, so a capture waiting on its provider ends with nothing frozen. */

@@ -28,15 +28,19 @@ import UIKit
 
 /// Host-rendered evidence for one quick capture: an already masked screenshot
 /// and, optionally, the host's masked replay timeline (the same bytes the
-/// reporter takes as `hostReplayVTree`). SDK seam for host plugins; see
+/// reporter takes as `hostReplayVTree`). `sdkName` is the host SDK's identity
+/// for `sdk.name`, as the host passes it to `openWithMaskedPng`; nil keeps
+/// `everframe-ios`. SDK seam for host plugins; see
 /// `Everframe.__setQuickCaptureEvidenceProvider`.
 public struct QuickCaptureHostEvidence: Sendable {
     public let image: UIImage
     public let hostReplayVTree: Data?
+    public let sdkName: String?
 
-    public init(image: UIImage, hostReplayVTree: Data?) {
+    public init(image: UIImage, hostReplayVTree: Data?, sdkName: String? = nil) {
         self.image = image
         self.hostReplayVTree = hostReplayVTree
+        self.sdkName = sdkName
     }
 }
 
@@ -171,6 +175,10 @@ final class QuickCapture {
     nonisolated(unsafe) private var evidenceProvider: QuickCaptureEvidenceProvider?
 
     nonisolated static let darwinCaptureNotification = "com.everframe.capture"
+
+    nonisolated static let nativeSDKName = "everframe-ios"
+    /// The identities `EFReporterPresenter.openAndAwait` accepts.
+    nonisolated static let hostSDKNames: Set<String> = [nativeSDKName, "everframe-flutter", "everframe-kmp"]
     nonisolated(unsafe) private var darwinObserverInstalled = false
 
     nonisolated init() {}
@@ -362,12 +370,16 @@ final class QuickCapture {
     private func runPipeline(provider: QuickCaptureEvidenceProvider?) async -> QuickCaptureOutcome {
         let shot: ScreenshotCapture.Result
         let hostReplayVTree: Data?
+        let sdkName: String
         if let provider {
             // The host's masked evidence replaces the native screenshot entirely;
             // a nil answer, or none within the timeout, fails without a fallback.
             let epoch = Everframe.shared.currentStartEpoch
             guard let evidence = await awaitEvidence(provider),
                   evidence.image.size.width > 0, evidence.image.size.height > 0 else { return .failed }
+            // As `openAndAwait`: an identity outside the known SDKs is refused.
+            sdkName = evidence.sdkName ?? Self.nativeSDKName
+            guard Self.hostSDKNames.contains(sdkName) else { return .failed }
             // The host rendered asynchronously. A kill() in that window means
             // nothing may freeze or ship; a kill() then start() means the image
             // belongs to the previous session; a reporter that opened (or froze)
@@ -390,6 +402,7 @@ final class QuickCapture {
             guard let native = screenshotter() else { return .failed }
             shot = native
             hostReplayVTree = nil
+            sdkName = Self.nativeSDKName
         }
         let owner = lifecycle.open()
         let capturedSession = Everframe.shared.captureSessionSnapshot()
@@ -406,6 +419,7 @@ final class QuickCapture {
             extraOverrides: [:],
             hostExtra: hostExtra?.isEmpty == true ? nil : hostExtra,
             hostReplayVTree: hostReplayVTree,
+            sdkName: sdkName,
             capturedSession: capturedSession,
             quickCapture: true,
             // Read fresh per capture. SECURITY: never log.

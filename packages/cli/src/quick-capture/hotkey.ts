@@ -224,19 +224,36 @@ export async function ensureHelper(deps: EnsureHelperDeps): Promise<EnsureHelper
 
 // The emulator launcher starts qemu either as `-avd <name>` or `@<name>`.
 const AVD_ARG = /(?:^|\s)(?:-avd\s+|@)(\S+)/;
+// `-port N` (or the first of `-ports N,M`) is the console port, which names the adb serial.
+const PORT_ARG = /(?:^|\s)-ports?\s+(\d+)/;
 
-/** Maps the front qemu process to its adb serial via its AVD name. */
-export async function serialForPid(run: Runner, adb: string, pid: number): Promise<string | null> {
+export type PidMatch = { serial: string } | { avd: string; ambiguous: string[] } | null;
+
+/**
+ * Maps the front qemu process to its adb serial: by its console port when the
+ * command line has one, otherwise by its AVD name. Read-only instances of one
+ * AVD all report the same name, so more than one match is ambiguous rather
+ * than a guess.
+ */
+export async function serialForPid(run: Runner, adb: string, pid: number): Promise<PidMatch> {
   const ps = await run('ps', ['-o', 'command=', '-p', String(pid)]);
   if (ps.code !== 0) return null;
-  const avd = AVD_ARG.exec(ps.stdout.trim())?.[1];
+  const command = ps.stdout.trim();
+  const port = PORT_ARG.exec(command)?.[1];
+  if (port) {
+    const serial = `emulator-${port}`;
+    return (await listEmulators(run, adb)).includes(serial) ? { serial } : null;
+  }
+  const avd = AVD_ARG.exec(command)?.[1];
   if (!avd) return null;
+  const matches: string[] = [];
   for (const serial of await listEmulators(run, adb)) {
     const reply = await run(adb, ['-s', serial, 'emu', 'avd', 'name']);
     if (reply.code !== 0) continue;
-    if ((reply.stdout.split('\n')[0] ?? '').trim() === avd) return serial;
+    if ((reply.stdout.split('\n')[0] ?? '').trim() === avd) matches.push(serial);
   }
-  return null;
+  if (matches.length > 1) return { avd, ambiguous: matches };
+  return matches[0] ? { serial: matches[0] } : null;
 }
 
 export interface HelperProcess {
@@ -306,9 +323,17 @@ export async function hotkeyCommand(
   return new Promise<number>((resolve) => {
     let finished = false;
     let presses = Promise.resolve();
+    // Aborted on finish: kills any adb or ps still running for a press, so
+    // nothing keeps the process alive or fires a capture after Ctrl+C.
+    const inFlight = new AbortController();
+    const run: Runner = (cmd, args) =>
+      finished
+        ? Promise.resolve({ stdout: '', stderr: '', code: 1 })
+        : deps.run(cmd, args, { signal: inFlight.signal });
     const finish = (code: number) => {
       if (finished) return;
       finished = true;
+      inFlight.abort();
       signals.off('SIGINT', onInterrupt);
       resolve(code);
     };
@@ -322,17 +347,27 @@ export async function hotkeyCommand(
     }
 
     const capture = async (pid: number) => {
+      if (finished) return;
       const adb = findAdb(deps.env, process.platform, deps.home);
       if (!adb) {
         deps.err("Couldn't find adb. Install the Android SDK platform-tools or set ANDROID_HOME.");
         return;
       }
-      const serial = await serialForPid(deps.run, adb, pid);
-      if (!serial) {
+      const match = await serialForPid(run, adb, pid);
+      if (finished) return;
+      if (!match) {
         deps.err("Couldn't match the front emulator window to a running emulator.");
         return;
       }
-      const result = await triggerEmulator(deps.run, adb, serial);
+      if ('ambiguous' in match) {
+        deps.err(
+          `Several running emulators use AVD ${match.avd}, so the window in front is ambiguous. Run npx @everframe/cli capture --device <serial> with one of: ${match.ambiguous.join(', ')}.`,
+        );
+        return;
+      }
+      const { serial } = match;
+      const result = await triggerEmulator(run, adb, serial);
+      if (finished) return;
       if (result.code !== 0) {
         const token = readCredentials(deps.home)?.token;
         deps.err(redact(result.stderr.trim() || `Couldn't reach ${serial}.`, token).slice(0, 256));
@@ -355,7 +390,7 @@ export async function hotkeyCommand(
         deps.out(
           'Emulators embedded in Android Studio need Settings → Tools → Emulator → "Launch in the Running Devices tool window" turned off, or use npx @everframe/cli capture.',
         );
-      } else if (event.event === 'pressed' && typeof event.pid === 'number') {
+      } else if (event.event === 'pressed' && typeof event.pid === 'number' && !finished) {
         const pid = event.pid;
         presses = presses.then(() => capture(pid)).catch(() => undefined);
       } else if (event.event === 'error') {

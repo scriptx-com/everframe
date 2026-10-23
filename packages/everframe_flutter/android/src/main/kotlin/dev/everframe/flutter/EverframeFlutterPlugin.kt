@@ -254,7 +254,7 @@ class EverframeFlutterPlugin : FlutterPlugin, ActivityAware, MethodChannel.Metho
             }
             val evidence = FlutterMaskedEvidence.from(reply) ?: return@__setQuickCaptureEvidenceProvider null
             val screenshot = evidence.screenshot() ?: return@__setQuickCaptureEvidenceProvider null
-            QuickCaptureHostEvidence(screenshot, evidence.replayVTree)
+            QuickCaptureHostEvidence(screenshot, evidence.replayVTree, sdkName = "everframe-flutter")
         }
     }
 

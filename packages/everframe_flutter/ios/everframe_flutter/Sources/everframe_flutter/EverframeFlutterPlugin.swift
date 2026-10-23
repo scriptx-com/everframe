@@ -217,7 +217,8 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
             }
             guard let evidence = FlutterMaskedEvidence(reply as? [String: Any]),
                   let image = evidence.image else { return nil }
-            return QuickCaptureHostEvidence(image: image, hostReplayVTree: evidence.replayVTree)
+            return QuickCaptureHostEvidence(image: image, hostReplayVTree: evidence.replayVTree,
+                                            sdkName: "everframe-flutter")
         }
     }
 

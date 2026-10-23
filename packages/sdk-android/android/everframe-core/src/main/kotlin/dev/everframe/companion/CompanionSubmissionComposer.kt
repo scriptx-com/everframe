@@ -205,6 +205,9 @@ object CompanionSubmissionComposer {
          * native video. Set only by simulator quick capture with host evidence.
          */
         val hostReplayVTree: ByteArray? = null,
+        /** `sdk.name` on the envelope. Simulator quick capture passes the host's identity
+         *  (`everframe-flutter`) with host evidence, as `EFReporterFromImage` does for its reports. */
+        val sdkName: String = "everframe-android",
     ) {
         /** The generated `toString()` would print both credentials into any log
          *  or crash message that interpolates the inputs. */
@@ -215,7 +218,8 @@ object CompanionSubmissionComposer {
                 "extraOverrides=$extraOverrides, hostExtra=$hostExtra, " +
                 "companionAttribution=${redact(companionAttribution)}, capturedSession=$capturedSession, " +
                 "excluded=$excluded, quickCapture=$quickCapture, captureToken=${redact(captureToken)}, " +
-                "annotated=$annotated, hostReplayVTree=${hostReplayVTree?.let { "${it.size} bytes" }})"
+                "annotated=$annotated, hostReplayVTree=${hostReplayVTree?.let { "${it.size} bytes" }}, " +
+                "sdkName=$sdkName)"
 
         private fun redact(secret: String?): String? = secret?.let { "<redacted>" }
     }
@@ -362,6 +366,7 @@ object CompanionSubmissionComposer {
             val descriptionClamped = inputs.description.take(DESCRIPTION_MAX_CHARS)
             val encoded = builder.buildEncoded(
                 sdkVersion = Everframe.SDK_VERSION,
+                sdkName = inputs.sdkName,
                 title = titleClamped,
                 description = descriptionClamped,
                 formFactor = DeviceMetadata.formFactor(device),

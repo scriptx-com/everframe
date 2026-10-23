@@ -298,6 +298,47 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(submitted.first).hostReplayVTree, Data())
     }
 
+    /// As `openWithMaskedPng(sdkName:)`: the host's SDK identity labels the report.
+    func testProviderEvidenceCarriesTheHostSdkName() async throws {
+        let qc = makeArmedWithScreenshotDisabled()
+        let image = solidImage()
+        qc.setEvidenceProvider {
+            QuickCaptureHostEvidence(image: image, hostReplayVTree: nil, sdkName: "everframe-flutter")
+        }
+
+        let outcome = await qc.capture()
+
+        guard case .sent = outcome else { return XCTFail("expected .sent, got \(outcome)") }
+        XCTAssertEqual(try XCTUnwrap(submitted.first).sdkName, "everframe-flutter")
+    }
+
+    func testProviderEvidenceWithoutSdkNameAndNativeCaptureKeepTheNativeName() async throws {
+        let qc = makeArmedWithScreenshotDisabled()
+        let image = solidImage()
+        qc.setEvidenceProvider { QuickCaptureHostEvidence(image: image, hostReplayVTree: nil) }
+        guard case .sent = await qc.capture() else { return XCTFail("expected .sent") }
+        XCTAssertEqual(try XCTUnwrap(submitted.last).sdkName, "everframe-ios")
+
+        let native = makeArmed()
+        guard case .sent = await native.capture() else { return XCTFail("expected .sent") }
+        XCTAssertEqual(submitted.count, 2)
+        XCTAssertEqual(try XCTUnwrap(submitted.last).sdkName, "everframe-ios")
+    }
+
+    func testProviderEvidenceWithAnUnknownSdkNameFails() async {
+        let qc = makeArmedWithScreenshotDisabled()
+        let image = solidImage()
+        qc.setEvidenceProvider {
+            QuickCaptureHostEvidence(image: image, hostReplayVTree: nil, sdkName: "everframe-unknown")
+        }
+
+        let outcome = await qc.capture()
+
+        XCTAssertEqual(outcome, .failed)
+        XCTAssertEqual(freezes, 0)
+        XCTAssertTrue(submitted.isEmpty)
+    }
+
     func testNilProviderResultFailsWithoutNativeScreenshot() async {
         let qc = makeArmedWithScreenshotDisabled()
         var nativeShots = 0

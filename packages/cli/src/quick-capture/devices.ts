@@ -10,17 +10,26 @@ export interface RunResult {
   stderr: string;
   code: number;
 }
-export type Runner = (cmd: string, args: string[]) => Promise<RunResult>;
+/** `signal` kills the child when aborted. */
+export type Runner = (
+  cmd: string,
+  args: string[],
+  options?: { signal?: AbortSignal },
+) => Promise<RunResult>;
 
 /** Runs a command with an argument array (never a shell); never rejects. */
 export const runnerWithTimeout =
   (timeoutMs: number): Runner =>
-  (cmd, args) =>
+  (cmd, args, options) =>
     new Promise((resolve) => {
       execFile(
         cmd,
         args,
-        { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 },
+        {
+          timeout: timeoutMs,
+          maxBuffer: 4 * 1024 * 1024,
+          ...(options?.signal ? { signal: options.signal } : {}),
+        },
         (error, stdout, stderr) => {
           if (!error) return resolve({ stdout, stderr, code: 0 });
           const code = typeof error.code === 'number' ? error.code : 127;
