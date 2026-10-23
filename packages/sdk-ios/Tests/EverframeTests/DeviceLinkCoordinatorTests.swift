@@ -115,7 +115,7 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
             deviceInfo: { .init(model: "iPhone16,1", os: "iOS", osVersion: "18.2", appVersion: "1.0.0",
                                 sdk: "ios/test", formFactor: "phone") },
             makeNonce: { DeviceLinkNonce.make() },
-            linkChanged: { [unowned self] in self.linkChanges.append($0) })
+            linkChanged: { [unowned self] linked, _ in self.linkChanges.append(linked) })
         return DeviceLinkCoordinator(store: store, seams: seams)
     }
 
@@ -397,6 +397,46 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
         XCTAssertEqual(linkChanges, [])
     }
 
+    /// A background `start()` replaces session A while A's Keychain save is
+    /// still writing. Session B (another SDK key) must end with the linked
+    /// gate its own store answers, never A's late `linked` callback. A's
+    /// token stays stored for A's origin and key: it was issued for exactly
+    /// that scope.
+    func testLinkCompletionDoesNotLeakIntoTheNextSession() async {
+        let blocking = BlockingDeviceLinkSecureStore()
+        store = DeviceLinkStore(secure: blocking)
+        let gate = FakeLinkedGate()
+        let transport = ScriptedTransport(hello: [.reply(.pending(attemptId: UUID(), number: 8))],
+                                          checks: [.reply(.linked(token: fixtureToken, owner: .team))])
+        let c = makeEnabled(transport)
+        let ingest = self.ingest
+        let sessionB = DispatchGroup()
+        sessionB.enter()
+        // The worst interleaving: A's callback lands after B has set its gate.
+        c.seams.linkChanged = { linked, isCurrent in
+            _ = sessionB.wait(timeout: .now() + 2)
+            gate.apply(linked, ifCurrent: isCurrent)
+        }
+        // Session B's start(), as `Everframe.start()` orders it: begin the
+        // link session, reset the quick-capture gate, then set it from B's store.
+        DispatchQueue.global().async {
+            blocking.waitUntilWriting()
+            DispatchQueue.global().async {
+                c.beginSession(endpoint: ingest, sdkKey: "k2", hostMode: .device, transport: ScriptedTransport())
+                gate.reset(linked: c.currentLink != nil)
+                sessionB.leave()
+            }
+            Thread.sleep(forTimeInterval: 0.05)
+            blocking.releaseWrite()
+        }
+        await c.sendHelloIfIdle()?.value
+        await withCheckedContinuation { done in sessionB.notify(queue: .global()) { done.resume() } }
+        for _ in 0..<50 { await Task.yield() }
+        XCTAssertNil(c.currentLink)
+        XCTAssertFalse(gate.linked, "session B has no link but ended up armed as linked")
+        XCTAssertTrue(store.link(endpoint: ingest, sdkKey: "k")?.token == fixtureToken)
+    }
+
     func testTeardownCancelsPollingAndHidesBanner() async {
         let gate = CoordinatorTestGate()
         let transport = ScriptedTransport(hello: [.reply(.pending(attemptId: UUID(), number: 5))],
@@ -444,5 +484,35 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
         XCTAssertFalse(c.isLinkingEnabled)
         c.teardown(ifCurrent: { false })
         XCTAssertEqual(c.__sessionKeyForTesting, "k")
+    }
+}
+
+/// Lets the first write start, then holds it until `releaseWrite()`.
+private final class BlockingDeviceLinkSecureStore: DeviceLinkSecureStore, @unchecked Sendable {
+    private let inner = InMemoryDeviceLinkSecureStore()
+    private let writing = DispatchSemaphore(value: 0)
+    private let release = DispatchSemaphore(value: 0)
+
+    func read(account: String) -> Data? { inner.read(account: account) }
+    func delete(account: String) { inner.delete(account: account) }
+    func write(_ data: Data, account: String) -> Bool {
+        writing.signal()
+        release.wait()
+        return inner.write(data, account: account)
+    }
+    func waitUntilWriting() { writing.wait() }
+    func releaseWrite() { release.signal() }
+}
+
+/// Quick capture's linked flag: a session reset and the coordinator's
+/// callback serialize on one lock, as `QuickCapture`'s state lock does.
+private final class FakeLinkedGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+    var linked: Bool { lock.lock(); defer { lock.unlock() }; return value }
+    func reset(linked: Bool) { lock.lock(); value = linked; lock.unlock() }
+    func apply(_ linked: Bool, ifCurrent: () -> Bool) {
+        lock.lock(); defer { lock.unlock() }
+        if ifCurrent() { value = linked }
     }
 }

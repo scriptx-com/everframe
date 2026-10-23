@@ -220,6 +220,15 @@ final class QuickCaptureDeviceTests: XCTestCase {
         XCTAssertEqual(cancels.count, 1)
     }
 
+    /// A linked change from a replaced session is refused under the state lock.
+    func testSetLinkedFromAReplacedSessionIsIgnored() {
+        let qc = makeArmed(debug: false)
+        qc.setLinked(true, ifCurrent: { false })
+        XCTAssertFalse(qc.isLinked)
+        qc.setLinked(true, ifCurrent: { true })
+        XCTAssertTrue(qc.isLinked)
+    }
+
     func testUnlinkedToastCopy() {
         XCTAssertEqual(QuickCaptureToast.text(for: .unlinked), "This device was unlinked")
     }

@@ -42,8 +42,11 @@ final class DeviceLinkCoordinator {
         var now: @Sendable () -> TimeInterval
         var deviceInfo: @MainActor () -> DeviceLinkHelloRequest.Device
         var makeNonce: @Sendable () -> String
-        /// The device became linked (true) or unlinked (false).
-        var linkChanged: @MainActor (_ linked: Bool) -> Void
+        /// The device became linked (true) or unlinked (false) in the session
+        /// `isCurrent` names. A `start()` or `kill()` can replace that session
+        /// on another thread at any moment, so the receiver applies the change
+        /// only while `isCurrent()` holds, checked where it writes.
+        var linkChanged: @MainActor (_ linked: Bool, _ isCurrent: @escaping @Sendable () -> Bool) -> Void
 
         static var live: Seams {
             Seams(
@@ -66,11 +69,11 @@ final class DeviceLinkCoordinator {
                 now: { ProcessInfo.processInfo.systemUptime },
                 deviceInfo: { DeviceLinkCoordinator.liveDeviceInfo() },
                 makeNonce: { DeviceLinkNonce.make() },
-                linkChanged: { linked in
+                linkChanged: { linked, isCurrent in
                     #if canImport(UIKit)
-                    QuickCapture.shared.setLinked(linked)
+                    QuickCapture.shared.setLinked(linked, ifCurrent: isCurrent)
                     #endif
-                    Everframe.shared.__refreshConfigForDeviceLink()
+                    if isCurrent() { Everframe.shared.__refreshConfigForDeviceLink() }
                 }
             )
         }
@@ -133,6 +136,7 @@ final class DeviceLinkCoordinator {
         var unlinked = false
         lock.lock()
         guard ifCurrent(), let session else { lock.unlock(); return }
+        let generation = session.generation
         remote = newRemote
         if session.hostMode == .device, let link = newRemote?.link,
            let fingerprint = newRemote?.requestTokenFingerprint {
@@ -146,7 +150,7 @@ final class DeviceLinkCoordinator {
             }
         }
         lock.unlock()
-        if unlinked { onMain { $0.seams.linkChanged(false) } }
+        if unlinked { onMain { $0.notifyLinkChanged(false, generation: generation) } }
     }
 
     nonisolated func teardown(ifCurrent: () -> Bool = { true }) {
@@ -195,6 +199,22 @@ final class DeviceLinkCoordinator {
     nonisolated private func isCurrent(_ generation: Int) -> Bool {
         lock.lock(); defer { lock.unlock() }
         return session?.generation == generation
+    }
+
+    /// Stores `link` for session `generation`'s origin and key, in the same
+    /// critical section that checks that session is still current: a
+    /// `start()` or `kill()` waits for the write, and a late reply never
+    /// writes after its session ended. False when the session changed.
+    nonisolated private func save(_ link: DeviceLink, ifGeneration generation: Int) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard let session, session.generation == generation else { return false }
+        store.save(link, endpoint: session.endpoint, sdkKey: session.sdkKey)
+        return true
+    }
+
+    /// `seams.linkChanged`, fenced to session `generation`.
+    private func notifyLinkChanged(_ linked: Bool, generation: Int) {
+        seams.linkChanged(linked) { [weak self] in self?.isCurrent(generation) ?? false }
     }
 
     /// Runs `body` on the main actor: synchronously when already on the main
@@ -248,7 +268,7 @@ final class DeviceLinkCoordinator {
         guard let (session, store) = snapshot() else { return }
         if store.clear(endpoint: session.endpoint, sdkKey: session.sdkKey,
                        ifFingerprint: DeviceLinkToken.fingerprint(sentToken)) {
-            seams.linkChanged(false)
+            notifyLinkChanged(false, generation: session.generation)
         }
     }
 
@@ -262,7 +282,7 @@ final class DeviceLinkCoordinator {
               let cleared = DeviceLinkStore.account(endpoint: endpoint, sdkKey: sdkKey),
               cleared == DeviceLinkStore.account(endpoint: session.endpoint, sdkKey: session.sdkKey),
               store.link(endpoint: session.endpoint, sdkKey: session.sdkKey) == nil else { return }
-        seams.linkChanged(false)
+        notifyLinkChanged(false, generation: session.generation)
     }
 
     private func startAttempt(
@@ -312,11 +332,18 @@ final class DeviceLinkCoordinator {
             case .reply(.expired), .stop:
                 return
             case let .reply(.linked(token, owner)):
-                guard let (current, store) = snapshot(), current.generation == session.generation else { return }
-                store.save(DeviceLink(token: token, owner: owner), endpoint: current.endpoint, sdkKey: current.sdkKey)
+                // The token is kept even when a start() replaces this session
+                // during the write: it was issued for this origin and key, the
+                // scope it is stored under, so it is the right link for the
+                // next session with that origin and key (which reads it at its
+                // own start), and the dashboard already shows the device as
+                // linked. Only this session's gate and toast are fenced.
+                guard save(DeviceLink(token: token, owner: owner), ifGeneration: session.generation) else { return }
                 hideBannerOnce()
+                // The Keychain write can block, and start() runs on any thread.
+                guard isCurrent(session.generation) else { return }
                 seams.showToast(owner.linkedToastText)
-                seams.linkChanged(true)
+                notifyLinkChanged(true, generation: session.generation)
                 return
             }
             if seams.now() - start >= Self.checkDeadline { return }

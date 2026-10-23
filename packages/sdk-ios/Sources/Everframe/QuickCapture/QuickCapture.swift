@@ -314,8 +314,11 @@ final class QuickCapture {
 
     /// Whether this real device holds a device link: a linked device arms
     /// even in a release build. `beginSession` and `teardown` clear it.
-    nonisolated func setLinked(_ linked: Bool) {
+    /// `ifCurrent` is checked under the same lock as `beginSession`'s reset,
+    /// so a change from a replaced session never lands after the new one's.
+    nonisolated func setLinked(_ linked: Bool, ifCurrent: () -> Bool = { true }) {
         stateLock.lock(); defer { stateLock.unlock() }
+        guard ifCurrent() else { return }
         gate.setLinked(linked)
     }
 
