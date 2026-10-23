@@ -14,6 +14,7 @@ import { dsymUploadBuildCommand } from './apple-command.js';
 import { DEFAULT_API_URL, redact, uploadBudget } from './defaults.js';
 import { homedir } from 'node:os';
 import { captureCommand, linkCommand } from './quick-capture/commands.js';
+import { defaultOpenBrowser, loginCommand, logoutCommand } from './quick-capture/login.js';
 import { defaultRunner } from './quick-capture/devices.js';
 import {
   DeviceBuildUploadError,
@@ -75,6 +76,8 @@ const HELP = `Usage:
   everframe r8 upload --app-id <uuid> --mapping-id <id> --mapping <path>
   everframe build collect --staging <dir> --platform <android|ios> --bundle <path> --source-map <path> [--dsym <dir>] [--elf <dir>]
   everframe build verify --staging <dir> --platform <android|ios> [--release] [--allow-missing]
+  everframe login [--url <api-url>] [--no-browser]   (sign in for quick capture)
+  everframe logout   (revoke and remove your quick capture login)
   everframe link   (copy your login to running Android emulators)
   everframe capture [--device <udid|name|serial>]   (trigger a quick capture on a simulator or emulator)
 
@@ -98,6 +101,9 @@ async function quickCaptureCommand(argv: string[], env: NodeJS.ProcessEnv): Prom
     options: {
       help: { type: 'boolean', short: 'h' },
       ...(argv[0] === 'capture' ? { device: { type: 'string' as const } } : {}),
+      ...(argv[0] === 'login'
+        ? { url: { type: 'string' as const }, 'no-browser': { type: 'boolean' as const } }
+        : {}),
     },
   });
   if (values.help) {
@@ -112,6 +118,17 @@ async function quickCaptureCommand(argv: string[], env: NodeJS.ProcessEnv): Prom
     err: (s: string) => console.error(s),
   };
   if (argv[0] === 'link') return linkCommand(deps);
+  if (argv[0] === 'logout') return logoutCommand({ ...deps, fetch });
+  if (argv[0] === 'login') {
+    const login = values as { url?: string; 'no-browser'?: boolean };
+    return loginCommand(
+      { ...deps, fetch, openBrowser: defaultOpenBrowser() },
+      {
+        ...(login.url === undefined ? {} : { url: login.url }),
+        ...(login['no-browser'] ? { noBrowser: true } : {}),
+      },
+    );
+  }
   const device = (values as { device?: string }).device;
   return captureCommand(deps, device === undefined ? {} : { device });
 }
@@ -269,7 +286,7 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
   const isSetupCommand = argv[0] === 'setup' && argv[1] === 'react-native';
   const isSetupXcodeCommand = argv[0] === 'setup' && argv[1] === 'xcode';
   const isXcodeBuildPhaseCommand = argv[0] === 'xcode' && argv[1] === 'build-phase';
-  if (argv[0] === 'link' || argv[0] === 'capture') {
+  if (argv[0] === 'link' || argv[0] === 'capture' || argv[0] === 'login' || argv[0] === 'logout') {
     try {
       return await quickCaptureCommand(argv, env);
     } catch {
