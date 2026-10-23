@@ -10,9 +10,13 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Looper
 import android.provider.Settings
+import android.view.KeyEvent
+import android.view.Window
+import android.widget.EditText
 import androidx.test.core.app.ApplicationProvider
 import dev.everframe.Everframe
 import dev.everframe.capture.ScreenshotCapture
+import dev.everframe.capture.TXWindowCallbackWrapper
 import dev.everframe.capture.replay.ReplaySession
 import dev.everframe.capture.video.FrozenReportCapture
 import dev.everframe.companion.CompanionSubmissionComposer
@@ -24,6 +28,7 @@ import dev.everframe.config.ReportResult
 import dev.everframe.config.ReporterTrigger
 import dev.everframe.trigger.ShakeToReportGate
 import dev.everframe.trigger.ShakeToReportTrigger
+import java.lang.reflect.Proxy
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -46,6 +51,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowToast
 
 @RunWith(RobolectricTestRunner::class)
@@ -870,7 +876,209 @@ class QuickCaptureTest {
         assertNull(QuickCapture.toastText(QuickCaptureOutcome.Ignored("in_flight"), "Pixel"))
     }
 
+    // ---- in-app chord (Shift+B) ----
+
+    @Test
+    fun shiftBTriggersACaptureAndIsConsumed() {
+        arm()
+        val (wrapper, delivered) = wrap()
+
+        assertFalse("Shift itself passes through", wrapper.dispatchKeyEvent(shiftKey(KeyEvent.ACTION_DOWN)))
+        assertTrue("the chord's key-down is consumed", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+        val trigger = QuickCapture.__lastTrigger
+        assertNotNull("the chord started a capture", trigger)
+        assertTrue("so is its key-up", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_UP, SHIFT)))
+        assertFalse(wrapper.dispatchKeyEvent(shiftKey(KeyEvent.ACTION_UP)))
+
+        assertEquals(QuickCaptureOutcome.Sent, awaitMain(trigger!!))
+        assertEquals(1, freezes.get())
+        assertTrue(submits.single().quickCapture)
+        assertEquals(listOf(KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_LEFT), delivered.map { it.keyCode })
+    }
+
+    @Test
+    fun heldChordKeyRepeatsAreConsumedUntilItsKeyUp() {
+        arm()
+        val (wrapper, delivered) = wrap()
+        assertTrue(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+        val first = QuickCapture.__lastTrigger
+        assertTrue(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT, repeat = 1)))
+        assertTrue(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT, repeat = 2)))
+        assertSame("a held key triggers once", first, QuickCapture.__lastTrigger)
+        assertTrue(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_UP, SHIFT)))
+        assertFalse("the next B is the app's again", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_UP, 0)))
+        assertEquals(1, delivered.size)
+        awaitMain(first!!)
+    }
+
+    @Test
+    fun shiftBInAFocusedTextEditorIsTyping() {
+        arm()
+        val field = EditText(activity)
+        activity.setContentView(field)
+        assertTrue(field.requestFocus())
+        assertSame(field, activity.window.currentFocus)
+        val (wrapper, delivered) = wrap()
+
+        assertFalse(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+        assertFalse(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_UP, SHIFT)))
+
+        assertNull("no capture while typing", QuickCapture.__lastTrigger)
+        assertEquals(2, delivered.size)
+    }
+
+    @Test
+    fun shiftBOnAFocusedNonEditorViewTriggers() {
+        arm()
+        val button = android.widget.Button(activity).apply { isFocusableInTouchMode = true }
+        activity.setContentView(button)
+        assertTrue(button.requestFocus())
+        val (wrapper, _) = wrap()
+        assertTrue(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+        assertEquals(QuickCaptureOutcome.Sent, awaitMain(QuickCapture.__lastTrigger!!))
+    }
+
+    @Test
+    fun disarmedSessionPassesShiftBThrough() {
+        val (wrapper, delivered) = wrap()
+        assertFalse("nothing installed", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+
+        QuickCapture.install(app, localEnabled = true, debug = true)
+        assertFalse("no dashboard block yet", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+        QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = false))
+        assertFalse("block disabled", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+
+        QuickCapture.install(app, localEnabled = true, debug = false)
+        QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = true))
+        assertFalse("release build", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+
+        QuickCapture.install(app, localEnabled = false, debug = true)
+        QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = true))
+        assertFalse("local opt-out", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+
+        QuickCapture.isEmulator = { false }
+        QuickCapture.install(app, localEnabled = true, debug = true)
+        QuickCapture.isEmulator = { true }
+        QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = true))
+        assertFalse("real device", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+
+        arm()
+        Everframe.captureGate = false
+        assertFalse("kill switch closed", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+        Everframe.captureGate = true
+
+        QuickCapture.teardown()
+        assertFalse("torn down", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+
+        assertNull(QuickCapture.__lastTrigger)
+        assertEquals(8, delivered.size)
+    }
+
+    @Test
+    fun otherChordsDoNotTriggerWithTheDefaultBinding() {
+        arm()
+        val (wrapper, delivered) = wrap()
+        val ctrlShift = SHIFT or KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
+        assertFalse("Ctrl+Shift+B", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, ctrlShift)))
+        assertFalse(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_UP, ctrlShift)))
+        assertFalse("plain B", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, 0)))
+        assertFalse(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_UP, 0)))
+        assertFalse("Shift+K", wrapper.dispatchKeyEvent(KeyEvent(0L, 0L, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_K, 0, SHIFT)))
+        assertNull(QuickCapture.__lastTrigger)
+        assertEquals(5, delivered.size)
+    }
+
+    @Test
+    fun dashboardShiftKBindingTriggersOnShiftK() {
+        QuickCapture.install(app, localEnabled = true, debug = true)
+        QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = true, binding = "Shift+K"))
+        val (wrapper, _) = wrap()
+        assertFalse("Shift+B is not the binding", wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+        assertNull(QuickCapture.__lastTrigger)
+        assertTrue(wrapper.dispatchKeyEvent(KeyEvent(0L, 0L, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_K, 0, SHIFT)))
+        assertTrue(wrapper.dispatchKeyEvent(KeyEvent(0L, 0L, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_K, 0, SHIFT)))
+        assertEquals(QuickCaptureOutcome.Sent, awaitMain(QuickCapture.__lastTrigger!!))
+    }
+
+    @Test
+    fun bindingTheEmulatorCannotDeliverFallsBackToShiftB() {
+        QuickCapture.install(app, localEnabled = true, debug = true)
+        val (wrapper, _) = wrap()
+        for (binding in listOf("Shift Shift", "Mod+Shift+K", "Ctrl+K")) {
+            QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = true, binding = binding))
+            QuickCapture.__lastTrigger = null
+            assertTrue(binding, wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+            assertTrue(binding, wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_UP, SHIFT)))
+            assertNotNull(binding, QuickCapture.__lastTrigger)
+            awaitMain(QuickCapture.__lastTrigger!!)
+        }
+    }
+
+    @Test
+    fun aThrowingFocusCheckStillDispatchesTheKey() {
+        arm()
+        val broken = object : android.view.View(activity) {
+            override fun onCheckIsTextEditor(): Boolean = throw IllegalStateException("boom")
+        }.apply { isFocusableInTouchMode = true }
+        activity.setContentView(broken)
+        assertTrue(broken.requestFocus())
+        val (wrapper, delivered) = wrap()
+        assertFalse(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+        assertFalse(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_UP, SHIFT)))
+        assertEquals(2, delivered.size)
+        assertNull(QuickCapture.__lastTrigger)
+    }
+
+    @Test
+    @Config(qualifiers = "television")
+    fun shiftBTriggersOnTvAndRemoteKeysStillDispatch() {
+        arm()
+        val (wrapper, delivered) = wrap()
+        assertTrue(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_DOWN, SHIFT)))
+        assertTrue(wrapper.dispatchKeyEvent(bKey(KeyEvent.ACTION_UP, SHIFT)))
+        assertEquals(QuickCaptureOutcome.Sent, awaitMain(QuickCapture.__lastTrigger!!))
+        assertFalse(wrapper.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER)))
+        assertFalse(wrapper.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_CENTER)))
+        assertEquals(listOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_DPAD_CENTER), delivered.map { it.keyCode })
+    }
+
+    @Test
+    fun windowCallbackWrapperIsInstalledWithBreadcrumbsDisabled() {
+        dev.everframe.capture.sharedBreadcrumbBuffer.applyConfig(
+            dev.everframe.config.BreadcrumbsConfigWire(
+                enabled = false, kinds = emptyList(), maxCount = 0, byteBudget = 0, consoleEntryCap = 0,
+            ),
+        )
+        try {
+            dev.everframe.capture.BreadcrumbTapNavAdapters.__resetForTesting()
+            dev.everframe.capture.BreadcrumbTapNavAdapters.install(app, activity)
+            idleMain()
+            assertTrue(activity.window.callback is TXWindowCallbackWrapper)
+        } finally {
+            dev.everframe.capture.sharedBreadcrumbBuffer.applyConfig(null)
+            dev.everframe.capture.BreadcrumbTapNavAdapters.__resetForTesting()
+        }
+    }
+
     // ---- helpers ----
+
+    /** The wrapper over a delegate that records every key event it receives and handles none. */
+    private fun wrap(): Pair<TXWindowCallbackWrapper, MutableList<KeyEvent>> {
+        val delivered = mutableListOf<KeyEvent>()
+        val delegate = Proxy.newProxyInstance(Window.Callback::class.java.classLoader, arrayOf(Window.Callback::class.java)) { _, method, args ->
+            if (method.name == "dispatchKeyEvent") delivered += args[0] as KeyEvent
+            when (method.returnType) {
+                java.lang.Boolean.TYPE -> false
+                else -> null
+            }
+        } as Window.Callback
+        return TXWindowCallbackWrapper(delegate, activity) to delivered
+    }
+
+    private fun bKey(action: Int, meta: Int, repeat: Int = 0) = KeyEvent(0L, 0L, action, KeyEvent.KEYCODE_B, repeat, meta)
+
+    private fun shiftKey(action: Int) =
+        KeyEvent(0L, 0L, action, KeyEvent.KEYCODE_SHIFT_LEFT, 0, if (action == KeyEvent.ACTION_DOWN) SHIFT else 0)
 
     private fun receivers() = shadowOf(app).registeredReceivers.filter { it.intentFilter.hasAction(QuickCapture.ACTION) }
 
@@ -919,5 +1127,9 @@ class QuickCaptureTest {
         }
         idleMain()
         return runBlocking { deferred.await() }
+    }
+
+    private companion object {
+        const val SHIFT = KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
     }
 }

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Emulator quick capture: `adb shell am broadcast -a com.everframe.CAPTURE`
-// sent to a debug build on an emulator files a report with no UI. The SDK
+// Emulator quick capture: Shift+B pressed inside the app (the dashboard's binding when the emulator can
+// deliver it, see [AndroidCaptureChord]), or `adb shell am broadcast -a com.everframe.CAPTURE`, sent to a
+// debug build on an emulator files a report with no UI. The SDK
 // takes the screenshot, freezes replay and evidence exactly as the reporter
 // does at open, submits with `quickCapture: true` plus the developer's capture
 // token, then shows a short toast. Title and description stay empty: the
@@ -17,6 +18,10 @@
 // and returns no data, and every capture still passes the gate below (the
 // dashboard's `captureHotkey` block, a current activity, no reporter on screen,
 // no other capture holding the freeze).
+//
+// The key chord is seen by `TXWindowCallbackWrapper.dispatchKeyEvent` (the Activity window callback the
+// tap breadcrumbs already install on every start), which asks [QuickCapture.armedChord] per key event and
+// stands aside while a text editor has focus.
 //
 // The block's `replay` flag also records session replay while quick capture is armed, whatever the
 // app's `replayEnabled` ([QuickCapture.forcesReplay]).
@@ -133,6 +138,13 @@ internal object QuickCapture {
     @Volatile private var remoteReplay = false
     @Volatile private var screenshot = true
     @Volatile private var evidenceProvider: (suspend () -> QuickCaptureHostEvidence?)? = null
+
+    /**
+     * The in-app chord while quick capture is armed (receiver installed on a debug emulator build with the
+     * local opt-in, and the dashboard's block enabled), else null. Written under [lock] by every state
+     * change; read lock-free on each key event.
+     */
+    @Volatile private var chordWhileArmed: AndroidCaptureChord? = null
     private val inFlight = AtomicBoolean(false)
 
     /** The session's `capture.screenshot`. */
@@ -171,6 +183,7 @@ internal object QuickCapture {
             this.screenshot = screenshot
             remoteEnabled = false
             remoteReplay = false
+            chordWhileArmed = null
             if (!debug || !localEnabled || !isEmulator()) return
             val app = context.applicationContext ?: context
             val next = Receiver()
@@ -190,14 +203,32 @@ internal object QuickCapture {
         }
     }
 
-    /** The dashboard's `captureHotkey` block from each config refresh. Android ignores `binding`. */
+    /**
+     * The dashboard's `captureHotkey` block from each config refresh. `binding` picks the in-app chord, as
+     * far as the emulator can deliver it ([AndroidCaptureChord.from]).
+     */
     fun publishRemote(wire: CaptureHotkeyConfigWire?, isCurrent: () -> Boolean = { true }) {
         synchronized(lock) {
             if (!isCurrent()) return
             remoteEnabled = wire?.enabled == true
             remoteReplay = wire?.replay == true
+            chordWhileArmed = if (receiver != null && debug && localEnabled && remoteEnabled) {
+                AndroidCaptureChord.from(wire?.binding)
+            } else {
+                null
+            }
         }
     }
+
+    /**
+     * The chord to capture on, or null while quick capture is disarmed or the kill switch is closed. Two
+     * volatile reads: cheap enough for every key event. The capture itself re-checks the full gate.
+     */
+    val armedChord: AndroidCaptureChord?
+        get() {
+            val chord = chordWhileArmed ?: return null
+            return chord.takeIf { Everframe.captureGate }
+        }
 
     /**
      * True while quick capture is armed (debug build, emulator, local opt-in, the dashboard's block enabled,
@@ -222,6 +253,7 @@ internal object QuickCapture {
             localEnabled = false
             remoteEnabled = false
             remoteReplay = false
+            chordWhileArmed = null
             screenshot = true
             evidenceProvider = null
         }
@@ -238,8 +270,13 @@ internal object QuickCapture {
         // A pure trigger: nothing is read from the intent, whoever sent it.
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != ACTION) return
-            __lastTrigger = Everframe.sdkScope.async { capture() }
+            trigger()
         }
+    }
+
+    /** Starts one capture on the SDK scope. The broadcast and the in-app chord both come here. */
+    fun trigger() {
+        __lastTrigger = Everframe.sdkScope.async { capture() }
     }
 
     // ---- Pipeline ----

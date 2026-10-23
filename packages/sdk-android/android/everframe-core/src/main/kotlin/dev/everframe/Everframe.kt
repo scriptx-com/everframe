@@ -1195,6 +1195,9 @@ object Everframe {
             // (Application.ActivityLifecycleCallbacks + Window.Callback
             // wrapper). Activity-level only — see BreadcrumbTapNavAdapters.kt
             // header for the fragment-level deferred-gap decision.
+            // Installed whatever the breadcrumb config says: the same
+            // Window.Callback wrapper also sees quick capture's in-app chord
+            // (Shift+B), which it acts on only while QuickCapture is armed.
             txGuardVoid("start.breadcrumbTapNavAdapters") {
                 BreadcrumbTapNavAdapters.install(context, currentActivityRef?.get())
             }
