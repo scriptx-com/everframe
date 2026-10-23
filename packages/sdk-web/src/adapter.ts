@@ -535,6 +535,14 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    * evidence, or a public `open()` is pending. Quick capture never runs then.
    */
   __isReporterOpen(): boolean;
+  /**
+   * Called by every reporter open path (the host's open, which `open()`,
+   * `showReporterUI()`, the dashboard hotkey and the inbox all reach) just
+   * before it freezes the evidence. Quick capture reads the sequence so a
+   * reporter that opens mid-capture becomes the single owner of the freeze.
+   */
+  __noteReporterOpening(): void;
+  __reporterOpenSeq(): number;
 }
 
 /**
@@ -633,6 +641,7 @@ export function createWebPlatformAdapter(
   >();
   let lastLiveConfig: { config: ReplayConfig; token: string | null } | null = null;
   let quickCaptureTeardown: (() => void) | null = null;
+  let reporterOpenSeq = 0;
   // What an outbox drain needs to resend captures queued under a device-link
   // fingerprint. A drain's `device_unlinked` clears the matching token.
   function deviceLinkDrain(): DrainDeviceLinks | undefined {
@@ -2595,6 +2604,10 @@ export function createWebPlatformAdapter(
       quickCaptureTeardown = fn;
     },
     __deviceLinkDrain: (): DrainDeviceLinks | undefined => deviceLinkDrain(),
+    __noteReporterOpening: (): void => {
+      reporterOpenSeq += 1;
+    },
+    __reporterOpenSeq: (): number => reporterOpenSeq,
     __isReporterOpen: (): boolean => {
       if (pendingOpenResolve !== undefined) return true;
       // Every reporter open path (open(), showReporterUI(), the dashboard

@@ -529,4 +529,47 @@ describe('quick-capture pipeline', () => {
     await qc.capture();
     expect(beginAttempt).not.toHaveBeenCalled();
   });
+
+  it('a reporter opened while the capture awaits its shot takes over the freeze; the capture consumes nothing', async () => {
+    let seq = 0;
+    adapter['__reporterOpenSeq'] = () => seq;
+    const d = deferred<ShotCapture>();
+    shot.mockReturnValueOnce(d.promise);
+    const p = qc.capture();
+    // open() arrives: its freeze() reuses the capture's frozen buffers.
+    seq += 1;
+    d.resolve({});
+    expect(await p).toBe('ignored');
+    expect(lifecycle.complete).not.toHaveBeenCalled();
+    expect(lifecycle.cancel).not.toHaveBeenCalled();
+    expect(crumbs.takeFrozen).not.toHaveBeenCalled();
+    expect(crumbs.discardAndResume).not.toHaveBeenCalled();
+    expect(bodies.takeFrozen).not.toHaveBeenCalled();
+    expect(bodies.discardAndResume).not.toHaveBeenCalled();
+    expect(lifecycleState).toBe('FROZEN'); // still held, now for the reporter
+    expect(overlay.toast).not.toHaveBeenCalled();
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it('breadcrumbs and bodies are taken before the replay export, so a reporter opening during it freezes its own', async () => {
+    let seq = 0;
+    adapter['__reporterOpenSeq'] = () => seq;
+    const exported = deferred<ReplayCapture | null>();
+    lifecycle.complete.mockImplementationOnce(() => {
+      expect(crumbs.takeFrozen).toHaveBeenCalledTimes(1);
+      expect(bodies.takeFrozen).toHaveBeenCalledTimes(1);
+      return exported.promise.then((c) => {
+        lifecycleState = 'BUFFERING';
+        return c;
+      });
+    });
+    const p = qc.capture();
+    await vi.waitFor(() => expect(lifecycle.complete).toHaveBeenCalledTimes(1));
+    seq += 1; // the reporter opens mid-export
+    exported.resolve(REPLAY);
+    expect(await p).toBe('submitted');
+    // The resumed buffer is frozen again for the reporter that opened meanwhile.
+    expect(lifecycle.freeze).toHaveBeenCalledTimes(2);
+    expect(lifecycleState).toBe('FROZEN');
+  });
 });

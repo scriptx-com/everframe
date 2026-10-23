@@ -313,4 +313,25 @@ describe('adapter wiring for web-TV device linking', () => {
       handle.destroy();
     }
   });
+
+  it('every reporter open path bumps the reporter-open sequence', async () => {
+    stubFetch(() => json(BASE));
+    const handle = init({ sdkKey: 'k', appVersion: '1.0.0' }) as InternalHandle;
+    handle.__setShowModal(() => undefined);
+    try {
+      const before = handle.__adapter.__reporterOpenSeq();
+      void handle.__adapter.showReporterUI({
+        title: '',
+        description: '',
+        excludedArtifacts: [],
+        annotations: [],
+        redactions: [],
+      });
+      expect(handle.__adapter.__reporterOpenSeq()).toBe(before + 1);
+      void handle.open();
+      expect(handle.__adapter.__reporterOpenSeq()).toBe(before + 2);
+    } finally {
+      handle.destroy();
+    }
+  });
 });

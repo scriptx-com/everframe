@@ -100,4 +100,17 @@ describe('EverframeProvider quick capture', () => {
     expect(installs.every((i) => i.disposed)).toBe(true);
     expect(document.getElementById('everframe-quick-capture')).toBeNull();
   });
+
+  it("the Provider's open path (hotkey, inbox, open()) bumps the reporter-open sequence before it freezes", async () => {
+    render(
+      <EverframeProvider config={{ sdkKey: 'pk_test' }}>
+        <Probe />
+      </EverframeProvider>,
+    );
+    await settle();
+    const adapter = liveCtx!.adapter;
+    const before = adapter.__reporterOpenSeq();
+    liveCtx!.openModal();
+    expect(adapter.__reporterOpenSeq()).toBe(before + 1);
+  });
 });

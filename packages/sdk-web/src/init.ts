@@ -426,6 +426,12 @@ export function init(config: WebEverframeConfig): Everframe {
     // `adapter.onKill()`, so this gate is live from the same instant.
     if (isKilled()) return;
     if (reporterDisabled) return;
+    // A web-TV quick capture in flight hands its freeze to this open.
+    try {
+      adapter.__noteReporterOpening();
+    } catch {
+      /* swallow — DEFE-02 */
+    }
     // REPLAY-02 — freeze SYNCHRONOUSLY, before any UI mounts, so the reporter
     // is never recorded into its own replay or breadcrumb chain. Each freeze
     // is separately guarded (DEFE-02): capture must never block the reporter.

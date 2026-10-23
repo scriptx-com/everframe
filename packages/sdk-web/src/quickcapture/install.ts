@@ -80,17 +80,26 @@ export function installQuickCapture(
       }
     };
 
+    const killed = (): boolean => {
+      try {
+        return host.isKilled();
+      } catch {
+        return true;
+      }
+    };
+
     const startLoad = (): void => {
-      // The install ticket: a dispose() before the chunk resolves means the
-      // runtime never starts.
+      // The kill path ends this install from the moment loading starts, so a
+      // kill() while the chunk is in flight means the runtime never starts.
+      adapter.__registerQuickCaptureTeardown(stop);
+      // The install ticket: a dispose() (or kill) before the chunk resolves
+      // means the runtime never starts.
       loading = load().then(
         (m) => {
-          if (disposed || runtime) return;
+          if (disposed || runtime || killed()) return;
           const r = m.startQuickCaptureRuntime(host);
           runtime = r;
-          // The kill path tears the runtime down and ends this install.
-          adapter.__registerQuickCaptureTeardown(stop);
-          if (last) r.applyConfig(last.config, last.token);
+          if (last && !killed()) r.applyConfig(last.config, last.token);
         },
         () => {
           // A failed chunk load is retried on the next armed config.

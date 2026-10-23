@@ -312,4 +312,54 @@ describe('installQuickCapture', () => {
     await flush();
     expect(await handle.__quickCapture.__onGestureForTesting()).toBeNull();
   });
+
+  it('kill() while the runtime chunk is loading means it never starts', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(TIZEN);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json(ARMED)),
+    );
+    const adapter = makeAdapter();
+    const client = createClient(adapter);
+    client.init({ sdkKey: 'k' });
+    const host: QuickCaptureHost = {
+      config: { sdkKey: 'k' },
+      adapter,
+      sdkName: 'everframe-web',
+      sdkVersion: '1.5.0',
+      getUser: () => null,
+      getExtra: () => undefined,
+      isKilled: () => __internalClientState.get(client)?.killed === true,
+    };
+    const fake = fakeModule();
+    const chunk = deferred<RuntimeModule>();
+    const install = installQuickCapture(host, () => chunk.promise);
+    await boot(adapter);
+    await flush();
+    client.kill();
+    chunk.resolve(fake.module);
+    await flush();
+    expect(fake.start).not.toHaveBeenCalled();
+    expect(await install.__onGestureForTesting()).toBeNull();
+  });
+
+  it('a killed host never starts the runtime even if the teardown was not reached', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(TIZEN);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json(ARMED)),
+    );
+    const adapter = makeAdapter();
+    let killed = false;
+    const host = { ...makeHost(adapter), isKilled: () => killed };
+    const fake = fakeModule();
+    const chunk = deferred<RuntimeModule>();
+    installQuickCapture(host, () => chunk.promise);
+    await boot(adapter);
+    await flush();
+    killed = true;
+    chunk.resolve(fake.module);
+    await flush();
+    expect(fake.start).not.toHaveBeenCalled();
+  });
 });

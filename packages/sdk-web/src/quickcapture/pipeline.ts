@@ -86,6 +86,12 @@ export function createQuickCapture(deps: QuickCaptureDeps): QuickCapture {
     return safe(() => host.isKilled(), true);
   }
 
+  /** Bumped by every reporter open path; see `__reporterOpenSeq`. */
+  function reporterOpenSeq(): number {
+    const read = (host.adapter as { __reporterOpenSeq?: () => number }).__reporterOpenSeq;
+    return safe(() => (read ? read() : 0), 0);
+  }
+
   /** Resume live capture after a capture that will not be sent. */
   function unwind(): void {
     const adapter = host.adapter;
@@ -128,7 +134,12 @@ export function createQuickCapture(deps: QuickCaptureDeps): QuickCapture {
         .then(() => adapter.__captureIdentityAtSubmitBoundary())
         .catch(() => null);
 
-      // 3. Synchronous freeze, before any await.
+      // 3. Synchronous freeze, before any await. The freeze-to-consume
+      // interval has one owner: if the reporter opens before the capture
+      // consumes (its idempotent freeze() reuses these buffers), the capture
+      // hands everything over and consumes nothing.
+      const openSeq = reporterOpenSeq();
+      const reporterOpened = (): boolean => reporterOpenSeq() !== openSeq;
       frozen = true;
       guard(() => lifecycle?.freeze());
       guard(() => adapter.__getBreadcrumbBuffer?.()?.freeze());
@@ -146,6 +157,12 @@ export function createQuickCapture(deps: QuickCaptureDeps): QuickCapture {
         frozen = false;
         unwind();
         return 'failed';
+      }
+      // The reporter opened while the shot was taken: the frozen replay,
+      // breadcrumbs and bodies are its now. No unwind, no toast, no upload.
+      if (reporterOpened()) {
+        frozen = false;
+        return 'ignored';
       }
 
       // 6. Optimistic toast.
@@ -173,24 +190,9 @@ export function createQuickCapture(deps: QuickCaptureDeps): QuickCapture {
       const reason = shot === null ? DEGRADED_REASONS.screenshot_failed : shot.degradedReason;
       if (reason !== undefined) bundle.degradedReason = reason;
       frozen = false;
-      let capture: Awaited<ReturnType<NonNullable<typeof lifecycle>['complete']>> = null;
-      try {
-        capture = lifecycle ? await lifecycle.complete() : null;
-      } catch {
-        // A failed export leaves the lifecycle FROZEN, which would shut out
-        // every later gesture (and the reporter): unwind the freeze and file
-        // the capture without a replay.
-        guard(() => lifecycle?.cancel());
-        capture = null;
-      }
-      try {
-        if (capture && capture.bytes.byteLength > 0) {
-          bundle.replaySha256 = await sha256HexOfBytes(capture.bytes);
-          bundle.replayCapture = capture;
-        }
-      } catch {
-        /* a replay failure never costs the capture */
-      }
+      // Breadcrumbs and bodies are taken synchronously, before the replay
+      // export's await, so a reporter that opens during the export freezes
+      // fresh ones of its own.
       guard(() => {
         const crumbs = adapter.__getBreadcrumbBuffer?.()?.takeFrozen();
         if (crumbs && crumbs.length > 0) {
@@ -202,6 +204,28 @@ export function createQuickCapture(deps: QuickCaptureDeps): QuickCapture {
         const bodies = adapter.__getNetworkBodiesBuffer?.()?.takeFrozen();
         if (bodies && bodies.length > 0) bundle.networkBodies = bodies;
       });
+      let capture: Awaited<ReturnType<NonNullable<typeof lifecycle>['complete']>> = null;
+      try {
+        capture = lifecycle ? await lifecycle.complete() : null;
+      } catch {
+        // A failed export leaves the lifecycle FROZEN, which would shut out
+        // every later gesture (and the reporter): unwind the freeze and file
+        // the capture without a replay.
+        guard(() => lifecycle?.cancel());
+        capture = null;
+      }
+      // A reporter that opened during the export found the replay still
+      // frozen (its freeze() was a no-op) and complete() then resumed the
+      // buffer: freeze it again so the reporter holds a frozen window.
+      if (reporterOpened()) guard(() => lifecycle?.freeze());
+      try {
+        if (capture && capture.bytes.byteLength > 0) {
+          bundle.replaySha256 = await sha256HexOfBytes(capture.bytes);
+          bundle.replayCapture = capture;
+        }
+      } catch {
+        /* a replay failure never costs the capture */
+      }
       const capturedIdentityToken = await identity;
 
       // 8. Transport fence. A linked capture goes only under the token it was

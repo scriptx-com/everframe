@@ -220,6 +220,12 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
       // The adapter already refuses open() and hands out no hotkey; this
       // covers the inbox and any other direct caller.
       if (config.reporter?.disabled === true) return;
+      // A web-TV quick capture in flight hands its freeze to this open.
+      try {
+        adapter.__noteReporterOpening();
+      } catch {
+        /* swallow — DEFE-02 */
+      }
       try {
         adapter.__replayLifecycle?.freeze();
       } catch {
