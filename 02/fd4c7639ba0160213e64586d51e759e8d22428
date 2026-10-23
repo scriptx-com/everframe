@@ -1,0 +1,67 @@
+packages/sdk-react-native/__tests__/companion-stub.spec.ts
+  s_f1c043e85606b2::t_01674a8b427689 3,5-22,24-84,87-95
+packages/sdk-react-native/__tests__/extra-resolver.spec.ts
+  s_f1c043e85606b2::t_a01b57b0ad973a 7,14,21-23,35
+packages/sdk-react-native/__tests__/install-id-inheritance.spec.ts
+  s_f1c043e85606b2::t_ae76e1f1c6c634 17
+packages/sdk-react-native/__tests__/integrations-react-native-video.spec.tsx
+  s_f1c043e85606b2::t_6010cb9fbfa933 20
+packages/sdk-react-native/__tests__/integrations-theoplayer.spec.tsx
+  s_f1c043e85606b2::t_10c26be03c15b5 20-21
+packages/sdk-react-native/__tests__/rbridge-no-surface.test.ts
+  s_f1c043e85606b2::t_31c499327e5c34 75,99,149-150,162,166
+packages/sdk-react-native/__tests__/release-health-bridge-wiring.spec.ts
+  s_f1c043e85606b2::t_8142bcb92a3836 28
+packages/sdk-react-native/__tests__/spec-shape.test.ts
+  s_f1c043e85606b2::t_f7e3f27447a295 6
+packages/sdk-react-native/__tests__/theme-config.spec.ts
+  s_f1c043e85606b2::t_32bcb5f5436ab1 8
+packages/sdk-react-native/__tests__/theme-config.types.ts
+  s_f1c043e85606b2::t_d5828e862ddc5e 4
+packages/sdk-react-native/android/build.gradle.kts
+  s_f1c043e85606b2::t_7efb3e9b88494d 11,83-84,86,91,101,127,190-193
+packages/sdk-react-native/android/src/main/java/dev/everframe/rn/EverframeModule.kt
+  s_f1c043e85606b2::t_7d931af06d8f44 141-142,160-161,306,310,357,465,746,782,798,819-821,875-876
+packages/sdk-react-native/android/src/test/java/dev/everframe/rn/EverframeModuleVitalsTest.kt
+  s_f1c043e85606b2::t_f658844fe8a147 25
+packages/sdk-react-native/ios/Sources/EverframeBridge.swift
+  s_f1c043e85606b2::t_ed3ea7b14c6e83 12-14,134,136,144-146,176-177,192,281-282,293,307,319
+packages/sdk-react-native/ios/Sources/EverframeEventEmitter.swift
+  s_f1c043e85606b2::t_d8e41c3229a9d1 4-5,27-28,30-31,39-40,79
+packages/sdk-react-native/ios/Sources/EverframeModule.mm
+  s_f1c043e85606b2::t_d22584d62d9af7 368,541
+packages/sdk-react-native/src/NativeEverframe.ts
+  s_f1c043e85606b2::t_99ac1181f31502 17,65-66,129,137,154,267,371,375
+packages/sdk-react-native/src/companion-deprecation.ts
+  s_f1c043e85606b2::t_07de2cb6f50888 4-5,7-9,11,13-22,24-32
+packages/sdk-react-native/src/companion.ts
+  s_f1c043e85606b2::t_2ebf39ba51f6de 4-8,10,13,20,22,25,27,30,34-36,39,42-44,47-49,52-54,57-59,62-64,67-69,72,74,76,79-88,90,92,103
+packages/sdk-react-native/src/contextSeam.ts
+  s_f1c043e85606b2::t_d95e6ae81d33bc 79
+packages/sdk-react-native/src/events.ts
+  s_f1c043e85606b2::t_7238744d0ee8a6 4-5,48
+packages/sdk-react-native/src/index.ts
+  s_f1c043e85606b2::t_3225153d962c60 27,75
+packages/sdk-react-native/src/reporter/types.ts
+  s_f1c043e85606b2::t_f504aad8b8ae56 43
+packages/sdk-react-native/src/runtime.ts
+  s_f1c043e85606b2::t_19fa16eb43b200 71-76,84-115,199-201,205-213,248,260-261,307,311,315-316,813-814,827
+packages/sdk-react-native/vitest.setup.ts
+  s_f1c043e85606b2::t_7f281ef698c656 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "02fd4c7639ba0160213e64586d51e759e8d22428",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
