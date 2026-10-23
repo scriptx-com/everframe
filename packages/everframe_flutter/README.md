@@ -168,7 +168,9 @@ the build is a debug build:
   `Linking to Everframe · 47` with the line
   `A teammate is linking a device. If that's not you, ignore this.` Click the
   same number on the dashboard; the phone shows `Linked to <your name>`.
-  Nothing links on its own: a teammate always picks the number.
+  Nothing links on its own: a teammate always picks the number. On iOS, if the
+  Keychain refuses to store the link, the phone shows `Linking failed` instead
+  and stays unlinked.
 - **Team devices.** An admin can pick **Link as team device** instead. The
   phone shows `Linked as team device`, and its captures go to the shared inbox.
 - **Hand a phone over.** When another teammate opens **Link a device** and a
@@ -198,8 +200,9 @@ the build is a debug build:
   linked it, and never logged.
 - **Android.** One long shake can fire the detector more than once, so a shake
   within 2 seconds of a capture is ignored. The Android behavior arrives with
-  the native Android SDK release that includes it. Apple TV and Android TV are
-  unchanged.
+  the native Android SDK release that includes it. Apple TV is unchanged;
+  Android TV follows the native Android SDK's remote-gesture rules (its README's
+  "Quick capture on Android TV" section).
 
 ## Flutter web
 
