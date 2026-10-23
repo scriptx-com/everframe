@@ -1,0 +1,50 @@
+packages/sdk-web/src/quickcapture/quick-capture-runtime.ts
+  s_f1c043e85606b2::t_0c7cef335125d3 1-159
+packages/sdk-web/src/quickcapture/install.ts
+  s_f1c043e85606b2::t_398d4431d59b09 1-133
+  s_f1c043e85606b2::t_f2e10397c9783d 134
+packages/sdk-react/__tests__/provider-quick-capture.spec.tsx
+  s_f1c043e85606b2::t_f155ff050b7408 1-103
+packages/sdk-web/__tests__/quickcapture/adapter-device-link.spec.ts
+  s_f1c043e85606b2::t_924629b14884e7 1-263
+  s_f1c043e85606b2::t_83a6e3c02cdda7 264-273
+packages/sdk-web/__tests__/quickcapture/install.spec.ts
+  s_f1c043e85606b2::t_45316f2cf8f067 1-296
+  s_f1c043e85606b2::t_90bbf5a624d299 297-315
+.changeset/web-tv-device-linking.md
+  s_f1c043e85606b2::t_afd9d20ad1d551 1-9
+packages/sdk-react/src/provider.tsx
+  s_f1c043e85606b2::t_39301ebb18bbdb 33,339-355,642,846
+packages/sdk-web/.size-limit.json
+  s_f1c043e85606b2::t_52dffc44c862a5 14-15,30-31
+packages/sdk-web/__tests__/devicelink/tv-platform.spec.ts
+  s_f1c043e85606b2::t_ff308fc310b7c1 4-5
+packages/sdk-web/src/adapter.ts
+  s_f1c043e85606b2::t_87aea565924830 95,98-102,509-534,615-652,887-922,1157-1162,1165-1176,1211-1213,1240-1242,1359-1385,1953,2563-2595,2620-2630
+packages/sdk-web/src/devicelink/tv-platform.ts
+  s_f1c043e85606b2::t_b99966250adf67 4-7,12
+packages/sdk-web/src/index.ts
+  s_f1c043e85606b2::t_9363869c26779e 183-190
+packages/sdk-web/src/init.ts
+  s_f1c043e85606b2::t_9583661fbd2361 32,132-133,386-398,497,504,1090-1091,1139
+packages/sdk-web/src/quickcapture/device-link.ts
+  s_f1c043e85606b2::t_d8626b729fbb27 55
+packages/sdk-web/src/quickcapture/hello-device.ts
+  s_f1c043e85606b2::t_dab05f9fc1eadc 1-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bb52a6c8948fd10e4856f4c1f2435c4da9126eb3",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
