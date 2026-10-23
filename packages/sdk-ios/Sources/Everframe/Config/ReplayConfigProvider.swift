@@ -678,9 +678,12 @@ extension ReplayConfigProvider {
     /// Capability tokens sent as `X-Everframe-SDK-Features`. The server returns a
     /// config block ONLY for capabilities the caller declares
     /// (the server configuration contract) — so adding a block here is a
-    /// prerequisite for receiving it, not a formality.
+    /// prerequisite for receiving it, not a formality. `capturetextguard` tells
+    /// the server quick capture stands aside while a text input is first
+    /// responder, so it may send a plain-key or Shift+key `captureHotkey.binding`;
+    /// callers without it get `Shift Shift`.
     public static let sdkFeaturesHeaderValue =
-        "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey"
+        "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard"
 
     /// Test seam: decode a raw `/api/config` body exactly as `refresh()` does.
     static func __decodeForTesting(_ data: Data) throws -> ReplayConfig {
