@@ -44,6 +44,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 internal object DeviceLink {
     // ---- Test seams ----
@@ -309,8 +310,12 @@ internal object DeviceLink {
             val startedAt = now()
             while (now() - startedAt < checkWindowMs) {
                 delay(checkIntervalMs)
+                // Each check gets only what is left of the attempt's window: a call still out at the deadline
+                // is cancelled, so the banner and the in-flight claim clear on time.
+                val remaining = checkWindowMs - (now() - startedAt)
+                if (remaining <= 0) return
                 val result = try {
-                    api.check(attemptId, nonce)
+                    withTimeoutOrNull(remaining) { api.check(attemptId, nonce) } ?: return
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Throwable) {

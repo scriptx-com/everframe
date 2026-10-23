@@ -168,6 +168,21 @@ class QuickCaptureRealDeviceTest {
     }
 
     @Test
+    fun aLinkedReleaseCaptureUnlinkedMidwayNeverFilesShared() {
+        // The config unlinks the device after the gate admitted the capture and before attribution resolves.
+        val unlinking = Robolectric.buildActivity(UnlinkingActivity::class.java).setup().get()
+        unlinking.onFirstAppContext = { DeviceLink.__setCurrentForTesting(null) }
+        Everframe.__activitySupplier = { unlinking }
+        link()
+        arm(debug = false)
+        val outcome = capture()
+        assertTrue("an unlinked release capture reached the shared inbox", submits.none { it.captureToken == null })
+        // Eligibility and attribution come from one link snapshot: the admitted capture files under that link.
+        assertEquals(QuickCaptureOutcome.Sent, outcome)
+        assertTrue(submits.single().captureToken == token && submits.single().deviceLink != null)
+    }
+
+    @Test
     fun teamLinkToast() {
         link(DeviceLinkOwner.Team)
         arm(debug = false)
@@ -312,5 +327,15 @@ class QuickCaptureRealDeviceTest {
         }
         idleMain()
         return runBlocking { deferred.await() }
+    }
+
+    /** Runs [onFirstAppContext] the first time the capture asks for the application context, after the gate. */
+    class UnlinkingActivity : Activity() {
+        @Volatile var onFirstAppContext: (() -> Unit)? = null
+
+        override fun getApplicationContext(): android.content.Context {
+            onFirstAppContext?.let { onFirstAppContext = null; it() }
+            return super.getApplicationContext()
+        }
     }
 }

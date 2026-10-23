@@ -306,16 +306,23 @@ internal object QuickCapture {
 
     /**
      * A linked device files under its token with a fresh nonce; otherwise the emulator's adb token, if any.
-     * Null when the loaded link belongs to another scope than [capturedSession]'s ingest origin and SDK key (a
-     * restart whose link load has not landed yet, or one that replaced the session this capture belongs to):
-     * that token must never ride a capture filed under this session's key.
+     * [link] and [debugBuild] are the snapshot the capture's gate admitted, so eligibility and attribution never
+     * disagree. Null (the capture is refused) when [link] belongs to another scope than [capturedSession]'s
+     * ingest origin and SDK key (a restart whose link load has not landed yet, or one that replaced the session
+     * this capture belongs to), and for an unlinked release build, which may never file in the shared inbox.
      */
-    internal fun resolveAttribution(appContext: Context, capturedSession: TXCapturedSession): CaptureAttribution? {
-        DeviceLink.current?.let { link ->
+    internal fun resolveAttribution(
+        appContext: Context,
+        capturedSession: TXCapturedSession,
+        link: StoredDeviceLink?,
+        debugBuild: Boolean,
+    ): CaptureAttribution? {
+        if (link != null) {
             val sdkKey = capturedSession.config?.sdkKey ?: return null
             if (link.scope != DeviceLinkScope.of(IngestEndpoint.url, sdkKey)) return null
             return CaptureAttribution.Linked(link, LinkNonce.generate())
         }
+        if (!debugBuild) return null
         // Read fresh per capture, only for the origin that issued it; the composer posts to `IngestEndpoint.url`.
         return if (isEmulator()) CaptureAttribution.Shared(CaptureTokenReader.read(appContext, IngestEndpoint.url))
         else CaptureAttribution.Shared(null)
@@ -362,7 +369,13 @@ internal object QuickCapture {
         val activity = Everframe.__activitySupplier?.invoke()?.takeUnless { it.isFinishing || it.isDestroyed }
         // Read once: the gate and the pipeline must agree on the provider.
         val provider = evidenceProvider
-        ignoreReason(activity, provider != null)?.let { return QuickCaptureOutcome.Ignored(it) }
+        // One link snapshot decides both whether this device may capture and whom the capture is filed for: a
+        // config that unlinks the device meanwhile can't turn an admitted linked capture into a shared one.
+        val link = DeviceLink.current
+        val debugBuild = debug
+        ignoreReason(activity, provider != null, allowed = debugBuild || link != null)?.let {
+            return QuickCaptureOutcome.Ignored(it)
+        }
         if (!inFlight.compareAndSet(false, true)) return QuickCaptureOutcome.Ignored("in_flight")
         try {
             // The in-app reporter freezes before its dialog shows, and the companion never marks itself
@@ -376,7 +389,7 @@ internal object QuickCapture {
             val capturedSession = Everframe.captureSessionSnapshot()
             // Resolved once, against that session: the toast, the token and the nonce all describe the same
             // attribution. A link for another scope, or a restart since the snapshot, refuses the capture.
-            val attribution = resolveAttribution(appContext, capturedSession)
+            val attribution = resolveAttribution(appContext, capturedSession, link, debugBuild)
             if (attribution == null || !isCurrent(capturedSession)) {
                 toastText(QuickCaptureOutcome.Failed)?.let { toast(appContext, it) }
                 return QuickCaptureOutcome.Failed
@@ -399,8 +412,8 @@ internal object QuickCapture {
         }
     }
 
-    private fun ignoreReason(activity: Activity?, hasProvider: Boolean): String? = when {
-        !isAllowedOnThisDevice -> "not_allowed"
+    private fun ignoreReason(activity: Activity?, hasProvider: Boolean, allowed: Boolean): String? = when {
+        !allowed -> "not_allowed"
         !localEnabled -> "disabled"
         !remoteEnabled -> "remote_disabled"
         !Everframe.captureGate -> "kill_switch"

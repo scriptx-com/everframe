@@ -5,7 +5,10 @@
 //
 // Runs on `ReportSubmitter.buildIsolatedClient()`, which carries no
 // `EverframeInterceptor`, so this traffic never becomes host network
-// breadcrumbs. Bodies are never logged.
+// breadcrumbs. Bodies are never logged. Redirects are never followed: the
+// nonce rides the POST body, which a 307/308 would re-send to the new origin.
+// A call is cancelled with its coroutine, so the attempt loop can bound each
+// check by what is left of the attempt's window.
 //
 // SECURITY: never log the nonce or a minted token.
 
@@ -15,7 +18,9 @@ import android.content.Context
 import dev.everframe.Everframe
 import dev.everframe.capture.DeviceMetadata
 import dev.everframe.transport.ReportSubmitter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -24,12 +29,17 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.put
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import java.io.IOException
+import kotlin.coroutines.resumeWithException
 
 /** The `device` object of a hello. */
 internal data class HelloDevice(
@@ -92,8 +102,10 @@ internal interface DeviceLinkApi {
 internal class DeviceLinkClient(
     baseUrl: String,
     private val sdkKey: String,
-    private val client: OkHttpClient = ReportSubmitter.buildIsolatedClient(),
+    http: OkHttpClient = ReportSubmitter.buildIsolatedClient(),
 ) : DeviceLinkApi {
+    private val client: OkHttpClient = http.newBuilder().followRedirects(false).followSslRedirects(false).build()
+
     private val base: HttpUrl? = run {
         val trimmed = baseUrl.trim().trimEnd('/')
         val root = if (trimmed.endsWith(INGEST_SUFFIX)) trimmed.removeSuffix(INGEST_SUFFIX) else trimmed
@@ -131,6 +143,8 @@ internal class DeviceLinkClient(
                     else -> HelloResult.Stop
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Throwable) {
             HelloResult.Stop
         }
@@ -160,6 +174,8 @@ internal class DeviceLinkClient(
                     }
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Throwable) {
             // IOException (network) or anything unexpected: try again on the next tick, bounded by the window.
             CheckResult.Retry
@@ -179,14 +195,27 @@ internal class DeviceLinkClient(
         return CheckResult.Linked(token!!, parsed)
     }
 
-    private fun post(url: HttpUrl, body: JsonObject) = client.newCall(
-        Request.Builder()
-            .url(url)
-            .post(body.toString().toRequestBody(JSON))
-            .header("Authorization", "Bearer $sdkKey")
-            .header("Accept", "application/json")
-            .build(),
-    ).execute()
+    /** Cancelling the caller cancels the HTTP call, so a deadline ends a hung request at once. */
+    private suspend fun post(url: HttpUrl, body: JsonObject): Response = suspendCancellableCoroutine { cont ->
+        val call = client.newCall(
+            Request.Builder()
+                .url(url)
+                .post(body.toString().toRequestBody(JSON))
+                .header("Authorization", "Bearer $sdkKey")
+                .header("Accept", "application/json")
+                .build(),
+        )
+        cont.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                cont.resumeWithException(e)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                cont.resume(response) { _ -> response.close() }
+            }
+        })
+    }
 
     private fun parseObject(text: String): JsonObject? =
         runCatching { Json.parseToJsonElement(text) as? JsonObject }.getOrNull()

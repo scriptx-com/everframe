@@ -190,6 +190,37 @@ class DeviceLinkClientTest {
         assertFalse(linked.toString().contains(token))
         assertTrue(linked.toString().contains("<redacted>"))
     }
+
+    @Test
+    fun aRedirectNeverCarriesTheNonceElsewhere() = runBlocking {
+        val other = MockWebServer().apply { start() }
+        try {
+            // A 307 would re-send the POST body, nonce included, to the new origin.
+            server.enqueue(MockResponse().setResponseCode(307).setHeader("Location", other.url("/api/device-link/hello").toString()))
+            other.enqueue(json("{\"status\":\"none\"}"))
+            assertEquals(HelloResult.Stop, client.hello(nonce, device))
+            server.enqueue(MockResponse().setResponseCode(307).setHeader("Location", other.url("/x").toString()))
+            other.enqueue(json("{\"status\":\"pending\"}"))
+            assertEquals(CheckResult.Expired, client.check(uuid, nonce))
+            assertEquals("a redirect target received the link request", 0, other.requestCount)
+        } finally {
+            other.shutdown()
+        }
+    }
+
+    @Test
+    fun aCancelledCheckAbandonsTheCallAtOnce() = runBlocking {
+        server.enqueue(json("{\"status\":\"pending\"}").setHeadersDelay(5, TimeUnit.SECONDS))
+        val slow = DeviceLinkClient(
+            server.url("/api/ingest/").toString(), "sdk-key-1",
+            OkHttpClient.Builder().readTimeout(30, TimeUnit.SECONDS).build(),
+        )
+        val started = System.nanoTime()
+        val result = kotlinx.coroutines.withTimeoutOrNull(200) { slow.check(uuid, nonce) }
+        val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
+        assertNull(result)
+        assertTrue("the check ran ${elapsedMs}ms past its 200ms deadline", elapsedMs < 2_000)
+    }
 }
 
 private object PlainTestClient {

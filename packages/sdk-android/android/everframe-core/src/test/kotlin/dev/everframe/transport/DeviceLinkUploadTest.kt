@@ -68,6 +68,7 @@ class DeviceLinkUploadTest {
     private var linkLoaded = true
     private val ingestResponses = LinkedBlockingQueue<MockResponse>()
     private val ingestSeen = AtomicInteger()
+    @Volatile private var onIngest: (() -> Unit)? = null
     private lateinit var http: OkHttpClient
 
     @Before
@@ -80,6 +81,7 @@ class DeviceLinkUploadTest {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 if (request.path?.startsWith("/api/config") == true) return MockResponse().setResponseCode(404)
                 ingestSeen.incrementAndGet()
+                onIngest?.invoke()
                 return ingestResponses.poll(5, TimeUnit.SECONDS) ?: MockResponse().setResponseCode(500)
             }
         }
@@ -351,6 +353,63 @@ class DeviceLinkUploadTest {
         assertEquals("A's capture is still delivered, with A's token", before + 1, ingestCount())
         assertTrue(takeIngest().getHeader("X-Everframe-Capture-Token") == token)
         assertTrue(entries().isEmpty())
+    }
+
+    /** A production-wired submitter and an active link for its scope, as after `start()`. */
+    private fun activeLink(): Pair<ReportSubmitter, dev.everframe.devicelink.DeviceLinkStore> {
+        val production = ReportSubmitter(
+            config = EverframeConfig(appId = "app-id", sdkKey = "test-sdk-key"),
+            outbox = outbox,
+            uploader = MultipartUploader(http),
+            endpointOverride = server.url("/api/ingest").toString(),
+        )
+        val linkStore = dev.everframe.devicelink.DeviceLinkStore(
+            File(tmp.newFolder("active-link"), "device-link-v1.bin"),
+            dev.everframe.devicelink.JceTestDeviceLinkKeyProvider(),
+        )
+        val scope = dev.everframe.devicelink.DeviceLinkScope.of(server.url("/api/ingest").toString(), "test-sdk-key")!!
+        assertTrue(linkStore.save(dev.everframe.devicelink.StoredDeviceLink(token, dev.everframe.devicelink.DeviceLinkOwner.Team, scope)))
+        val device = { dev.everframe.devicelink.HelloDevice(model = "m", osVersion = "15", appVersion = "1", sdk = "android/x", formFactor = "phone") }
+        dev.everframe.devicelink.DeviceLink.toaster = { linkToasts += it }
+        dev.everframe.devicelink.DeviceLink.onLinkChanged = {}
+        dev.everframe.devicelink.DeviceLink.refreshConfig = {}
+        dev.everframe.devicelink.DeviceLink.install(linkStore, dev.everframe.devicelink.DeviceLinkTest.FakeClient(), scope, device, { true })
+        ingestResponses.add(MockResponse().setResponseCode(503))
+        runBlocking { assertTrue(production.submit("{}".toByteArray(), "idem-active", emptyList(), captureToken = token, deviceLink = link()) is ReportResult.Queued) }
+        takeIngest()
+        return production to linkStore
+    }
+
+    private val linkToasts = CopyOnWriteArrayList<String>()
+
+    @Test
+    fun aDrainRefusalForTheActiveTokenUnlinksTheDevice() {
+        val (production, linkStore) = activeLink()
+        val scope = dev.everframe.devicelink.DeviceLink.current!!.scope
+        ingestResponses.add(MockResponse().setResponseCode(403).setBody("""{"error":"device_unlinked"}"""))
+        runBlocking { production.drainOutbox(IdentityTokenHolder(), { ReplayConfig.OFF }, 0, { 0 }) }
+        assertTrue(entries().isEmpty())
+        assertNull("the revoked link is forgotten", dev.everframe.devicelink.DeviceLink.current)
+        assertNull(linkStore.load(scope))
+        assertEquals(listOf(dev.everframe.devicelink.DeviceLinkCopy.UNLINKED), linkToasts.toList())
+    }
+
+    @Test
+    fun aDrainRefusalNeverForgetsATakeoverToken() {
+        val (production, linkStore) = activeLink()
+        val scope = dev.everframe.devicelink.DeviceLink.current!!.scope
+        val taken = dev.everframe.devicelink.StoredDeviceLink(otherToken, dev.everframe.devicelink.DeviceLinkOwner.User("Bob"), scope)
+        // The takeover finishes while the drained upload is out.
+        onIngest = {
+            assertTrue(linkStore.save(taken))
+            dev.everframe.devicelink.DeviceLink.__setCurrentForTesting(taken)
+        }
+        ingestResponses.add(MockResponse().setResponseCode(403).setBody("""{"error":"device_unlinked"}"""))
+        runBlocking { production.drainOutbox(IdentityTokenHolder(), { ReplayConfig.OFF }, 0, { 0 }) }
+        assertTrue(entries().isEmpty())
+        assertTrue(dev.everframe.devicelink.DeviceLink.current?.token == otherToken)
+        assertTrue(linkStore.load(scope)?.token == otherToken)
+        assertTrue(linkToasts.isEmpty())
     }
 
     @Test

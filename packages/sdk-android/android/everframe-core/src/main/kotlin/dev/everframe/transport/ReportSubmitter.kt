@@ -91,11 +91,20 @@ class ReportSubmitter(
     /** False until this session's stored link has loaded; a fingerprinted entry then waits for a later drain. */
     internal var deviceLinkLoaded: () -> Boolean = { dev.everframe.devicelink.DeviceLink.isLoaded }
 
+    /**
+     * A drained capture was refused as `device_unlinked` for this token. Forgets the link only while this is
+     * the active token. SECURITY: never log.
+     */
+    internal var onDeviceUnlinked: (token: String) -> Unit = { token ->
+        dev.everframe.devicelink.DeviceLink.forget(onlyIfToken = token)
+    }
+
     internal fun observing(owner: ReportDiagnostics.Handle?): ReportSubmitter =
         ReportSubmitter(config, outbox, uploader, endpointOverride).also {
             it.diagnostics = owner
             it.deviceLinkTokenLookup = deviceLinkTokenLookup
             it.deviceLinkLoaded = deviceLinkLoaded
+            it.onDeviceUnlinked = onDeviceUnlinked
         }
 
     /** Internal cross-module SDK wiring; independent customer submitters remain unobserved. */
@@ -535,8 +544,11 @@ class ReportSubmitter(
                     // SECURITY: never log. No link nonce on a retry: takeover rides live uploads only.
                     captureToken = linkedToken,
                 ) }
-                // The token was revoked: the server stored nothing and never will for this token.
+                // The token was revoked: the server stored nothing and never will for this token. When it is
+                // the device's active token, unlink as a live refusal does (`This device was unlinked`); a
+                // takeover's newer token, or a link stored for another scope, is kept.
                 if (linkedToken != null && IngestLinkResponse.isDeviceUnlinked(r.statusCode, r.responseBodyPreview)) {
+                    runCatching { onDeviceUnlinked(linkedToken) }
                     return@drainOwned true
                 }
                 // 2xx → drop from outbox. Anything else (transient or terminal)
@@ -692,6 +704,8 @@ internal object IdentityHeaderRedirectGuard : Interceptor {
                 .removeHeader(IDENTITY_TOKEN_HEADER)
                 // SECURITY: the quick-capture token is a bearer credential too.
                 .removeHeader(MultipartUploader.CAPTURE_TOKEN_HEADER)
+                // SECURITY: and the link nonce proves this device's side of a takeover.
+                .removeHeader(MultipartUploader.LINK_NONCE_HEADER)
                 .build()
         }
         return chain.proceed(request)

@@ -201,8 +201,9 @@ class DeviceLinkTest {
         advanceTimeBy(60_000); runCurrent()
         assertNull(bannerNumber)
         assertFalse(DeviceLink.attemptInFlight)
-        assertEquals(50, client.checks.size)
-        assertTrue(client.checkTimes.last() <= 150_000L)
+        // Every 3 s inside the window; none at the 150 s deadline itself, with no time left to answer.
+        assertEquals(49, client.checks.size)
+        assertTrue(client.checkTimes.last() < 150_000L)
         assertTrue(toasts.isEmpty())
     }
 
@@ -391,6 +392,22 @@ class DeviceLinkTest {
         assertFalse(toasts.contains(DeviceLinkCopy.UNLINKED))
     }
 
+    @Test
+    fun aHangingCheckEndsTheAttemptAtItsDeadline() = runTest {
+        install()
+        client.hangChecks = true
+        DeviceLink.beginAttempt(uuid, 47, "n".repeat(40))
+        runCurrent()
+        assertEquals(47, bannerNumber)
+        advanceTimeBy(3_000); runCurrent()
+        assertEquals("the first check is out", 1, client.checks.size)
+        advanceTimeBy(146_990); runCurrent()
+        assertTrue("still within the 150 s window", DeviceLink.attemptInFlight)
+        advanceTimeBy(20); runCurrent()
+        assertFalse("the attempt outlived its 150 s window", DeviceLink.attemptInFlight)
+        assertNull(bannerNumber)
+    }
+
     internal class FakeClient : DeviceLinkApi {
         var helloResult: HelloResult = HelloResult.None
         val hellos = mutableListOf<String>()
@@ -398,6 +415,8 @@ class DeviceLinkTest {
         val checkTimes = mutableListOf<Long>()
         val checkResults = ArrayDeque<CheckResult>()
         var defaultCheck: () -> CheckResult = { CheckResult.Pending }
+        /** When set, a check suspends until cancelled, like a request the server never answers. */
+        var hangChecks = false
 
         override suspend fun hello(nonce: String, device: HelloDevice): HelloResult {
             hellos += nonce
@@ -407,6 +426,7 @@ class DeviceLinkTest {
         override suspend fun check(attemptId: String, nonce: String): CheckResult {
             checks += attemptId to nonce
             checkTimes += DeviceLink.now()
+            if (hangChecks) kotlinx.coroutines.awaitCancellation()
             return checkResults.removeFirstOrNull() ?: defaultCheck()
         }
     }
