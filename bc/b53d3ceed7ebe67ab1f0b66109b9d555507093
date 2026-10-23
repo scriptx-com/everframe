@@ -1,0 +1,111 @@
+packages/protocol/__tests__/generated-identity.spec.ts
+  s_f1c043e85606b2::t_36f1fb9f2b5724 16
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbAdapters.swift
+  s_f1c043e85606b2::t_4b84f5b8e39c1a 150-151
+packages/sdk-ios/Sources/Everframe/Capture/NetworkBodyCaptureGate.swift
+  s_f1c043e85606b2::t_a53bb558301525 18-19,97-98,101
+packages/sdk-ios/Sources/Everframe/Capture/ReplaySession.swift
+  s_f1c043e85606b2::t_63b447eb538474 219,364,380-381,499-503,507,515,522,528
+packages/sdk-ios/Sources/Everframe/Capture/ScreenshotCapture.swift
+  s_f1c043e85606b2::t_673deb5b36da65 41-42,148-149,152,168-169,174,176,181-184,188
+packages/sdk-ios/Sources/Everframe/Capture/Video/NativeVideoSession.swift
+  s_f1c043e85606b2::t_48459268f2bb1a 49,80,148,154-155
+packages/sdk-ios/Sources/Everframe/Companion/CompanionAPI.swift
+  s_f1c043e85606b2::t_087f8017ba5101 4-7,11-13,25,31-32,34-45,49-50
+packages/sdk-ios/Sources/Everframe/Companion/CompanionCaptureBridge.swift
+  s_f1c043e85606b2::t_ee1d06f39c43f8 4-6,9-10,12
+packages/sdk-ios/Sources/Everframe/Companion/CompanionDeprecation.swift
+  s_f1c043e85606b2::t_700a02917dea99 4-7,9,11-36
+packages/sdk-ios/Sources/Everframe/Companion/CompanionState.swift
+  s_f1c043e85606b2::t_939da1763a2c5c 4-7,10-11,19,21,25,29,33,37,41,44-71
+packages/sdk-ios/Sources/Everframe/Companion/RelayWSClient.swift
+  s_f1c043e85606b2::t_e32c59440ddc57 4-7,10-11,18-25,27-31,33-35,37,39-43,55,57,60-61
+packages/sdk-ios/Sources/Everframe/Compression/Gzip.swift
+  s_f1c043e85606b2::t_bb6436659b9c42 4-7,16-17
+packages/sdk-ios/Sources/Everframe/Config/Branding.swift
+  s_f1c043e85606b2::t_b2834818771f6f 8,13,27,30
+packages/sdk-ios/Sources/Everframe/Config/EverframeConfig.swift
+  s_f1c043e85606b2::t_6b2b3e47ca9b7b 47-62,65-72,91,120,143-144,161-162,164,293
+packages/sdk-ios/Sources/Everframe/Config/ReplayConfigProvider.swift
+  s_f1c043e85606b2::t_52c296db1adceb 138,152,204-207,474-476,478,482-483,769-770,772
+packages/sdk-ios/Sources/Everframe/Crash/CrashReporter.swift
+  s_f1c043e85606b2::t_e7c1e915cd8e19 285
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_f1c043e85606b2::t_f8dfa7f7d07b4c 865-868,1075,1201-1204,1218,1440,1971-1972,1987,2210,2215,2458-2460,2572-2573,2578,2602
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCapture.swift
+  s_f1c043e85606b2::t_43aa038ab780d5 547
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCaptureToast.swift
+  s_f1c043e85606b2::t_9eb3269e6f426f 7
+packages/sdk-ios/Sources/Everframe/Reporter/ReporterSubmission.swift
+  s_f1c043e85606b2::t_8a6a3d4ffa1789 5-7,38-40,49,96-97,123,134,328-329,400-401,426,530
+packages/sdk-ios/Sources/Everframe/Transport/MultipartUploader.swift
+  s_f1c043e85606b2::t_153f08c35117de 52,95,102,107
+packages/sdk-ios/Sources/Everframe/Transport/ReportSubmitter.swift
+  s_f1c043e85606b2::t_19657dc091be1f 115-116,149,176,183,742-743
+packages/sdk-ios/Sources/EverframeReporterUI/CompanionPinPresenter.swift
+  s_f1c043e85606b2::t_5045aa3eebbed5 4-6,11,13-14
+packages/sdk-ios/Sources/EverframeReporterUI/EFReporterPresenter.swift
+  s_f1c043e85606b2::t_5179783a08cf3f 22-23,243,249
+packages/sdk-ios/Sources/EverframeReporterUI/ReporterViewController.swift
+  s_f1c043e85606b2::t_e1ba83c027edb4 955,1090-1091
+packages/sdk-ios/Tests/EverframeTests/CompanionStubTests.swift
+  s_f1c043e85606b2::t_7a2815ad95cf8b 3-7,9,12-27,29-41,44-76,78-96
+packages/sdk-ios/Tests/EverframeTests/CrashOnlyReplayTests.swift
+  s_f1c043e85606b2::t_ce268441fdcdac 8
+packages/sdk-ios/Tests/EverframeTests/EnvelopeUserTests.swift
+  s_f1c043e85606b2::t_aa22f2f6dd7efc 25-26,28,271-274,1528,1628-1629,1631-1634
+packages/sdk-ios/Tests/EverframeTests/ExtraResolverHookTests.swift
+  s_f1c043e85606b2::t_6afc9da510e417 18,140
+packages/sdk-ios/Tests/EverframeTests/IdentityHeaderRedirectTests.swift
+  s_f1c043e85606b2::t_8b5e52922cf57d 12-13
+packages/sdk-ios/Tests/EverframeTests/IdentityProviderWarmTests.swift
+  s_f1c043e85606b2::t_61c149f7d25713 303-304,360-361,438,620,622-624,626-627
+packages/sdk-ios/Tests/EverframeTests/KillTeardownTests.swift
+  s_f1c043e85606b2::t_ed2b71cc34a495 77-82
+packages/sdk-ios/Tests/EverframeTests/NativeVideoSessionTests.swift
+  s_f1c043e85606b2::t_8174d49420cf6f 240,246,257-258
+packages/sdk-ios/Tests/EverframeTests/NetworkBodyCaptureGateTests.swift
+  s_f1c043e85606b2::t_446800f971a83f 125-126,134,139
+packages/sdk-ios/Tests/EverframeTests/PressCrumbTests.swift
+  s_f1c043e85606b2::t_7d243ec494473a 20
+packages/sdk-ios/Tests/EverframeTests/QuickCaptureTests.swift
+  s_f1c043e85606b2::t_c16454cfe879c4 749
+packages/sdk-ios/Tests/EverframeTests/RecordingHTTPServer.swift
+  s_f1c043e85606b2::t_399b7a89b303b6 5-6
+packages/sdk-ios/Tests/EverframeTests/ReplayConfigProviderTests.swift
+  s_f1c043e85606b2::t_3486d9841a391c 135,331,333-334,377-378,697,704
+packages/sdk-ios/Tests/EverframeTests/ReporterSubmitKeyBindingTests.swift
+  s_f1c043e85606b2::t_7e5f8c4c1cfb7a 4
+packages/sdk-ios/Tests/EverframeTests/ResourceSamplerLifecycleTests.swift
+  s_f1c043e85606b2::t_5b410cbdcc826a 16-17,37
+packages/sdk-ios/Tests/EverframeTests/StartEpochApplyRaceTests.swift
+  s_f1c043e85606b2::t_146423642f47c0 218,221,232,269,281-282,294,309-311,314
+packages/sdk-ios/Tests/EverframeTests/VitalsConfigNegotiationTests.swift
+  s_f1c043e85606b2::t_4a4c2a836520d7 36
+packages/sdk-ios/Tests/NativeCrashStartupProof/App.swift
+  s_f1c043e85606b2::t_f99bc3125b7385 33
+packages/sdk-ios/Tests/ReleaseHealthProof/App.swift
+  s_f1c043e85606b2::t_093fccf16fceae 37
+packages/sdk-ios/project.yml
+  s_f1c043e85606b2::t_11fe075912e87b 43-45,47,112
+packages/sdk-ios/scripts/build-xcframework.sh
+  s_f1c043e85606b2::t_13f5c44b36b4ab 131,171
+packages/sdk-ios/scripts/verify-slice-parity.sh
+  s_f1c043e85606b2::t_507cb7530e216a 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bcb53d3ceed7ebe67ab1f0b66109b9d555507093",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
