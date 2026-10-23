@@ -173,11 +173,20 @@ export function createQuickCapture(deps: QuickCaptureDeps): QuickCapture {
       const reason = shot === null ? DEGRADED_REASONS.screenshot_failed : shot.degradedReason;
       if (reason !== undefined) bundle.degradedReason = reason;
       frozen = false;
+      let capture: Awaited<ReturnType<NonNullable<typeof lifecycle>['complete']>> = null;
       try {
-        const capture = lifecycle ? await lifecycle.complete() : null;
+        capture = lifecycle ? await lifecycle.complete() : null;
+      } catch {
+        // A failed export leaves the lifecycle FROZEN, which would shut out
+        // every later gesture (and the reporter): unwind the freeze and file
+        // the capture without a replay.
+        guard(() => lifecycle?.cancel());
+        capture = null;
+      }
+      try {
         if (capture && capture.bytes.byteLength > 0) {
-          bundle.replayCapture = capture;
           bundle.replaySha256 = await sha256HexOfBytes(capture.bytes);
+          bundle.replayCapture = capture;
         }
       } catch {
         /* a replay failure never costs the capture */
@@ -224,11 +233,21 @@ export function createQuickCapture(deps: QuickCaptureDeps): QuickCapture {
         user,
         quickCapture: true,
         ...(deviceLink ? { deviceLink } : {}),
+        // Checked before every request and before queueing.
+        isOwned: () => deps.isCurrent() && !isKilled(),
       });
+
+      // Killed or torn down during the upload: nothing was sent after that,
+      // nothing was queued, and nothing more is shown.
+      if (outcome.abandoned) return 'failed';
 
       if (outcome.ok) {
         const lp = outcome.linkPending;
-        if (lp && deviceLink?.nonce && deps.isCurrent()) {
+        // A takeover reply belongs to the link the upload carried: dropped if
+        // the runtime went away or the link changed (another takeover, a
+        // forget) while the upload was in flight.
+        const sameLink = snap !== null && link.snapshot()?.token === snap.token;
+        if (lp && deviceLink?.nonce && sameLink && deps.isCurrent() && !isKilled()) {
           deps.beginAttempt(lp.attemptId, lp.number, deviceLink.nonce);
         }
         return 'submitted';

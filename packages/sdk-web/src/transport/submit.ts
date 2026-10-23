@@ -24,6 +24,7 @@ import { INGEST_URL } from '../constants.js';
 import type { HostSdkName } from '../internal/sdk-identity.js';
 import { draftToEnvelope, type CaptureBundle } from './draft-to-envelope.js';
 import { unpatchedFetch } from '../capture/network.js';
+import { globalScope } from '../internal/global-scope.js';
 import {
   FINGERPRINT_METADATA_KEY,
   isDeviceUnlinked,
@@ -215,6 +216,8 @@ export interface SubmitOutcome {
   deviceUnlinked?: boolean;
   /** A linked capture that failed transiently but had no fingerprint to queue under. */
   notQueued?: boolean;
+  /** `isOwned()` went false: nothing more was sent and nothing was queued. */
+  abandoned?: boolean;
 }
 
 /**
@@ -319,6 +322,13 @@ export async function submitReportFromDraft(opts: {
    * under the token's fingerprint only, never the token or the nonce.
    */
   deviceLink?: QuickCaptureUploadLink;
+  /**
+   * Whether the caller still owns this submit (not killed, not torn down).
+   * Read before EVERY request, retries included, and before queueing: once
+   * false, nothing more goes on the wire and nothing is queued. Absent means
+   * always owned.
+   */
+  isOwned?: () => boolean;
 }): Promise<SubmitOutcome> {
   const { envelope, attachments } = draftToEnvelope(
     opts.draft,
@@ -448,6 +458,35 @@ export async function submitReportFromDraft(opts: {
     );
   }
 
+  // The ownership gate wraps everything else (including the device-link
+  // wrapper), so a released submit never puts a token or a byte on the wire.
+  // A synthetic 499 is non-retryable, which ends sdk-core's retry loop.
+  const isOwned = opts.isOwned;
+  const owned = (): boolean => {
+    if (!isOwned) return true;
+    try {
+      return isOwned() === true;
+    } catch {
+      return false;
+    }
+  };
+  const abandoned = (): SubmitOutcome => ({
+    ok: false,
+    retryable: false,
+    reportId,
+    threadId: null,
+    abandoned: true,
+  });
+  if (isOwned) {
+    const inner = submitFetch;
+    submitFetch = async (input, init) => {
+      if (!owned()) return new Response(null, { status: 499 });
+      const f = inner ?? globalScope().fetch.bind(globalScope());
+      return f(input, init);
+    };
+  }
+  if (!owned()) return abandoned();
+
   let result: SubmitResult;
   try {
     result = await submitReport(url, sdkKey, body, {
@@ -512,6 +551,9 @@ export async function submitReportFromDraft(opts: {
 
   // sdk-core's reason taxonomy → retryable boolean
   const retryable = result.reason === 'transient-exhausted';
+
+  // Released while the request or its retries were in flight: queue nothing.
+  if (!owned()) return abandoned();
 
   const failedReply = linkReply as { status: number; body: unknown } | null;
   if (opts.deviceLink && failedReply && isDeviceUnlinked(failedReply.status, failedReply.body)) {

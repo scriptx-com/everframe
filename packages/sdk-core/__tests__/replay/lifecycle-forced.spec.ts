@@ -158,7 +158,7 @@ describe('forced replay for armed quick capture', () => {
     expect(lc.state).toBe('IDLE');
   });
 
-  it('reevaluate leaves a FROZEN capture alone, and applies after complete()', async () => {
+  it('reevaluate leaves a FROZEN capture alone, and applies when complete() resumes', async () => {
     const adapter = makeAdapter();
     let forced = true;
     const lc = createReplayLifecycle({
@@ -174,10 +174,70 @@ describe('forced replay for armed quick capture', () => {
     expect(lc.state).toBe('FROZEN');
     expect(adapter.count('discardAndResume')).toBe(0);
     await lc.complete();
-    expect(lc.state).toBe('BUFFERING');
+    // The remembered reevaluation applies at the resume: no new buffer starts.
+    expect(lc.state).toBe('IDLE');
+    expect(adapter.count('takeFrozen')).toBe(1);
+    expect(adapter.count('start')).toBe(1);
+    expect(adapter.count('stop')).toBe(1);
+  });
+
+  it('a reevaluation remembered during FROZEN applies when cancel() resumes', () => {
+    const adapter = makeAdapter();
+    let forced = true;
+    const lc = createReplayLifecycle({
+      adapter,
+      getConfig: () => OFF,
+      locallyDisabled: false,
+      forced: () => forced,
+    });
+    lc.tryStart();
+    lc.freeze();
+    forced = false;
     lc.reevaluate();
+    lc.cancel();
     expect(lc.state).toBe('IDLE');
     expect(adapter.count('discardAndResume')).toBe(1);
+    expect(adapter.count('start')).toBe(1);
+    expect(adapter.count('stop')).toBe(1);
+  });
+
+  it('a remembered reevaluation keeps buffering when the normal gate now admits the session', async () => {
+    const adapter = makeAdapter();
+    let forced = true;
+    let config = OFF;
+    const lc = createReplayLifecycle({
+      adapter,
+      getConfig: () => config,
+      locallyDisabled: false,
+      forced: () => forced,
+      random: () => 0.5,
+    });
+    lc.tryStart();
+    lc.freeze();
+    forced = false;
+    lc.reevaluate();
+    config = ON;
+    await lc.complete();
+    expect(lc.state).toBe('BUFFERING');
+    expect(adapter.count('stop')).toBe(0);
+  });
+
+  it('forcing that comes back before the resume keeps the forced buffer', async () => {
+    const adapter = makeAdapter();
+    let forced = true;
+    const lc = createReplayLifecycle({
+      adapter,
+      getConfig: () => OFF,
+      locallyDisabled: false,
+      forced: () => forced,
+    });
+    lc.tryStart();
+    lc.freeze();
+    forced = false;
+    lc.reevaluate();
+    forced = true;
+    await lc.complete();
+    expect(lc.state).toBe('BUFFERING');
   });
 
   it('a forced buffer resumed by cancel() is still a forced one', () => {

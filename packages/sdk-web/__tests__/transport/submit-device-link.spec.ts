@@ -228,4 +228,62 @@ describe('quick-capture uploads with a device link', () => {
     const item = outbox.enqueue.mock.calls[0]![0] as OutboxItem;
     expect(item.metadata).toEqual({ url: 'http://localhost:8787/api/ingest', sdkKey: 'sdk-key-1' });
   });
+
+  it('a capture whose owner is gone during retry backoff sends no further request and queues nothing', async () => {
+    const outbox = fakeOutbox();
+    let owned = true;
+    const fetchSpy: FetchSpy = vi.fn(async () => {
+      owned = false; // kill() lands while the first attempt is in flight
+      return new Response('{}', { status: 503 });
+    });
+    const out = await submitReportFromDraft({
+      ...BASE,
+      retryScheduleMs: [0, 0, 0],
+      outbox,
+      fetch: fetchSpy as unknown as typeof fetch,
+      quickCapture: true,
+      deviceLink: { token: TOKEN, fingerprint: FP, nonce: NONCE },
+      isOwned: () => owned,
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+    expect(out).toMatchObject({ ok: false, retryable: false, abandoned: true });
+  });
+
+  it('a capture that is no longer owned before the first request sends nothing', async () => {
+    const outbox = fakeOutbox();
+    const fetchSpy = fetchReturning(200, {});
+    const out = await submitReportFromDraft({
+      ...BASE,
+      outbox,
+      fetch: fetchSpy as unknown as typeof fetch,
+      quickCapture: true,
+      isOwned: () => false,
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+    expect(out).toMatchObject({ ok: false, abandoned: true });
+  });
+
+  it('ownership lost after the last attempt still queues nothing', async () => {
+    const outbox = fakeOutbox();
+    let calls = 0;
+    let owned = true;
+    const fetchSpy: FetchSpy = vi.fn(async () => {
+      calls += 1;
+      if (calls === 2) owned = false;
+      return new Response('{}', { status: 503 });
+    });
+    const out = await submitReportFromDraft({
+      ...BASE,
+      retryScheduleMs: [0],
+      outbox,
+      fetch: fetchSpy as unknown as typeof fetch,
+      quickCapture: true,
+      isOwned: () => owned,
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+    expect(out.abandoned).toBe(true);
+  });
 });

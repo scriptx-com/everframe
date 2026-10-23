@@ -8,6 +8,7 @@ import { createDeviceLinkStore } from '../../src/devicelink/store.js';
 import { deviceLinkScope } from '../../src/devicelink/token.js';
 import { INGEST_URL } from '../../src/constants.js';
 import { installQuickCapture } from '../../src/quickcapture/install.js';
+import { init, type InternalHandle } from '../../src/init.js';
 
 const TIZEN =
   'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.5) AppleWebKit/537.36 (KHTML, like Gecko) 85.0.4183.93/6.5 TV Safari/537.36';
@@ -269,5 +270,47 @@ describe('adapter wiring for web-TV device linking', () => {
     expect(checks()).toBe(1);
     expect(await install.__onGestureForTesting()).toBeNull();
     install.dispose();
+  });
+
+  it('the capture gate sees a reporter opened by any path, with replay disabled', async () => {
+    stubFetch(() => json(BASE));
+    const adapter = makeAdapter();
+    const client = createClient(adapter);
+    client.init({ sdkKey: 'k' });
+    const state = __internalClientState.get(client)!;
+    adapter.__setBreadcrumbBuffer(() => state.breadcrumbs);
+    adapter.__setNetworkBodiesBuffer(() => state.networkBodies);
+    expect(adapter.__replayLifecycle?.state).toBe('IDLE');
+    expect(adapter.__isReporterOpen()).toBe(false);
+    // The dashboard hotkey and the inbox's "New report" call the host's open
+    // directly: it freezes the evidence and shows the dialog, never touching
+    // __openReporter.
+    state.breadcrumbs.freeze();
+    state.networkBodies.freeze();
+    expect(adapter.__isReporterOpen()).toBe(true);
+    // Until the reporter takes (or discards) what it froze.
+    state.breadcrumbs.takeFrozen();
+    expect(adapter.__isReporterOpen()).toBe(true);
+    state.networkBodies.takeFrozen();
+    expect(adapter.__isReporterOpen()).toBe(false);
+  });
+
+  it('showReporterUI() through init() marks the reporter open', async () => {
+    stubFetch(() => json(BASE));
+    const handle = init({ sdkKey: 'k', appVersion: '1.0.0' }) as InternalHandle;
+    handle.__setShowModal(() => undefined);
+    try {
+      expect(handle.__adapter.__isReporterOpen()).toBe(false);
+      void handle.__adapter.showReporterUI({
+        title: '',
+        description: '',
+        excludedArtifacts: [],
+        annotations: [],
+        redactions: [],
+      });
+      expect(handle.__adapter.__isReporterOpen()).toBe(true);
+    } finally {
+      handle.destroy();
+    }
   });
 });

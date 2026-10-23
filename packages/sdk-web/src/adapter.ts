@@ -530,7 +530,10 @@ export interface WebPlatformAdapter extends PlatformAdapter {
   __registerQuickCaptureTeardown(fn: (() => void) | null): void;
   /** What an outbox drain needs to resend fingerprinted quick captures; undefined off TVs. */
   __deviceLinkDrain(): DrainDeviceLinks | undefined;
-  /** True while an in-app reporter open is pending (its freeze belongs to it). */
+  /**
+   * True while the in-app reporter (or another capture flow) holds frozen
+   * evidence, or a public `open()` is pending. Quick capture never runs then.
+   */
   __isReporterOpen(): boolean;
 }
 
@@ -2592,7 +2595,26 @@ export function createWebPlatformAdapter(
       quickCaptureTeardown = fn;
     },
     __deviceLinkDrain: (): DrainDeviceLinks | undefined => deviceLinkDrain(),
-    __isReporterOpen: (): boolean => pendingOpenResolve !== undefined,
+    __isReporterOpen: (): boolean => {
+      if (pendingOpenResolve !== undefined) return true;
+      // Every reporter open path (open(), showReporterUI(), the dashboard
+      // hotkey, the inbox's "New report", the companion's report.request)
+      // freezes the breadcrumbs and network bodies before the dialog shows,
+      // and the reporter holds them until it takes or discards them. That
+      // hold, not the replay lifecycle (IDLE with replay off), is what a
+      // second capture must never consume.
+      try {
+        if (breadcrumbBufferGet?.()?.isFrozen?.() === true) return true;
+      } catch {
+        /* swallow — DEFE-02 */
+      }
+      try {
+        if (networkBodiesBufferGet?.()?.isFrozen?.() === true) return true;
+      } catch {
+        /* swallow — DEFE-02 */
+      }
+      return false;
+    },
     __breadcrumbTrimOptions: (): { byteBudget: number; consoleEntryCap: number } => {
       const cfg = breadcrumbsConfig();
       return { byteBudget: cfg.byteBudget, consoleEntryCap: cfg.consoleEntryCap };

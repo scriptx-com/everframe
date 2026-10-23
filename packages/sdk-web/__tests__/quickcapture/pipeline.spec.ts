@@ -476,4 +476,57 @@ describe('quick-capture pipeline', () => {
     expect(await qc.capture()).toBe('ignored');
     expect(lifecycle.freeze).not.toHaveBeenCalled();
   });
+
+  it('a kill() during the upload is carried into the transport and ends silently', async () => {
+    submit.mockImplementationOnce(async (o) => {
+      const owned = o['isOwned'] as () => boolean;
+      expect(owned()).toBe(true);
+      killed = true;
+      expect(owned()).toBe(false);
+      return { ok: false, retryable: false, reportId: 'r', threadId: null, abandoned: true };
+    });
+    expect(await qc.capture()).toBe('failed');
+    expect(overlay.toast).toHaveBeenCalledTimes(1); // only the optimistic toast
+  });
+
+  it('a teardown during the upload is carried into the transport too', async () => {
+    submit.mockImplementationOnce(async (o) => {
+      current = false;
+      expect((o['isOwned'] as () => boolean)()).toBe(false);
+      return { ok: false, retryable: false, reportId: 'r', threadId: null, abandoned: true };
+    });
+    expect(await qc.capture()).toBe('failed');
+  });
+
+  it('a failed replay export unwinds the freeze and still files the capture', async () => {
+    lifecycle.complete.mockImplementationOnce(async () => {
+      throw new Error('gzip failed');
+    });
+    expect(await qc.capture()).toBe('submitted');
+    expect(lifecycle.cancel).toHaveBeenCalledTimes(1);
+    expect(lifecycleState).toBe('BUFFERING');
+    const bundle = submit.mock.calls[0]![0]['bundle'] as Record<string, unknown>;
+    expect(bundle['replayCapture']).toBeUndefined();
+    // A later gesture is not shut out by a stuck freeze.
+    clock += CAPTURE_COOLDOWN_MS;
+    expect(await qc.capture()).toBe('submitted');
+  });
+
+  it('a takeover reply is dropped when another takeover replaced the link during the upload', async () => {
+    submit.mockImplementationOnce(async () => {
+      snapshot = { token: TOKEN_B, owner: { kind: 'team' }, fingerprint: 'f' };
+      return ok({ linkPending: { attemptId: ID, number: 47 } });
+    });
+    expect(await qc.capture()).toBe('submitted');
+    expect(beginAttempt).not.toHaveBeenCalled();
+  });
+
+  it('a takeover reply is dropped when the link was forgotten during the upload', async () => {
+    submit.mockImplementationOnce(async () => {
+      snapshot = null;
+      return ok({ linkPending: { attemptId: ID, number: 47 } });
+    });
+    await qc.capture();
+    expect(beginAttempt).not.toHaveBeenCalled();
+  });
 });

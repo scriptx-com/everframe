@@ -122,6 +122,8 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
   let state: ReplayState = 'IDLE';
   /** What opened the current buffer. Kept across complete()/cancel() resumes. */
   let startedBy: 'sampling' | 'forced' | null = null;
+  /** A reevaluate() that arrived while FROZEN, applied when the buffer resumes. */
+  let reevaluatePending = false;
   /** The session's single sampling draw (CONFIG-04), compared against the live rate. */
   let samplingDraw: number | null = null;
   /** Kinds whose rate has admitted this session. Kept for the whole session. */
@@ -170,6 +172,29 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
       admittedKinds.add(kind);
     }
     return { admitted: true, kind };
+  }
+
+  /**
+   * Resume after complete()/cancel(), applying a reevaluation remembered
+   * while FROZEN: a buffer only forcing started, whose forcing has ended and
+   * which the normal gate does not admit, is not restarted (IDLE, recorder
+   * stopped).
+   */
+  function resumeOrEnd(): void {
+    const pending = reevaluatePending;
+    reevaluatePending = false;
+    if (pending && startedBy === 'forced' && !isForced()) {
+      if (effectiveEnabled() && samplingAdmits().admitted) {
+        startedBy = 'sampling';
+      } else {
+        state = 'IDLE';
+        startedBy = null;
+        replay?.stop();
+        __traceReplay('lifecycle.reevaluate', { applied: true, reason: 'on_resume' });
+        return;
+      }
+    }
+    beginBuffering();
   }
 
   /** Begin (or resume) the rolling buffer at the current configured duration. */
@@ -266,7 +291,7 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
         ...(capture ? { durationMs: capture.durationMs } : {}),
       });
       // Resume a fresh buffer for the next report.
-      beginBuffering();
+      resumeOrEnd();
       return capture;
     },
 
@@ -280,7 +305,7 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
       state = 'DISCARDED';
       __traceReplay('lifecycle.cancel', { from, applied: true });
       // Resume a fresh (zeroized) buffer for the next report.
-      beginBuffering();
+      resumeOrEnd();
     },
 
     forceDiscard(): void {
@@ -295,10 +320,17 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
       replay?.discardAndResume();
       state = 'IDLE';
       startedBy = null;
+      reevaluatePending = false;
       __traceReplay('lifecycle.forceDiscard', { from, applied: true });
     },
 
     reevaluate(): void {
+      if (state === 'FROZEN' && startedBy === 'forced') {
+        // The freeze belongs to a capture in progress; decide at its resume.
+        reevaluatePending = true;
+        __traceReplay('lifecycle.reevaluate', { applied: false, reason: 'pending_frozen' });
+        return;
+      }
       if (state !== 'BUFFERING' || startedBy !== 'forced' || isForced()) {
         __traceReplay('lifecycle.reevaluate', { applied: false });
         return;
