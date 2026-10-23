@@ -45,6 +45,23 @@ enum CaptureHotkeyBinding: Equatable {
         }
         return .chord(modifiers: modifiers, key: last.lowercased())
     }
+
+    /// True for a chord that is also ordinary typing: a key alone or with Shift
+    /// only, such as `Shift+B`. Such a chord stands aside while an editable text
+    /// input is first responder. Double Shift and chords with ⌘, ⌃ or ⌥ never do.
+    var yieldsToTextInput: Bool {
+        guard case let .chord(modifiers, _) = self else { return false }
+        return modifiers.isSubset(of: [.shift])
+    }
+
+    /// True for a first key-down that completes this chord. Stateless, so it
+    /// can be asked before the key is delivered. Never true for double Shift.
+    func chordMatches(_ event: CaptureKeyEvent) -> Bool {
+        guard case let .chord(wanted, wantedKey) = self,
+              case let .down(key, modifiers, isRepeat, _) = event, !isRepeat,
+              case let .character(c) = key else { return false }
+        return modifiers == wanted && c.lowercased() == wantedKey
+    }
 }
 
 /// Stateful matcher fed one key-down at a time. `feed` returns true exactly when the binding fires.
@@ -61,7 +78,7 @@ struct CaptureHotkeyMatcher {
     }
 
     mutating func feed(_ event: CaptureKeyEvent) -> Bool {
-        guard case let .down(key, modifiers, isRepeat, at) = event else { return false }
+        guard case let .down(key, _, isRepeat, at) = event else { return false }
         if isRepeat { return false }
         switch binding {
         case .doubleShift:
@@ -75,9 +92,8 @@ struct CaptureHotkeyMatcher {
             }
             lastShiftAt = at
             return false
-        case let .chord(wanted, wantedKey):
-            guard case let .character(c) = key else { return false }
-            return modifiers == wanted && c.lowercased() == wantedKey
+        case .chord:
+            return binding.chordMatches(event)
         }
     }
 }

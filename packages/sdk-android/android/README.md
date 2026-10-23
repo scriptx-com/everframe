@@ -128,32 +128,44 @@ excluded.
 
 ### Quick capture (debug emulators)
 
-While you test a debug build on an Android emulator, send one broadcast to file
-a report without opening the reporter:
+While you test a debug build on an Android emulator, press **⇧B** in the app
+(outside a text field) to file a report without opening the reporter. From your
+computer, `npx @everframe/cli capture` or one broadcast does the same:
 
 ```sh
 adb shell am broadcast -a com.everframe.CAPTURE
 ```
 
 The SDK takes the screenshot first, freezes the replay window, logs,
-breadcrumbs and network the same way the reporter does, uploads the report at
-once, and then shows a short toast: `Captured · <device name>`,
-`Captured · uploads when online` when the upload was queued, or
-`Capture failed`. The toast is a system window, so it is never part of the
-screenshot. Title and description stay empty; you fill them in on the
+breadcrumbs and network the same way the reporter does, shows a short
+`Captured · <device name>` toast as soon as the capture is handed to the upload,
+and uploads the report at once. A report that cannot upload right now is queued
+and sent later, with no further toast. Only an upload that is rejected and not
+queued adds `Capture didn't upload`; a capture whose screenshot or freeze fails
+shows `Capture failed` instead of `Captured`. The toast is a system window, so
+it is never part of the screenshot. Title and description stay empty; you fill them in on the
 dashboard. Like the reporter, a quick capture consumes the pending
 `Everframe.setExtra` payload.
 
-- **Trigger.** Run `npx @everframe/cli capture`, which sends the broadcast
-  action `com.everframe.CAPTURE` to the running emulator. On macOS,
-  `npx @everframe/cli hotkey` does the same from a global shortcut while a
-  standalone emulator window is in front. You can also send the broadcast
-  yourself with the `adb` command above. The receiver reads nothing from the
-  broadcast. A session started with `capture.screenshot = false` ignores it
-  (dropped as `screenshot_disabled`); Kotlin Multiplatform apps start that way
-  today, so they get no quick capture for now.
-- **Debug emulators only.** The receiver is registered only in a debuggable
-  build running on an emulator, never on a device or in a release build. It
+- **Trigger.** ⇧B on the emulator's keyboard, on phone and TV emulators. The
+  emulator drops ⌘, ⌃ and ⌥ and never passes a lone Shift to the app, so the
+  SDK uses the dashboard's capture hotkey binding only when it is Shift plus a
+  letter or digit (such as `Shift+K`), and ⇧B for anything else (double Shift,
+  ⌘ combos). The chord is skipped while a text field has focus (an `EditText`,
+  a React Native `TextInput`, a Compose or Flutter text field), so typing a
+  capital B stays typing; otherwise the SDK keeps the key press from the app.
+  ⇧B is not seen while a dialog or a React Native `Modal` is in front, because
+  those windows dispatch keys themselves; use `npx @everframe/cli capture` there.
+  `npx @everframe/cli capture` sends the broadcast action
+  `com.everframe.CAPTURE` to the running emulator whatever the binding, and you
+  can also send it yourself with the `adb` command above. The receiver reads
+  nothing from the broadcast. A session started with
+  `capture.screenshot = false` ignores both triggers (dropped as
+  `screenshot_disabled`); Kotlin Multiplatform apps start that way today, so
+  they get no quick capture for now.
+- **Debug emulators only.** The receiver is registered, and ⇧B is watched,
+  only in a debuggable build running on an emulator, never on a device or in a
+  release build. It
   also needs `reporterEnabled` and the dashboard's capture hotkey setting, and
   it does nothing while the reporter is on screen, while another capture holds
   the frozen replay, or while a capture is still uploading. Shake-to-report is

@@ -113,7 +113,10 @@ class ReplayConfigProviderTest {
     fun `captureHotkey block is negotiated and decoded leniently`() = runTest {
         var body = """{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1.0,"captureHotkey":{"enabled":true,"binding":"Shift Shift","future":"ignored"}}"""
         val p = provider(fetcher = { request ->
-            assertTrue(request.header("X-Everframe-SDK-Features")!!.split(',').map(String::trim).contains("capturehotkey"))
+            val features = request.header("X-Everframe-SDK-Features")!!.split(',').map(String::trim)
+            assertTrue(features.contains("capturehotkey"))
+            // Lets the server send a plain-key or Shift+key binding: this SDK skips it while a text field has focus.
+            assertTrue(features.contains("capturetextguard"))
             response(200, body)
         })
 
@@ -539,7 +542,7 @@ class ReplayConfigProviderTest {
         // that declare it, so this header is the whole reason any of these
         // blocks arrive. Adding a capability here is a real contract change and
         // should have to be made on purpose.
-        assertEquals("networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, nativevideo, nativevideolowfps", seen?.header("X-Everframe-SDK-Features"))
+        assertEquals("networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, nativevideo, nativevideolowfps", seen?.header("X-Everframe-SDK-Features"))
     }
 
     @Test

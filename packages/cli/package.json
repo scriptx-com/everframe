@@ -48,7 +48,6 @@
   },
   "files": [
     "dist",
-    "helpers",
     "scripts",
     "LICENSE",
     "NOTICE"

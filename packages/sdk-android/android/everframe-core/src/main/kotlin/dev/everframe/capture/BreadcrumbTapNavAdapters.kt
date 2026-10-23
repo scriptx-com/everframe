@@ -71,8 +71,10 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import androidx.annotation.VisibleForTesting
+import dev.everframe.envelope.txGuard
 import dev.everframe.envelope.txGuardVoid
 import dev.everframe.protocol.generated.BreadcrumbKind
 import kotlinx.serialization.json.JsonObject
@@ -298,7 +300,11 @@ internal object NavigationBreadcrumbAdapter {
 /**
  * Delegating `Window.Callback` — wraps [delegate] (the Activity's own
  * `Window.Callback`, normally the Activity itself) and intercepts ONLY
- * `dispatchTouchEvent`'s `ACTION_UP` to emit a `.tap` crumb. EVERY other
+ * `dispatchTouchEvent`'s `ACTION_UP` to emit a `.tap` crumb, TV remote keys
+ * in `dispatchKeyEvent` for press crumbs, and — the one exception to
+ * pass-through — the emulator quick-capture chord (Shift+B by default),
+ * which `dispatchKeyEvent` consumes only while quick capture is armed and no
+ * text editor has focus (see [consumeQuickCaptureKey]). EVERY other
  * method (and even `dispatchTouchEvent` itself, on the return path) is a
  * verbatim pass-through — a broken/incomplete `Window.Callback` bricks the
  * host Activity (no input, no menus, no back button), so this class is the
@@ -346,7 +352,12 @@ internal class TXWindowCallbackWrapper(
     }
 
     private val remoteStarts = mutableMapOf<Int, InteractionTargetSnapshot>()
+
+    /** The key code of a quick-capture chord whose key-down was consumed, until its key-up. Main thread only. */
+    private var consumedCaptureKey: Int? = null
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (txGuard("TXWindowCallbackWrapper.quickCaptureKey") { consumeQuickCaptureKey(event) } == true) return true
         val scroll = if (isTvHost && event.action == KeyEvent.ACTION_DOWN && event.keyCode in setOf(
                 KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT)) {
             runCatching { remoteScrollContainer(activity.window?.currentFocus, event.keyCode) }.getOrNull()
@@ -370,6 +381,46 @@ internal class TXWindowCallbackWrapper(
         val result = delegate.dispatchKeyEvent(event)
         scroll?.let { (view, _) -> txGuardVoid("interaction.remote.after") { InteractionScrollAdapter.shared.moved(view) } }
         return result
+    }
+
+    /**
+     * Emulator quick capture from inside the app (see `QuickCapture`). True when [event] belongs to the
+     * capture chord and must not reach the app: the chord's first key-down while quick capture is armed and
+     * no text editor has focus, then that key's repeats and its key-up. Everything else returns false and
+     * dispatches as before. A disarmed session costs one volatile read per key event.
+     */
+    private fun consumeQuickCaptureKey(event: KeyEvent): Boolean {
+        val pending = consumedCaptureKey
+        if (pending != null && event.keyCode == pending) {
+            when {
+                event.action == KeyEvent.ACTION_UP -> {
+                    consumedCaptureKey = null
+                    return true
+                }
+                event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0 -> return true
+                // A fresh press: the key-up never came (focus moved), so judge this one on its own.
+                else -> consumedCaptureKey = null
+            }
+        }
+        val chord = dev.everframe.quickcapture.QuickCapture.armedChord ?: return false
+        if (!chord.matches(event)) return false
+        // Typing Shift+B into a field (EditText, React Native TextInput, Compose or Flutter text input) stays typing.
+        if (isEditingText()) return false
+        dev.everframe.quickcapture.QuickCapture.trigger()
+        consumedCaptureKey = event.keyCode
+        return true
+    }
+
+    /**
+     * A text field has the keyboard. The focused view's own answer first; then the input method's: Flutter
+     * keeps `FlutterView` focused while a Dart `TextField` edits, and `FlutterView` opens an input connection
+     * without overriding `onCheckIsTextEditor`. A failed IME lookup counts as not editing.
+     */
+    private fun isEditingText(): Boolean {
+        if (activity.window?.currentFocus?.onCheckIsTextEditor() == true) return true
+        return runCatching {
+            (activity.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.isAcceptingText == true
+        }.getOrDefault(false)
     }
 
     private fun remoteScrollContainer(focused: android.view.View?, keyCode: Int): Pair<android.view.View, String>? {

@@ -659,7 +659,7 @@ final class QuickCaptureTests: XCTestCase {
 
         let failing = makeArmed(submit: { _ in throw Boom() })
         let failedOutcome = await failing.capture()
-        guard case .failed = failedOutcome else { return XCTFail("expected .failed, got \(failedOutcome)") }
+        guard case .rejected = failedOutcome else { return XCTFail("expected .rejected, got \(failedOutcome)") }
         XCTAssertEqual(cancels.count, 1)
         XCTAssertEqual(closes.count, 1)
     }
@@ -685,7 +685,7 @@ final class QuickCaptureTests: XCTestCase {
         let failing = makeArmed(submit: { _ in throw Boom() })
         failing.lifecycle = .live
         let failedOutcome = await failing.capture()
-        guard case .failed = failedOutcome else { return XCTFail("expected .failed, got \(failedOutcome)") }
+        guard case .rejected = failedOutcome else { return XCTFail("expected .rejected, got \(failedOutcome)") }
         XCTAssertFalse(Everframe.shared.__replayHasReporterOwner, "a failed capture must release the freeze owner")
         XCTAssertNil(BreadcrumbRingBuffer.shared.takeFrozen(), "released via cancel: the frozen snapshot is discarded")
 
@@ -829,6 +829,255 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertEqual(submitted.count, 1)
     }
 
+    private func shiftB(_ modifiers: CaptureKeyModifiers = [.shift], at t: TimeInterval = 0) -> CaptureKeyEvent {
+        .down(key: .character("b"), modifiers: modifiers, isRepeat: false, at: t)
+    }
+
+    func testShiftBWithATextInputFirstResponderDoesNotFire() async throws {
+        let qc = makeArmed()
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Shift+B"))
+        qc.isEditingText = { true }
+        qc.handle(shiftB())
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertEqual(freezes, 0)
+    }
+
+    func testShiftBWithoutATextInputFirstResponderFires() async {
+        let didSubmit = expectation(description: "submit")
+        let qc = makeArmed(submit: { [unowned self] inputs in
+            self.submitted.append(inputs)
+            didSubmit.fulfill()
+            return .submitted(reportId: UUID())
+        })
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Shift+B"))
+        qc.isEditingText = { false }
+        qc.handle(shiftB())
+        await fulfillment(of: [didSubmit], timeout: 5)
+        XCTAssertEqual(submitted.count, 1)
+    }
+
+    func testCmdShiftBStillFiresWithATextFieldFocused() async {
+        let didSubmit = expectation(description: "submit")
+        let qc = makeArmed(submit: { [unowned self] inputs in
+            self.submitted.append(inputs)
+            didSubmit.fulfill()
+            return .submitted(reportId: UUID())
+        })
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Cmd+Shift+B"))
+        var asked = false
+        qc.isEditingText = { asked = true; return true }
+        qc.handle(shiftB([.command, .shift]))
+        await fulfillment(of: [didSubmit], timeout: 5)
+        XCTAssertEqual(submitted.count, 1)
+        XCTAssertFalse(asked, "a ⌘ chord never looks at the first responder")
+    }
+
+    func testDoubleShiftStillFiresWithATextFieldFocused() async {
+        let didSubmit = expectation(description: "submit")
+        let qc = makeArmed(submit: { [unowned self] inputs in
+            self.submitted.append(inputs)
+            didSubmit.fulfill()
+            return .submitted(reportId: UUID())
+        })
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Shift Shift"))
+        qc.isEditingText = { true }
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0))
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0.2))
+        await fulfillment(of: [didSubmit], timeout: 5)
+        XCTAssertEqual(submitted.count, 1)
+    }
+
+    /// The production probe, against a real focused `UITextField` in the
+    /// window the key is sent to and, failing that, the app's windows (here the
+    /// screenshot override, since a SwiftPM test bundle has no scenes).
+    func testFocusedTextFieldIsFoundAsEditableFirstResponder() throws {
+        let field = UITextField(frame: CGRect(x: 0, y: 0, width: 100, height: 30))
+        let container = UIView(frame: hostWindow.bounds)
+        container.addSubview(field)
+        hostWindow.addSubview(container)
+        hostWindow.makeKeyAndVisible()
+        defer { field.resignFirstResponder(); container.removeFromSuperview() }
+        XCTAssertFalse(QuickCaptureTextInput.firstResponderIsEditable(), "nothing focused yet")
+        try XCTSkipUnless(field.becomeFirstResponder(), "this test host cannot focus a text field")
+        XCTAssertTrue(QuickCaptureTextInput.currentFirstResponder(preferring: hostWindow) === field)
+        XCTAssertTrue(QuickCaptureTextInput.currentFirstResponder() === field)
+        XCTAssertTrue(QuickCaptureTextInput.firstResponderIsEditable())
+        field.resignFirstResponder()
+        XCTAssertFalse(QuickCaptureTextInput.firstResponderIsEditable())
+    }
+
+    /// The probe must not go through `UIApplication.sendAction`: the SDK's tap
+    /// instrumentation records any action there, so every Shift+B would leave a
+    /// `tap unknown` breadcrumb in the trail and in the capture's evidence.
+    func testTextFocusProbeRecordsNoTapBreadcrumb() async throws {
+        try await withGlobalCaptureStateLock {
+            Everframe.captureGate = true
+            TapBreadcrumbAdapter.install()
+            BreadcrumbRingBuffer.shared.applyConfig(BreadcrumbsConfigWire(
+                enabled: true, kinds: ["tap"], maxCount: 50, byteBudget: 16384, consoleEntryCap: 1024))
+            BreadcrumbRingBuffer.shared.clear()
+            defer {
+                BreadcrumbRingBuffer.shared.applyConfig(nil)
+                BreadcrumbRingBuffer.shared.clear()
+            }
+            let didSubmit = expectation(description: "submit")
+            didSubmit.assertForOverFulfill = false
+            let qc = makeArmed(submit: { [unowned self] inputs in
+                self.submitted.append(inputs)
+                didSubmit.fulfill()
+                return .submitted(reportId: UUID())
+            })
+            qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Shift+B"))
+
+            // Not suppressed: nothing focused, so the chord fires.
+            qc.handle(shiftB())
+            await fulfillment(of: [didSubmit], timeout: 5)
+
+            // Suppressed: a focused field.
+            let field = UITextField(frame: CGRect(x: 0, y: 0, width: 100, height: 30))
+            hostWindow.addSubview(field)
+            hostWindow.makeKeyAndVisible()
+            defer { field.resignFirstResponder(); field.removeFromSuperview() }
+            if field.becomeFirstResponder() {
+                qc.handle(shiftB(at: 1))
+                try await Task.sleep(nanoseconds: 200_000_000)
+                XCTAssertEqual(submitted.count, 1, "the focused field keeps Shift+B")
+            }
+
+            // A real tap crumb lands, so an empty trail below is not a disabled buffer.
+            BreadcrumbRingBuffer.shared.addInteraction(
+                message: "tap sentinel", data: [:], captureRevision: BreadcrumbRingBuffer.shared.captureRevision())
+            BreadcrumbRingBuffer.shared.freeze()
+            let taps = (BreadcrumbRingBuffer.shared.takeFrozen() ?? []).filter { $0.kind == .tap }
+            XCTAssertEqual(taps.map(\.message), ["tap sentinel"], "the probe must not look like a tap")
+        }
+    }
+
+    /// A field that resigns first responder in its own editing callback (on the
+    /// character itself) must still keep Shift+B: the guard judges the focus
+    /// the key was typed into, read before UIKit delivers the key.
+    func testFieldThatResignsOnTheCharacterStillSuppressesTheCapture() async throws {
+        let qc = makeArmed()
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Shift+B"))
+        let field = UITextField(frame: CGRect(x: 0, y: 0, width: 100, height: 30))
+        hostWindow.addSubview(field)
+        hostWindow.makeKeyAndVisible()
+        defer { field.removeFromSuperview() }
+        try XCTSkipUnless(field.becomeFirstResponder(), "this test host cannot focus a text field")
+
+        let pending = qc.prepareKeyDelivery([(shiftB(), nil)], window: hostWindow)
+        // What UIKit's delivery does to such a field: it takes the character and resigns.
+        field.resignFirstResponder()
+        qc.completeKeyDelivery(pending)
+
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertEqual(freezes, 0)
+    }
+
+    /// Keys that cannot complete the chord never pay for the focus probe.
+    func testPrepareKeyDeliveryProbesOnlyAChordKey() {
+        let qc = makeArmed()
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Shift+B"))
+        let other = qc.prepareKeyDelivery([
+            (.down(key: .character("a"), modifiers: [.shift], isRepeat: false, at: 0), nil),
+            (.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0), nil),
+        ], window: hostWindow)
+        XCTAssertEqual(other.probedForTesting, [false, false])
+        let chord = qc.prepareKeyDelivery([(shiftB(), nil)], window: hostWindow)
+        XCTAssertEqual(chord.probedForTesting, [true])
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Mod+Shift+B"))
+        let command = qc.prepareKeyDelivery([(shiftB([.command, .shift]), nil)], window: hostWindow)
+        XCTAssertEqual(command.probedForTesting, [false], "a ⌘ chord never looks at the focus")
+    }
+
+    func testEditableTextInputClassification() {
+        final class CustomKeyInput: UIView, UIKeyInput {
+            var hasText: Bool { false }
+            func insertText(_ text: String) {}
+            func deleteBackward() {}
+        }
+        let disabled = UITextField()
+        disabled.isEnabled = false
+        XCTAssertTrue(QuickCaptureTextInput.isEditable(UITextField()))
+        XCTAssertTrue(QuickCaptureTextInput.isEditable(UITextView()))
+        XCTAssertTrue(QuickCaptureTextInput.isEditable(CustomKeyInput()), "React Native, Flutter and custom editors")
+        #if !os(tvOS)
+        let readOnly = UITextView()
+        readOnly.isEditable = false
+        XCTAssertFalse(QuickCaptureTextInput.isEditable(readOnly))
+        #endif
+        XCTAssertFalse(QuickCaptureTextInput.isEditable(disabled))
+        XCTAssertFalse(QuickCaptureTextInput.isEditable(UIButton()))
+        XCTAssertFalse(QuickCaptureTextInput.isEditable(UIView()))
+        XCTAssertFalse(QuickCaptureTextInput.isEditable(nil))
+    }
+
+    // MARK: Toasts
+
+    func testConfirmationToastIsShownBeforeTheUploadFinishes() async {
+        var released = false
+        let entered = expectation(description: "submit entered")
+        let qc = makeArmed(submit: { _ in
+            entered.fulfill()
+            while !released { try? await Task.sleep(nanoseconds: 10_000_000) }
+            return .submitted(reportId: UUID())
+        })
+        var toasts: [String] = []
+        qc.showToast = { toasts.append($0) }
+        let pending = Task { await qc.capture() }
+        await fulfillment(of: [entered], timeout: 5)
+        XCTAssertEqual(toasts, ["Captured · iPhone Test"], "confirmed while the upload is still running")
+        XCTAssertTrue(qc.isCapturing, "a second capture stays blocked until the upload finishes")
+
+        released = true
+        let outcome = await pending.value
+        XCTAssertEqual(outcome, .sent)
+        XCTAssertEqual(toasts, ["Captured · iPhone Test"], "a sent capture says nothing more")
+        XCTAssertFalse(qc.isCapturing)
+    }
+
+    func testQueuedUploadAddsNoSecondToast() async {
+        let qc = makeArmed(submit: { _ in .queued(reportId: UUID()) })
+        var toasts: [String] = []
+        qc.showToast = { toasts.append($0) }
+        let outcome = await qc.capture()
+        XCTAssertEqual(outcome, .queued)
+        XCTAssertEqual(toasts, ["Captured · iPhone Test"])
+    }
+
+    func testRejectedUploadFollowsTheConfirmationWithAFailureToast() async {
+        struct Rejected: Error {}
+        for submit in [
+            { (_: ReporterSubmission.Inputs) async throws -> ReportResult in .cancelled },
+            { (_: ReporterSubmission.Inputs) async throws -> ReportResult in throw Rejected() },
+        ] {
+            let qc = makeArmed(submit: submit)
+            var toasts: [String] = []
+            qc.showToast = { toasts.append($0) }
+            let outcome = await qc.capture()
+            XCTAssertEqual(outcome, .rejected)
+            XCTAssertEqual(toasts, ["Captured · iPhone Test", "Capture didn't upload"])
+        }
+        XCTAssertEqual(cancels.count, 2)
+    }
+
+    func testGateIgnoredCapturesShowNoConfirmation() async {
+        let qc = makeArmed()
+        var toasts: [String] = []
+        qc.showToast = { toasts.append($0) }
+        ReportAPI.__performSetPresenting(true)
+        let presenting = await qc.capture()
+        XCTAssertTrue(isIgnored(presenting, reason: "reporter_presenting"), "\(presenting)")
+        ReportAPI.__performSetPresenting(false)
+        qc.isApplicationActive = { false }
+        let inactive = await qc.capture()
+        XCTAssertTrue(isIgnored(inactive, reason: "inactive"), "\(inactive)")
+        XCTAssertTrue(toasts.isEmpty)
+        XCTAssertTrue(submitted.isEmpty)
+    }
+
     func testToastWindowExcludedFromScreenshot() {
         let toast = EFQuickCaptureToastWindow(frame: CGRect(x: 0, y: 0, width: 120, height: 40))
         toast.windowLevel = .normal - 1
@@ -846,10 +1095,12 @@ final class QuickCaptureTests: XCTestCase {
     }
 
     func testToastCopy() {
-        XCTAssertEqual(QuickCaptureToast.text(for: .sent, deviceName: "iPhone 18 Pro"), "Captured · iPhone 18 Pro")
-        XCTAssertEqual(QuickCaptureToast.text(for: .queued, deviceName: "iPhone 18 Pro"), "Captured · uploads when online")
-        XCTAssertEqual(QuickCaptureToast.text(for: .failed, deviceName: "iPhone 18 Pro"), "Capture failed")
-        XCTAssertNil(QuickCaptureToast.text(for: .ignored(reason: "in_flight"), deviceName: "iPhone 18 Pro"))
+        XCTAssertEqual(QuickCaptureToast.confirmedText(deviceName: "iPhone 18 Pro"), "Captured · iPhone 18 Pro")
+        XCTAssertNil(QuickCaptureToast.text(for: .sent))
+        XCTAssertNil(QuickCaptureToast.text(for: .queued))
+        XCTAssertEqual(QuickCaptureToast.text(for: .failed), "Capture failed")
+        XCTAssertEqual(QuickCaptureToast.text(for: .rejected), "Capture didn't upload")
+        XCTAssertNil(QuickCaptureToast.text(for: .ignored(reason: "in_flight")))
         XCTAssertEqual(QuickCaptureToast.windowLevel, .alert + 2)
     }
 

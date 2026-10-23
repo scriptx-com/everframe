@@ -877,10 +877,12 @@ class ReplayConfigProvider(
          * `ReplayConfigProvider.sdkFeaturesHeaderValue`. `nativevideolowfps`
          * (spec 2026-10-11, C1) lets the server send 1 or 2 fps; callers
          * without it get 5. `crashonly` (spec 2026-10-12) asks for `crashOnlySamplingRate`, which this
-         * strict decoder would otherwise reject as an unknown key.
+         * strict decoder would otherwise reject as an unknown key. `capturetextguard` tells the server
+         * quick capture stands aside while a text editor has focus, so it may send a plain-key or Shift+key
+         * `captureHotkey.binding`; callers without it get `Shift Shift`.
          */
         val SDK_FEATURES_HEADER_VALUE: String
-            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey" +
+            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard" +
                 if (android.os.Build.VERSION.SDK_INT >= 29) ", nativevideo, nativevideolowfps" else ""
 
         /**

@@ -15,8 +15,8 @@ import { DEFAULT_API_URL, redact, uploadBudget } from './defaults.js';
 import { homedir } from 'node:os';
 import { captureCommand, linkCommand } from './quick-capture/commands.js';
 import { defaultOpenBrowser, loginCommand, logoutCommand } from './quick-capture/login.js';
-import { defaultRunner, runnerWithTimeout } from './quick-capture/devices.js';
-import { ensureHelper, hotkeyCommand } from './quick-capture/hotkey.js';
+import { defaultRunner } from './quick-capture/devices.js';
+import { hotkeyCommand } from './quick-capture/hotkey.js';
 import {
   DeviceBuildUploadError,
   DeviceBuildWaitTimeoutError,
@@ -80,8 +80,7 @@ const HELP = `Usage:
   everframe login [--url <api-url>] [--no-browser]   (sign in for quick capture)
   everframe logout   (revoke and remove your quick capture login)
   everframe link   (copy your login to running Android emulators)
-  everframe capture [--device <udid|name|serial>]   (trigger a quick capture on a simulator or emulator)
-  everframe hotkey [--key <combo>]   (macOS: capture the Android emulator in front with a global hotkey, default Cmd+Shift+B)
+  everframe capture [--device <udid|name|serial>]   (trigger a quick capture on a simulator or emulator; in the app, press Shift+B outside a text field)
 
 Device builds: uploads are asynchronous by default; --wait observes readiness within a total 600-second budget (override with --timeout).
 
@@ -105,6 +104,7 @@ async function quickCaptureCommand(argv: string[], env: NodeJS.ProcessEnv): Prom
       options: {
         help: { type: 'boolean', short: 'h' },
         ...(argv[0] === 'capture' ? { device: { type: 'string' as const } } : {}),
+        // Accepted and ignored, so scripts that pass the retired hotkey command's flag still exit 0.
         ...(argv[0] === 'hotkey' ? { key: { type: 'string' as const } } : {}),
         ...(argv[0] === 'login'
           ? { url: { type: 'string' as const }, 'no-browser': { type: 'boolean' as const } }
@@ -127,22 +127,7 @@ async function quickCaptureCommand(argv: string[], env: NodeJS.ProcessEnv): Prom
     err: (s: string) => console.error(s),
   };
   if (argv[0] === 'link') return linkCommand(deps);
-  if (argv[0] === 'hotkey') {
-    const key = (values as { key?: string }).key;
-    return hotkeyCommand(
-      {
-        ...deps,
-        // The first build of the Swift helper can outlast the default 15 s runner timeout.
-        ensure: () =>
-          ensureHelper({
-            run: defaultRunner,
-            home: deps.home,
-            compile: runnerWithTimeout(300_000),
-          }),
-      },
-      key === undefined ? {} : { key },
-    );
-  }
+  if (argv[0] === 'hotkey') return hotkeyCommand(deps);
   if (argv[0] === 'logout') return logoutCommand({ ...deps, fetch });
   if (argv[0] === 'login') {
     const login = values as { url?: string; 'no-browser'?: boolean };

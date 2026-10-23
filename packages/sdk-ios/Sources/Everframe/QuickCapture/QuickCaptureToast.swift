@@ -20,12 +20,16 @@ enum QuickCaptureToast {
     private static var window: EFQuickCaptureToastWindow?
     private static var generation = 0
 
-    nonisolated static func text(for outcome: QuickCaptureOutcome, deviceName: String) -> String? {
+    /// Shown when the capture is handed off, before its upload finishes.
+    nonisolated static func confirmedText(deviceName: String) -> String { "Captured · \(deviceName)" }
+
+    /// The toast after the pipeline ends, if any. A sent or queued capture was
+    /// already confirmed and says nothing more; an ignored trigger never does.
+    nonisolated static func text(for outcome: QuickCaptureOutcome) -> String? {
         switch outcome {
-        case .sent: return "Captured · \(deviceName)"
-        case .queued: return "Captured · uploads when online"
+        case .sent, .queued, .ignored: return nil
         case .failed: return "Capture failed"
-        case .ignored: return nil
+        case .rejected: return "Capture didn't upload"
         }
     }
 
