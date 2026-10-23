@@ -1,0 +1,34 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/DeviceLinkUpload.kt
+  s_f1c043e85606b2::t_2014538d532f49 1-87
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/companion/CompanionSubmissionComposerTest.kt
+  s_f1c043e85606b2::t_abd57c4d593ee1 177-204
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/transport/DeviceLinkUploadTest.kt
+  s_f1c043e85606b2::t_3e8c906ce91ee8 1-352
+  s_f1c043e85606b2::t_648d39d0b91304 353-400
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionSubmissionComposer.kt
+  s_f1c043e85606b2::t_94a273fb17c5a8 211-213,225,538
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/JSONLOutbox.kt
+  s_f1c043e85606b2::t_ec9825d4465180 50-56,92,103
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/outbox/OutboxCipher.kt
+  s_f1c043e85606b2::t_d8bab64315e2f1 159-163,170-171,218-224,262-272,282,408-409
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/MultipartUploader.kt
+  s_f1c043e85606b2::t_4341b9c66b2a6d 96-100,144-149,157,192-195,218-223,248
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/ReportSubmitter.kt
+  s_f1c043e85606b2::t_4ccebf933fda53 43-46,81-92,94-98,210-217,240,253-268,275-281,417-426,534-535,537-540
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "946a17e5c99add9ff9445d0a470dee20c8dccebe",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
