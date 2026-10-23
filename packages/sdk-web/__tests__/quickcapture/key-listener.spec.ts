@@ -79,6 +79,7 @@ function press(
   const ev = new KeyboardEvent(type, {
     bubbles: true,
     cancelable: true,
+    composed: true,
     key: opts.key ?? '',
     shiftKey: opts.shift ?? false,
     repeat: opts.repeat ?? false,
@@ -297,6 +298,71 @@ describe('installRemoteKeyListener', () => {
     press('keydown', B, { shift: true, key: 'B' });
     expect(app.downs).toBe(1);
     expect(s.onGesture).toHaveBeenCalledTimes(1);
+  });
+
+  it('a typing binding stands aside while an input inside a shadow root has focus', () => {
+    const s = setup();
+    s.setBinding({ kind: 'chord', keys: ['SHIFT', 'B'] });
+    s.listener.rearm();
+    const app = appCounter();
+    // The SDK's own reporter is mounted this way (createHostElement, open shadow root).
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const field = document.createElement('input');
+    host.attachShadow({ mode: 'open' }).appendChild(field);
+    field.focus();
+    expect(document.activeElement).toBe(host);
+    press('keydown', SHIFT, { shift: true, target: field });
+    press('keydown', B, { shift: true, key: 'B', target: field });
+    press('keyup', B, { shift: true, key: 'B', target: field });
+    press('keyup', SHIFT, { target: field });
+    expect(s.onGesture).not.toHaveBeenCalled();
+    expect(app).toMatchObject({ downs: 2, ups: 2, prevented: 0 });
+  });
+
+  it('a typing binding stands aside for a field in a nested shadow root', () => {
+    const s = setup();
+    s.setBinding({ kind: 'chord', keys: ['SHIFT', 'B'] });
+    s.listener.rearm();
+    const outer = document.createElement('div');
+    document.body.appendChild(outer);
+    const inner = document.createElement('div');
+    outer.attachShadow({ mode: 'open' }).appendChild(inner);
+    const field = document.createElement('textarea');
+    inner.attachShadow({ mode: 'open' }).appendChild(field);
+    field.focus();
+    const ev = press('keydown', B, { shift: true, key: 'B', target: field });
+    expect(s.onGesture).not.toHaveBeenCalled();
+    expect(ev.defaultPrevented).toBe(false);
+  });
+
+  it('a typing binding stands aside when the key event comes from a shadow field without focus', () => {
+    const s = setup();
+    s.setBinding({ kind: 'chord', keys: ['SHIFT', 'B'] });
+    s.listener.rearm();
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const field = document.createElement('input');
+    host.attachShadow({ mode: 'open' }).appendChild(field);
+    // Focus elsewhere; the event's own origin (composedPath()[0]) is the field.
+    (document.getElementById('tile') as HTMLElement).focus();
+    const ev = press('keydown', B, { shift: true, key: 'B', target: field });
+    expect(s.onGesture).not.toHaveBeenCalled();
+    expect(ev.defaultPrevented).toBe(false);
+  });
+
+  it('a pending hold of a typing key does not fire once a shadow-root field has focus', () => {
+    const s = setup();
+    s.setBinding({ kind: 'longPress', keys: ['B'], holdMs: 1500 });
+    s.listener.rearm();
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const field = document.createElement('input');
+    host.attachShadow({ mode: 'open' }).appendChild(field);
+    press('keydown', B, { key: 'b' });
+    field.focus();
+    s.c.advance(1600);
+    expect(s.onGesture).not.toHaveBeenCalled();
   });
 
   it('a pending hold does not fire after the binding changes or a recording starts', () => {

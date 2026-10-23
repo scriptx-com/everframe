@@ -15,8 +15,8 @@
 //
 // While a recording is active every event goes to the recorder and reaches
 // the app unchanged. A binding that types (letters, digits, SHIFT) stands
-// aside while a text field has focus. DEFE-02: nothing throws into the host.
-import { isInputFocus } from '../triggers/hotkey.js';
+// aside while a text field has focus, including a field inside a shadow root
+// (the SDK's own reporter is one). DEFE-02: nothing throws into the host.
 import { GestureDetector, type KeyInput } from './gesture-detector.js';
 import {
   bindingsEqual,
@@ -43,8 +43,44 @@ export interface RemoteKeyListenerDeps {
   /** A monotonic clock in milliseconds. */
   now(): number;
   timers: RemoteKeyListenerTimers;
-  /** Text-field focus probe (tests). Defaults to the hotkey trigger's. */
-  isTextFocus?(): boolean;
+  /** Text-field focus probe (tests). Defaults to `isTextFocus(win.document, event)`. */
+  isTextFocus?(ev?: Event): boolean;
+}
+
+function isTextField(el: unknown): boolean {
+  if (!el || typeof (el as Element).tagName !== 'string') return false;
+  const tag = (el as Element).tagName.toUpperCase();
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  return (el as HTMLElement).isContentEditable === true;
+}
+
+/**
+ * The focused element, descending through open shadow roots:
+ * `document.activeElement` is only the outermost shadow host.
+ */
+export function deepActiveElement(doc: Document): Element | null {
+  let el: Element | null = doc.activeElement;
+  for (let depth = 0; el && depth < 32; depth++) {
+    const inner = el.shadowRoot ? el.shadowRoot.activeElement : null;
+    if (!inner || inner === el) break;
+    el = inner;
+  }
+  return el;
+}
+
+/**
+ * True while a text field has focus, or when the key event itself comes from
+ * one (its `composedPath()[0]`, which sees into open shadow roots).
+ */
+export function isTextFocus(doc: Document, ev?: Event): boolean {
+  if (isTextField(deepActiveElement(doc))) return true;
+  if (!ev) return false;
+  try {
+    const path = typeof ev.composedPath === 'function' ? ev.composedPath() : null;
+    return isTextField(path && path.length > 0 ? path[0] : ev.target);
+  } catch {
+    return false;
+  }
 }
 
 export interface RemoteKeyListener {
@@ -69,8 +105,8 @@ function safe<T>(fn: () => T, fallback: T): T {
 
 export function installRemoteKeyListener(deps: RemoteKeyListenerDeps): RemoteKeyListener {
   const { win, keyMap, timers } = deps;
-  const textFocus = (): boolean =>
-    safe(() => (deps.isTextFocus ? deps.isTextFocus() : isInputFocus()), false);
+  const textFocus = (ev?: Event): boolean =>
+    safe(() => (deps.isTextFocus ? deps.isTextFocus(ev) : isTextFocus(win.document, ev)), false);
   let attached = false;
   let disposed = false;
   let detector: GestureDetector | null = null;
@@ -202,7 +238,7 @@ export function installRemoteKeyListener(deps: RemoteKeyListenerDeps): RemoteKey
         detector = new GestureDetector(binding);
       }
       const d = detector;
-      if (isTypingBinding(binding) && textFocus()) {
+      if (isTypingBinding(binding) && textFocus(ev)) {
         standAside(d, ev, input);
         return;
       }
