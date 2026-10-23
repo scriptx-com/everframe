@@ -38,6 +38,7 @@ import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import dev.everframe.Everframe
+import dev.everframe.TXCapturedSession
 import dev.everframe.capture.EmulatorEnvironment
 import dev.everframe.capture.ScreenshotCapture
 import dev.everframe.capture.SensitiveRectRegistry
@@ -320,8 +321,7 @@ internal object QuickCapture {
         // kill() in that window means nothing may freeze or ship; a kill() then start() means the image
         // belongs to the previous session; a finished activity is no longer what was captured; and a
         // reporter that opened (or froze) meanwhile owns the evidence this capture would freeze.
-        if (!Everframe.captureGate || Everframe.currentStartEpochVolatile() != capturedSession.user.startEpoch ||
-            activity.isFinishing || activity.isDestroyed ||
+        if (!isCurrent(capturedSession) || activity.isFinishing || activity.isDestroyed ||
             Everframe.report.isPresenting.value || Everframe.__replayHasReporterOwner
         ) {
             return QuickCaptureOutcome.Failed
@@ -336,6 +336,12 @@ internal object QuickCapture {
         try {
             // Consume-once host payload, exactly as the reporter drains it at open.
             val hostExtra = Everframe.consumePendingAttachments()?.takeIf { it.isNotEmpty() }
+            // The host's extra resolver can suspend: a start() meanwhile may have handed back the new
+            // session's metadata. The consumed value is dropped with the capture.
+            if (!isCurrent(capturedSession)) {
+                capture.cancel()
+                return QuickCaptureOutcome.Failed
+            }
             val result = submitter(
                 CompanionSubmissionComposer.Inputs(
                     activity = activity,
@@ -372,6 +378,10 @@ internal object QuickCapture {
             return QuickCaptureOutcome.Failed
         }
     }
+
+    /** The kill switch is open and no start() or kill() has run since [capturedSession] was taken. */
+    private fun isCurrent(capturedSession: TXCapturedSession): Boolean =
+        Everframe.captureGate && Everframe.currentStartEpochVolatile() == capturedSession.user.startEpoch
 
     /**
      * The provider's answer, or null on a throw or after [evidenceTimeoutMs]. The provider runs as its own

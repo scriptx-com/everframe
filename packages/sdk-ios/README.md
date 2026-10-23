@@ -440,9 +440,9 @@ duplicate-true posts.
 For the cross-SDK contract statement see the top-level
 [README.md](../../README.md#triggers-are-a-host-app-concern).
 
-## Quick capture (debug simulators)
+## Quick capture (simulators)
 
-While you test a debug build in the iOS simulator, double-tap **Shift** to
+While you test a build in the iOS simulator, double-tap **Shift** to
 file a report without opening the reporter. The tvOS simulator is not yet
 verified. The SDK takes the
 screenshot first, freezes the replay window, logs, breadcrumbs and network the
@@ -458,7 +458,9 @@ dashboard. Like the reporter, a quick capture consumes the pending
   reach the app even while the simulator window's sidebar has focus; a chord
   with a letter needs a click on the device screen first, and a click on the
   screen is a tap the app sees.
-- **Debug simulators only.** It never runs on a device or in a release build.
+- **Simulators only.** It never runs on a physical device. Every simulator
+  build counts as a debug build, Release configuration included, unless the
+  app sets `EverframeConfig.debugBuild = false`.
   It also needs `reporterEnabled` and the dashboard's capture hotkey setting,
   and it does nothing while the reporter is on screen or a capture is still
   uploading. Shake-to-report is ignored while a quick capture is in flight,
@@ -490,9 +492,9 @@ dashboard. Like the reporter, a quick capture consumes the pending
   notification `com.everframe.capture` to the booted simulator
   (`xcrun simctl spawn <udid> notifyutil -p com.everframe.capture`), which
   files the same capture as the double-Shift trigger. It follows the same
-  gates: a debug simulator build with the dashboard's capture hotkey setting
-  on, and nothing happens while the reporter is on screen or a capture is
-  uploading. With several simulators booted, pass `--device <udid>`.
+  gates: a simulator build (not opted out with `debugBuild = false`) with the
+  dashboard's capture hotkey setting on, and nothing happens while the reporter
+  is on screen or a capture is uploading. With several simulators booted, pass `--device <udid>`.
 - **No screenshot, no capture.** A session started with
   `capture.screenshot = false` ignores quick capture and uploads nothing, unless
   a host plugin (Flutter's `enableQuickCapture`) supplies masked evidence; the

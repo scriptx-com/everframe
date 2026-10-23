@@ -663,11 +663,13 @@ class QuickCaptureTest {
     }
 
     /**
-     * A start() after the post-screenshot check (here, from the freeze) must not hand the capture the new
-     * session: the submission carries the snapshot taken before the screenshot.
+     * The submission carries the snapshot taken before the screenshot, and a start() after the
+     * post-screenshot check (here, from the freeze) never hands the capture the new session: the check
+     * after the host extras fails it instead.
      */
     @Test
     fun submissionCarriesTheSessionFromBeforeTheScreenshot() {
+        installReplaySession()
         val projectA = EverframeConfig(
             appId = "qc-app", sdkKey = "txx_live_quickcaptureA001", environment = Environment.production,
         )
@@ -678,18 +680,53 @@ class QuickCaptureTest {
             Everframe.start(app, projectA)
             arm()
             val before = Everframe.captureSessionSnapshot()
+            assertEquals(QuickCaptureOutcome.Sent, broadcast())
+            val session = submits.single().capturedSession
+            assertEquals("txx_live_quickcaptureA001", session.config?.sdkKey)
+            assertEquals(before.user.startEpoch, session.user.startEpoch)
+
+            submits.clear()
             QuickCapture.freezer = { trigger ->
                 freezes.incrementAndGet()
                 Everframe.start(app, projectB)
                 Everframe.__replayFreeze(trigger)
             }
-
-            assertEquals(QuickCaptureOutcome.Sent, broadcast())
-
-            val session = submits.single().capturedSession
-            assertEquals("txx_live_quickcaptureA001", session.config?.sdkKey)
-            assertEquals(before.user.startEpoch, session.user.startEpoch)
+            assertEquals(QuickCaptureOutcome.Failed, broadcast())
+            assertTrue(submits.isEmpty())
+            assertFalse("the freeze is released", Everframe.__replayHasReporterOwner)
         } finally {
+            Everframe.kill()
+        }
+    }
+
+    /**
+     * The host-extra resolver (React Native's) can suspend after the freeze: a start() meanwhile could hand
+     * the new session's metadata to this capture, so the capture fails and releases its freeze.
+     */
+    @Test
+    fun startDuringHostExtraResolutionFailsWithoutSubmitting() {
+        installReplaySession()
+        val projectA = EverframeConfig(
+            appId = "qc-app", sdkKey = "txx_live_quickcaptureA002", environment = Environment.production,
+        )
+        val projectB = EverframeConfig(
+            appId = "qc-app", sdkKey = "txx_live_quickcaptureB002", environment = Environment.production,
+        )
+        try {
+            Everframe.start(app, projectA)
+            arm()
+            Everframe.__pendingExtraResolveHook = {
+                Everframe.start(app, projectB)
+                Everframe.setExtra("""{"project":"B"}""")
+            }
+
+            assertEquals(QuickCaptureOutcome.Failed, broadcast())
+
+            assertEquals(1, freezes.get())
+            assertTrue(submits.isEmpty())
+            assertFalse("the freeze is released", Everframe.__replayHasReporterOwner)
+        } finally {
+            Everframe.__pendingExtraResolveHook = null
             Everframe.kill()
         }
     }

@@ -486,9 +486,10 @@ final class QuickCaptureTests: XCTestCase {
         }
     }
 
-    /// A start() after the post-screenshot check (here, from the freeze) must
-    /// not hand the capture the new session: the submission carries the
-    /// snapshot taken before the screenshot.
+    /// The submission carries the snapshot taken before the screenshot, and a
+    /// start() after the post-screenshot check (here, from the freeze) never
+    /// hands the capture the new session: the check after the host extras
+    /// fails it instead.
     func testSubmissionCarriesTheSessionFromBeforeTheScreenshot() async throws {
         try await withGlobalCaptureStateLock {
             defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil) }
@@ -498,6 +499,12 @@ final class QuickCaptureTests: XCTestCase {
                 sdkKey: projectA, capture: CaptureConfig(logs: false), releaseHealth: nil))
             let before = Everframe.shared.captureSessionSnapshot()
             let qc = makeArmed()
+            guard case .sent = await qc.capture() else { return XCTFail("expected .sent") }
+            let session = try XCTUnwrap(submitted.first).capturedSession
+            XCTAssertEqual(session.config?.sdkKey, projectA)
+            XCTAssertEqual(session.user.startEpoch, before.user.startEpoch)
+
+            submitted = []
             var restartError: Error?
             qc.lifecycle = QuickCapture.Lifecycle(
                 open: { [unowned self] in
@@ -511,14 +518,42 @@ final class QuickCaptureTests: XCTestCase {
                 didClose: { [unowned self] in self.closes.append($0) },
                 cancel: { [unowned self] in self.cancels.append($0) }
             )
+            let outcome = await qc.capture()
+            XCTAssertNil(restartError)
+            XCTAssertEqual(outcome, .failed)
+            XCTAssertTrue(submitted.isEmpty)
+            XCTAssertEqual(cancels.count, 1)
+        }
+    }
+
+    /// The host-extra resolver (React Native's) can be pending after the
+    /// freeze: a start() meanwhile could hand the new session's metadata to
+    /// this capture, so the capture fails and releases its freeze.
+    func testStartDuringHostExtraResolutionFailsWithoutSubmitting() async throws {
+        try await withGlobalCaptureStateLock {
+            defer {
+                Everframe.__pendingExtraResolveHook = nil
+                Everframe.shared.kill()
+                Everframe.__setConfigForTesting(nil)
+            }
+            try Everframe.shared.start(config: EverframeConfig(
+                sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU", capture: CaptureConfig(logs: false),
+                releaseHealth: nil))
+            Everframe.__pendingExtraResolveHook = {
+                try? Everframe.shared.start(config: EverframeConfig(
+                    sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rV", capture: CaptureConfig(logs: false),
+                    releaseHealth: nil))
+                Everframe.shared.setExtra(#"{"project":"B"}"#)
+            }
+            let qc = makeArmed()
 
             let outcome = await qc.capture()
 
-            XCTAssertNil(restartError)
-            guard case .sent = outcome else { return XCTFail("expected .sent, got \(outcome)") }
-            let session = try XCTUnwrap(submitted.first).capturedSession
-            XCTAssertEqual(session.config?.sdkKey, projectA)
-            XCTAssertEqual(session.user.startEpoch, before.user.startEpoch)
+            XCTAssertEqual(outcome, .failed)
+            XCTAssertTrue(submitted.isEmpty)
+            XCTAssertEqual(freezes, 1)
+            XCTAssertEqual(cancels.count, 1)
+            XCTAssertTrue(closes.isEmpty)
         }
     }
 

@@ -10,8 +10,9 @@ with no reporter UI. The report carries the screenshot, replay, logs and
 metadata, is marked `quickCapture`, and is attributed to the developer when
 `$SIMULATOR_HOST_HOME/.everframe/credentials` holds a token. The token is only sent to the server it was issued by (the file's `url`). It stays dark until
 the server sends `captureHotkey` in the project config, and can be turned off
-locally with `quickCaptureEnabled = false`. Devices and release builds are
-unaffected. The tvOS simulator is not yet verified.
+locally with `quickCaptureEnabled = false`. Physical devices are unaffected.
+Every simulator build counts as a debug build unless the app sets
+`EverframeConfig.debugBuild = false`. The tvOS simulator is not yet verified.
 
 When the block also sets `replay: true`, session replay records while quick
 capture is armed, even if the app's `replayEnabled` is false and regardless of
@@ -23,7 +24,7 @@ arrives, so it sends the capture without its replay, and the launch drain remove
 entry. A key press that UIKit delivers twice is counted
 once.
 
-`npx @everframe/cli capture` triggers a capture on a booted simulator through the Darwin notification `com.everframe.capture`, with the same gates as the double-Shift trigger (a debug simulator build with the dashboard setting on, armed, nothing in flight). `npx @everframe/cli login` writes the `~/.everframe/credentials` file the SDK reads for attribution.
+`npx @everframe/cli capture` triggers a capture on a booted simulator through the Darwin notification `com.everframe.capture`, with the same gates as the double-Shift trigger (a simulator build not opted out with `debugBuild = false`, the dashboard setting on, armed, nothing in flight). `npx @everframe/cli login` writes the `~/.everframe/credentials` file the SDK reads for attribution.
 
 A session started with `capture.screenshot = false` ignores quick capture unless
 the host has installed an evidence provider with

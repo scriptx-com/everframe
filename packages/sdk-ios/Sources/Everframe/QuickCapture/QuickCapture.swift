@@ -365,6 +365,12 @@ final class QuickCapture {
         return nil
     }
 
+    /// The kill switch is open and no `start()` or `kill()` has run since
+    /// `capturedSession` was taken.
+    private func isCurrent(_ capturedSession: EFCapturedSession) -> Bool {
+        Everframe.captureGate && Everframe.shared.currentStartEpoch == capturedSession.user.startEpoch
+    }
+
     /// `EFReporterPresenter.openAndAwait` minus the UI: screenshot first, then
     /// the reporter-open boundary and freeze, then submit and release.
     private func runPipeline(provider: QuickCaptureEvidenceProvider?) async -> QuickCaptureOutcome {
@@ -407,12 +413,18 @@ final class QuickCapture {
         // reporter that opened (or froze) meanwhile owns the evidence this
         // capture would freeze over; and an app that left the foreground is no
         // longer what was captured.
-        guard Everframe.captureGate, Everframe.shared.currentStartEpoch == capturedSession.user.startEpoch,
-              isApplicationActive(), !Everframe.shared.report.isPresenting,
+        guard isCurrent(capturedSession), isApplicationActive(), !Everframe.shared.report.isPresenting,
               !Everframe.shared.__replayHasReporterOwner else { return .failed }
         let owner = lifecycle.open()
         // Consume-once host payload, as the reporter drains it at open.
         let hostExtra = await Everframe.shared.__consumePendingAttachments()
+        // The host's extra resolver (React Native's) can be pending: a start()
+        // meanwhile may have handed back the new session's metadata. The
+        // consumed value is dropped with the capture.
+        guard isCurrent(capturedSession) else {
+            lifecycle.cancel(owner)
+            return .failed
+        }
         let inputs = ReporterSubmission.Inputs(
             captureResult: shot,
             shots: [ReporterSubmission.Inputs.Shot(image: shot.image, annotated: false)],
