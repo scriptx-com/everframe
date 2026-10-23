@@ -293,7 +293,10 @@ internal object QuickCapture {
         val shot: ScreenshotCapture.CaptureResult
         val hostReplayVTree: ByteArray?
         val sdkName: String
-        val epoch = Everframe.currentStartEpochVolatile()
+        // The session this capture belongs to, taken once before any evidence and carried to the submission.
+        // Its epoch is read in the same critical section as its config, so the check below and the routing
+        // agree on one session; nothing after the screenshot reads the session again.
+        val capturedSession = Everframe.captureSessionSnapshot()
         if (provider != null) {
             // The host's masked evidence replaces the native screenshot entirely; a null answer, a throw, or
             // no answer within the timeout fails without a fallback.
@@ -317,7 +320,7 @@ internal object QuickCapture {
         // kill() in that window means nothing may freeze or ship; a kill() then start() means the image
         // belongs to the previous session; a finished activity is no longer what was captured; and a
         // reporter that opened (or froze) meanwhile owns the evidence this capture would freeze.
-        if (!Everframe.captureGate || Everframe.currentStartEpochVolatile() != epoch ||
+        if (!Everframe.captureGate || Everframe.currentStartEpochVolatile() != capturedSession.user.startEpoch ||
             activity.isFinishing || activity.isDestroyed ||
             Everframe.report.isPresenting.value || Everframe.__replayHasReporterOwner
         ) {
@@ -331,7 +334,6 @@ internal object QuickCapture {
             return QuickCaptureOutcome.Failed
         }
         try {
-            val capturedSession = Everframe.captureSessionSnapshot()
             // Consume-once host payload, exactly as the reporter drains it at open.
             val hostExtra = Everframe.consumePendingAttachments()?.takeIf { it.isNotEmpty() }
             val result = submitter(

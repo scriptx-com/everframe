@@ -371,7 +371,11 @@ final class QuickCapture {
         let shot: ScreenshotCapture.Result
         let hostReplayVTree: Data?
         let sdkName: String
-        let epoch = Everframe.shared.currentStartEpoch
+        // The session this capture belongs to, taken once before any evidence
+        // and carried to the submission. Its epoch is read in the same critical
+        // section as its config, so the check below and the routing agree on
+        // one session; nothing after the screenshot reads the session again.
+        let capturedSession = Everframe.shared.captureSessionSnapshot()
         if let provider {
             // The host's masked evidence replaces the native screenshot entirely;
             // a nil answer, or none within the timeout, fails without a fallback.
@@ -403,11 +407,10 @@ final class QuickCapture {
         // reporter that opened (or froze) meanwhile owns the evidence this
         // capture would freeze over; and an app that left the foreground is no
         // longer what was captured.
-        guard Everframe.captureGate, Everframe.shared.currentStartEpoch == epoch,
+        guard Everframe.captureGate, Everframe.shared.currentStartEpoch == capturedSession.user.startEpoch,
               isApplicationActive(), !Everframe.shared.report.isPresenting,
               !Everframe.shared.__replayHasReporterOwner else { return .failed }
         let owner = lifecycle.open()
-        let capturedSession = Everframe.shared.captureSessionSnapshot()
         // Consume-once host payload, as the reporter drains it at open.
         let hostExtra = await Everframe.shared.__consumePendingAttachments()
         let inputs = ReporterSubmission.Inputs(

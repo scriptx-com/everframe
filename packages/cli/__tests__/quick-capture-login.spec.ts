@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { createHash } from 'node:crypto';
+import { connect } from 'node:net';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -170,6 +171,33 @@ describe('login', () => {
     expect(ok.status).toBe(200);
     expect(await done).toBe(0);
     expect(t.fetchCalls).toHaveLength(1);
+  });
+
+  it('answers a malformed request target with 400 and keeps waiting', async () => {
+    const t = setup();
+    const done = loginCommand(t.deps, {});
+    const u = await waitForUrl(t);
+    // fetch normalizes the target, so write the request line by hand.
+    const reply = await new Promise<string>((resolve, reject) => {
+      const socket = connect(Number(u.searchParams.get('port')), '127.0.0.1', () => {
+        socket.write('GET //[ HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n');
+      });
+      let data = '';
+      socket.setEncoding('utf8');
+      socket.on('data', (chunk) => (data += chunk));
+      socket.on('end', () => resolve(data));
+      socket.on('error', reject);
+      socket.setTimeout(2000, () => {
+        socket.destroy();
+        resolve(data);
+      });
+    });
+    expect(reply).toMatch(/^HTTP\/1\.1 400 /);
+    expect(reply).toContain('Invalid request.');
+    expect(t.fetchCalls).toHaveLength(0);
+    const ok = await fetch(cb(u, `/callback?state=${u.searchParams.get('state')}&code=${CODE}`));
+    expect(ok.status).toBe(200);
+    expect(await done).toBe(0);
   });
 
   it('answers non-GET callbacks with 400 and ignores callbacks after success', async () => {

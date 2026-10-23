@@ -486,6 +486,42 @@ final class QuickCaptureTests: XCTestCase {
         }
     }
 
+    /// A start() after the post-screenshot check (here, from the freeze) must
+    /// not hand the capture the new session: the submission carries the
+    /// snapshot taken before the screenshot.
+    func testSubmissionCarriesTheSessionFromBeforeTheScreenshot() async throws {
+        try await withGlobalCaptureStateLock {
+            defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil) }
+            let projectA = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+            let projectB = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rV"
+            try Everframe.shared.start(config: EverframeConfig(
+                sdkKey: projectA, capture: CaptureConfig(logs: false), releaseHealth: nil))
+            let before = Everframe.shared.captureSessionSnapshot()
+            let qc = makeArmed()
+            var restartError: Error?
+            qc.lifecycle = QuickCapture.Lifecycle(
+                open: { [unowned self] in
+                    self.freezes += 1
+                    do {
+                        try Everframe.shared.start(config: EverframeConfig(
+                            sdkKey: projectB, capture: CaptureConfig(logs: false), releaseHealth: nil))
+                    } catch { restartError = error }
+                    return UUID()
+                },
+                didClose: { [unowned self] in self.closes.append($0) },
+                cancel: { [unowned self] in self.cancels.append($0) }
+            )
+
+            let outcome = await qc.capture()
+
+            XCTAssertNil(restartError)
+            guard case .sent = outcome else { return XCTFail("expected .sent, got \(outcome)") }
+            let session = try XCTUnwrap(submitted.first).capturedSession
+            XCTAssertEqual(session.config?.sdkKey, projectA)
+            XCTAssertEqual(session.user.startEpoch, before.user.startEpoch)
+        }
+    }
+
     func testProviderWhileAppLeavesTheForegroundFails() async {
         let qc = makeArmedWithScreenshotDisabled()
         var active = true

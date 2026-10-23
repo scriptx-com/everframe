@@ -662,6 +662,38 @@ class QuickCaptureTest {
         assertTrue(submits.isEmpty())
     }
 
+    /**
+     * A start() after the post-screenshot check (here, from the freeze) must not hand the capture the new
+     * session: the submission carries the snapshot taken before the screenshot.
+     */
+    @Test
+    fun submissionCarriesTheSessionFromBeforeTheScreenshot() {
+        val projectA = EverframeConfig(
+            appId = "qc-app", sdkKey = "txx_live_quickcaptureA001", environment = Environment.production,
+        )
+        val projectB = EverframeConfig(
+            appId = "qc-app", sdkKey = "txx_live_quickcaptureB001", environment = Environment.production,
+        )
+        try {
+            Everframe.start(app, projectA)
+            arm()
+            val before = Everframe.captureSessionSnapshot()
+            QuickCapture.freezer = { trigger ->
+                freezes.incrementAndGet()
+                Everframe.start(app, projectB)
+                Everframe.__replayFreeze(trigger)
+            }
+
+            assertEquals(QuickCaptureOutcome.Sent, broadcast())
+
+            val session = submits.single().capturedSession
+            assertEquals("txx_live_quickcaptureA001", session.config?.sdkKey)
+            assertEquals(before.user.startEpoch, session.user.startEpoch)
+        } finally {
+            Everframe.kill()
+        }
+    }
+
     /** kill() cancels every SDK-scope child, so a capture waiting on its provider ends with nothing frozen. */
     @Test
     fun killDuringProviderCancelsTheCapture() {

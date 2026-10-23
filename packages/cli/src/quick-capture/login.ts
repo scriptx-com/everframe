@@ -107,7 +107,13 @@ function waitForCallback(server: Server, state: string, timeoutMs: number): Call
       }
       res.end(CLOSE_TAB(line));
     };
-    const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+    let url: URL;
+    try {
+      url = new URL(req.url ?? '/', 'http://127.0.0.1');
+    } catch {
+      // A target like `//[` throws; escaping the listener would kill the login.
+      return reply(400, 'Invalid request.');
+    }
     if (
       req.method !== 'GET' ||
       url.pathname !== '/callback' ||
