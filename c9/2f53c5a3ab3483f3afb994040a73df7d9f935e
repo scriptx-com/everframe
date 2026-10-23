@@ -1,0 +1,27 @@
+packages/sdk-web/__tests__/capture/network-device-link.spec.ts
+  s_f1c043e85606b2::t_dfca3276cd509e 1-164
+  s_f1c043e85606b2::t_dd339c3f5ae710 165-187
+packages/sdk-web/__tests__/quickcapture/link-client.spec.ts
+  s_f1c043e85606b2::t_e0bf97659544d1 1-223
+  s_f1c043e85606b2::t_bb87b5042704d1 224-240
+packages/sdk-web/src/quickcapture/link-client.ts
+  s_f1c043e85606b2::t_6671cd5c143a0b 1-159
+packages/sdk-web/src/capture/network.ts
+  s_f1c043e85606b2::t_82c4331f0f38dd 9-10,263-264,271-273,276-308,570,577,592,596,729,833
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c92f53c5a3ab3483f3afb994040a73df7d9f935e",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
