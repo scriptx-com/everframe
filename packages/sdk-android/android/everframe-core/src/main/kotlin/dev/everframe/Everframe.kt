@@ -642,6 +642,10 @@ object Everframe {
     /** Deterministic test seam after immutable drain capture and before coroutine dispatch. */
     internal var __beforeDrainLaunchForTesting: (() -> Unit)? = null
 
+    /** Test seam: the device link store `start()` loads (real-device quick capture). Null uses `noBackupFilesDir`. */
+    @VisibleForTesting
+    internal var __deviceLinkStoreFactoryForTesting: ((Context) -> dev.everframe.devicelink.DeviceLinkStore)? = null
+
     /** Test-only reset for the start-tail delay hook. Production code does not call this. */
     @VisibleForTesting
     internal fun __resetStartTailDelayHookForTesting() {
@@ -1413,7 +1417,8 @@ object Everframe {
             txGuardVoid("start.deviceLink") {
                 val linkContext = context.applicationContext
                 dev.everframe.devicelink.DeviceLink.install(
-                    store = dev.everframe.devicelink.DeviceLinkStore.forContext(linkContext),
+                    store = __deviceLinkStoreFactoryForTesting?.invoke(linkContext)
+                        ?: dev.everframe.devicelink.DeviceLinkStore.forContext(linkContext),
                     client = dev.everframe.devicelink.DeviceLinkClient(IngestEndpoint.url, config.sdkKey),
                     scope = dev.everframe.devicelink.DeviceLinkScope.of(IngestEndpoint.url, config.sdkKey),
                     device = { dev.everframe.devicelink.HelloDevice.collect(linkContext, config.debugBuild) },

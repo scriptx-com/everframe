@@ -124,9 +124,80 @@ controlled authoritatively by the dashboard. Disable it locally with
 overrides a dashboard disable. It uses the optional system accelerometer,
 requests no permission, declares no required sensor feature, and safely no-ops
 when the device has no accelerometer. Android TV and Leanback devices are
-excluded.
+excluded. Shake also drives [quick capture on real devices](#quick-capture-on-real-phones):
+while quick capture is armed or device linking is on, the shake detector runs
+whatever `shakeToReport` says, and `shakeToReport` decides only whether an
+unlinked release build opens the reporter.
 
-### Quick capture (debug emulators)
+### Quick capture
+
+Quick capture files a report with its screenshot, replay window, logs,
+breadcrumbs and network, without opening the reporter. You title and file it on
+the dashboard, in the live capture card. On a real phone the gesture is a
+shake; on an emulator it is ⇧B (below).
+
+#### Quick capture on real phones
+
+Link your phone to yourself once, then shake it whenever you see a bug:
+
+1. On the dashboard, open **Settings → Devices → Link a device**.
+2. Shake the phone with the app running. A banner shows
+   `Linking to Everframe · 47`, with the line
+   `A teammate is linking a device. If that's not you, ignore this.`
+3. Click the same number on the dashboard. The phone shows
+   `Linked to <your name>` (or `Linked as team device` for a team device).
+
+From then on, a shake takes a quick capture filed for you, as a private draft,
+and the toast names you: `Captured · <your name>`. A team device files shared
+drafts and shows `Captured · team device`. Nothing in the app changes: there is
+no settings screen, button or deep link to add.
+
+What a shake does, with the dashboard's capture hotkey setting on:
+
+| Device                  | Shake                                                                                                |
+| ----------------------- | ---------------------------------------------------------------------------------------------------- |
+| Linked to a teammate    | Quick capture, private to that teammate. `Captured · <name>`.                                        |
+| Linked as a team device | Quick capture, shared draft. `Captured · team device`.                                               |
+| Unlinked, debug build   | Quick capture, shared draft. `Captured · <device name>`. Also says hello to a dashboard link window. |
+| Unlinked, release build | As before: the reporter opens if shake-to-report is on. Also says hello to a dashboard link window.  |
+
+- **End users see no change.** An unlinked release build never takes a quick
+  capture and never records replay because of it. The only new thing it can
+  show is the matching-number banner, if someone shakes it while a teammate has
+  a link window open; nothing links unless the teammate clicks that number.
+- **Debug builds on real devices** take quick captures without linking, as
+  shared drafts. A build counts as debug when the app is debuggable, or when
+  `EverframeConfig(debugBuild = true)` says so.
+- **`shakeToReport` controls only the reporter.** With quick capture armed or
+  device linking on, shake runs whatever `shakeToReport` or
+  `shakeToReportEnabled` say; they decide only whether an unlinked release
+  build opens the reporter. A crash-only session (`reporterEnabled = false`)
+  never listens for shake.
+- **Replay.** With the capture hotkey's replay setting on, linked devices (any
+  build) and debug builds record session replay while quick capture is armed,
+  as emulators do. Unlinked release builds never do.
+- **Takeover.** A linked device can be taken over by another teammate: they
+  open **Link a device** and you shake. The capture is filed as usual, the
+  banner shows a number, and when they pick it the device moves to them along
+  with that capture.
+- **Unlinking.** Unlink a device under **Settings → Devices**. The phone finds
+  out at its next capture or config fetch, shows `This device was unlinked`,
+  and behaves as unlinked again. A capture refused this way is not filed in the
+  shared inbox.
+- **Token storage.** The device token is encrypted with AES-GCM under an
+  AndroidKeyStore key and stored in `noBackupFilesDir`, so it is never in a
+  backup or a device transfer. It is sent only to the ingest endpoint and SDK
+  key that linked it; switching to another endpoint or key (staging and
+  production, or two apps) makes the device unlinked there while the token is
+  kept for the original. It is never logged. A capture that is queued offline is
+  sent later only while the same token is still stored, and is dropped if the
+  device was unlinked or moved to someone else meanwhile.
+- **Off switches.** The dashboard's per-app **Device linking** switch stops the
+  hello; the capture hotkey setting, `quickCaptureEnabled = false` or
+  `reporterEnabled = false` turn quick capture and linking off together, and
+  shake then behaves as before.
+
+#### Quick capture on emulators
 
 While you test a debug build on an Android emulator, press **⇧B** in the app
 (outside a text field) to file a report without opening the reporter. From your
@@ -167,7 +238,7 @@ dashboard. Like the reporter, a quick capture consumes the pending
   they get no quick capture for now.
 - **Debug emulators only.** The receiver is registered, and ⇧B is watched,
   only in a debuggable build running on an emulator, never on a device or in a
-  release build. It
+  release build (a real phone uses shake, above). It
   also needs `reporterEnabled` and the dashboard's capture hotkey setting, and
   it does nothing while the reporter is on screen, while another capture holds
   the frozen replay, or while a capture is still uploading. Shake-to-report is
