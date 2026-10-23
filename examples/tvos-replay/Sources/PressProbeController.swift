@@ -74,14 +74,16 @@ enum PressProbe {
         }
     }
 
-    /// The accessibility identifier of the focused view or its nearest ancestor.
+    /// The accessibility identifier of the focused view or its nearest
+    /// ancestor. Walks focus environments, not superviews: a SwiftUI button's
+    /// focus item is not a view.
     @MainActor static func focusID(in window: UIWindow) -> String {
-        var view = UIFocusSystem.focusSystem(for: window)?.focusedItem as? UIView
-        while let current = view {
-            if let id = current.accessibilityIdentifier, !id.isEmpty {
+        var environment: UIFocusEnvironment? = UIFocusSystem.focusSystem(for: window)?.focusedItem
+        while let current = environment {
+            if let view = current as? UIView, let id = view.accessibilityIdentifier, !id.isEmpty {
                 return id == "probe-swiftui-host" ? "probe-swiftui" : id
             }
-            view = current.superview
+            environment = current.parentFocusEnvironment
         }
         return "none"
     }
@@ -89,11 +91,14 @@ enum PressProbe {
 
 /// Drops presses named by `REPLAY_TV_PROBE_DROP` (`<pressName>:<began|ended>`,
 /// comma-separated) by not calling `super.sendEvent`, which is how an SDK
-/// would swallow them. Logs every press first.
+/// would swallow them. `<pressName>:heldEnded` drops only the release of a
+/// press held at least 1.4 s, as a linked device swallows a fired long
+/// press's release. Logs every press first.
 final class ProbeWindow: UIWindow {
     private let drops: Set<String> = Set(
         (ProcessInfo.processInfo.environment["REPLAY_TV_PROBE_DROP"] ?? "")
             .split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+    private var began: [ObjectIdentifier: TimeInterval] = [:]
 
     override func sendEvent(_ event: UIEvent) {
         guard let presses = event as? UIPressesEvent else { return super.sendEvent(event) }
@@ -104,7 +109,13 @@ final class ProbeWindow: UIWindow {
             guard let phase = PressProbe.phaseName(press.phase) else { continue }
             let name = PressProbe.pressName(press.type)
             changing += 1
+            let id = ObjectIdentifier(press)
+            var held: TimeInterval = 0
+            if press.phase == .began { began[id] = press.timestamp } else {
+                held = began.removeValue(forKey: id).map { press.timestamp - $0 } ?? 0
+            }
             let drop = drops.contains("\(name):\(phase)")
+                || (press.phase == .ended && held >= 1.4 && drops.contains("\(name):heldEnded"))
             if drop { dropped += 1 }
             PressProbe.log("type=\(name) phase=\(phase) t=\(PressProbe.ms(press.timestamp)) focus=\(focus)"
                 + (drop ? " dropped=1" : ""))
