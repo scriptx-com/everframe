@@ -66,7 +66,12 @@ final class DeviceLinkCoordinator {
                 now: { ProcessInfo.processInfo.systemUptime },
                 deviceInfo: { DeviceLinkCoordinator.liveDeviceInfo() },
                 makeNonce: { DeviceLinkNonce.make() },
-                linkChanged: { _ in }
+                linkChanged: { linked in
+                    #if canImport(UIKit)
+                    QuickCapture.shared.setLinked(linked)
+                    #endif
+                    Everframe.shared.__refreshConfigForDeviceLink()
+                }
             )
         }
     }

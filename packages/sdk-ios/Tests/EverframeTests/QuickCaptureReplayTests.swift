@@ -270,6 +270,43 @@ struct QuickCaptureReplayTests {
         }
     }
 
+    /// A config that says this device's token is unlinked clears the link and
+    /// stops the forced recording at that same apply.
+    @Test func aConfigThatSaysUnlinkedStopsForcingAtTheSameApply() async {
+        await onRealDevice(debug: false, linked: true) {
+            let base = URL(string: "https://example.test")!
+            let store = DeviceLinkStore(secure: InMemoryDeviceLinkSecureStore())
+            store.save(DeviceLink(token: fixtureToken, owner: .team), endpoint: base, sdkKey: "test")
+            let coordinator = DeviceLinkCoordinator.shared
+            coordinator.__setStoreForTesting(store)
+            coordinator.beginSession(endpoint: base, sdkKey: "test", hostMode: .device,
+                                     transport: DeviceLinkClient(baseURL: base, sdkKey: "test"))
+            defer {
+                coordinator.teardown()
+                coordinator.__setStoreForTesting(.shared)
+            }
+            let linked = #","deviceLinking":{"enabled":true,"link":{"status":"linked","owner":{"kind":"team"}}}"#
+            let unlinked = #","deviceLinking":{"enabled":true,"link":{"status":"unlinked"}}"#
+            let first = String(config(replayEnabled: false, hotkey: forcing).dropLast()) + linked + "}"
+            let second = String(config(replayEnabled: false, hotkey: forcing).dropLast()) + unlinked + "}"
+            let provider = ReplayConfigProvider(
+                configUrl: base.appendingPathComponent("api/config"), sdkKey: "test",
+                fetcher: QuickCaptureReplayFetcher([first, second]), deviceTokenProvider: { fixtureToken })
+            let session = ReplaySession(provider: provider, locallyDisabled: false)
+            defer { session.teardown() }
+
+            await session.refreshConfigNow()
+            #expect(QuickCapture.shared.forcesReplay)
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+
+            await session.refreshConfigNow()
+            #expect(store.link(endpoint: base, sdkKey: "test") == nil)
+            #expect(!QuickCapture.shared.isLinked)
+            #expect(!QuickCapture.shared.forcesReplay)
+            #expect(session.__lifecycleStateForTesting() == .idle)
+        }
+    }
+
     /// `kill()` disarms quick capture and tears the replay session down, which
     /// stops a forced recording at once.
     @Test func killStopsTheForcedRecording() async throws {
