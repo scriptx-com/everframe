@@ -29,6 +29,7 @@ import { __setPortalTarget } from './reporter-ui/portal-target.js';
 import { __setThemeHost } from './branding/theme-host.js';
 import { __setInlineReporterTheme } from './branding/inline-theme.js';
 import { __setCompanionHost } from './companion/host-seam.js';
+import { installQuickCapture, type QuickCaptureInstall } from './quickcapture/install.js';
 import {
   __setBuiltinPinSurfaceAvailable,
   __setBuiltinBadgeSurfaceAvailable,
@@ -128,6 +129,8 @@ export interface InternalHandle extends Everframe {
   __setShowModal(fn: () => void): void;
   readonly __adapter: WebPlatformAdapter;
   readonly __client: EverframeClient;
+  /** Test seam: the web-TV quick-capture install (a no-op off TVs). */
+  readonly __quickCapture: QuickCaptureInstall;
   readonly __config: WebEverframeConfig;
   readonly __root: ShadowRoot | HTMLElement;
 }
@@ -380,6 +383,19 @@ export function init(config: WebEverframeConfig): Everframe {
     isKilled: () => __internalClientState.get(client)?.killed === true,
   });
 
+  // Real-device quick capture on Samsung Tizen and LG webOS TVs: device
+  // linking and the capture gesture. A no-op on every other browser (no new
+  // request, no new chunk). Disposed in destroy().
+  const quickCapture = installQuickCapture({
+    config,
+    adapter,
+    sdkName,
+    sdkVersion: PKG_VERSION,
+    getUser: () => __internalClientState.get(client)?.user ?? null,
+    getExtra: () => resolveClientExtra(client) || undefined,
+    isKilled: () => __internalClientState.get(client)?.killed === true,
+  });
+
   // Assigned further down, once the ambient UI and the lazy-island loader
   // exist — it is a `let` rather than a `const` because the freeze-then-show
   // wrapper below has to be registered with the adapter BEFORE the island
@@ -478,12 +494,14 @@ export function init(config: WebEverframeConfig): Everframe {
   const drainNow = (): Promise<void> => {
     const ob = adapter.outbox;
     if (!ob || disposed || isKilled()) return Promise.resolve();
+    const deviceLinks = adapter.__deviceLinkDrain();
     return drainOutbox({
       outbox: ob,
       config,
       sdkVersion: PKG_VERSION,
       credentials: adapter.reporterCredentials ?? null,
       identityToken: adapter.__identityTokenReader,
+      ...(deviceLinks ? { deviceLinks } : {}),
     }).then((result) => {
       // A retried item that provisions a thread must wake the idle poller
       // immediately, the same way a live submit does — otherwise a client
@@ -1069,6 +1087,8 @@ export function init(config: WebEverframeConfig): Everframe {
       // buffers `openModal()` froze and settles sdk-core's own
       // `showReporterUI` promise, which was left dangling by the same gap.
       unwindOpen({ status: 'cancelled', reason: 'destroyed' });
+      // Banner and toasts off the page; no capture or hello after destroy().
+      quickCapture.dispose();
       // Clear every seam this init() wrote, in reverse order. A dead
       // instance's companion host / theme / portal target must not leak into
       // the next init() — that is the companion-badge Fix B doctrine.
@@ -1116,6 +1136,7 @@ export function init(config: WebEverframeConfig): Everframe {
     },
     __adapter: adapter,
     __client: client,
+    __quickCapture: quickCapture,
     __config: config,
     __root: root,
   };

@@ -30,6 +30,7 @@ import {
   __setCompanionDefaults,
   __setInlineReporterTheme,
   __watchCompanionBond,
+  __installQuickCapture,
   setupVitals,
   INGEST_URL,
   createScreenRecorder,
@@ -335,6 +336,23 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     return () => __setCompanionHost(null);
   }, [ctxValue]);
 
+  // Quick capture on Samsung Tizen and LG webOS TVs (device linking and the
+  // capture gesture). A no-op on every other browser. Keyed on the committed
+  // ctxValue, so StrictMode's mount → cleanup → mount installs once for the
+  // live client and disposes on unmount.
+  useEffect(() => {
+    const install = __installQuickCapture({
+      config: ctxValue.config,
+      adapter: ctxValue.adapter,
+      sdkName: 'everframe-react',
+      sdkVersion: PKG_VERSION,
+      getUser: () => __internalClientState.get(ctxValue.client)?.user ?? null,
+      getExtra: () => resolveClientExtra(ctxValue.client) || undefined,
+      isKilled: () => __internalClientState.get(ctxValue.client)?.killed === true,
+    });
+    return () => install.dispose();
+  }, [ctxValue]);
+
   // Crash-only sessions (spec 2026-10-12): a companion bond upgrades replay
   // and network-body coverage for the rest of the session. Keyed on ctxValue
   // and seeded from the current companion state, because StrictMode rebuilds
@@ -621,6 +639,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
           sdkVersion: PKG_VERSION,
           credentials: adapter.reporterCredentials ?? null,
           identityToken: adapter.__identityTokenReader,
+          ...((dl) => (dl ? { deviceLinks: dl } : {}))(adapter.__deviceLinkDrain()),
         }).then((result) => {
           // Round-6 PR-review Finding 2 (HIGH) — a retried outbox item that
           // provisions a thread must wake the idle poller immediately, the
@@ -824,6 +843,7 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
               sdkVersion: PKG_VERSION,
               credentials: ctxValue.adapter.reporterCredentials ?? null,
               identityToken: ctxValue.adapter.__identityTokenReader,
+              ...((dl) => (dl ? { deviceLinks: dl } : {}))(ctxValue.adapter.__deviceLinkDrain()),
             }).then((result) => {
               // Same Finding-2 wake-on-provision rule as the mount/online
               // drain trigger above — this drain can also retry OTHER

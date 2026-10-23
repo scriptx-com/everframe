@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  collectHelloDevice,
-  detectTvPlatform,
-  quickCaptureDebug,
-} from '../../src/devicelink/tv-platform.js';
+import { detectTvPlatform, quickCaptureDebug } from '../../src/devicelink/tv-platform.js';
+import { collectHelloDevice } from '../../src/quickcapture/hello-device.js';
 import { PKG_VERSION } from '../../src/internal/version.js';
 
 const TIZEN =

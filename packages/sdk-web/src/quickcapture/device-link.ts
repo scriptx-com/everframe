@@ -52,7 +52,7 @@ export interface LinkSnapshot {
 
 export interface DeviceLinkConfigBlock {
   enabled: boolean;
-  link?: DeviceLinkStatusWire;
+  link?: DeviceLinkStatusWire | undefined;
 }
 
 export interface DeviceLinkController {
