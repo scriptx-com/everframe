@@ -45,6 +45,14 @@ public struct OutboxEntry: Codable, Sendable, Equatable {
     /// on every other entry, including lines written before this field.
     public let heldUntil: Date?
 
+    /// Set only on a linked quick capture: the fingerprint of the device token
+    /// it was taken with (`DeviceLinkToken.fingerprint`), never the token. A
+    /// drain sends the entry only while that same token is stored, and drops
+    /// it otherwise, so a retry never lands in the shared inbox or under the
+    /// device's next owner. Absent (and not encoded) on every other entry,
+    /// including lines written before this field.
+    public let deviceTokenFingerprint: String?
+
     public struct AttachmentRef: Codable, Sendable, Equatable {
         public let name: String
         public let filename: String
@@ -70,7 +78,8 @@ public struct OutboxEntry: Codable, Sendable, Equatable {
         sdkKey: String,
         endpoint: String,
         identitySubject: String? = nil,
-        heldUntil: Date? = nil
+        heldUntil: Date? = nil,
+        deviceTokenFingerprint: String? = nil
     ) {
         self.reportId = reportId
         self.createdAt = createdAt
@@ -81,6 +90,7 @@ public struct OutboxEntry: Codable, Sendable, Equatable {
         self.endpoint = endpoint
         self.identitySubject = identitySubject
         self.heldUntil = heldUntil
+        self.deviceTokenFingerprint = deviceTokenFingerprint
     }
 }
 
@@ -100,7 +110,7 @@ extension OutboxEntry {
         OutboxEntry(reportId: reportId, createdAt: createdAt, envelopeBytes: envelopeBytes,
             idempotencyKey: SHA256.hash(data: envelopeBytes).map { String(format: "%02x", $0) }.joined(),
             attachmentRefs: attachmentRefs, sdkKey: sdkKey, endpoint: endpoint,
-            identitySubject: identitySubject)
+            identitySubject: identitySubject, deviceTokenFingerprint: deviceTokenFingerprint)
     }
 }
 

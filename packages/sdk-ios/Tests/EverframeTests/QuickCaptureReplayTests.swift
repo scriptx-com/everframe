@@ -212,7 +212,7 @@ struct QuickCaptureReplayTests {
         }
     }
 
-    /// Devices and release builds never arm quick capture, so the flag never
+    /// Unlinked release builds never arm quick capture, so the flag never
     /// reaches their replay.
     @Test func aReleaseBuildNeverForcesReplay() async {
         await withArmedQuickCapture {
@@ -220,6 +220,88 @@ struct QuickCaptureReplayTests {
             let session = session([config(replayEnabled: false, hotkey: forcing)])
             defer { session.teardown() }
             await session.refreshConfigNow()
+            #expect(!QuickCapture.shared.forcesReplay)
+            #expect(session.__lifecycleStateForTesting() == .idle)
+        }
+    }
+
+    /// On a real iPhone or iPad: `hostMode` is `.device` for the body, and the
+    /// session is a release or debug build, linked or not.
+    private func onRealDevice(debug: Bool, linked: Bool, _ body: @MainActor () async throws -> Void) async rethrows {
+        try await withArmedQuickCapture {
+            let savedMode = QuickCapture.shared.hostMode
+            QuickCapture.shared.hostMode = .device
+            defer { QuickCapture.shared.hostMode = savedMode }
+            QuickCapture.shared.beginSession(localEnabled: true, debug: debug)
+            QuickCapture.shared.setLinked(linked)
+            try await body()
+        }
+    }
+
+    /// A linked device, even a release build, records while the flag is set.
+    @Test func aLinkedReleaseDeviceForcesReplay() async {
+        await onRealDevice(debug: false, linked: true) {
+            let session = session([config(replayEnabled: false, hotkey: forcing)])
+            defer { session.teardown() }
+            await session.refreshConfigNow()
+            #expect(QuickCapture.shared.forcesReplay)
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+        }
+    }
+
+    @Test func aDebugDeviceForcesReplay() async {
+        await onRealDevice(debug: true, linked: false) {
+            let session = session([config(replayEnabled: false, hotkey: forcing)])
+            defer { session.teardown() }
+            await session.refreshConfigNow()
+            #expect(QuickCapture.shared.forcesReplay)
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+        }
+    }
+
+    /// End users' devices never start recording because of quick capture.
+    @Test func anUnlinkedReleaseDeviceNeverForcesReplay() async {
+        await onRealDevice(debug: false, linked: false) {
+            let session = session([config(replayEnabled: false, hotkey: forcing)])
+            defer { session.teardown() }
+            await session.refreshConfigNow()
+            #expect(!QuickCapture.shared.forcesReplay)
+            #expect(session.__lifecycleStateForTesting() == .idle)
+        }
+    }
+
+    /// A config that says this device's token is unlinked clears the link and
+    /// stops the forced recording at that same apply.
+    @Test func aConfigThatSaysUnlinkedStopsForcingAtTheSameApply() async {
+        await onRealDevice(debug: false, linked: true) {
+            let base = URL(string: "https://example.test")!
+            let store = DeviceLinkStore(secure: InMemoryDeviceLinkSecureStore())
+            store.save(DeviceLink(token: fixtureToken, owner: .team), endpoint: base, sdkKey: "test")
+            let coordinator = DeviceLinkCoordinator.shared
+            coordinator.__setStoreForTesting(store)
+            coordinator.beginSession(endpoint: base, sdkKey: "test", hostMode: .device,
+                                     transport: DeviceLinkClient(baseURL: base, sdkKey: "test"))
+            defer {
+                coordinator.teardown()
+                coordinator.__setStoreForTesting(.shared)
+            }
+            let linked = #","deviceLinking":{"enabled":true,"link":{"status":"linked","owner":{"kind":"team"}}}"#
+            let unlinked = #","deviceLinking":{"enabled":true,"link":{"status":"unlinked"}}"#
+            let first = String(config(replayEnabled: false, hotkey: forcing).dropLast()) + linked + "}"
+            let second = String(config(replayEnabled: false, hotkey: forcing).dropLast()) + unlinked + "}"
+            let provider = ReplayConfigProvider(
+                configUrl: base.appendingPathComponent("api/config"), sdkKey: "test",
+                fetcher: QuickCaptureReplayFetcher([first, second]), deviceTokenProvider: { fixtureToken })
+            let session = ReplaySession(provider: provider, locallyDisabled: false)
+            defer { session.teardown() }
+
+            await session.refreshConfigNow()
+            #expect(QuickCapture.shared.forcesReplay)
+            #expect(session.__lifecycleStateForTesting() == .buffering)
+
+            await session.refreshConfigNow()
+            #expect(store.link(endpoint: base, sdkKey: "test") == nil)
+            #expect(!QuickCapture.shared.isLinked)
             #expect(!QuickCapture.shared.forcesReplay)
             #expect(session.__lifecycleStateForTesting() == .idle)
         }

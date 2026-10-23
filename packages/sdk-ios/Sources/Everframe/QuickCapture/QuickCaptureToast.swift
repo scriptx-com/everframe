@@ -30,6 +30,7 @@ enum QuickCaptureToast {
         case .sent, .queued, .ignored: return nil
         case .failed: return "Capture failed"
         case .rejected: return "Capture didn't upload"
+        case .unlinked: return "This device was unlinked"
         }
     }
 

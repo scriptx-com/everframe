@@ -17,4 +17,10 @@ describe('quick capture config flattening', () => {
     expect('quickCaptureEnabled' in extract({ sdkKey: 'k' })).toBe(false);
     expect('quickCaptureEnabled' in extract({ sdkKey: 'k', quickCapture: {} })).toBe(false);
   });
+
+  it('shakeToReport off leaves quickCaptureEnabled untouched', () => {
+    const bridge = extract({ sdkKey: 'k', shakeToReport: { enabled: false } });
+    expect(bridge.shakeToReportEnabled).toBe(false);
+    expect('quickCaptureEnabled' in bridge).toBe(false);
+  });
 });

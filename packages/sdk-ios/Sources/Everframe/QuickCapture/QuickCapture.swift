@@ -1,15 +1,23 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Simulator quick capture: a hotkey (the dashboard's binding, Shift+B by
-// default) pressed in a debug simulator files a report with no UI. The SDK takes the screenshot,
+// Quick capture: a hotkey (the dashboard's binding, Shift+B by default)
+// pressed in a debug simulator, or a shake on a real iPhone or iPad that is
+// linked to a teammate or runs a debug build, files a report with no UI. The SDK takes the screenshot,
 // freezes replay and evidence exactly as the reporter does at open, shows a
 // short `Captured` toast as soon as the frozen capture is handed to the
 // submission, then submits with `quickCapture: true` plus the developer's
 // capture token. Only an upload that is rejected and not queued shows a
 // second toast. Title and description stay empty: the dashboard fills them in.
 //
-// Inert unless every gate holds: a simulator, a debug build, the local
+// On a real device (`QuickCaptureHostMode.device`) a linked capture carries the
+// device-link token instead of the simulator's CLI token, plus a fresh link
+// nonce so the ingest reply can start a takeover (`linkPending`). Its toast
+// names the owner ("Captured · Aurimas", "Captured · team device"). A
+// `403 device_unlinked` shows "This device was unlinked" and drops the token.
+//
+// Inert unless every gate holds: a simulator or a real iPhone/iPad, a debug
+// build or a linked device, the local
 // `quickCaptureEnabled` and `reporterEnabled` options, the dashboard's
 // `captureHotkey` block, an open capture gate, an active app, no reporter on
 // screen and no capture already in flight. The `UIWindow.sendEvent` hook reads
@@ -76,6 +84,12 @@ private final class QuickCaptureEvidenceWait {
     }
 }
 
+/// What fired the capture. A shake that cannot capture safely (no host
+/// evidence) says so; a hotkey stays silent, as it always has.
+enum QuickCaptureTrigger: Equatable, Sendable {
+    case hotkey, shake
+}
+
 enum QuickCaptureOutcome: Equatable {
     case ignored(reason: String)
     case sent
@@ -86,6 +100,9 @@ enum QuickCaptureOutcome: Equatable {
     /// The capture was handed off and confirmed, then the submission was
     /// cancelled or threw, so nothing was sent and nothing is queued.
     case rejected
+    /// Ingest refused the device-link token (`403 device_unlinked`). Nothing
+    /// is stored or queued, and the token is dropped.
+    case unlinked
 }
 
 /// Session configuration, written from `start()`/`kill()` (any thread) and
@@ -94,6 +111,7 @@ private final class QuickCaptureGate: @unchecked Sendable {
     private let lock = NSLock()
     private var localEnabled = false
     private var debug = false
+    private var linked = false
     private var remoteEnabled = false
     private var binding: CaptureHotkeyBinding = .doubleShift
     private var replay = false
@@ -104,6 +122,7 @@ private final class QuickCaptureGate: @unchecked Sendable {
         self.localEnabled = localEnabled
         self.debug = debug
         self.screenshot = screenshot
+        linked = false
         remoteEnabled = false
         binding = .doubleShift
         replay = false
@@ -117,17 +136,39 @@ private final class QuickCaptureGate: @unchecked Sendable {
         replay = remote?.replay == true
     }
 
+    /// Whether this real device holds a device link.
+    func setLinked(_ value: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        linked = value
+    }
+
     /// The session's `capture.screenshot`.
     var screenshotEnabled: Bool {
         lock.lock(); defer { lock.unlock() }
         return screenshot
     }
 
+    /// The local options and the dashboard's block, without the debug/linked gate.
+    var isConfigured: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return localEnabled && remoteEnabled
+    }
+
+    var isDebug: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return debug
+    }
+
+    var isLinked: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return linked
+    }
+
     /// The first failing configuration gate (nil when armed), the active binding
     /// and the block's `replay` flag, read together.
     var evaluation: (reason: String?, binding: CaptureHotkeyBinding, replay: Bool) {
         lock.lock(); defer { lock.unlock() }
-        if !debug { return ("not_debug", binding, replay) }
+        if !(debug || linked) { return ("not_debug", binding, replay) }
         if !localEnabled { return ("disabled", binding, replay) }
         if !remoteEnabled { return ("remote_disabled", binding, replay) }
         return (nil, binding, replay)
@@ -162,7 +203,27 @@ final class QuickCapture {
     }
     /// Passed to `CaptureTokenReader.read`; also names the device in the toast.
     var environment: [String: String] = ProcessInfo.processInfo.environment
-    var isSimulator: Bool = QuickCapture.runningOnSimulator
+    /// Simulator, real iPhone/iPad, or a host where quick capture never arms.
+    var hostMode: QuickCaptureHostMode = .current
+    /// The real device's link for the capture's own session scope (ingest
+    /// origin and SDK key; nil before `start()`), read once per capture.
+    /// SECURITY: never log the token.
+    var deviceLink: @MainActor (_ endpoint: URL, _ sdkKey: String?) -> DeviceLink? = { endpoint, sdkKey in
+        sdkKey.flatMap { DeviceLinkCoordinator.shared.link(endpoint: endpoint, sdkKey: $0) }
+    }
+    /// A fresh takeover nonce per linked upload. SECURITY: never log it.
+    var makeLinkNonce: () -> String = { DeviceLinkNonce.make() }
+    /// An ingest reply said a teammate is taking this device over.
+    var linkPendingReceived: @MainActor (DeviceLinkPending, String, Int) -> Void = {
+        DeviceLinkCoordinator.shared.followIngestPending($0, nonce: $1, startEpoch: $2)
+    }
+    /// Ingest refused the token this capture was sent with, for the origin
+    /// and SDK key the capture was taken under (nil key before `start()`).
+    var deviceUnlinked: @MainActor (_ sentToken: String, _ endpoint: URL, _ sdkKey: String?) -> Void = {
+        token, endpoint, sdkKey in
+        guard let sdkKey else { return }
+        DeviceLinkCoordinator.shared.handleDeviceUnlinked(sentToken: token, endpoint: endpoint, sdkKey: sdkKey)
+    }
     var isApplicationActive: @MainActor () -> Bool = { UIApplication.shared.applicationState == .active }
     var lifecycle: Lifecycle = .live
     var showToast: @MainActor (String) -> Void = { QuickCaptureToast.show(text: $0) }
@@ -205,14 +266,6 @@ final class QuickCapture {
         #endif
     }
 
-    nonisolated private static var runningOnSimulator: Bool {
-        #if targetEnvironment(simulator)
-        return true
-        #else
-        return false
-        #endif
-    }
-
     // MARK: Session wiring (any thread)
 
     /// A new session starts disarmed until its own config names a `captureHotkey` block.
@@ -247,14 +300,17 @@ final class QuickCapture {
         #endif
     }
 
+    /// The simulator's capture notification goes through the mode rule, the
+    /// same as a shake: quick capture while armed, and on a simulator running
+    /// as a real device (`EVERFRAME_SIMULATE_DEVICE=1`) a link hello as well.
     func darwinNotificationReceived() {
-        guard isArmed else { return }
-        startCapture()
+        CaptureGestureRouter.make(for: self, coordinator: .shared).handle(.simulatorNotification)
     }
 
-    private func startCapture() {
+    /// Starts `capture(trigger:)` on its own task, or the test override.
+    func startCapture(trigger: QuickCaptureTrigger = .hotkey) {
         if let triggerOverride { triggerOverride(); return }
-        Task { @MainActor in _ = await self.capture() }
+        Task { @MainActor in _ = await self.capture(trigger: trigger) }
     }
 
     nonisolated func publish(remote: CaptureHotkeyConfigWire?, ifCurrent: () -> Bool = { true }) {
@@ -262,6 +318,26 @@ final class QuickCapture {
         guard ifCurrent() else { return }
         gate.setRemote(remote)
     }
+
+    /// Whether this real device holds a device link: a linked device arms
+    /// even in a release build. `beginSession` and `teardown` clear it.
+    /// `ifCurrent` is checked under the same lock as `beginSession`'s reset,
+    /// so a change from a replaced session never lands after the new one's.
+    nonisolated func setLinked(_ linked: Bool, ifCurrent: () -> Bool = { true }) {
+        stateLock.lock(); defer { stateLock.unlock() }
+        guard ifCurrent() else { return }
+        gate.setLinked(linked)
+    }
+
+    /// The local options (`quickCaptureEnabled`, `reporterEnabled`) and the
+    /// dashboard's `captureHotkey.enabled`, without the debug/linked gate.
+    nonisolated var isConfigured: Bool { gate.isConfigured }
+
+    /// The session's debug-build answer.
+    nonisolated var isDebug: Bool { gate.isDebug }
+
+    /// Whether the session's device holds a link (`setLinked`).
+    nonisolated var isLinked: Bool { gate.isLinked }
 
     nonisolated func teardown(ifCurrent: () -> Bool = { true }) {
         stateLock.lock(); defer { stateLock.unlock() }
@@ -293,23 +369,23 @@ final class QuickCapture {
     /// close then no-ops on the owner mismatch.
     var isCapturing: Bool { inFlight }
 
-    /// The first failing session gate, nil when the session is armed. Ignores `isSimulator`.
+    /// The first failing session gate, nil when the session is armed. Ignores `hostMode`.
     nonisolated var configurationGateReason: String? { gate.evaluation.reason }
 
     // MARK: Trigger
 
     /// True when a key press could fire a capture. Cheap: one lock read.
-    var isArmed: Bool { isSimulator && gate.evaluation.reason == nil }
+    var isArmed: Bool { hostMode != .unsupported && gate.evaluation.reason == nil }
 
     /// True while quick capture is armed with an open kill switch and the
     /// dashboard's `captureHotkey.replay` flag is set. `ReplaySession` then
     /// records replay even when `replayEnabled` is false; this never turns
-    /// replay off. Devices and release builds never arm, so it is always false
-    /// there. `ReplaySession` reads it at every config apply, right after
+    /// replay off. Linked devices and debug builds on real devices force it too;
+    /// unlinked release builds never arm, so it is always false for end users. `ReplaySession` reads it at every config apply, right after
     /// publishing that config's block, so a disarm stops a forced recording at
     /// the next apply, and `kill()` tears the replay session down with it.
     var forcesReplay: Bool {
-        guard isSimulator, Everframe.captureGate else { return false }
+        guard hostMode != .unsupported, Everframe.captureGate else { return false }
         let evaluation = gate.evaluation
         return evaluation.reason == nil && evaluation.replay
     }
@@ -322,7 +398,8 @@ final class QuickCapture {
     /// before UIKit delivered this key (see `prepareKeyDelivery`). nil asks
     /// `isEditingText` now, after delivery.
     func handle(_ event: CaptureKeyEvent, press: CapturePressID? = nil, editingText: Bool? = nil) {
-        guard isSimulator else { return }
+        // The hotkey is a simulator feature; real devices capture on shake.
+        guard hostMode == .simulator else { return }
         let (reason, binding, _) = gate.evaluation
         guard reason == nil else { matcher = nil; return }
         if let press, !presses.admit(press) { return }
@@ -384,25 +461,82 @@ final class QuickCapture {
         }
     }
 
-    func capture() async -> QuickCaptureOutcome {
+    /// Who a capture is filed for, read once per capture.
+    private struct Attribution {
+        /// `X-Everframe-Capture-Token`. SECURITY: never log.
+        let captureToken: String?
+        /// `X-Everframe-Link-Nonce`, linked devices only. SECURITY: never log.
+        let linkNonce: String?
+        /// The device token this capture was sent with, linked devices only.
+        let deviceToken: String?
+        /// The ingest origin and SDK key `deviceToken` was looked up for.
+        var deviceScope: (endpoint: URL, sdkKey: String?)?
+        let confirmText: String
+    }
+
+    func capture(trigger: QuickCaptureTrigger = .hotkey) async -> QuickCaptureOutcome {
         // Read once: the gate and the pipeline must agree on the provider.
         let provider = currentEvidenceProvider()
-        if let reason = ignoreReason(hasProvider: provider != nil) { return .ignored(reason: reason) }
+        if let reason = ignoreReason(hasProvider: provider != nil) {
+            // A shake on a host that masks its own pixels but installed no
+            // provider says so; a hotkey stays silent, as it always has.
+            if trigger == .shake, reason == "screenshot_disabled", let text = QuickCaptureToast.text(for: .failed) {
+                showToast(text)
+            }
+            return .ignored(reason: reason)
+        }
+        // The session this capture belongs to, taken once before the link and
+        // any evidence and carried to the submission. Its epoch is read in the
+        // same critical section as its config, so the checks below and the
+        // routing agree on one session; nothing after this reads the session again.
+        let capturedSession = Everframe.shared.captureSessionSnapshot()
+        guard let attribution = attribution(for: capturedSession) else { return .ignored(reason: "not_debug") }
         inFlight = true
         defer { inFlight = false }
-        let deviceName = environment["SIMULATOR_DEVICE_NAME"] ?? UIDevice.current.name
         // Confirmed once the capture is handed off, before the upload finishes:
         // the upload either succeeds or queues the report, so only a rejection
         // needs a second word.
-        let outcome = await runPipeline(provider: provider) { [showToast] in
-            showToast(QuickCaptureToast.confirmedText(deviceName: deviceName))
+        let outcome = await runPipeline(provider: provider, attribution: attribution,
+                                        capturedSession: capturedSession) { [showToast] in
+            showToast(attribution.confirmText)
         }
         if let text = QuickCaptureToast.text(for: outcome) { showToast(text) }
         return outcome
     }
 
+    /// nil when a real device has neither a link nor a debug build: the gate
+    /// still said linked, but the token is gone, and an end user's device must
+    /// never file a silent shared capture. A device token is the one stored
+    /// for `capturedSession`'s own origin and key, the scope the submission
+    /// posts to, so it can never travel with another session's key.
+    private func attribution(for capturedSession: EFCapturedSession) -> Attribution? {
+        let deviceName = environment["SIMULATOR_DEVICE_NAME"] ?? UIDevice.current.name
+        switch hostMode {
+        case .simulator:
+            // Read fresh per capture, only for the origin that issued it: the
+            // submission posts to `IngestEndpoint.url`. SECURITY: never log.
+            return Attribution(
+                captureToken: CaptureTokenReader.read(environment: environment, ingestEndpoint: IngestEndpoint.url),
+                linkNonce: nil, deviceToken: nil,
+                confirmText: QuickCaptureToast.confirmedText(deviceName: deviceName))
+        case .device:
+            // Read once: the lookup and a later unlink name the same scope.
+            let endpoint = IngestEndpoint.url
+            let sdkKey = capturedSession.config?.sdkKey
+            if let link = deviceLink(endpoint, sdkKey), DeviceLinkToken.isValid(link.token) {
+                return Attribution(captureToken: link.token, linkNonce: makeLinkNonce(), deviceToken: link.token,
+                                   deviceScope: (endpoint, sdkKey), confirmText: link.owner.capturedToastText)
+            }
+            guard gate.isDebug else { return nil }
+            return Attribution(captureToken: nil, linkNonce: nil, deviceToken: nil,
+                               confirmText: QuickCaptureToast.confirmedText(deviceName: deviceName))
+        case .unsupported:
+            return nil
+        }
+    }
+
     private func ignoreReason(hasProvider: Bool) -> String? {
-        guard isSimulator else { return "not_simulator" }
+        guard hostMode != .unsupported else { return "unsupported_host" }
         if let reason = gate.evaluation.reason { return reason }
         // The kill switch: closed before `start()` and after `kill()`.
         guard Everframe.captureGate else { return "kill_switch" }
@@ -423,22 +557,24 @@ final class QuickCapture {
     /// The kill switch is open and no `start()` or `kill()` has run since
     /// `capturedSession` was taken.
     private func isCurrent(_ capturedSession: EFCapturedSession) -> Bool {
-        Everframe.captureGate && Everframe.shared.currentStartEpoch == capturedSession.user.startEpoch
+        isCurrent(startEpoch: capturedSession.user.startEpoch)
+    }
+
+    private func isCurrent(startEpoch: Int) -> Bool {
+        Everframe.captureGate && Everframe.shared.currentStartEpoch == startEpoch
     }
 
     /// `EFReporterPresenter.openAndAwait` minus the UI: screenshot first, then
     /// the reporter-open boundary and freeze, then submit and release.
     private func runPipeline(
-        provider: QuickCaptureEvidenceProvider?, confirm: @MainActor () -> Void
+        provider: QuickCaptureEvidenceProvider?, attribution: Attribution, capturedSession: EFCapturedSession,
+        confirm: @MainActor () -> Void
     ) async -> QuickCaptureOutcome {
         let shot: ScreenshotCapture.Result
         let hostReplayVTree: Data?
         let sdkName: String
-        // The session this capture belongs to, taken once before any evidence
-        // and carried to the submission. Its epoch is read in the same critical
-        // section as its config, so the check below and the routing agree on
-        // one session; nothing after the screenshot reads the session again.
-        let capturedSession = Everframe.shared.captureSessionSnapshot()
+        // A start() or kill() while the link was resolved supersedes the capture.
+        guard isCurrent(capturedSession) else { return .failed }
         if let provider {
             // The host's masked evidence replaces the native screenshot entirely;
             // a nil answer, or none within the timeout, fails without a fallback.
@@ -496,10 +632,21 @@ final class QuickCapture {
             sdkName: sdkName,
             capturedSession: capturedSession,
             quickCapture: true,
-            // Read fresh per capture. SECURITY: never log.
-            // Only for the origin that issued it: the submission posts to
-            // `IngestEndpoint.url`.
-            captureToken: CaptureTokenReader.read(environment: environment, ingestEndpoint: IngestEndpoint.url)
+            // SECURITY: never log.
+            captureToken: attribution.captureToken,
+            linkNonce: attribution.linkNonce,
+            onIngestAccepted: attribution.linkNonce.map { [startEpoch = capturedSession.user.startEpoch] nonce in
+                { @Sendable [weak self] body in
+                    guard let pending = DeviceLinkPending.fromIngestBody(body) else { return }
+                    Task { @MainActor in
+                        // The reply can land after `start()` or `kill()` replaced
+                        // the session this upload was taken in: drop it then,
+                        // rather than follow it with this upload's nonce.
+                        guard let self, self.isCurrent(startEpoch: startEpoch) else { return }
+                        self.linkPendingReceived(pending, nonce, startEpoch)
+                    }
+                }
+            }
         )
         confirm()
         do {
@@ -514,6 +661,13 @@ final class QuickCapture {
                 lifecycle.cancel(owner)
                 return .rejected
             }
+        } catch DeviceLinkRejection.deviceUnlinked {
+            // Nothing was stored. Forget the token this capture was sent with.
+            lifecycle.cancel(owner)
+            if let token = attribution.deviceToken, let scope = attribution.deviceScope {
+                deviceUnlinked(token, scope.endpoint, scope.sdkKey)
+            }
+            return .unlinked
         } catch {
             // A terminal upload error: `ReporterSubmission` queues only retryable ones.
             lifecycle.cancel(owner)

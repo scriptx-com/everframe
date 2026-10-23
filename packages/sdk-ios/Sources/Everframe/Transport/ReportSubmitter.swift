@@ -61,7 +61,9 @@ public final class ReportSubmitter: Sendable {
                         diagnostics: diagnostics, diagnosticOrigin: diagnosticOrigin, appleDiagnosticsOnly: true)
     }
 
-    private func observeUpload(_ send: () async throws -> (Int, [AnyHashable: Any])) async throws -> (Int, [AnyHashable: Any]) {
+    private func observeUpload(
+        _ send: () async throws -> (Int, [AnyHashable: Any], Data)
+    ) async throws -> (Int, [AnyHashable: Any], Data) {
         do {
             let result = try await send()
             let outcome: ReportTransportOutcome
@@ -114,10 +116,12 @@ public final class ReportSubmitter: Sendable {
     ///   outbox is retried later, potentially after the pair (and the token's
     ///   10-minute TTL) is long gone, so the retry submits unattributed rather
     ///   than with a token ingest would reject.
-    /// - Parameter captureToken: simulator quick-capture token, see
+    /// - Parameter captureToken: quick-capture token, see
     ///   `MultipartUploader.upload`. Never persisted with an outbox entry,
-    ///   like `companionAttribution`: a retry submits without it.
-    ///   SECURITY: never log it.
+    ///   like `companionAttribution`: a retry of a simulator capture submits
+    ///   without it. A device-link token (`evf_dev_`) queues only its
+    ///   fingerprint, and the retry is sent only while that same token is
+    ///   stored (`OutboxEntry.deviceTokenFingerprint`). SECURITY: never log it.
     /// - Parameters sdkKey/endpoint: the credentials this report was CAPTURED
     ///   under. `nil` means "use the active config" — the live submit path.
     ///   `drainOutbox` passes the entry's own values, so a queued report always
@@ -154,15 +158,50 @@ public final class ReportSubmitter: Sendable {
             identityToken: identityToken, alreadyPersisted: false)
     }
 
+    /// `submit`, plus device linking:
+    /// - `linkNonce` rides the upload as `X-Everframe-Link-Nonce` (a linked
+    ///   quick capture). SECURITY: never log it.
+    /// - `onAccepted` receives a 2xx response body, which may carry `linkPending`.
+    /// - A `403 {"error":"device_unlinked"}` to an upload sent with a valid
+    ///   `evf_dev_` token throws `DeviceLinkRejection.deviceUnlinked` and
+    ///   queues nothing: a capture its holder believed private must never be
+    ///   retried into another inbox.
+    func submit(
+        envelopeBytes: Data,
+        idempotencyKey: String,
+        attachments: [Attachment],
+        reportId: UUID = UUID(),
+        companionAttribution: String? = nil,
+        captureToken: String? = nil,
+        sdkKey: String? = nil,
+        endpoint: String? = nil,
+        identitySubject: String? = nil,
+        identityToken: String? = nil,
+        linkNonce: String?,
+        onAccepted: (@Sendable (Data) -> Void)?
+    ) async throws -> ReportResult {
+        try await performSubmit(envelopeBytes: envelopeBytes, idempotencyKey: idempotencyKey,
+            attachments: attachments, reportId: reportId, companionAttribution: companionAttribution,
+            captureToken: captureToken, sdkKey: sdkKey, endpoint: endpoint, identitySubject: identitySubject,
+            identityToken: identityToken, linkNonce: linkNonce, onAccepted: onAccepted, alreadyPersisted: false)
+    }
+
     private func performSubmit(
         envelopeBytes: Data, idempotencyKey: String, attachments: [Attachment], reportId: UUID,
         companionAttribution: String? = nil, captureToken: String? = nil,
         sdkKey: String? = nil, endpoint: String? = nil,
-        identitySubject: String? = nil, identityToken: String? = nil, alreadyPersisted: Bool
+        identitySubject: String? = nil, identityToken: String? = nil,
+        linkNonce: String? = nil, onAccepted: (@Sendable (Data) -> Void)? = nil,
+        alreadyPersisted: Bool
     ) async throws -> ReportResult {
 
         let effectiveKey = sdkKey ?? config.sdkKey
         let effectiveEndpoint = endpoint ?? IngestEndpoint.url.absoluteString
+        // A linked capture queues the fingerprint of its device token, never
+        // the token: see `OutboxEntry.deviceTokenFingerprint`.
+        let deviceTokenFingerprint = captureToken.flatMap {
+            DeviceLinkToken.isValid($0) ? DeviceLinkToken.fingerprint($0) : nil
+        }
         let effectiveURL = URL(string: effectiveEndpoint) ?? IngestEndpoint.url
 
         var uploader = MultipartUploader(endpoint: effectiveURL, sdkKey: effectiveKey)
@@ -175,16 +214,21 @@ public final class ReportSubmitter: Sendable {
         }
 
         do {
-            let (status, headers) = try await observeUpload { try await uploader.upload(
+            let (status, headers, body) = try await observeUpload { try await uploader.send(
                 parts: parts,
                 idempotencyKey: idempotencyKey,
                 companionAttribution: companionAttribution,
                 captureToken: captureToken,
                 identityToken: identityToken,
+                linkNonce: linkNonce,
                 urlSession: session
             ) }
             if (200...299).contains(status) {
+                onAccepted?(body)
                 return .submitted(reportId: reportId)
+            }
+            if status == 403, DeviceLinkToken.isValid(captureToken), DeviceLinkRejection.isDeviceUnlinkedBody(body) {
+                throw DeviceLinkRejection.deviceUnlinked
             }
             switch RetryPolicy.classify(statusCode: status, headers: headers, error: nil) {
             case .retryable, .retryAfter:
@@ -196,7 +240,8 @@ public final class ReportSubmitter: Sendable {
                         attachments: attachments,
                         sdkKey: effectiveKey,
                         endpoint: effectiveEndpoint,
-                        identitySubject: identitySubject
+                        identitySubject: identitySubject,
+                        deviceTokenFingerprint: deviceTokenFingerprint
                     )
                 }
                 return .queued(reportId: reportId)
@@ -215,7 +260,8 @@ public final class ReportSubmitter: Sendable {
                         attachments: attachments,
                         sdkKey: effectiveKey,
                         endpoint: effectiveEndpoint,
-                        identitySubject: identitySubject
+                        identitySubject: identitySubject,
+                        deviceTokenFingerprint: deviceTokenFingerprint
                     )
                 }
                 return .queued(reportId: reportId)
@@ -321,6 +367,28 @@ public final class ReportSubmitter: Sendable {
         epochAtInitiation: Int,
         currentEpoch: @escaping @Sendable () -> Int
     ) async {
+        await drainOutbox(identityHolder: identityHolder, currentReplayConfig: currentReplayConfig,
+            epochAtInitiation: epochAtInitiation, currentEpoch: currentEpoch, deviceLinks: .shared)
+    }
+
+    /// `drainOutbox`, reading device links from `deviceLinks`. An entry with a
+    /// `deviceTokenFingerprint` is sent with the stored token only while that
+    /// token's fingerprint still matches; otherwise it is removed unsent. A
+    /// `403 device_unlinked` removes it and clears that same token, then hands
+    /// `linkCleared` the origin and SDK key it was stored under, so the live
+    /// session stops treating the device as linked.
+    func drainOutbox(
+        identityHolder: IdentityTokenHolder,
+        currentReplayConfig: @escaping @Sendable () async -> ReplayConfig,
+        epochAtInitiation: Int,
+        currentEpoch: @escaping @Sendable () -> Int,
+        deviceLinks: DeviceLinkStore,
+        linkCleared: @escaping @Sendable (_ endpoint: URL, _ sdkKey: String) async -> Void = { endpoint, sdkKey in
+            await MainActor.run {
+                DeviceLinkCoordinator.shared.handleStoredLinkCleared(endpoint: endpoint, sdkKey: sdkKey)
+            }
+        }
+    ) async {
         // Read the clock before the entries: an error held for its replay can
         // be swapped only while its hold is live, so skipping it here is final.
         let hydratedAt = Date()
@@ -334,7 +402,8 @@ public final class ReportSubmitter: Sendable {
                 deadline: expiry, epoch: epochAtInitiation, appleDiagnosticsOnly: appleDiagnosticsOnly) { [self] in
                 guard currentEpoch() == epochAtInitiation, !Task.isCancelled else { return }
                 await drainOutbox(identityHolder: identityHolder, currentReplayConfig: currentReplayConfig,
-                    epochAtInitiation: epochAtInitiation, currentEpoch: currentEpoch)
+                    epochAtInitiation: epochAtInitiation, currentEpoch: currentEpoch, deviceLinks: deviceLinks,
+                    linkCleared: linkCleared)
             }
         }
         for e in entries {
@@ -342,6 +411,19 @@ public final class ReportSubmitter: Sendable {
             let appleDiagnostic = AppleDiagnosticDelivery.isApple(e)
             if appleDiagnosticsOnly && !appleDiagnostic { continue }
             if appleDiagnostic && !AppleDiagnosticDelivery.allows(e) { continue }
+            // A linked quick capture goes out only under the token it was
+            // taken with. SECURITY: never log the token.
+            var deviceToken: String?
+            if let fingerprint = e.deviceTokenFingerprint {
+                guard let endpointURL = URL(string: e.endpoint),
+                      let link = deviceLinks.link(endpoint: endpointURL, sdkKey: e.sdkKey),
+                      DeviceLinkToken.fingerprint(link.token) == fingerprint else {
+                    try? outbox.drain(where: { $0.reportId == e.reportId }, diagnostics: diagnostics,
+                                      reason: .removedAfterTerminal)
+                    continue
+                }
+                deviceToken = link.token
+            }
             // Keep the durable copy until acceptance. A crash, cancellation or
             // failed re-enqueue during the request must not lose the report.
 
@@ -471,6 +553,7 @@ public final class ReportSubmitter: Sendable {
                     idempotencyKey: e.idempotencyKey,
                     attachments: attachments,
                     reportId: e.reportId,
+                    captureToken: deviceToken,
                     sdkKey: e.sdkKey,
                     endpoint: e.endpoint,
                     identitySubject: e.identitySubject,
@@ -488,6 +571,17 @@ public final class ReportSubmitter: Sendable {
                 if attachments.contains(where: { $0.name == "replay" }),
                    let stripped = Self.removingReplay(from: e) {
                     try? outbox.enqueue(stripped, diagnostics: diagnostics)
+                }
+            } catch DeviceLinkRejection.deviceUnlinked {
+                // The token this entry was taken with is revoked: drop the
+                // capture rather than file it anywhere else, and forget that token.
+                try? outbox.drain(where: { $0.reportId == e.reportId }, diagnostics: diagnostics, reason: .removedAfterTerminal)
+                // The session may already be armed on this link (`start()` sets
+                // the linked gate before its launch drain), and later config
+                // fetches carry no token to say otherwise: tell it.
+                if let fingerprint = e.deviceTokenFingerprint, let endpointURL = URL(string: e.endpoint),
+                   deviceLinks.clear(endpoint: endpointURL, sdkKey: e.sdkKey, ifFingerprint: fingerprint) {
+                    await linkCleared(endpointURL, e.sdkKey)
                 }
             } catch EverframeTransportError.serverError {
                 // submit throws serverError only for terminal HTTP statuses.
@@ -521,7 +615,8 @@ public final class ReportSubmitter: Sendable {
             attachmentRefs: entry.attachmentRefs.filter { $0.name != "replay" },
             sdkKey: entry.sdkKey,
             endpoint: entry.endpoint,
-            identitySubject: entry.identitySubject
+            identitySubject: entry.identitySubject,
+            deviceTokenFingerprint: entry.deviceTokenFingerprint
         )
     }
 
@@ -548,7 +643,8 @@ public final class ReportSubmitter: Sendable {
         attachments: [Attachment],
         sdkKey: String,
         endpoint: String,
-        identitySubject: String? = nil
+        identitySubject: String? = nil,
+        deviceTokenFingerprint: String? = nil
     ) throws {
         let entry = OutboxEntry(
             reportId: reportId,
@@ -566,7 +662,8 @@ public final class ReportSubmitter: Sendable {
             },
             sdkKey: sdkKey,
             endpoint: endpoint,
-            identitySubject: identitySubject
+            identitySubject: identitySubject,
+            deviceTokenFingerprint: deviceTokenFingerprint
         )
         try outbox.enqueue(entry, diagnostics: diagnostics)
     }
@@ -704,6 +801,8 @@ final class IdentityHeaderRedirectGuard: NSObject, URLSessionTaskDelegate {
         stripped.setValue(nil, forHTTPHeaderField: IDENTITY_TOKEN_HEADER)
         // SECURITY: the quick-capture token is a bearer credential too.
         stripped.setValue(nil, forHTTPHeaderField: "X-Everframe-Capture-Token")
+        // The device-link takeover nonce answers a link attempt: same posture.
+        stripped.setValue(nil, forHTTPHeaderField: "X-Everframe-Link-Nonce")
         completionHandler(stripped)
     }
 

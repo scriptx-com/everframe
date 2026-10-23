@@ -565,7 +565,9 @@ enum WindowTapBreadcrumbAdapter {
                 }
                 #if os(iOS) && !targetEnvironment(macCatalyst)
                 if event.type == .motion, event.subtype == .motionShake {
-                    ShakeToReportTrigger.shared.handleShake()
+                    // Quick capture, the reporter (when `shakeToReport` allows
+                    // it) or a device-link hello, by the mode rule.
+                    CaptureGestureRouter.live.handle(.shake)
                 }
                 #endif
                 #if targetEnvironment(simulator)

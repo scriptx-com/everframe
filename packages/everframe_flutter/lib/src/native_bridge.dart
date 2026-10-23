@@ -27,9 +27,10 @@ class EverframeNativeBridge {
   /// [releaseHealth] counts native foreground sessions and native crashes, not Dart errors.
   /// Setting it false leaves crash/error reporting on. [crash] false also disables health.
   /// [debugBuild] overrides native detection when supplied; debug builds do not count.
-  /// [quickCapture] false opts this app out of simulator quick capture. It is on by default,
-  /// but a Flutter app files quick captures only after [enableQuickCapture] supplies masked
-  /// Flutter evidence; without it the native SDK ignores the trigger.
+  /// [quickCapture] false opts this app out of quick capture (⇧B in a debug simulator or
+  /// emulator, shake on a real phone) and of device linking. It is on by default, but a Flutter
+  /// app files quick captures only after [enableQuickCapture] supplies masked Flutter evidence;
+  /// without it the native SDK files nothing.
   Future<void> start({
     required String appId,
     required String sdkKey,
@@ -182,15 +183,19 @@ class EverframeNativeBridge {
 
   Future<void> kill() => _channel.invokeMethod<void>('kill');
 
-  /// Lets simulator quick capture (a hotkey or `npx @everframe/cli capture` in a debug
-  /// simulator or emulator) file reports from this app. Flutter masks sensitive widgets in
-  /// Dart, so the native SDK never takes its own screenshot here: on each capture it asks
-  /// for the masked frame of [boundaryKey], exactly as [openReporter] would send it, with a
-  /// snapshot of [replayBuffer] when supplied. When the masked frame cannot be produced
-  /// safely the capture fails and no image is sent.
+  /// Lets quick capture file reports from this app: ⇧B or `npx @everframe/cli capture` in a
+  /// debug simulator or emulator, and a shake on a real phone that is linked on the dashboard
+  /// (any build) or runs a debug build. Flutter masks sensitive widgets in Dart, so the native
+  /// SDK never takes its own screenshot here: on each capture it asks for the masked frame of
+  /// [boundaryKey], exactly as [openReporter] would send it, with a snapshot of [replayBuffer]
+  /// when supplied. When the masked frame cannot be produced safely the capture fails and no
+  /// image is sent.
   ///
-  /// Call after [start]. The registration survives [kill] and a later [start]. Inert on
-  /// devices and in release builds, where quick capture never arms.
+  /// Without this registration nothing uploads: a shake on a linked or debug phone shows
+  /// `Capture failed` on iOS and is ignored on Android. Unlinked release builds on end users'
+  /// phones never arm quick capture, so this is inert there.
+  ///
+  /// Call after [start]. The registration survives [kill] and a later [start].
   Future<void> enableQuickCapture({
     required GlobalKey boundaryKey,
     required SensitiveRegionRegistry sensitiveRegions,
@@ -207,7 +212,7 @@ class EverframeNativeBridge {
     });
   }
 
-  /// Removes the [enableQuickCapture] registration. Quick capture is then ignored again.
+  /// Removes the [enableQuickCapture] registration. Quick capture then files nothing again.
   Future<void> disableQuickCapture() {
     _quickCapture = null;
     _channel.setMethodCallHandler(null);

@@ -171,9 +171,9 @@ export type ConfigOpts = {
    * flattened here by `extractBridgeConfig`.
    */
   companionBadgeEnabled?: boolean;
-  /** Local veto for native mobile shake-to-report. Absent defaults to enabled. */
+  /** Local veto for shake opening the reporter (not for shake quick capture). Absent defaults to enabled. */
   shakeToReportEnabled?: boolean;
-  /** Local veto for simulator/emulator quick capture. Absent defaults to enabled. */
+  /** Local veto for quick capture (simulators, emulators and real phones) and device linking. Absent defaults to enabled. */
   quickCaptureEnabled?: boolean;
   /**
    * Crash-only session switch. `true` turns off every on-device way to open the reporter, keeps

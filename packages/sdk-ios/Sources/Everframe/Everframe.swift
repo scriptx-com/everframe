@@ -568,6 +568,15 @@ public final class Everframe: @unchecked Sendable {
     @MainActor private var _replaySession: ReplaySession?
     #endif
 
+    /// A device link was made or lost: refetch the config now, so its next
+    /// apply re-decides forced replay and carries the current device token.
+    @MainActor func __refreshConfigForDeviceLink() {
+        #if canImport(UIKit)
+        guard let session = _replaySession else { return }
+        Task { @MainActor in await session.refreshConfigNow() }
+        #endif
+    }
+
     // MARK: - Pending attachments (auto-consumed by report.open())
 
     /// Max chars for `extra` — anything longer is truncated. A deliberate
@@ -994,6 +1003,10 @@ public final class Everframe: @unchecked Sendable {
     /// with its SDK instance immediately before the launch `drainOutbox()` call,
     /// so a test can observe what native recovery queued before delivery
     /// begins. `nil` in production.
+    /// Test-only: replaces `start()`'s read of the stored device link, so a
+    /// test can run a second `start()` between that read and its write.
+    nonisolated(unsafe) internal static var __initialLinkedStateForTesting: (() -> Bool)?
+
     nonisolated(unsafe) internal static var __beforeLaunchDrainHookForTesting: (@Sendable (Everframe) async -> Void)?
 
     // MARK: - Session-supersession test seam (round-4 review Finding F16)
@@ -1262,15 +1275,30 @@ public final class Everframe: @unchecked Sendable {
             localEnabled: config.shakeToReportEnabled && config.reporterEnabled,
             ifCurrent: vitalsStillNewest
         )
-        #if canImport(UIKit) && targetEnvironment(simulator)
-        // Simulator quick capture: same crash-only rule as shake, debug builds only. Device builds
-        // never arm it, so they skip even the debug-build check.
+        // Device linking: this session's ingest origin, key and host. Only a real iPhone or iPad
+        // sends hellos or reads a stored device token; elsewhere the session never links.
+        DeviceLinkCoordinator.shared.beginSession(
+            endpoint: IngestEndpoint.url,
+            sdkKey: config.sdkKey,
+            hostMode: .current,
+            transport: DeviceLinkClient(baseURL: IngestEndpoint.url, sdkKey: config.sdkKey),
+            startEpoch: epoch,
+            ifCurrent: vitalsStillNewest
+        )
+        #if canImport(UIKit)
+        // Quick capture: same crash-only rule as shake. It arms in a debug build (simulators
+        // always count as debug), or on a real iPhone or iPad that holds a device link.
         QuickCapture.shared.beginSession(
             localEnabled: config.quickCaptureEnabled && config.reporterEnabled,
             debug: DebugBuild.current(configured: config.debugBuild),
             screenshot: config.capture.screenshot,
             ifCurrent: vitalsStillNewest
         )
+        // Set directly, not through the coordinator's `linkChanged`, so no config refresh fires
+        // at start: the session's first config fetch is already on its way. Fenced like the
+        // calls above: a start() that superseded this one meanwhile owns the flag.
+        let linkedAtStart = Self.__initialLinkedStateForTesting?() ?? (DeviceLinkCoordinator.shared.currentLink != nil)
+        QuickCapture.shared.setLinked(linkedAtStart, ifCurrent: vitalsStillNewest)
         #endif
 
         NetworkBodyCaptureGate.shared.reset()
@@ -2463,6 +2491,7 @@ public final class Everframe: @unchecked Sendable {
         VitalsRuntime.shared.shutdown(dropPending: true, ifCurrent: stillThisKill)
         VitalsServerConfigBox.shared.publish(nil, ifCurrent: stillThisKill)
         ShakeToReportTrigger.shared.teardown(ifCurrent: stillThisKill)
+        DeviceLinkCoordinator.shared.teardown(ifCurrent: stillThisKill)
         #if canImport(UIKit)
         QuickCapture.shared.teardown(ifCurrent: stillThisKill)
         #endif
