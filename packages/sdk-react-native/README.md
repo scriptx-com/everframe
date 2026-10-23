@@ -768,8 +768,10 @@ debug build:
   is filed as usual and the banner shows a number; picking it moves the phone,
   and that capture, to the new teammate.
 - **Unlinking.** Unlink a phone under **Settings → Devices**. It finds out at
-  its next capture or config fetch, shows `This device was unlinked`, and
-  behaves as unlinked again. A capture refused this way is not filed anywhere.
+  its next capture or config fetch and behaves as unlinked again. A capture
+  refused this way is not filed anywhere and shows `This device was unlinked`.
+  Android also shows that toast when a config fetch reports the unlink; iOS
+  clears the link silently then.
 - **Other toasts.** `Capture didn't upload` follows a capture whose upload was
   rejected and not queued; `Capture failed` replaces `Captured` when the
   screenshot or the evidence could not be taken.

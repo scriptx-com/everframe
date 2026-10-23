@@ -177,8 +177,10 @@ the build is a debug build:
   linked phone is shaken, the capture is filed as usual and the banner shows a
   number; picking it moves the phone, and that capture, to the new teammate.
 - **Unlinking.** Unlink a phone under **Settings → Devices**. It finds out at
-  its next capture or config fetch, shows `This device was unlinked`, and
-  behaves as unlinked again. A capture refused this way is not filed anywhere.
+  its next capture or config fetch and behaves as unlinked again. A capture
+  refused this way is not filed anywhere and shows `This device was unlinked`.
+  Android also shows that toast when a config fetch reports the unlink; iOS
+  clears the link silently then.
 - **`enableQuickCapture` is required.** Without it nothing uploads: a shake on
   a linked or debug phone shows `Capture failed` on iOS and is ignored on
   Android. `Capture failed` also appears when the masked frame can't be
