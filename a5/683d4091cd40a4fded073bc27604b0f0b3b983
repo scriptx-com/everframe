@@ -1,0 +1,46 @@
+packages/cli/__tests__/source-map-gzip.spec.ts
+  s_988f62ed3734ff::t_e3bb2e132e0f2e 1-102
+  s_988f62ed3734ff::t_d7256f7f9af64d 103-108
+.changeset/js-source-maps-256mib.md
+  s_988f62ed3734ff::t_a26ad8144d2ebb 1-9
+packages/cli/__tests__/hermes.spec.ts
+  s_988f62ed3734ff::t_f1ae4b9f3c7e6e 10,158,160
+packages/cli/__tests__/manifest.spec.ts
+  s_988f62ed3734ff::t_a3b4d1395e08b1 8,108,110,115,123,129-140
+packages/cli/src/build-collect.ts
+  s_988f62ed3734ff::t_8217c72dc5aa24 6,67
+packages/cli/src/build-verify.ts
+  s_988f62ed3734ff::t_70b5ef58bb187f 58
+packages/cli/src/hermes.ts
+  s_988f62ed3734ff::t_22e1e061ee6ccc 6,36
+packages/cli/src/manifest.ts
+  s_988f62ed3734ff::t_b96f88151fdfae 8-9,110,112
+packages/cli/src/upload.ts
+  s_988f62ed3734ff::t_c7aeb8fed542e2 11,302,349-350,356,419-420,422,428,440
+packages/cli/src/vega.ts
+  s_988f62ed3734ff::t_05e919bd6dd871 13,32,37
+packages/protocol/__tests__/build-artifacts-manifest.spec.ts
+  s_988f62ed3734ff::t_860ae18a020dc9 5,110,123-133,138,140,225,341,343
+packages/protocol/__tests__/dsym-manifest.spec.ts
+  s_988f62ed3734ff::t_3039ac93a5b9a9 4,63
+packages/protocol/__tests__/elf-manifest.spec.ts
+  s_988f62ed3734ff::t_d7ee150483c96a 4,63
+packages/protocol/src/build-artifacts.ts
+  s_988f62ed3734ff::t_a35451d50cbb08 61-68,74,190,473
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a5683d4091cd40a4fded073bc27604b0f0b3b983",
+  "prompts": {},
+  "sessions": {
+    "s_988f62ed3734ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "191f7b4a-c975-48aa-80c4-32b56c6b0953",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
