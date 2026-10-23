@@ -150,6 +150,38 @@ describe('login', () => {
     expect(t.fetchCalls).toHaveLength(1);
   });
 
+  it('answers non-GET callbacks with 400 and ignores callbacks after success', async () => {
+    const t = setup();
+    const done = loginCommand(t.deps, {});
+    const u = await waitForUrl(t);
+    const state = u.searchParams.get('state');
+    const post = await fetch(cb(u, `/callback?state=${state}&code=${CODE}`), { method: 'POST' });
+    expect(post.status).toBe(400);
+    expect(t.fetchCalls).toHaveLength(0);
+    await fetch(cb(u, `/callback?state=${state}&code=${CODE}`));
+    expect(await done).toBe(0);
+    await expect(fetch(cb(u, `/callback?state=${state}&code=${CODE}`))).rejects.toThrow();
+    expect(t.fetchCalls).toHaveLength(1);
+  });
+
+  it('does not wait for a hung browser opener', async () => {
+    const t = setup();
+    t.deps.openBrowser = () => new Promise<void>(() => {});
+    const done = loginCommand(t.deps, {});
+    const u = await waitForUrl(t);
+    await fetch(cb(u, `/callback?state=${u.searchParams.get('state')}&code=${CODE}`));
+    expect(await done).toBe(0);
+  });
+
+  it('names the source of an invalid API URL', async () => {
+    const a = setup();
+    expect(await loginCommand(a.deps, { url: 'nope' })).toBe(1);
+    expect(a.err[0]).toContain('--url');
+    const b = setup({ env: { EVERFRAME_API_URL: 'nope' } });
+    expect(await loginCommand(b.deps, {})).toBe(1);
+    expect(b.err[0]).toContain('EVERFRAME_API_URL');
+  });
+
   it('still prints the URL and succeeds when the browser fails to open', async () => {
     const t = setup();
     t.deps.openBrowser = async () => {
@@ -201,6 +233,8 @@ describe('login', () => {
     for (const make of [
       () => new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 }),
       () => new Response(JSON.stringify({ token: TOKEN, email: 'x@y.z' }), { status: 201 }),
+      () => new Response(JSON.stringify({ token: TOKEN }), { status: 200 }),
+      () => new Response(JSON.stringify({ token: TOKEN, email: '  ' }), { status: 200 }),
       () => {
         throw new Error(`network ${TOKEN}`);
       },

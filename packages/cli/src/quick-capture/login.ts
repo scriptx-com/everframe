@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { createHash, randomBytes } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { createServer, type Server } from 'node:http';
 import { DEFAULT_API_URL, redact } from '../defaults.js';
 import { pushTokenToEmulators, type QuickCaptureDeps } from './commands.js';
@@ -10,7 +11,7 @@ import {
   readCredentials,
   writeCredentials,
 } from './credentials.js';
-import { type Runner, clearToken, defaultRunner, findAdb, listEmulators } from './devices.js';
+import { clearToken, findAdb, listEmulators } from './devices.js';
 
 export interface LoginDeps extends QuickCaptureDeps {
   fetch: typeof fetch;
@@ -22,10 +23,9 @@ export interface LogoutDeps extends QuickCaptureDeps {
   fetch: typeof fetch;
 }
 
-/** Opens the URL in the default browser. Never throws a shell string: args only. */
+/** Opens the URL in the default browser, detached; never waits and never throws. */
 export function defaultOpenBrowser(
   platform: NodeJS.Platform = process.platform,
-  run: Runner = defaultRunner,
 ): (url: string) => Promise<void> {
   return async (url) => {
     const [cmd, args] =
@@ -34,10 +34,17 @@ export function defaultOpenBrowser(
         : platform === 'win32'
           ? (['rundll32', ['url.dll,FileProtocolHandler', url]] as const)
           : (['xdg-open', [url]] as const);
-    const result = await run(cmd, [...args]);
-    if (result.code !== 0) throw new Error('browser did not open');
+    try {
+      const child = spawn(cmd, [...args], { detached: true, stdio: 'ignore' });
+      child.on('error', () => {});
+      child.unref();
+    } catch {
+      // The URL is printed; the user can open it themselves.
+    }
   };
 }
+
+const EXCHANGE_TIMEOUT_MS = 15_000;
 
 const CLOSE_TAB = (line: string): string =>
   `<!doctype html><meta charset="utf-8"><title>Everframe</title><p>${line}</p>`;
@@ -53,46 +60,66 @@ const originOf = (apiUrl: string): string | null => {
 
 type CallbackResult = { kind: 'code'; code: string } | { kind: 'denied' } | { kind: 'timeout' };
 
-function waitForCallback(
-  server: Server,
-  state: string,
-  timeoutMs: number,
-): Promise<CallbackResult> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve({ kind: 'timeout' }), timeoutMs);
-    server.on('request', (req, res) => {
-      const reply = (status: number, line: string, done?: CallbackResult): void => {
-        res.writeHead(status, { 'content-type': 'text/html; charset=utf-8', connection: 'close' });
-        res.end(CLOSE_TAB(line), () => {
-          if (done) {
-            clearTimeout(timer);
-            resolve(done);
-          }
-        });
-      };
-      const url = new URL(req.url ?? '/', 'http://127.0.0.1');
-      const given = url.searchParams.get('state');
-      if (req.method !== 'GET' || url.pathname !== '/callback' || given !== state) {
-        return reply(400, 'Invalid request.');
+interface Callback {
+  result: Promise<CallbackResult>;
+  /** Resolves once the last reply has flushed or the connection dropped. */
+  flushed: Promise<void>;
+  cancel: () => void;
+}
+
+function waitForCallback(server: Server, state: string, timeoutMs: number): Callback {
+  let settle!: (r: CallbackResult) => void;
+  let flush!: () => void;
+  const result = new Promise<CallbackResult>((resolve) => (settle = resolve));
+  const flushed = new Promise<void>((resolve) => (flush = resolve));
+  let settled = false;
+  const timer = setTimeout(() => {
+    settled = true;
+    settle({ kind: 'timeout' });
+  }, timeoutMs);
+  timer.unref();
+  server.on('request', (req, res) => {
+    const reply = (status: number, line: string, done?: CallbackResult): void => {
+      if (settled) {
+        res.writeHead(400, { connection: 'close' });
+        res.end();
+        return;
       }
-      if (url.searchParams.get('error') === 'denied') {
-        return reply(200, 'Login cancelled. You can close this tab.', { kind: 'denied' });
+      res.writeHead(status, { 'content-type': 'text/html; charset=utf-8', connection: 'close' });
+      if (done) {
+        settled = true;
+        clearTimeout(timer);
+        res.once('close', flush);
+        setTimeout(flush, 1000).unref();
+        settle(done);
       }
-      const code = url.searchParams.get('code');
-      if (!code) return reply(400, 'Invalid request.');
-      reply(200, 'Logged in. You can close this tab.', { kind: 'code', code });
-    });
+      res.end(CLOSE_TAB(line));
+    };
+    const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+    if (req.method !== 'GET' || url.pathname !== '/callback' || url.searchParams.get('state') !== state) {
+      return reply(400, 'Invalid request.');
+    }
+    if (url.searchParams.get('error') === 'denied') {
+      return reply(200, 'Login cancelled. You can close this tab.', { kind: 'denied' });
+    }
+    const code = url.searchParams.get('code');
+    if (!code) return reply(400, 'Invalid request.');
+    reply(200, 'Logged in. You can close this tab.', { kind: 'code', code });
   });
+  return { result, flushed, cancel: () => clearTimeout(timer) };
 }
 
 export async function loginCommand(
   deps: LoginDeps,
   options: { url?: string; noBrowser?: boolean } = {},
 ): Promise<number> {
+  const source = options.url ? '--url' : deps.env.EVERFRAME_API_URL ? 'EVERFRAME_API_URL' : null;
   const apiUrl = options.url || deps.env.EVERFRAME_API_URL || DEFAULT_API_URL;
   const origin = originOf(apiUrl);
   if (!origin) {
-    deps.err('Invalid --url. Pass the Everframe API URL, for example https://everframe.dev/api/v1.');
+    deps.err(
+      `Invalid API URL${source ? ` in ${source}` : ''}. Use an http(s) URL such as https://everframe.dev/api/v1.`,
+    );
     return 1;
   }
   const verifier = randomBytes(32).toString('base64url');
@@ -108,7 +135,9 @@ export async function loginCommand(
     deps.err('Login failed. Run the command again.');
     return 1;
   }
+  let callback: Callback | undefined;
   const close = (): void => {
+    callback?.cancel();
     server.close();
     server.closeAllConnections();
   };
@@ -120,17 +149,20 @@ export async function loginCommand(
       state,
       challenge,
     }).toString()}`;
-    const pending = waitForCallback(server, state, deps.timeoutMs ?? 300_000);
+    callback = waitForCallback(server, state, deps.timeoutMs ?? 300_000);
     deps.out(`Opening ${loginUrl}`);
     deps.out("If the browser doesn't open, visit the URL above.");
     if (!options.noBrowser) {
+      // Never awaited: a slow or hung opener must not delay the callback.
+      // The URL is already printed, so failures are ignored.
       try {
-        await deps.openBrowser(loginUrl);
+        void Promise.resolve(deps.openBrowser(loginUrl)).catch(() => {});
       } catch {
-        // The URL is already printed; the user can open it elsewhere.
+        // ignored
       }
     }
-    const result = await pending;
+    const result = await callback.result;
+    if (result.kind !== 'timeout') await callback.flushed;
     close();
     if (result.kind === 'timeout') {
       deps.err('Login timed out.');
@@ -176,11 +208,13 @@ async function exchange(
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ code, verifier }),
+      signal: AbortSignal.timeout(EXCHANGE_TIMEOUT_MS),
     });
     if (res.status !== 200) return null;
     const body = (await res.json()) as { token?: unknown; email?: unknown };
     if (typeof body.token !== 'string' || !CAPTURE_TOKEN_PATTERN.test(body.token)) return null;
-    return { token: body.token, email: typeof body.email === 'string' ? body.email : '' };
+    if (typeof body.email !== 'string' || body.email.trim() === '') return null;
+    return { token: body.token, email: body.email };
   } catch {
     return null;
   }
@@ -198,6 +232,7 @@ export async function logoutCommand(deps: LogoutDeps): Promise<number> {
     const res = await deps.fetch(`${origin}/api/cli/token/revoke`, {
       method: 'POST',
       headers: { 'X-Everframe-Capture-Token': credentials.token },
+      signal: AbortSignal.timeout(EXCHANGE_TIMEOUT_MS),
     });
     revoked = res.status === 204;
   } catch {
@@ -211,7 +246,14 @@ export async function logoutCommand(deps: LogoutDeps): Promise<number> {
       ),
     );
   }
-  deleteCredentials(deps.home);
+  try {
+    deleteCredentials(deps.home);
+  } catch {
+    deps.err(
+      "Couldn't remove the saved login. Delete ~/.everframe/credentials yourself.",
+    );
+    return 1;
+  }
   const adb = findAdb(deps.env);
   if (adb) {
     for (const serial of await listEmulators(deps.run, adb)) {
