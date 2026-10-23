@@ -23,19 +23,29 @@ private final class ScriptedTransport: DeviceLinkTransport, @unchecked Sendable 
     var checks: [(UUID, String)] { lock.lock(); defer { lock.unlock() }; return checkCalls }
 
     func hello(nonce: String, device: DeviceLinkHelloRequest.Device) async -> DeviceLinkHelloResult {
+        nextHello(nonce: nonce)
+    }
+
+    func check(attemptId: UUID, nonce: String) async -> DeviceLinkCheckResult {
+        if let gate = recordCheck(attemptId: attemptId, nonce: nonce) { await gate.wait() }
+        return nextCheck()
+    }
+
+    private func nextHello(nonce: String) -> DeviceLinkHelloResult {
         lock.lock(); defer { lock.unlock() }
         helloNonces.append(nonce)
         return helloResults.isEmpty ? .failed : helloResults.removeFirst()
     }
 
-    func check(attemptId: UUID, nonce: String) async -> DeviceLinkCheckResult {
-        lock.lock()
-        checkCalls.append((attemptId, nonce))
-        let gate = checkGate
-        lock.unlock()
-        if let gate { await gate.wait() }
+    private func recordCheck(attemptId: UUID, nonce: String) -> CoordinatorTestGate? {
         lock.lock(); defer { lock.unlock() }
-        // The last result repeats once the script runs out.
+        checkCalls.append((attemptId, nonce))
+        return checkGate
+    }
+
+    /// The last result repeats once the script runs out.
+    private func nextCheck() -> DeviceLinkCheckResult {
+        lock.lock(); defer { lock.unlock() }
         if checkResults.count > 1 { return checkResults.removeFirst() }
         return checkResults.first ?? .stop
     }

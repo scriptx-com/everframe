@@ -16,8 +16,13 @@ private final class RecordingConfigFetcher: URLSessionFetching, @unchecked Senda
         return requests
     }
 
+    private func record(_ request: URLRequest) {
+        lock.lock(); defer { lock.unlock() }
+        requests.append(request)
+    }
+
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        lock.lock(); requests.append(request); lock.unlock()
+        record(request)
         let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: nil)!
         return (body, response)
     }

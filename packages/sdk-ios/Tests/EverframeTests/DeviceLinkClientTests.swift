@@ -21,12 +21,14 @@ private final class ScriptedFetcher: URLSessionFetching, @unchecked Sendable {
         return requests
     }
 
-    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        lock.lock()
+    private func next(_ request: URLRequest) -> Outcome {
+        lock.lock(); defer { lock.unlock() }
         requests.append(request)
-        let outcome = outcomes.isEmpty ? .status(500, "") : outcomes.removeFirst()
-        lock.unlock()
-        switch outcome {
+        return outcomes.isEmpty ? .status(500, "") : outcomes.removeFirst()
+    }
+
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        switch next(request) {
         case let .status(code, body):
             let response = HTTPURLResponse(url: request.url!, statusCode: code, httpVersion: "HTTP/1.1", headerFields: nil)!
             return (Data(body.utf8), response)
