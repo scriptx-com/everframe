@@ -134,7 +134,8 @@ unlinked release build opens the reporter.
 Quick capture files a report with its screenshot, replay window, logs,
 breadcrumbs and network, without opening the reporter. You title and file it on
 the dashboard, in the live capture card. On a real phone the gesture is a
-shake; on an emulator it is ⇧B (below).
+shake, on Android TV a remote gesture (holding Play/Pause by default), and on
+an emulator ⇧B (below).
 
 #### Quick capture on real phones
 
@@ -196,6 +197,56 @@ What a shake does, with the dashboard's capture hotkey setting on:
   hello; the capture hotkey setting, `quickCaptureEnabled = false` or
   `reporterEnabled = false` turn quick capture and linking off together, and
   shake then behaves as before.
+
+#### Quick capture on Android TV
+
+On Android TV the gesture is a remote binding the dashboard sets per app. The
+default is **holding Play/Pause for 1.5 seconds**. Link the TV the same way as
+a phone: open **Link a device** on the dashboard, do the gesture on the TV, and
+click the number its banner shows. From then on the gesture files a quick
+capture for you, and the toast names you.
+
+| Device                  | Remote gesture                                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------------------------------- |
+| Linked to a teammate    | Quick capture, private to that teammate. `Captured · <name>`.                                        |
+| Linked as a team device | Quick capture, shared draft. `Captured · team device`.                                               |
+| Unlinked, debug build   | Quick capture, shared draft. `Captured · <device name>`. Also says hello to a dashboard link window. |
+| Unlinked, release build | Nothing visible. Also says hello to a dashboard link window.                                         |
+
+- **Bindings.** In the dashboard's Quick capture card a binding is a long press
+  (one key held), a sequence (keys pressed in order within a time window, for
+  example ↑↑↓↓ within one second) or a chord (keys held together). Keys are
+  `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT`, `DPAD_RIGHT`, `DPAD_CENTER` (also
+  Enter), `BACK`, `MENU`, `MEDIA_PLAY_PAUSE`, `MEDIA_FAST_FORWARD`,
+  `MEDIA_REWIND`, `PROG_RED`, `PROG_GREEN`, `PROG_YELLOW`, `PROG_BLUE`, the
+  letters `A`–`Z`, the digits `0`–`9` and `SHIFT`. `MEDIA_PLAY_PAUSE` is
+  `KEYCODE_MEDIA_PLAY_PAUSE`; a remote that sends separate Play and Pause keys
+  needs another binding. A binding the SDK cannot follow exactly is ignored,
+  and an older server that sends no binding means no TV gesture.
+- **Key handling.** On an unlinked device the SDK never swallows or changes a
+  key: the app receives every event exactly as before. On a linked device the
+  first press always reaches the app, so holding Play/Pause toggles playback
+  once when the press starts, before the capture. After the gesture is
+  recognized, the long press's repeats are swallowed and its key-up arrives
+  canceled; a sequence swallows only its last key, and a chord only the key
+  that completes it. Normal navigation never fires it: a held D-pad only
+  repeats, and a tapped Play/Pause is released long before 1.5 seconds. A
+  binding that uses letters, digits or `SHIFT` stands aside while a text field
+  has focus.
+- **Record on device.** To set a binding from the remote you actually have,
+  click **Record on device** in the Quick capture card and pick one of your
+  linked devices. The device picks up the request on its next config fetch:
+  relaunch the app or bring it back to the foreground. It shows
+  `Recording remote keys for 10 seconds`, records up to 32 key presses (keys
+  still reach the app, and the capture gesture pauses meanwhile), sends them,
+  and shows `Keys sent to Everframe`. The dashboard turns them into a binding
+  for you to save. Linked devices refresh their config when the app comes to
+  the foreground, at most every 10 seconds; unlinked devices don't.
+- **Fire TV** runs the same code: it reports itself as a TV and its remote
+  sends the standard key codes. It is not verified yet.
+- Everything else (end users, debug builds, replay, takeover, unlinking, token
+  storage and the off switches) works as on phones, above. On a TV emulator, ⇧B
+  keeps working as well.
 
 #### Quick capture on emulators
 
@@ -566,8 +617,10 @@ In a [crash-only session](#crash-only-sessions) both forms fail with
 
 ### Android TV
 
-The SDK does NOT register any TV remote handler. Open the reporter from your
-own `Activity.dispatchKeyEvent` override using a sample-owned debouncer — the
+The SDK registers no TV remote handler for the reporter. (The quick-capture
+remote gesture is separate: it only runs while quick capture is armed; see
+[Quick capture on Android TV](#quick-capture-on-android-tv).) Open the
+reporter from your own `Activity.dispatchKeyEvent` override using a sample-owned debouncer — the
 canonical wiggle recipe (`UP/DOWN × 6 within 3000ms`) lives in the sample app
 at `examples/android-compose/app/src/tv/kotlin/com/example/composesample/tv/SampleTVDebouncer.kt`
 (53 LOC; copy + adapt). See [Triggers are host-app concern](#triggers-are-host-app-concern)
