@@ -1,5 +1,45 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.5.0
+
+### Minor Changes
+
+- 764efb1: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Debug iOS simulator builds can file a report with a double Shift press,
+  with no reporter UI. The report carries the screenshot, replay, logs and
+  metadata, is marked `quickCapture`, and is attributed to the developer when
+  `$SIMULATOR_HOST_HOME/.everframe/credentials` holds a token. The token is only sent to the server it was issued by (the file's `url`). It stays dark until
+  the server sends `captureHotkey` in the project config, and can be turned off
+  locally with `quickCaptureEnabled = false`. Physical devices are unaffected.
+  Every simulator build counts as a debug build unless the app sets
+  `EverframeConfig.debugBuild = false`. The tvOS simulator is not yet verified.
+
+  When the block also sets `replay: true`, session replay records while quick
+  capture is armed, even if the app's `replayEnabled` is false and regardless of
+  its sampling rate. The flag never turns replay off; after a disarm, replay
+  follows `replayEnabled` again. A queued report with a native video replay from the same project and session
+  keeps it when a retry in that session runs while quick capture still forces
+  replay. A retry at the next app launch runs before the dashboard config
+  arrives, so it sends the capture without its replay, and the launch drain removes the replay from the queued
+  entry. A key press that UIKit delivers twice is counted
+  once.
+
+  `npx @everframe/cli capture` triggers a capture on a booted simulator through the Darwin notification `com.everframe.capture`, with the same gates as the double-Shift trigger (a simulator build not opted out with `debugBuild = false`, the dashboard setting on, armed, nothing in flight). `npx @everframe/cli login` writes the `~/.everframe/credentials` file the SDK reads for attribution.
+
+  A session started with `capture.screenshot = false` ignores quick capture unless
+  the host has installed an evidence provider with
+  `Everframe.__setQuickCaptureEvidenceProvider`. That SDK seam is for host plugins,
+  such as Flutter's, that mask their own pixels and supply the screenshot and
+  replay themselves. Such a session never uploads an unmasked native screenshot. The public `QuickCaptureHostEvidence` struct carries that evidence and is SDK-internal, for host plugins only.
+
+  The public `ReporterTrigger` enum gained a `quickCapture` case (raw value
+  `quick_capture`). Host code that switches exhaustively over `ReporterTrigger`
+  needs a `default` branch.
+
+  Kotlin Multiplatform apps start sessions with screenshots off, so quick capture is ignored for them (`screenshot_disabled`) for now.
+
 ## 1.4.0
 
 ### Minor Changes

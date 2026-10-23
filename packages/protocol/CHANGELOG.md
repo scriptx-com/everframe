@@ -1,5 +1,19 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 0.10.0
+
+### Minor Changes
+
+- dc725fc: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  JavaScript source maps (web, Hermes and Vega) may be up to 256 MiB each (from 32 MiB), and a web build's maps up to 1 GiB together (from 256 MiB). Release React Native maps had grown past 32 MiB, so `build collect` and `sourcemaps upload-hermes` failed with `source_map_too_large`. The CLI now streams every source map from a private snapshot and sends it gzip-compressed when the server lists `gzip` in `uploadEncodings`. Upload these maps only to an Everframe API that accepts the larger limit.
+
+- 599b372: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Envelopes may carry an optional `quickCapture` boolean, set when a report is filed by the debug quick-capture trigger instead of the reporter UI. The generated Swift `EverframeReportEnvelope` memberwise initializer gains a `quickCapture` parameter, so code that constructs the envelope directly must pass it.
+
 ## 0.9.0
 
 ### Minor Changes

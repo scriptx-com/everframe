@@ -1,5 +1,26 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.5.0
+
+### Minor Changes
+
+- dc725fc: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  JavaScript source maps (web, Hermes and Vega) may be up to 256 MiB each (from 32 MiB), and a web build's maps up to 1 GiB together (from 256 MiB). Release React Native maps had grown past 32 MiB, so `build collect` and `sourcemaps upload-hermes` failed with `source_map_too_large`. The CLI now streams every source map from a private snapshot and sends it gzip-compressed when the server lists `gzip` in `uploadEncodings`. Upload these maps only to an Everframe API that accepts the larger limit.
+
+- 9691527: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Adds simulator and emulator quick capture commands:
+  - `login [--url <api-url>] [--no-browser]` signs in through your browser and saves a capture token in `~/.everframe/credentials` (directory `0700`, file `0600`). It also links running Android emulators, and still succeeds when `adb` is missing or no emulator is running.
+  - `logout` revokes the token, removes the credentials file and clears running emulators.
+  - `link` copies the saved token to running Android emulators only, never to physical devices. It also records the server that issued the token in `everframe_token_origin`: the token is only sent to the server it was issued by.
+  - `capture [--device <udid|name|serial>]` triggers one capture on a booted iOS simulator (iOS only, not tvOS or watchOS; Darwin notification `com.everframe.capture`) or running Android emulator (broadcast `com.everframe.CAPTURE`). With several booted it lists them and exits 2.
+  - `hotkey [--key <combo>]` (macOS) registers a global shortcut, default Cmd+Shift+B, while a standalone Android emulator window is in front, and sends the capture to that emulator. The combo needs Cmd or Ctrl. It compiles a small Swift helper into `~/.everframe/bin` on first run and needs the Xcode Command Line Tools. Emulators embedded in Android Studio need "Launch in the Running Devices tool window" turned off.
+
+  The package now ships a `helpers` directory.
+
 ## 1.4.1
 
 ### Minor Changes
