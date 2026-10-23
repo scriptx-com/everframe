@@ -352,6 +352,7 @@ class EverframeModule(
                 // `startCompanion()` time, mirroring `attachPinUi`.
                 companionBadgeEnabled = opts.takeIfHasBoolean("companionBadgeEnabled") ?: true,
                 shakeToReportEnabled = opts.takeIfHasBoolean("shakeToReportEnabled") ?: true,
+                quickCaptureEnabled = opts.takeIfHasBoolean("quickCaptureEnabled") ?: true,
                 reporterEnabled = !reporterDisabled,
                 companionBadgePosition = opts.takeIfHasString("companionBadgePosition"),
                 // Inline reporter theme (reporter branding spec 2026-08-25,

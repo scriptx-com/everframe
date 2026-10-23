@@ -99,6 +99,7 @@ export interface RuntimeConfig
     | 'companionBadgeEnabled'
     | 'companionBadgePosition'
     | 'shakeToReportEnabled'
+    | 'quickCaptureEnabled'
     // Crash-only sessions (spec 2026-10-12) — same NN4 rationale: the nested
     // `reporter` below is the ONLY public surface.
     | 'reporterDisabled'
@@ -239,6 +240,13 @@ export interface RuntimeConfig
    * `{ enabled: !__DEV__ }` to avoid overlapping with the development menu.
    */
   shakeToReport?: {
+    enabled?: boolean;
+  };
+  /**
+   * Simulator/emulator quick capture. Enabled by default and armed only on
+   * debug simulator or emulator builds; `{ enabled: false }` opts this app out.
+   */
+  quickCapture?: {
     enabled?: boolean;
   };
   /**
@@ -843,6 +851,9 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   }
   if (config.shakeToReport?.enabled !== undefined) {
     bridge.shakeToReportEnabled = config.shakeToReport.enabled;
+  }
+  if (config.quickCapture?.enabled !== undefined) {
+    bridge.quickCaptureEnabled = config.quickCapture.enabled;
   }
   // Crash-only sessions (spec 2026-10-12). Sent only when the reporter is
   // off: absent means a normal report session on both bridges.

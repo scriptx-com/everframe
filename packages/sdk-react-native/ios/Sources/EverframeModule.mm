@@ -209,6 +209,7 @@ RCT_EXPORT_MODULE(Everframe)
   // above; `EverframeBridge` coerces nil/unrecognised to `.bottomRight`.
   BOOL companionBadgeEnabled = opts.companionBadgeEnabled().value_or(true);
   BOOL shakeToReportEnabled = opts.shakeToReportEnabled().value_or(true);
+  BOOL quickCaptureEnabled = opts.quickCaptureEnabled().value_or(true);
   // Crash-only session switch (spec 2026-10-12) — `std::optional<bool>`, same shape as
   // `networkBodiesDisabled()`. Absent means a normal report session.
   BOOL reporterDisabled = opts.reporterDisabled().value_or(false);
@@ -257,6 +258,7 @@ RCT_EXPORT_MODULE(Everframe)
                    companionDeviceId:companionDeviceId
                companionBadgeEnabled:companionBadgeEnabled
                   shakeToReportEnabled:shakeToReportEnabled
+                   quickCaptureEnabled:quickCaptureEnabled
               companionBadgePosition:companionBadgePosition
                                theme:(theme.count > 0 ? theme : nil)
                        vitalsEnabled:vitalsEnabled

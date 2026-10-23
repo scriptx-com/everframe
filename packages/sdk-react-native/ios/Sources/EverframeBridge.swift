@@ -59,6 +59,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         companionDeviceId: NSString?,
         companionBadgeEnabled: Bool,
         shakeToReportEnabled: Bool,
+        quickCaptureEnabled: Bool,
         companionBadgePosition: NSString?,
         theme: NSDictionary?,
         vitalsEnabled: NSNumber?,
@@ -109,6 +110,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         // badge) exist, mirroring `companionAttachPinUi` below.
         cfg.companionBadgeEnabled = companionBadgeEnabled
         cfg.shakeToReportEnabled = shakeToReportEnabled
+        cfg.quickCaptureEnabled = quickCaptureEnabled
         // Polarity flips exactly once, here: JS sends the crash-only switch
         // (`reporterDisabled`), native stores the permission.
         cfg.reporterEnabled = !reporterDisabled
