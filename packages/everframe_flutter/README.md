@@ -119,6 +119,27 @@ offline retry after process restart remain unverified. Flutter web's masked
 screenshot, image replay, reporter, and retry paths passed Chromium probes.
 macOS remains an unreleased probe.
 
+## Quick capture
+
+In a debug iOS simulator or Android emulator, simulator quick capture files a
+report from a hotkey or `npx @everframe/cli capture`, with no reporter UI.
+Flutter masks in Dart, so the native SDK never takes its own screenshot in a
+Flutter app. It ignores quick capture until you supply the masked Flutter frame:
+
+```dart
+await everframe.enableQuickCapture(
+  boundaryKey: boundaryKey,
+  sensitiveRegions: sensitiveRegions,
+  replayBuffer: replayBuffer, // optional; a snapshot of its masked frames
+);
+```
+
+Call it after `start`. Each capture then sends the same masked screenshot and
+replay `openReporter` would send. If the masked frame can't be produced safely,
+the capture fails and no image is sent. A live recording buffer is not frozen.
+`disableQuickCapture()` removes the registration. Pass `quickCapture: false` to
+`start` to opt out entirely. Devices and release builds are unaffected.
+
 ## Flutter web
 
 Add `EverframeWebCapture` after the first frame with the same

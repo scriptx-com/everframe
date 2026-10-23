@@ -51,6 +51,7 @@ void main() {
         'environment': 'development',
         'crash': true,
         'releaseHealth': true,
+        'quickCapture': true,
       });
       expect(calls[1].arguments, {'id': 'u1', 'email': 'a@example.com'});
     },
@@ -100,6 +101,7 @@ void main() {
       'environment': 'production',
       'crash': true,
       'releaseHealth': true,
+      'quickCapture': true,
     });
   });
 

@@ -14,15 +14,44 @@ Uint8List exportSafeReplayVTree(
   required double scale,
   int maxEncodedBytes = 8 * 1024 * 1024,
 }) {
+  _checkArguments(scale, maxEncodedBytes);
+  if (!buffer.frozen || buffer.revoked) {
+    throw StateError('Only a frozen, privacy-validated replay can be exported');
+  }
+  return _encode(buffer, scale: scale, maxEncodedBytes: maxEncodedBytes);
+}
+
+/// Package-internal: exports the frames a live recording buffer holds at this
+/// instant, without freezing it, so recording continues. Each frame was
+/// privacy-validated before it entered the buffer, and a revoked buffer holds
+/// none, so the snapshot carries the same masked PNGs a frozen export would.
+/// Used by simulator quick capture, which cannot freeze the host's recorder.
+Uint8List exportSafeReplaySnapshot(
+  SafeReplayBuffer buffer, {
+  required double scale,
+  int maxEncodedBytes = 8 * 1024 * 1024,
+}) {
+  _checkArguments(scale, maxEncodedBytes);
+  if (buffer.revoked) {
+    throw StateError('A revoked replay cannot be exported');
+  }
+  return _encode(buffer, scale: scale, maxEncodedBytes: maxEncodedBytes);
+}
+
+void _checkArguments(double scale, int maxEncodedBytes) {
   if (!scale.isFinite || scale <= 0) {
     throw ArgumentError.value(scale, 'scale', 'must be positive and finite');
   }
   if (maxEncodedBytes <= 0) {
     throw ArgumentError.value(maxEncodedBytes, 'maxEncodedBytes');
   }
-  if (!buffer.frozen || buffer.revoked) {
-    throw StateError('Only a frozen, privacy-validated replay can be exported');
-  }
+}
+
+Uint8List _encode(
+  SafeReplayBuffer buffer, {
+  required double scale,
+  required int maxEncodedBytes,
+}) {
   final frames = buffer.frames;
   if (frames.isEmpty) throw StateError('Replay contains no frames');
 

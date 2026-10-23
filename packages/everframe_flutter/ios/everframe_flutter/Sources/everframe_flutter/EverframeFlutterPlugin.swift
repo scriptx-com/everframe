@@ -5,19 +5,51 @@ import UIKit
 import EverframeKit
 import EverframeReporterUI
 
+/// The masked Flutter evidence Dart sends with `openReporter` and returns for
+/// `quickCaptureEvidence`. One decoder for both, so they cannot drift.
+private struct FlutterMaskedEvidence {
+    let maskedPng: Data
+    let pixelRatio: Double?
+    let replayVTree: Data?
+
+    init?(_ args: [String: Any]?) {
+        guard let maskedPng = (args?["maskedPng"] as? FlutterStandardTypedData)?.data else { return nil }
+        self.maskedPng = maskedPng
+        pixelRatio = (args?["pixelRatio"] as? NSNumber)?.doubleValue
+        replayVTree = (args?["replayVTree"] as? FlutterStandardTypedData)?.data
+    }
+
+    /// The same checks `EFReporterPresenter.openWithMaskedPng` applies before it
+    /// builds the reporter's capture from these bytes.
+    var image: UIImage? {
+        guard maskedPng.count >= 8, maskedPng.count <= 10_000_000,
+              maskedPng.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]),
+              let image = UIImage(data: maskedPng),
+              image.size.width > 0, image.size.height > 0,
+              max(image.size.width, image.size.height) <= 2048 else { return nil }
+        return image
+    }
+}
+
 public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
     private weak var viewController: UIViewController?
+    private let channel: FlutterMethodChannel
     private var activeMarkers: [UIView] = []
+    /// Dart's `enableQuickCapture` registration. Survives `kill` so a later
+    /// `start` reinstalls the provider, which the SDK clears on `kill`.
+    private var quickCaptureHostEnabled = false
 
-    private init(viewController: UIViewController?) {
+    private init(viewController: UIViewController?, channel: FlutterMethodChannel) {
         self.viewController = viewController
+        self.channel = channel
     }
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(
             name: "dev.everframe/flutter", binaryMessenger: registrar.messenger())
         registrar.addMethodCallDelegate(
-            EverframeFlutterPlugin(viewController: registrar.viewController), channel: channel)
+            EverframeFlutterPlugin(viewController: registrar.viewController, channel: channel),
+            channel: channel)
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -45,12 +77,16 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
             capture.crash = args["crash"] as? Bool ?? true
             do {
                 // The iOS SDK takes only the SDK key; the App ID is unused here.
-                try Everframe.shared.start(config: EverframeConfig(
+                var config = EverframeConfig(
                     sdkKey: sdkKey, environment: environment, capture: capture,
                     releaseHealth: capture.crash && (args["releaseHealth"] as? Bool ?? true) ? ReleaseHealthConfiguration() : nil,
-                    debugBuild: args["debugBuild"] as? Bool))
+                    debugBuild: args["debugBuild"] as? Bool)
+                config.quickCaptureEnabled = args["quickCapture"] as? Bool ?? true
+                try Everframe.shared.start(config: config)
                 Task { @MainActor in
                     EFReporterPresenter.installResolver()
+                    // `start` keeps no provider from an earlier session's `kill`.
+                    if quickCaptureHostEnabled { installQuickCaptureProvider() }
                     result(nil)
                 }
             } catch {
@@ -62,18 +98,17 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
                 return
             }
             Task { @MainActor in
-                guard let maskedPng = (args["maskedPng"] as? FlutterStandardTypedData)?.data else {
+                guard let evidence = FlutterMaskedEvidence(args) else {
                     result(FlutterError(code: "privacy_unverified", message: "Masked Flutter screenshot is unavailable", details: nil))
                     return
                 }
                 // The Flutter PNG is masked before encoding; view markers are
                 // supplementary for native captures and may be unavailable.
-                _ = installSensitiveMarkers(args)
+                _ = installSensitiveMarkers(args, pixelRatio: evidence.pixelRatio)
                 defer { clearMarkers() }
                 do {
-                    let replayVTree = (args["replayVTree"] as? FlutterStandardTypedData)?.data
-                    let outcome = try await EFReporterPresenter.openWithMaskedPng(maskedPng,
-                        replayVTree: replayVTree, sdkName: "everframe-flutter")
+                    let outcome = try await EFReporterPresenter.openWithMaskedPng(evidence.maskedPng,
+                        replayVTree: evidence.replayVTree, sdkName: "everframe-flutter")
                     switch outcome {
                     case .submitted(let reportId):
                         result(["status": "submitted", "reportId": reportId.uuidString])
@@ -132,9 +167,24 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
                 return
             }
             result(CrashReporter.captureHandledFacts(json: encoded, sdkName: "everframe-flutter"))
+        case "setQuickCaptureHost":
+            guard let enabled = args["enabled"] as? Bool else {
+                result(FlutterError(code: "invalid_arguments", message: "enabled required", details: nil))
+                return
+            }
+            Task { @MainActor in
+                quickCaptureHostEnabled = enabled
+                if enabled {
+                    installQuickCaptureProvider()
+                } else {
+                    Everframe.shared.__setQuickCaptureEvidenceProvider(nil)
+                }
+                result(nil)
+            }
         case "kill":
             Task { @MainActor in
                 clearMarkers()
+                Everframe.shared.__setQuickCaptureEvidenceProvider(nil)
                 Everframe.shared.kill()
                 result(nil)
             }
@@ -143,11 +193,29 @@ public final class EverframeFlutterPlugin: NSObject, FlutterPlugin {
         }
     }
 
+    /// Quick capture asks Dart for the masked Flutter frame instead of taking a
+    /// native screenshot. A null, invalid or failed reply yields nil, which
+    /// fails the capture; the SDK never falls back to an unmasked image.
     @MainActor
-    private func installSensitiveMarkers(_ args: [String: Any]) -> Bool {
+    private func installQuickCaptureProvider() {
+        Everframe.shared.__setQuickCaptureEvidenceProvider { [weak self] in
+            guard let self else { return nil }
+            let reply: Any? = await withCheckedContinuation { continuation in
+                self.channel.invokeMethod("quickCaptureEvidence", arguments: nil) { reply in
+                    continuation.resume(returning: reply)
+                }
+            }
+            guard let evidence = FlutterMaskedEvidence(reply as? [String: Any]),
+                  let image = evidence.image else { return nil }
+            return QuickCaptureHostEvidence(image: image, hostReplayVTree: evidence.replayVTree)
+        }
+    }
+
+    @MainActor
+    private func installSensitiveMarkers(_ args: [String: Any], pixelRatio: Double?) -> Bool {
         guard let root = viewController?.view,
               let window = root.window,
-              let pixelRatio = (args["pixelRatio"] as? NSNumber)?.doubleValue,
+              let pixelRatio,
               pixelRatio.isFinite, pixelRatio > 0,
               abs(pixelRatio - window.screen.scale) <= 0.02,
               let rects = args["sensitiveRects"] as? [[String: Any]] else { return false }
