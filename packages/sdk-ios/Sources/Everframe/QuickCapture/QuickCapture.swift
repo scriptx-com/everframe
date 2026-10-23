@@ -119,6 +119,8 @@ private final class QuickCaptureGate: @unchecked Sendable {
     private var binding: CaptureHotkeyBinding = .doubleShift
     private var replay = false
     private var screenshot = true
+    /// The TV binding this device acts on (`TvRemoteKeys.effectiveBinding`).
+    private var tvBinding: TvGestureBinding?
 
     func reset(localEnabled: Bool, debug: Bool, screenshot: Bool = true) {
         lock.lock(); defer { lock.unlock() }
@@ -129,6 +131,17 @@ private final class QuickCaptureGate: @unchecked Sendable {
         remoteEnabled = false
         binding = .doubleShift
         replay = false
+        tvBinding = nil
+    }
+
+    func setTvBinding(_ value: TvGestureBinding?) {
+        lock.lock(); defer { lock.unlock() }
+        tvBinding = value
+    }
+
+    var storedTvBinding: TvGestureBinding? {
+        lock.lock(); defer { lock.unlock() }
+        return tvBinding
     }
 
     func setRemote(_ remote: CaptureHotkeyConfigWire?) {
@@ -242,6 +255,10 @@ final class QuickCapture {
     /// True while an editable text input is first responder. Asked only when a
     /// key reaches `handle` without a pre-delivery answer.
     var isEditingText: @MainActor () -> Bool = { QuickCaptureTextInput.firstResponderIsEditable() }
+    /// Phone, Apple TV or other: only an Apple TV arms the remote binding.
+    var devicePlatform: QuickCaptureDevicePlatform = .current
+    /// The app's device linking switch, on a real device.
+    var linkingEnabled: @MainActor () -> Bool = { DeviceLinkCoordinator.shared.isLinkingEnabled }
 
     // MARK: State
 
@@ -320,6 +337,32 @@ final class QuickCapture {
         stateLock.lock(); defer { stateLock.unlock() }
         guard ifCurrent() else { return }
         gate.setRemote(remote)
+    }
+
+    /// The config's `captureGesture` block: stores the TV binding this device
+    /// acts on (an unreachable key falls back to the default). `beginSession`
+    /// and `teardown` clear it.
+    nonisolated func publishGesture(_ wire: CaptureGestureConfigWire?, ifCurrent: () -> Bool = { true }) {
+        let binding = TvRemoteKeys.effectiveBinding(wire?.tv)
+        stateLock.lock(); defer { stateLock.unlock() }
+        guard ifCurrent() else { return }
+        gate.setTvBinding(binding)
+    }
+
+    /// The TV binding the last config published, armed or not.
+    nonisolated var publishedTvBinding: TvGestureBinding? { gate.storedTvBinding }
+
+    /// The TV binding to watch the Siri Remote for, or nil. Non-nil only on an
+    /// Apple TV (or its simulator) with an open kill switch, quick capture
+    /// configured and a binding published, when a press could do something:
+    /// a debug build or a linked device captures, and an unlinked release
+    /// device says hello while linking is on. An unlinked release device with
+    /// linking off watches nothing.
+    var armedTvBinding: TvGestureBinding? {
+        guard devicePlatform == .tv, hostMode != .unsupported, Everframe.captureGate, isConfigured,
+              let binding = gate.storedTvBinding else { return nil }
+        guard isDebug || isLinked || (hostMode == .device && linkingEnabled()) else { return nil }
+        return binding
     }
 
     /// Whether this real device holds a device link: a linked device arms

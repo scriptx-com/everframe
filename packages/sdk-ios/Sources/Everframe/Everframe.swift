@@ -2494,6 +2494,12 @@ public final class Everframe: @unchecked Sendable {
         DeviceLinkCoordinator.shared.teardown(ifCurrent: stillThisKill)
         #if canImport(UIKit)
         QuickCapture.shared.teardown(ifCurrent: stillThisKill)
+        // Forget a remote gesture in progress, its pending hold timer and swallowed presses.
+        if Thread.isMainThread {
+            MainActor.assumeIsolated { TvGestureInput.shared.reset() }
+        } else {
+            Task { @MainActor in TvGestureInput.shared.reset() }
+        }
         #endif
         // 04-04: uninstall stderr intercept and restore the original FD so the
         // host's stderr pipeline returns to baseline. Idempotent.

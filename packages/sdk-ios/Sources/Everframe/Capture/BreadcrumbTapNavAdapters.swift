@@ -522,6 +522,17 @@ enum WindowTapBreadcrumbAdapter {
         let block: @convention(block) (UIWindow, UIEvent) -> Void = { window, event in
             guard Thread.isMainThread else { originalFn(window, sel, event); return }
             MainActor.assumeIsolated {
+                #if os(tvOS)
+                // The quick-capture remote gesture reads presses first. A
+                // disarmed session answers `needsPresses` with lock reads and
+                // builds nothing. A press it consumes (a linked device's fired
+                // gesture) is never delivered and leaves no crumb. Match the
+                // class: keyboard events are a `UIPressesEvent` subclass.
+                if let presses = event as? UIPressesEvent, TvGestureInput.shared.needsPresses,
+                   !TvGestureInput.shared.handle(TvGestureInput.keyEvents(presses.allPresses), window: window) {
+                    return
+                }
+                #endif
                 var snapshot: InteractionTargetSnapshot?
                 var remoteButton: String?
                 if BreadcrumbRingBuffer.shared.isKindEnabled(.tap) {
