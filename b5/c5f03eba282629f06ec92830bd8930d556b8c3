@@ -1,0 +1,38 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/replay/ReplaySessionDeviceTokenTest.kt
+  s_f1c043e85606b2::t_bd98c9233bc996 1-184
+  s_f1c043e85606b2::t_65f5ea85ebd9c0 185-187
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_f1c043e85606b2::t_952a291e10442f 1211-1226
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplaySession.kt
+  s_f1c043e85606b2::t_be5f91f417c91a 43-47,182-184,451-455
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/DeviceLink.kt
+  s_f1c043e85606b2::t_bacdf9ee04d958 25-29,44,52,62-63,76-77,112-113,132-138,140-155,160,169,178-182,247-248,266-277,379,388
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/QuickCapture.kt
+  s_f1c043e85606b2::t_f8b8f84c368207 70,307-318,373-383,386,426-427
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/ReportSubmitter.kt
+  s_f1c043e85606b2::t_e5de1a1de7079c 82-85,88
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/devicelink/DeviceLinkTest.kt
+  s_f1c043e85606b2::t_02b418a05bf8ae 95,101,284,310,322,350,377-393
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/QuickCaptureRealDeviceTest.kt
+  s_f1c043e85606b2::t_a8c86570301151 24-25,27,84,94,100-103,105,124-137,221
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/transport/DeviceLinkUploadTest.kt
+  s_f1c043e85606b2::t_56544063142eb8 71,87,107,323-355
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/EverframeDeviceLinkWiringTest.kt
+  s_f1c043e85606b2::t_88752451101302 53,70-73,92,97-112,158-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b5c5f03eba282629f06ec92830bd8930d556b8c3",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
