@@ -200,7 +200,9 @@ export async function loginCommand(
       return 1;
     }
     deps.out(`Logged in as ${exchanged.email}.`);
-    const linked = (await pushTokenToEmulators(deps, exchanged.token)).filter((r) => r.ok).length;
+    const linked = (await pushTokenToEmulators(deps, exchanged.token, origin)).filter(
+      (r) => r.ok,
+    ).length;
     deps.out(
       linked > 0
         ? `Linked ${linked} Android ${linked === 1 ? 'emulator' : 'emulators'}.`

@@ -60,6 +60,17 @@
 -keep class dev.everframe.diagnostics.QueueStatus { *; }
 -keep class dev.everframe.diagnostics.TransportStatus { *; }
 
+# Simulator quick capture host evidence. The Flutter plugin, compiled separately
+# against the published AAR, builds a `QuickCaptureHostEvidence` from a
+# `ScreenshotCapture.CaptureResult` and returns it from the provider it passes to
+# `Everframe.__setQuickCaptureEvidenceProvider`. A keep on `Everframe` does not
+# cascade to a lambda parameter's return type, and nothing in core constructs the
+# evidence, so without these R8 renames the class and drops its constructor.
+# `QuickCapture` and the rest of the package stay obfuscated;
+# scripts/verify-android-publication.sh checks the published classes.
+-keep class dev.everframe.quickcapture.QuickCaptureHostEvidence { *; }
+-keep class dev.everframe.capture.ScreenshotCapture$CaptureResult { *; }
+
 # TXScreen() navigation-marker composable (TXScreen.kt -> TXScreenKt facade).
 -keep class dev.everframe.TXScreenKt { *; }
 

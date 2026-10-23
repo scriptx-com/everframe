@@ -513,6 +513,20 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertNil(try XCTUnwrap(submitted.first).captureToken)
     }
 
+    /// The token goes only to the origin that issued it; the capture still ships without it.
+    func testTokenFromAnotherOriginIsNotAttached() async throws {
+        let credentials = home + "/.everframe/credentials"
+        try #"{"token":"t1","url":"https://evil.example"}"#.write(toFile: credentials, atomically: true, encoding: .utf8)
+        let qc = makeArmed()
+        guard case .sent = await qc.capture() else { return XCTFail("expected .sent") }
+        XCTAssertNil(try XCTUnwrap(submitted.last).captureToken)
+
+        try #"{"token":"t1","url":"\#(IngestEndpoint.url.absoluteString)"}"#
+            .write(toFile: credentials, atomically: true, encoding: .utf8)
+        guard case .sent = await qc.capture() else { return XCTFail("expected .sent") }
+        XCTAssertEqual(try XCTUnwrap(submitted.last).captureToken, "t1")
+    }
+
     func testQueuedAndFailedOutcomesReleaseTheLifecycle() async {
         struct Boom: Error {}
         let queued = makeArmed(submit: { _ in .queued(reportId: UUID()) })

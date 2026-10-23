@@ -98,6 +98,7 @@ class QuickCaptureTest {
         Everframe.report.__setPresenting(false)
         Everframe.clearExtra()
         Settings.Global.putString(app.contentResolver, CaptureTokenReader.SETTINGS_KEY, null)
+        Settings.Global.putString(app.contentResolver, CaptureTokenReader.ORIGIN_SETTINGS_KEY, null)
     }
 
     // ---- registration ----
@@ -428,6 +429,23 @@ class QuickCaptureTest {
         assertTrue(inputs.quickCapture)
         assertEquals("t1", inputs.captureToken)
         assertEquals(1, freezes.get())
+    }
+
+    /** The token goes only to the origin that issued it; the capture still ships without it. */
+    @Test
+    fun tokenFromAnotherOriginIsNotAttached() {
+        Settings.Global.putString(app.contentResolver, CaptureTokenReader.SETTINGS_KEY, "t1")
+        Settings.Global.putString(app.contentResolver, CaptureTokenReader.ORIGIN_SETTINGS_KEY, "https://evil.example")
+        arm()
+        assertEquals(QuickCaptureOutcome.Sent, broadcast())
+        assertNull(submits.single().captureToken)
+
+        submits.clear()
+        Settings.Global.putString(
+            app.contentResolver, CaptureTokenReader.ORIGIN_SETTINGS_KEY, dev.everframe.config.IngestEndpoint.url,
+        )
+        assertEquals(QuickCaptureOutcome.Sent, broadcast())
+        assertEquals("t1", submits.single().captureToken)
     }
 
     /** As `EFReporterFromImage(sdkName = ...)`: the host's SDK identity labels the report. */

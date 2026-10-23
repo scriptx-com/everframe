@@ -423,7 +423,9 @@ final class QuickCapture {
             capturedSession: capturedSession,
             quickCapture: true,
             // Read fresh per capture. SECURITY: never log.
-            captureToken: CaptureTokenReader.read(environment: environment)
+            // Only for the origin that issued it: the submission posts to
+            // `IngestEndpoint.url`.
+            captureToken: CaptureTokenReader.read(environment: environment, ingestEndpoint: IngestEndpoint.url)
         )
         do {
             switch try await submit(inputs) {

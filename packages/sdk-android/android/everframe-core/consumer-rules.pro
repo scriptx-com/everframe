@@ -45,6 +45,12 @@
 -keep class dev.everframe.diagnostics.QueueStatus { *; }
 -keep class dev.everframe.diagnostics.TransportStatus { *; }
 
+# Simulator quick capture host evidence: the same keep as proguard-rules.pro.
+# The Flutter plugin constructs `QuickCaptureHostEvidence` (from a
+# `ScreenshotCapture.CaptureResult`) for `Everframe.__setQuickCaptureEvidenceProvider`.
+-keep class dev.everframe.quickcapture.QuickCaptureHostEvidence { *; }
+-keep class dev.everframe.capture.ScreenshotCapture$CaptureResult { *; }
+
 # TXScreen() navigation-marker composable (TXScreen.kt -> TXScreenKt facade).
 -keep class dev.everframe.TXScreenKt { *; }
 

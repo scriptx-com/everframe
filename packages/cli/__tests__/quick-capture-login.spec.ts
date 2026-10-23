@@ -252,6 +252,14 @@ describe('login', () => {
     await fetch(cb(u, `/callback?state=${u.searchParams.get('state')}&code=${CODE}`));
     expect(await done).toBe(0);
     expect(t.calls.some(([, a]) => a.includes('put') && a.includes(TOKEN))).toBe(true);
+    expect(
+      t.calls.some(
+        ([, a]) =>
+          a.includes('put') &&
+          a.includes('everframe_token_origin') &&
+          a.includes('https://everframe.dev'),
+      ),
+    ).toBe(true);
     expect(t.out).toContain('Linked 1 Android emulator.');
     expect(all(t)).not.toContain(TOKEN);
   });
@@ -336,6 +344,9 @@ describe('logout', () => {
     expect(t.calls.some(([, a]) => a.includes('delete') && a.includes('everframe_token'))).toBe(
       true,
     );
+    expect(
+      t.calls.some(([, a]) => a.includes('delete') && a.includes('everframe_token_origin')),
+    ).toBe(true);
     expect(t.out).toEqual(['Logged out.']);
     expect(all(t)).not.toContain(TOKEN);
   });

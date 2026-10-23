@@ -503,8 +503,10 @@ dashboard. Like the reporter, a quick capture consumes the pending
   `url` and `email`), and the capture is attributed to you. The SDK reads
   `$SIMULATOR_HOST_HOME/.everframe/credentials` on your Mac (normally the same
   file) fresh at every capture, sends the token only on the quick-capture
-  upload, and never logs it. Without it, captures land in the app's shared
-  inbox. A capture that is queued offline and retried later goes out without
+  upload, and never logs it. The token is only sent to the server it was
+  issued by: when the file's `url` names a different origin than the SDK's
+  ingest endpoint, the capture goes out without it. Without it, captures land
+  in the app's shared inbox. A capture that is queued offline and retried later goes out without
   the token. If you cannot use the CLI, create the file yourself as
   `{"token": "<token>"}`.
 

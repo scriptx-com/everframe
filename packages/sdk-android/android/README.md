@@ -181,10 +181,14 @@ dashboard. Like the reporter, a quick capture consumes the pending
   and copies it to running emulators. Start an emulator later? Run
   `npx @everframe/cli link`. The token lives in the emulator's global setting
   `everframe_token`, and the capture is attributed to you. It is read fresh at
-  every capture, sent only on the quick-capture upload, and never logged.
+  every capture, sent only on the quick-capture upload, and never logged. The
+  CLI also writes `everframe_token_origin`, the server that issued the token;
+  the token is only sent to that server, so a capture to any other ingest
+  endpoint goes out without it.
   Without it, captures land in the app's shared inbox. A capture that is queued
   offline and retried later goes out without the token. Without the CLI, set it
-  yourself:
+  yourself (with no `everframe_token_origin`, the token goes to the SDK's ingest
+  endpoint):
 
   ```sh
   adb shell settings put global everframe_token <token>

@@ -587,10 +587,10 @@ yet. Flutter apps must also call `enableQuickCapture` (see the Flutter README).
 
 | Command   | Reads or changes                                                                                                                        |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `login`   | Writes `~/.everframe/credentials`; writes `everframe_token` on running emulators.                                                       |
-| `link`    | Writes `everframe_token` on running emulators only (`adb shell settings put global`).                                                   |
+| `login`   | Writes `~/.everframe/credentials`; writes `everframe_token` and `everframe_token_origin` on running emulators.                          |
+| `link`    | Writes `everframe_token` and `everframe_token_origin` on running emulators only (`adb shell settings put global`).                      |
 | `capture` | Posts the Darwin notification `com.everframe.capture` to the simulator, or sends the `com.everframe.CAPTURE` broadcast to the emulator. |
-| `logout`  | Revokes the token, deletes the credentials file, runs `settings delete global everframe_token`.                                         |
+| `logout`  | Revokes the token, deletes the credentials file, deletes `everframe_token` and `everframe_token_origin` (`settings delete global`).     |
 | `hotkey`  | Compiles a helper into `~/.everframe/bin`, then runs the same emulator broadcast as `capture`.                                          |
 
 The credentials file holds your capture token, the Everframe URL and your email

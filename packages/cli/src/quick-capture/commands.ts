@@ -8,6 +8,7 @@ import {
   listBootedSimulators,
   listEmulators,
   pushToken,
+  tokenOrigin,
   triggerEmulator,
   triggerSimulator,
 } from './devices.js';
@@ -34,12 +35,14 @@ export interface EmulatorLinkResult {
 export async function pushTokenToEmulators(
   deps: Pick<QuickCaptureDeps, 'run' | 'env' | 'home'>,
   token: string,
+  issuer: string,
 ): Promise<EmulatorLinkResult[]> {
   const adb = findAdb(deps.env, process.platform, deps.home);
   if (!adb) return [];
+  const origin = tokenOrigin(issuer);
   const results: EmulatorLinkResult[] = [];
   for (const serial of await listEmulators(deps.run, adb)) {
-    const pushed = await pushToken(deps.run, adb, serial, token);
+    const pushed = await pushToken(deps.run, adb, serial, token, origin);
     results.push({ serial, ok: pushed.code === 0 });
   }
   return results;
@@ -51,7 +54,7 @@ export async function linkCommand(deps: QuickCaptureDeps): Promise<number> {
     deps.err('Not logged in. Run npx @everframe/cli login first.');
     return 1;
   }
-  const results = await pushTokenToEmulators(deps, credentials.token);
+  const results = await pushTokenToEmulators(deps, credentials.token, credentials.url);
   if (results.length === 0) {
     deps.out('No running Android emulators. iOS simulators read your login automatically.');
     return 0;

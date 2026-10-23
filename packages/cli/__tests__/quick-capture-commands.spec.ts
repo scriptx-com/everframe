@@ -16,9 +16,11 @@ function setup(opts: {
   triggerFail?: boolean;
   login?: boolean;
   adb?: boolean;
+  url?: string;
 }) {
   const home = mkdtempSync(join(tmpdir(), 'evf-cmd-home-'));
-  if (opts.login !== false) writeCredentials({ token: TOKEN, url: 'u', email: 'e' }, home);
+  if (opts.login !== false)
+    writeCredentials({ token: TOKEN, url: opts.url ?? 'u', email: 'e' }, home);
   const sdk = mkdtempSync(join(tmpdir(), 'evf-cmd-sdk-'));
   mkdirSync(join(sdk, 'platform-tools'));
   writeFileSync(join(sdk, 'platform-tools', 'adb'), '');
@@ -88,6 +90,29 @@ describe('link', () => {
     expect(await linkCommand(none.deps)).toBe(1);
     const all = [...some.out, ...some.err, ...none.out, ...none.err].join('\n');
     expect(all).not.toContain(TOKEN);
+  });
+});
+
+describe('link token origin', () => {
+  const settingsCalls = (calls: [string, string[]][]) =>
+    calls.filter(([, a]) => a.includes('settings')).map(([, a]) => a.slice(4));
+
+  it("records the credentials' origin before the token", async () => {
+    const t = setup({ adbDevices: 'emulator-5554\tdevice\n', url: 'https://everframe.dev/api/v1' });
+    expect(await linkCommand(t.deps)).toBe(0);
+    expect(settingsCalls(t.calls)).toEqual([
+      ['put', 'global', 'everframe_token_origin', 'https://everframe.dev'],
+      ['put', 'global', 'everframe_token', TOKEN],
+    ]);
+  });
+
+  it('removes any earlier origin when the credentials have no usable url', async () => {
+    const t = setup({ adbDevices: 'emulator-5554\tdevice\n', url: '' });
+    expect(await linkCommand(t.deps)).toBe(0);
+    expect(settingsCalls(t.calls)).toEqual([
+      ['delete', 'global', 'everframe_token_origin'],
+      ['put', 'global', 'everframe_token', TOKEN],
+    ]);
   });
 });
 

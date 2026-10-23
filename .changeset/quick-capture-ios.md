@@ -8,7 +8,7 @@
 Debug iOS simulator builds can file a report with a double Shift press,
 with no reporter UI. The report carries the screenshot, replay, logs and
 metadata, is marked `quickCapture`, and is attributed to the developer when
-`$SIMULATOR_HOST_HOME/.everframe/credentials` holds a token. It stays dark until
+`$SIMULATOR_HOST_HOME/.everframe/credentials` holds a token. The token is only sent to the server it was issued by (the file's `url`). It stays dark until
 the server sends `captureHotkey` in the project config, and can be turned off
 locally with `quickCaptureEnabled = false`. Devices and release builds are
 unaffected. The tvOS simulator is not yet verified.

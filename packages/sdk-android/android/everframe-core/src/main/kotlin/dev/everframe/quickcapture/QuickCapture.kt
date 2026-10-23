@@ -44,6 +44,7 @@ import dev.everframe.capture.SensitiveRectRegistry
 import dev.everframe.capture.video.FrozenReportCapture
 import dev.everframe.companion.CompanionSubmissionComposer
 import dev.everframe.config.CaptureHotkeyConfigWire
+import dev.everframe.config.IngestEndpoint
 import dev.everframe.config.ReportResult
 import dev.everframe.config.ReporterTrigger
 import java.util.concurrent.atomic.AtomicBoolean
@@ -348,7 +349,8 @@ internal object QuickCapture {
                     capturedSession = capturedSession,
                     quickCapture = true,
                     // Read fresh per capture. SECURITY: never log.
-                    captureToken = CaptureTokenReader.read(appContext),
+                    // Only for the origin that issued it; the composer posts to `IngestEndpoint.url`.
+                    captureToken = CaptureTokenReader.read(appContext, IngestEndpoint.url),
                     // The raw screenshot: no annotation canvas ran.
                     annotated = false,
                     hostReplayVTree = hostReplayVTree,

@@ -124,17 +124,49 @@ export async function listBootedSimulators(
   }
 }
 
+const TOKEN_SETTING = 'everframe_token';
+// The origin that issued the token. The SDK attaches the token only when this
+// matches its ingest endpoint; with no origin it sends it as before.
+const TOKEN_ORIGIN_SETTING = 'everframe_token_origin';
+
+/** The origin (scheme, host, port) of an http(s) URL, or null. */
+export function tokenOrigin(url: string): string | null {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Writes the issuing origin before the token, so the emulator never pairs the
+ * new token with a stale origin. Without an origin, any earlier one is removed.
+ */
 export async function pushToken(
   run: Runner,
   adb: string,
   serial: string,
   token: string,
+  origin: string | null,
 ): Promise<RunResult> {
-  return run(adb, ['-s', serial, 'shell', 'settings', 'put', 'global', 'everframe_token', token]);
+  const settings = ['-s', serial, 'shell', 'settings'];
+  const recorded = await run(
+    adb,
+    origin
+      ? [...settings, 'put', 'global', TOKEN_ORIGIN_SETTING, origin]
+      : [...settings, 'delete', 'global', TOKEN_ORIGIN_SETTING],
+  );
+  if (recorded.code !== 0) return recorded;
+  return run(adb, [...settings, 'put', 'global', TOKEN_SETTING, token]);
 }
 
+/** Removes the token first, then its origin. */
 export async function clearToken(run: Runner, adb: string, serial: string): Promise<RunResult> {
-  return run(adb, ['-s', serial, 'shell', 'settings', 'delete', 'global', 'everframe_token']);
+  const settings = ['-s', serial, 'shell', 'settings', 'delete', 'global'];
+  const cleared = await run(adb, [...settings, TOKEN_SETTING]);
+  const origin = await run(adb, [...settings, TOKEN_ORIGIN_SETTING]);
+  return cleared.code !== 0 ? cleared : origin;
 }
 
 export async function triggerSimulator(run: Runner, udid: string): Promise<RunResult> {

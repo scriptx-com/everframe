@@ -24,6 +24,9 @@ const coreClasses = {
   'dev/everframe/diagnostics/CapturePathStatus.class': 'class',
   'dev/everframe/diagnostics/QueueStatus.class': 'class',
   'dev/everframe/diagnostics/TransportStatus.class': 'class',
+  'dev/everframe/quickcapture/QuickCaptureHostEvidence.class':
+    '<init> (Ldev/everframe/capture/ScreenshotCapture$CaptureResult;[BLjava/lang/String;)V',
+  'dev/everframe/capture/ScreenshotCapture$CaptureResult.class': 'class',
 };
 
 function zip(destination, entries) {
@@ -264,6 +267,39 @@ test('rejects a release core AAR whose delivery diagnostics API was renamed or s
   for (const [classes, message] of [
     [renamed, /missing dev\.everframe\.diagnostics\.ReportDeliveryStatus/],
     [stripped, /ReportDeliveryStatus has no toJson/],
+  ]) {
+    const repository = fixture();
+    try {
+      const prefix = path.join(repository, 'dev/everframe/core/0.9.0/core-0.9.0');
+      const jar = `${prefix}-classes.jar`;
+      zip(jar, classes);
+      rmSync(`${prefix}.aar`);
+      zip(`${prefix}.aar`, {
+        'AndroidManifest.xml': '<manifest package="dev.everframe" />',
+        'classes.jar': readFileSync(jar),
+      });
+      rmSync(jar);
+      const result = verify(repository);
+      assert.notEqual(result.status, 0);
+      assert.match(`${result.stdout}\n${result.stderr}`, message);
+    } finally {
+      rmSync(repository, { recursive: true, force: true });
+    }
+  }
+});
+
+test('rejects a release core AAR whose quick-capture host evidence was renamed or stripped', () => {
+  const evidence = 'dev/everframe/quickcapture/QuickCaptureHostEvidence.class';
+  const captureResult = 'dev/everframe/capture/ScreenshotCapture$CaptureResult.class';
+  const without = (entry) =>
+    Object.fromEntries(Object.entries(coreClasses).filter(([name]) => name !== entry));
+  for (const [classes, message] of [
+    [
+      { ...without(evidence), 'dev/everframe/quickcapture/a.class': 'class' },
+      /QuickCaptureHostEvidence/,
+    ],
+    [without(captureResult), /ScreenshotCapture\$CaptureResult/],
+    [{ ...coreClasses, [evidence]: 'class' }, /QuickCaptureHostEvidence has no/],
   ]) {
     const repository = fixture();
     try {

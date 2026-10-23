@@ -23,7 +23,7 @@ arrives, so it sends the capture without its replay. Native video replay never
 records frames that show Jetpack Compose content, so quick captures taken on
 Compose screens carry the screenshot, logs and metadata but no replay.
 
-`npx @everframe/cli capture` (and, on macOS, `npx @everframe/cli hotkey`) sends the `com.everframe.CAPTURE` broadcast to a running emulator. `npx @everframe/cli login` and `link` set the emulator's `everframe_token` setting; the manual `adb shell settings put global everframe_token <token>` still works without the CLI.
+`npx @everframe/cli capture` (and, on macOS, `npx @everframe/cli hotkey`) sends the `com.everframe.CAPTURE` broadcast to a running emulator. `npx @everframe/cli login` and `link` set the emulator's `everframe_token` and `everframe_token_origin` settings, and the token is only sent to the server it was issued by; the manual `adb shell settings put global everframe_token <token>` still works without the CLI.
 
 A session started with `capture.screenshot = false` ignores quick capture unless
 the host has installed an evidence provider with

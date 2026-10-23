@@ -11,6 +11,7 @@ import {
   listBootedSimulators,
   listEmulators,
   pushToken,
+  tokenOrigin,
   triggerEmulator,
   triggerSimulator,
 } from '../src/quick-capture/devices.js';
@@ -169,19 +170,43 @@ describe('listBootedSimulators', () => {
 describe('device commands', () => {
   it('uses exact argument arrays', async () => {
     const run = vi.fn(async () => ok());
-    await pushToken(run, 'adb', 'emulator-5554', 'TOK');
+    await pushToken(run, 'adb', 'emulator-5554', 'TOK', 'https://everframe.dev');
     await clearToken(run, 'adb', 'emulator-5554');
     await triggerSimulator(run, 'U1');
     await triggerEmulator(run, 'adb', 'emulator-5554');
+    const settings = ['-s', 'emulator-5554', 'shell', 'settings'];
     expect(run.mock.calls).toEqual([
-      [
-        'adb',
-        ['-s', 'emulator-5554', 'shell', 'settings', 'put', 'global', 'everframe_token', 'TOK'],
-      ],
-      ['adb', ['-s', 'emulator-5554', 'shell', 'settings', 'delete', 'global', 'everframe_token']],
+      ['adb', [...settings, 'put', 'global', 'everframe_token_origin', 'https://everframe.dev']],
+      ['adb', [...settings, 'put', 'global', 'everframe_token', 'TOK']],
+      ['adb', [...settings, 'delete', 'global', 'everframe_token']],
+      ['adb', [...settings, 'delete', 'global', 'everframe_token_origin']],
       ['xcrun', ['simctl', 'spawn', 'U1', 'notifyutil', '-p', 'com.everframe.capture']],
       ['adb', ['-s', 'emulator-5554', 'shell', 'am', 'broadcast', '-a', 'com.everframe.CAPTURE']],
     ]);
+  });
+});
+
+describe('token origin', () => {
+  it('removes a stale origin when the token has none, and skips the token if that fails', async () => {
+    const settings = ['-s', 'emulator-5554', 'shell', 'settings'];
+    const run = vi.fn(async () => ok());
+    await pushToken(run, 'adb', 'emulator-5554', 'TOK', null);
+    expect(run.mock.calls).toEqual([
+      ['adb', [...settings, 'delete', 'global', 'everframe_token_origin']],
+      ['adb', [...settings, 'put', 'global', 'everframe_token', 'TOK']],
+    ]);
+    const failing = vi.fn(async () => ({ stdout: '', stderr: 'no', code: 1 }));
+    expect((await pushToken(failing, 'adb', 'emulator-5554', 'TOK', 'https://a.dev')).code).toBe(1);
+    expect(failing.mock.calls).toHaveLength(1);
+  });
+
+  it('derives the origin from an http(s) URL only', () => {
+    expect(tokenOrigin('https://everframe.dev/api/v1')).toBe('https://everframe.dev');
+    expect(tokenOrigin('http://localhost:3000')).toBe('http://localhost:3000');
+    expect(tokenOrigin('HTTPS://EverFrame.dev:443/')).toBe('https://everframe.dev');
+    expect(tokenOrigin('')).toBeNull();
+    expect(tokenOrigin('garbage')).toBeNull();
+    expect(tokenOrigin('ftp://everframe.dev')).toBeNull();
   });
 });
 
