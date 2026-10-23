@@ -2,8 +2,10 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Quick capture: a hotkey (the dashboard's binding, Shift+B by default)
-// pressed in a debug simulator, or a shake on a real iPhone or iPad that is
-// linked to a teammate or runs a debug build, files a report with no UI. The SDK takes the screenshot,
+// pressed in a debug simulator, a shake on a real iPhone or iPad, or the TV
+// binding on a real Apple TV's Siri Remote (hold Play/Pause by default), on a
+// device that is linked to a teammate or runs a debug build, files a report
+// with no UI. The SDK takes the screenshot,
 // freezes replay and evidence exactly as the reporter does at open, shows a
 // short `Captured` toast as soon as the frozen capture is handed to the
 // submission, then submits with `quickCapture: true` plus the developer's
@@ -16,7 +18,7 @@
 // names the owner ("Captured · Aurimas", "Captured · team device"). A
 // `403 device_unlinked` shows "This device was unlinked" and drops the token.
 //
-// Inert unless every gate holds: a simulator or a real iPhone/iPad, a debug
+// Inert unless every gate holds: a simulator or a real iPhone, iPad or Apple TV, a debug
 // build or a linked device, the local
 // `quickCaptureEnabled` and `reporterEnabled` options, the dashboard's
 // `captureHotkey` block, an open capture gate, an active app, no reporter on
@@ -84,10 +86,11 @@ private final class QuickCaptureEvidenceWait {
     }
 }
 
-/// What fired the capture. A shake that cannot capture safely (no host
-/// evidence) says so; a hotkey stays silent, as it always has.
+/// What fired the capture. A shake or a Siri Remote gesture that cannot
+/// capture safely (no host evidence) says so; a hotkey stays silent, as it
+/// always has.
 enum QuickCaptureTrigger: Equatable, Sendable {
-    case hotkey, shake
+    case hotkey, shake, remote
 }
 
 enum QuickCaptureOutcome: Equatable {
@@ -203,7 +206,7 @@ final class QuickCapture {
     }
     /// Passed to `CaptureTokenReader.read`; also names the device in the toast.
     var environment: [String: String] = ProcessInfo.processInfo.environment
-    /// Simulator, real iPhone/iPad, or a host where quick capture never arms.
+    /// Simulator, real iPhone/iPad/Apple TV, or a host where quick capture never arms.
     var hostMode: QuickCaptureHostMode = .current
     /// The real device's link for the capture's own session scope (ingest
     /// origin and SDK key; nil before `start()`), read once per capture.
@@ -478,9 +481,9 @@ final class QuickCapture {
         // Read once: the gate and the pipeline must agree on the provider.
         let provider = currentEvidenceProvider()
         if let reason = ignoreReason(hasProvider: provider != nil) {
-            // A shake on a host that masks its own pixels but installed no
-            // provider says so; a hotkey stays silent, as it always has.
-            if trigger == .shake, reason == "screenshot_disabled", let text = QuickCaptureToast.text(for: .failed) {
+            // A shake or remote gesture on a host that masks its own pixels but
+            // installed no provider says so; a hotkey stays silent, as it always has.
+            if trigger != .hotkey, reason == "screenshot_disabled", let text = QuickCaptureToast.text(for: .failed) {
                 showToast(text)
             }
             return .ignored(reason: reason)

@@ -1275,8 +1275,8 @@ public final class Everframe: @unchecked Sendable {
             localEnabled: config.shakeToReportEnabled && config.reporterEnabled,
             ifCurrent: vitalsStillNewest
         )
-        // Device linking: this session's ingest origin, key and host. Only a real iPhone or iPad
-        // sends hellos or reads a stored device token; elsewhere the session never links.
+        // Device linking: this session's ingest origin, key and host. Only a real iPhone, iPad or
+        // Apple TV sends hellos or reads a stored device token; elsewhere the session never links.
         DeviceLinkCoordinator.shared.beginSession(
             endpoint: IngestEndpoint.url,
             sdkKey: config.sdkKey,
@@ -1287,7 +1287,7 @@ public final class Everframe: @unchecked Sendable {
         )
         #if canImport(UIKit)
         // Quick capture: same crash-only rule as shake. It arms in a debug build (simulators
-        // always count as debug), or on a real iPhone or iPad that holds a device link.
+        // always count as debug), or on a real iPhone, iPad or Apple TV that holds a device link.
         QuickCapture.shared.beginSession(
             localEnabled: config.quickCaptureEnabled && config.reporterEnabled,
             debug: DebugBuild.current(configured: config.debugBuild),

@@ -615,7 +615,7 @@ public actor ReplayConfigProvider {
     /// Convenience: build the provider from the base ingest endpoint by appending
     /// `/api/config` (mirrors MultipartUploader's base-URL path-append).
     ///
-    /// On a real iPhone or iPad the fetch carries the device-link token stored
+    /// On a real iPhone, iPad or Apple TV the fetch carries the device-link token stored
     /// for this origin and key. The default fetcher is the isolated report
     /// session, whose redirect guard strips that token on a cross-origin redirect.
     public static func make(

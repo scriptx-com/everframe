@@ -123,9 +123,10 @@ public struct EverframeConfig: Sendable, Equatable {
     /// unchanged. CLIENT VETO only, a flat `Bool` like `shakeToReportEnabled`. Mirrors Android's
     /// `EverframeConfig.reporterEnabled`.
     public var reporterEnabled: Bool
-    /// Quick capture: ⇧B in debug simulator builds, and shake on a real iPhone or iPad that is
-    /// linked to a teammate (any build) or runs a debug build. An unlinked device links itself when
-    /// a teammate clicks Link a device on the dashboard and shakes it. `shakeToReportEnabled` still
+    /// Quick capture: ⇧B in debug simulator builds, and shake on a real iPhone or iPad (hold
+    /// Play/Pause on an Apple TV's Siri Remote) that is linked to a teammate (any build) or runs a
+    /// debug build. An unlinked device links itself when a teammate clicks Link a device on the
+    /// dashboard and shakes it (or makes the TV gesture). `shakeToReportEnabled` still
     /// decides only whether shake opens the reporter on an unlinked release build. Set `false` to
     /// opt out locally of both quick capture and device linking; the dashboard's `captureHotkey`
     /// block must also enable it. Release builds on end users' devices are unaffected.
