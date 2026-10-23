@@ -10,6 +10,11 @@
 // Tizen keys are registered only while capture is allowed (a linked TV or a
 // debug build): an unlinked release TV never gets a key registered by the
 // SDK. Nothing is ever unregistered.
+//
+// Record on device: a config that carries a recording request for this
+// linked TV starts a 10 s key recording. While linked, coming back to the
+// foreground refetches the config (at most every 10 s), so a request made
+// while the app was in the background is seen.
 import type { ReplayConfig } from '@everframe/sdk-core';
 import { INGEST_URL } from '../constants.js';
 import {
@@ -34,7 +39,15 @@ import {
   parseTvBinding,
   type TvGestureBinding,
 } from './remote-keys.js';
-import { registerTizenKeys, tizenInputDevice, tizenKeyNamesFor } from './tizen-keys.js';
+import { createGestureRecording } from './recording.js';
+import {
+  ALL_TIZEN_KEY_NAMES,
+  registerTizenKeys,
+  tizenInputDevice,
+  tizenKeyNamesFor,
+} from './tizen-keys.js';
+
+export const FOREGROUND_REFRESH_MS = 10_000;
 
 export interface QuickCaptureRuntime {
   applyConfig(config: ReplayConfig, carriedToken: string | null): void;
@@ -153,6 +166,35 @@ export function startQuickCaptureRuntime(host: QuickCaptureHost): QuickCaptureRu
 
   let listener: RemoteKeyListener | null = null;
 
+  const recording = createGestureRecording({
+    client,
+    link,
+    overlay,
+    now: monotonic,
+    wallNow: () => Date.now(),
+    timers,
+    onActiveChanged: () => {
+      if (!tornDown) listener?.rearm();
+    },
+    registerAllKeys: () => registerTizenKeys(tizen, ALL_TIZEN_KEY_NAMES.slice()),
+  });
+
+  // The throttle starts now, so the launch's own visibility event does not
+  // double the start fetch.
+  let lastForegroundRefresh = monotonic();
+  const onVisibility = (): void => {
+    try {
+      if (tornDown || typeof document === 'undefined') return;
+      if (document.visibilityState !== 'visible' || link.snapshot() === null) return;
+      const t = monotonic();
+      if (t - lastForegroundRefresh < FOREGROUND_REFRESH_MS) return;
+      lastForegroundRefresh = t;
+      void adapter.__refreshConfigNow();
+    } catch {
+      /* DEFE-02 */
+    }
+  };
+
   /** Re-derives the armed binding, registers Tizen keys when allowed, and re-arms the listener. */
   function rearm(): void {
     try {
@@ -175,7 +217,8 @@ export function startQuickCaptureRuntime(host: QuickCaptureHost): QuickCaptureRu
       try {
         if (tornDown) return;
         server = config;
-        link.applyConfig(config.deviceLinking, carriedToken);
+        const request = link.applyConfig(config.deviceLinking, carriedToken);
+        recording.onRequest(request);
         rearm();
       } catch {
         /* DEFE-02 */
@@ -201,6 +244,18 @@ export function startQuickCaptureRuntime(host: QuickCaptureHost): QuickCaptureRu
         /* DEFE-02 */
       }
       try {
+        recording.teardown();
+      } catch {
+        /* DEFE-02 */
+      }
+      try {
+        if (typeof document !== 'undefined') {
+          document.removeEventListener('visibilitychange', onVisibility);
+        }
+      } catch {
+        /* DEFE-02 */
+      }
+      try {
         link.teardown();
       } catch {
         /* DEFE-02 */
@@ -221,10 +276,17 @@ export function startQuickCaptureRuntime(host: QuickCaptureHost): QuickCaptureRu
       onGesture: () => {
         runtime.onGesture();
       },
-      recording: () => null,
+      recording: () => recording.active,
       now: monotonic,
       timers,
     });
+  }
+  try {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibility);
+    }
+  } catch {
+    /* DEFE-02 */
   }
   internals.set(runtime, { link, pipeline, armedBinding: () => armedBinding });
   return runtime;

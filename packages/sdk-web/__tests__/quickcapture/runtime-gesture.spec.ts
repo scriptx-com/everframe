@@ -36,6 +36,7 @@ interface Call {
   url: string;
   token: boolean;
   nonce: boolean;
+  body?: string;
 }
 
 const adapters: WebPlatformAdapter[] = [];
@@ -89,20 +90,25 @@ function shiftableClock() {
   };
 }
 
-async function start(calls: Call[]) {
+async function start(calls: Call[], config: (token: boolean) => unknown = () => ARMED) {
   vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(TIZEN);
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = urlOf(input);
       const h = new Headers(init?.headers);
+      const token = h.has('X-Everframe-Capture-Token');
       calls.push({
         url,
-        token: h.has('X-Everframe-Capture-Token'),
+        token,
         nonce: h.has('X-Everframe-Link-Nonce'),
+        ...(url.includes('/recordings/') && typeof init?.body === 'string'
+          ? { body: init.body }
+          : {}),
       });
-      if (url.includes('/api/config')) return json(ARMED);
+      if (url.includes('/api/config')) return json(config(token));
       if (url.endsWith('/api/device-link/hello')) return json({ status: 'none' });
+      if (url.includes('/api/device-link/recordings/')) return new Response(null, { status: 204 });
       return json({});
     }),
   );
@@ -124,6 +130,7 @@ beforeEach(() => {
   document.body.innerHTML = '<div id="tile" tabindex="0"></div>';
 });
 afterEach(() => {
+  vi.useRealTimers();
   while (installs.length) installs.pop()!.dispose();
   while (adapters.length) adapters.pop()!.__testCleanup();
   vi.unstubAllGlobals();
@@ -219,5 +226,116 @@ describe('TV remote gesture through the runtime', () => {
     adapter.__applyBreadcrumbsConfig();
     await vi.waitFor(() => expect(tizen.registerKeyBatch).toHaveBeenCalledTimes(1));
     expect(tizen.registerKeyBatch.mock.calls[0]![0]).toEqual(['MediaPlayPause']);
+  });
+
+  it('a recording request in the config records the remote keys and posts them', async () => {
+    const tizen = tizenStub();
+    vi.stubGlobal('tizen', { tvinputdevice: tizen });
+    createDeviceLinkStore(deviceLinkScope(INGEST_URL, 'k')!).save(TOKEN, {
+      kind: 'user',
+      name: 'Aurimas',
+    });
+    const expiresAt = new Date(Date.now() + 120_000).toISOString();
+    // The recording's 10 s timer starts when the config is applied.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
+    const calls: Call[] = [];
+    await start(calls, (token) => ({
+      ...ARMED,
+      deviceLinking: token
+        ? {
+            enabled: true,
+            link: {
+              status: 'linked',
+              owner: { kind: 'user', name: 'Aurimas' },
+              recording: { id: 'rec-1', expiresAt },
+            },
+          }
+        : { enabled: true },
+    }));
+    await vi.waitFor(() =>
+      expect(document.getElementById('everframe-quick-capture')?.textContent).toContain(
+        'Recording remote keys for 10 seconds',
+      ),
+    );
+    // Every registrable contract key the TV supports (the stub lists two).
+    const registered = ([] as string[]).concat(
+      ...tizen.registerKeyBatch.mock.calls.map((c) => c[0]),
+    );
+    expect(registered.sort()).toEqual(['ColorF0Red', 'MediaPlayPause']);
+
+    const advance = shiftableClock();
+    // A long press while recording is recorded, delivered, and captures nothing.
+    const events = [press('keydown', 10252)];
+    advance(1600);
+    events.push(press('keydown', 10252, true));
+    advance(100);
+    events.push(press('keyup', 10252));
+    expect(events.some((e) => e.defaultPrevented)).toBe(false);
+    await vi.advanceTimersByTimeAsync(10_000);
+    vi.useRealTimers();
+
+    await vi.waitFor(() => expect(calls.some((c) => c.url.includes('/recordings/'))).toBe(true));
+    const post = calls.find((c) => c.url.includes('/recordings/'))!;
+    expect(post.url.endsWith('/api/device-link/recordings/rec-1')).toBe(true);
+    expect(post.token).toBe(true);
+    const sent = JSON.parse(post.body!) as { events: Array<{ key: string; downMs: number }> };
+    expect(sent.events).toHaveLength(1);
+    expect(sent.events[0]).toMatchObject({ key: 'MEDIA_PLAY_PAUSE', downMs: 0 });
+    expect(calls.some((c) => c.url.endsWith('/api/ingest'))).toBe(false);
+    await vi.waitFor(() =>
+      expect(document.getElementById('everframe-quick-capture')?.textContent).toContain(
+        'Keys sent to Everframe',
+      ),
+    );
+  }, 15_000);
+
+  it('returning to the foreground refetches config while linked, at most every 10 s', async () => {
+    createDeviceLinkStore(deviceLinkScope(INGEST_URL, 'k')!).save(TOKEN, {
+      kind: 'user',
+      name: 'Aurimas',
+    });
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const calls: Call[] = [];
+    const advance = shiftableClock();
+    await start(calls);
+    const configs = () => calls.filter((c) => c.url.includes('/api/config')).length;
+    const before = configs();
+    advance(10_001);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.waitFor(() => expect(configs()).toBe(before + 1));
+    document.dispatchEvent(new Event('visibilitychange'));
+    advance(9_000);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await Promise.resolve();
+    expect(configs()).toBe(before + 1);
+    advance(1_100);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.waitFor(() => expect(configs()).toBe(before + 2));
+  });
+
+  it("the launch's own visibility event does not double the start fetch", async () => {
+    createDeviceLinkStore(deviceLinkScope(INGEST_URL, 'k')!).save(TOKEN, {
+      kind: 'user',
+      name: 'Aurimas',
+    });
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const calls: Call[] = [];
+    await start(calls);
+    const before = calls.filter((c) => c.url.includes('/api/config')).length;
+    document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(calls.filter((c) => c.url.includes('/api/config')).length).toBe(before);
+  });
+
+  it('an unlinked TV never refetches on returning to the foreground', async () => {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const calls: Call[] = [];
+    const advance = shiftableClock();
+    await start(calls);
+    const before = calls.filter((c) => c.url.includes('/api/config')).length;
+    advance(60_000);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(calls.filter((c) => c.url.includes('/api/config')).length).toBe(before);
   });
 });
