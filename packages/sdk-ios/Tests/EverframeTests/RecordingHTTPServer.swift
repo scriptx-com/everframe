@@ -2,9 +2,8 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import Foundation
 
-/// A minimal, REAL local HTTP/1.1 server — plain POSIX sockets, the same
-/// binding technique `RelayWSClientCompanionTests.swift`'s
-/// `ParkedWebSocketServer` already established as necessary: `NWListener`
+/// A minimal, REAL local HTTP/1.1 server — plain POSIX sockets, a binding
+/// technique established as necessary: `NWListener`
 /// fails to bind at all inside the `xctest` host process
 /// (`failed(POSIXErrorCode(rawValue: 22): Invalid argument)`), while plain
 /// `socket`/`bind`/`listen` on 127.0.0.1 works there. Measured, not assumed

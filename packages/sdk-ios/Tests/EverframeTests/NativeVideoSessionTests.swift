@@ -237,26 +237,15 @@ private actor LateSnapshotRecorder: NativeVideoRecording {
             random: { draws(); return draw })
         return (session, scheduler)
     }
-    @Test func crashOnlyAndUpgradedCoverageCompareTheSameDraw() {
+    @Test func crashOnlyAndReportCoverageCompareTheSameDraw() {
         var draws = 0, allocations = 0
         let (session, scheduler) = countingSession(draw: 0.3, draws: { draws += 1 }, allocations: { allocations += 1 })
         defer { session.stop() }
         session.apply(settings: NativeVideoSettings(), samplingRate: 0, coverage: .crashOnly)
         #expect(session.state == .idle); #expect(allocations == 0)
-        session.apply(settings: NativeVideoSettings(), samplingRate: 0.5, coverage: .upgraded)
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0.5, coverage: .report)
         #expect(session.state == .buffering); #expect(scheduler.fps == 5)
         #expect(draws == 1); #expect(allocations == 1)
-    }
-    @Test func upgradingKeepsTheRecordingTheCrashOnlyRateStarted() {
-        var draws = 0, allocations = 0
-        let (session, _) = countingSession(draw: 0.03, draws: { draws += 1 }, allocations: { allocations += 1 })
-        defer { session.stop() }
-        session.apply(settings: NativeVideoSettings(), samplingRate: 0.05, coverage: .crashOnly)
-        #expect(session.state == .buffering)
-        session.apply(settings: NativeVideoSettings(), samplingRate: 1, coverage: .upgraded)
-        session.apply(settings: NativeVideoSettings(), samplingRate: 1, coverage: .upgraded)
-        #expect(session.state == .buffering)
-        #expect(draws == 1); #expect(allocations == 1) // never restarted, so the buffer survives
     }
     @Test func eachCoverageDecidesOnceSoALaterRateChangeNeverFlipsIt() {
         var draws = 0, allocations = 0
@@ -265,34 +254,10 @@ private actor LateSnapshotRecorder: NativeVideoRecording {
         session.apply(settings: NativeVideoSettings(), samplingRate: 0.1, coverage: .crashOnly)
         session.apply(settings: NativeVideoSettings(), samplingRate: 1, coverage: .crashOnly)
         #expect(session.state == .idle)
-        session.apply(settings: NativeVideoSettings(), samplingRate: 0.2, coverage: .upgraded)
-        session.apply(settings: NativeVideoSettings(), samplingRate: 1, coverage: .upgraded)
+        session.apply(settings: NativeVideoSettings(), samplingRate: 0.2, coverage: .report)
+        session.apply(settings: NativeVideoSettings(), samplingRate: 1, coverage: .report)
         #expect(session.state == .idle)
         #expect(draws == 1); #expect(allocations == 0)
-    }
-    @Test func anUpgradeNeverStopsARecordingWhenTheCrashOnlyRateIsHigher() {
-        var allocations = 0
-        let (session, scheduler) = countingSession(draw: 0.3, draws: {}, allocations: { allocations += 1 })
-        defer { session.stop() }
-        // Crash-only rate 0.5 admits the draw; the report rate 0.1 would not.
-        session.apply(settings: NativeVideoSettings(), samplingRate: 0.5, coverage: .crashOnly)
-        #expect(session.state == .buffering)
-        let rate = ReplayCoverage.upgraded.samplingRate(report: 0.1, crashOnly: 0.5)
-        #expect(rate == 0.5)
-        session.apply(settings: NativeVideoSettings(), samplingRate: rate, coverage: .upgraded)
-        #expect(session.state == .buffering); #expect(scheduler.fps == 5)
-        #expect(allocations == 1) // never restarted, so the buffer survives
-    }
-    @Test func anUpgradeInheritsTheCrashOnlyAdmissionEvenIfItsRateLaterDropped() {
-        var allocations = 0
-        let (session, _) = countingSession(draw: 0.3, draws: {}, allocations: { allocations += 1 })
-        defer { session.stop() }
-        session.apply(settings: NativeVideoSettings(), samplingRate: 0.5, coverage: .crashOnly)
-        #expect(session.state == .buffering)
-        // Both live rates now sit under the draw; the crash-only decision still stands.
-        session.apply(settings: NativeVideoSettings(), samplingRate: 0.1, coverage: .upgraded)
-        #expect(session.state == .buffering)
-        #expect(allocations == 1)
     }
     // Quick capture's `captureHotkey.replay` (debug simulators): a forced session
     // records whatever its draw, and the draw still decides once forcing ends.
@@ -331,9 +296,6 @@ private actor LateSnapshotRecorder: NativeVideoRecording {
         #expect(ReplayCoverage.report.samplingRate(report: 0.4, crashOnly: 0.9) == 0.4)
         #expect(ReplayCoverage.crashOnly.samplingRate(report: 0.4, crashOnly: 0.9) == 0.9)
         #expect(ReplayCoverage.crashOnly.samplingRate(report: 0.4, crashOnly: nil) == 0)
-        #expect(ReplayCoverage.upgraded.samplingRate(report: 0.4, crashOnly: 0.9) == 0.9)
-        #expect(ReplayCoverage.upgraded.samplingRate(report: 0.4, crashOnly: 0.1) == 0.4)
-        #expect(ReplayCoverage.upgraded.samplingRate(report: 0.4, crashOnly: nil) == 0.4)
     }
     @Test func snapshotAlreadyExportingSurvivesConcurrentReporterFreeze() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

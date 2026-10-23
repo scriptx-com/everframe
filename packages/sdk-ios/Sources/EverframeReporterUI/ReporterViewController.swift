@@ -952,8 +952,7 @@ public final class EFReporterViewController: UIViewController, UITextFieldDelega
     // MARK: - Character limits (UITextFieldDelegate / UITextViewDelegate)
     //
     // Hard cap on title (200) and description (600) — matches the Zod protocol
-    // schema and every other reporter UI surface (web, phone-companion SPA,
-    // Android Compose). Computing the candidate post-edit length via
+    // schema and every other reporter UI surface (web, Android Compose). Computing the candidate post-edit length via
     // NSString.replacingCharacters lets a paste that would land within the cap
     // succeed and a paste that overruns be rejected wholesale (rather than
     // truncated mid-paste, which surprises users).
@@ -1088,8 +1087,8 @@ public final class EFReporterViewController: UIViewController, UITextFieldDelega
 
         // Include hardwire (Task 10 — IncludeCard removed): Console/Network/
         // Metadata always ship (the Everframe SDK's `includeLogs`/`includeNetwork`
-        // params stay on Inputs only because the phone-companion path still
-        // reads them). Extra passes through gated ONLY on presence — there is
+        // params stay on Inputs for the other callers that still set them).
+        // Extra passes through gated ONLY on presence — there is
         // no more per-section toggle UI to consult.
         let extraForEnvelope: String? = hostExtra
 

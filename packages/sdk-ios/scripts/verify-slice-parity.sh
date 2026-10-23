@@ -21,8 +21,7 @@
 # compile the same sources with the same conditionals — `#if targetEnvironment
 # (simulator)` is not used to gate public API anywhere in this SDK. iOS-vs-tvOS
 # is NOT: EverframeReporterUI's `PresentToken` is iOS-only by design (the tvOS
-# on-device modal reporter was removed; tvOS routes through the phone
-# companion), so a cross-platform check would fail on correct artifacts.
+# on-device modal reporter was removed), so a cross-platform check would fail on correct artifacts.
 #
 # Usage: verify-slice-parity.sh <Foo.xcframework> [<Bar.xcframework> ...]
 set -euo pipefail

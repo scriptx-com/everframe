@@ -33,12 +33,6 @@ public struct MultipartUploader {
     /// Builds the multipart body, sets headers, and uploads via the given URLSession.
     /// Returns the HTTP status code and response headers; throws on non-HTTP responses
     /// or transport errors.
-    /// - Parameter companionAttribution: Companion attribution token for a
-    ///   dashboard-initiated report (spec 2026-08-07). When non-nil it rides
-    ///   this POST as `X-Everframe-Companion-Attribution` so ingest can credit the
-    ///   report to the team member who filed it. nil on every ordinary
-    ///   (in-app or QR-paired) submit — the request is then byte-for-byte what
-    ///   it was before companion existed. SECURITY: never log it.
     /// - Parameter captureToken: Simulator quick-capture token. When non-nil it
     ///   rides this POST as `X-Everframe-Capture-Token`. nil on every ordinary
     ///   submit and on every outbox replay. SECURITY: never log it.
@@ -50,13 +44,12 @@ public struct MultipartUploader {
     public func upload(
         parts: [Part],
         idempotencyKey: String,
-        companionAttribution: String? = nil,
         captureToken: String? = nil,
         identityToken: String? = nil,
         urlSession: URLSession = .shared
     ) async throws -> (statusCode: Int, headers: [AnyHashable: Any]) {
         let result = try await send(parts: parts, idempotencyKey: idempotencyKey,
-            companionAttribution: companionAttribution, captureToken: captureToken,
+            captureToken: captureToken,
             identityToken: identityToken, linkNonce: nil, urlSession: urlSession)
         return (result.statusCode, result.headers)
     }
@@ -67,7 +60,6 @@ public struct MultipartUploader {
     func send(
         parts: [Part],
         idempotencyKey: String,
-        companionAttribution: String? = nil,
         captureToken: String? = nil,
         identityToken: String? = nil,
         linkNonce: String? = nil,
@@ -100,24 +92,19 @@ public struct MultipartUploader {
         req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(sdkKey)", forHTTPHeaderField: "Authorization")
         req.setValue(idempotencyKey, forHTTPHeaderField: "X-Everframe-Idempotency-Key")
-        if let companionAttribution = companionAttribution {
+        if let captureToken {
             // SECURITY: never log this value (and note the debug print below
             // deliberately prints only the URL + byte count, no headers).
-            req.setValue(companionAttribution, forHTTPHeaderField: "X-Everframe-Companion-Attribution")
-        }
-        if let captureToken {
-            // SECURITY: never log this value — same posture as
-            // companionAttribution above.
             req.setValue(captureToken, forHTTPHeaderField: "X-Everframe-Capture-Token")
         }
         if let identityToken {
             // SECURITY: never log this value — same posture as
-            // companionAttribution above.
+            // captureToken above.
             req.setValue(identityToken, forHTTPHeaderField: IDENTITY_TOKEN_HEADER)
         }
         if let linkNonce {
             // SECURITY: never log this value — same posture as
-            // companionAttribution above.
+            // captureToken above.
             req.setValue(linkNonce, forHTTPHeaderField: "X-Everframe-Link-Nonce")
         }
 

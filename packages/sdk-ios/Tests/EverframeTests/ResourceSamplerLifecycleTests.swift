@@ -13,8 +13,8 @@
 //
 // UIKIT-ONLY (false pass on macOS): this whole file is gated the same way,
 // matching the established convention (see
-// `ReporterSubmissionMultiShotTests.swift`, `BreadcrumbAdaptersTests.swift`,
-// `CompanionLifecycleNotificationTests.swift`). A macOS
+// `ReporterSubmissionMultiShotTests.swift`, `BreadcrumbAdaptersTests.swift`).
+// A macOS
 // `swift test --filter ResourceSamplerLifecycleTests` run reports "0 tests,
 // 0 failures" — green, but proves nothing. Real evidence comes from the iOS
 // Simulator suite:
@@ -34,8 +34,7 @@ import UIKit
 final class ResourceSamplerLifecycleTests: XCTestCase {
     /// Drives the REAL production observer registered by `start()` — posts
     /// the exact notification `UIApplication` sends on resume, exactly like
-    /// `CompanionLifecycleNotificationTests.swift`/`BreadcrumbAdaptersTests.swift`
-    /// already do for their own lifecycle observers. `queue: nil` at
+    /// `BreadcrumbAdaptersTests.swift` already does for their own lifecycle observers. `queue: nil` at
     /// registration (`ResourceWindowSampler.swift`) means the handler runs
     /// SYNCHRONOUSLY on the posting thread — no `await`/sleep needed for
     /// delivery.

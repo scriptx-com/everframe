@@ -215,10 +215,10 @@ struct StartEpochApplyRaceTests {
       }
     }
 
-    // ==================== Window (a), companion badge box ====================
+    // ==================== Window (a), branding box ====================
 
     /// Codex round-2 fix — same window (a) shape as the two tests above, now
-    /// proven against `CompanionBadgeServerConfigBox` specifically, with
+    /// proven against `BrandingServerConfigBox` specifically, with
     /// `kill()` (not a superseding `start(B)`) as the racing event.
     /// `kill()` clears the box, but only from an async `Task { @MainActor
     /// in ... }` dispatched after its synchronous section returns (mirrors
@@ -229,16 +229,11 @@ struct StartEpochApplyRaceTests {
     /// `currentStartEpoch` check and that write can resume AFTER kill()'s
     /// async clear has already landed and resurrect the stale override,
     /// with no live session left to overwrite it again.
-    @Test func aParkedBetweenItsEpochCheckAndTheBadgeBoxWriteCannotResurrectTheOverrideAfterKill() async throws {
+    @Test func aParkedBetweenItsEpochCheckAndTheBrandingBoxWriteCannotResurrectTheOverrideAfterKill() async throws {
       try await withGlobalCaptureStateLock {
         let captureConfig = CaptureConfig(logs: false, network: true)
         try Everframe.shared.start(config: EverframeConfig(sdkKey: appA, capture: captureConfig))
         let epochAtACreation = Everframe.shared.currentStartEpoch
-        CompanionBadgeServerConfigBox.shared.value = nil
-        defer { CompanionBadgeServerConfigBox.shared.value = nil }
-        // Branding (iOS spec 2026-08-26) — same parked-continuation hazard,
-        // same guard, proven against BrandingServerConfigBox alongside its
-        // companion sibling above.
         BrandingServerConfigBox.shared.value = nil
         defer { BrandingServerConfigBox.shared.value = nil }
 
@@ -271,7 +266,7 @@ struct StartEpochApplyRaceTests {
 
         // A's fetch/decode and its (currently-valid) `currentStartEpoch`
         // check all run to completion unblocked — it parks only at the
-        // hook, immediately before the badge box write under test here.
+        // hook, immediately before the branding box write under test here.
         let refreshTaskA = Task { await sessionA.refreshConfigNow() }
         let reachedHook = await AsyncTestHelpers.waitFor({ hookReached })
         #expect(reachedHook, "session A never reached the pre-apply hook — test setup is wrong, not exercising the race")
@@ -283,8 +278,8 @@ struct StartEpochApplyRaceTests {
         // of kill()'s clear, exactly the window the fix brief describes,
         // rather than leaving it to luck.
         Everframe.shared.kill()
-        let killClearLanded = await AsyncTestHelpers.waitFor({ CompanionBadgeServerConfigBox.shared.value == nil })
-        #expect(killClearLanded, "kill()'s async badge-box clear never landed — test setup is wrong, not exercising the race")
+        let killClearLanded = await AsyncTestHelpers.waitFor({ BrandingServerConfigBox.shared.value == nil })
+        #expect(killClearLanded, "kill()'s async branding-box clear never landed — test setup is wrong, not exercising the race")
 
         // Only NOW release session A's parked write — after kill()'s clear
         // has already fully landed.
@@ -292,20 +287,11 @@ struct StartEpochApplyRaceTests {
         await refreshTaskA.value
 
         #expect(
-            CompanionBadgeServerConfigBox.shared.value == nil,
-            """
-            session A's badge-box write, parked between its (already-passed) currentStartEpoch check and the \
-            mutation while kill() landed its async clear, must not be allowed to resurrect the stale override — \
-            the write must re-validate the epoch FRESH immediately before writing, not trust A's earlier check
-            """
-        )
-        #expect(
             BrandingServerConfigBox.shared.value == nil,
             """
             session A's branding-box write, parked between its (already-passed) currentStartEpoch check and the \
             mutation while kill() landed its async clear, must not be allowed to resurrect the stale override — \
-            the write must re-validate the epoch FRESH immediately before writing, not trust A's earlier check, \
-            same guard as the companion badge box write above
+            the write must re-validate the epoch FRESH immediately before writing, not trust A's earlier check
             """
         )
 
@@ -320,18 +306,16 @@ struct StartEpochApplyRaceTests {
     /// proved the ordinary, non-superseded write actually LANDS. No parking,
     /// no superseding `start(B)`/`kill()`: the guard's `currentStartEpoch`
     /// check simply passes, exactly as it does on every normal refresh, and
-    /// both the companion-badge and branding blocks must land in their
-    /// server boxes. `latest.branding` (ReplaySession.swift, directly under
-    /// the companion write) is trivially correct by inspection, but the
+    /// the branding and vitals blocks must land in their server boxes.
+    /// `latest.branding` (ReplaySession.swift) is trivially correct by
+    /// inspection, but the
     /// brief's own instruction was that this must exist as a regression
     /// lock, not merely be true by reading the diff.
-    @Test func aNonSupersededApplyPublishesBothTheCompanionBadgeAndBrandingBoxes() async throws {
+    @Test func aNonSupersededApplyPublishesTheBrandingBox() async throws {
       try await withGlobalCaptureStateLock {
         let captureConfig = CaptureConfig(logs: false, network: true)
         try Everframe.shared.start(config: EverframeConfig(sdkKey: appA, capture: captureConfig))
         let epochAtCreation = Everframe.shared.currentStartEpoch
-        CompanionBadgeServerConfigBox.shared.value = nil
-        defer { CompanionBadgeServerConfigBox.shared.value = nil }
         BrandingServerConfigBox.shared.value = nil
         defer { BrandingServerConfigBox.shared.value = nil }
         VitalsServerConfigBox.shared.resetForTesting()
@@ -357,10 +341,6 @@ struct StartEpochApplyRaceTests {
 
         await session.refreshConfigNow()
 
-        #expect(
-            CompanionBadgeServerConfigBox.shared.value == CompanionBadgeConfigWire(enabled: true, position: "top-left"),
-            "an ordinary, non-superseded apply must publish the companion badge block into its server box"
-        )
         #expect(
             BrandingServerConfigBox.shared.value == BrandingConfigWire(watermark: false),
             "an ordinary, non-superseded apply must publish the branding block into its server box"

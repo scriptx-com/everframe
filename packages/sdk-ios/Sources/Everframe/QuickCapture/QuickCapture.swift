@@ -544,8 +544,7 @@ final class QuickCapture {
         // The same flag `ShakeToReportTrigger` hands `ShakeToReportGate.tryBegin(presenting:)`.
         guard !Everframe.shared.report.isPresenting else { return "reporter_presenting" }
         guard !inFlight else { return "in_flight" }
-        // The reporter freezes before it sets `isPresenting`, and the companion
-        // never sets it: a held owner means another capture's frozen evidence,
+        // The reporter freezes before it sets `isPresenting`: a held owner means another capture's frozen evidence,
         // which this capture must not freeze over or consume.
         guard !Everframe.shared.__replayHasReporterOwner else { return "capture_frozen" }
         // The host masks its own pixels (Flutter) and installed no provider: the

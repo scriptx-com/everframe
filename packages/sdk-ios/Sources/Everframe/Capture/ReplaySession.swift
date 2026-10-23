@@ -76,10 +76,6 @@ public final class ReplaySession: NSObject {
     /// gate always agree on which fetch is "current."
     internal var currentConfig: ReplayConfig { configBox.value }
 
-    /// The config the last apply used when its fetch was confirmed; nil after a
-    /// failed one. A companion upgrade re-applies it (`applyCompanionUpgrade()`).
-    private var lastConfirmedConfig: ReplayConfig?
-
     /// The running periodic re-read loop (nil until `enableIfConfigured()` has
     /// been called once). Cancelled in `deinit` so it never outlives the
     /// session.
@@ -220,8 +216,7 @@ public final class ReplaySession: NSObject {
         self.deviceConditions = deviceConditions
         super.init()
         // A host can restart the Everframe SDK while a report is still being composed.
-        // tvOS has no modal presenter: the companion owns that same freeze.
-        if Everframe.shared.report.isPresenting || CompanionCaptureBridge.hasActiveReportCapture {
+        if Everframe.shared.report.isPresenting {
             video.freeze()
         }
         for name in [UIApplication.didEnterBackgroundNotification,
@@ -366,11 +361,7 @@ public final class ReplaySession: NSObject {
     /// Runs on `MainActor` (this class is `@MainActor`), so — unlike the
     /// ad-hoc `Task { }` closure this was factored out of — no explicit
     /// `MainActor.run` hop is needed for the `configBox` / lifecycle writes.
-    ///
-    /// `reusingConfirmedConfig` (crash-only sessions spec 2026-10-12) applies the
-    /// last confirmed config again instead of fetching, and fetches when there is
-    /// none. Only `applyCompanionUpgrade()` passes it.
-    func refreshConfigNow(reusingConfirmedConfig: Bool = false) async {
+    func refreshConfigNow() async {
         // Round-3 review Finding F13 — capture the generation this call was
         // armed under BEFORE the first `await` below (synchronously, so no
         // teardown can land between "read epoch" and "start awaiting"); see
@@ -386,15 +377,8 @@ public final class ReplaySession: NSObject {
         // took effect every SECOND wake (~600s), not every wake (~300s).
         // `force: true` still records `lastFetchedAt`, so this stays in step
         // with any other (non-forced) caller of the same provider.
-        let succeeded: Bool
-        let latest: ReplayConfig
-        if reusingConfirmedConfig, let confirmed = lastConfirmedConfig {
-            succeeded = true
-            latest = confirmed
-        } else {
-            succeeded = await provider.refresh(force: true)
-            latest = await provider.current
-        }
+        let succeeded = await provider.refresh(force: true)
+        let latest = await provider.current
 
         // Round-3 review Finding F13: both `await`s above can outlive this
         // session's teardown — `await`ing re-derives a strong `self` from a
@@ -512,17 +496,15 @@ public final class ReplaySession: NSObject {
         // check above by itself (see `applyConfig`'s doc comment for the
         // full rationale, and `startEpochAtCreation`'s for why a session-
         // local check alone isn't enough).
-        // Crash-only sessions (spec 2026-10-12): the client config and the
-        // companion upgrade, read together. Until a bond upgrades it, a
-        // crash-only session captures no bodies and samples replay at the
-        // crash-only rate below; bodies keep the ordinary `samplingRate` draw.
-        let coverage = Everframe.shared.crashOnlyCoverageState
-        let replayCoverage: ReplayCoverage = coverage.config?.reporterEnabled != false ? .report
-            : coverage.upgraded ? .upgraded : .crashOnly
+        // Crash-only sessions (spec 2026-10-12): a crash-only session captures
+        // no bodies and samples replay at the crash-only rate below; bodies
+        // keep the ordinary `samplingRate` draw.
+        let coverageConfig = Everframe.shared.crashOnlyCoverageConfig
+        let replayCoverage: ReplayCoverage = coverageConfig?.reporterEnabled != false ? .report : .crashOnly
         NetworkBodyCaptureGate.shared.applyConfig(
             succeeded ? latest.networkBodies : nil,
             samplingRate: latest.samplingRate,
-            locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: coverage.config, upgraded: coverage.upgraded)
+            locallyDisabled: NetworkBodyCaptureGate.locallyDisabled(for: coverageConfig)
                 || NetworkBodyCaptureGate.breadcrumbsExcludeNetwork(latest.breadcrumbs)
         ) { [startEpochAtCreation] in
             Everframe.shared.currentStartEpoch == startEpochAtCreation
@@ -530,28 +512,20 @@ public final class ReplaySession: NSObject {
         NetworkBodyRingBuffer.shared.setTotalBudget(
             latest.networkBodies?.bodyTotalBudget ?? 262_144)
         configBox.value = latest
-        lastConfirmedConfig = succeeded ? latest : nil
-        // Companion badge dashboard override (plan 2026-08-25) — snapshot the
-        // block for CompanionBadge's sync show-time read; see
-        // CompanionBadgeServerConfigBox's own doc for why a box and not
-        // currentReplayConfig().
-        //
-        // Codex round-2 fix — `kill()` now clears this same box (Everframe
+        // Codex round-2 fix — `kill()` clears the branding box (Everframe
         // .swift), but only from an async `Task { @MainActor in ... }`
         // dispatched AFTER `kill()`'s synchronous section returns (unlike
         // `start()`'s session-boundary reset, which clears it
         // synchronously). A call parked at `preApplyHookForTesting` just
         // above — between the `currentStartEpoch` check a few lines up and
         // this write — can otherwise resume AFTER kill()'s async clear has
-        // already landed and resurrect the stale override, with no live
+        // already landed and resurrect the stale value, with no live
         // session left to overwrite it again. Re-check immediately before
         // writing, mirroring this SAME `currentStartEpoch` comparison
         // exactly as performed a few lines above — no new epoch machinery,
         // just closing the gap between that check and this specific write.
         guard Everframe.shared.currentStartEpoch == startEpochAtCreation else { return }
-        CompanionBadgeServerConfigBox.shared.value = latest.companionBadge
-        // Branding (iOS spec 2026-08-26) — same parked-continuation hazard,
-        // same guard as the companion write immediately above. The reporter
+        // Branding (iOS spec 2026-08-26). The reporter
         // resolves this box once at presentation time (Approach A), so this
         // write is what a NEXT open observes.
         BrandingServerConfigBox.shared.value = latest.branding
@@ -647,16 +621,6 @@ public final class ReplaySession: NSObject {
         if !wasIdentityEnabled && nowIdentityEnabled {
             Everframe.shared.__warmIdentityToken()
         }
-    }
-
-    /// Crash-only sessions (spec 2026-10-12): a companion bond upgraded this
-    /// session (`Everframe.__companionMemberAttached()`). Apply now rather than at
-    /// the next ~300 s refresh, so replay and network bodies start at the bond.
-    /// Native video needs a confirmed fetch, so this reuses the last confirmed
-    /// config and fetches only when there is none.
-    func applyCompanionUpgrade() async {
-        guard !isTornDown, Everframe.shared.currentStartEpoch == startEpochAtCreation else { return }
-        await refreshConfigNow(reusingConfirmedConfig: true)
     }
 
     /// Freeze before mounting reporter UI. Finalization runs asynchronously.

@@ -22,14 +22,10 @@
 // there) — see `ReporterSubmissionMultiShotTests.swift`'s header comment for
 // the established precedent. Even on a host that DOES have UIKit,
 // `submit(_:)` constructs its own network `ReportSubmitter` with no
-// injection seam, which is exactly why `CompanionSubmitBridgeTests.swift`'s
-// header comment says the full envelope-build + ReportSubmitter network path
-// "is NOT exercised" by any existing test in this target. Since a hermetic
+// injection seam, so the full envelope-build + ReportSubmitter network path
+// is NOT exercised by any existing test in this target. Since a hermetic
 // behavioural run of that path is unavailable here, `ReporterSubmission`'s
-// half is covered by a source gate below — the same convention this target
-// already uses for an identical problem (see
-// `CompanionAttributionHeaderTests.swift`'s
-// `..._CompanionCaptureBridgeSourceGate`) — pinning the block's presence AND
+// half is covered by a source gate below — pinning the block's presence AND
 // its placement: after `includeMetadata` closes, before the
 // `extraOverrides` merge, so an explicit override still wins.
 import XCTest
@@ -272,10 +268,10 @@ final class EnvelopeUserTests: XCTestCase {
     /// captured in the SAME `stateLock` critical section as the user, and
     /// `resolve()` discards it once that session is superseded.
     ///
-    /// This is the core mechanism `ReporterSubmission.submit(_:)` and
-    /// `CompanionCaptureBridge` both go through; the two submit files
-    /// themselves are `#if canImport(UIKit)`-gated and absent on this host (see
-    /// the file header), so their use of it is pinned by the source gate below.
+    /// This is the core mechanism `ReporterSubmission.submit(_:)` goes
+    /// through; the submit files themselves are `#if canImport(UIKit)`-gated
+    /// and absent on this host (see the file header), so their use of it is
+    /// pinned by the source gate below.
     func testACapturedUserIsDiscardedWhenAnotherProjectStartsBeforeItIsResolved() throws {
         let projectA = EverframeConfig(
             sdkKey: "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU",
@@ -1529,8 +1525,7 @@ final class ReporterSubmissionUserExtrasSourceGate: XCTestCase {
     /// inert while `resolveIdentityHeader` keeps computing the right answer
     /// and throwing it away). Positive assertions on the exact expected
     /// substrings catch both: a mutation to either line changes the text, so
-    /// the match fails. Runs as a normal XCTest (this file's suite is
-    /// already in `swift.yml`'s companion filter), so — unlike the shell
+    /// the match fails. Runs as a normal XCTest, so — unlike the shell
     /// script it replaces — it also runs locally under plain `swift test`.
     func testIdentityHeaderIsResolvedFromTheRealSingletonHolderAndThreadedIntoSubmit() throws {
         let code = Self.strippingLineComments(try Self.submissionSource())
@@ -1630,14 +1625,13 @@ final class ReporterSubmissionUserExtrasSourceGate: XCTestCase {
         )
     }
 
-    /// The two call sites' half: `Inputs.capturedSession` is only a fix if the
-    /// callers actually snapshot at their own submit boundary. `capturedUser`
+    /// The call site's half: `Inputs.capturedSession` is only a fix if the
+    /// caller actually snapshots at its own submit boundary. `capturedUser`
     /// has no default precisely so this cannot be forgotten silently — but
-    /// neither file is reachable from an executed test on a plain macOS host
-    /// (both are entirely `#if canImport(UIKit)`), so the placement is gated
-    /// as source, mirroring
-    /// `CompanionAttributionHeaderTests_CompanionCaptureBridgeSourceGate`.
-    func testBothSubmitPathsSnapshotTheUserAtTheirOwnBoundary() throws {
+    /// the file is not reachable from an executed test on a plain macOS host
+    /// (it is entirely `#if canImport(UIKit)`), so the placement is gated as
+    /// source.
+    func testTheReporterSnapshotsTheUserAtItsOwnBoundary() throws {
         let thisFile = URL(fileURLWithPath: #filePath)
         let packageRoot = thisFile
             .deletingLastPathComponent()   // EverframeTests
@@ -1668,46 +1662,6 @@ final class ReporterSubmissionUserExtrasSourceGate: XCTestCase {
         XCTAssertNotNil(
             vc.range(of: #"capturedSession:\s*capturedSession"#, options: .regularExpression),
             "ReporterViewController.swift no longer threads its snapshot into ReporterSubmission.Inputs."
-        )
-
-        // Companion: captured in `tryRunSubmit`, BEFORE the `Task { @MainActor }`
-        // hop — so the snapshot must be a local bound outside the closure and
-        // then passed in, never a live read inside it.
-        let bridge = Self.strippingLineComments(
-            try String(
-                contentsOf: packageRoot.appendingPathComponent(
-                    "Sources/Everframe/Companion/CompanionCaptureBridge.swift"),
-                encoding: .utf8)
-        )
-        let boundOutside = try XCTUnwrap(
-            bridge.range(
-                of: #"let capturedSession\s*=\s*Everframe\.shared\.captureSessionSnapshot\(\)"#,
-                options: .regularExpression),
-            """
-            CompanionCaptureBridge.swift no longer snapshots the user at the \
-            submit boundary in tryRunSubmit — or does it with a bare \
-            currentUser read, which captures no session (external review, \
-            finding 1) and so cannot be invalidated by a start()/kill().
-            """
-        )
-        let hop = try XCTUnwrap(
-            bridge.range(of: "Task { @MainActor [weak self] in"),
-            "tryRunSubmit's MainActor Task hop not found — has the bridge been restructured?"
-        )
-        XCTAssertTrue(
-            boundOutside.upperBound < hop.lowerBound,
-            """
-            The user snapshot must be taken BEFORE tryRunSubmit's Task hop. \
-            Taken inside it, it is no longer a submit boundary — the hop, the \
-            image decode and the target re-resolution are all part of the \
-            window an account switch has to land in.
-            """
-        )
-        XCTAssertNotNil(
-            bridge.range(
-                of: #"capturedSession:\s*capturedSession"#,
-                options: .regularExpression),
-            "CompanionCaptureBridge.swift no longer threads its snapshot into ReporterSubmission.Inputs."
         )
     }
 

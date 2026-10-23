@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Follow-ups register item 9 — the reporter and companion submit paths must
+// Follow-ups register item 9 — the reporter submit paths must
 // route by the config captured at the Send tap, never by whatever `start()`
 // named while the report was being assembled.
 //

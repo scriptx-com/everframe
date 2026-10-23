@@ -4,8 +4,7 @@
 // The quick-capture confirmation toast. Created only after the screenshot,
 // in its own overlay window that `ScreenshotCapture.activeKeyWindow()` filters
 // out, so neither this capture nor the next one (nor a replay frame) shows
-// it. Same window mechanics as the companion badge: never key, never
-// interactive, `.alert + 2`.
+// it. Never key, never interactive, `.alert + 2`.
 #if canImport(UIKit)
 import UIKit
 

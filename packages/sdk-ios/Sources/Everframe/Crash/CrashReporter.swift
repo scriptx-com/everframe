@@ -282,7 +282,7 @@ public enum CrashReporter {
         //
         // Snapshot it HERE instead, at the instant the crash arrives, and
         // `resolve()` it against its own session at encode time — the same
-        // mechanism the reporter and companion submit paths use.
+        // mechanism the reporter and quick-capture submit paths use.
         //
         // Blocking: `captureSessionSnapshot()` takes `Everframe.stateLock` for
         // one uncontended critical section (user, config and kill generation,

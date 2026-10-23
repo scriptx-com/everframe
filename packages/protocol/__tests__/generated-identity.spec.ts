@@ -13,7 +13,7 @@ const kotlinRoot = path.resolve(
 );
 
 describe('generated Everframe protocol identity', () => {
-  it.each(['Generated.swift', 'Relay.swift', 'VTree.swift'])(
+  it.each(['Generated.swift', 'VTree.swift'])(
     '%s prefixes every public protocol declaration with Everframe',
     (file) => {
       const source = readFileSync(path.join(swiftRoot, file), 'utf8');

@@ -17,7 +17,7 @@ struct PressCrumbTests {
     /// `start()` call has run in this process, so without this the
     /// `recordEndedPress` calls below silently drop and every assertion here
     /// would see an always-empty buffer regardless of correctness. Mirrors
-    /// `CompanionFreezeLifecycleTests`/`BreadcrumbTapNavAdaptersTests`.
+    /// `BreadcrumbTapNavAdaptersTests`.
     private func noLogCaptureConfig() -> EverframeConfig {
         EverframeConfig(sdkKey: testSdkKey, capture: CaptureConfig(logs: false))
     }

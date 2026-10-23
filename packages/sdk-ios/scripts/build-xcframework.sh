@@ -128,8 +128,7 @@ fi
 echo "==> SDK version ${SDK_VERSION}"
 echo "==> configuration ${CONFIGURATION}"
 
-# Swift `package`-level access (used by `CompanionAPI.__builtinPinUiInstalled`
-# / `__builtinPinUiSuppressed`, spec 2026-08-19) requires every module that
+# Swift `package`-level access requires every module that
 # shares it to compile under the SAME `-package-name`. Under `swift build`,
 # SwiftPM derives and passes this automatically from `Package.swift`'s
 # `Package(name:)` — which is exactly why `swift build`/`swift test` never hit
@@ -169,8 +168,7 @@ mkdir -p "${ARCHIVE_DIR}"
 # is a command-line override layered onto project.yml's own OTHER_SWIFT_FLAGS
 # via `$(inherited)` — same composition project.yml itself uses to layer onto
 # Xcode's defaults. Without it, `xcodebuild archive` fails every target that
-# uses Swift `package`-level access (e.g. `CompanionAPI.__builtinPinUiInstalled`,
-# spec 2026-08-19) with "the package access level ... requires a package name";
+# uses Swift `package`-level access with "the package access level ... requires a package name";
 # `swift build`/`swift test` never hit this because SwiftPM infers and passes
 # `-package-name` itself from `Package.swift`'s `Package(name:)` — this script
 # is the one caller that goes around SwiftPM entirely.

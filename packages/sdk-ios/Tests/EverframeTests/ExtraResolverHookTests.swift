@@ -15,8 +15,7 @@
 //   3. The hook type is non-throwing (`() async -> Void`) — "fail open"
 //      holds BY CONSTRUCTION, there is no throw path to swallow.
 //   4. A hook that never resumes its own continuation, but is itself
-//      bounded by a scheduled fallback (mirroring
-//      `CompanionCaptureBridge.awaitJsReactTreeAttach`'s exact shape) →
+//      bounded by a scheduled fallback →
 //      `__consumePendingAttachments()` still returns promptly.
 import Testing
 import Foundation
@@ -138,8 +137,7 @@ final class ExtraResolverHookTests {
     @Test func hookThatNeverResumesButBoundsItself_stillLetsConsumeReturnPromptly() async {
         Everframe.shared.setExtra("unchanged — JS never answered")
         Everframe.__pendingExtraResolveHook = {
-            // Mirrors `CompanionCaptureBridge.awaitJsReactTreeAttach`'s
-            // exact shape: a continuation resumed only by a scheduled
+            // A continuation resumed only by a scheduled
             // fallback timer, standing in for "JS never calls back" — much
             // shorter bound here so the test stays fast.
             await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in

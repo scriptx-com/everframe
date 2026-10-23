@@ -9,8 +9,8 @@
 // empirically (see `ReportSubmitter.swift`'s `IdentityHeaderRedirectGuard`
 // doc comment for the full write-up): a plain `URLSession` with no delegate
 // strips `Authorization` on a cross-origin redirect but carries custom
-// headers — including `X-Everframe-Identity-Token` AND, separately,
-// `X-Everframe-Companion-Attribution` — straight through to the new host.
+// headers — including `X-Everframe-Identity-Token` — straight through to the
+// new host.
 //
 // This suite drives that fix end to end through the REAL production path
 // (`ReportSubmitter.submit` -> `MultipartUploader.upload` ->

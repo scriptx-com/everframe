@@ -135,7 +135,7 @@ public struct IdentityConfigWire: Decodable, Sendable, Equatable {
 /// `ReplayConfigResponseSchema.resources` block (the ingest API's config-route.ts):
 /// `{ enabled, windowSec }`. Present only when this Everframe SDK declares `resources`
 /// in `X-Everframe-SDK-Features` — same capability-negotiation doctrine as
-/// `identity`/`companionBadge`/`branding` above. Without declaring the token
+/// `identity`/`branding` above. Without declaring the token
 /// the server never emits this block at all, and the feature is silently,
 /// permanently off (the negotiation-gap this Everframe SDK closes).
 ///
@@ -149,7 +149,7 @@ public struct IdentityConfigWire: Decodable, Sendable, Equatable {
 /// non-optional field); a missing/malformed `enabled` fails this whole
 /// struct's decode, which the OUTER lenient `(try? ...) ?? nil` in
 /// `ReplayConfigWire.init(from:)` degrades to "block absent" (feature off),
-/// same posture as companionBadge/networkBodies.
+/// same posture as networkBodies.
 public struct ResourcesConfigWire: Decodable, Sendable, Equatable {
     public let enabled: Bool
     public let windowSec: Int?
@@ -201,12 +201,10 @@ public struct CaptureHotkeyConfigWire: Decodable, Sendable, Equatable {
     }
 }
 
-/// Server-driven companion name-badge override (plan 2026-08-25). Present
-/// only when this Everframe SDK declared `companionbadge` in `X-Everframe-SDK-Features`.
-/// `position` stays a STRING here (wire shape); resolution to
-/// `CompanionBadgePosition` happens at the badge via
-/// `CompanionBadgeResolution.position`, so an unrecognised future position
-/// falls back to the inline option rather than a hard-coded corner.
+/// Deprecated: the removed Companion name-badge block (plan 2026-08-25).
+/// This SDK no longer declares `companionbadge`, and nothing reads the
+/// block. It is still decoded, leniently, so a config from an older server
+/// or a stale cache that carries it keeps parsing. Removed at the next major.
 public struct CompanionBadgeConfigWire: Decodable, Sendable, Equatable {
     public let enabled: Bool
     public let position: String?
@@ -473,16 +471,16 @@ private struct ReplayConfigWire: Decodable {
         // nil (capture off) rather than sinking the whole config decode.
         networkBodies = (try? c.decodeIfPresent(NetworkBodiesConfigWire.self, forKey: .networkBodies)) ?? nil
         identity = try c.decodeIfPresent(IdentityConfigWire.self, forKey: .identity)
-        // Lenient nested decode, same posture as networkBodies above: a
-        // malformed companionBadge block degrades to nil (the Everframe SDK keeps its
-        // inline/default badge) rather than sinking the whole config decode.
+        // Deprecated (Companion removed): decoded and never read. Lenient,
+        // same posture as networkBodies above: a malformed companionBadge
+        // block degrades to nil rather than sinking the whole config decode.
         companionBadge = (try? c.decodeIfPresent(CompanionBadgeConfigWire.self, forKey: .companionBadge)) ?? nil
-        // Lenient nested decode, same posture as companionBadge above; the
+        // Lenient nested decode, same posture as networkBodies above; the
         // block's own init(from:) is additionally per-field lenient — see
         // BrandingConfigWire's doc comment.
         branding = (try? c.decodeIfPresent(BrandingConfigWire.self, forKey: .branding)) ?? nil
-        // Lenient nested decode, same posture as companionBadge/networkBodies
-        // above: a malformed resources block degrades to nil (feature off)
+        // Lenient nested decode, same posture as networkBodies above: a
+        // malformed resources block degrades to nil (feature off)
         // rather than sinking the whole config decode. The block's own
         // init(from:) is additionally per-field lenient for `windowSec` —
         // see ResourcesConfigWire's doc comment.
@@ -768,9 +766,10 @@ extension ReplayConfigProvider {
     /// responder, so it may send a plain-key or Shift+key `captureHotkey.binding`;
     /// callers without it get `Shift Shift`. `devicelinking` asks for the
     /// `deviceLinking` block. `capturegesture` (TV bindings) is deliberately
-    /// not declared: phones always use shake.
+    /// not declared: phones always use shake. `companionbadge` is no longer
+    /// declared: Companion has been removed.
     public static let sdkFeaturesHeaderValue =
-        "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking"
+        "networkbodies, identity, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking"
 
     /// Test seam: decode a raw `/api/config` body exactly as `refresh()` does.
     static func __decodeForTesting(_ data: Data) throws -> ReplayConfig {
