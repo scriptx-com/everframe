@@ -1,0 +1,34 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/devicelink/DeviceLinkTest.kt
+  s_f1c043e85606b2::t_062e0de87b9cff 1-392
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/DeviceLink.kt
+  s_f1c043e85606b2::t_6e97e89625c674 1-344
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/DeviceLinkCopy.kt
+  s_f1c043e85606b2::t_3235dc03d1ecb5 1-25
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/LinkBanner.kt
+  s_f1c043e85606b2::t_11338590455089 1-191
+  s_f1c043e85606b2::t_7cf39983bb8d26 192-200
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_f1c043e85606b2::t_15c068d1625adc 1408-1420,1601
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplaySession.kt
+  s_f1c043e85606b2::t_9fbd5bf8af4183 42-44,196-200
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/DeviceLinkClient.kt
+  s_f1c043e85606b2::t_f473ff26c4843a 86-91,96,103,139
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/devicelink/LinkBannerTest.kt
+  s_f1c043e85606b2::t_fc149c201022f4 1-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "deed765d9a3fd4f57337eb7f1e3d50a51d25023a",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
