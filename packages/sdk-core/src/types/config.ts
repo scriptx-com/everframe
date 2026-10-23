@@ -70,9 +70,8 @@ export interface EverframeConfig {
    * session has no on-device way to open the reporter (no hotkey, no "New
    * report" button, `open()` rejects with `EverframeReporterDisabledError`),
    * captures no network bodies, and samples session replay with the server's
-   * `crashOnlySamplingRate` (default 0) instead of `samplingRate`. A companion
-   * bond upgrades the session: replay and bodies then follow the normal server
-   * rules for the rest of the session. Crash and error capture are unaffected.
+   * `crashOnlySamplingRate` (default 0) instead of `samplingRate`. Crash and
+   * error capture are unaffected.
    */
   reporter?: {
     disabled?: boolean;

@@ -67,8 +67,8 @@ export const ReportEnvelope = z
       .passthrough(),
     reporter: z
       .object({
-        // Tightened to match every reporter UI surface (web modal, phone-
-        // companion SPA, iOS UIKit, Android Compose). Single source of truth —
+        // Tightened to match every reporter UI surface (web modal, iOS
+        // UIKit, Android Compose). Single source of truth —
         // each UI also enforces the same cap at the input layer so the user
         // can't even type past it; the receiver rejects anything that slips
         // through (e.g. a third-party programmatic submit).

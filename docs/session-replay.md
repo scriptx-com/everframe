@@ -120,23 +120,17 @@ session.
 - **One draw per session.** Each session draws one random number and
   compares it with the rate for its kind. Once a rate has picked a session, a
   later change to that rate doesn't stop it.
-- **Companion upgrade.** When a phone scans the companion QR code or a
-  dashboard member attaches, the session uses the higher of the two rates for
-  the rest of the session, so an upgrade never stops a recording. Recording
-  starts at that moment, so a report filed through the companion has a replay
-  from then on. Detaching doesn't undo the upgrade. A crash-only session that
-  starts while a companion is still attached, for example after a restart or
-  a React Native reconfigure, starts upgraded.
+- **No upgrade.** A crash-only session keeps its kind until the next start.
+  (Earlier SDKs upgraded it when a Companion phone paired; Companion has been
+  removed.)
 - **No reporter.** The hotkey, shake-to-report, the replies button and inbox,
-  and `open()` stay off for the whole session, also after an upgrade.
-  Reports from an upgraded session come through the companion. On the web
-  and React Native, `open()` rejects with `EverframeReporterDisabledError`.
-- **Network bodies** aren't captured in a crash-only session. After an
-  upgrade they follow the app's settings.
+  and `open()` stay off for the whole session. On the web and React Native,
+  `open()` rejects with `EverframeReporterDisabledError`.
+- **Network bodies** aren't captured in a crash-only session.
 - **Error replays follow recording.** An error carries a replay only while
   its session records. At the default crash-only rate of 0, errors from
   crash-only sessions carry no replay. At 5%, errors from about 5% of
   crash-only sessions can.
 
-Crash and error capture, breadcrumbs, console logs, vitals, release health,
-identity and the companion work the same in every session.
+Crash and error capture, breadcrumbs, console logs, vitals, release health
+and identity work the same in every session.

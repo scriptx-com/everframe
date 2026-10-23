@@ -192,8 +192,8 @@ afterEvaluate {
 // those internal types and all 8 classes die with NoClassDefFoundError before
 // a single assertion runs: 55 failures, zero signal.
 //
-// This is the same failure `:everframe-core` already documented for
-// CompanionAnnounceTest, and the same remedy — exclude rather than add `-keep`
+// This is the same failure `:everframe-core` already documents for its own
+// release unit tests, and the same remedy — exclude rather than add `-keep`
 // rules, which would pin internal helpers into the published AAR's symbol
 // table purely to satisfy a test. The difference is only one of degree: there
 // it was one class, here it is the module's entire test source set, so

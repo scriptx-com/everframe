@@ -414,15 +414,22 @@ In a crash-only session:
 - Session replay uses the app's crash-only sampling rate, which is 0 by
   default. An error carries a replay only while the session records.
 - Network bodies aren't captured.
-- Crash and error capture, breadcrumbs, vitals, release health and the
-  companion work as usual.
+- Crash and error capture, breadcrumbs, vitals and release health work as
+  usual.
 
-A companion bond (a phone scanning the QR code, or a dashboard member
-attaching) upgrades the session. Replay and network bodies then follow the
-app's normal settings for the rest of the session, and recording starts at
-the bond. The reporter stays off: reports from an upgraded session come
-through the companion. See
-[crash-only sessions](../../docs/session-replay.md#crash-only-sessions).
+See [crash-only sessions](../../docs/session-replay.md#crash-only-sessions).
+
+### Companion (removed)
+
+Everframe Companion (phone / TV pairing) has been removed. The `companion`
+namespace and `useCompanion()` remain as deprecated no-ops until the next
+major version: `companion.start()` logs one warning and reaches no native
+code, every `on*` subscription returns an unsubscribe and never fires, and
+`useCompanion()` always returns `{ state: 'unpaired', running: false, … }`
+with every other value `null`. The `attachPinUi`, `companionDeviceId` and
+`companionBadge` config options are accepted and ignored. To capture from a
+real device, link it under Settings → Devices in the dashboard and use quick
+capture.
 
 ## Navigation breadcrumbs
 
@@ -1131,13 +1138,13 @@ Target annotations enrich supported automatic native observations, including IME
 
 ### Reporter boundaries and developer tools
 
-Native phone reporter opens and companion report requests add this custom breadcrumb before freezing evidence:
+Native phone reporter opens add this custom breadcrumb before freezing evidence:
 
 ```json
 {"kind":"custom","message":"reporter_opened","data":{"source":"everframe_reporter","trigger":"button"}}
 ```
 
-`trigger` is `button`, `shake`, `menu`, or `companion`. Pending text/scroll summaries are flushed before this boundary. Native shake uses `shake`; companion report requests use `companion`; existing `open()` calls use `button`. To identify a host menu entry explicitly, call `open({ trigger: 'menu' })`. Closing or cancelling the native flow adds `reporter_closed` with `data.source: 'everframe_reporter'` to the live trail. Both events retain breadcrumb capture/config gates.
+`trigger` is `button`, `shake`, `menu`, or `companion` (older builds only; Companion has been removed). Pending text/scroll summaries are flushed before this boundary. Native shake uses `shake`; existing `open()` calls use `button`. To identify a host menu entry explicitly, call `open({ trigger: 'menu' })`. Closing or cancelling the native flow adds `reporter_closed` with `data.source: 'everframe_reporter'` to the live trail. Both events retain breadcrumb capture/config gates.
 
 A reporter call crosses the React Native bridge after its native input can already have been recorded. It cannot prove that the previous tap or remote key opened the reporter. For a button, annotate its native host ref before interaction:
 
@@ -1149,7 +1156,7 @@ return <Pressable ref={reporterRef} onPress={() => void open()}><Text>Report</Te
 
 That target's tap/activation carries `data.origin: 'reporter'` and `data.trigger: 'button'`. On a remote, only Select/Enter activation is attributed to a `button` target; arrows, Menu and Play/Pause retain their ordinary meaning. An explicitly annotated `reporterTrigger: 'menu'` target attributes only its Menu activation. Attribution survives masking without retaining the target's text. Removing/recycling the bound ref removes attribution.
 
-Hosts owning a reporting flow outside `open()` can `await markReporterOpened('menu')` before showing their reporter UI and `await markReporterClosed()` when it closes. These promises resolve after the native UI-thread boundary work; await them before adding subsequent host breadcrumbs or changing reporter UI. These explicit markers do not claim or remove earlier native keys: a TV event callback may run after native key capture. Use companion report-request boundaries when a host cannot attribute the original remote trigger. Never infer reporter intent from a button label, a Menu/Play/Pause key, or proximity to `open()`.
+Hosts owning a reporting flow outside `open()` can `await markReporterOpened('menu')` before showing their reporter UI and `await markReporterClosed()` when it closes. These promises resolve after the native UI-thread boundary work; await them before adding subsequent host breadcrumbs or changing reporter UI. These explicit markers do not claim or remove earlier native keys: a TV event callback may run after native key capture. Never infer reporter intent from a button label, a Menu/Play/Pause key, or proximity to `open()`.
 
 Native target capture adds `data.origin: 'devtools'` to supported taps and structured text/control/scroll observations whose native ancestry belongs to React Native LogBox, the native development menu, or Expo development-client UI. This comes from framework view/window/controller identity, an RN-owned development-menu controller, or a framework root module identity. In a development host, the inline LogBox notification/inspector is also registered by the exact React Native component exports through the existing React DevTools commit hook; application components with the same name are not attributed. This observer reads component identity and native refs, never warning text or component props, and removes registrations when their committed hosts disappear or the provider unmounts. Production JavaScript leaves this observer inert. A development JavaScript host can still attribute LogBox when its native SDK was built in Release mode. Display text such as “Dismiss” never grants an origin. A missing React DevTools hook, unavailable RN private module exports at runtime, initial asynchronous module loading, unknown framework versions and surfaces outside the native capture adapters leave attribution unavailable; origin tagging does not install a new dialog capture mechanism. The observer depends on the LogBox module paths in supported React Native versions; a future version removing those paths requires an SDK compatibility update before Metro can bundle it.
 

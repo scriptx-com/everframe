@@ -2,8 +2,9 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // UIApplication lifecycle bridge (iOS spec 2026-09-05 §2). didEnterBackground /
-// willEnterForeground, NOT resign/become-active — see RelayWSClient's header
-// for why. Both install() and uninstall() ALWAYS hop to main so the main queue
+// willEnterForeground, NOT resign/become-active: resign-active also fires for
+// a banner, Control Center or a system overlay while the app is still fully
+// alive. Both install() and uninstall() ALWAYS hop to main so the main queue
 // is the single ordering authority (Android final review, I3), and install()
 // reads the current state inside that hop: enablement arriving while already
 // backgrounded takes the background path immediately (round-3, Important 10).

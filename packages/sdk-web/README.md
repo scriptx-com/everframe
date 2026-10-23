@@ -224,17 +224,17 @@ interface Everframe {
 }
 ```
 
-| Method                     | What it does                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `open()`                   | Opens the reporter dialog. Resolves with `{ status: 'submitted' \| 'queued' \| 'cancelled', … }`. Rejects if the handle was destroyed or the reporter isn't mounted, and with `EverframeReporterDisabledError` when the config sets `reporter: { disabled: true }`.                                                                                                                                                                 |
-| `setUser(user)`            | Attaches a user identity to subsequent reports. `null` clears it.                                                                                                                                                                                                                                                                                                                                                                   |
-| `setIdentityToken(source)` | Signed-JWT-based recognition; accepts a token string or a provider function the SDK re-asks as it nears expiry.                                                                                                                                                                                                                                                                                                                     |
-| `setExtra(value)`          | Free-form string attached to the next report as host-supplied context.                                                                                                                                                                                                                                                                                                                                                              |
-| `addBreadcrumb(input)`     | Manually record a breadcrumb (`{ message, kind?, level?, data? }`) into the trail every report carries.                                                                                                                                                                                                                                                                                                                             |
-| `captureException(error)`  | Reports a caught exception as handled and nonfatal, without opening UI. Uses existing redaction, context, and outbox delivery.                                                                                                                                                                                                                                                                                                      |
-| `threads`                  | Two-way replies — list/read/reply to conversations attached to reports from this device.                                                                                                                                                                                                                                                                                                                                            |
-| `kill()`                   | Stops this instance from capturing or submitting anything further; the mounted UI and seams stay in place. A reporter already **open** when this lands is not submitted either: pressing Send discards the report, shows "Reporting is turned off — this report was not sent.", and settles a pending `open()` with `{ status: 'cancelled', reason: 'killed' }`. The same applies to a phone-companion capture or submit in flight. |
-| `destroy()`                | Full teardown — hotkey, listeners, thread polling, the mounted host element, and the sdk-core client. Safe to call more than once. A host with client-side routing can `init()`/`destroy()` many times per page load without accumulating listeners.                                                                                                                                                                                |
+| Method                     | What it does                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `open()`                   | Opens the reporter dialog. Resolves with `{ status: 'submitted' \| 'queued' \| 'cancelled', … }`. Rejects if the handle was destroyed or the reporter isn't mounted, and with `EverframeReporterDisabledError` when the config sets `reporter: { disabled: true }`.                                                                                              |
+| `setUser(user)`            | Attaches a user identity to subsequent reports. `null` clears it.                                                                                                                                                                                                                                                                                                |
+| `setIdentityToken(source)` | Signed-JWT-based recognition; accepts a token string or a provider function the SDK re-asks as it nears expiry.                                                                                                                                                                                                                                                  |
+| `setExtra(value)`          | Free-form string attached to the next report as host-supplied context.                                                                                                                                                                                                                                                                                           |
+| `addBreadcrumb(input)`     | Manually record a breadcrumb (`{ message, kind?, level?, data? }`) into the trail every report carries.                                                                                                                                                                                                                                                          |
+| `captureException(error)`  | Reports a caught exception as handled and nonfatal, without opening UI. Uses existing redaction, context, and outbox delivery.                                                                                                                                                                                                                                   |
+| `threads`                  | Two-way replies — list/read/reply to conversations attached to reports from this device.                                                                                                                                                                                                                                                                         |
+| `kill()`                   | Stops this instance from capturing or submitting anything further; the mounted UI and seams stay in place. A reporter already **open** when this lands is not submitted either: pressing Send discards the report, shows "Reporting is turned off — this report was not sent.", and settles a pending `open()` with `{ status: 'cancelled', reason: 'killed' }`. |
+| `destroy()`                | Full teardown — hotkey, listeners, thread polling, the mounted host element, and the sdk-core client. Safe to call more than once. A host with client-side routing can `init()`/`destroy()` many times per page load without accumulating listeners.                                                                                                             |
 
 There is deliberately **no `markSensitive()`** on the handle. `@everframe/react`
 exposes a method of that name on its hook, but it has never been wired to
@@ -288,8 +288,7 @@ To report crashes and errors without letting users file reports, set
 `reporter: { disabled: true }`. That session has no hotkey, no replies button
 or inbox, and `open()` rejects with
 `EverframeReporterDisabledError`. Session replay uses the app's crash-only
-sampling rate (0 by default) and network bodies stay off, until a phone or
-dashboard member bonds through the companion. See
+sampling rate (0 by default) and network bodies stay off. See
 [crash-only sessions](../../docs/session-replay.md#crash-only-sessions).
 
 ## Marking sensitive content
@@ -387,85 +386,17 @@ attributes — never a component name. This is inherent to not having a
 component tree to read, not a missing feature: there is no workaround for a
 non-React host today.
 
-## Companion (TV / phone pairing) and the attach-PIN limitation
+## Companion (removed)
 
-`companion.start()` opens the relay connection used for TV/phone-companion
-pairing. Its `attachPinUi` option defaults to `'builtin'`, but the built-in
-PIN card (`CompanionPinCard`) is rendered only by `@everframe/react`'s
-`EverframeProvider` — a vanilla `init()` mount renders the FAB, the reporter
-dialog, the inbox and a toast, and nothing else.
-
-**On this package, `'builtin'` silently resolves to `'off'`** rather than
-announcing a capability nothing here can show — announcing it anyway would
-let the dashboard offer the attach-PIN flow, have a team member spend an
-attempt against it, and then have the challenge expire having rendered
-nothing. A console warning fires once per page load when this happens.
-
-If you want the attach-PIN flow on a vanilla host, you have to build the UI
-yourself:
-
-```ts
-// __getCompanionApi is a top-level export, not a member of `companion` —
-// despite what the SDK's own console warning for this case says.
-import { companion, __getCompanionApi } from '@everframe/web';
-
-companion.start({
-  sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
-  attachPinUi: 'custom', // you're taking responsibility for rendering it
-});
-
-// Render your own challenge UI from here:
-__getCompanionApi().onAttachChallenge((challenge) => {
-  // challenge.code (show this), challenge.requestedByName, challenge.ttlMs
-});
-```
-
-Passing `attachPinUi: 'custom'` without actually rendering something off
-that callback is strictly worse than leaving it at the default — it makes
-the same false promise `'builtin'` would have. Only pass `'custom'` if you
-build the UI.
-
-Note that `__getCompanionApi` carries the double-underscore naming this
-package uses for internal seams rather than a settled public name — it's the
-only way to reach `onAttachChallenge` today, and it's what the SDK's own
-runtime warning points a `'custom'` host at, but treat it as more likely to
-move than the rest of this API.
-
-### The companion badge does not render here either
-
-`companion.start()`'s `companionBadge` option (documented as on by default)
-configures `CompanionBadge`, the small on-device name badge shown while a
-phone or dashboard member is attached. Like the PIN card, that component is
-rendered only by `@everframe/react`'s `EverframeProvider`.
-
-It is a harder limitation than the PIN card's, not an oversight: the badge is
-an **ambient** surface — it has to be visible while the reporter is _closed_ —
-and this package's entire ambient footprint is the plain-DOM inbox bubble,
-which is exactly what keeps React out of the always-loaded bundle. The badge
-lives behind the lazy React island, which is not mounted at the moment the
-badge would need to appear.
-
-**So on this package `companionBadge` resolves to OFF**, whatever you pass and
-whatever the dashboard sets — the same honest downgrade `attachPinUi:
-'builtin'` gets, rather than a setting that reads as configured and shows
-nothing. A console warning fires once per page load if you configure the
-option explicitly; the default stays silent.
-
-If you want a badge on a vanilla host, render your own:
-
-```ts
-import { companion, __getCompanionApi } from '@everframe/web';
-
-companion.start({ sdkKey: 'evf_live_xxxxxxxxxxxxxxxx' });
-
-const api = __getCompanionApi();
-api.onAttachedUserName((name) => {
-  // name !== null  →  someone is attached; show your badge
-});
-api.onResolvedName((name) => {
-  // the display name to put in it
-});
-```
+Everframe Companion (TV / phone pairing) has been removed. Its APIs remain as
+deprecated no-ops until the next major version, so existing code keeps
+compiling: `companion.start()` logs one warning per page and opens no
+connection, `companion.stop()` does nothing, `createCompanion()` and
+`__getCompanionApi()` return a surface whose getters are idle (`'unpaired'`,
+`null`) and whose `on*` subscriptions never fire, and `CompanionBadge` /
+`CompanionPinCard` from `@everframe/web/ui` render nothing. To capture from a
+real device, link it under Settings → Devices in the dashboard and use quick
+capture.
 
 ## The two builds
 

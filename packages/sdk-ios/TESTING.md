@@ -74,9 +74,9 @@ failure rather than as a silently vacuous test.
 ## Known: the allowlist does not currently pass as a single batch
 
 Running the whole `lifecycle-tests-iOS` allowlist in ONE `xcodebuild test`
-invocation fails with a handful of Swift-Testing issues in
-`CompanionPreviewSessionTests`, `RelayWSClientPreviewRoutingTests` and
-`ReplaySessionSupersessionTests`. Those same suites PASS when run on their own.
+invocation failed with a handful of Swift-Testing issues in
+`ReplaySessionSupersessionTests` and two Companion preview suites (since
+removed with Companion). Those same suites PASS when run on their own.
 
 **This is pre-existing and not stage 4c's.** Verified 2026-08-18 by running the
 same batch on a clean `origin/main` worktree, where it reproduces, and by running
@@ -84,7 +84,7 @@ the allowlist minus every 4c suite, where it also reproduces. The count of issue
 varies run to run, which is the signature of the cross-suite interference
 `Helpers/GlobalCaptureStateTestLock.swift` was introduced to fix — its header
 already records that the gate covers only the suites that adopted it, and these
-companion/preview suites have not.
+suites had not.
 
 It went unnoticed because GitHub Actions has been disabled at the repository
 level since 2026-08-13, so no job has actually run this list. Worth fixing as its

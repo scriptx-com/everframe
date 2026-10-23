@@ -685,14 +685,20 @@ Shake stays off and `report.open()` throws
 `EverframeReporterError.reporterDisabled`. Network bodies are not captured.
 Session replay records only in the share of sessions set by the dashboard's
 crash-only coverage, none by default, so errors from the other sessions carry
-no replay. Crash and error capture, breadcrumbs, vitals, release health and
-companion work as usual.
+no replay. Crash and error capture, breadcrumbs, vitals and release health
+work as usual.
 
-A companion bond, a phone scanning the QR code or a dashboard member
-attaching, upgrades the session until the next `start` or `kill`: replay and
-network bodies then follow the normal dashboard settings, so a report filed
-through companion has a replay from the bond on. A detach does not undo the
-upgrade. Shake and `open()` stay off.
+### Companion (removed)
+
+Everframe Companion (phone / TV pairing) has been removed. Its API remains,
+deprecated, until the next major version: `Everframe.shared.companion` is
+always `.unpaired` with every other value `nil`, its notifications are never
+posted, `RelayWSClient.connect()` logs one warning and opens nothing, and
+`CompanionCaptureBridge` and `CompanionPinPresenter.install()` do nothing. The
+`companionDeviceId`, `companionBadgeEnabled` and `companionBadgePosition`
+`EverframeConfig` parameters are accepted and ignored. To capture from a real
+device, link it under Settings → Devices in the dashboard and use quick
+capture.
 
 ---
 
@@ -737,7 +743,7 @@ MIT. See top-level `LICENSE`.
 
 ### Reporter interaction origins
 
-Reporter opens now write `custom` breadcrumbs with message `reporter_opened` and data `{ source: "everframe_reporter", trigger: "button" | "shake" | "menu" | "companion" | "quick_capture" }` before evidence freezes. Close/cancel writes `reporter_closed` with the same source discriminator to the live trail. Pending interaction summaries precede the opened marker. Existing `report.open()` remains valid and defaults to `button`; native shake, companion requests and simulator quick captures identify their own triggers.
+Reporter opens now write `custom` breadcrumbs with message `reporter_opened` and data `{ source: "everframe_reporter", trigger: "button" | "shake" | "menu" | "companion" | "quick_capture" }` before evidence freezes (`companion` appears only in reports from older builds; Companion has been removed). Close/cancel writes `reporter_closed` with the same source discriminator to the live trail. Pending interaction summaries precede the opened marker. Existing `report.open()` remains valid and defaults to `button`; native shake and simulator quick captures identify their own triggers.
 
 Native target annotations accept `reporterTrigger: "button" | "menu"`. This marks only the bound target's matching activation with top-level breadcrumb data `origin: "reporter"` and `trigger`; it never identifies an unrelated preceding tap or key. Supported RN/Expo developer-tool surfaces receive `data.origin: "devtools"` from native framework identity, without label matching. All existing capture gates, masking and registration lifetime rules apply. See the [React Native reporter-origin contract](../sdk-react-native/README.md#reporter-boundaries-and-developer-tools) for lifecycle handling, host-owned flow markers and remote-input limitations.
 
