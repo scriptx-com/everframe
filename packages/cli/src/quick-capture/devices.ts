@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { execFile } from 'node:child_process';
 import { accessSync, constants } from 'node:fs';
+import { homedir } from 'node:os';
 import { basename, delimiter, join } from 'node:path';
 
 export interface RunResult {
@@ -12,16 +13,27 @@ export interface RunResult {
 export type Runner = (cmd: string, args: string[]) => Promise<RunResult>;
 
 /** Runs a command with an argument array (never a shell); never rejects. */
-export const runnerWithTimeout = (timeoutMs: number): Runner => (cmd, args) =>
-  new Promise((resolve) => {
-    execFile(cmd, args, { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
-      if (!error) return resolve({ stdout, stderr, code: 0 });
-      const code = typeof error.code === 'number' ? error.code : 127;
-      // error.message embeds the full command line (arguments included), so it
-      // is never surfaced: a pushed token would leak through it.
-      resolve({ stdout: stdout ?? '', stderr: stderr || `Couldn't run ${basename(cmd)}`, code });
+export const runnerWithTimeout =
+  (timeoutMs: number): Runner =>
+  (cmd, args) =>
+    new Promise((resolve) => {
+      execFile(
+        cmd,
+        args,
+        { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 },
+        (error, stdout, stderr) => {
+          if (!error) return resolve({ stdout, stderr, code: 0 });
+          const code = typeof error.code === 'number' ? error.code : 127;
+          // error.message embeds the full command line (arguments included), so it
+          // is never surfaced: a pushed token would leak through it.
+          resolve({
+            stdout: stdout ?? '',
+            stderr: stderr || `Couldn't run ${basename(cmd)}`,
+            code,
+          });
+        },
+      );
     });
-  });
 
 export const defaultRunner: Runner = runnerWithTimeout(15_000);
 
@@ -34,18 +46,29 @@ const executable = (path: string): boolean => {
   }
 };
 
-export function findAdb(env: NodeJS.ProcessEnv): string | null {
+export function findAdb(
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform = process.platform,
+  home: string = homedir(),
+): string | null {
+  const name = platform === 'win32' ? 'adb.exe' : 'adb';
+  const candidates: string[] = [];
   for (const root of [env.ANDROID_HOME, env.ANDROID_SDK_ROOT]) {
-    if (!root) continue;
-    const candidate = join(root, 'platform-tools', 'adb');
-    if (executable(candidate)) return candidate;
+    if (root) candidates.push(join(root, 'platform-tools', name));
   }
   for (const dir of (env.PATH ?? '').split(delimiter)) {
-    if (!dir) continue;
-    const candidate = join(dir, 'adb');
-    if (executable(candidate)) return candidate;
+    if (dir) candidates.push(join(dir, name));
   }
-  return null;
+  // Default Android Studio SDK folders, used when nothing else is configured.
+  if (platform === 'darwin') {
+    candidates.push(join(home, 'Library', 'Android', 'sdk', 'platform-tools', name));
+  } else if (platform === 'win32') {
+    const local = env.LOCALAPPDATA;
+    if (local) candidates.push(join(local, 'Android', 'Sdk', 'platform-tools', name));
+  } else {
+    candidates.push(join(home, 'Android', 'Sdk', 'platform-tools', name));
+  }
+  return candidates.find(executable) ?? null;
 }
 
 const EMULATOR_SERIAL = /^emulator-\d+$/;
@@ -78,7 +101,8 @@ export async function listBootedSimulators(
       devices?: Record<string, { udid?: unknown; name?: unknown; state?: unknown }[]>;
     };
     const found: Simulator[] = [];
-    for (const list of Object.values(parsed.devices ?? {})) {
+    for (const [runtime, list] of Object.entries(parsed.devices ?? {})) {
+      if (!runtime.includes('.SimRuntime.iOS-') || !Array.isArray(list)) continue;
       for (const d of list) {
         if (typeof d.udid === 'string' && typeof d.name === 'string' && d.state !== 'Shutdown') {
           found.push({ udid: d.udid, name: d.name });
@@ -108,6 +132,10 @@ export async function triggerSimulator(run: Runner, udid: string): Promise<RunRe
   return run('xcrun', ['simctl', 'spawn', udid, 'notifyutil', '-p', 'com.everframe.capture']);
 }
 
-export async function triggerEmulator(run: Runner, adb: string, serial: string): Promise<RunResult> {
+export async function triggerEmulator(
+  run: Runner,
+  adb: string,
+  serial: string,
+): Promise<RunResult> {
   return run(adb, ['-s', serial, 'shell', 'am', 'broadcast', '-a', 'com.everframe.CAPTURE']);
 }

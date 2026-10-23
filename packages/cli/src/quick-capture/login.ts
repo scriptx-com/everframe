@@ -49,10 +49,16 @@ const EXCHANGE_TIMEOUT_MS = 15_000;
 const CLOSE_TAB = (line: string): string =>
   `<!doctype html><meta charset="utf-8"><title>Everframe</title><p>${line}</p>`;
 
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
+
 const originOf = (apiUrl: string): string | null => {
   try {
     const u = new URL(apiUrl);
-    return u.protocol === 'http:' || u.protocol === 'https:' ? u.origin : null;
+    if (u.protocol === 'https:') return u.origin;
+    // Plain HTTP would carry the login code and token in the clear, so it is
+    // accepted for loopback hosts only.
+    if (u.protocol === 'http:' && LOOPBACK_HOSTS.has(u.hostname)) return u.origin;
+    return null;
   } catch {
     return null;
   }
@@ -96,7 +102,11 @@ function waitForCallback(server: Server, state: string, timeoutMs: number): Call
       res.end(CLOSE_TAB(line));
     };
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
-    if (req.method !== 'GET' || url.pathname !== '/callback' || url.searchParams.get('state') !== state) {
+    if (
+      req.method !== 'GET' ||
+      url.pathname !== '/callback' ||
+      url.searchParams.get('state') !== state
+    ) {
       return reply(400, 'Invalid request.');
     }
     if (url.searchParams.get('error') === 'denied') {
@@ -118,7 +128,7 @@ export async function loginCommand(
   const origin = originOf(apiUrl);
   if (!origin) {
     deps.err(
-      `Invalid API URL${source ? ` in ${source}` : ''}. Use an http(s) URL such as https://everframe.dev/api/v1.`,
+      `Invalid API URL${source ? ` in ${source}` : ''}. https is required (http is allowed only for localhost). Use a URL such as https://everframe.dev/api/v1.`,
     );
     return 1;
   }
@@ -226,17 +236,22 @@ export async function logoutCommand(deps: LogoutDeps): Promise<number> {
     deps.out('Not logged in.');
     return 0;
   }
-  const origin = originOf(credentials.url) ?? originOf(DEFAULT_API_URL) ?? '';
+  // Never fall back to the production default: the token must only go to the
+  // origin it was issued by, or the one the user configured.
+  const envUrl = deps.env.EVERFRAME_API_URL;
+  const origin = originOf(credentials.url) ?? (envUrl ? originOf(envUrl) : null);
   let revoked = false;
-  try {
-    const res = await deps.fetch(`${origin}/api/cli/token/revoke`, {
-      method: 'POST',
-      headers: { 'X-Everframe-Capture-Token': credentials.token },
-      signal: AbortSignal.timeout(EXCHANGE_TIMEOUT_MS),
-    });
-    revoked = res.status === 204;
-  } catch {
-    revoked = false;
+  if (origin) {
+    try {
+      const res = await deps.fetch(`${origin}/api/cli/token/revoke`, {
+        method: 'POST',
+        headers: { 'X-Everframe-Capture-Token': credentials.token },
+        signal: AbortSignal.timeout(EXCHANGE_TIMEOUT_MS),
+      });
+      revoked = res.status === 204;
+    } catch {
+      revoked = false;
+    }
   }
   if (!revoked) {
     deps.err(
@@ -249,12 +264,10 @@ export async function logoutCommand(deps: LogoutDeps): Promise<number> {
   try {
     deleteCredentials(deps.home);
   } catch {
-    deps.err(
-      "Couldn't remove the saved login. Delete ~/.everframe/credentials yourself.",
-    );
+    deps.err("Couldn't remove the saved login. Delete ~/.everframe/credentials yourself.");
     return 1;
   }
-  const adb = findAdb(deps.env);
+  const adb = findAdb(deps.env, process.platform, deps.home);
   if (adb) {
     for (const serial of await listEmulators(deps.run, adb)) {
       await clearToken(deps.run, adb, serial);

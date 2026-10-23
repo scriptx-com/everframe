@@ -29,7 +29,7 @@ A session started with `capture.screenshot = false` ignores quick capture unless
 the host has installed an evidence provider with
 `Everframe.__setQuickCaptureEvidenceProvider`. That SDK seam is for host plugins,
 such as Flutter's, that mask their own pixels and supply the screenshot and
-replay themselves. Such a session never uploads an unmasked native screenshot.
+replay themselves. Such a session never uploads an unmasked native screenshot. The `dev.everframe.quickcapture.QuickCaptureHostEvidence` class carries that evidence and is SDK-internal, for host plugins only.
 `HostImageVTreeAttachment` is now public in `dev.everframe.transport`, and
 `CompanionSubmissionComposer.Inputs` gained a defaulted `hostReplayVTree`
 parameter. Both are SDK-internal and not for use by host code.

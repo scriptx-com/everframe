@@ -32,10 +32,10 @@ export interface EmulatorLinkResult {
  * Returns an empty list when adb is missing or no emulator is running.
  */
 export async function pushTokenToEmulators(
-  deps: Pick<QuickCaptureDeps, 'run' | 'env'>,
+  deps: Pick<QuickCaptureDeps, 'run' | 'env' | 'home'>,
   token: string,
 ): Promise<EmulatorLinkResult[]> {
-  const adb = findAdb(deps.env);
+  const adb = findAdb(deps.env, process.platform, deps.home);
   if (!adb) return [];
   const results: EmulatorLinkResult[] = [];
   for (const serial of await listEmulators(deps.run, adb)) {
@@ -78,16 +78,18 @@ export async function captureCommand(
       fire: () => triggerSimulator(deps.run, sim.udid),
     });
   }
-  const adb = findAdb(deps.env);
+  const adb = findAdb(deps.env, process.platform, deps.home);
   if (adb) {
     for (const serial of await listEmulators(deps.run, adb)) {
-      targets.push({ id: serial, name: serial, fire: () => triggerEmulator(deps.run, adb, serial) });
+      targets.push({
+        id: serial,
+        name: serial,
+        fire: () => triggerEmulator(deps.run, adb, serial),
+      });
     }
   }
   const wanted = options.device;
-  const matches = wanted
-    ? targets.filter((t) => t.id === wanted || t.name === wanted)
-    : targets;
+  const matches = wanted ? targets.filter((t) => t.id === wanted || t.name === wanted) : targets;
   if (matches.length === 0) {
     deps.err(
       wanted

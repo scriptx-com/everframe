@@ -29,7 +29,12 @@ function setup(opts: {
     calls.push([cmd, args]);
     if (args[0] === 'devices') return { stdout: opts.adbDevices ?? '', stderr: '', code: 0 };
     if (cmd === 'xcrun' && args[1] === 'list') {
-      const devices = { rt: (opts.sims ?? []).map((s) => ({ ...s, state: 'Booted' })) };
+      const devices = {
+        'com.apple.CoreSimulator.SimRuntime.iOS-18-0': (opts.sims ?? []).map((s) => ({
+          ...s,
+          state: 'Booted',
+        })),
+      };
       return { stdout: JSON.stringify(devices ? { devices } : {}), stderr: '', code: 0 };
     }
     if (args.includes('put') && opts.failPush?.includes(args[1] as string))
@@ -44,7 +49,14 @@ function setup(opts: {
     calls,
     out,
     err,
-    deps: { run, env, home, platform: 'darwin' as const, out: (s: string) => out.push(s), err: (s: string) => err.push(s) },
+    deps: {
+      run,
+      env,
+      home,
+      platform: 'darwin' as const,
+      out: (s: string) => out.push(s),
+      err: (s: string) => err.push(s),
+    },
   };
 }
 
@@ -108,7 +120,10 @@ describe('capture', () => {
     const t = setup({ adbDevices: 'emulator-5554\tdevice\nemulator-5556\tdevice\n' });
     expect(await captureCommand(t.deps, { device: 'emulator-5556' })).toBe(0);
     expect(triggers(t.calls)).toEqual([
-      [expect.stringContaining('adb'), ['-s', 'emulator-5556', 'shell', 'am', 'broadcast', '-a', 'com.everframe.CAPTURE']],
+      [
+        expect.stringContaining('adb'),
+        ['-s', 'emulator-5556', 'shell', 'am', 'broadcast', '-a', 'com.everframe.CAPTURE'],
+      ],
     ]);
   });
 

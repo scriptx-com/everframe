@@ -136,7 +136,9 @@ await everframe.enableQuickCapture(
 ```
 
 Call it after `start`. Each capture then sends the same masked screenshot as
-`openReporter`, plus a snapshot of the replay buffer's masked frames. The
+`openReporter`, plus, when session replay is enabled for the app, a snapshot of
+the replay buffer's masked frames. The dashboard's capture-hotkey replay force
+does not apply to Flutter replay. The
 buffer is not frozen, so recording continues, and a revoked buffer sends no
 replay. If the masked frame can't be produced safely, the capture fails and no
 image is sent. `disableQuickCapture()` removes the registration. Pass `quickCapture: false` to

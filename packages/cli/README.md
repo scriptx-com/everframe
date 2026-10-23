@@ -549,7 +549,7 @@ response to an arbitrary upload failure.
 
 Quick capture files a report from a debug iOS simulator or Android emulator
 without opening the reporter. The CLI signs you in, so the capture is attributed
-to you, and triggers the capture from your Mac.
+to you, and triggers the capture from your computer.
 
 ```sh
 npx @everframe/cli login     # sign in once in your browser
@@ -564,8 +564,10 @@ yet. Flutter apps must also call `enableQuickCapture` (see the Flutter README).
 
 - `login [--url <api-url>] [--no-browser]` opens the Everframe sign-in page and
   saves a capture token in `~/.everframe/credentials` once you click Allow. The
-  URL is always printed first, so over SSH you can open it elsewhere;
-  `--no-browser` skips opening the browser. Login waits up to five minutes. If
+  URL is always printed first. The sign-in callback goes to `127.0.0.1` on the
+  machine running the browser, so open the URL in a browser on the same machine
+  as the CLI, or over SSH forward the printed port with
+  `ssh -L <port>:127.0.0.1:<port>`; `--no-browser` skips opening the browser. Login waits up to five minutes. If
   Android emulators are running it also links them, and it still succeeds when
   `adb` is missing or no emulator is running (it then prints
   `Run npx @everframe/cli link after starting one.`). `--url` takes the Everframe
@@ -573,7 +575,7 @@ yet. Flutter apps must also call `enableQuickCapture` (see the Flutter README).
 - `link` copies your saved login to every running Android emulator. Run it after
   starting an emulator that was not running during `login`.
 - `capture [--device <udid|name|serial>]` triggers one capture on the booted iOS
-  simulator or running Android emulator. With several booted, it lists them and
+  simulator (iOS only; tvOS and watchOS simulators are ignored) or running Android emulator. With several booted, it lists them and
   exits 2 instead of picking one; choose with `--device`. It prints
   `Capture sent to <name>.`
 - `logout` revokes the token, deletes `~/.everframe/credentials` and clears it

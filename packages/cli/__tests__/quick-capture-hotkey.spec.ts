@@ -190,6 +190,15 @@ describe('helper cache', () => {
     });
     expect(result).toMatchObject({ error: 'compile-failed' });
   });
+
+  it('reports a clear error when the helper directory cannot be created', async () => {
+    const t = compileSetup();
+    const blocker = join(t.home, 'blocker');
+    writeFileSync(blocker, '');
+    const result = await ensureHelper({ run: t.run, home: blocker, source: t.source });
+    expect(result).toMatchObject({ error: 'compile-failed' });
+    expect((result as { detail: string }).detail).not.toBe('');
+  });
 });
 
 class FakeHelper extends EventEmitter implements HelperProcess {

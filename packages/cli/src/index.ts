@@ -96,19 +96,25 @@ Environment:
 `;
 
 async function quickCaptureCommand(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
-  const { values } = parseArgs({
-    args: argv.slice(1),
-    strict: true,
-    allowPositionals: false,
-    options: {
-      help: { type: 'boolean', short: 'h' },
-      ...(argv[0] === 'capture' ? { device: { type: 'string' as const } } : {}),
-      ...(argv[0] === 'hotkey' ? { key: { type: 'string' as const } } : {}),
-      ...(argv[0] === 'login'
-        ? { url: { type: 'string' as const }, 'no-browser': { type: 'boolean' as const } }
-        : {}),
-    },
-  });
+  let values: Record<string, string | boolean | undefined>;
+  try {
+    ({ values } = parseArgs({
+      args: argv.slice(1),
+      strict: true,
+      allowPositionals: false,
+      options: {
+        help: { type: 'boolean', short: 'h' },
+        ...(argv[0] === 'capture' ? { device: { type: 'string' as const } } : {}),
+        ...(argv[0] === 'hotkey' ? { key: { type: 'string' as const } } : {}),
+        ...(argv[0] === 'login'
+          ? { url: { type: 'string' as const }, 'no-browser': { type: 'boolean' as const } }
+          : {}),
+      },
+    }));
+  } catch {
+    console.error('invalid_command');
+    return 1;
+  }
   if (values.help) {
     console.log(HELP);
     return 0;
@@ -315,7 +321,8 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
     try {
       return await quickCaptureCommand(argv, env);
     } catch {
-      console.error('invalid_command');
+      // The error is not echoed: it may carry a path, a URL or a token.
+      console.error(`everframe: ${argv[0]} failed`);
       return 1;
     }
   }

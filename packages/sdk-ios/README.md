@@ -494,7 +494,8 @@ dashboard. Like the reporter, a quick capture consumes the pending
   on, and nothing happens while the reporter is on screen or a capture is
   uploading. With several simulators booted, pass `--device <udid>`.
 - **No screenshot, no capture.** A session started with
-  `capture.screenshot = false` ignores quick capture and uploads nothing; the
+  `capture.screenshot = false` ignores quick capture and uploads nothing, unless
+  a host plugin (Flutter's `enableQuickCapture`) supplies masked evidence; the
   trigger is dropped as `screenshot_disabled`. Kotlin Multiplatform apps start
   that way today, so they get no quick capture for now.
 - **Token file.** Run `npx @everframe/cli login` once. It writes

@@ -5,7 +5,11 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { credentialsPath, readCredentials, writeCredentials } from '../src/quick-capture/credentials.js';
+import {
+  credentialsPath,
+  readCredentials,
+  writeCredentials,
+} from '../src/quick-capture/credentials.js';
 import { loginCommand, logoutCommand } from '../src/quick-capture/login.js';
 
 const TOKEN = `evf_cap_${'Q'.repeat(32)}`;
@@ -182,6 +186,22 @@ describe('login', () => {
     expect(b.err[0]).toContain('EVERFRAME_API_URL');
   });
 
+  it('rejects plain http except for loopback hosts', async () => {
+    const a = setup();
+    expect(await loginCommand(a.deps, { url: 'http://everframe.example.com/api/v1' })).toBe(1);
+    expect(a.err[0]).toContain('https is required');
+    expect(a.opened).toEqual([]);
+    const b = setup({ env: { EVERFRAME_API_URL: 'http://staging.example.com' } });
+    expect(await loginCommand(b.deps, {})).toBe(1);
+    expect(b.err[0]).toContain('https is required');
+    const c = setup();
+    const done = loginCommand(c.deps, { url: 'http://localhost:3000/api/v1' });
+    const u = await waitForUrl(c);
+    expect(u.origin).toBe('http://localhost:3000');
+    await fetch(cb(u, `/callback?state=${u.searchParams.get('state')}&code=${CODE}`));
+    expect(await done).toBe(0);
+  });
+
   it('still prints the URL and succeeds when the browser fails to open', async () => {
     const t = setup();
     t.deps.openBrowser = async () => {
@@ -201,7 +221,9 @@ describe('login', () => {
     await fetch(cb(u, `/callback?state=${u.searchParams.get('state')}&code=${CODE}`));
     expect(await done).toBe(0);
     expect(readCredentials(t.home)?.token).toBe(TOKEN);
-    expect(t.out).toContain('No running Android emulators. Run npx @everframe/cli link after starting one.');
+    expect(t.out).toContain(
+      'No running Android emulators. Run npx @everframe/cli link after starting one.',
+    );
     expect(t.out).toContain('iOS simulators read your login automatically.');
   });
 
@@ -275,8 +297,32 @@ describe('logout', () => {
     expect(call.init.method).toBe('POST');
     expect((call.init.headers as Record<string, string>)['X-Everframe-Capture-Token']).toBe(TOKEN);
     expect(existsSync(credentialsPath(t.home))).toBe(false);
-    expect(t.calls.some(([, a]) => a.includes('delete') && a.includes('everframe_token'))).toBe(true);
+    expect(t.calls.some(([, a]) => a.includes('delete') && a.includes('everframe_token'))).toBe(
+      true,
+    );
     expect(t.out).toEqual(['Logged out.']);
+    expect(all(t)).not.toContain(TOKEN);
+  });
+
+  it('uses the EVERFRAME_API_URL origin when the saved url is unusable', async () => {
+    const t = setup({
+      adb: false,
+      env: { EVERFRAME_API_URL: 'https://staging.example.com/api/v1' },
+    });
+    writeCredentials({ token: TOKEN, url: '', email: 'e' }, t.home);
+    expect(await logoutCommand(t.deps)).toBe(0);
+    expect(t.fetchCalls[0]!.url).toBe('https://staging.example.com/api/cli/token/revoke');
+  });
+
+  it('never sends the token to the production default when no origin is known', async () => {
+    const t = setup({ adb: false });
+    writeCredentials({ token: TOKEN, url: 'garbage', email: 'e' }, t.home);
+    expect(await logoutCommand(t.deps)).toBe(0);
+    expect(t.fetchCalls).toHaveLength(0);
+    expect(t.err).toEqual([
+      "Couldn't reach Everframe to revoke the token; revoke it in Settings → Agents.",
+    ]);
+    expect(existsSync(credentialsPath(t.home))).toBe(false);
     expect(all(t)).not.toContain(TOKEN);
   });
 

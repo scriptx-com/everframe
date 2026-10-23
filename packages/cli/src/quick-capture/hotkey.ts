@@ -182,6 +182,11 @@ export interface EnsureHelperDeps {
   compile?: Runner;
 }
 
+const fsReason = (error: unknown): string => {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === 'string' ? `${code} while saving the helper` : 'could not save the helper';
+};
+
 export async function ensureHelper(deps: EnsureHelperDeps): Promise<EnsureHelperResult> {
   const version = await deps.run('xcrun', ['swiftc', '--version']);
   if (version.code !== 0) return { error: 'no-swiftc' };
@@ -194,7 +199,11 @@ export async function ensureHelper(deps: EnsureHelperDeps): Promise<EnsureHelper
   }
   const path = helperBinaryPath(deps.home, helperHash(text, version.stdout + version.stderr));
   if (executable(path)) return { path };
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  try {
+    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  } catch (error) {
+    return { error: 'compile-failed', detail: fsReason(error) };
+  }
   const tmp = `${path}.${process.pid}.tmp`;
   const built = await (deps.compile ?? deps.run)('xcrun', ['swiftc', '-O', '-o', tmp, source]);
   if (built.code !== 0 || !existsSync(tmp)) {
@@ -203,8 +212,13 @@ export async function ensureHelper(deps: EnsureHelperDeps): Promise<EnsureHelper
       built.stderr.split('\n').find((l) => /error/i.test(l)) ?? built.stderr.split('\n')[0] ?? '';
     return { error: 'compile-failed', detail: detail.trim().slice(0, 512) };
   }
-  chmodSync(tmp, 0o755);
-  renameSync(tmp, path);
+  try {
+    chmodSync(tmp, 0o755);
+    renameSync(tmp, path);
+  } catch (error) {
+    rmSync(tmp, { force: true });
+    return { error: 'compile-failed', detail: fsReason(error) };
+  }
   return { path };
 }
 
@@ -308,7 +322,7 @@ export async function hotkeyCommand(
     }
 
     const capture = async (pid: number) => {
-      const adb = findAdb(deps.env);
+      const adb = findAdb(deps.env, process.platform, deps.home);
       if (!adb) {
         deps.err("Couldn't find adb. Install the Android SDK platform-tools or set ANDROID_HOME.");
         return;
