@@ -757,7 +757,9 @@ debug build:
   `Linking to Everframe · 47` with the line
   `A teammate is linking a device. If that's not you, ignore this.` Click the
   same number on the dashboard; the phone shows `Linked to <your name>`.
-  Nothing links on its own: a teammate always picks the number.
+  Nothing links on its own: a teammate always picks the number. On iOS, if the
+  Keychain refuses to store the link, the phone shows `Linking failed` instead
+  and stays unlinked.
 - **Team devices.** An admin can pick **Link as team device** instead. The
   phone shows `Linked as team device`, and its captures go to the shared inbox
   for whoever is on the dashboard.
@@ -799,14 +801,45 @@ debug build:
   stored; otherwise it is dropped, never filed into another inbox.
 - **Platform differences.** On Android, one long shake can fire the detector
   more than once, so a shake within 2 seconds of a capture is ignored. Phones
-  and tablets are covered on both platforms; Apple TV and Android TV behave as
-  before. The Android behavior ships with the native Android SDK release that
-  includes it.
+  and tablets are covered on both platforms. Apple TV behaves as before;
+  Android TV uses a remote gesture instead (below). The Android behavior ships
+  with the native Android SDK release that includes it.
+
+#### Quick capture on Android TV
+
+On Android TV the native Android SDK takes the same quick capture from a
+remote gesture that the dashboard sets per app. The default is **holding
+Play/Pause for 1.5 seconds**. Link the TV like a phone: open **Link a device**
+on the dashboard, do the gesture on the TV, and click the number its banner
+shows.
+
+| Device                  | Remote gesture                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| Linked to you           | Quick capture, a private draft for you. Toast `Captured · <your name>`.                                |
+| Linked as a team device | Quick capture, a shared draft. Toast `Captured · team device`.                                         |
+| Unlinked, debug build   | Quick capture, a shared draft. Toast `Captured · <device name>`. Also answers a dashboard link window. |
+| Unlinked, release build | Nothing visible. Only answers a dashboard link window.                                                 |
+
+- **Bindings.** In the dashboard's Quick capture card a binding is a long
+  press, a sequence (keys in order within a time window) or a chord (keys held
+  together). **Record on device** sets one from the remote you actually have:
+  pick one of your linked TVs, relaunch the app or bring it to the foreground,
+  and press the keys while it shows `Recording remote keys for 10 seconds`.
+- **Key handling.** An unlinked TV never has a key swallowed or changed, so
+  `TVEventHandler` sees every event as before. On a linked TV the first press
+  always reaches the app, so holding Play/Pause toggles playback once when the
+  press starts, before the capture. Once the gesture is recognized, a long
+  press's repeats are swallowed and its key-up arrives canceled; a sequence or
+  chord swallows only the key that completes it.
+- **Debug builds** follow `__DEV__` (or `debugBuild`), as on phones.
+- Everything else (end users, replay, takeover, unlinking, token storage and
+  the off switches) works as on phones. Apple TV gets no remote gesture yet.
 
 For the full rules, see the iOS SDK README's "Real iPhones and iPads" section
-and the Android SDK README's "Quick capture on real phones" section.
+and the Android SDK README's "Quick capture on real phones" and "Quick capture
+on Android TV" sections.
 
-All other gestures and keys are host-owned. The host app
+Apart from quick capture, gestures and keys are host-owned. The host app
 calls `useEverframe().open()` (or the top-level `open()`)
 from whatever trigger makes sense for the target form factor.
 

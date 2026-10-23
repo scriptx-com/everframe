@@ -249,9 +249,10 @@ export interface RuntimeConfig
    * Quick capture: a report filed with no UI and titled on the dashboard.
    * Simulators and emulators use ⇧B in debug builds. Real phones use shake
    * when the device is linked on the dashboard (any build) or the build is a
-   * debug build (`__DEV__`, or `debugBuild`). Enabled by default; the
+   * debug build (`__DEV__`, or `debugBuild`); Android TV uses the remote
+   * gesture the dashboard sets, under the same rule. Enabled by default; the
    * dashboard remains authoritative. `{ enabled: false }` opts this app out
-   * of both, and of device linking.
+   * of quick capture everywhere, and of device linking.
    */
   quickCapture?: {
     enabled?: boolean;
