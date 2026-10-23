@@ -93,7 +93,8 @@ function matchesSingleKeyEvent(event: KeyboardEvent, binding: ParsedBinding): bo
   return normalizedEventKey(event) === binding.keys[0];
 }
 
-function isInputFocus(): boolean {
+/** True while a text field (input, textarea, select or contenteditable) has focus. */
+export function isInputFocus(): boolean {
   if (typeof document === 'undefined') return false;
   const a = document.activeElement;
   if (!a) return false;
