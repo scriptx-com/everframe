@@ -1,0 +1,23 @@
+packages/sdk-android/tests/quick-capture-host/README.md
+  s_f1c043e85606b2::t_c67b27be3e033c 13-14
+packages/sdk-android/tests/quick-capture-host/app/build.gradle.kts
+  s_f1c043e85606b2::t_e7c066dc908fb8 17-20
+packages/sdk-android/tests/quick-capture-host/app/src/main/kotlin/dev/everframe/qualification/quickcapture/HostApplication.kt
+  s_f1c043e85606b2::t_93008ad7baf42a 9-12,16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c7eddfd43fa013486e0dd3b3bece0db07a7a92ad",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
