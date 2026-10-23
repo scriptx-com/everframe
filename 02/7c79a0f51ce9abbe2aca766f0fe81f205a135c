@@ -1,0 +1,23 @@
+packages/sdk-ios/Sources/Everframe/Outbox/JSONLOutbox.swift
+  s_f1c043e85606b2::t_a063e083325463 48-55,81-82,93,113
+packages/sdk-ios/Sources/Everframe/Transport/ReportSubmitter.swift
+  s_f1c043e85606b2::t_fc6d17f2121cb9 119,121-124,200-204,243-244,263-264,369-383,398,406-418,548,567-573,606-607,634-635,653-654
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkOutboxTests.swift
+  s_f1c043e85606b2::t_a3e914a8e15e5e 1-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "027c79a0f51ce9abbe2aca766f0fe81f205a135c",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
