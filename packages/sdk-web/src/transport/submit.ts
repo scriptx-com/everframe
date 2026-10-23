@@ -23,6 +23,15 @@ import type { WebEverframeConfig } from '../internal/types.js';
 import { INGEST_URL } from '../constants.js';
 import type { HostSdkName } from '../internal/sdk-identity.js';
 import { draftToEnvelope, type CaptureBundle } from './draft-to-envelope.js';
+import { unpatchedFetch } from '../capture/network.js';
+import {
+  FINGERPRINT_METADATA_KEY,
+  isDeviceUnlinked,
+  parseLinkPending,
+  withDeviceLinkHeaders,
+  type DrainDeviceLinks,
+  type QuickCaptureUploadLink,
+} from './device-link-upload.js';
 import {
   applyErrorReplay,
   errorReplayHoldMs,
@@ -200,6 +209,12 @@ export interface SubmitOutcome {
    * a client-side failure before the request was sent).
    */
   threadId: string | null;
+  /** Real-device quick capture: a takeover the ingest reply offered (2xx only). */
+  linkPending?: { attemptId: string; number: number };
+  /** Real-device quick capture: `403 device_unlinked`. Never queued. */
+  deviceUnlinked?: boolean;
+  /** A linked capture that failed transiently but had no fingerprint to queue under. */
+  notQueued?: boolean;
 }
 
 /**
@@ -295,6 +310,15 @@ export async function submitReportFromDraft(opts: {
    * `ReporterCompletePayload.capturedUser`, where a fallback genuinely exists.
    */
   user?: UserMetadata | null;
+  /** Real-device quick capture: the envelope is marked `quickCapture: true`. */
+  quickCapture?: boolean;
+  /**
+   * Real-device quick capture on a linked device: the request carries the
+   * device token and the link nonce through the unpatched `fetch` (or
+   * `fetch` above) with `redirect: 'error'`. A transient failure is queued
+   * under the token's fingerprint only, never the token or the nonce.
+   */
+  deviceLink?: QuickCaptureUploadLink;
 }): Promise<SubmitOutcome> {
   const { envelope, attachments } = draftToEnvelope(
     opts.draft,
@@ -303,6 +327,7 @@ export async function submitReportFromDraft(opts: {
     opts.sdkVersion,
     opts.user,
     opts.sdkName,
+    opts.quickCapture === true,
   );
   const reportId = envelope.reportId;
   const url = `${INGEST_URL.replace(/\/$/, '')}/api/ingest`;
@@ -399,10 +424,34 @@ export async function submitReportFromDraft(opts: {
       : await resolveIdentityToken(opts.identityToken);
   const enqueueTimeSubject = enqueueTimeToken ? decodeSub(enqueueTimeToken) : null;
 
+  // Real-device quick capture: the last reply status and body seen through
+  // the device-link wrapper (takeover, device_unlinked).
+  let linkReply: { status: number; body: unknown } | null = null;
+  let submitFetch: typeof globalThis.fetch | undefined = opts.fetch;
+  if (opts.deviceLink) {
+    const base = opts.fetch ?? unpatchedFetch();
+    if (!base) {
+      return {
+        ok: false,
+        retryable: false,
+        reportId,
+        threadId: null,
+        error: new Error('fetch unavailable'),
+      };
+    }
+    submitFetch = withDeviceLinkHeaders(
+      base,
+      { token: opts.deviceLink.token, nonce: opts.deviceLink.nonce },
+      (status, replyBody) => {
+        linkReply = { status, body: replyBody };
+      },
+    );
+  }
+
   let result: SubmitResult;
   try {
     result = await submitReport(url, sdkKey, body, {
-      ...(opts.fetch ? { fetchImpl: opts.fetch } : {}),
+      ...(submitFetch ? { fetchImpl: submitFetch } : {}),
       ...(opts.retryScheduleMs !== undefined ? { retryScheduleMs: opts.retryScheduleMs } : {}),
       ...(envelopeContentEncoding ? { envelopeContentEncoding } : {}),
       ...(deviceToken ? { deviceToken } : {}),
@@ -437,11 +486,14 @@ export async function submitReportFromDraft(opts: {
     if (result.device?.token && opts.credentials) {
       await opts.credentials.save(result.device.token).catch(() => {});
     }
+    const reply = linkReply as { status: number; body: unknown } | null;
+    const linkPending = opts.deviceLink && reply ? parseLinkPending(reply.body) : null;
     return {
       ok: true,
       retryable: false,
       reportId,
       status: result.status,
+      ...(linkPending ? { linkPending } : {}),
       // Finding 1-CLIENT (PR review round 2): the local veto
       // (`replies: { disabled: true }`) nulls `opts.credentials` before this
       // call, which already stops us from sending a device token — but the
@@ -461,6 +513,31 @@ export async function submitReportFromDraft(opts: {
   // sdk-core's reason taxonomy → retryable boolean
   const retryable = result.reason === 'transient-exhausted';
 
+  const failedReply = linkReply as { status: number; body: unknown } | null;
+  if (opts.deviceLink && failedReply && isDeviceUnlinked(failedReply.status, failedReply.body)) {
+    return {
+      ok: false,
+      retryable: false,
+      reportId,
+      status: result.status,
+      threadId: null,
+      deviceUnlinked: true,
+    };
+  }
+
+  // A linked capture is only ever retried under the token it was taken with,
+  // which the queue knows by fingerprint alone. Without one, it is not queued.
+  if (retryable && opts.deviceLink && !opts.deviceLink.fingerprint) {
+    return {
+      ok: false,
+      retryable,
+      reportId,
+      status: result.status,
+      threadId: null,
+      notQueued: true,
+    };
+  }
+
   if (retryable && opts.outbox) {
     try {
       const payloadJson = JSON.stringify(envelope);
@@ -469,7 +546,9 @@ export async function submitReportFromDraft(opts: {
         enqueuedAt: Date.now(),
         attempts: result.attempts,
         payload: new TextEncoder().encode(payloadJson),
-        metadata: { url, sdkKey },
+        metadata: opts.deviceLink
+          ? { url, sdkKey, [FINGERPRINT_METADATA_KEY]: opts.deviceLink.fingerprint }
+          : { url, sdkKey },
       };
       await opts.outbox.enqueue(item);
       // Finding 2 — record the subject captured BEFORE the live attempt (see
@@ -507,6 +586,12 @@ type DrainOutboxOptions = {
   credentials?: ReporterCredentialStore | null;
   /** Reporter identity recognition (spec 2026-08-06) — same seam as submitReportFromDraft. */
   identityToken?: IdentityTokenReader;
+  /**
+   * Real-device quick capture: resends captures queued under a device-link
+   * fingerprint while that token is still stored. Absent leaves those entries
+   * queued untouched (a drain that cannot know the link must not guess).
+   */
+  deviceLinks?: DrainDeviceLinks;
 };
 
 type DrainOutboxResult = {
@@ -662,6 +747,48 @@ async function drainOutboxInternal(
         continue;
       }
 
+      // Real-device quick capture: an entry queued under a device-link
+      // fingerprint is resent only with the token it was taken with. It runs
+      // before the app-scoping below, and an entry another app queued is left
+      // for that app's own drain (its link is scoped to its SDK key).
+      const itemFingerprint = item.metadata?.[FINGERPRINT_METADATA_KEY];
+      let itemLink: { token: string } | null = null;
+      let itemLinkReply: { status: number; body: unknown } | null = null;
+      let itemAttemptFetch = attemptFetch;
+      if (itemFingerprint !== undefined) {
+        if (!opts.deviceLinks || itemSdkKey !== opts.config.sdkKey) continue;
+        let current: { token: string; fingerprint: string } | null = null;
+        try {
+          current = opts.deviceLinks.current();
+        } catch {
+          current = null;
+        }
+        if (!current || current.fingerprint !== itemFingerprint) {
+          await opts.outbox.delete(item.reportId);
+          enqueuedSubjects.delete(item.reportId);
+          forgetErrorReplay(item.reportId);
+          continue;
+        }
+        const base = opts.fetch ?? unpatchedFetch();
+        if (!base) continue;
+        itemLink = { token: current.token };
+        const linkFetch = withDeviceLinkHeaders(
+          base,
+          { token: current.token, nonce: null },
+          (status, replyBody) => {
+            itemLinkReply = { status, body: replyBody };
+          },
+        );
+        // The ownership gate wraps the device-link wrapper, so a released
+        // drain never puts the token on the wire.
+        itemAttemptFetch = isOwned
+          ? async (input, init) => {
+              if (!isOwned()) return new Response(null, { status: 499 });
+              return linkFetch(input, init);
+            }
+          : linkFetch;
+      }
+
       // Round-6 PR-review Finding 1 (HIGH) — the localStorage outbox is
       // origin-wide (every `everframe:outbox:*` key on the origin, regardless
       // of which mounted app enqueued it — see outbox/localStorage.ts's
@@ -736,7 +863,7 @@ async function drainOutboxInternal(
           if (replayParts[0] && !ownsErrorReplayBytes(item.reportId, replayParts[0].bytes)) {
             return new Response(null, { status: 499 });
           }
-          return (attemptFetch ?? globalThis.fetch)(input, init);
+          return (itemAttemptFetch ?? globalThis.fetch)(input, init);
         },
         ...(opts.retryScheduleMs !== undefined ? { retryScheduleMs: opts.retryScheduleMs } : {}),
         ...(encoding ? { envelopeContentEncoding: encoding } : {}),
@@ -809,6 +936,14 @@ async function drainOutboxInternal(
         enqueuedSubjects.delete(item.reportId); // Finding 2 — same cleanup as the ok branch
         forgetErrorReplay(item.reportId);
         failed += 1;
+        const reply = itemLinkReply as { status: number; body: unknown } | null;
+        if (itemLink && reply && isDeviceUnlinked(reply.status, reply.body)) {
+          try {
+            opts.deviceLinks?.forget(itemLink.token);
+          } catch {
+            /* DEFE-02 */
+          }
+        }
       }
       // else: leave for next drain
     } catch {

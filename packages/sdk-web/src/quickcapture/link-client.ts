@@ -11,10 +11,10 @@
 // every wait is bounded with `boundWait`. Nothing here logs.
 import { boundWait, timeoutSignal } from '@everframe/sdk-core';
 import { unpatchedFetch } from '../capture/network.js';
-import { isDeviceToken, parseOwner, type DeviceLinkOwner } from '../devicelink/token.js';
+import { isDeviceToken, parseOwner, UUID_RE, type DeviceLinkOwner } from '../devicelink/token.js';
 import type { HelloDevice } from '../devicelink/tv-platform.js';
 
-export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export { UUID_RE };
 
 export type HelloResult =
   | { kind: 'none' }

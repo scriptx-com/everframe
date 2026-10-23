@@ -12,6 +12,9 @@ import { globalScope } from '../internal/global-scope.js';
 
 export const DEVICE_TOKEN_RE = /^evf_dev_[0-9A-Za-z]{32}$/;
 
+/** A device-link attempt id: an 8-4-4-4-12 hex UUID, either case. */
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function isDeviceToken(v: unknown): v is string {
   return typeof v === 'string' && DEVICE_TOKEN_RE.test(v);
 }
