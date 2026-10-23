@@ -3,8 +3,8 @@
 //
 // Branding box wiring (spec 2026-08-25) — the adapter negotiates the
 // `branding` feature token, applyLiveConfig writes the shared box on every
-// successful config read, and onKill clears it (the companion-badge Fix B
-// doctrine: a dead adapter's last-read value must never outlive it).
+// successful config read, and onKill clears it (a dead adapter's last-read
+// value must never outlive it).
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { createClient } from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../src/adapter.js';

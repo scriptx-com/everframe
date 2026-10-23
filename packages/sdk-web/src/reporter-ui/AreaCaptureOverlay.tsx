@@ -58,8 +58,7 @@ export function AreaCaptureOverlay({ onSelect, onCancel }: AreaCaptureOverlayPro
         // guard covers every engine alone, and this one ships into pages we
         // do not control.
         //
-        // Deliberately AFTER the toolbar early-return, unlike the companion's
-        // CropSurface: preventing the default here also suppresses focus, and
+        // Deliberately AFTER the toolbar early-return: preventing the default here also suppresses focus, and
         // the bar holds two real <button>s that must still take focus when
         // clicked. The surface itself is not focusable, so it loses nothing.
         e.preventDefault();

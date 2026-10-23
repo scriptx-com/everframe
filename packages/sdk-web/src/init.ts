@@ -28,12 +28,6 @@ import { injectReporterStyles } from './reporter-ui/style-injector.js';
 import { __setPortalTarget } from './reporter-ui/portal-target.js';
 import { __setThemeHost } from './branding/theme-host.js';
 import { __setInlineReporterTheme } from './branding/inline-theme.js';
-import { __setCompanionHost } from './companion/host-seam.js';
-import {
-  __setBuiltinPinSurfaceAvailable,
-  __setBuiltinBadgeSurfaceAvailable,
-} from './companion/singleton.js';
-import { __watchCompanionBond } from './companion/bond-upgrade.js';
 import { drainOutbox, submitReportFromDraft } from './transport/submit.js';
 import { registerHotkey } from './triggers/hotkey.js';
 import { PKG_VERSION } from './internal/version.js';
@@ -247,7 +241,7 @@ export function init(config: WebEverframeConfig): Everframe {
   const isKilled = (): boolean => __internalClientState.get(client)?.killed === true;
 
   // Crash-only session (spec 2026-10-12): no on-device way to open the
-  // reporter for the whole session, also after a companion bond. The adapter
+  // reporter for the whole session. The adapter
   // already refuses `open()` and hands out no hotkey; `openModal()` and the
   // inbox's "New report" buttons below check this too.
   const reporterDisabled = config.reporter?.disabled === true;
@@ -335,51 +329,6 @@ export function init(config: WebEverframeConfig): Everframe {
     },
   });
 
-  // This host has NO builtin attach-PIN surface: `CompanionPinCard` is
-  // mounted only by `@everframe/react`'s Provider, and the vanilla mount
-  // renders the FAB, the reporter dialog, the inbox and a toast — nothing
-  // else. Declared BEFORE any host code can call `companion.start()`, so
-  // `attachPinUi`'s `'builtin'` default resolves to `'off'` instead of
-  // announcing a capability that would strand every attach request on
-  // challenge expiry (see AttachPinUiMode's FAIL-CLOSED WARNING). A vanilla
-  // host that DOES render the challenge itself passes `attachPinUi: 'custom'`
-  // and is left alone.
-  __setBuiltinPinSurfaceAvailable(false);
-  // Codex round-2 finding 5 — and no builtin BADGE surface either, for a
-  // stronger reason than the PIN card's: the badge is AMBIENT (it has to be on
-  // screen while the reporter is closed) and this host's only ambient element
-  // is the plain-DOM FAB. `CompanionBadge` is React, behind the lazy island,
-  // which is not mounted at the time the badge would need to show — so
-  // `companionBadge` was documented as default-ON and then rendered nothing at
-  // all here. Declared the same way and at the same point as the PIN surface,
-  // BEFORE any host code can call `companion.start()`, so the effective config
-  // is honest from the first read. Restored in destroy().
-  __setBuiltinBadgeSurfaceAvailable(false);
-
-  // The phone-companion submits from imperative, non-React call sites and
-  // reaches config (sdkKey) + adapter (capture + outbox) through this seam.
-  // Cleared in destroy(); without it a companion submit degrades to
-  // `report.failed` instead of reaching ingest.
-  __setCompanionHost({
-    config,
-    adapter,
-    sdkName,
-    sdkVersion: PKG_VERSION,
-    // Getters, not captured values — read at submit time so a sign-in/out
-    // between init and submit is reflected.
-    getUser: () => __internalClientState.get(client)?.user ?? null,
-    // Resolved HERE, at companion-submit read time, through the single
-    // `resolveClientExtra` seam — never `.extra` directly, which would hand
-    // back the unresolved `{ kind: 'resolver' }` record for a host that
-    // registered the resolver form.
-    getExtra: () => resolveClientExtra(client),
-    // Codex round-2 finding 1, the companion half. `kill()` without
-    // `destroy()` leaves this seam pointing at a live adapter and config, so
-    // the phone-driven capture/submit route kept working after consent was
-    // withdrawn. Same permanent `state.killed` the in-app gate reads.
-    isKilled: () => __internalClientState.get(client)?.killed === true,
-  });
-
   // Assigned further down, once the ambient UI and the lazy-island loader
   // exist — it is a `let` rather than a `const` because the freeze-then-show
   // wrapper below has to be registered with the adapter BEFORE the island
@@ -440,12 +389,6 @@ export function init(config: WebEverframeConfig): Everframe {
     unregisterHotkey();
     unregisterHotkey = registerHotkey(openModal, { binding });
   });
-
-  // A companion bond upgrades a crash-only session's replay and network-body
-  // coverage (spec 2026-10-12). Nothing to watch in a report session.
-  const unwatchCompanionBond = reporterDisabled
-    ? __watchCompanionBond(adapter)
-    : (): void => undefined;
 
   // Config must settle BEFORE thread polling arms and before the first outbox
   // drain: `startPolling()` fires a 0 ms tick, and a tick that lands before
@@ -665,8 +608,8 @@ export function init(config: WebEverframeConfig): Everframe {
           config,
           // RULING 18 — the vanilla name, passed EXPLICITLY. Omitting it
           // defaults to `everframe-react` and mislabels this host's entire
-          // in-app report stream. Same constant the adapter's crash path and
-          // the companion host seam are constructed with, above.
+          // in-app report stream. Same constant the adapter's crash path is
+          // constructed with, above.
           sdkName,
           sdkVersion,
           draft,
@@ -1039,7 +982,6 @@ export function init(config: WebEverframeConfig): Everframe {
       vitals.destroy();
       unsubscribeReportHotkey();
       unregisterHotkey();
-      unwatchCompanionBond();
       if (threads) {
         document.removeEventListener('visibilitychange', onVisibility);
         threads.stopPolling();
@@ -1070,13 +1012,7 @@ export function init(config: WebEverframeConfig): Everframe {
       // `showReporterUI` promise, which was left dangling by the same gap.
       unwindOpen({ status: 'cancelled', reason: 'destroyed' });
       // Clear every seam this init() wrote, in reverse order. A dead
-      // instance's companion host / theme / portal target must not leak into
-      // the next init() — that is the companion-badge Fix B doctrine.
-      __setCompanionHost(null);
-      // Give the declaration back — a `destroy()` followed by a React
-      // Provider mount on the same page must not inherit this host's answer.
-      __setBuiltinPinSurfaceAvailable(true);
-      __setBuiltinBadgeSurfaceAvailable(true);
+      // instance's theme / portal target must not leak into the next init().
       __setInlineReporterTheme(undefined);
       __setThemeHost(null);
       __setPortalTarget(null);

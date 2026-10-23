@@ -12,8 +12,7 @@ export interface MetadataPanelProps {
 /**
  * Metadata always ships — the switch is rendered locked-on so the inclusion
  * is visible but not opt-out-able. Without device metadata reports are
- * essentially untriageable; mirrors the locked-toggle on the phone-companion
- * reporter.
+ * essentially untriageable.
  */
 export function MetadataPanel({ meta }: MetadataPanelProps): JSX.Element {
   const rows: Array<[string, string]> = meta

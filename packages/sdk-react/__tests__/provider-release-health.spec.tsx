@@ -7,8 +7,6 @@ import { EverframeProvider, EverframeContext } from '../src/provider.js';
 vi.mock('@everframe/web/ui', () => ({
   ReporterDialog: () => null,
   ReporterFab: () => null,
-  CompanionPinCard: () => null,
-  CompanionBadge: () => null,
   InboxDialog: () => null,
   Toast: () => null,
 }));

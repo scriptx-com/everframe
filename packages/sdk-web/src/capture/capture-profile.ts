@@ -8,7 +8,7 @@
  * Smart-TV webviews (webOS, Tizen, VIDAA, TitanOS) run capture on laptop-class
  * DOM sizes with phone-class CPUs. Measured on an LG 43UP77003LB (webOS 6.5,
  * Chrome 79), a 534-node home screen took 16.9s end-to-end with the desktop
- * defaults — the 10s deadline fired every time and the companion shipped the
+ * defaults — the 10s deadline fired every time and the report shipped the
  * degraded 1x1 placeholder instead of a screenshot. The dominant costs were
  * the 4K raster + PNG encode (devicePixelRatio 2 over a 1920x1080 viewport)
  * and the all-properties computed-style copy in the clone walk.
@@ -30,16 +30,6 @@ export interface CaptureProfile {
    * page for layout, images, gradients, radii and focus rings.
    */
   fastClone: boolean;
-  /**
-   * Companion live preview (the phone's add-shot viewfinder). Each frame is a
-   * full DOM capture — ~6s on TV silicon, and a continuous CPU tax even on
-   * desktops — for a nice-to-have viewfinder. Declined on EVERY profile
-   * (product call 2026-08-27); single-shot captures (shot.request) stay
-   * available, and the phone shows its standard "live view unavailable"
-   * fallback. The flag stays in the profile so re-enabling per tier is a
-   * one-line change.
-   */
-  livePreview: boolean;
   /**
    * Encode the final canvas as WebP (PNG fallback when the encoder declines).
    * On every tier: the relay hop re-encodes PNG→WebP anyway, so source-WebP
@@ -86,7 +76,6 @@ const DEFAULT_PROFILE: CaptureProfile = {
   // nothing reviews bug screenshots above ~2.5K.
   maxOutputEdgePx: 2560,
   fastClone: false,
-  livePreview: false,
   preferWebP: true,
   // ON everywhere, not just TV. The clone walk is `nodes x properties` and the
   // capture is cropped to the viewport regardless, so offscreen nodes are pure
@@ -119,7 +108,7 @@ const TV_PROFILE: CaptureProfile = {
   // That is 800ms under the old 20s ceiling, so the SAME screen on the SAME
   // device passed one attempt and blew the deadline on the next. The failure
   // mode is the worst possible: `withDeadline` rejects, the catch below swaps
-  // in a 67-byte transparent pixel, and the companion ships a BLANK
+  // in a 67-byte transparent pixel, and the report ships a BLANK
   // screenshot that looks like a successful capture. Intermittent, silent,
   // and indistinguishable from "the feature doesn't work on TV".
   //
@@ -139,7 +128,6 @@ const TV_PROFILE: CaptureProfile = {
   deadlineMs: 45_000,
   maxOutputEdgePx: 1920,
   fastClone: true,
-  livePreview: false,
   preferWebP: true,
   viewportOnlyClone: true,
   fallbackOnlyOnPrimaryError: true,

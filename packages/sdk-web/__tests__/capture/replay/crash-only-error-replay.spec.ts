@@ -4,7 +4,7 @@
 //
 // Crash-only sessions (spec 2026-10-12): error replays follow recording. A
 // crash-only session at the default rate records nothing, so its errors carry
-// no replay; once a companion bond upgrades it, they can. Same harness as
+// no replay. Same harness as
 // error-replay-adapter.spec.ts: only rrweb and gzip are doubled.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { gunzipSync, gzipSync } from 'node:zlib';
@@ -127,29 +127,6 @@ describe('error replays in crash-only sessions', () => {
     expect(envelope.source).toBe('error');
     expect(envelope.attachments).toEqual([]);
     expect(envelope.captureControl.replayOmitted).toBeUndefined();
-  });
-
-  it('attaches a replay once a companion bond upgrades the session', async () => {
-    stubServer({
-      replayEnabled: true,
-      replayDurationSec: 30,
-      samplingRate: 1,
-      crashOnlySamplingRate: 0,
-    });
-    const adapter = crashOnlyAdapter();
-    await adapter.__initReplay();
-    adapter.__setCompanionAttached();
-    await flush();
-    expect(adapter.__replayLifecycle?.state).toBe('BUFFERING');
-    fireFrames();
-
-    adapter.captureException?.(errorWithStack('upgraded'));
-    await vi.waitFor(() => expect(ingest).toHaveLength(1));
-    expect(ingest[0]!.get('session-replay')).not.toBeNull();
-    const envelope = await envelopeOf(ingest[0]!);
-    expect(envelope.attachments).toEqual([
-      expect.objectContaining({ kind: 'session-replay', format: 'rrweb' }),
-    ]);
   });
 
   it('attaches a replay in a crash-only session the crash-only rate admitted', async () => {

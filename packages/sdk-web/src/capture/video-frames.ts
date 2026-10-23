@@ -79,7 +79,7 @@
  * KNOWN COST, accepted deliberately: for the length of the capture the live
  * page shows the stand-in rather than the video, so motion appears to freeze
  * on a still frame (and an unreadable stream shows its placeholder). Under the
- * reporter this sits behind the modal; a companion-triggered capture has no
+ * reporter this sits behind the modal; a capture with no reporter open has no
  * such cover and the freeze is visible. It is bounded by the capture deadline,
  * it costs no playback state, and the alternatives are a reporter that hangs
  * forever or a screenshot whose layout does not match the page. Off-screen

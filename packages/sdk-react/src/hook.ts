@@ -73,9 +73,8 @@ export function useEverframe(): UseEverframeReturn {
   const ctx = useContext(EverframeContext);
   if (!ctx) throw new Error('useEverframe called outside <EverframeProvider>');
 
-  // Two-way replies (Task 8) — live unread count, same useCompanion-style
-  // bridge (companion/singleton.ts): seed from the current snapshot, then
-  // subscribe for the life of this hook instance.
+  // Two-way replies (Task 8) — live unread count: seed from the current
+  // snapshot, then subscribe for the life of this hook instance.
   const [unreadCount, setUnreadCount] = useState(() => ctx.client.threads.unreadCount());
   useEffect(() => {
     setUnreadCount(ctx.client.threads.unreadCount());

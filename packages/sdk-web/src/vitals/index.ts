@@ -550,10 +550,9 @@ export function __resetVitalsForTests(): void {
  * final review): `randomUUID()` throws on an INSECURE context (plain-http
  * TV/LAN rigs are exactly the kind of host this SDK runs on), so a bare call
  * here would take down the whole start sequence for those hosts. Same
- * guarded-fallback shape as draft-to-envelope.ts's `generateReportId` and
- * companion/device-id.ts's `storedUuid` fallback — not imported from either
- * (the former would be a circular import back into this module, the latter
- * is companion-scoped) but deliberately the same v4/RFC-4122 nibble-stamp
+ * guarded-fallback shape as draft-to-envelope.ts's `generateReportId` — not
+ * imported from it (that would be a circular import back into this module)
+ * but deliberately the same v4/RFC-4122 nibble-stamp
  * over `getRandomValues`, falling back further to `Math.random()` only when
  * even that is unavailable.
  */

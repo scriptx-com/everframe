@@ -23,9 +23,6 @@ import { createClient } from '@everframe/sdk-core';
 import { RENDER_PATH, SCREENSHOT_RENDER_SDK_FEATURE } from '@everframe/protocol';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../../src/adapter.js';
 import { captureTvShot } from '../../src/capture/tv-snapshot/tv-snapshot.js';
-import { handleCompanionReportRequest } from '../../src/companion/capture-bridge.js';
-import type { CompanionHost } from '../../src/companion/host-seam.js';
-import type { RelayWSClient } from '../../src/companion/ws-client.js';
 
 const WEBOS_UA =
   'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.79 Safari/537.36 WebAppManager';
@@ -205,7 +202,7 @@ describe('smart-TV snapshot gate', () => {
     expect(captureTvShot).toHaveBeenCalledTimes(1);
   });
 
-  it('never hands the pre-capture to a capture that did not ask for it (add-a-shot, companion)', async () => {
+  it('never hands the pre-capture to a capture that did not ask for it (add-a-shot)', async () => {
     const pre = { image: IMAGE, degradedReason: 'screenshot_blank' };
     const fresh = { image: IMAGE };
     vi.mocked(captureTvShot)
@@ -240,7 +237,7 @@ describe('smart-TV snapshot gate', () => {
     expect(captureTvShot).toHaveBeenCalledTimes(2);
   });
 
-  it('a companion capture within 30 s of a cancelled dialog takes a fresh shot (ruling S23)', async () => {
+  it('a capture within 30 s of a cancelled dialog takes a fresh shot (ruling S23)', async () => {
     const pre = { image: IMAGE, degradedReason: 'screenshot_blank' };
     const fresh = { image: IMAGE, degradedReason: 'screenshot_render_failed' };
     vi.mocked(captureTvShot)
@@ -255,44 +252,8 @@ describe('smart-TV snapshot gate', () => {
     adapter.__resolveOpen({ status: 'cancelled' });
     await opened;
 
-    const send = vi.fn();
-    const ws = { send, sendBinary: vi.fn() } as unknown as RelayWSClient;
-    const host = {
-      config: { sdkKey: 'k' },
-      sdkVersion: '0.0.0-test',
-      getUser: () => null,
-      adapter,
-    } as unknown as CompanionHost;
-    await handleCompanionReportRequest('c-s23', ws, host);
+    await expect(adapter.__captureShot!()).resolves.toBe(fresh);
     expect(captureTvShot).toHaveBeenCalledTimes(2);
-    expect(send.mock.calls[0]![0]).toMatchObject({
-      type: 'report.assembled',
-      degraded_reason: 'screenshot_render_failed',
-    });
-  });
-
-  it('a companion capture while the dialog is open leaves the dialog its pre-capture (ruling S23)', async () => {
-    const pre = { image: IMAGE, degradedReason: 'screenshot_blank' };
-    const fresh = { image: IMAGE };
-    vi.mocked(captureTvShot)
-      .mockReturnValueOnce({ snapshotted: Promise.resolve(), shot: Promise.resolve(pre) })
-      .mockReturnValue({ snapshotted: Promise.resolve(), shot: Promise.resolve(fresh) });
-    const { adapter } = await adapterFor({ ua: WEBOS_UA, screenshotRender: true });
-    const showModal = vi.fn();
-    adapter.__registerShowModal(showModal);
-    void adapter.__openReporter();
-    await vi.waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
-    const send = vi.fn();
-    const ws = { send, sendBinary: vi.fn() } as unknown as RelayWSClient;
-    const host = {
-      config: { sdkKey: 'k' },
-      sdkVersion: '0.0.0-test',
-      getUser: () => null,
-      adapter,
-    } as unknown as CompanionHost;
-    await handleCompanionReportRequest('c-s23b', ws, host);
-    expect(send.mock.calls[0]![0]).not.toHaveProperty('degraded_reason');
-    await expect(adapter.__captureShot!({ consumePreCapture: true })).resolves.toBe(pre);
   });
 
   it('does not open the reporter when reporting ownership changed while the snapshot was being taken', async () => {

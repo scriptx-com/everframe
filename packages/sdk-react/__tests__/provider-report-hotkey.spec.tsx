@@ -8,8 +8,6 @@ vi.mock('@everframe/web/ui', () => ({
   ReporterDialog: ({ open }: { open: boolean }) =>
     open ? <div data-testid="reporter-modal" /> : null,
   ReporterFab: () => null,
-  CompanionPinCard: () => null,
-  CompanionBadge: () => null,
   InboxDialog: () => null,
   Toast: () => null,
 }));

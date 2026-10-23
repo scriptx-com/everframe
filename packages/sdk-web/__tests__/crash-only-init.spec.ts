@@ -4,8 +4,9 @@
 //
 // Crash-only sessions (spec 2026-10-12), vanilla host. `init()` with
 // `reporter: { disabled: true }` binds no hotkey, rejects `open()`, shows no
-// replies FAB (so no inbox) even when the device has threads, and upgrades
-// replay coverage when the page-wide companion bonds. Each refusal is paired with a live control on a
+// replies FAB (so no inbox) even when the device has threads, and keeps
+// replay at the crash-only rate (Companion, which used to upgrade it, has
+// been removed). Each refusal is paired with a live control on a
 // report session so a broken harness fails as loudly as a missing gate.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -29,13 +30,12 @@ vi.mock('../src/mount/react-island.js', () => ({
 import { init, type Everframe, type InternalHandle } from '../src/init.js';
 import { EverframeReporterDisabledError } from '../src/reporter-types.js';
 import { scopedReporterTokenStorageKey } from '../src/reporter/credential-store.js';
-import { __getCompanionApi } from '../src/companion/singleton.js';
+import { start as startCompanion } from '../src/companion/singleton.js';
 
 let handles: Everframe[] = [];
 
 beforeEach(() => {
   localStorage.clear();
-  __getCompanionApi().__setState('unpaired');
 });
 
 afterEach(() => {
@@ -43,7 +43,6 @@ afterEach(() => {
   handles = [];
   islands.length = 0;
   document.body.innerHTML = '';
-  __getCompanionApi().__setState('unpaired');
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   localStorage.clear();
@@ -119,13 +118,6 @@ describe('crash-only init(): entry points', () => {
     expect(islands).toHaveLength(0);
   });
 
-  it('open() still rejects after a companion bond', async () => {
-    stubFetch(replayOff);
-    const handle = mount(true);
-    __getCompanionApi().__setState('paired');
-    await expect(handle.open()).rejects.toBeInstanceOf(EverframeReporterDisabledError);
-  });
-
   describe('inbox', () => {
     const thread = {
       id: 'thread-1',
@@ -181,81 +173,18 @@ describe('crash-only init(): entry points', () => {
   });
 });
 
-describe('crash-only init(): companion upgrade', () => {
-  it('records nothing until a companion bonds, then starts at once', async () => {
+describe('crash-only init(): no companion upgrade', () => {
+  it('records nothing at the default crash-only rate, and the deprecated companion.start() changes nothing', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     stubFetch(replayOn);
     const handle = mount(true) as InternalHandle;
     await flush();
     const lifecycle = handle.__adapter.__replayLifecycle!;
     expect(lifecycle.state).toBe('IDLE');
 
-    __getCompanionApi().__setState('paired');
-    expect(lifecycle.state).toBe('BUFFERING');
-  });
-
-  it('upgrades from a bond that predates init()', async () => {
-    stubFetch(replayOn);
-    __getCompanionApi().__setState('report_in_progress');
-    const handle = mount(true) as InternalHandle;
+    startCompanion();
     await flush();
-    expect(handle.__adapter.__replayLifecycle!.state).toBe('BUFFERING');
-  });
-
-  it('starts upgraded when the phone is briefly away at init()', async () => {
-    // `phone_disconnected` is entered only from a bond: the phone dropped
-    // inside the relay's grace window.
-    stubFetch(replayOn);
-    __getCompanionApi().__setState('phone_disconnected');
-    const handle = mount(true) as InternalHandle;
-    await flush();
-    expect(handle.__adapter.__replayLifecycle!.state).toBe('BUFFERING');
-  });
-
-  it('a re-init() with the phone still attached starts the new session upgraded', async () => {
-    stubFetch(replayOn);
-    const first = mount(true) as InternalHandle;
-    await flush();
-    __getCompanionApi().__setState('paired');
-    expect(first.__adapter.__replayLifecycle!.state).toBe('BUFFERING');
-    first.destroy();
-    handles = handles.filter((h) => h !== first);
-
-    const second = mount(true) as InternalHandle;
-    await flush();
-    expect(second.__adapter.__replayLifecycle!.state).toBe('BUFFERING');
-  });
-
-  it('does not upgrade at init() while the companion is unpaired', async () => {
-    stubFetch(replayOn);
-    const handle = mount(true) as InternalHandle;
-    await flush();
-    expect(handle.__adapter.__replayLifecycle!.state).toBe('IDLE');
-  });
-
-  it('a detach does not stop the recording', async () => {
-    stubFetch(replayOn);
-    const handle = mount(true) as InternalHandle;
-    await flush();
-    __getCompanionApi().__setState('paired');
-    __getCompanionApi().__setState('unpaired');
-    expect(handle.__adapter.__replayLifecycle!.state).toBe('BUFFERING');
-  });
-
-  it('stops watching the companion on destroy()', async () => {
-    stubFetch(replayOn);
-    const handle = mount(true) as InternalHandle;
-    await flush();
-    const attach = vi.spyOn(handle.__adapter, '__setCompanionAttached');
-    handle.destroy();
-    __getCompanionApi().__setState('paired');
-    expect(attach).not.toHaveBeenCalled();
-  });
-
-  it('does not watch the companion in a report session', async () => {
-    stubFetch(replayOff);
-    const handle = mount(false) as InternalHandle;
-    const attach = vi.spyOn(handle.__adapter, '__setCompanionAttached');
-    __getCompanionApi().__setState('paired');
-    expect(attach).not.toHaveBeenCalled();
+    expect(lifecycle.state).toBe('IDLE');
+    await expect(handle.open()).rejects.toBeInstanceOf(EverframeReporterDisabledError);
   });
 });

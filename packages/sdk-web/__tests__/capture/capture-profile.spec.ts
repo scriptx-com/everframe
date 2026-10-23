@@ -31,13 +31,6 @@ describe('getCaptureProfile', () => {
     expect(p.fastClone).toBe(true);
   });
 
-  it('disables companion live preview on every profile (product call 2026-08-27)', () => {
-    // A preview frame costs a full DOM capture — a continuous CPU tax for a
-    // nice-to-have viewfinder. Single-shot captures stay available.
-    expect(getCaptureProfile(WEBOS_UA).livePreview).toBe(false);
-    expect(getCaptureProfile(DESKTOP_UA).livePreview).toBe(false);
-  });
-
   it('returns the TV profile for a Tizen user agent', () => {
     expect(getCaptureProfile(TIZEN_UA).fastClone).toBe(true);
   });

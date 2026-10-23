@@ -10,7 +10,6 @@
 // the reporter dialog, the replies inbox and the outcome toast. The FAB is
 // NOT here — it is the ambient footprint and is plain DOM (mount/ambient.ts),
 // which is the entire reason React can stay out of the always-loaded entry.
-// CompanionPinCard / CompanionBadge are still React-path-only.
 //
 // RULING 11 — the dialog is imported by the RELATIVE path '../ui.js', never by
 // the package subpath '@everframe/web/ui'. The two look interchangeable and are
@@ -19,8 +18,7 @@
 //   '../ui.js'            keeps this module in the SAME esbuild build graph as
 //                         src/index.ts, so `splitting: true` hoists the adapter
 //                         and every module-level singleton (portal target,
-//                         theme host, inline theme, companion host seam,
-//                         sensitive registry) into a chunk SHARED by the eager
+//                         theme host, inline theme, sensitive registry) into a chunk SHARED by the eager
 //                         entry and this island. One instance of each.
 //
 //   '@everframe/web/ui'    resolves to the SEPARATELY built dist/ui.js, which

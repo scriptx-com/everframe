@@ -40,9 +40,8 @@
 //     capture" property this file already owned is preserved.
 //
 //     `client.setUser` projects too, and is the PRIMARY fix — the point where
-//     the value enters the SDK. This one is not redundant with it: the
-//     companion path reads through `CompanionHost.getUser()`, a seam a
-//     hand-wired host can implement without the Provider (and so without
+//     the value enters the SDK. This one is not redundant with it: a
+//     hand-wired host can supply a user without the Provider (and so without
 //     `setUser`) ever being involved, which makes this function a second
 //     genuine entrance rather than merely another reader.
 'use client';

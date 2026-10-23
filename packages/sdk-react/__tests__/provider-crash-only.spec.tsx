@@ -5,8 +5,8 @@
 // Crash-only sessions (spec 2026-10-12), React host. A Provider whose config
 // sets `reporter: { disabled: true }` binds no hotkey, rejects `open()`,
 // hands the inbox no "New report" action (the FAB that opens it is hidden too;
-// see provider-fab-kill-switch.spec (h)), and upgrades replay coverage when
-// the page-wide companion bonds, including after a StrictMode rebuild. Each
+// see provider-fab-kill-switch.spec (h)), and keeps replay at the crash-only
+// rate (Companion, which used to upgrade it, has been removed). Each
 // refusal is paired with a live control on a report session.
 import { StrictMode, useContext } from 'react';
 import { act, cleanup, render, screen } from '@testing-library/react';
@@ -17,8 +17,6 @@ vi.mock('@everframe/web/ui', () => ({
   ReporterDialog: ({ open }: { open: boolean }) =>
     open ? <div data-testid="reporter-modal" /> : null,
   ReporterFab: () => null,
-  CompanionPinCard: () => null,
-  CompanionBadge: () => null,
   InboxDialog: (props: { onNewReport?: () => void }) => {
     inboxProps.push(props);
     return null;
@@ -26,7 +24,7 @@ vi.mock('@everframe/web/ui', () => ({
   Toast: () => null,
 }));
 
-import { __getCompanionApi } from '@everframe/web';
+import { companion } from '@everframe/web';
 import { EverframeProvider, EverframeContext, type InternalContext } from '../src/provider.js';
 import { useEverframe } from '../src/hook.js';
 import { open as topLevelOpen, EverframeReporterDisabledError } from '../src/index.js';
@@ -41,16 +39,11 @@ function Probe(): null {
   return null;
 }
 
-beforeEach(() => {
-  __getCompanionApi().__setState('unpaired');
-});
-
 afterEach(() => {
   cleanup();
   latest = null;
   hookOpen = null;
   inboxProps.length = 0;
-  __getCompanionApi().__setState('unpaired');
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -163,27 +156,20 @@ describe('crash-only Provider: entry points', () => {
   });
 });
 
-describe('crash-only Provider: companion upgrade', () => {
-  it('records nothing until a companion bonds, then starts at once', async () => {
+describe('crash-only Provider: no companion upgrade', () => {
+  it('records nothing at the default crash-only rate, and the deprecated companion.start() changes nothing', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     stubFetch(true);
     mount(true);
     await settle();
     expect(latest!.adapter.__replayLifecycle?.state).toBe('IDLE');
 
-    act(() => __getCompanionApi().__setState('paired'));
-    expect(latest!.adapter.__replayLifecycle?.state).toBe('BUFFERING');
+    act(() => companion.start());
+    await settle();
+    expect(latest!.adapter.__replayLifecycle?.state).toBe('IDLE');
   });
 
-  it('upgrades the adapter StrictMode commits when the bond came first', async () => {
-    stubFetch(true);
-    __getCompanionApi().__setState('paired');
-    mount(true, true);
-    await settle();
-    await settle();
-    expect(latest!.adapter.__replayLifecycle?.state).toBe('BUFFERING');
-  });
-
-  it('LIVE control: a report session records without a bond', async () => {
+  it('LIVE control: a report session records', async () => {
     stubFetch(true);
     mount(false);
     await settle();

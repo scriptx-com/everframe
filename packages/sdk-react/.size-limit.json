@@ -11,8 +11,7 @@
       "./rrweb-*.js",
       "react-konva",
       "./dist-*.js",
-      "./tv-snapshot-*.js",
-      "./companion-submit-*.js"
+      "./tv-snapshot-*.js"
     ]
   }
 ]

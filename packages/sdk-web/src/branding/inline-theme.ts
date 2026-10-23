@@ -5,8 +5,7 @@
 // 2026-08-25). Written by provider.tsx (mirroring config.theme on mount /
 // change, cleared on unmount); read together with the server branding box by
 // useReporterThemeVars. A box rather than prop-drilling because Modal is a
-// shared primitive several dialogs render — same reasoning as
-// companion/server-config.ts's header.
+// shared primitive several dialogs render.
 import type { ReporterTheme } from './theme.js';
 
 let _inlineTheme: ReporterTheme | undefined;

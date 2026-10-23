@@ -10,8 +10,7 @@
       "./react-island-*.js",
       "./browser-*.js",
       "./snapdom-*.js",
-      "./tv-snapshot-*.js",
-      "./companion-submit-*.js"
+      "./tv-snapshot-*.js"
     ]
   },
   {
@@ -25,8 +24,7 @@
       "./react-island-*.js",
       "./browser-*.js",
       "./snapdom-*.js",
-      "./tv-snapshot-*.js",
-      "./companion-submit-*.js"
+      "./tv-snapshot-*.js"
     ]
   }
 ]
