@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Simulator quick capture: a hotkey (double Shift by default) pressed in a
-// debug simulator files a report with no UI. The SDK takes the screenshot,
+// Simulator quick capture: a hotkey (the dashboard's binding, Shift+B by
+// default) pressed in a debug simulator files a report with no UI. The SDK takes the screenshot,
 // freezes replay and evidence exactly as the reporter does at open, submits
 // with `quickCapture: true` plus the developer's capture token, then shows a
 // short toast. Title and description stay empty: the dashboard fills them in.
@@ -13,6 +13,11 @@
 // screen and no capture already in flight. The `UIWindow.sendEvent` hook reads
 // `isArmed` before it builds a single key event, so a disarmed session costs
 // one lock read per press event and nothing per touch.
+//
+// A binding that is also ordinary typing (a key alone or with Shift only, such
+// as Shift+B) does nothing while an editable text input is first responder, so
+// typing a capital B into a field never files a report. Double Shift and
+// chords with ⌘, ⌃ or ⌥ fire whatever has focus.
 //
 // The block's `replay` flag also records session replay while the session is
 // armed, whatever the app's `replayEnabled` (`forcesReplay`).
@@ -163,6 +168,8 @@ final class QuickCapture {
     /// The double-Shift window. The key-delivery proof widens it, because
     /// XCTest spaces synthesized key presses seconds apart.
     var doubleShiftWindow: TimeInterval = CaptureHotkeyMatcher.defaultWindow
+    /// True while an editable text input is first responder.
+    var isEditingText: @MainActor () -> Bool = { QuickCaptureTextInput.firstResponderIsEditable() }
 
     // MARK: State
 
@@ -311,6 +318,8 @@ final class QuickCapture {
             matcher = CaptureHotkeyMatcher(binding: binding, window: doubleShiftWindow)
         }
         guard matcher?.feed(event) == true else { return }
+        // Shift+B in a text field is a capital B, not a capture.
+        if binding.yieldsToTextInput, isEditingText() { return }
         startCapture()
     }
 
@@ -460,6 +469,45 @@ final class QuickCapture {
             lifecycle.cancel(owner)
             return .failed
         }
+    }
+}
+/// Finds the first responder from the `UIWindow.sendEvent` hook and decides
+/// whether it takes typing. UIKit has no public first-responder getter, so a
+/// nil-targeted action walks the responder chain and the first responder
+/// answers it.
+@MainActor
+enum QuickCaptureTextInput {
+    fileprivate static weak var reported: UIResponder?
+
+    static func firstResponderIsEditable() -> Bool {
+        isEditable(currentFirstResponder())
+    }
+
+    static func currentFirstResponder() -> UIResponder? {
+        reported = nil
+        defer { reported = nil }
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.everframeQuickCaptureReportFirstResponder(_:)), to: nil, from: nil, for: nil)
+        return reported
+    }
+
+    /// An enabled `UITextField`, an editable `UITextView`, or any other
+    /// responder that accepts key input (`UIKeyInput`, which `UITextInput`
+    /// extends): React Native and Flutter text inputs, SwiftUI text fields and
+    /// custom editors. A read-only, selectable text view does not count.
+    static func isEditable(_ responder: UIResponder?) -> Bool {
+        guard let responder else { return false }
+        if let textView = responder as? UITextView { return textView.isEditable }
+        if let textField = responder as? UITextField { return textField.isEnabled }
+        return responder is UIKeyInput
+    }
+}
+
+extension UIResponder {
+    /// The `QuickCaptureTextInput` probe's action. Only the first responder
+    /// (or, with none, the first responder-chain object) receives it.
+    @objc func everframeQuickCaptureReportFirstResponder(_ sender: Any?) {
+        QuickCaptureTextInput.reported = self
     }
 }
 #endif

@@ -62,6 +62,18 @@ final class RootViewController: UIViewController {
             label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
         ])
+        // A text field to focus, for the bindings that stand aside while typing.
+        let field = UITextField()
+        field.translatesAutoresizingMaskIntoConstraints = false
+        field.accessibilityIdentifier = "field"
+        field.borderStyle = .roundedRect
+        field.autocorrectionType = .no
+        view.addSubview(field)
+        NSLayoutConstraint.activate([
+            field.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            field.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 24),
+            field.widthAnchor.constraint(equalToConstant: 200),
+        ])
         Harness.status = label
         Harness.arm()
     }

@@ -54,6 +54,32 @@ final class QuickCaptureKeyDeliveryUITests: XCTestCase {
         XCTAssertTrue(waitForStatus("submits=1 quickCapture=true"), statusText())
     }
 
+    func testShiftBFiresOutsideATextField() {
+        launch(["--binding", "Shift+B"])
+        XCTAssertEqual(statusText(), "submits=0 armed=true")
+        app.typeKey("b", modifierFlags: [.shift])
+        XCTAssertTrue(waitForStatus("submits=1 quickCapture=true"), statusText())
+    }
+
+    /// The production first-responder probe, in a scene app: Shift+B typed into
+    /// a focused field is a capital B.
+    func testShiftBInAFocusedTextFieldTypesInstead() {
+        launch(["--binding", "Shift+B"])
+        let field = app.textFields["field"]
+        field.tap()
+        app.typeKey("b", modifierFlags: [.shift])
+        sleep(1)
+        XCTAssertEqual(statusText(), "submits=0 armed=true")
+        XCTAssertEqual(field.value as? String, "B")
+    }
+
+    func testCommandChordFiresWithATextFieldFocused() {
+        launch(["--binding", "Mod+Shift+B"])
+        app.textFields["field"].tap()
+        app.typeKey("b", modifierFlags: [.command, .shift])
+        XCTAssertTrue(waitForStatus("submits=1 quickCapture=true"), statusText())
+    }
+
     func testSingleShiftAndTypingDoNotFire() {
         launch()
         tapShift()

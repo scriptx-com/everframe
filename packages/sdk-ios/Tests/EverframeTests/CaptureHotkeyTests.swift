@@ -18,6 +18,16 @@ final class CaptureHotkeyTests: XCTestCase {
         XCTAssertEqual(CaptureHotkeyBinding.parse("garbage+++"), .doubleShift)
     }
 
+    func testOnlyTypingChordsYieldToTextInput() {
+        XCTAssertTrue(CaptureHotkeyBinding.parse("Shift+B").yieldsToTextInput)
+        XCTAssertTrue(CaptureHotkeyBinding.chord(modifiers: [], key: "b").yieldsToTextInput)
+        XCTAssertFalse(CaptureHotkeyBinding.parse("Mod+Shift+B").yieldsToTextInput)
+        XCTAssertFalse(CaptureHotkeyBinding.parse("Ctrl+B").yieldsToTextInput)
+        XCTAssertFalse(CaptureHotkeyBinding.parse("Alt+Shift+B").yieldsToTextInput)
+        XCTAssertFalse(CaptureHotkeyBinding.parse("Shift Shift").yieldsToTextInput)
+        XCTAssertFalse(CaptureHotkeyBinding.parse(nil).yieldsToTextInput)
+    }
+
     func testDoubleShiftFiresWithinWindow() {
         var m = CaptureHotkeyMatcher(binding: .doubleShift)
         XCTAssertFalse(m.feed(shift(0)))

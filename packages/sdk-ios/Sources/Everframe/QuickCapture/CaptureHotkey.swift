@@ -45,6 +45,14 @@ enum CaptureHotkeyBinding: Equatable {
         }
         return .chord(modifiers: modifiers, key: last.lowercased())
     }
+
+    /// True for a chord that is also ordinary typing: a key alone or with Shift
+    /// only, such as `Shift+B`. Such a chord stands aside while an editable text
+    /// input is first responder. Double Shift and chords with ⌘, ⌃ or ⌥ never do.
+    var yieldsToTextInput: Bool {
+        guard case let .chord(modifiers, _) = self else { return false }
+        return modifiers.isSubset(of: [.shift])
+    }
 }
 
 /// Stateful matcher fed one key-down at a time. `feed` returns true exactly when the binding fires.

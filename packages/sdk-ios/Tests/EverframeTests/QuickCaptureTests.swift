@@ -829,6 +829,103 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertEqual(submitted.count, 1)
     }
 
+    private func shiftB(_ modifiers: CaptureKeyModifiers = [.shift], at t: TimeInterval = 0) -> CaptureKeyEvent {
+        .down(key: .character("b"), modifiers: modifiers, isRepeat: false, at: t)
+    }
+
+    func testShiftBWithATextInputFirstResponderDoesNotFire() async throws {
+        let qc = makeArmed()
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Shift+B"))
+        qc.isEditingText = { true }
+        qc.handle(shiftB())
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertEqual(freezes, 0)
+    }
+
+    func testShiftBWithoutATextInputFirstResponderFires() async {
+        let didSubmit = expectation(description: "submit")
+        let qc = makeArmed(submit: { [unowned self] inputs in
+            self.submitted.append(inputs)
+            didSubmit.fulfill()
+            return .submitted(reportId: UUID())
+        })
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Shift+B"))
+        qc.isEditingText = { false }
+        qc.handle(shiftB())
+        await fulfillment(of: [didSubmit], timeout: 5)
+        XCTAssertEqual(submitted.count, 1)
+    }
+
+    func testCmdShiftBStillFiresWithATextFieldFocused() async {
+        let didSubmit = expectation(description: "submit")
+        let qc = makeArmed(submit: { [unowned self] inputs in
+            self.submitted.append(inputs)
+            didSubmit.fulfill()
+            return .submitted(reportId: UUID())
+        })
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Cmd+Shift+B"))
+        var asked = false
+        qc.isEditingText = { asked = true; return true }
+        qc.handle(shiftB([.command, .shift]))
+        await fulfillment(of: [didSubmit], timeout: 5)
+        XCTAssertEqual(submitted.count, 1)
+        XCTAssertFalse(asked, "a ⌘ chord never looks at the first responder")
+    }
+
+    func testDoubleShiftStillFiresWithATextFieldFocused() async {
+        let didSubmit = expectation(description: "submit")
+        let qc = makeArmed(submit: { [unowned self] inputs in
+            self.submitted.append(inputs)
+            didSubmit.fulfill()
+            return .submitted(reportId: UUID())
+        })
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, binding: "Shift Shift"))
+        qc.isEditingText = { true }
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0))
+        qc.handle(.down(key: .shift, modifiers: [.shift], isRepeat: false, at: 0.2))
+        await fulfillment(of: [didSubmit], timeout: 5)
+        XCTAssertEqual(submitted.count, 1)
+    }
+
+    /// The production probe, against a real focused `UITextField`. A nil-targeted
+    /// action reaches a window's first responder only through a scene, and a
+    /// SwiftPM test bundle has none, so this skips there; the key-delivery proof
+    /// (Tests/QuickCaptureKeyDeliveryProof) runs the same probe in a scene app.
+    func testFocusedTextFieldIsFoundAsEditableFirstResponder() throws {
+        try XCTSkipIf(UIApplication.shared.connectedScenes.isEmpty, "no UIScene in this test host")
+        let field = UITextField(frame: CGRect(x: 0, y: 0, width: 100, height: 30))
+        hostWindow.addSubview(field)
+        hostWindow.makeKeyAndVisible()
+        defer { field.resignFirstResponder(); field.removeFromSuperview() }
+        XCTAssertFalse(QuickCaptureTextInput.firstResponderIsEditable(), "nothing focused yet")
+        try XCTSkipUnless(field.becomeFirstResponder(), "this test host cannot focus a text field")
+        XCTAssertTrue(QuickCaptureTextInput.currentFirstResponder() === field)
+        XCTAssertTrue(QuickCaptureTextInput.firstResponderIsEditable())
+        field.resignFirstResponder()
+        XCTAssertFalse(QuickCaptureTextInput.firstResponderIsEditable())
+    }
+
+    func testEditableTextInputClassification() {
+        final class CustomKeyInput: UIView, UIKeyInput {
+            var hasText: Bool { false }
+            func insertText(_ text: String) {}
+            func deleteBackward() {}
+        }
+        let readOnly = UITextView()
+        readOnly.isEditable = false
+        let disabled = UITextField()
+        disabled.isEnabled = false
+        XCTAssertTrue(QuickCaptureTextInput.isEditable(UITextField()))
+        XCTAssertTrue(QuickCaptureTextInput.isEditable(UITextView()))
+        XCTAssertTrue(QuickCaptureTextInput.isEditable(CustomKeyInput()), "React Native, Flutter and custom editors")
+        XCTAssertFalse(QuickCaptureTextInput.isEditable(readOnly))
+        XCTAssertFalse(QuickCaptureTextInput.isEditable(disabled))
+        XCTAssertFalse(QuickCaptureTextInput.isEditable(UIButton()))
+        XCTAssertFalse(QuickCaptureTextInput.isEditable(UIView()))
+        XCTAssertFalse(QuickCaptureTextInput.isEditable(nil))
+    }
+
     func testToastWindowExcludedFromScreenshot() {
         let toast = EFQuickCaptureToastWindow(frame: CGRect(x: 0, y: 0, width: 120, height: 40))
         toast.windowLevel = .normal - 1
