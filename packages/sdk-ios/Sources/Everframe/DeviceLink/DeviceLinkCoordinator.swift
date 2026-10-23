@@ -47,8 +47,16 @@ final class DeviceLinkCoordinator {
 
         static var live: Seams {
             Seams(
-                showBanner: { _ in },
-                hideBanner: {},
+                showBanner: { number in
+                    #if canImport(UIKit)
+                    DeviceLinkBanner.show(number: number)
+                    #endif
+                },
+                hideBanner: {
+                    #if canImport(UIKit)
+                    DeviceLinkBanner.hide()
+                    #endif
+                },
                 showToast: { text in
                     #if canImport(UIKit)
                     QuickCaptureToast.show(text: text)
