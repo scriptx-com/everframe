@@ -447,13 +447,7 @@ internal class TXWindowCallbackWrapper(
             tvDetectorBinding = binding
         }
         val detector = tvDetector ?: return event
-        if (binding.typesText() && tvGestureKeys.isEmpty() && isEditingText()) {
-            // Typing stays typing. Whatever was pending is dropped: a key pressed before the field took focus
-            // must not complete a gesture later, and keys whose releases are skipped here must not stay held.
-            detector.reset()
-            cancelTvHold()
-            return event
-        }
+        if (binding.typesText() && isEditingText()) return standAsideForText(detector, event)
         val verdict = detector.onKey(event.keyCode, event.action, event.repeatCount, event.metaState, event.eventTime, event.downTime)
         verdict.holdDeadlineMs?.let { scheduleTvHold(detector, event.keyCode, it) }
         if (event.action == KeyEvent.ACTION_UP && event.keyCode == tvHoldKey) cancelTvHold()
@@ -468,6 +462,31 @@ internal class TXWindowCallbackWrapper(
         }
         if (event.action == KeyEvent.ACTION_UP) tvGestureKeys.remove(event.keyCode)
         return out
+    }
+
+    /**
+     * A typing binding while a text editor has focus: typing stays typing, and no gesture starts or completes.
+     * Pending recognition is dropped (a key pressed before the field took focus must not complete a gesture
+     * later, and keys whose releases are not tracked here must not stay held). Only a key consumed before the
+     * field took focus keeps being suppressed, until its own release.
+     */
+    private fun standAsideForText(detector: TvGestureDetector, event: KeyEvent): KeyEvent? {
+        detector.dropPending()
+        cancelTvHold()
+        val swallow = tvGestureKeys[event.keyCode] ?: return event
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            // A fresh press: its earlier release was lost, and this one is typing.
+            tvGestureKeys.remove(event.keyCode)
+            detector.forgetFired(event.keyCode)
+            return event
+        }
+        val verdict = detector.onKey(event.keyCode, event.action, event.repeatCount, event.metaState, event.eventTime, event.downTime)
+        if (event.action == KeyEvent.ACTION_UP) tvGestureKeys.remove(event.keyCode)
+        return when {
+            swallow && verdict.consume -> null
+            swallow && verdict.cancelUp -> KeyEvent.changeFlags(event, event.flags or KeyEvent.FLAG_CANCELED)
+            else -> event
+        }
     }
 
     /** Runs the mode rule once per gesture; its `swallowKeys` holds until the gesture key's key-up. */

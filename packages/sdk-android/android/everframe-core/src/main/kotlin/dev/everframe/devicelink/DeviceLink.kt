@@ -172,8 +172,16 @@ internal object DeviceLink {
         }
     }
 
-    /** The gesture-recording endpoint, from the installed client. */
-    val recordingApi: GestureRecordingApi? get() = synchronized(lock) { client as? GestureRecordingApi }
+    /**
+     * The stored link's token and the installed client's recording endpoint, read together from one installation,
+     * so a recording's upload never pairs one installation's token with another's client (SDK key and endpoint).
+     * Null while unloaded or unlinked. SECURITY: never log.
+     */
+    fun recordingSnapshot(): RecordingSnapshot? = synchronized(lock) {
+        if (!isLoaded) return null
+        val token = current?.token ?: return null
+        RecordingSnapshot(token, client as? GestureRecordingApi)
+    }
 
     /** Linked devices refresh config when the app comes to the foreground; see the file header. */
     internal val foregroundObserver: DefaultLifecycleObserver = object : DefaultLifecycleObserver {

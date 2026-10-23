@@ -76,7 +76,6 @@ class TvGestureWindowCallbackTest {
         DeviceLink.refreshConfig = {}
         DeviceLink.toaster = {}
         GestureRecording.toaster = {}
-        GestureRecording.api = { null }
     }
 
     @After
@@ -356,6 +355,34 @@ class TvGestureWindowCallbackTest {
         assertFalse("A is no longer held", wrapper.dispatchKeyEvent(b))
         assertSame(b, delegate.keys.last())
         assertEquals(0, captures)
+    }
+
+    @Test
+    fun aHeldGestureKeyNeverLetsTypingCompleteAGesture() {
+        arm(TvGestureBinding.Chord(setOf("A", "B")), linked = true)
+        val field = EditText(activity)
+        val other = android.widget.Button(activity)
+        activity.setContentView(android.widget.LinearLayout(activity).apply { addView(other); addView(field) })
+        other.requestFocus()
+        val (wrapper, delegate) = wrap()
+        val a = KeyEvent.KEYCODE_A
+        val b = KeyEvent.KEYCODE_B
+        val t = SystemClock.uptimeMillis()
+        assertFalse(wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, a, t)))
+        assertTrue("B completes the chord", wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, b, t + 50)))
+        assertFalse(wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_UP, a, t, t + 100)))
+        field.requestFocus()
+        // B is still held (consumed); typing A in the field must stay typing.
+        val typedDown = key(KeyEvent.ACTION_DOWN, a, t + 200)
+        val typedUp = key(KeyEvent.ACTION_UP, a, t + 200, t + 260)
+        assertFalse(wrapper.dispatchKeyEvent(typedDown))
+        assertFalse(wrapper.dispatchKeyEvent(typedUp))
+        assertSame(typedDown, delegate.keys[delegate.keys.size - 2])
+        assertSame(typedUp, delegate.keys.last())
+        // B, consumed before the field took focus, stays suppressed until its own release.
+        assertTrue(wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_DOWN, b, t + 50, t + 500, repeat = 1)))
+        assertTrue(wrapper.dispatchKeyEvent(key(KeyEvent.ACTION_UP, b, t + 50, t + 600)))
+        assertEquals(1, captures)
     }
 
     @Test

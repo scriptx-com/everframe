@@ -75,6 +75,25 @@ internal class TvGestureDetector(val binding: TvGestureBinding) {
         return true
     }
 
+    /**
+     * Drops recognition in progress (a pending hold, sequence steps, held chord keys) but keeps keys already
+     * consumed, so they stay suppressed until their own release. Used while a text editor has focus.
+     */
+    fun dropPending() {
+        if (!holdFired) holdDownTime = null
+        steps.clear()
+        held.clear()
+    }
+
+    /** Forgets that [keyCode] was consumed (a fresh press of it, whose earlier release was never seen). */
+    fun forgetFired(keyCode: Int) {
+        firedKeys -= keyCode
+        if (keyCode in longPressCodes) {
+            holdDownTime = null
+            holdFired = false
+        }
+    }
+
     fun reset() {
         holdDownTime = null
         holdFired = false

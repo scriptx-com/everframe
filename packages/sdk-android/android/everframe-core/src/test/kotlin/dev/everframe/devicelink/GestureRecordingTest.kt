@@ -71,11 +71,19 @@ class GestureRecordingTest {
     private val posts = mutableListOf<Triple<String, Boolean, List<RecordedKey>>>()
     private var refreshes = 0
 
-    private val fakeApi = object : GestureRecordingApi {
+    private val fakeApi = recordingClient(posts)
+
+    private fun recordingClient(into: MutableList<Triple<String, Boolean, List<RecordedKey>>>) = object : GestureRecordingApi {
         override suspend fun postRecording(recordingId: String, token: String, events: List<RecordedKey>): Boolean {
-            posts += Triple(recordingId, token == this@GestureRecordingTest.token, events)
+            into += Triple(recordingId, token == this@GestureRecordingTest.token, events)
             return true
         }
+    }
+
+    /** The installed client: no link calls, and recordings go to [recordings]. */
+    private class Client(private val recordings: GestureRecordingApi) : DeviceLinkApi, GestureRecordingApi by recordings {
+        override suspend fun hello(nonce: String, device: HelloDevice): HelloResult = HelloResult.Stop
+        override suspend fun check(attemptId: String, nonce: String): CheckResult = CheckResult.Stop
     }
 
     @Before
@@ -101,25 +109,24 @@ class GestureRecordingTest {
         GestureRecording.now = { 50_000L + testScheduler.currentTime }
         GestureRecording.wallNow = { wallNow + testScheduler.currentTime }
         GestureRecording.toaster = { toasts += it }
-        GestureRecording.api = { fakeApi }
     }
 
     @get:Rule
     val tmp = TemporaryFolder()
 
+    private var store: DeviceLinkStore? = null
+
     /** A real install with a stored link for "scope", so config statuses apply to the token they describe. */
-    private fun linked() {
-        val store = DeviceLinkStore(File(tmp.newFolder(), "device-link-v1.bin"), JceTestDeviceLinkKeyProvider())
-        assertTrue(store.save(StoredDeviceLink(token, owner, "scope")))
-        DeviceLink.install(store, noLinkCalls, "scope", { tvDevice }, { true })
+    private fun linked(recordings: GestureRecordingApi = fakeApi) {
+        val s = store ?: DeviceLinkStore(File(tmp.newFolder(), "device-link-v1.bin"), JceTestDeviceLinkKeyProvider()).also {
+            assertTrue(it.save(StoredDeviceLink(token, owner, "scope")))
+            store = it
+        }
+        DeviceLink.install(s, Client(recordings), "scope", { tvDevice }, { true })
     }
 
     private val tvDevice = HelloDevice(model = "TV", osVersion = "12", appVersion = "1", sdk = "android/x", formFactor = "tv")
 
-    private val noLinkCalls = object : DeviceLinkApi {
-        override suspend fun hello(nonce: String, device: HelloDevice): HelloResult = HelloResult.Stop
-        override suspend fun check(attemptId: String, nonce: String): CheckResult = CheckResult.Stop
-    }
 
     private fun request(expiresIn: Long = 300_000, recordingId: String = id) = RecordingRequestWire(recordingId, wallNow + expiresIn)
 
@@ -211,21 +218,33 @@ class GestureRecordingTest {
     fun aHungPostIsCancelledAtItsDeadline() = runTest {
         seams()
         var cancelled = false
-        GestureRecording.api = {
-            object : GestureRecordingApi {
-                override suspend fun postRecording(recordingId: String, token: String, events: List<RecordedKey>): Boolean =
-                    try {
-                        kotlinx.coroutines.awaitCancellation()
-                    } finally {
-                        cancelled = true
-                    }
-            }
+        val hung = object : GestureRecordingApi {
+            override suspend fun postRecording(recordingId: String, token: String, events: List<RecordedKey>): Boolean =
+                try {
+                    kotlinx.coroutines.awaitCancellation()
+                } finally {
+                    cancelled = true
+                }
         }
-        linked()
+        linked(hung)
         applyConfigWith(request())
         advanceTimeBy(10_000 + GestureRecording.POST_TIMEOUT_MS); runCurrent()
         assertTrue(cancelled)
         assertEquals(listOf("Recording remote keys for 10 seconds"), toasts)
+    }
+
+    @Test
+    fun uploadUsesTheClientOfTheInstallationThatStartedTheRecording() = runTest {
+        seams()
+        linked(fakeApi)
+        applyConfigWith(request())
+        assertNotNull(GestureRecording.active)
+        // A start() meanwhile installs a new client (another SDK key's) over the same stored link.
+        val later = mutableListOf<Triple<String, Boolean, List<RecordedKey>>>()
+        linked(recordingClient(later))
+        advanceTimeBy(10_000); runCurrent()
+        assertTrue("the new installation's client never carries the old recording", later.isEmpty())
+        assertEquals(1, posts.size)
     }
 
     @Test

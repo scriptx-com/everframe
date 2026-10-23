@@ -9,7 +9,8 @@
 // capture gesture pauses, so recording a binding never also captures.
 //
 // A request is recorded at most once (an in-memory id set), never after it expired, never while another runs,
-// and never on an unlinked device. If the link changes during the window, nothing is posted.
+// and never on an unlinked device. The token and the uploading client come from one installation snapshot taken
+// at the start, and that client is kept for the upload. If the link changes during the window, nothing is posted.
 //
 // SECURITY: never log the token.
 package dev.everframe.devicelink
@@ -25,6 +26,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
+/** One installation's link token and recording client ([DeviceLink.recordingSnapshot]). SECURITY: never log. */
+internal class RecordingSnapshot(val token: String, val api: GestureRecordingApi?) {
+    override fun toString(): String = "RecordingSnapshot(token=<redacted>)"
+}
+
 /** `POST /api/device-link/recordings/:recordingId`; implemented by [DeviceLinkClient]. */
 internal interface GestureRecordingApi {
     /** True on 204. SECURITY: [token] is never logged. */
@@ -39,8 +45,7 @@ internal object GestureRecording {
     /** Wall clock, the clock `expiresAt` is in. */
     @Volatile internal var wallNow: () -> Long = { System.currentTimeMillis() }
     @Volatile internal var toaster: (String) -> Unit = { DeviceLink.toaster(it) }
-    @Volatile internal var api: () -> GestureRecordingApi? = { DeviceLink.recordingApi }
-    @Volatile internal var tokenProvider: () -> String? = { DeviceLink.current?.token }
+    @Volatile internal var snapshotProvider: () -> RecordingSnapshot? = { DeviceLink.recordingSnapshot() }
     @Volatile internal var scopeProvider: () -> CoroutineScope = { DeviceLink.scopeProvider() }
     @Volatile internal var durationMs: Long = GestureRecorder.DURATION_MS
 
@@ -57,11 +62,12 @@ internal object GestureRecording {
 
     fun onRequest(request: RecordingRequestWire, isCurrent: () -> Boolean) {
         val recorder: GestureRecorder
-        val token: String
+        // The token and the client that will upload, from one installation; the client is kept for the upload.
+        val snapshot: RecordingSnapshot
         synchronized(lock) {
             if (!isCurrent() || active != null || request.id in handled) return
             if (request.expiresAtMs <= wallNow()) return
-            token = tokenProvider() ?: return // SECURITY: never log
+            snapshot = snapshotProvider() ?: return
             handled += request.id
             recorder = GestureRecorder()
             active = recorder
@@ -75,10 +81,11 @@ internal object GestureRecording {
             }
             val events = recorder.finish(now())
             // A link replaced or forgotten meanwhile: these keys belong to nobody's recording.
-            if (!isCurrent() || tokenProvider() != token) return@launch
+            if (!isCurrent() || snapshotProvider()?.token != snapshot.token) return@launch
+            val api = snapshot.api ?: return@launch
             val sent = try {
                 // A hung call is cancelled at the deadline (the client cancels its HTTP call with the caller).
-                withTimeoutOrNull(POST_TIMEOUT_MS) { api()?.postRecording(request.id, token, events) } == true
+                withTimeoutOrNull(POST_TIMEOUT_MS) { api.postRecording(request.id, snapshot.token, events) } == true
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Throwable) {
@@ -116,8 +123,7 @@ internal object GestureRecording {
         now = { SystemClock.uptimeMillis() }
         wallNow = { System.currentTimeMillis() }
         toaster = { DeviceLink.toaster(it) }
-        api = { DeviceLink.recordingApi }
-        tokenProvider = { DeviceLink.current?.token }
+        snapshotProvider = { DeviceLink.recordingSnapshot() }
         scopeProvider = { DeviceLink.scopeProvider() }
         durationMs = GestureRecorder.DURATION_MS
     }
