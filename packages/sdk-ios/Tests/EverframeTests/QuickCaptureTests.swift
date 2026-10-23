@@ -434,6 +434,58 @@ final class QuickCaptureTests: XCTestCase {
         }
     }
 
+    /// The native screenshot renders and encodes too: kill() then start()
+    /// meanwhile means the image belongs to the previous session.
+    func testNativeScreenshotAcrossARestartFailsWithoutFreezing() async {
+        await withGlobalCaptureStateLock {
+            Everframe.captureGate = true
+            let qc = makeArmed()
+            let native = qc.screenshotter
+            qc.screenshotter = {
+                let shot = native()
+                Everframe.shared.kill()
+                // As a following start(): the gate is open again, the epoch has moved.
+                Everframe.captureGate = true
+                return shot
+            }
+            let outcome = await qc.capture()
+            Everframe.__setConfigForTesting(nil)
+            guard case .failed = outcome else { return XCTFail("expected .failed, got \(outcome)") }
+            XCTAssertEqual(freezes, 0)
+            XCTAssertTrue(submitted.isEmpty)
+        }
+    }
+
+    /// As the host branch: a kill() or a reporter opening during the native
+    /// screenshot stops the capture before it freezes anything.
+    func testNativeScreenshotRaceWithKillOrReporterFailsWithoutFreezing() async {
+        await withGlobalCaptureStateLock {
+            Everframe.captureGate = true
+            let killed = makeArmed()
+            let killedNative = killed.screenshotter
+            killed.screenshotter = {
+                Everframe.captureGate = false
+                return killedNative()
+            }
+            let killedOutcome = await killed.capture()
+            guard case .failed = killedOutcome else { return XCTFail("expected .failed, got \(killedOutcome)") }
+            Everframe.captureGate = true
+
+            let presenting = makeArmed()
+            let presentingNative = presenting.screenshotter
+            presenting.screenshotter = {
+                ReportAPI.__performSetPresenting(true)
+                return presentingNative()
+            }
+            let presentingOutcome = await presenting.capture()
+            guard case .failed = presentingOutcome else { return XCTFail("expected .failed, got \(presentingOutcome)") }
+            ReportAPI.__performSetPresenting(false)
+
+            XCTAssertEqual(freezes, 0)
+            XCTAssertTrue(submitted.isEmpty)
+        }
+    }
+
     func testProviderWhileAppLeavesTheForegroundFails() async {
         let qc = makeArmedWithScreenshotDisabled()
         var active = true

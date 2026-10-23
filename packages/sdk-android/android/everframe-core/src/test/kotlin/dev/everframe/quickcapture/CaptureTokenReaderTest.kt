@@ -60,6 +60,35 @@ class CaptureTokenReaderTest {
         assertNull(tokenFor("http://localhost:8787", ingest = "http://192.168.1.5:8787"))
     }
 
+    /** Answers each lookup from [reads] in order, as a relink racing the reader would. */
+    private fun sequenced(vararg reads: Pair<String, String?>): (String) -> String? {
+        val queue = ArrayDeque(reads.toList())
+        return { key ->
+            val (expected, value) = queue.removeFirst()
+            assertEquals(expected, key)
+            value
+        }
+    }
+
+    @Test
+    fun tokenChangingBetweenReadsReturnsNull() {
+        val token = CaptureTokenReader.SETTINGS_KEY
+        val origin = CaptureTokenReader.ORIGIN_SETTINGS_KEY
+        // Relinked to another server mid-read: old token, new origin, new token.
+        assertNull(CaptureTokenReader.read(INGEST, sequenced(token to "old", origin to INGEST, token to "new")))
+        // The relink deleted the token after the first read.
+        assertNull(CaptureTokenReader.read(INGEST, sequenced(token to "old", origin to INGEST, token to null)))
+    }
+
+    @Test
+    fun stablePairReturnsTheToken() {
+        val token = CaptureTokenReader.SETTINGS_KEY
+        val origin = CaptureTokenReader.ORIGIN_SETTINGS_KEY
+        assertEquals("abc123", CaptureTokenReader.read(INGEST, sequenced(token to "abc123", origin to INGEST, token to "abc123")))
+        assertEquals("abc123", CaptureTokenReader.read(INGEST, sequenced(token to "abc123", origin to null, token to "abc123")))
+        assertNull(CaptureTokenReader.read(INGEST, sequenced(token to "abc123", origin to "https://evil.example", token to "abc123")))
+    }
+
     @Test
     fun noRecordedOriginKeepsTheToken() {
         assertEquals("abc123", tokenFor(null))

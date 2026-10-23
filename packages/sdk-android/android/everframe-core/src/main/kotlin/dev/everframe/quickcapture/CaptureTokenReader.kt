@@ -27,14 +27,25 @@ internal object CaptureTokenReader {
      * Read fresh on every call. Null when absent, invalid, unreadable, or issued by an origin other
      * than [ingestEndpoint]'s.
      */
-    fun read(context: Context, ingestEndpoint: String): String? {
-        val (raw, origin) = try {
-            val resolver = context.contentResolver
-            Settings.Global.getString(resolver, SETTINGS_KEY) to Settings.Global.getString(resolver, ORIGIN_SETTINGS_KEY)
-        } catch (_: SecurityException) {
-            // A future Android release may restrict undocumented global keys.
-            return null
-        }
+    fun read(context: Context, ingestEndpoint: String): String? = try {
+        val resolver = context.contentResolver
+        read(ingestEndpoint) { key -> Settings.Global.getString(resolver, key) }
+    } catch (_: SecurityException) {
+        // A future Android release may restrict undocumented global keys.
+        null
+    }
+
+    /**
+     * The two settings are separate keys, so a relink between two reads could pair one token with
+     * another token's origin. The CLI writes in a fixed order: delete the token, then write (or
+     * delete) the origin, then write the token. Reading token, origin, token and requiring both
+     * token reads to agree is therefore enough: a relink that changed the origin after the first
+     * read deleted the token before that, so the second read sees it gone or replaced.
+     */
+    internal fun read(ingestEndpoint: String, lookup: (String) -> String?): String? {
+        val raw = lookup(SETTINGS_KEY) ?: return null
+        val origin = lookup(ORIGIN_SETTINGS_KEY)
+        if (lookup(SETTINGS_KEY) != raw) return null
         if (origin != null && !sameOrigin(origin, ingestEndpoint)) return null
         return validate(raw)
     }

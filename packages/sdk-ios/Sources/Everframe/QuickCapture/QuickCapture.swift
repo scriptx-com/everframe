@@ -371,23 +371,15 @@ final class QuickCapture {
         let shot: ScreenshotCapture.Result
         let hostReplayVTree: Data?
         let sdkName: String
+        let epoch = Everframe.shared.currentStartEpoch
         if let provider {
             // The host's masked evidence replaces the native screenshot entirely;
             // a nil answer, or none within the timeout, fails without a fallback.
-            let epoch = Everframe.shared.currentStartEpoch
             guard let evidence = await awaitEvidence(provider),
                   evidence.image.size.width > 0, evidence.image.size.height > 0 else { return .failed }
             // As `openAndAwait`: an identity outside the known SDKs is refused.
             sdkName = evidence.sdkName ?? Self.nativeSDKName
             guard Self.hostSDKNames.contains(sdkName) else { return .failed }
-            // The host rendered asynchronously. A kill() in that window means
-            // nothing may freeze or ship; a kill() then start() means the image
-            // belongs to the previous session; a reporter that opened (or froze)
-            // meanwhile owns the evidence this capture would freeze over; and an
-            // app that left the foreground is no longer what the host rendered.
-            guard Everframe.captureGate, Everframe.shared.currentStartEpoch == epoch,
-                  isApplicationActive(), !Everframe.shared.report.isPresenting,
-                  !Everframe.shared.__replayHasReporterOwner else { return .failed }
             let image = evidence.image
             shot = ScreenshotCapture.Result(
                 image: image,
@@ -404,6 +396,16 @@ final class QuickCapture {
             hostReplayVTree = nil
             sdkName = Self.nativeSDKName
         }
+        // Either screenshot took time (the host's render, or the native render
+        // and PNG encode), and `start()`/`kill()` may run on another thread
+        // meanwhile. A kill() in that window means nothing may freeze or ship; a
+        // kill() then start() means the image belongs to the previous session; a
+        // reporter that opened (or froze) meanwhile owns the evidence this
+        // capture would freeze over; and an app that left the foreground is no
+        // longer what was captured.
+        guard Everframe.captureGate, Everframe.shared.currentStartEpoch == epoch,
+              isApplicationActive(), !Everframe.shared.report.isPresenting,
+              !Everframe.shared.__replayHasReporterOwner else { return .failed }
         let owner = lifecycle.open()
         let capturedSession = Everframe.shared.captureSessionSnapshot()
         // Consume-once host payload, as the reporter drains it at open.
