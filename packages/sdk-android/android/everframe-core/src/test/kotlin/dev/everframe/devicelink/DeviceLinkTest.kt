@@ -422,6 +422,53 @@ class DeviceLinkTest {
     }
 
     @Test
+    fun aTakeoverFinishingMidRestartOfTheSameProjectKeepsTheNewToken() = runTest {
+        val sdkKey = "txx_live_handoff00000001"
+        val projectScope = DeviceLinkScope.of(dev.everframe.config.IngestEndpoint.url, sdkKey)!!
+        dev.everframe.Everframe.__setConfigForTesting(dev.everframe.config.EverframeConfig(appId = "app-id", sdkKey = sdkKey))
+        try {
+            assertTrue(store.save(StoredDeviceLink(tokA, DeviceLinkOwner.User("Ann"), projectScope)))
+            var epochIsCurrent = true
+            install(isCurrent = { epochIsCurrent })
+            DeviceLink.install(store, client, projectScope, { device }, { epochIsCurrent })
+            assertTrue(DeviceLink.current?.token == tokA)
+            client.checkResults.add(CheckResult.Linked(tokB, DeviceLinkOwner.User("Bob")))
+            DeviceLink.beginAttempt(uuid, 47, "n".repeat(40))
+            runCurrent()
+            // The same project's start() bumped its epoch; its detached install has not run yet.
+            epochIsCurrent = false
+            advanceTimeBy(3_001); runCurrent()
+            assertTrue("the replacement token was dropped mid-handoff", store.load(projectScope)?.token == tokB)
+            // The new installation loads it.
+            DeviceLink.install(store, client, projectScope, { device }, { true })
+            assertTrue(DeviceLink.current?.token == tokB)
+        } finally {
+            dev.everframe.Everframe.__setConfigForTesting(null)
+        }
+    }
+
+    @Test
+    fun aStaleAttemptNeverHidesTheNextInstallationsBanner() = runTest {
+        install()
+        // The first installation's attempt runs on its own dispatcher, so its cancellation lands late.
+        val staleScheduler = kotlinx.coroutines.test.TestCoroutineScheduler()
+        DeviceLink.scopeProvider = { CoroutineScope(StandardTestDispatcher(staleScheduler)) }
+        client.hangChecks = true
+        DeviceLink.beginAttempt(uuid, 47, "n".repeat(40))
+        staleScheduler.runCurrent()
+        assertEquals(47, bannerNumber)
+        staleScheduler.advanceTimeBy(3_001); staleScheduler.runCurrent()
+        // A restart, and the new installation's own takeover shows its number.
+        DeviceLink.scopeProvider = { CoroutineScope(StandardTestDispatcher(testScheduler)) }
+        DeviceLink.install(store, FakeClient(), scope, { device }, { true })
+        DeviceLink.beginAttempt("b-attempt", 12, "b".repeat(40))
+        runCurrent()
+        assertEquals(12, bannerNumber)
+        staleScheduler.runCurrent()
+        assertEquals("the stale attempt hid the new banner", 12, bannerNumber)
+    }
+
+    @Test
     fun aHangingCheckEndsTheAttemptAtItsDeadline() = runTest {
         install()
         client.hangChecks = true

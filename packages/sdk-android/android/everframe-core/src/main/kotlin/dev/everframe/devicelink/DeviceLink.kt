@@ -63,6 +63,11 @@ internal object DeviceLink {
     @Volatile internal var checkWindowMs: Long = 150_000L
     @Volatile internal var helloDebounceMs: Long = 5_000L
     @Volatile internal var now: () -> Long = { android.os.SystemClock.elapsedRealtime() }
+    /**
+     * The scope of the project `start()` has configured now (its ingest origin and SDK key), which can run ahead
+     * of [install]: `start()` bumps its epoch before its detached install runs.
+     */
+    @Volatile internal var startingScope: () -> String? = { defaultStartingScope() }
     /** Tests only: runs between a config's unlinked status and the forget it causes. */
     @Volatile internal var __beforeConfigForgetForTesting: () -> Unit = {}
 
@@ -101,6 +106,9 @@ internal object DeviceLink {
     /** The claim holding the attempt slot, or null. Written under [lock]. */
     @Volatile private var claim: AttemptClaim? = null
 
+    /** The attempt whose number the banner shows; only it may hide the banner. Written under [lock]. */
+    private var bannerOwner: AttemptClaim? = null
+
     /** True while a hello is out or an attempt is being checked. */
     val attemptInFlight: Boolean get() = claim != null
 
@@ -116,9 +124,11 @@ internal object DeviceLink {
         isCurrent: () -> Boolean,
         context: Context? = null,
     ) {
-        val loaded = scope?.let { store.load(it) }
         val previous = synchronized(lock) {
             if (!isCurrent()) return
+            // Loaded under the lock, so a link an attempt saves mid-handoff (see [onLinked]) is either loaded here
+            // or saved into this installation.
+            val loaded = scope?.let { store.load(it) }
             val old = job
             job = null
             refreshes.cancel()
@@ -284,6 +294,7 @@ internal object DeviceLink {
             linkingEnabled = false
             installation++
             claim = null
+            bannerOwner = null
             old
         }
         previous?.cancel()
@@ -294,6 +305,11 @@ internal object DeviceLink {
      * Refreshes the config of the session current now, as a child of [refreshes], so a teardown or the next
      * install cancels it before it can fetch. `refreshConfigNow` also checks its session's generation first.
      */
+    private fun defaultStartingScope(): String? {
+        val sdkKey = Everframe.currentConfig?.sdkKey ?: return null
+        return DeviceLinkScope.of(dev.everframe.config.IngestEndpoint.url, sdkKey)
+    }
+
     private fun launchConfigRefresh() {
         val session = Everframe._replaySession ?: return
         synchronized(lock) {
@@ -332,7 +348,11 @@ internal object DeviceLink {
     }
 
     private suspend fun runAttempt(owner: AttemptClaim, api: DeviceLinkApi, attemptId: String, number: Int, nonce: String) {
-        safely { showBanner(number) }
+        synchronized(lock) {
+            if (claim !== owner) return
+            bannerOwner = owner
+            safely { showBanner(number) }
+        }
         try {
             val startedAt = now()
             while (now() - startedAt < checkWindowMs) {
@@ -358,6 +378,15 @@ internal object DeviceLink {
                 }
             }
         } finally {
+            hideBannerIfOwner(owner)
+        }
+    }
+
+    /** Hides the banner only while [owner]'s number is the one shown: a stale attempt never hides a newer one. */
+    private fun hideBannerIfOwner(owner: AttemptClaim) {
+        synchronized(lock) {
+            if (bannerOwner !== owner) return
+            bannerOwner = null
             safely { hideBanner() }
         }
     }
@@ -365,11 +394,17 @@ internal object DeviceLink {
     private fun onLinked(owner: AttemptClaim, result: CheckResult.Linked) {
         // Stored under the scope the attempt began in, never under whichever scope is live now.
         val linked = StoredDeviceLink(result.token, result.owner, owner.scope)
+        // Read before the lock: it takes the SDK's state lock, which is never taken inside this one.
+        val starting = runCatching { startingScope() }.getOrNull()
         synchronized(lock) {
             // A cancellation can race a check that already returned, so a claim from an earlier installation
             // can get here. Nothing is stored after a kill.
             if (!isLoaded) return
-            if (scope != owner.scope || !sessionIsCurrent()) {
+            // Mid-handoff: start() has bumped its epoch and its install has not run yet. The server revoked the
+            // replaced token and returns this one once, so for the same project (the scope being started is
+            // the attempt's) it is kept; the next install loads it (its load is under this lock).
+            val sameProject = scope == owner.scope && (sessionIsCurrent() || starting == owner.scope)
+            if (!sameProject) {
                 // Another project is live: keep the token for its own scope only while the live installation
                 // is unlinked (the store holds one link, and a live link must stand). The live gate is unchanged.
                 if (current == null) runCatching { store?.save(linked) }
@@ -382,7 +417,7 @@ internal object DeviceLink {
             if (!st.save(linked)) return
             current = linked
         }
-        safely { hideBanner() }
+        hideBannerIfOwner(owner)
         safely { toaster(DeviceLinkCopy.linked(linked.owner)) }
         safely { onLinkChanged() }
         safely { refreshConfig() }
@@ -426,6 +461,7 @@ internal object DeviceLink {
         checkWindowMs = 150_000L
         helloDebounceMs = 5_000L
         now = { android.os.SystemClock.elapsedRealtime() }
+        startingScope = { defaultStartingScope() }
         __beforeConfigForgetForTesting = {}
     }
 
