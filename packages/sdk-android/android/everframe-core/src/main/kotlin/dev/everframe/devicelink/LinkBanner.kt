@@ -12,6 +12,11 @@
 // which read only the Activity's window. The same mechanics as the Companion
 // name badge, without depending on Companion code.
 //
+// ABOVE SDK WINDOWS. A panel stays above its own parent window only, so a
+// later app window (the reporter dialog a shake can open) covers it. While an
+// SDK window is registered ([SdkOverlayWindows]), the banner is a panel of the
+// topmost one instead, and returns to the Activity when it closes.
+//
 // LIFECYCLE. Re-attached on `onActivityResumed`, detached on
 // `onActivityPaused`/`onActivityDestroyed` (before `WindowManagerGlobal` would
 // force-remove it and log a leaked window). All window work runs on the main
@@ -55,9 +60,17 @@ internal object LinkBanner {
     private var lastResumed: WeakReference<Activity>? = null
     private var attached: View? = null
     private var host: Activity? = null
+    /** The window manager the banner was added through: the Activity's, or an SDK window's. */
+    private var hostManager: WindowManager? = null
+    /** SDK windows over the Activity, topmost last. Main thread only. */
+    private val overlayWindows = mutableListOf<android.view.Window>()
 
     /** Test seam: the label's text while attached to an Activity window. */
     internal val attachedText: CharSequence? get() = (attached as? TextView)?.text
+
+    /** Test seam: the token of the window the banner is a panel of. */
+    internal val attachedToken: android.os.IBinder?
+        get() = (attached?.layoutParams as? WindowManager.LayoutParams)?.token
 
     private val callbacks = object : Application.ActivityLifecycleCallbacks {
         override fun onActivityResumed(activity: Activity) {
@@ -104,24 +117,54 @@ internal object LinkBanner {
         onMain { detach() }
     }
 
+    internal fun overlayShown(window: android.view.Window) {
+        onMain {
+            overlayWindows.remove(window)
+            overlayWindows.add(window)
+            reattach()
+        }
+    }
+
+    internal fun overlayClosed(window: android.view.Window) {
+        onMain {
+            if (!overlayWindows.remove(window)) return@onMain
+            reattach()
+        }
+    }
+
+    internal fun overlays(): List<android.view.Window> = overlayWindows.toList()
+
+    /** Moves a showing banner to wherever it belongs now (the topmost SDK window, else the Activity). */
+    private fun reattach() {
+        val number = visibleNumber ?: return
+        val activity = host ?: runCatching { activityProvider() }.getOrNull() ?: lastResumed?.get() ?: return
+        detach()
+        attach(activity, number)
+    }
+
     private fun attach(activity: Activity, number: Int) {
         if (activity.isFinishing || activity.isDestroyed) return
-        if (host === activity && attached != null) {
+        // The topmost SDK window over the Activity, when one is showing; else the Activity's own window.
+        val overlay = overlayWindows.lastOrNull()
+        val window = overlay ?: activity.window ?: return
+        val manager = window.windowManager ?: activity.windowManager
+        val decor = window.decorView
+        if (host === activity && hostManager === manager && attached != null) {
             (attached as? TextView)?.let { it.text = label(number); it.contentDescription = it.text }
             return
         }
         detach()
-        val decor = activity.window?.decorView ?: return
         if (decor.windowToken == null) {
-            // First resume: the decor view is not attached to a window yet.
+            // First resume (or an SDK window still being added): the decor view is not attached to a window yet.
             decor.post { if (visibleNumber == number && attached == null) attach(activity, number) }
             return
         }
         try {
             val view = buildLabel(activity, number)
-            activity.windowManager.addView(view, buildParams(activity, decor))
+            manager.addView(view, buildParams(activity, decor))
             attached = view
             host = activity
+            hostManager = manager
         } catch (_: Throwable) {
             // Never let the banner crash the host app.
         }
@@ -129,11 +172,12 @@ internal object LinkBanner {
 
     private fun detach() {
         val view = attached ?: return
-        val activity = host
+        val manager = hostManager
         attached = null
         host = null
+        hostManager = null
         try {
-            activity?.windowManager?.removeViewImmediate(view)
+            manager?.removeViewImmediate(view)
         } catch (_: Throwable) {
         }
     }
@@ -194,6 +238,7 @@ internal object LinkBanner {
         onMain {
             detach()
             lastResumed = null
+            overlayWindows.clear()
         }
         activityProvider = { Everframe.__activitySupplier?.invoke() }
     }
