@@ -39,7 +39,9 @@ class ReplaySession(
     private val activitySupplier: () -> Activity? = { Everframe.__activitySupplier?.invoke() },
     installIdProvider: () -> String? = { null },
     private val provider: ReplayConfigProvider = ReplayConfigProvider.make(baseUrl = baseUrl, sdkKey = sdkKey,
-        fetcher = defaultFetcher, installIdProvider = installIdProvider),
+        fetcher = defaultFetcher, installIdProvider = installIdProvider,
+        // Real-device quick capture: the stored device token rides each config fetch. SECURITY: never log.
+        captureTokenProvider = { dev.everframe.devicelink.DeviceLink.tokenForRequest() }),
     private val context: Context? = null,
     private val originatingStartEpoch: Int = Everframe.currentStartEpochVolatile(),
     private val captureConsent: Boolean = Everframe.captureGate,
@@ -191,6 +193,11 @@ class ReplaySession(
         dev.everframe.quickcapture.QuickCapture.publishRemote(latest.captureHotkey) {
             currentGenerationValid(capturedEpoch)
         }
+        // Device linking: a failed fetch keeps the last-good switch but never re-applies a link status,
+        // which described the token an earlier request carried.
+        dev.everframe.devicelink.DeviceLink.applyConfig(
+            latest.deviceLinking?.let { if (succeeded) it else it.copy(link = null) },
+        ) { currentGenerationValid(capturedEpoch) }
         if (!wasIdentityEnabled && isIdentityEnabled(latest) && currentGenerationValid(capturedEpoch)) Everframe.__warmIdentityToken()
         sharedBreadcrumbBuffer.applyConfig(latest.breadcrumbs) { currentGenerationValid(capturedEpoch) }
         // Report Resource Window (spec 2026-09-05). `windowSec` is read LIVE

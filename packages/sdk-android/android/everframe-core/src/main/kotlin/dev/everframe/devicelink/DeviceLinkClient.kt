@@ -83,18 +83,24 @@ internal sealed interface CheckResult {
     data object Retry : CheckResult
 }
 
+/** The two link calls, as [DeviceLink] uses them. A seam so the attempt loop is testable without HTTP. */
+internal interface DeviceLinkApi {
+    suspend fun hello(nonce: String, device: HelloDevice): HelloResult
+    suspend fun check(attemptId: String, nonce: String): CheckResult
+}
+
 internal class DeviceLinkClient(
     baseUrl: String,
     private val sdkKey: String,
     private val client: OkHttpClient = ReportSubmitter.buildIsolatedClient(),
-) {
+) : DeviceLinkApi {
     private val base: HttpUrl? = run {
         val trimmed = baseUrl.trim().trimEnd('/')
         val root = if (trimmed.endsWith(INGEST_SUFFIX)) trimmed.removeSuffix(INGEST_SUFFIX) else trimmed
         root.toHttpUrlOrNull()
     }
 
-    suspend fun hello(nonce: String, device: HelloDevice): HelloResult = withContext(Dispatchers.IO) {
+    override suspend fun hello(nonce: String, device: HelloDevice): HelloResult = withContext(Dispatchers.IO) {
         val url = base?.newBuilder()?.addPathSegments("api/device-link/hello")?.build()
             ?: return@withContext HelloResult.Stop
         val body = buildJsonObject {
@@ -130,7 +136,7 @@ internal class DeviceLinkClient(
         }
     }
 
-    suspend fun check(attemptId: String, nonce: String): CheckResult = withContext(Dispatchers.IO) {
+    override suspend fun check(attemptId: String, nonce: String): CheckResult = withContext(Dispatchers.IO) {
         val url = base?.newBuilder()
             ?.addPathSegments("api/device-link/attempts")
             ?.addPathSegment(attemptId)

@@ -1405,6 +1405,19 @@ object Everframe {
             // suspension point; see that field's doc comment for why)
             // discards the install instead of arming a session built from a
             // config `kill()` already tore down.
+            // Real-device quick capture: load the stored device link before the first config fetch
+            // (`start.replay` below), so that fetch already carries the token.
+            txGuardVoid("start.deviceLink") {
+                val linkContext = context.applicationContext
+                dev.everframe.devicelink.DeviceLink.install(
+                    store = dev.everframe.devicelink.DeviceLinkStore.forContext(linkContext),
+                    client = dev.everframe.devicelink.DeviceLinkClient(IngestEndpoint.url, config.sdkKey),
+                    scope = dev.everframe.devicelink.DeviceLinkScope.of(IngestEndpoint.url, config.sdkKey),
+                    device = { dev.everframe.devicelink.HelloDevice.collect(linkContext, config.debugBuild) },
+                    isCurrent = { currentStartEpochVolatile() == epoch },
+                    context = linkContext,
+                )
+            }
             txGuardVoid("start.replay") {
                 // MAI meter Plan 2b-ii. The client veto is applied by BUILDING
                 // NOTHING: `enabled = false` returns a supplier that computes
@@ -1585,6 +1598,7 @@ object Everframe {
             dev.everframe.vitals.VitalsServerConfigSignal.publish(null, stillThisKill)
             dev.everframe.trigger.ShakeToReportTrigger.teardown(stillThisKill)
             dev.everframe.quickcapture.QuickCapture.teardown(stillThisKill)
+            dev.everframe.devicelink.DeviceLink.teardown(stillThisKill)
         }
     }
 
