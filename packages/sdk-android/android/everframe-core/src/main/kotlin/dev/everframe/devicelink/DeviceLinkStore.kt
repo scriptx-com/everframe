@@ -31,7 +31,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import java.io.File
 import java.security.KeyStore
-import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -145,10 +144,12 @@ internal class DeviceLinkStore(
             }
             put("s", link.scope)
         }.toString().toByteArray(Charsets.UTF_8)
-        val iv = ByteArray(IV_BYTES).also { SecureRandom().nextBytes(it) }
+        // The provider picks the IV: an AndroidKeyStore key with randomized encryption refuses a caller IV.
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, keys.getOrCreate(), GCMParameterSpec(TAG_BITS, iv))
+        cipher.init(Cipher.ENCRYPT_MODE, keys.getOrCreate())
         cipher.updateAAD(AAD)
+        val iv = cipher.iv
+        check(iv != null && iv.size == IV_BYTES) { "AES-GCM provider returned an unexpected IV" }
         val sealed = cipher.doFinal(payload)
         return MAGIC + byteArrayOf(VERSION) + iv + sealed
     }

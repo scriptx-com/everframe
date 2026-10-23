@@ -103,6 +103,8 @@ class CaptureGestureTest {
         var hellos = 0
         CaptureGesture.captureTrigger = { captures++ }
         CaptureGesture.helloSender = { hellos++ }
+        var clock = 0L
+        CaptureGesture.now = { clock.also { clock += 10_000 } }
         DeviceLink.__setCurrentForTesting(null, enabled = true)
 
         CaptureGesture.inputProvider = { input(debug = true) }
@@ -119,5 +121,24 @@ class CaptureGestureTest {
         assertTrue(CaptureGesture.onGesture(GestureSource.Shake).openReporter)
         assertEquals(2, captures)
         assertEquals(2, hellos)
+    }
+
+    @Test
+    fun oneLongShakeTakesOneCapture() {
+        // A long shake fires the detector twice about a second apart; that is one capture, not two.
+        var captures = 0
+        var clock = 0L
+        CaptureGesture.captureTrigger = { captures++ }
+        CaptureGesture.helloSender = {}
+        CaptureGesture.now = { clock }
+        CaptureGesture.inputProvider = { input(link = DeviceLinkOwner.Team) }
+        DeviceLink.__setCurrentForTesting(null, enabled = true)
+        assertTrue(CaptureGesture.onGesture(GestureSource.Shake).capture)
+        clock = 1_999
+        assertFalse(CaptureGesture.onGesture(GestureSource.Shake).capture)
+        assertEquals(1, captures)
+        clock = 2_000 + 1_999
+        assertTrue(CaptureGesture.onGesture(GestureSource.Shake).capture)
+        assertEquals(2, captures)
     }
 }

@@ -49,6 +49,12 @@ internal object CaptureGesture {
     @Volatile internal var captureTrigger: () -> Unit = { QuickCapture.trigger() }
     @Volatile internal var helloSender: () -> Unit = { DeviceLink.sendHello() }
     @Volatile internal var inputProvider: ((isTv: Boolean) -> GestureInput)? = null
+    @Volatile internal var now: () -> Long = { android.os.SystemClock.elapsedRealtime() }
+
+    /** One long shake fires the detector more than once; captures closer together than this are one capture. */
+    internal const val CAPTURE_COOLDOWN_MS: Long = 2_000L
+    private val lock = Any()
+    private var lastCaptureAt: Long? = null
 
     /** A direct transcription of the contract table; see the file header. */
     fun decide(input: GestureInput): GestureDecision {
@@ -93,7 +99,15 @@ internal object CaptureGesture {
                 swallowKeys = false,
             )
         }
-        val decision = decide(input)
+        var decision = decide(input)
+        if (decision.capture) {
+            val t = now()
+            val cooling = synchronized(lock) {
+                val last = lastCaptureAt
+                if (last != null && t - last < CAPTURE_COOLDOWN_MS) true else false.also { lastCaptureAt = t }
+            }
+            if (cooling) decision = decision.copy(capture = false)
+        }
         if (decision.capture) runCatching { captureTrigger() }
         if (decision.sendHello) runCatching { helloSender() }
         return decision
@@ -104,5 +118,7 @@ internal object CaptureGesture {
         captureTrigger = { QuickCapture.trigger() }
         helloSender = { DeviceLink.sendHello() }
         inputProvider = null
+        now = { android.os.SystemClock.elapsedRealtime() }
+        synchronized(lock) { lastCaptureAt = null }
     }
 }
