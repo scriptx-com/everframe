@@ -1,0 +1,122 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplayCoverage.kt
+  s_f1c043e85606b2::t_d11124286de7e8 14-15
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterDialog.kt
+  s_f1c043e85606b2::t_901e435e4a6750 85
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/ReporterDisabledTest.kt
+  s_f1c043e85606b2::t_372fda0da31e48 6
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/testing/MockWebServerExt.kt
+  s_f1c043e85606b2::t_2a43be1ab9060c 9-10
+packages/sdk-android/android/everframe-core/proguard-rules.pro
+  s_f1c043e85606b2::t_c69d6c28b2d8cb 168,248-249,253-257
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/LinkBanner.kt
+  s_f1c043e85606b2::t_d4b25b9b1890ab 12
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionState.kt
+  s_f1c043e85606b2::t_e1e878d18d3d71 4-6,10-11
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/NetworkBodyRingBuffer.kt
+  s_f1c043e85606b2::t_5112ba9920bf5f 22
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ActivityRegistry.kt
+  s_f1c043e85606b2::t_63c37d4d16200c 29,34
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/TXCapturedUser.kt
+  s_f1c043e85606b2::t_88dceb109e33b8 20
+packages/sdk-android/android/everframe-core/consumer-rules.pro
+  s_f1c043e85606b2::t_2f524b8ad2ddba 137,209-210,215-222
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionDeprecation.kt
+  s_f1c043e85606b2::t_6be0cab62c34ff 4-7,11-29
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/envelope/TXUserExtrasFromTest.kt
+  s_f1c043e85606b2::t_141e5e8af90bcc 6
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/QuickCaptureTest.kt
+  s_f1c043e85606b2::t_ac73ce3d1c7b28 60,62,273-274
+scripts/verify-android-publication.sh
+  s_f1c043e85606b2::t_2a5d40946e20d2 130-139
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplaySession.kt
+  s_f1c043e85606b2::t_aeab46b10e4764 171,176-177,224,243,335
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/identity/IdentityProviderWarmTest.kt
+  s_f1c043e85606b2::t_52002b45f706df 289-290,359,460
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/SubmissionComposerOwnedVideoTest.kt
+  s_f1c043e85606b2::t_bc9c5750b2bc52 4,27,32,58,63,66,99
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/ReporterInstallation.kt
+  s_f1c043e85606b2::t_58b71defd9e40f 34
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/ReplayConfigProviderTest.kt
+  s_f1c043e85606b2::t_238b4c50b4c86b 545,1035,1037-1040,1085-1086
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/replay/ReplaySessionRefreshLoopTest.kt
+  s_f1c043e85606b2::t_37f399d040ff51 66
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/transport/CaptureTokenHeaderTest.kt
+  s_f1c043e85606b2::t_04ea1034ba990e 10
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/SubmissionComposerTest.kt
+  s_f1c043e85606b2::t_b3987321d4e875 4-5,26,96,107,122,132,141,151,169,179,210,223,241,289,305,337,403,438,460,469,506,519,624,693,703,715,718,755,760,766,770,785,788,794,805,888,898,912,915,933,937,1117,1136,1142
+packages/protocol/__tests__/generated-identity.spec.ts
+  s_f1c043e85606b2::t_1ea8cb95af487d 28
+  s_f1c043e85606b2::t_545feb59dfa6cc 29-32
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/crash/CrashReporter.kt
+  s_f1c043e85606b2::t_8d7004d2a4ef83 457
+packages/sdk-android/android/gradle/libs.versions.toml
+  s_f1c043e85606b2::t_4ae38ecff2c237 37,74
+packages/sdk-android/android/everframe-gradle-plugin/src/main/resources/everframe-keep.pro
+  s_f1c043e85606b2::t_fd3a0c8a3676b2 56,59-61
+.gitleaksignore
+  s_f1c043e85606b2::t_b74fd286412a46 91-94
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/SubmissionComposer.kt
+  s_f1c043e85606b2::t_408f21897ff449 4-7,9-15,24,51,61,70-72,78,99-100,116-117,121,130,147,149,156,164,181,222,358,360,379-380
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/Companion.kt
+  s_f1c043e85606b2::t_084c3a145cdc58 4-8,16-17,19,21,23,25,27,29,31,33,35,37,39,41,44-45
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_f1c043e85606b2::t_70c83c5acd1b0e 823,889,1243-1244,1848,2368-2370,2447,2554,2556-2558,2562-2563,2566,2569-2570,2572,2577-2579,2585-2586,2589,2623
+packages/sdk-android/android/everframe-core/build.gradle.kts
+  s_f1c043e85606b2::t_d7963f135852e8 166-168,177,216-218
+packages/sdk-android/android/everframe-reporter-ui/src/test/kotlin/dev/everframe/ui/ReporterDialogSubmitBoundaryTest.kt
+  s_f1c043e85606b2::t_aa8b9d866e96ca 22,567
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/QuickCapture.kt
+  s_f1c043e85606b2::t_97ec112db2b05b 155,439,553,670
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReplayConfigProvider.kt
+  s_f1c043e85606b2::t_6cdf0eba54eeba 297-301,405,1057-1058,1061
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/BreadcrumbAdapters.kt
+  s_f1c043e85606b2::t_425387327dea32 175-176,198
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/InstallIdentifierTest.kt
+  s_f1c043e85606b2::t_c35c122c13fdc0 14
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/companion/CompanionStubTest.kt
+  s_f1c043e85606b2::t_8b4222e2abb2c8 4-8,10,14-21,25,27,30-32,34-37,41,47,52-55,57-64,68-88,90-117
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/ReportSubmitter.kt
+  s_f1c043e85606b2::t_f23fb9593519cf 239
+packages/sdk-android/android/everframe-core/src/testDebug/kotlin/dev/everframe/transport/ReportSubmitterTest.kt
+  s_f1c043e85606b2::t_f1c6fe1dadd1ff 1164,1202,1266
+packages/sdk-android/android/everframe-reporter-ui/build.gradle.kts
+  s_f1c043e85606b2::t_2aea6040d46f21 78
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/capture/video/CrashOnlyReplaySessionTest.kt
+  s_f1c043e85606b2::t_b6dacda830ff65 5,109,185
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/transport/MultipartUploader.kt
+  s_f1c043e85606b2::t_15feea38ffb0c6 120,147,167,173
+packages/sdk-android/android/everframe-reporter-ui/src/main/kotlin/dev/everframe/ui/TXReporterPresenter.kt
+  s_f1c043e85606b2::t_a09a0e6674cd50 15-16,179
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/envelope/EnvelopeBuilder.kt
+  s_f1c043e85606b2::t_c6694f8941763b 194,252,286-287,519
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EverframeTest.kt
+  s_f1c043e85606b2::t_d8c8dc08d9da7f 440,479,507,974-976
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/Branding.kt
+  s_f1c043e85606b2::t_7d0a18f289528f 7,18
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/EnvelopeUserTest.kt
+  s_f1c043e85606b2::t_6155cc5c551896 464
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/ScreenshotCapture.kt
+  s_f1c043e85606b2::t_1edda77c1e8fbd 83-87,107,118-122
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/QuickCaptureRealDeviceTest.kt
+  s_f1c043e85606b2::t_ce48d0db8b9d2b 52-53
+scripts/verify-android-publication.test.mjs
+  s_f1c043e85606b2::t_e6a463d5943ecc 33-37,368-402
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/EverframeConfig.kt
+  s_f1c043e85606b2::t_01b72bd8176d60 51-52,54,57-58,60,65-66,68,89,129-130,235
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c3a9be70b0dd83a7f03f75d049f803f676b6f100",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
