@@ -33,7 +33,7 @@ final class VitalsConfigNegotiationTests: XCTestCase {
         XCTAssertNil(c.vitalsEnabled); XCTAssertNil(c.vitalsSampleRate)
     }
     func testTheFeaturesHeaderDeclaresVitals() {
-        XCTAssertEqual(ReplayConfigProvider.sdkFeaturesHeaderValue, "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard")
+        XCTAssertEqual(ReplayConfigProvider.sdkFeaturesHeaderValue, "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking")
     }
     /// Codex round-1, #7 — a subscriber that has read the current value and a publisher that
     /// writes a newer one must reach the serial queue in THAT order. Submitting after the
