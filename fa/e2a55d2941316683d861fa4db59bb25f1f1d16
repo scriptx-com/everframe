@@ -1,0 +1,35 @@
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/CaptureGestureTest.kt
+  s_f1c043e85606b2::t_0edee901c19e78 1-123
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/CaptureGesture.kt
+  s_f1c043e85606b2::t_92780fc9595b61 1-108
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/Everframe.kt
+  s_f1c043e85606b2::t_6ef00ed4da7391 1130-1132
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/capture/replay/ReplaySession.kt
+  s_f1c043e85606b2::t_4fe50bdf72463e 201-204
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/devicelink/DeviceLink.kt
+  s_f1c043e85606b2::t_7fecd9994df8ba 53,304-311,336
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/QuickCapture.kt
+  s_f1c043e85606b2::t_8c7b0be95c1f21 297-305,575-577
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/trigger/ShakeToReport.kt
+  s_f1c043e85606b2::t_18af78fa015c45 96-102,105-110,148-159,163,180,203-212,218,230-242,246,291,312-324
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/devicelink/DeviceLinkTest.kt
+  s_f1c043e85606b2::t_5010df6531464a 48,73,156,293
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/trigger/ShakeToReportTest.kt
+  s_f1c043e85606b2::t_5a0523f044d14e 5-6,8,10-13,15-19,23-26,28,30-40,172-306
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fae2a55d2941316683d861fa4db59bb25f1f1d16",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
