@@ -1,0 +1,41 @@
+.changeset/real-device-quick-capture-ios.md
+  s_f1c043e85606b2::t_5658302ab971ad 1-8
+packages/sdk-ios/README.md
+  s_f1c043e85606b2::t_aff7e38cac4f89 246-247,444-451,478-480,532-594
+packages/sdk-ios/Sources/Everframe/Capture/ReplaySession.swift
+  s_7abce48d329973::t_30b74211413e1a 569-574
+packages/sdk-ios/Sources/Everframe/Config/EverframeConfig.swift
+  s_f1c043e85606b2::t_4a8d4dc6822686 126-131
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkCoordinator.swift
+  s_f1c043e85606b2::t_4b821bd58c7db1 69-74
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_f1c043e85606b2::t_f2ff40e2cfe15c 571-579,1274-1285,1292-1294,2487
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkSessionWiringTests.swift
+  s_f1c043e85606b2::t_7937655c51c95f 1-31
+packages/sdk-ios/Tests/EverframeTests/QuickCaptureReplayTests.swift
+  s_f1c043e85606b2::t_f445539b0d5a29 273-309
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "834b6f9af77eefa6744f4cc57bdfefe4fdfa892f",
+  "prompts": {},
+  "sessions": {
+    "s_7abce48d329973": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16a79-9ab7-7ff0-ae1d-11dc34ef4567",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    },
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
