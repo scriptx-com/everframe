@@ -12,6 +12,9 @@ import { collectHermesBuild } from './hermes.js';
 import { collectBuild } from './manifest.js';
 import { dsymUploadBuildCommand } from './apple-command.js';
 import { DEFAULT_API_URL, redact, uploadBudget } from './defaults.js';
+import { homedir } from 'node:os';
+import { captureCommand, linkCommand } from './quick-capture/commands.js';
+import { defaultRunner } from './quick-capture/devices.js';
 import {
   DeviceBuildUploadError,
   DeviceBuildWaitTimeoutError,
@@ -72,6 +75,8 @@ const HELP = `Usage:
   everframe r8 upload --app-id <uuid> --mapping-id <id> --mapping <path>
   everframe build collect --staging <dir> --platform <android|ios> --bundle <path> --source-map <path> [--dsym <dir>] [--elf <dir>]
   everframe build verify --staging <dir> --platform <android|ios> [--release] [--allow-missing]
+  everframe link   (copy your login to running Android emulators)
+  everframe capture [--device <udid|name|serial>]   (trigger a quick capture on a simulator or emulator)
 
 Device builds: uploads are asynchronous by default; --wait observes readiness within a total 600-second budget (override with --timeout).
 
@@ -84,6 +89,32 @@ Environment:
   EVERFRAME_SYMBOLS_STRICT  Set to 1 to fail builds when symbols cannot be uploaded (default: warn)
   EVERFRAME_UPLOAD_TIMEOUT_SECONDS  Overall upload time limit (default 600 for build integrations)
 `;
+
+async function quickCaptureCommand(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
+  const { values } = parseArgs({
+    args: argv.slice(1),
+    strict: true,
+    allowPositionals: false,
+    options: {
+      help: { type: 'boolean', short: 'h' },
+      ...(argv[0] === 'capture' ? { device: { type: 'string' as const } } : {}),
+    },
+  });
+  if (values.help) {
+    console.log(HELP);
+    return 0;
+  }
+  const deps = {
+    run: defaultRunner,
+    env,
+    home: homedir(),
+    out: (s: string) => console.log(s),
+    err: (s: string) => console.error(s),
+  };
+  if (argv[0] === 'link') return linkCommand(deps);
+  const device = (values as { device?: string }).device;
+  return captureCommand(deps, device === undefined ? {} : { device });
+}
 
 async function deviceBuildsCommand(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
   const json = argv.slice(2).includes('--json');
@@ -238,6 +269,14 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
   const isSetupCommand = argv[0] === 'setup' && argv[1] === 'react-native';
   const isSetupXcodeCommand = argv[0] === 'setup' && argv[1] === 'xcode';
   const isXcodeBuildPhaseCommand = argv[0] === 'xcode' && argv[1] === 'build-phase';
+  if (argv[0] === 'link' || argv[0] === 'capture') {
+    try {
+      return await quickCaptureCommand(argv, env);
+    } catch {
+      console.error('invalid_command');
+      return 1;
+    }
+  }
   if (
     !isDeviceBuildCommand &&
     !isSetupCommand &&
