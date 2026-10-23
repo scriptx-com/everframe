@@ -1,0 +1,29 @@
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/config/ReplayConfigProvider.kt
+  s_f1c043e85606b2::t_06abeea51297e3 27-28,49,548-562,584,591,593,598-618,624-678,729-730,771,987-989,1057-1058,1061
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/quickcapture/RemoteKeys.kt
+  s_f1c043e85606b2::t_5452530d7e239a 1-58
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/CaptureGestureConfigTest.kt
+  s_f1c043e85606b2::t_dcd18bdf10fe49 1-157
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/DeviceLinkingConfigTest.kt
+  s_f1c043e85606b2::t_6147120440a470 89-99
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/config/ReplayConfigProviderTest.kt
+  s_f1c043e85606b2::t_ef66624c597ccb 545
+packages/sdk-android/android/everframe-core/src/test/kotlin/dev/everframe/quickcapture/RemoteKeysTest.kt
+  s_f1c043e85606b2::t_fbf638b9567163 1-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "866e9a172d61f160c2f3923f56488929256a0098",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
