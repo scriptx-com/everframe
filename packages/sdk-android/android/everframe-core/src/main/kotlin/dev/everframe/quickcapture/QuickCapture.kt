@@ -20,6 +20,12 @@
 //
 // The block's `replay` flag also records session replay while quick capture is armed, whatever the
 // app's `replayEnabled` ([QuickCapture.forcesReplay]).
+//
+// A host that renders its own pixels (Flutter, which starts the SDK with `capture.screenshot = false`
+// and masks in Dart) installs an evidence provider through `Everframe.__setQuickCaptureEvidenceProvider`.
+// With a provider the capture ships the host's masked screenshot and replay and never takes the native
+// screenshot. Without one, a session whose `capture.screenshot` is false is ignored
+// (`screenshot_disabled`): it never uploads an unmasked native screenshot.
 package dev.everframe.quickcapture
 
 import android.app.Activity
@@ -46,6 +52,18 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
+
+/**
+ * Host-rendered evidence for one quick capture. [screenshot] is already masked, built the way
+ * `EFReporterFromImage.open` builds it from the host's `maskedPng` (decoded bitmap, its size, and the
+ * PNG bytes). [hostReplayVTree] is the host's masked replay timeline, the bytes the reporter takes as
+ * `hostReplayVTree`; null means the host has no safe frames. SDK seam for host plugins; see
+ * `Everframe.__setQuickCaptureEvidenceProvider`.
+ */
+class QuickCaptureHostEvidence(
+    val screenshot: ScreenshotCapture.CaptureResult,
+    val hostReplayVTree: ByteArray?,
+)
 
 internal sealed interface QuickCaptureOutcome {
     data class Ignored(val reason: String) : QuickCaptureOutcome
@@ -95,7 +113,19 @@ internal object QuickCapture {
     @Volatile private var localEnabled = false
     @Volatile private var remoteEnabled = false
     @Volatile private var remoteReplay = false
+    @Volatile private var screenshot = true
+    @Volatile private var evidenceProvider: (suspend () -> QuickCaptureHostEvidence?)? = null
     private val inFlight = AtomicBoolean(false)
+
+    /** The session's `capture.screenshot`. */
+    val sessionScreenshotEnabled: Boolean get() = screenshot
+
+    val hasEvidenceProvider: Boolean get() = evidenceProvider != null
+
+    /** Installs (or with null, removes) the host evidence provider. `teardown` (from `kill()`) clears it. */
+    fun setEvidenceProvider(provider: (suspend () -> QuickCaptureHostEvidence?)?) {
+        synchronized(lock) { evidenceProvider = provider }
+    }
 
     /**
      * True from the gate check to the toast. Shake-to-report stands down while it is set. An explicit
@@ -106,14 +136,21 @@ internal object QuickCapture {
 
     /**
      * Called from `start()`. Replaces any previous receiver, and a new session starts disarmed until its
-     * own config names a `captureHotkey` block.
+     * own config names a `captureHotkey` block. [screenshot] is the session's `capture.screenshot`.
      */
-    fun install(context: Context, localEnabled: Boolean, debug: Boolean, isCurrent: () -> Boolean = { true }) {
+    fun install(
+        context: Context,
+        localEnabled: Boolean,
+        debug: Boolean,
+        screenshot: Boolean = true,
+        isCurrent: () -> Boolean = { true },
+    ) {
         synchronized(lock) {
             if (!isCurrent()) return
             unregisterLocked()
             this.debug = debug
             this.localEnabled = localEnabled
+            this.screenshot = screenshot
             remoteEnabled = false
             remoteReplay = false
             if (!debug || !localEnabled || !isEmulator()) return
@@ -167,6 +204,8 @@ internal object QuickCapture {
             localEnabled = false
             remoteEnabled = false
             remoteReplay = false
+            screenshot = true
+            evidenceProvider = null
         }
     }
 
@@ -189,7 +228,9 @@ internal object QuickCapture {
 
     suspend fun capture(): QuickCaptureOutcome {
         val activity = Everframe.__activitySupplier?.invoke()?.takeUnless { it.isFinishing || it.isDestroyed }
-        ignoreReason(activity)?.let { return QuickCaptureOutcome.Ignored(it) }
+        // Read once: the gate and the pipeline must agree on the provider.
+        val provider = evidenceProvider
+        ignoreReason(activity, provider != null)?.let { return QuickCaptureOutcome.Ignored(it) }
         if (!inFlight.compareAndSet(false, true)) return QuickCaptureOutcome.Ignored("in_flight")
         try {
             // The in-app reporter freezes before its dialog shows, and the companion never marks itself
@@ -197,7 +238,7 @@ internal object QuickCapture {
             // not freeze over or consume. Checked after the claim, so no capture of ours can slip between.
             if (Everframe.__replayHasReporterOwner) return QuickCaptureOutcome.Ignored("capture_frozen")
             val appContext = activity!!.applicationContext
-            val outcome = runPipeline(appContext, activity)
+            val outcome = runPipeline(appContext, activity, provider)
             toastText(outcome, deviceName(appContext))?.let { text ->
                 withContext(Dispatchers.Main) { Toast.makeText(appContext, text, Toast.LENGTH_SHORT).show() }
             }
@@ -207,7 +248,7 @@ internal object QuickCapture {
         }
     }
 
-    private fun ignoreReason(activity: Activity?): String? = when {
+    private fun ignoreReason(activity: Activity?, hasProvider: Boolean): String? = when {
         !isEmulator() -> "not_emulator"
         !debug -> "not_debug"
         !localEnabled -> "disabled"
@@ -216,6 +257,9 @@ internal object QuickCapture {
         activity == null -> "inactive"
         // The same flag the shake gate reads.
         Everframe.report.isPresenting.value -> "reporter_presenting"
+        // The host masks its own pixels (Flutter) and installed no provider: the native screenshot would
+        // be unmasked, so there is nothing safe to send.
+        !hasProvider && !screenshot -> "screenshot_disabled"
         else -> null
     }
 
@@ -224,11 +268,38 @@ internal object QuickCapture {
      * boundary and freeze, then submit. Every exit after the freeze releases it: an upload (sent or
      * queued) finishes consumption, anything else cancels.
      */
-    private suspend fun runPipeline(appContext: Context, activity: Activity): QuickCaptureOutcome {
-        val shot = withContext(Dispatchers.Main) {
-            if (activity.isFinishing || activity.isDestroyed) return@withContext null
-            screenshotter(activity, SensitiveRectRegistry.collectInWindowCoords(activity))
-        } ?: return QuickCaptureOutcome.Failed
+    private suspend fun runPipeline(
+        appContext: Context,
+        activity: Activity,
+        provider: (suspend () -> QuickCaptureHostEvidence?)?,
+    ): QuickCaptureOutcome {
+        val shot: ScreenshotCapture.CaptureResult
+        val hostReplayVTree: ByteArray?
+        if (provider != null) {
+            // The host's masked evidence replaces the native screenshot entirely.
+            val evidence = try {
+                provider()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                null
+            } ?: return QuickCaptureOutcome.Failed
+            // The host rendered asynchronously. A kill() in that window means nothing may freeze or ship,
+            // and a reporter that opened (or froze) meanwhile owns the evidence this capture would freeze.
+            if (!Everframe.captureGate || Everframe.report.isPresenting.value || Everframe.__replayHasReporterOwner) {
+                return QuickCaptureOutcome.Failed
+            }
+            shot = evidence.screenshot
+            // As `EFReporterFromImage`: host evidence owns replay, and an empty value keeps the native
+            // video fallback off.
+            hostReplayVTree = evidence.hostReplayVTree ?: ByteArray(0)
+        } else {
+            shot = withContext(Dispatchers.Main) {
+                if (activity.isFinishing || activity.isDestroyed) return@withContext null
+                screenshotter(activity, SensitiveRectRegistry.collectInWindowCoords(activity))
+            } ?: return QuickCaptureOutcome.Failed
+            hostReplayVTree = null
+        }
         val capture = try {
             freezer(ReporterTrigger.QuickCapture)
         } catch (e: CancellationException) {
@@ -258,6 +329,7 @@ internal object QuickCapture {
                     captureToken = CaptureTokenReader.read(appContext),
                     // The raw screenshot: no annotation canvas ran.
                     annotated = false,
+                    hostReplayVTree = hostReplayVTree,
                 ),
             )
             return when (result) {

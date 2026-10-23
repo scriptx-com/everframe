@@ -244,6 +244,162 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertTrue(cancels.isEmpty)
     }
 
+    // MARK: Host evidence and capture.screenshot
+
+    private func solidImage(_ color: UIColor = .red) -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: 6, height: 4)).image { ctx in
+            color.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 6, height: 4))
+        }
+    }
+
+    /// A Flutter-style session: `capture.screenshot = false`.
+    private func makeArmedWithScreenshotDisabled() -> QuickCapture {
+        let qc = makeArmed()
+        qc.beginSession(localEnabled: true, debug: true, screenshot: false)
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true))
+        return qc
+    }
+
+    func testProviderEvidenceIsSubmittedWithoutNativeScreenshot() async throws {
+        let qc = makeArmedWithScreenshotDisabled()
+        qc.screenshotter = { XCTFail("the native screenshot must not be taken"); return nil }
+        let image = solidImage()
+        let vtree = Data(#"{"version":"everframe-vtree-v1"}"#.utf8)
+        qc.setEvidenceProvider { QuickCaptureHostEvidence(image: image, hostReplayVTree: vtree) }
+
+        let outcome = await qc.capture()
+
+        guard case .sent = outcome else { return XCTFail("expected .sent, got \(outcome)") }
+        let inputs = try XCTUnwrap(submitted.first)
+        XCTAssertEqual(submitted.count, 1)
+        XCTAssertTrue(inputs.captureResult.image === image)
+        XCTAssertEqual(inputs.shots.count, 1)
+        XCTAssertTrue(inputs.shots.first?.image === image)
+        XCTAssertEqual(inputs.shots.first?.annotated, false)
+        XCTAssertEqual(inputs.hostReplayVTree, vtree)
+        XCTAssertTrue(inputs.quickCapture)
+        XCTAssertEqual(inputs.captureToken, "t1")
+        XCTAssertEqual(freezes, 1)
+        XCTAssertEqual(closes.count, 1)
+    }
+
+    /// Like `openWithMaskedPng`: host evidence without frames still owns replay,
+    /// so the empty value keeps the unmasked native video fallback off.
+    func testProviderEvidenceWithoutReplaySendsEmptyHostReplay() async throws {
+        let qc = makeArmedWithScreenshotDisabled()
+        qc.screenshotter = { XCTFail("the native screenshot must not be taken"); return nil }
+        let image = solidImage()
+        qc.setEvidenceProvider { QuickCaptureHostEvidence(image: image, hostReplayVTree: nil) }
+
+        let outcome = await qc.capture()
+
+        guard case .sent = outcome else { return XCTFail("expected .sent, got \(outcome)") }
+        XCTAssertEqual(try XCTUnwrap(submitted.first).hostReplayVTree, Data())
+    }
+
+    func testNilProviderResultFailsWithoutNativeScreenshot() async {
+        let qc = makeArmedWithScreenshotDisabled()
+        var nativeShots = 0
+        qc.screenshotter = { nativeShots += 1; return nil }
+        var toasts: [String] = []
+        qc.showToast = { toasts.append($0) }
+        qc.setEvidenceProvider { nil }
+
+        let outcome = await qc.capture()
+
+        guard case .failed = outcome else { return XCTFail("expected .failed, got \(outcome)") }
+        XCTAssertEqual(nativeShots, 0)
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertEqual(freezes, 0)
+        XCTAssertEqual(toasts, ["Capture failed"])
+    }
+
+    /// The provider is asynchronous: a kill() or a reporter opening while the
+    /// host renders must stop the capture before it freezes anything.
+    func testProviderRaceWithKillOrReporterFailsWithoutFreezing() async {
+        await withGlobalCaptureStateLock {
+            Everframe.captureGate = true
+            let killed = makeArmedWithScreenshotDisabled()
+            let image = solidImage()
+            killed.setEvidenceProvider {
+                Everframe.captureGate = false
+                return QuickCaptureHostEvidence(image: image, hostReplayVTree: nil)
+            }
+            let killedOutcome = await killed.capture()
+            guard case .failed = killedOutcome else { return XCTFail("expected .failed, got \(killedOutcome)") }
+            Everframe.captureGate = true
+
+            let presenting = makeArmedWithScreenshotDisabled()
+            presenting.setEvidenceProvider {
+                ReportAPI.__performSetPresenting(true)
+                return QuickCaptureHostEvidence(image: image, hostReplayVTree: nil)
+            }
+            let presentingOutcome = await presenting.capture()
+            guard case .failed = presentingOutcome else { return XCTFail("expected .failed, got \(presentingOutcome)") }
+            ReportAPI.__performSetPresenting(false)
+
+            XCTAssertEqual(freezes, 0)
+            XCTAssertTrue(submitted.isEmpty)
+        }
+    }
+
+    func testScreenshotDisabledWithoutProviderIsIgnored() async {
+        let qc = makeArmedWithScreenshotDisabled()
+        var nativeShots = 0
+        qc.screenshotter = { nativeShots += 1; return nil }
+        var toasts: [String] = []
+        qc.showToast = { toasts.append($0) }
+
+        let outcome = await qc.capture()
+
+        XCTAssertTrue(isIgnored(outcome, reason: "screenshot_disabled"), "\(outcome)")
+        XCTAssertEqual(nativeShots, 0)
+        XCTAssertTrue(submitted.isEmpty)
+        XCTAssertEqual(freezes, 0)
+        XCTAssertTrue(toasts.isEmpty)
+    }
+
+    func testDefaultConfigStillUsesNativeScreenshot() async throws {
+        let qc = makeArmed()
+        var nativeShots = 0
+        let native = qc.screenshotter
+        qc.screenshotter = { nativeShots += 1; return native() }
+
+        let outcome = await qc.capture()
+
+        guard case .sent = outcome else { return XCTFail("expected .sent, got \(outcome)") }
+        XCTAssertEqual(nativeShots, 1)
+        let inputs = try XCTUnwrap(submitted.first)
+        XCTAssertNil(inputs.hostReplayVTree)
+        XCTAssertEqual(inputs.shots.first?.annotated, false)
+    }
+
+    /// The SPI installs on the shared capture; `kill()` clears it with the rest
+    /// of the session, after which a screenshot-disabled session is ignored again.
+    func testKillClearsTheEvidenceProvider() {
+        defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil) }
+        Everframe.shared.__setQuickCaptureEvidenceProvider { nil }
+        XCTAssertTrue(QuickCapture.shared.hasEvidenceProvider)
+        Everframe.shared.kill()
+        XCTAssertFalse(QuickCapture.shared.hasEvidenceProvider)
+        Everframe.shared.__setQuickCaptureEvidenceProvider { nil }
+        Everframe.shared.__setQuickCaptureEvidenceProvider(nil)
+        XCTAssertFalse(QuickCapture.shared.hasEvidenceProvider)
+    }
+
+    /// `start` carries the session's `capture.screenshot` into the gate.
+    func testStartCarriesCaptureScreenshotIntoTheSession() throws {
+        defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil) }
+        let sdkKey = "txx_live_BToSbdPgUWSxvuE8eTBg948e8q04j1rU"
+        try Everframe.shared.start(config: EverframeConfig(
+            sdkKey: sdkKey, capture: CaptureConfig(screenshot: false, logs: false), releaseHealth: nil))
+        XCTAssertFalse(QuickCapture.shared.sessionScreenshotEnabled)
+        try Everframe.shared.start(config: EverframeConfig(
+            sdkKey: sdkKey, capture: CaptureConfig(logs: false), releaseHealth: nil))
+        XCTAssertTrue(QuickCapture.shared.sessionScreenshotEnabled)
+    }
+
     func testNoTokenStillSubmits() async throws {
         let qc = makeArmed()
         qc.environment = [:]

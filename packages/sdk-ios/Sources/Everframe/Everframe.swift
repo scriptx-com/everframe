@@ -1268,6 +1268,7 @@ public final class Everframe: @unchecked Sendable {
         QuickCapture.shared.beginSession(
             localEnabled: config.quickCaptureEnabled && config.reporterEnabled,
             debug: DebugBuild.current(configured: config.debugBuild),
+            screenshot: config.capture.screenshot,
             ifCurrent: vitalsStillNewest
         )
         #endif
@@ -2179,6 +2180,27 @@ public final class Everframe: @unchecked Sendable {
             return drainPendingAttachmentsLocked()
         }
     }
+
+    #if canImport(UIKit)
+    /// Simulator quick capture's host evidence hook, for hosts that render and
+    /// mask their own pixels (the Flutter plugin, which starts the SDK with
+    /// `capture.screenshot = false`). While a provider is installed, a quick
+    /// capture calls it instead of taking the native screenshot and submits the
+    /// returned image (as an unannotated shot) and `hostReplayVTree` exactly as
+    /// the reporter submits host-rendered evidence. A nil result fails the
+    /// capture. Without a provider, a session with `capture.screenshot == false`
+    /// ignores quick capture (`screenshot_disabled`).
+    ///
+    /// Pass nil to remove it. `kill()` clears it; `start()` does not. Inert on
+    /// devices and release builds, where quick capture never arms. `public` only
+    /// for host plugins in other modules; the `__` prefix marks it as an
+    /// Everframe SDK seam.
+    public func __setQuickCaptureEvidenceProvider(
+        _ provider: (@MainActor () async -> QuickCaptureHostEvidence?)?
+    ) {
+        QuickCapture.shared.setEvidenceProvider(provider)
+    }
+    #endif
 
     /// Synchronous drain — see `__consumePendingAttachments()`'s doc comment
     /// for why this is split out.

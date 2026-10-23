@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-package dev.everframe.ui
+package dev.everframe.transport
 
 import android.graphics.Bitmap
 import org.junit.Assert.*

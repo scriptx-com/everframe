@@ -23,6 +23,12 @@ arrives, so it sends the capture without its replay, and the launch drain remove
 entry. A key press that UIKit delivers twice is counted
 once.
 
+A session started with `capture.screenshot = false` ignores quick capture unless
+the host has installed an evidence provider with
+`Everframe.__setQuickCaptureEvidenceProvider`. That SDK seam is for host plugins,
+such as Flutter's, that mask their own pixels and supply the screenshot and
+replay themselves. Such a session never uploads an unmasked native screenshot.
+
 The public `ReporterTrigger` enum gained a `quickCapture` case (raw value
 `quick_capture`). Host code that switches exhaustively over `ReporterTrigger`
 needs a `default` branch.

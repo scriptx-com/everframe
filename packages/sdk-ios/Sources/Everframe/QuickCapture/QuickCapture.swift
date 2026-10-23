@@ -16,8 +16,33 @@
 //
 // The block's `replay` flag also records session replay while the session is
 // armed, whatever the app's `replayEnabled` (`forcesReplay`).
+//
+// A host that renders its own pixels (Flutter, which starts the SDK with
+// `capture.screenshot = false` and masks in Dart) installs an evidence provider
+// through `Everframe.__setQuickCaptureEvidenceProvider`. With a provider the
+// capture ships the host's masked image and replay and never takes the native
+// screenshot. Without one, a session whose `capture.screenshot` is false is
+// ignored (`screenshot_disabled`): it never uploads an unmasked native screenshot.
 #if canImport(UIKit)
 import UIKit
+
+/// Host-rendered evidence for one quick capture: an already masked screenshot
+/// and, optionally, the host's masked replay timeline (the same bytes the
+/// reporter takes as `hostReplayVTree`). SDK seam for host plugins; see
+/// `Everframe.__setQuickCaptureEvidenceProvider`.
+public struct QuickCaptureHostEvidence {
+    public let image: UIImage
+    public let hostReplayVTree: Data?
+
+    public init(image: UIImage, hostReplayVTree: Data?) {
+        self.image = image
+        self.hostReplayVTree = hostReplayVTree
+    }
+}
+
+/// Supplies host evidence at capture time. nil means the host could not produce
+/// safe evidence, and the capture fails.
+typealias QuickCaptureEvidenceProvider = @MainActor () async -> QuickCaptureHostEvidence?
 
 enum QuickCaptureOutcome: Equatable {
     case ignored(reason: String)
@@ -35,11 +60,13 @@ private final class QuickCaptureGate: @unchecked Sendable {
     private var remoteEnabled = false
     private var binding: CaptureHotkeyBinding = .doubleShift
     private var replay = false
+    private var screenshot = true
 
-    func reset(localEnabled: Bool, debug: Bool) {
+    func reset(localEnabled: Bool, debug: Bool, screenshot: Bool = true) {
         lock.lock(); defer { lock.unlock() }
         self.localEnabled = localEnabled
         self.debug = debug
+        self.screenshot = screenshot
         remoteEnabled = false
         binding = .doubleShift
         replay = false
@@ -51,6 +78,12 @@ private final class QuickCaptureGate: @unchecked Sendable {
         remoteEnabled = remote?.enabled == true
         binding = parsed
         replay = remote?.replay == true
+    }
+
+    /// The session's `capture.screenshot`.
+    var screenshotEnabled: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return screenshot
     }
 
     /// The first failing configuration gate (nil when armed), the active binding
@@ -96,6 +129,8 @@ final class QuickCapture {
     var isApplicationActive: @MainActor () -> Bool = { UIApplication.shared.applicationState == .active }
     var lifecycle: Lifecycle = .live
     var showToast: @MainActor (String) -> Void = { QuickCaptureToast.show(text: $0) }
+    /// The native screenshot. Never called while a host evidence provider is installed.
+    var screenshotter: @MainActor () -> ScreenshotCapture.Result? = { ScreenshotCapture.captureKeyWindow() }
     /// Replaces the task `handle` and the Darwin notification start on a trigger.
     var triggerOverride: (@MainActor () -> Void)?
     /// The double-Shift window. The key-delivery proof widens it, because
@@ -109,6 +144,8 @@ final class QuickCapture {
     private var matcher: CaptureHotkeyMatcher?
     private var presses = CapturePressDeduplicator()
     private var inFlight = false
+    /// Guarded by `stateLock`. Written from any thread, called on the main actor.
+    nonisolated(unsafe) private var evidenceProvider: QuickCaptureEvidenceProvider?
 
     nonisolated static let darwinCaptureNotification = "com.everframe.capture"
     nonisolated(unsafe) private var darwinObserverInstalled = false
@@ -133,10 +170,13 @@ final class QuickCapture {
     // MARK: Session wiring (any thread)
 
     /// A new session starts disarmed until its own config names a `captureHotkey` block.
-    nonisolated func beginSession(localEnabled: Bool, debug: Bool, ifCurrent: () -> Bool = { true }) {
+    /// `screenshot` is the session's `capture.screenshot`.
+    nonisolated func beginSession(
+        localEnabled: Bool, debug: Bool, screenshot: Bool = true, ifCurrent: () -> Bool = { true }
+    ) {
         stateLock.lock(); defer { stateLock.unlock() }
         guard ifCurrent() else { return }
-        gate.reset(localEnabled: localEnabled, debug: debug)
+        gate.reset(localEnabled: localEnabled, debug: debug, screenshot: screenshot)
         installDarwinObserver()
     }
 
@@ -181,6 +221,24 @@ final class QuickCapture {
         stateLock.lock(); defer { stateLock.unlock() }
         guard ifCurrent() else { return }
         gate.reset(localEnabled: false, debug: false)
+        evidenceProvider = nil
+    }
+
+    /// Installs (or with nil, removes) the host evidence provider. `teardown`
+    /// (from `kill()`) clears it; `beginSession` keeps it.
+    nonisolated func setEvidenceProvider(_ provider: QuickCaptureEvidenceProvider?) {
+        stateLock.lock(); defer { stateLock.unlock() }
+        evidenceProvider = provider
+    }
+
+    nonisolated var hasEvidenceProvider: Bool { currentEvidenceProvider() != nil }
+
+    /// The session's `capture.screenshot`.
+    nonisolated var sessionScreenshotEnabled: Bool { gate.screenshotEnabled }
+
+    nonisolated private func currentEvidenceProvider() -> QuickCaptureEvidenceProvider? {
+        stateLock.lock(); defer { stateLock.unlock() }
+        return evidenceProvider
     }
 
     /// True from the gate check to the toast. Shake-to-report stands down while
@@ -228,16 +286,18 @@ final class QuickCapture {
     // MARK: Pipeline
 
     func capture() async -> QuickCaptureOutcome {
-        if let reason = ignoreReason() { return .ignored(reason: reason) }
+        // Read once: the gate and the pipeline must agree on the provider.
+        let provider = currentEvidenceProvider()
+        if let reason = ignoreReason(hasProvider: provider != nil) { return .ignored(reason: reason) }
         inFlight = true
         defer { inFlight = false }
-        let outcome = await runPipeline()
+        let outcome = await runPipeline(provider: provider)
         let deviceName = environment["SIMULATOR_DEVICE_NAME"] ?? UIDevice.current.name
         if let text = QuickCaptureToast.text(for: outcome, deviceName: deviceName) { showToast(text) }
         return outcome
     }
 
-    private func ignoreReason() -> String? {
+    private func ignoreReason(hasProvider: Bool) -> String? {
         guard isSimulator else { return "not_simulator" }
         if let reason = gate.evaluation.reason { return reason }
         // The kill switch: closed before `start()` and after `kill()`.
@@ -250,13 +310,41 @@ final class QuickCapture {
         // never sets it: a held owner means another capture's frozen evidence,
         // which this capture must not freeze over or consume.
         guard !Everframe.shared.__replayHasReporterOwner else { return "capture_frozen" }
+        // The host masks its own pixels (Flutter) and installed no provider: the
+        // native screenshot would be unmasked, so there is nothing safe to send.
+        guard hasProvider || gate.screenshotEnabled else { return "screenshot_disabled" }
         return nil
     }
 
     /// `EFReporterPresenter.openAndAwait` minus the UI: screenshot first, then
     /// the reporter-open boundary and freeze, then submit and release.
-    private func runPipeline() async -> QuickCaptureOutcome {
-        guard let shot = ScreenshotCapture.captureKeyWindow() else { return .failed }
+    private func runPipeline(provider: QuickCaptureEvidenceProvider?) async -> QuickCaptureOutcome {
+        let shot: ScreenshotCapture.Result
+        let hostReplayVTree: Data?
+        if let provider {
+            // The host's masked evidence replaces the native screenshot entirely.
+            guard let evidence = await provider(),
+                  evidence.image.size.width > 0, evidence.image.size.height > 0 else { return .failed }
+            // The host rendered asynchronously. A kill() in that window means
+            // nothing may freeze or ship, and a reporter that opened (or froze)
+            // meanwhile owns the evidence this capture would freeze over.
+            guard Everframe.captureGate, !Everframe.shared.report.isPresenting,
+                  !Everframe.shared.__replayHasReporterOwner else { return .failed }
+            let image = evidence.image
+            shot = ScreenshotCapture.Result(
+                image: image,
+                widthPoints: image.size.width,
+                heightPoints: image.size.height,
+                scale: image.scale,
+                pngData: image.pngData() ?? Data())
+            // As `EFReporterPresenter.openWithMaskedPng`: host evidence owns
+            // replay, and an empty value keeps the native video fallback off.
+            hostReplayVTree = evidence.hostReplayVTree ?? Data()
+        } else {
+            guard let native = screenshotter() else { return .failed }
+            shot = native
+            hostReplayVTree = nil
+        }
         let owner = lifecycle.open()
         let capturedSession = Everframe.shared.captureSessionSnapshot()
         // Consume-once host payload, as the reporter drains it at open.
@@ -271,6 +359,7 @@ final class QuickCapture {
             includeMetadata: true,
             extraOverrides: [:],
             hostExtra: hostExtra?.isEmpty == true ? nil : hostExtra,
+            hostReplayVTree: hostReplayVTree,
             capturedSession: capturedSession,
             quickCapture: true,
             // Read fresh per capture. SECURITY: never log.

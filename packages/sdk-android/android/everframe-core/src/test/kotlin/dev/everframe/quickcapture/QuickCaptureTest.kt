@@ -16,6 +16,9 @@ import dev.everframe.capture.ScreenshotCapture
 import dev.everframe.capture.replay.ReplaySession
 import dev.everframe.capture.video.FrozenReportCapture
 import dev.everframe.companion.CompanionSubmissionComposer
+import dev.everframe.config.CaptureConfig
+import dev.everframe.config.Environment
+import dev.everframe.config.EverframeConfig
 import dev.everframe.config.CaptureHotkeyConfigWire
 import dev.everframe.config.ReportResult
 import dev.everframe.config.ReporterTrigger
@@ -389,6 +392,172 @@ class QuickCaptureTest {
         assertEquals(0, freezes.get())
         assertTrue(submits.isEmpty())
         assertEquals("Capture failed", ShadowToast.getTextOfLatestToast())
+    }
+
+    // ---- host evidence and capture.screenshot ----
+
+    private fun hostShot(): ScreenshotCapture.CaptureResult {
+        val bitmap = Bitmap.createBitmap(6, 4, Bitmap.Config.ARGB_8888)
+        return ScreenshotCapture.CaptureResult(bitmap, 6, 4, byteArrayOf(9, 9))
+    }
+
+    /** A Flutter-style session: `capture.screenshot = false`. */
+    private fun armWithScreenshotDisabled() {
+        QuickCapture.install(app, localEnabled = true, debug = true, screenshot = false)
+        QuickCapture.publishRemote(CaptureHotkeyConfigWire(enabled = true))
+    }
+
+    @Test
+    fun providerEvidenceIsSubmittedWithoutNativeScreenshot() {
+        Settings.Global.putString(app.contentResolver, CaptureTokenReader.SETTINGS_KEY, "t1")
+        armWithScreenshotDisabled()
+        QuickCapture.screenshotter = { _, _ -> throw AssertionError("the native screenshot must not be taken") }
+        val shot = hostShot()
+        val vtree = """{"version":"everframe-vtree-v1"}""".toByteArray()
+        Everframe.__setQuickCaptureEvidenceProvider { QuickCaptureHostEvidence(shot, vtree) }
+
+        assertEquals(QuickCaptureOutcome.Sent, broadcast())
+
+        val inputs = submits.single()
+        assertSame(shot.bitmap, inputs.captureBitmap)
+        assertSame(vtree, inputs.hostReplayVTree)
+        assertFalse(inputs.annotated)
+        assertTrue(inputs.quickCapture)
+        assertEquals("t1", inputs.captureToken)
+        assertEquals(1, freezes.get())
+    }
+
+    /** Like `EFReporterFromImage`: host evidence without frames still owns replay. */
+    @Test
+    fun providerEvidenceWithoutReplaySendsEmptyHostReplay() {
+        armWithScreenshotDisabled()
+        QuickCapture.screenshotter = { _, _ -> throw AssertionError("the native screenshot must not be taken") }
+        Everframe.__setQuickCaptureEvidenceProvider { QuickCaptureHostEvidence(hostShot(), null) }
+
+        assertEquals(QuickCaptureOutcome.Sent, broadcast())
+
+        val replay = submits.single().hostReplayVTree
+        assertNotNull("an empty value keeps the unmasked native video off", replay)
+        assertEquals(0, replay!!.size)
+    }
+
+    @Test
+    fun nilProviderResultFailsWithoutNativeScreenshot() {
+        armWithScreenshotDisabled()
+        val nativeShots = AtomicInteger()
+        QuickCapture.screenshotter = { _, _ -> nativeShots.incrementAndGet(); null }
+        Everframe.__setQuickCaptureEvidenceProvider { null }
+
+        assertEquals(QuickCaptureOutcome.Failed, broadcast())
+
+        assertEquals(0, nativeShots.get())
+        assertEquals(0, freezes.get())
+        assertTrue(submits.isEmpty())
+        assertEquals("Capture failed", ShadowToast.getTextOfLatestToast())
+    }
+
+    @Test
+    fun throwingProviderFailsWithoutNativeScreenshot() {
+        armWithScreenshotDisabled()
+        val nativeShots = AtomicInteger()
+        QuickCapture.screenshotter = { _, _ -> nativeShots.incrementAndGet(); null }
+        Everframe.__setQuickCaptureEvidenceProvider { error("render failed") }
+
+        assertEquals(QuickCaptureOutcome.Failed, broadcast())
+
+        assertEquals(0, nativeShots.get())
+        assertEquals(0, freezes.get())
+        assertTrue(submits.isEmpty())
+    }
+
+    /** The provider suspends: a kill() or a reporter opening meanwhile must stop the capture before it freezes. */
+    @Test
+    fun providerRaceWithKillOrReporterFailsWithoutFreezing() {
+        armWithScreenshotDisabled()
+        Everframe.__setQuickCaptureEvidenceProvider {
+            Everframe.captureGate = false
+            QuickCaptureHostEvidence(hostShot(), null)
+        }
+        assertEquals(QuickCaptureOutcome.Failed, broadcast())
+        Everframe.captureGate = true
+
+        Everframe.__setQuickCaptureEvidenceProvider {
+            Everframe.report.__setPresenting(true)
+            QuickCaptureHostEvidence(hostShot(), null)
+        }
+        assertEquals(QuickCaptureOutcome.Failed, broadcast())
+        Everframe.report.__setPresenting(false)
+
+        assertEquals(0, freezes.get())
+        assertTrue(submits.isEmpty())
+    }
+
+    @Test
+    fun screenshotDisabledWithoutProviderIsIgnored() {
+        armWithScreenshotDisabled()
+        val nativeShots = AtomicInteger()
+        QuickCapture.screenshotter = { _, _ -> nativeShots.incrementAndGet(); null }
+
+        assertEquals(QuickCaptureOutcome.Ignored("screenshot_disabled"), broadcast())
+
+        assertEquals(0, nativeShots.get())
+        assertEquals(0, freezes.get())
+        assertTrue(submits.isEmpty())
+        assertNull("an ignored trigger shows no toast", ShadowToast.getTextOfLatestToast())
+    }
+
+    @Test
+    fun defaultConfigStillUsesNativeScreenshot() {
+        arm()
+        val nativeShots = AtomicInteger()
+        val native = QuickCapture.screenshotter
+        QuickCapture.screenshotter = { activity, rects -> nativeShots.incrementAndGet(); native(activity, rects) }
+
+        assertEquals(QuickCaptureOutcome.Sent, broadcast())
+
+        assertEquals(1, nativeShots.get())
+        assertNull(submits.single().hostReplayVTree)
+        assertFalse(submits.single().annotated)
+    }
+
+    @Test
+    fun teardownClearsTheEvidenceProvider() {
+        Everframe.__setQuickCaptureEvidenceProvider { QuickCaptureHostEvidence(hostShot(), null) }
+        assertTrue(QuickCapture.hasEvidenceProvider)
+        QuickCapture.teardown()
+        assertFalse(QuickCapture.hasEvidenceProvider)
+
+        Everframe.__setQuickCaptureEvidenceProvider { null }
+        Everframe.__setQuickCaptureEvidenceProvider(null)
+        assertFalse(QuickCapture.hasEvidenceProvider)
+
+        Everframe.__setQuickCaptureEvidenceProvider { null }
+        QuickCapture.teardown(isCurrent = { false })
+        assertTrue("a stale teardown keeps it", QuickCapture.hasEvidenceProvider)
+    }
+
+    /** `start` carries the session's `capture.screenshot` into the gate; `kill` clears the provider. */
+    @Test
+    fun startCarriesCaptureScreenshotAndKillClearsTheProvider() {
+        try {
+            Everframe.start(app, EverframeConfig(
+                appId = "qc-app", sdkKey = "txx_live_quickcapture0001", environment = Environment.production,
+                capture = CaptureConfig(screenshot = false), debugBuild = true,
+            ), activity)
+            assertFalse(QuickCapture.sessionScreenshotEnabled)
+            Everframe.start(app, EverframeConfig(
+                appId = "qc-app", sdkKey = "txx_live_quickcapture0001", environment = Environment.production,
+                debugBuild = true,
+            ), activity)
+            assertTrue(QuickCapture.sessionScreenshotEnabled)
+
+            Everframe.__setQuickCaptureEvidenceProvider { null }
+            assertTrue(QuickCapture.hasEvidenceProvider)
+            Everframe.kill()
+            assertFalse(QuickCapture.hasEvidenceProvider)
+        } finally {
+            Everframe.kill()
+        }
     }
 
     // ---- shake interplay and trigger value ----

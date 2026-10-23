@@ -1136,6 +1136,7 @@ object Everframe {
             context = context,
             localEnabled = config.quickCaptureEnabled && config.reporterEnabled,
             debug = dev.everframe.capture.DeviceMetadata.isDebugBuild(context, config.debugBuild),
+            screenshot = config.capture.screenshot,
             isCurrent = { currentStartEpochVolatile() == epoch },
         )
 
@@ -2290,6 +2291,23 @@ object Everframe {
                 }
             }
         }
+    }
+
+    /**
+     * Emulator quick capture's host evidence hook, for hosts that render and mask their own pixels (the
+     * Flutter plugin, which starts the SDK with `capture.screenshot = false`). While a provider is
+     * installed, a quick capture calls it instead of taking the native screenshot and submits the
+     * returned screenshot (unannotated) and `hostReplayVTree` exactly as the reporter submits
+     * host-rendered evidence. A null result or a thrown exception fails the capture. Without a provider,
+     * a session with `capture.screenshot == false` ignores quick capture (`screenshot_disabled`).
+     *
+     * Pass null to remove it. `kill()` clears it; `start()` does not. Inert on real devices and release
+     * builds, where quick capture never arms. Public only for host plugins in other modules; the `__`
+     * prefix marks it as an SDK seam.
+     */
+    @JvmStatic
+    fun __setQuickCaptureEvidenceProvider(provider: (suspend () -> dev.everframe.quickcapture.QuickCaptureHostEvidence?)?) {
+        dev.everframe.quickcapture.QuickCapture.setEvidenceProvider(provider)
     }
 
     /** Blocks video synchronously; close only after main-thread tagging or surface destruction. */

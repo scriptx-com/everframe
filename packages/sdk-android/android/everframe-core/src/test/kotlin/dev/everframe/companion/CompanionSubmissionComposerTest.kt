@@ -930,6 +930,53 @@ class CompanionSubmissionComposerTest {
         afterCapture: (android.content.Context) -> Unit = {},
     ): ReportResult = composeAndCaptureResultInternal(userAtSubmitBoundary, afterCapture)
 
+    // ---- Host replay (quick capture with host evidence) ----
+
+    private fun sha(bytes: ByteArray) = java.security.MessageDigest.getInstance("SHA-256")
+        .digest(bytes).joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
+    private fun png(color: Int): ByteArray {
+        val bitmap = Bitmap.createBitmap(4, 2, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(color)
+        return java.io.ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+    }
+
+    /** A valid masked Flutter image timeline (same shape as `HostImageVTreeAttachmentTest`). */
+    private fun hostTimeline(): ByteArray {
+        val first = png(0xff00ff00.toInt())
+        val a = sha(first).take(16)
+        val b64 = java.util.Base64.getEncoder().encodeToString(first)
+        return """{"version":"everframe-vtree-v1","originEpochMs":12345,"viewport":{"width":4,"height":2,"scale":1},
+          "frames":[{"timestamp":0,"ops":[{"op":"add","parent":"","index":0,
+          "node":{"id":"flutter-root","role":"image","frame":{"x":0,"y":0,"w":4,"h":2},
+          "imageRef":"$a","children":[]}}]}],
+          "assets":{"$a":{"mime":"image/png","w":4,"h":2,"b64":"$b64"}}}""".toByteArray()
+    }
+
+    /** The bytes the Flutter reporter path ships as `replay.json` ride the composer the same way. */
+    @Test
+    fun `host replay bytes ship as the replay part`() {
+        val entry = composeAndCaptureOutboxEntry(hostReplayVTree = hostTimeline(), replayEnabled = true)
+        val replay = entry.attachmentRefs.singleOrNull { it.name == "replay" }
+        assertNotNull("the host timeline must ship as the replay part", replay)
+        assertEquals("replay.json", replay!!.filename)
+        assertEquals("application/octet-stream", replay.contentType)
+    }
+
+    /** An empty host replay keeps replay off: no host timeline and no native video. */
+    @Test
+    fun `empty host replay ships no replay part`() {
+        val entry = composeAndCaptureOutboxEntry(hostReplayVTree = ByteArray(0), replayEnabled = true)
+        assertTrue(entry.attachmentRefs.none { it.name == "replay" })
+    }
+
+    /** The dashboard's `replayEnabled` still gates the host timeline. */
+    @Test
+    fun `host replay is dropped while replay is disabled`() {
+        val entry = composeAndCaptureOutboxEntry(hostReplayVTree = hostTimeline(), replayEnabled = false)
+        assertTrue(entry.attachmentRefs.none { it.name == "replay" })
+    }
+
     private fun composeAndCaptureOutboxEntry(
         userAtSubmitBoundary: TXUser? = null,
         afterCapture: (android.content.Context) -> Unit = {},
@@ -943,12 +990,16 @@ class CompanionSubmissionComposerTest {
          *  matches production before any config fetch) — callers that want a
          *  subject actually captured must opt in. */
         identityEnabledAtSubmitBoundary: Boolean = false,
+        hostReplayVTree: ByteArray? = null,
+        replayEnabled: Boolean = false,
     ): OutboxEntry {
         val result = composeAndCaptureResultInternal(
             userAtSubmitBoundary,
             afterCapture,
             identityTokenAtSubmitBoundary,
             identityEnabledAtSubmitBoundary,
+            hostReplayVTree,
+            replayEnabled,
         )
         assertTrue(
             "expected Queued (no ingest server in unit tests), got $result",
@@ -988,6 +1039,10 @@ class CompanionSubmissionComposerTest {
          *  matches production before any config fetch) — callers that want a
          *  subject actually captured must opt in. */
         identityEnabledAtSubmitBoundary: Boolean = false,
+        /** Threaded into `Inputs.hostReplayVTree`. */
+        hostReplayVTree: ByteArray? = null,
+        /** Overrides the replay config with `replayEnabled = true` when set. */
+        replayEnabled: Boolean = false,
     ): ReportResult {
         val controller: ActivityController<android.app.Activity> =
             Robolectric.buildActivity(android.app.Activity::class.java).create()
@@ -1008,6 +1063,13 @@ class CompanionSubmissionComposerTest {
                 replayDurationSec = 30,
                 samplingRate = 1.0,
                 identity = dev.everframe.config.IdentityConfigWire(enabled = true),
+            )
+        }
+        if (replayEnabled) {
+            Everframe.__replayConfigOverrideForTesting = dev.everframe.config.ReplayConfig(
+                replayEnabled = true,
+                replayDurationSec = 30,
+                samplingRate = 1.0,
             )
         }
 
@@ -1033,6 +1095,7 @@ class CompanionSubmissionComposerTest {
             // THE SUBMIT BOUNDARY — user + session epoch + identity subject,
             // atomically.
             capturedSession = Everframe.captureSessionSnapshot(),
+            hostReplayVTree = hostReplayVTree,
         )
         afterCapture(context)
 
