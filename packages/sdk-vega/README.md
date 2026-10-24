@@ -90,19 +90,20 @@ Metro and are not mapped.
 
 Dashboard settings (session replay, vitals, network bodies and the like) do
 not apply. The SDK reads only the quick-capture and device-linking switches
-from `/api/config`: one request per launch, and none with
-`quickCaptureEnabled: false`.
+and the capture gesture from `/api/config`: one request per launch (a linked
+device also re-reads it when the app comes to the foreground, at most every
+10 seconds), and none with `quickCaptureEnabled: false`.
 
 ## Quick capture on Vega OS
 
-A team member's Vega device can file quick captures with the remote: a long
-press of Play/Pause (about 1.5 s) files a capture attributed to the person or
-team the device is linked to. It needs no code beyond `init()`. End users of
-release builds see no change.
+A team member's Vega device can file quick captures with the remote: the
+capture gesture (by default a long press of Play/Pause, about 1.5 s) files a
+capture attributed to the person or team the device is linked to. It needs no
+code beyond `init()`. End users of release builds see no change.
 
-What a press does, when quick capture is on for the app in the dashboard:
+What the gesture does, when quick capture is on for the app in the dashboard:
 
-| Device                    | Long press of Play/Pause                                                                    |
+| Device                    | Capture gesture                                                                             |
 | ------------------------- | ------------------------------------------------------------------------------------------- |
 | Linked to a person        | Files a capture as that person's private draft. Toast `Captured · {name}`.                  |
 | Linked as a team device   | Files a shared draft. Toast `Captured · team device`.                                       |
@@ -112,7 +113,8 @@ What a press does, when quick capture is on for the app in the dashboard:
 A debug build is `debugBuild` when you pass it, else React Native's `__DEV__`.
 
 **Linking a device.** In the dashboard, open Settings → Devices → Link a
-device. On the device, long press Play/Pause for about 1.5 s. The device shows
+device. On the device, do the capture gesture (by default, long press
+Play/Pause for about 1.5 s). The device shows
 `Linking to Everframe · 47`; pick the matching number in the dashboard. The
 device then shows `Linked to {name}`. Choose "team device" to link it to the
 team instead of yourself. Unlink a device from the same page; its next capture
@@ -128,11 +130,50 @@ capture cannot be sent right away it waits in `storage` and is retried, but
 only while the device is still linked to the same person or team; otherwise it
 is dropped, never filed under someone else.
 
+**The capture gesture.** The dashboard's Quick capture card sets one remote
+binding per app, and the device picks it up from `/api/config`. A binding is
+a long press (one key held for 0.5–5 s), a sequence (2–8 keys pressed in order
+within 0.3–5 s, for example ↑↑↓↓ within one second) or a chord (2–4 keys held
+together). A Vega remote can send these key names:
+
+| Key name                                          | Vega remote key                                   |
+| ------------------------------------------------- | ------------------------------------------------- |
+| `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT`, `DPAD_RIGHT` | The D-pad arrows                                  |
+| `DPAD_CENTER`                                     | Select (the D-pad center)                         |
+| `BACK`, `MENU`                                    | Back, Menu                                        |
+| `MEDIA_PLAY_PAUSE`                                | Play/Pause (separate Play and Pause keys as well) |
+| `MEDIA_FAST_FORWARD`, `MEDIA_REWIND`              | Fast forward, Rewind                              |
+| `0`–`9`                                           | The number keys                                   |
+
+The color keys (`PROG_RED`, `PROG_GREEN`, `PROG_YELLOW`, `PROG_BLUE`), the
+letters `A`–`Z` and `SHIFT` never reach a Vega app as distinct keys. A binding
+that uses any of them would never fire, so the device turns the gesture off
+instead, and a development build (`__DEV__`) warns once:
+`[everframe] the capture gesture uses keys a Vega remote does not have; quick capture is off on this device`.
+Such a device cannot offer itself for linking (that needs the gesture), but a
+device linked earlier keeps its link, and Record on device still works on it. A missing or malformed binding means the default long press of
+Play/Pause. A new binding takes effect with the next config the device reads;
+an unchanged one never interrupts a press in progress.
+
+**Record on device.** To set a binding from the remote you actually have,
+click **Record on device** in the Quick capture card and pick a linked Vega
+device. The device picks up the request with its next config: relaunch the
+app, or bring it back to the foreground (a linked device re-reads its config
+then, at most every 10 seconds; unlinked devices don't). It shows
+`Recording remote keys for 10 seconds`, records up to 32 key presses (the keys
+still reach your app, and the capture gesture pauses meanwhile), sends them,
+and shows `Keys sent to Everframe`. The dashboard turns them into a binding for
+you to save. Keys a Vega app cannot tell apart, such as the color keys, are
+left out. If the device is unlinked or linked to someone else before the 10
+seconds are up, nothing is sent.
+
 **Remote keys.** The SDK only listens to keys; it never consumes one. A long
 press of Play/Pause therefore also reaches your app, which typically toggles
-playback once. Taps of Play/Pause, held D-pad keys and fast paging never take a
-capture. While the device is not linked and linking is off, the SDK does no
-work per key.
+playback once, and every key of a sequence or chord reaches your app as well.
+Taps of Play/Pause, held D-pad keys and fast paging never take a capture: a
+held key counts as one press in a sequence. While the device is not linked and
+linking is off, or the binding uses keys a Vega remote does not have, the SDK
+does no work per key.
 
 **The root wrapper.** `init()` installs a small root component with
 `AppRegistry.setWrapperComponentProvider`. It draws the linking banner and the
