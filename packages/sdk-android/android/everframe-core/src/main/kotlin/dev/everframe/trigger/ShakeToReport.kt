@@ -322,6 +322,9 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
         reporterOpener = { Everframe.report.open(dev.everframe.config.ReporterTrigger.Shake) }
     }
 
+    /** Amazon's documented system feature for identifying Fire TV devices. */
+    internal const val FIRE_TV_FEATURE = "amazon.hardware.fire_tv"
+
     @Suppress("DEPRECATION")
     internal fun isTelevision(context: Context): Boolean {
         val type = context.resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK
@@ -329,6 +332,7 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
             uiModeType = type,
             hasLeanback = context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK),
             hasTelevisionFeature = context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEVISION),
+            hasFireTvFeature = context.packageManager.hasSystemFeature(FIRE_TV_FEATURE),
         )
     }
 
@@ -336,6 +340,7 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
         uiModeType: Int,
         hasLeanback: Boolean,
         hasTelevisionFeature: Boolean,
+        hasFireTvFeature: Boolean = false,
     ): Boolean = uiModeType == Configuration.UI_MODE_TYPE_TELEVISION ||
-        hasLeanback || hasTelevisionFeature
+        hasLeanback || hasTelevisionFeature || hasFireTvFeature
 }

@@ -242,8 +242,10 @@ capture for you, and the toast names you.
   and shows `Keys sent to Everframe`. The dashboard turns them into a binding
   for you to save. Linked devices refresh their config when the app comes to
   the foreground, at most every 10 seconds; unlinked devices don't.
-- **Fire TV** runs the same code: it reports itself as a TV and its remote
-  sends the standard key codes. It is not verified yet.
+- **Fire TV** runs the same code. The SDK recognizes it as a TV by the
+  television UI mode, the leanback feature or Amazon's
+  `amazon.hardware.fire_tv` feature, and its remote sends the standard key
+  codes. It is not verified on Fire TV hardware yet.
 - Everything else (end users, debug builds, replay, takeover, unlinking, token
   storage and the off switches) works as on phones, above. On a TV emulator, ⇧B
   keeps working as well.

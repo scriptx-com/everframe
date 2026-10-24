@@ -353,6 +353,8 @@ internal class TXWindowCallbackWrapper(
         val cfg = activity.resources.configuration
         activity.packageManager.hasSystemFeature(
             android.content.pm.PackageManager.FEATURE_LEANBACK) ||
+            activity.packageManager.hasSystemFeature(
+                dev.everframe.trigger.ShakeToReportTrigger.FIRE_TV_FEATURE) ||
             (cfg.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK) ==
                 android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
     }

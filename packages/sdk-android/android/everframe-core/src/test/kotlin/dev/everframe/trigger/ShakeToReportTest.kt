@@ -170,6 +170,22 @@ class ShakeToReportTest {
         )
     }
 
+    @Test
+    fun `Fire TV is a television by Amazon's system feature alone`() {
+        assertTrue(
+            ShakeToReportTrigger.isTelevision(
+                Configuration.UI_MODE_TYPE_NORMAL,
+                hasLeanback = false,
+                hasTelevisionFeature = false,
+                hasFireTvFeature = true,
+            ),
+        )
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        assertFalse(ShakeToReportTrigger.isTelevision(app))
+        shadowOf(app.packageManager).setSystemFeature("amazon.hardware.fire_tv", true)
+        assertTrue(ShakeToReportTrigger.isTelevision(app))
+    }
+
     // ---- real-device quick capture: shake for capture and linking ----
 
     @Test
