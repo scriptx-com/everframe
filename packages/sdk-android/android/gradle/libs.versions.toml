@@ -12,7 +12,7 @@ kotlin = "2.1.0"                    # Kotlin 2.1.x stable
 # 2.9, and the lint checks lifecycle 2.9 and Compose runtime 1.9 ship crash AGP
 # 8.7's lintVitalAnalyzeRelease in every app that adds reporter-ui (smoke round
 # 2026-10). :everframe-reporter-ui's verifyAgp87LintFloor task enforces this.
-compose-bom = "2025.07.00"
+compose-bom = "2026.09.00"
 okhttp = "4.12.0"                   # NOT 5.x — still alpha
 coroutines = "1.9.0"                # kotlinx.coroutines stable
 serialization = "1.7.3"             # kotlinx.serialization stable (matches quicktype --framework kotlinx)
