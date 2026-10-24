@@ -1,6 +1,11 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
+## 1.6.1
+
+- Devices are linked from **Project settings → Devices** in the dashboard now, not the organization's Settings. The README says so.
+- Through the native Android SDK, Fire TV devices count as TVs when they declare Amazon's `amazon.hardware.fire_tv` feature, as well as by the television UI mode or the leanback feature. No Dart API change.
+
 ## 1.6.0
 
 - Quick capture and device linking on real phones, through the native iOS and Android SDKs; no Dart API change. A shake on a phone linked on the dashboard (any build), or on a debug build, files a quick capture with the masked Flutter frame. `enableQuickCapture` is required for device captures too: without it a shake files nothing. `start(quickCapture: false)` also turns linking off. Release builds on end users' phones behave as before.
