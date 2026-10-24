@@ -78,6 +78,7 @@ export {
   REPLIES_OPT_OUT_HEADER,
 } from './transport/index.js';
 export type { MultipartParts, SubmitOptions, SubmitResult } from './transport/index.js';
+export { boundWait, timeoutSignal } from './transport/timeout-signal.js';
 export { createInMemoryOutbox } from './queue/outbox.js';
 export {
   ensureDeviceToken,
@@ -149,6 +150,12 @@ export {
   getBrandingServerConfig,
   ResourcesServerConfig,
   getResourcesServerConfig,
+  CaptureHotkeyServerConfig,
+  DeviceLinkOwnerWire,
+  DeviceLinkStatusWire,
+  DeviceLinkingServerConfig,
+  CaptureGestureServerConfig,
+  CAPTURE_TOKEN_HEADER,
 } from './types/replay/index.js';
 export type {
   ReplayConfig,

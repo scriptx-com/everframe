@@ -6,6 +6,8 @@ import type { CrumbSink, KindGate } from './breadcrumbs.js';
 import { contentTypeAllowed, capUtf8, redactBodyText } from './network-body.js';
 import type { NetworkBodyEntry } from '@everframe/protocol';
 import type { RedactionConfig } from '@everframe/sdk-core';
+import { INGEST_URL } from '../constants.js';
+import { globalScope } from '../internal/global-scope.js';
 
 /**
  * BodyCaptureHooks — opt-in wiring for request/response body capture (spec
@@ -258,13 +260,51 @@ const XHR_MARKER = Symbol.for('__everframe_patched_xhr__');
 
 // Phase-1 sensitive-header lock — values are replaced with '[REDACTED]', keys preserved.
 // Lowercase comparison; mirrors sdk-core/src/redaction defaults.
+// The x-everframe-* entries carry quick capture's device token, link nonce
+// and the reporter device token.
 const SENSITIVE_HEADERS = new Set([
   'authorization',
   'cookie',
   'set-cookie',
   'x-api-key',
   'proxy-authorization',
+  'x-everframe-capture-token',
+  'x-everframe-link-nonce',
+  'x-everframe-device-token',
 ]);
+
+/**
+ * Real-device quick capture: the device-link endpoints carry the device token
+ * (an attempt check's response) and the link nonce (every request body). The
+ * SDK sends them through `unpatchedFetch()`, so they normally never reach the
+ * patcher; if one does (another copy of the SDK patched `fetch` first), it is
+ * recorded with its method, URL and status only — no headers, no bodies.
+ */
+function isDeviceLinkUrl(url: string): boolean {
+  try {
+    return url.indexOf(`${INGEST_URL.replace(/\/$/, '')}/api/device-link/`) === 0;
+  } catch {
+    return false;
+  }
+}
+
+/** The `fetch` the patcher wrapped, kept so secret-bearing requests can skip capture. */
+let originalFetch: typeof fetch | null = null;
+
+/**
+ * The page's own `fetch`, bypassing this SDK's network capture: the original
+ * the fetch patcher saved, else the global `fetch` (bound), else null.
+ */
+export function unpatchedFetch(): typeof fetch | null {
+  if (originalFetch) return originalFetch;
+  try {
+    const g = globalScope() as { fetch?: unknown };
+    if (typeof g.fetch !== 'function') return null;
+    return (g.fetch as typeof fetch).bind(g);
+  } catch {
+    return null;
+  }
+}
 
 export function filterHeaders(
   h: Headers | Record<string, string> | null | undefined,
@@ -527,12 +567,14 @@ export function installFetchPatcher(opts: NetworkPatcherOptions = {}): () => voi
   slot[FETCH_MARKER] = true;
 
   const original = globalThis.fetch.bind(globalThis);
+  originalFetch = original;
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const start = performance.now();
     const startedAt = Date.now();
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const method =
       init?.method ?? (typeof input !== 'string' && !(input instanceof URL) ? input.method : 'GET');
+    const secretBearing = isDeviceLinkUrl(url);
     // F42 (round-9 review) — pin body-capture identity to whichever adapter
     // is bound RIGHT NOW, at request-issue time, before `await original()`
     // (or anything else async) runs. See `pinBodyCapture`'s doc comment for
@@ -547,11 +589,11 @@ export function installFetchPatcher(opts: NetworkPatcherOptions = {}): () => voi
         status: res.status,
         durationMs,
         startedAt,
-        headers: filterHeaders(res.headers),
+        ...(secretBearing ? {} : { headers: filterHeaders(res.headers) }),
       });
 
       let reqId: number | undefined;
-      if (bc) {
+      if (bc && !secretBearing) {
         try {
           if (bc.enabled()) {
             // F34 — captured HERE, at the decision point, before any of the
@@ -684,6 +726,7 @@ export function installFetchPatcher(opts: NetworkPatcherOptions = {}): () => voi
   };
   return () => {
     globalThis.fetch = original;
+    if (originalFetch === original) originalFetch = null;
     delete slot[FETCH_MARKER];
   };
 }
@@ -787,7 +830,7 @@ export function installXHRPatcher(opts: NetworkPatcherOptions = {}): () => void 
         });
 
         let reqId: number | undefined;
-        if (bc) {
+        if (bc && !isDeviceLinkUrl(this.__everframe_url ?? '')) {
           try {
             if (bc.enabled()) {
               // F34 — captured at the decision point, exactly like the

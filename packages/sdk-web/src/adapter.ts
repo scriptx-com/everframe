@@ -92,8 +92,14 @@ import {
   installXHRPatcher,
   __bindBodyCaptureHooks,
   forwardingBodyCaptureHooks,
+  unpatchedFetch,
   type BodyCaptureHooks,
 } from './capture/network.js';
+import { detectTvPlatform, quickCaptureDebug, type TvPlatform } from './devicelink/tv-platform.js';
+import { createDeviceLinkStore, type DeviceLinkStore } from './devicelink/store.js';
+import { deviceLinkScope, tokenFingerprint, type DeviceLinkOwner } from './devicelink/token.js';
+import { forcesReplay, quickCaptureEnabled, type GestureInput } from './devicelink/gesture-rule.js';
+import type { DrainDeviceLinks } from './transport/device-link-upload.js';
 import {
   installNavigationCrumbs,
   installLifecycleCrumbs,
@@ -500,6 +506,43 @@ export interface WebPlatformAdapter extends PlatformAdapter {
   __uninstallWindowListeners(): void;
   /** Current trim options for the envelope build (server config or spec defaults). */
   __breadcrumbTrimOptions(): { byteBudget: number; consoleEntryCap: number };
+  /**
+   * Real-device quick capture (web TVs). `'tizen'` or `'webos'` on a TV
+   * engine, null everywhere else (then none of the members below do
+   * anything and no device-link token is ever read or sent).
+   */
+  readonly __tvPlatform: TvPlatform | null;
+  /** The device-link store for this ingest origin + SDK key; null off TVs. */
+  readonly __deviceLinkStore: DeviceLinkStore | null;
+  /**
+   * Called after every applied config with the committed config and the
+   * device token that config was fetched with. Replays the last committed
+   * config on subscribe. TVs only.
+   */
+  __subscribeLiveConfig(
+    cb: (config: ReplayConfig, carriedToken: string | null) => void,
+  ): () => void;
+  /** A forced config refresh (link saved or forgotten). Never rejects. */
+  __refreshConfigNow(): Promise<void>;
+  /** Re-run the forced-replay decision after the link changed. */
+  __reevaluateReplay(): void;
+  /** The quick-capture runtime's teardown, run from the kill path. */
+  __registerQuickCaptureTeardown(fn: (() => void) | null): void;
+  /** What an outbox drain needs to resend fingerprinted quick captures; undefined off TVs. */
+  __deviceLinkDrain(): DrainDeviceLinks | undefined;
+  /**
+   * True while the in-app reporter (or another capture flow) holds frozen
+   * evidence, or a public `open()` is pending. Quick capture never runs then.
+   */
+  __isReporterOpen(): boolean;
+  /**
+   * Called by every reporter open path (the host's open, which `open()`,
+   * `showReporterUI()`, the dashboard hotkey and the inbox all reach) just
+   * before it freezes the evidence. Quick capture reads the sequence so a
+   * reporter that opens mid-capture becomes the single owner of the freeze.
+   */
+  __noteReporterOpening(): void;
+  __reporterOpenSeq(): number;
 }
 
 /**
@@ -580,6 +623,45 @@ export function createWebPlatformAdapter(
   // reaches either default. See internal/sdk-identity.ts.
   const sdkName: HostSdkName = hostSdk.sdkName ?? VANILLA_SDK_NAME;
   const sdkVersion: string = hostSdk.sdkVersion ?? PKG_VERSION;
+
+  // Real-device quick capture (web TVs). Off every other engine: no feature
+  // tokens, no token read, no forced replay, no runtime chunk.
+  const tvPlatform: TvPlatform | null = _config.disabled === true ? null : detectTvPlatform();
+  const tvDeviceLinkStore: DeviceLinkStore | null = ((): DeviceLinkStore | null => {
+    if (tvPlatform === null) return null;
+    try {
+      const scope = deviceLinkScope(INGEST_URL, _config.sdkKey);
+      return scope ? createDeviceLinkStore(scope) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const liveConfigListeners = new Set<
+    (config: ReplayConfig, carriedToken: string | null) => void
+  >();
+  let lastLiveConfig: { config: ReplayConfig; token: string | null } | null = null;
+  let quickCaptureTeardown: (() => void) | null = null;
+  let reporterOpenSeq = 0;
+  // What an outbox drain needs to resend captures queued under a device-link
+  // fingerprint. A drain's `device_unlinked` clears the matching token.
+  function deviceLinkDrain(): DrainDeviceLinks | undefined {
+    const store = tvDeviceLinkStore;
+    if (!store) return undefined;
+    return {
+      current: () => {
+        const link = store.load();
+        return link ? { token: link.token, fingerprint: tokenFingerprint(link.token) } : null;
+      },
+      forget: (onlyIfToken: string): void => {
+        if (!store.clear(onlyIfToken)) return;
+        try {
+          replayLifecycle?.reevaluate();
+        } catch {
+          /* swallow — DEFE-02 */
+        }
+      },
+    };
+  }
   const NOT_YET = (m: string, plan: string) => () => {
     throw new Error(`WebPlatformAdapter.${m} not implemented in 03-01 — filled by plan ${plan}`);
   };
@@ -813,6 +895,42 @@ export function createWebPlatformAdapter(
   let refreshConfigNow: () => Promise<void> = async () => undefined;
   // Hoisted so breadcrumbs and replay share one instance (and one /api/config fetch).
   let configProvider: ReturnType<typeof createConfigProvider> | undefined;
+
+  // Real-device quick capture: the stored link's owner as the gesture sees
+  // it. A committed config that says the token it was fetched with is
+  // unlinked already reads as unlinked here, so forced replay stops at the
+  // same apply even before the lazy runtime forgets the token.
+  function tvLinkOwner(cfg: ReplayConfig): DeviceLinkOwner | null {
+    try {
+      const link = tvDeviceLinkStore?.load();
+      if (!link) return null;
+      if (
+        cfg.deviceLinking?.link?.status === 'unlinked' &&
+        configProvider?.committedCaptureToken?.() === link.token
+      ) {
+        return null;
+      }
+      return link.owner;
+    } catch {
+      return null;
+    }
+  }
+  function tvGestureInput(cfg: ReplayConfig): GestureInput {
+    return {
+      quickCaptureEnabled: quickCaptureEnabled(_config, cfg, reportingKilled),
+      linkingEnabled: cfg.deviceLinking?.enabled === true,
+      owner: tvLinkOwner(cfg),
+      debugBuild: quickCaptureDebug(_config),
+    };
+  }
+  function tvForcesReplay(cfg: ReplayConfig): boolean {
+    if (tvPlatform === null) return false;
+    try {
+      return forcesReplay({ ...tvGestureInput(cfg), replay: cfg.captureHotkey?.replay === true });
+    } catch {
+      return false;
+    }
+  }
 
   // Report Resource Window (spec 2026-09-05, Task 9) — created lazily in
   // applyLiveConfig the first time the server's `resources.enabled` block
@@ -1048,13 +1166,26 @@ export function createWebPlatformAdapter(
         ? undefined
         : makeWebInstallIdSupplier(_config.sdkKey);
 
+    // On a TV the config fetch can carry the device token, so it goes
+    // through the page's own fetch, never into captured network evidence.
+    const tvConfigFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const f = unpatchedFetch();
+      return f ? f(input, init) : Promise.reject(new Error('no fetch'));
+    };
     configProvider = createConfigProvider({
       fetchImpl:
-        typeof fetch !== 'undefined'
-          ? fetch.bind(globalScope())
-          : async () => {
-              throw new Error('no fetch');
-            },
+        tvPlatform !== null
+          ? (tvConfigFetch as typeof fetch)
+          : typeof fetch !== 'undefined'
+            ? fetch.bind(globalScope())
+            : async () => {
+                throw new Error('no fetch');
+              },
+      ...(tvDeviceLinkStore
+        ? {
+            captureTokenProvider: (): string | null => tvDeviceLinkStore.load()?.token ?? null,
+          }
+        : {}),
       configUrl: baseConfigUrl,
       sdkKey: _config.sdkKey,
       ...(installIdProvider ? { installIdProvider } : {}),
@@ -1089,6 +1220,9 @@ export function createWebPlatformAdapter(
         // Without it the server never sends `crashOnlySamplingRate`, and a
         // crash-only session samples replay at 0.
         'crashonly',
+        // Real-device quick capture: TV engines only, so every other
+        // browser's header stays byte-identical.
+        ...(tvPlatform !== null ? ['capturehotkey', 'devicelinking', 'capturegesture'] : []),
       ],
     });
     const provider = configProvider;
@@ -1115,6 +1249,9 @@ export function createWebPlatformAdapter(
       locallyDisabled: _config.sessionReplay?.disabled === true,
       // `sessionReplay.disabled` above still wins in every kind.
       sessionKind: () => (!crashOnly ? 'report' : upgradedByCompanion ? 'upgraded' : 'crashOnly'),
+      // Real-device quick capture: a linked or debug TV keeps a replay buffer
+      // while the gesture is armed with `captureHotkey.replay`.
+      ...(tvPlatform !== null ? { forced: (): boolean => tvForcesReplay(provider.get()) } : {}),
     });
     replayLifecycle = lifecycle;
     replayRecorder = _config.visualCapture ? undefined : (recorder as ReplayRecorder);
@@ -1230,6 +1367,33 @@ export function createWebPlatformAdapter(
       // does not pay the fetch. A failed load is retried at capture time.
       if (tvSnapshotPathActive()) {
         void import('./capture/tv-snapshot/tv-snapshot.js').catch(() => undefined);
+      }
+      // Real-device quick capture: subscribers first (the runtime may forget
+      // a token this config says is unlinked), then the forced-replay
+      // decision against the result.
+      if (tvPlatform !== null) {
+        try {
+          const committed = {
+            config: provider.get(),
+            token: provider.committedCaptureToken?.() ?? null,
+          };
+          lastLiveConfig = committed;
+          liveConfigListeners.forEach((cb) => {
+            try {
+              cb(committed.config, committed.token);
+            } catch {
+              /* swallow — DEFE-02 */
+            }
+          });
+        } catch {
+          /* swallow — DEFE-02 */
+        }
+        try {
+          lifecycle.reevaluate();
+        } catch {
+          /* swallow — DEFE-02 */
+        }
+        attemptReplayStart();
       }
     };
 
@@ -1798,6 +1962,7 @@ export function createWebPlatformAdapter(
                   // anonymously, on exactly the surface where knowing who
                   // hit the crash matters most.
                   identityToken: identityTokenReader,
+                  ...((dl) => (dl ? { deviceLinks: dl } : {}))(deviceLinkDrain()),
                 },
                 stillPermitted,
               );
@@ -2407,6 +2572,62 @@ export function createWebPlatformAdapter(
       }
     },
     __applyBreadcrumbsConfig: (): void => applyLiveConfig(),
+    __tvPlatform: tvPlatform,
+    __deviceLinkStore: tvDeviceLinkStore,
+    __subscribeLiveConfig: (
+      cb: (config: ReplayConfig, carriedToken: string | null) => void,
+    ): (() => void) => {
+      if (tvPlatform === null) return () => undefined;
+      liveConfigListeners.add(cb);
+      const last = lastLiveConfig;
+      if (last) {
+        try {
+          cb(last.config, last.token);
+        } catch {
+          /* swallow — DEFE-02 */
+        }
+      }
+      return () => {
+        liveConfigListeners.delete(cb);
+      };
+    },
+    __refreshConfigNow: (): Promise<void> => refreshConfigNow().catch(() => undefined),
+    __reevaluateReplay: (): void => {
+      try {
+        replayLifecycle?.reevaluate();
+      } catch {
+        /* swallow — DEFE-02 */
+      }
+      attemptReplayStart();
+    },
+    __registerQuickCaptureTeardown: (fn: (() => void) | null): void => {
+      quickCaptureTeardown = fn;
+    },
+    __deviceLinkDrain: (): DrainDeviceLinks | undefined => deviceLinkDrain(),
+    __noteReporterOpening: (): void => {
+      reporterOpenSeq += 1;
+    },
+    __reporterOpenSeq: (): number => reporterOpenSeq,
+    __isReporterOpen: (): boolean => {
+      if (pendingOpenResolve !== undefined) return true;
+      // Every reporter open path (open(), showReporterUI(), the dashboard
+      // hotkey, the inbox's "New report", the companion's report.request)
+      // freezes the breadcrumbs and network bodies before the dialog shows,
+      // and the reporter holds them until it takes or discards them. That
+      // hold, not the replay lifecycle (IDLE with replay off), is what a
+      // second capture must never consume.
+      try {
+        if (breadcrumbBufferGet?.()?.isFrozen?.() === true) return true;
+      } catch {
+        /* swallow — DEFE-02 */
+      }
+      try {
+        if (networkBodiesBufferGet?.()?.isFrozen?.() === true) return true;
+      } catch {
+        /* swallow — DEFE-02 */
+      }
+      return false;
+    },
     __breadcrumbTrimOptions: (): { byteBudget: number; consoleEntryCap: number } => {
       const cfg = breadcrumbsConfig();
       return { byteBudget: cfg.byteBudget, consoleEntryCap: cfg.consoleEntryCap };
@@ -2431,6 +2652,17 @@ export function createWebPlatformAdapter(
       // further ticks can fire (a tick already in flight is separately
       // guarded by its own post-await `killed` re-check above).
       killed = true;
+      // Real-device quick capture: banner down, attempt cancelled, no capture
+      // or hello after the kill.
+      {
+        const teardown = quickCaptureTeardown;
+        quickCaptureTeardown = null;
+        try {
+          teardown?.();
+        } catch {
+          /* swallow — DEFE-02 */
+        }
+      }
       // Findings 1/2 — the reporter and the crash sink close too. Separate flag
       // because this one is revivable by `__rebindCrumbHooks()`; see its
       // declaration for why that is required rather than sloppy.

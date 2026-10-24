@@ -244,6 +244,11 @@ export function draftToEnvelope(
    * `init()` (RULING 18) and the companion host seam both do.
    */
   sdkName: HostSdkName = REACT_SDK_NAME,
+  /**
+   * Real-device quick capture: marks the envelope `quickCapture: true`, so
+   * ingest files it as a draft. Absent or false leaves the envelope as before.
+   */
+  quickCapture?: boolean,
 ): DraftToEnvelopeOutput {
   const excluded = draft.excludedArtifacts.slice();
   const includesScreenshot = !excluded.includes('screenshot');
@@ -440,6 +445,10 @@ export function draftToEnvelope(
   // block (`payload.resources`, not `payload.vitals`) — Session Vitals
   // itself is untouched by this call.
   stampResources(envelope);
+
+  if (quickCapture === true) {
+    (envelope as { quickCapture?: boolean }).quickCapture = true;
+  }
 
   return { envelope, attachments };
 }

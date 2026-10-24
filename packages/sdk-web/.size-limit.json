@@ -11,7 +11,8 @@
       "./browser-*.js",
       "./snapdom-*.js",
       "./tv-snapshot-*.js",
-      "./companion-submit-*.js"
+      "./companion-submit-*.js",
+      "./quick-capture-runtime-*.js"
     ]
   },
   {
@@ -26,7 +27,8 @@
       "./browser-*.js",
       "./snapdom-*.js",
       "./tv-snapshot-*.js",
-      "./companion-submit-*.js"
+      "./companion-submit-*.js",
+      "./quick-capture-runtime-*.js"
     ]
   }
 ]

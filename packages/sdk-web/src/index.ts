@@ -180,6 +180,14 @@ export {
   __companionSeamTicket,
 } from './companion/host-seam.js';
 export type { CompanionHost, CompanionSeamTicket } from './companion/host-seam.js';
+/**
+ * @internal Real-device quick capture on Samsung Tizen and LG webOS TVs.
+ * `init()` installs it; `@everframe/react`'s Provider installs it from this
+ * entry. A no-op on every other browser. Not product API.
+ */
+export { installQuickCapture as __installQuickCapture } from './quickcapture/install.js';
+export type { QuickCaptureInstall } from './quickcapture/install.js';
+export type { QuickCaptureHost } from './quickcapture/host.js';
 // The getter and subscriber are exported too: dist/ui.js imports them from
 // this entry (CompanionBadge), so the badge reads the same box the adapter
 // writes — see scripts/ui-shared-modules.ts.
