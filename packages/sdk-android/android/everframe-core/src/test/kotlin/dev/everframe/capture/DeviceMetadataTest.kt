@@ -77,6 +77,13 @@ class DeviceMetadataTest {
     }
 
     @Test
+    fun `Fire TV reports isTv from Amazon's system feature`() {
+        assertEquals(false, DeviceMetadata.collect(ctx)["isTv"])
+        org.robolectric.Shadows.shadowOf(ctx.packageManager).setSystemFeature("amazon.hardware.fire_tv", true)
+        assertEquals(true, DeviceMetadata.collect(ctx)["isTv"])
+    }
+
+    @Test
     fun `form factor prefers TV over tablet geometry`() {
         assertEquals("tv", DeviceMetadata.formFactor(mapOf("isTv" to true, "isTablet" to true)))
         assertEquals("tablet", DeviceMetadata.formFactor(mapOf("isTv" to false, "isTablet" to true)))

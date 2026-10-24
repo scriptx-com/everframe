@@ -55,6 +55,7 @@ object DeviceMetadata {
         val appVersion = AppReleaseRule.of(versionName, appBuild, debug = false).version
 
         val isTv = pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
+            pm.hasSystemFeature(dev.everframe.trigger.ShakeToReportTrigger.FIRE_TV_FEATURE) ||
             (cfg.uiMode and Configuration.UI_MODE_TYPE_MASK) == Configuration.UI_MODE_TYPE_TELEVISION
         val isTablet = cfg.smallestScreenWidthDp >= 600
 
