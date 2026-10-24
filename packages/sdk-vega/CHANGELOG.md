@@ -1,5 +1,14 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.6.1
+
+### Patch Changes
+
+- 64dd912: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Devices are linked from **Project settings → Devices** in the dashboard now, not the organization's Settings. The READMEs and the Companion deprecation message say so.
+
 ## 1.6.0
 
 ### Minor Changes

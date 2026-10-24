@@ -1,5 +1,9 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.6.1
+
+No changes in this package; released with the other Everframe packages at this version.
+
 ## 1.6.0
 
 ### Patch Changes
