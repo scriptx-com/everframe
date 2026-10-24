@@ -1,0 +1,108 @@
+Package.swift
+  h_af305fd8f2c5c5 48
+examples/react-native/CHANGELOG.md
+  h_af305fd8f2c5c5 3-10
+examples/react-native/package.json
+  h_af305fd8f2c5c5 3
+examples/react-web/CHANGELOG.md
+  h_af305fd8f2c5c5 3-10
+examples/react-web/package.json
+  h_af305fd8f2c5c5 3
+examples/smarttv-tester/CHANGELOG.md
+  h_af305fd8f2c5c5 3-9
+examples/smarttv-tester/package.json
+  h_af305fd8f2c5c5 3
+examples/vue-web/CHANGELOG.md
+  h_af305fd8f2c5c5 3-9
+examples/vue-web/package.json
+  h_af305fd8f2c5c5 3
+packages/bundler-plugin/CHANGELOG.md
+  h_af305fd8f2c5c5 3-6
+packages/bundler-plugin/package.json
+  h_af305fd8f2c5c5 3
+packages/cli/CHANGELOG.md
+  h_af305fd8f2c5c5 3-6
+packages/cli/package.json
+  h_af305fd8f2c5c5 3
+packages/everframe_flutter/android/build.gradle.kts
+  h_af305fd8f2c5c5 4,47
+packages/everframe_flutter/ios/everframe_flutter.podspec
+  h_af305fd8f2c5c5 6,16-17
+packages/everframe_flutter/ios/everframe_flutter/Package.swift
+  h_af305fd8f2c5c5 19
+packages/everframe_flutter/lib/src/web_sdk_web.dart
+  h_af305fd8f2c5c5 132
+packages/everframe_flutter/pubspec.yaml
+  h_af305fd8f2c5c5 5
+packages/expo/CHANGELOG.md
+  h_af305fd8f2c5c5 3-6
+packages/expo/package.json
+  h_af305fd8f2c5c5 3
+packages/identity/CHANGELOG.md
+  h_af305fd8f2c5c5 3-4
+packages/identity/package.json
+  h_af305fd8f2c5c5 3
+packages/metro/CHANGELOG.md
+  h_af305fd8f2c5c5 3-6
+packages/metro/package.json
+  h_af305fd8f2c5c5 3
+packages/sdk-android/CHANGELOG.md
+  h_af305fd8f2c5c5 3-16
+packages/sdk-android/android/gradle.properties
+  h_af305fd8f2c5c5 22
+packages/sdk-android/package.json
+  h_af305fd8f2c5c5 4
+packages/sdk-ios/CHANGELOG.md
+  h_af305fd8f2c5c5 3-11
+packages/sdk-ios/Everframe.podspec
+  h_af305fd8f2c5c5 5
+packages/sdk-ios/Package.binary.swift
+  h_af305fd8f2c5c5 48
+packages/sdk-ios/Sources/Everframe/Generated/SDKVersion.swift
+  h_af305fd8f2c5c5 17
+packages/sdk-ios/package.json
+  h_af305fd8f2c5c5 3
+packages/sdk-react-native/CHANGELOG.md
+  h_af305fd8f2c5c5 3-19
+packages/sdk-react-native/EverframeRN.podspec
+  h_af305fd8f2c5c5 43
+packages/sdk-react-native/android/build.gradle.kts
+  h_af305fd8f2c5c5 150
+packages/sdk-react-native/package.json
+  h_af305fd8f2c5c5 3
+packages/sdk-react/CHANGELOG.md
+  h_af305fd8f2c5c5 3-11
+packages/sdk-react/package.json
+  h_af305fd8f2c5c5 3
+packages/sdk-react/src/internal/version.ts
+  h_af305fd8f2c5c5 11
+packages/sdk-roku/CHANGELOG.md
+  h_af305fd8f2c5c5 3-4
+packages/sdk-roku/library/components/Everframe/lib/ef_version.brs
+  h_af305fd8f2c5c5 5
+packages/sdk-roku/library/manifest
+  h_af305fd8f2c5c5 6
+packages/sdk-roku/package.json
+  h_af305fd8f2c5c5 3
+packages/sdk-vega/CHANGELOG.md
+  h_af305fd8f2c5c5 3-11
+packages/sdk-vega/package.json
+  h_af305fd8f2c5c5 3
+packages/sdk-web/CHANGELOG.md
+  h_af305fd8f2c5c5 3-11
+packages/sdk-web/package.json
+  h_af305fd8f2c5c5 3
+packages/sdk-web/src/internal/version.ts
+  h_af305fd8f2c5c5 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "629388a557a494e019e188be0c50c437189c86a7",
+  "prompts": {},
+  "humans": {
+    "h_af305fd8f2c5c5": {
+      "author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
