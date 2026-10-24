@@ -4,12 +4,22 @@
 // Real-device quick capture (web TVs): the lazy runtime. Loaded by
 // `install.ts` only on a Tizen or webOS TV, and only once the config arms the
 // capture gesture. Owns the overlay, the device-link controller and the
-// capture pipeline; `onGesture()` is the single entry point the remote
-// binding (a later change) calls.
+// capture pipeline, and the remote key listener that turns the armed binding
+// into `onGesture()` calls.
+//
+// Tizen keys are registered only while capture is allowed (a linked TV or a
+// debug build): an unlinked release TV never gets a key registered by the
+// SDK. Nothing is ever unregistered.
+//
+// Record on device: a config that carries a recording request for this
+// linked TV starts a 10 s key recording. While linked, coming back to the
+// foreground refetches the config (at most every 10 s), so a request made
+// while the app was in the background is seen.
 import type { ReplayConfig } from '@everframe/sdk-core';
 import { INGEST_URL } from '../constants.js';
 import {
   decideGesture,
+  isGestureArmed,
   quickCaptureEnabled,
   type GestureDecision,
   type GestureInput,
@@ -22,6 +32,22 @@ import type { QuickCaptureHost } from './host.js';
 import { createDeviceLinkClient } from './link-client.js';
 import { createOverlay } from './overlay.js';
 import { createQuickCapture, type QuickCapture } from './pipeline.js';
+import { installRemoteKeyListener, type RemoteKeyListener } from './key-listener.js';
+import {
+  bindingsEqual,
+  createRemoteKeyMap,
+  parseTvBinding,
+  type TvGestureBinding,
+} from './remote-keys.js';
+import { createGestureRecording } from './recording.js';
+import {
+  ALL_TIZEN_KEY_NAMES,
+  registerTizenKeys,
+  tizenInputDevice,
+  tizenKeyNamesFor,
+} from './tizen-keys.js';
+
+export const FOREGROUND_REFRESH_MS = 10_000;
 
 export interface QuickCaptureRuntime {
   applyConfig(config: ReplayConfig, carriedToken: string | null): void;
@@ -35,6 +61,8 @@ const NOTHING: GestureDecision = { capture: false, sendHello: false, swallowKeys
 export interface QuickCaptureRuntimeInternals {
   link: DeviceLinkController;
   pipeline: QuickCapture;
+  /** The armed TV binding, or null. */
+  armedBinding(): TvGestureBinding | null;
 }
 const internals = new WeakMap<QuickCaptureRuntime, QuickCaptureRuntimeInternals>();
 export function __runtimeInternalsForTesting(
@@ -90,7 +118,9 @@ export function startQuickCaptureRuntime(host: QuickCaptureHost): QuickCaptureRu
     now: () => Date.now(),
     timers,
     onLinkChanged: () => {
-      if (!tornDown) adapter.__reevaluateReplay();
+      if (tornDown) return;
+      adapter.__reevaluateReplay();
+      rearm();
     },
     refreshConfig: () => {
       if (!tornDown) void adapter.__refreshConfigNow();
@@ -118,12 +148,78 @@ export function startQuickCaptureRuntime(host: QuickCaptureHost): QuickCaptureRu
     };
   }
 
+  // The armed binding. Replaced only when it changes, so a routine config
+  // refresh never resets a press in progress.
+  let armedBinding: TvGestureBinding | null = null;
+  const tizen = platform === 'tizen' ? tizenInputDevice() : null;
+  const keyMap = createRemoteKeyMap(platform, tizen);
+  const monotonic = (): number => {
+    try {
+      if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+        return performance.now();
+      }
+    } catch {
+      /* fall through */
+    }
+    return Date.now();
+  };
+
+  let listener: RemoteKeyListener | null = null;
+
+  const recording = createGestureRecording({
+    client,
+    link,
+    overlay,
+    now: monotonic,
+    wallNow: () => Date.now(),
+    timers,
+    onActiveChanged: () => {
+      if (!tornDown) listener?.rearm();
+    },
+    registerAllKeys: () => registerTizenKeys(tizen, ALL_TIZEN_KEY_NAMES.slice()),
+  });
+
+  // The throttle starts now, so the launch's own visibility event does not
+  // double the start fetch.
+  let lastForegroundRefresh = monotonic();
+  const onVisibility = (): void => {
+    try {
+      if (tornDown || typeof document === 'undefined') return;
+      if (document.visibilityState !== 'visible' || link.snapshot() === null) return;
+      const t = monotonic();
+      if (t - lastForegroundRefresh < FOREGROUND_REFRESH_MS) return;
+      lastForegroundRefresh = t;
+      void adapter.__refreshConfigNow();
+    } catch {
+      /* DEFE-02 */
+    }
+  };
+
+  /** Re-derives the armed binding, registers Tizen keys when allowed, and re-arms the listener. */
+  function rearm(): void {
+    try {
+      if (tornDown) return;
+      const i = input();
+      const next =
+        server !== null && isGestureArmed(i) ? parseTvBinding(server.captureGesture) : null;
+      if (!bindingsEqual(next, armedBinding)) armedBinding = next;
+      if (armedBinding && (i.owner !== null || i.debugBuild)) {
+        registerTizenKeys(tizen, tizenKeyNamesFor(armedBinding.keys));
+      }
+      listener?.rearm();
+    } catch {
+      /* DEFE-02 */
+    }
+  }
+
   const runtime: QuickCaptureRuntime = {
     applyConfig(config: ReplayConfig, carriedToken: string | null): void {
       try {
         if (tornDown) return;
         server = config;
-        link.applyConfig(config.deviceLinking, carriedToken);
+        const request = link.applyConfig(config.deviceLinking, carriedToken);
+        recording.onRequest(request);
+        rearm();
       } catch {
         /* DEFE-02 */
       }
@@ -143,6 +239,23 @@ export function startQuickCaptureRuntime(host: QuickCaptureHost): QuickCaptureRu
       if (tornDown) return;
       tornDown = true;
       try {
+        listener?.dispose();
+      } catch {
+        /* DEFE-02 */
+      }
+      try {
+        recording.teardown();
+      } catch {
+        /* DEFE-02 */
+      }
+      try {
+        if (typeof document !== 'undefined') {
+          document.removeEventListener('visibilitychange', onVisibility);
+        }
+      } catch {
+        /* DEFE-02 */
+      }
+      try {
         link.teardown();
       } catch {
         /* DEFE-02 */
@@ -154,6 +267,27 @@ export function startQuickCaptureRuntime(host: QuickCaptureHost): QuickCaptureRu
       }
     },
   };
-  internals.set(runtime, { link, pipeline });
+  if (typeof window !== 'undefined') {
+    listener = installRemoteKeyListener({
+      win: window,
+      keyMap,
+      armedBinding: () => armedBinding,
+      swallowKeys: () => decideGesture(input()).swallowKeys,
+      onGesture: () => {
+        runtime.onGesture();
+      },
+      recording: () => recording.active,
+      now: monotonic,
+      timers,
+    });
+  }
+  try {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibility);
+    }
+  } catch {
+    /* DEFE-02 */
+  }
+  internals.set(runtime, { link, pipeline, armedBinding: () => armedBinding });
   return runtime;
 }

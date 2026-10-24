@@ -237,4 +237,67 @@ describe('device-link client', () => {
       expect(text).not.toContain(NONCE);
     }
   });
+
+  describe('postRecording', () => {
+    const EVENTS = [
+      { key: 'DPAD_UP' as const, downMs: 0, upMs: 80 },
+      { key: 'MEDIA_PLAY_PAUSE' as const, downMs: 1578, upMs: 3180 },
+    ];
+
+    it('postRecording sends the device token and treats only 204 as success', async () => {
+      const fetchSpy: FetchSpy = vi.fn(async () => new Response(null, { status: 204 }));
+      expect(await client(fetchSpy).postRecording('r-1', TOKEN, EVENTS)).toBe(true);
+      const [url, init] = fetchSpy.mock.calls[0]!;
+      expect(url).toBe(`${INGEST}/api/device-link/recordings/r-1`);
+      expect(init).toMatchObject({ method: 'POST', credentials: 'omit' });
+      const h = new Headers(init.headers);
+      expect(h.get('Authorization')).toBe('Bearer sdk-key-1');
+      expect(h.get('X-Everframe-Capture-Token')).toBe(TOKEN);
+      expect(h.get('Content-Type')).toBe('application/json');
+      expect(JSON.parse(init.body as string)).toEqual({ events: EVENTS });
+
+      for (const status of [200, 201, 404, 400, 429, 500]) {
+        const other: FetchSpy = vi.fn(async () => json(status, {}));
+        expect(await client(other).postRecording('r-1', TOKEN, EVENTS)).toBe(false);
+      }
+      const empty: FetchSpy = vi.fn(async () => new Response(null, { status: 204 }));
+      expect(await client(empty).postRecording('r-1', TOKEN, [])).toBe(true);
+      expect(JSON.parse(empty.mock.calls[0]![1].body as string)).toEqual({ events: [] });
+    });
+
+    it('postRecording follows no redirects', async () => {
+      const fetchSpy: FetchSpy = vi.fn(async (_u: string, init: RequestInit) => {
+        if (init.redirect === 'error') throw new TypeError('redirect');
+        return new Response(null, { status: 204 });
+      });
+      expect(await client(fetchSpy).postRecording('r-1', TOKEN, EVENTS)).toBe(false);
+      expect(fetchSpy.mock.calls[0]![1].redirect).toBe('error');
+    });
+
+    it('refuses a malformed id or token without a request', async () => {
+      const fetchSpy: FetchSpy = vi.fn(async () => new Response(null, { status: 204 }));
+      expect(await client(fetchSpy).postRecording('../hello', TOKEN, EVENTS)).toBe(false);
+      expect(await client(fetchSpy).postRecording('r-1', 'evf_cap_x', EVENTS)).toBe(false);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('a hung recording POST gives up after 30 s', async () => {
+      vi.useFakeTimers();
+      const hung: FetchSpy = vi.fn(() => new Promise<Response>(() => undefined));
+      let result: unknown = null;
+      void client(hung)
+        .postRecording('r-1', TOKEN, EVENTS)
+        .then((r) => (result = r));
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(result).toBeNull();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(result).toBe(false);
+    });
+
+    it('without any fetch, postRecording fails', async () => {
+      const c = createDeviceLinkClient({ ingestUrl: INGEST, sdkKey: 'k', fetch: null });
+      vi.stubGlobal('fetch', undefined);
+      expect(await c.postRecording('r-1', TOKEN, EVENTS)).toBe(false);
+    });
+  });
 });

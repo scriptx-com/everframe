@@ -7,9 +7,14 @@
 // redirects the TV to this machine.
 //
 //   node perf/tv-device-harness.mjs --target chrome79 --host 192.168.1.223 --api http://192.168.1.223:8787 --key <sdk key> [--mode snapdom] [--runs 3] [--port 8940] [--package] [--reference out/<tag>.snapshot.json]
+//
+// `--page keys` serves the key-delivery spike page (perf/tv-device/keys.html,
+// built from keys-entry.ts) instead, appends every posted line to
+// out/keys.jsonl, and with `--package` writes the webOS app
+// `com.everframe.tvkeys` plus a Tizen hosted shell in out/tizen-app/.
 import { build } from 'esbuild';
 import { createServer } from 'node:http';
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { appendFile, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
@@ -26,6 +31,9 @@ const KEY = arg('key', '');
 const PORT = Number(arg('port', '8940'));
 const RUNS = Number(arg('runs', '3'));
 const MODE = arg('mode', 'snapshot'); // 'snapshot' (server render path) | 'snapdom' (TV's own capture)
+const PAGE = arg('page', 'snapshot'); // 'snapshot' (harness.html) | 'keys' (keys.html, the key-delivery spike)
+if (PAGE !== 'snapshot' && PAGE !== 'keys') throw new Error(`unknown --page ${PAGE}`);
+const KEYS = PAGE === 'keys';
 const ROOT = fileURLToPath(new URL('./tv-device/', import.meta.url));
 const OUT = join(ROOT, 'out');
 // Generated files carry the repo's header so `check:boundary` (which walks the
@@ -36,11 +44,11 @@ const HEADER = `// ${SPDX}\n// SPDX-${'FileCopyrightText'}: 2026 ScriptX\n// Gen
 await mkdir(OUT, { recursive: true });
 
 await build({
-  entryPoints: [join(ROOT, 'entry.ts')],
+  entryPoints: [join(ROOT, KEYS ? 'keys-entry.ts' : 'entry.ts')],
   bundle: true,
   format: 'iife',
   target: [TARGET],
-  outfile: join(OUT, 'bundle.js'),
+  outfile: join(OUT, KEYS ? 'keys-bundle.js' : 'bundle.js'),
   // Source, not the packages' built dists: the harness measures the code under review.
   alias: {
     '@everframe/protocol': fileURLToPath(new URL('../../protocol/src/index.ts', import.meta.url)),
@@ -66,19 +74,33 @@ await build({
 });
 
 if (process.argv.includes('--package')) {
-  const app = join(OUT, 'webos-app');
+  const app = join(OUT, KEYS ? 'webos-keys-app' : 'webos-app');
   await mkdir(app, { recursive: true });
-  await copyFile(join(ROOT, 'webos-app', 'appinfo.json'), join(app, 'appinfo.json'));
-  const target = `http://${HOST}:${PORT}/harness.html?sdkKey=${encodeURIComponent(KEY)}&mode=${MODE}&runs=${RUNS}`;
-  await writeFile(
-    join(app, 'index.html'),
-    `<!-- ${SPDX} -->\n<!doctype html><meta charset="utf-8"><script>location.replace(${JSON.stringify(target)});</script>`,
-  );
+  const appinfo = JSON.parse(await readFile(join(ROOT, 'webos-app', 'appinfo.json'), 'utf8'));
+  if (KEYS) {
+    appinfo.id = 'com.everframe.tvkeys';
+    appinfo.title = 'Everframe TV key-delivery harness';
+  }
+  await writeFile(join(app, 'appinfo.json'), `${JSON.stringify(appinfo, null, 2)}\n`);
+  const target = KEYS
+    ? `http://${HOST}:${PORT}/keys.html`
+    : `http://${HOST}:${PORT}/harness.html?sdkKey=${encodeURIComponent(KEY)}&mode=${MODE}&runs=${RUNS}`;
+  const redirect = `<!-- ${SPDX} -->\n<!doctype html><meta charset="utf-8"><script>location.replace(${JSON.stringify(target)});</script>`;
+  await writeFile(join(app, 'index.html'), redirect);
   const icon = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
     'base64',
   );
   await writeFile(join(app, 'icon.png'), icon);
+  if (KEYS) {
+    // Tizen packaging is manual (Tizen Studio's `tizen package`), so only the
+    // shell is written here.
+    const tizenApp = join(OUT, 'tizen-app');
+    await mkdir(tizenApp, { recursive: true });
+    await copyFile(join(ROOT, 'tizen-app', 'config.xml'), join(tizenApp, 'config.xml'));
+    await writeFile(join(tizenApp, 'index.html'), redirect);
+    await writeFile(join(tizenApp, 'icon.png'), icon);
+  }
   execFileSync('ares-package', [app, '-o', OUT], { stdio: 'inherit' });
 }
 
@@ -140,6 +162,17 @@ createServer(async (req, res) => {
       res.writeHead(400).end();
       return;
     }
+    if (KEYS) {
+      // Key-delivery lines: print and keep them, one JSON object per line.
+      const lines = Array.isArray(r.lines) ? r.lines : [r];
+      const tagged = lines.map((l) =>
+        JSON.stringify({ ua: r.ua, focus: r.focus, kind: r.kind, ...l }),
+      );
+      for (const l of tagged) console.log(l);
+      await appendFile(join(OUT, 'keys.jsonl'), `${tagged.join('\n')}\n`);
+      res.writeHead(204).end();
+      return;
+    }
     const tag = `${TARGET}-${r.mode}-${n++}`;
     if (r.image) await writeFile(join(OUT, `${tag}.webp`), Buffer.from(r.image.webp, 'base64'));
     let leaks = null;
@@ -174,7 +207,10 @@ createServer(async (req, res) => {
       .end(poster(posterMatch[1]));
     return;
   }
-  const file = path === '/bundle.js' ? join(OUT, 'bundle.js') : join(ROOT, normalize(path));
+  const file =
+    path === '/bundle.js' || path === '/keys-bundle.js'
+      ? join(OUT, path.slice(1))
+      : join(ROOT, normalize(path));
   if (!file.startsWith(ROOT)) {
     res.writeHead(403).end();
     return;
@@ -190,6 +226,10 @@ createServer(async (req, res) => {
     () => res.writeHead(404).end(),
   );
 }).listen(PORT, '0.0.0.0', () => {
-  console.log(`[tv-device] http://${HOST}:${PORT}/harness.html (target ${TARGET}, mode ${MODE})`);
+  console.log(
+    KEYS
+      ? `[tv-device] http://${HOST}:${PORT}/keys.html (target ${TARGET}, key delivery)`
+      : `[tv-device] http://${HOST}:${PORT}/harness.html (target ${TARGET}, mode ${MODE})`,
+  );
   if (REFERENCE) void writeReference(REFERENCE).then(() => process.exit(0));
 });

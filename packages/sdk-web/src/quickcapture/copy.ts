@@ -27,4 +27,6 @@ export const COPY = {
   UNLINKED: 'This device was unlinked',
   CAPTURE_REJECTED: "Capture didn't upload",
   CAPTURE_FAILED: 'Capture failed',
+  RECORDING_STARTED: 'Recording remote keys for 10 seconds',
+  RECORDING_SENT: 'Keys sent to Everframe',
 } as const;

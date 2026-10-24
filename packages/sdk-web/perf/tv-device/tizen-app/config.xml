@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+<!-- Hosted shell for the key-delivery harness page (perf/tv-device-harness.mjs,
+     keys page, package option). The harness writes index.html, a redirect to
+     its own server, next to a copy of this file in out/tizen-app/. -->
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://everframe.dev/tvkeys" version="0.0.1" viewmodes="maximized">
+  <tizen:application id="EvfTvKeys0.tvkeys" package="EvfTvKeys0" required_version="2.3"/>
+  <content src="index.html"/>
+  <name>Everframe TV keys</name>
+  <icon src="icon.png"/>
+  <access origin="*" subdomains="true"/>
+  <tizen:allow-navigation>*</tizen:allow-navigation>
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+  <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+  <tizen:profile name="tv-samsung"/>
+  <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+</widget>
