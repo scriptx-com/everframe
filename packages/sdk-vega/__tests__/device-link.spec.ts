@@ -90,7 +90,13 @@ interface Setup {
 }
 
 async function setup(
-  opts: { stored?: string; storage?: FakeStorage; scope?: string | null; store?: LinkStore } = {},
+  opts: {
+    stored?: string;
+    storage?: FakeStorage;
+    scope?: string | null;
+    store?: LinkStore;
+    recordings?: Array<{ id: string; expiresAt: number }>;
+  } = {},
 ): Promise<Setup> {
   const storage = opts.storage ?? createStorage();
   const store = opts.store ?? createLinkStore(storage);
@@ -126,6 +132,7 @@ async function setup(
       s.refreshes++;
     },
     debug: (m) => warnings.push(m),
+    ...(opts.recordings ? { onRecording: (req) => opts.recordings!.push(req) } : {}),
   });
   return s;
 }
@@ -535,5 +542,73 @@ describe('device link', () => {
     await vi.advanceTimersByTimeAsync(CHECK_INTERVAL_MS);
     expect(calls).toBe(1);
     expect(s.link.current()?.token).toBe(TOKEN_B);
+  });
+});
+
+describe('recording requests', () => {
+  const REQUEST = { id: '0b9f1e2a-3c4d-4e5f-8a6b-7c8d9e0f1a2b', expiresAt: 1_800_000_000_000 };
+  const linkedWith = (recording?: typeof REQUEST): RemoteConfig => ({
+    ...ON,
+    link: {
+      status: 'linked',
+      owner: { kind: 'user', name: 'Aurimas' },
+      ...(recording ? { recording } : {}),
+    },
+  });
+
+  it('recordingHandedOnForTheTokenItWasSentWith', async () => {
+    const recordings: Array<{ id: string; expiresAt: number }> = [];
+    const s = await setup({ stored: TOKEN_A, recordings });
+    await s.link.ready;
+    s.link.applyConfig(TOKEN_A, linkedWith(REQUEST));
+    expect(recordings).toEqual([REQUEST]);
+  });
+
+  it('recordingIgnoredForAnotherTokenOrNoToken', async () => {
+    const recordings: Array<{ id: string; expiresAt: number }> = [];
+    const s = await setup({ stored: TOKEN_A, recordings });
+    await s.link.ready;
+    s.link.applyConfig(TOKEN_B, linkedWith(REQUEST));
+    s.link.applyConfig(null, linkedWith(REQUEST));
+    expect(recordings).toEqual([]);
+  });
+
+  it('recordingIgnoredWhenUnlinked', async () => {
+    const recordings: Array<{ id: string; expiresAt: number }> = [];
+    const s = await setup({ recordings });
+    await s.link.ready;
+    s.link.applyConfig(TOKEN_A, linkedWith(REQUEST));
+    expect(recordings).toEqual([]);
+  });
+
+  it('noRecordingNoCall', async () => {
+    const recordings: Array<{ id: string; expiresAt: number }> = [];
+    const s = await setup({ stored: TOKEN_A, recordings });
+    await s.link.ready;
+    s.link.applyConfig(TOKEN_A, linkedWith());
+    expect(recordings).toEqual([]);
+  });
+
+  it('aThrowingRecordingHandlerLeavesTheLinkAlone', async () => {
+    const s = await setup({ stored: TOKEN_A });
+    await s.link.ready;
+    const link = createDeviceLink({
+      store: s.store,
+      client: s.client,
+      scope: SCOPE,
+      presenter: s.presenter,
+      device: helloDevice({}),
+      nonce: () => NONCE,
+      now: () => Date.now(),
+      setTimeout: (fn, ms) => setTimeout(fn, ms),
+      clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+      refreshConfig: () => undefined,
+      onRecording: () => {
+        throw new Error('boom');
+      },
+    });
+    await link.ready;
+    expect(() => link.applyConfig(TOKEN_A, linkedWith(REQUEST))).not.toThrow();
+    expect(link.current()?.token).toBe(TOKEN_A);
   });
 });

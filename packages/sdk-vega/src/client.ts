@@ -16,10 +16,14 @@ import {
 } from './config.js';
 import { createDeviceLink, type DeviceLink } from './device-link.js';
 import {
+  bindingsEqual,
   createGestureDetector,
   DEFAULT_TV_BINDING,
+  resolveTvBinding,
+  type GestureBinding,
   type GestureDetector,
 } from './gesture-detector.js';
+import { createGestureRecording, type GestureRecording } from './gesture-recording.js';
 import { buildQuickCaptureEnvelope, buildVegaEnvelope } from './envelope.js';
 import { extractFacts, isErrorValue, renderLabel, renderValue } from './error-facts.js';
 import { uuidV4 } from './ids.js';
@@ -56,7 +60,12 @@ import { fetchRemoteConfig, type RemoteConfig } from './remote-config.js';
 import { keyAction, keyForVegaEvent } from './remote-keys.js';
 import { sendReport, type FetchLike, type SendDeps } from './transport.js';
 import { SDK_VERSION } from './version.js';
-import { createReleaseHealth, HEALTH_OUTBOX_KEY, type AppStateLike } from './release-health.js';
+import {
+  createReleaseHealth,
+  HEALTH_OUTBOX_KEY,
+  watchForeground,
+  type AppStateLike,
+} from './release-health.js';
 import type { NativeExposurePointer } from '@everframe/protocol';
 
 type GlobalHandler = (error: unknown, isFatal?: boolean) => void;
@@ -153,6 +162,8 @@ export const FATAL_HANDOFF_MS = 1500;
 export const RETRY_DELAYS_MS = [2_000, 10_000, 60_000, 300_000] as const;
 /** A linked device re-reads `/api/config` when it comes to the foreground, at most this often. */
 export const FOREGROUND_REFRESH_MS = 10_000;
+export const UNSUPPORTED_BINDING_WARNING =
+  '[everframe] the capture gesture uses keys a Vega remote does not have; quick capture is off on this device';
 const AUTOMATIC_KEYS_MAX = 10;
 const VALUE_KEYS_MAX = 5;
 const HANDLED_KEYS_MAX = 10;
@@ -238,6 +249,12 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
   let lastConfigAt = -Infinity;
   let gestureBusy = false;
   let detector: GestureDetector | undefined;
+  /** The binding in effect; null when the app's binding uses keys Vega lacks. */
+  let tvBinding: GestureBinding | null = DEFAULT_TV_BINDING;
+  let warnedUnsupported = false;
+  let recording: GestureRecording | undefined;
+  /** Keys that went down during a recording; kept from the gesture until their up. */
+  const heldThroughRecording = new Set<string>();
   let lastGestureAt = -Infinity;
 
   function admit(mechanism: Mechanism, fatal: boolean, key: string, value: unknown): boolean {
@@ -581,27 +598,69 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
     }
   }
 
+  const gestureArmed = (): boolean => tvBinding !== null && isArmed(gestureInput());
+
+  /**
+   * The app's binding from a config reply. The detector is rebuilt only when
+   * the binding changes by value, so a routine refresh never resets a press
+   * in progress; a change drops the old detector and its pending hold.
+   */
+  function applyBinding(cfg: RemoteConfig): void {
+    const resolved = resolveTvBinding(cfg.tvBinding);
+    if (resolved.unsupported && !warnedUnsupported) {
+      warnedUnsupported = true;
+      debug(UNSUPPORTED_BINDING_WARNING);
+    }
+    if (bindingsEqual(resolved.binding, tvBinding)) return;
+    tvBinding = resolved.binding;
+    detector?.reset();
+    detector = undefined;
+  }
+
   /**
    * One remote key from the root wrapper. A disarmed device (every end user
-   * of a release build that is not linked, or an app with linking off) does
-   * no work per key: no detector, no timer. Keys are only observed, never
-   * consumed, so the app receives each one exactly as before.
+   * of a release build that is not linked, an app with linking off, or a
+   * binding this remote cannot press) does no work per key: no detector, no
+   * timer. Keys are only observed, never consumed, so the app receives each
+   * one exactly as before.
    */
   function onRemoteKey(event: HWEventLike): void {
-    if (!isArmed(gestureInput())) {
+    const rawType = event?.eventType;
+    const keyId = typeof rawType === 'string' ? rawType : '';
+    // Record on device: every key goes to the recording, none to the gesture.
+    if (recording?.active()) {
+      detector?.reset();
+      const action = keyAction(event?.eventKeyAction);
+      if (action === 'down') heldThroughRecording.add(keyId);
+      else if (action === 'up') heldThroughRecording.delete(keyId);
+      if (action) recording.onKey(keyForVegaEvent(rawType), action);
+      return;
+    }
+    // A key still held from the recording is not a new press: its repeats
+    // and its up never reach the gesture.
+    if (heldThroughRecording.has(keyId)) {
+      if (keyAction(event?.eventKeyAction) === 'up') heldThroughRecording.delete(keyId);
+      return;
+    }
+    if (!gestureArmed() || !tvBinding) {
       detector?.reset();
       return;
     }
     const action = keyAction(event?.eventKeyAction);
     if (!action) return;
-    const key = keyForVegaEvent(event?.eventType);
+    const key = keyForVegaEvent(rawType);
     if (!detector) {
-      detector = createGestureDetector(DEFAULT_TV_BINDING, {
+      const created = createGestureDetector(tvBinding, {
         now: env.now,
         setTimeout: env.setTimeout,
         clearTimeout: env.clearTimeout,
-        onFire: onGesture,
+        // A hold that ends after its binding was replaced, or once a
+        // recording started, does nothing.
+        onFire: () => {
+          if (detector === created && !recording?.active()) onGesture();
+        },
       });
+      detector = created;
     }
     detector.onKey(key, action);
   }
@@ -621,6 +680,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
         configApplied = seq;
         remote = next;
         link.applyConfig(sent, next);
+        applyBinding(next);
       })
       .catch(() => undefined);
   }
@@ -632,9 +692,10 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
     const store = createOverlayStore(env);
     installRootWrapper(registry, { store, onKey: (event) => onRemoteKey(event) });
     overlay = store;
+    const linkClient = createLinkClient(deps, resolved.apiBase, resolved.sdkKey);
     deviceLink = createDeviceLink({
       store: createLinkStore(resolved.storage),
-      client: createLinkClient(deps, resolved.apiBase, resolved.sdkKey),
+      client: linkClient,
       scope: linkScope(resolved.apiBase, resolved.sdkKey),
       presenter: store,
       device: helloDevice({
@@ -650,7 +711,21 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
       setTimeout: env.setTimeout,
       clearTimeout: env.clearTimeout,
       refreshConfig,
+      onRecording: (request) => {
+        recording?.onRequest(request);
+        // A press in progress never completes into a capture during the window.
+        if (recording?.active()) detector?.reset();
+      },
       debug,
+    });
+    recording = createGestureRecording({
+      client: linkClient,
+      deviceLink,
+      presenter: store,
+      now: env.now,
+      wallNow: env.now,
+      setTimeout: env.setTimeout,
+      clearTimeout: env.clearTimeout,
     });
     // The foreground throttle starts at init: the first config request is
     // already on its way once the link loads.
@@ -660,25 +735,48 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
       // Linked captures stored by an earlier launch wait for the link.
       if (outbox && outbox.size() > 0) void drain();
     });
+    // On screen or not, from the same reading of Vega's lifecycle as release
+    // health: in a multi-component app, one component going to the
+    // background does not take this one off the screen.
+    let foreground = true;
+    const subscriptions: Array<{ remove(): void }> = [];
     try {
-      env.appState?.addEventListener('change', (state) => {
-        try {
-          if (state !== 'active') {
-            // A hold never spans the app leaving the screen.
-            detector?.reset();
-            return;
-          }
-          // Only a linked device re-reads: its link may have been revoked or
-          // reassigned. End users' devices make one request per launch.
-          if (!deviceLink?.current()) return;
-          if (env.now() - lastConfigAt < FOREGROUND_REFRESH_MS) return;
-          refreshConfig();
-        } catch {
-          // Never into the host.
-        }
-      });
+      if (env.appState)
+        watchForeground(
+          env.appState,
+          (state) => {
+            try {
+              const next = state === 'active';
+              if (next === foreground) return;
+              foreground = next;
+              overlay?.setForeground(next);
+              if (!next) {
+                // A hold never spans the app leaving the screen.
+                detector?.reset();
+                heldThroughRecording.clear();
+                return;
+              }
+              // Only a linked device re-reads: its link may have been revoked or
+              // reassigned. End users' devices make one request per launch.
+              if (!deviceLink?.current()) return;
+              if (env.now() - lastConfigAt < FOREGROUND_REFRESH_MS) return;
+              refreshConfig();
+            } catch {
+              // Never into the host.
+            }
+          },
+          subscriptions,
+        );
     } catch {
-      // No lifecycle events: the config is read once per launch.
+      // No lifecycle events: the config is read once per launch, and the
+      // overlay counts as on screen.
+      for (const subscription of subscriptions) {
+        try {
+          subscription.remove();
+        } catch {}
+      }
+      foreground = true;
+      overlay?.setForeground(true);
     }
   }
 
@@ -882,7 +980,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
       }
     },
     gestureInput,
-    armed: () => isArmed(gestureInput()),
+    armed: gestureArmed,
     refreshConfig,
     quickCaptureParts: () => ({
       ...(overlay ? { overlay } : {}),

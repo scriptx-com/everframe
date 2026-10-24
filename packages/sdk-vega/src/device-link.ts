@@ -43,6 +43,8 @@ export interface DeviceLinkDeps {
   setTimeout: (fn: () => void, ms: number) => unknown;
   clearTimeout: (handle: unknown) => void;
   refreshConfig: () => void;
+  /** A recording request in a linked status applied for the token it was sent with. */
+  onRecording?: (request: { id: string; expiresAt: number }) => void;
   /** Development-only diagnostics. Never given a token or a nonce. */
   debug?: (message: string) => void;
 }
@@ -211,6 +213,13 @@ export function createDeviceLink(deps: DeviceLinkDeps): DeviceLink {
         link = { token: link.token, owner: status.owner };
         void persist();
         notify();
+      }
+      if (status.recording) {
+        try {
+          deps.onRecording?.(status.recording);
+        } catch {
+          // A recording failure leaves the link as it is.
+        }
       }
     },
     sendHello() {

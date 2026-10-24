@@ -3,6 +3,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createVegaClient } from '../src/client.js';
 import { CHECK_INTERVAL_MS } from '../src/device-link.js';
+import { RECORDING_MS } from '../src/gesture-recording.js';
+import { RECORDING_SENT, RECORDING_STARTED } from '../src/link-copy.js';
 import { TOAST_MS } from '../src/overlay.js';
 import { LINK_STORAGE_KEY } from '../src/link-store.js';
 import { linkScope, tokenFingerprint } from '../src/link-token.js';
@@ -16,6 +18,7 @@ import {
   type GestureInput,
 } from '../src/quick-capture.js';
 import type { AppRegistryLike } from '../src/overlay.js';
+import type { AppStateLike } from '../src/release-health.js';
 import {
   createEnv,
   createStorage,
@@ -60,12 +63,20 @@ async function setup(
     config?: unknown;
     storage?: FakeStorage;
     model?: string;
+    dev?: boolean;
+    /** Read on every config request: extra fields of a linked status. */
+    linkExtra?: Record<string, unknown>;
+    appState?: AppStateLike;
   } = {},
 ): Promise<Setup> {
   const storage = opts.storage ?? createStorage();
   if (opts.link) storedLink(storage, opts.link, opts.owner);
   const registry: AppRegistryLike = { setWrapperComponentProvider: () => undefined };
-  const h = createEnv({ appRegistry: registry });
+  const h = createEnv({
+    appRegistry: registry,
+    dev: opts.dev ?? false,
+    ...(opts.appState ? { appState: opts.appState } : {}),
+  });
   h.fetch.route('GET', '/api/config', (req) => {
     const token = req.headers['X-Everframe-Capture-Token'];
     const base = (opts.config ?? CONFIG) as Record<string, any>;
@@ -76,7 +87,11 @@ async function setup(
         ...base,
         deviceLinking: {
           ...(base.deviceLinking ?? {}),
-          link: { status: 'linked', owner: opts.owner ?? { kind: 'user', name: 'Aurimas' } },
+          link: {
+            status: 'linked',
+            owner: opts.owner ?? { kind: 'user', name: 'Aurimas' },
+            ...(opts.linkExtra ?? {}),
+          },
         },
       },
     };
@@ -580,5 +595,390 @@ describe('quick capture on a device', () => {
       },
     ];
     for (const event of garbage) expect(() => client.onRemoteKey(event as never)).not.toThrow();
+  });
+});
+
+/** Vega's shape of a held key: one down, repeated downs from ~530 ms every 200 ms, one up. */
+async function holdKey(client: Setup['client'], eventType: string, ms: number) {
+  client.onRemoteKey({ eventType, eventKeyAction: 0 });
+  let t = 0;
+  for (let next = 530; next < ms; next += 200) {
+    await vi.advanceTimersByTimeAsync(next - t);
+    t = next;
+    client.onRemoteKey({ eventType, eventKeyAction: 0 });
+  }
+  await vi.advanceTimersByTimeAsync(ms - t);
+  client.onRemoteKey({ eventType, eventKeyAction: 1 });
+}
+
+async function tapKey(client: Setup['client'], eventType: string, gapMs = 200) {
+  client.onRemoteKey({ eventType, eventKeyAction: 0 });
+  await vi.advanceTimersByTimeAsync(60);
+  client.onRemoteKey({ eventType, eventKeyAction: 1 });
+  await vi.advanceTimersByTimeAsync(gapMs);
+}
+
+const UNSUPPORTED_WARNING =
+  '[everframe] the capture gesture uses keys a Vega remote does not have; quick capture is off on this device';
+const KONAMI = {
+  kind: 'sequence',
+  keys: ['DPAD_UP', 'DPAD_UP', 'DPAD_DOWN', 'DPAD_DOWN'],
+  windowMs: 1000,
+};
+
+describe('capture gesture binding on a device', () => {
+  it('sequenceBindingTakesACapture', async () => {
+    const { h, client } = await setup({
+      link: TOKEN_A,
+      config: { ...CONFIG, captureGesture: { tv: KONAMI } },
+    });
+    // The default long press no longer captures.
+    await holdKey(client, 'playpause', 2000);
+    await vi.advanceTimersByTimeAsync(CAPTURE_COOLDOWN_MS);
+    expect(ingest(h)).toHaveLength(0);
+    for (const key of ['up', 'up', 'down', 'down']) await tapKey(client, key);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest(h)).toHaveLength(1);
+  });
+
+  it('invalidBindingFallsBackToDefault', async () => {
+    const { h, client } = await setup({
+      link: TOKEN_A,
+      config: {
+        ...CONFIG,
+        captureGesture: { tv: { kind: 'longPress', keys: ['MEDIA_PLAY_PAUSE'], holdMs: 99 } },
+      },
+    });
+    expect(client.armed()).toBe(true);
+    await holdKey(client, 'playpause', 1600);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest(h)).toHaveLength(1);
+  });
+
+  it('letterBindingDisarmsWithOneDevWarning', async () => {
+    const { h, client } = await setup({
+      link: TOKEN_A,
+      dev: true,
+      debug: true,
+      config: { ...CONFIG, captureGesture: { tv: { kind: 'chord', keys: ['SHIFT', 'B'] } } },
+    });
+    expect(client.armed()).toBe(false);
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(0);
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.warnings.filter((w) => w === UNSUPPORTED_WARNING)).toHaveLength(1);
+    await holdKey(client, 'playpause', 2000);
+    for (const key of ['up', 'up', 'down', 'down']) await tapKey(client, key);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(ingest(h)).toHaveLength(0);
+    expect(hellos(h)).toHaveLength(0);
+  });
+
+  it('unsupportedBindingWarnsNothingInRelease', async () => {
+    const { h } = await setup({
+      link: TOKEN_A,
+      config: { ...CONFIG, captureGesture: { tv: { kind: 'chord', keys: ['SHIFT', 'B'] } } },
+    });
+    expect(h.warnings).toEqual([]);
+  });
+
+  it('equalBindingKeepsDetector', async () => {
+    const { h, client } = await setup({
+      link: TOKEN_A,
+      config: {
+        ...CONFIG,
+        captureGesture: { tv: { kind: 'longPress', keys: ['MEDIA_PLAY_PAUSE'], holdMs: 1500 } },
+      },
+    });
+    const start = Date.now();
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    await vi.advanceTimersByTimeAsync(1000);
+    // A routine refresh with the same binding mid-press.
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(499);
+    expect(ingest(h)).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(ingest(h)).toHaveLength(1);
+    expect(Date.now() - start).toBe(1500);
+  });
+
+  it('aPendingHoldDoesNotFireAfterTheBindingChanges', async () => {
+    const config: Record<string, unknown> = { ...CONFIG };
+    const { h, client } = await setup({ link: TOKEN_A, config });
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    await vi.advanceTimersByTimeAsync(1000);
+    config.captureGesture = { tv: KONAMI };
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(ingest(h)).toHaveLength(0);
+  });
+
+  it('aPendingHoldDoesNotFireOnceTheBindingIsUnsupported', async () => {
+    const config: Record<string, unknown> = { ...CONFIG };
+    const { h, client } = await setup({ link: TOKEN_A, config });
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    await vi.advanceTimersByTimeAsync(1000);
+    config.captureGesture = { tv: { kind: 'longPress', keys: ['PROG_RED'], holdMs: 1500 } };
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(ingest(h)).toHaveLength(0);
+    expect(client.armed()).toBe(false);
+  });
+
+  it('featuresHeaderOnTheDeviceHasCapturegesture', async () => {
+    const { h } = await setup({ link: TOKEN_A });
+    expect(configs(h)[0]!.headers['X-Everframe-SDK-Features']).toBe(
+      'capturehotkey, devicelinking, capturegesture',
+    );
+  });
+});
+
+describe('record on device on a device', () => {
+  const RECORDING = '0b9f1e2a-3c4d-4e5f-8a6b-7c8d9e0f1a2b';
+  const pending = () => ({
+    recording: { id: RECORDING, expiresAt: new Date(Date.now() + 60_000).toISOString() },
+  });
+  const posts = (h: Harness) =>
+    h.fetch.all.filter((r) => r.url.includes('/api/device-link/recordings/'));
+
+  it('recordingRequestRecordsKeysAndPosts', async () => {
+    const opts = { link: TOKEN_A, linkExtra: pending() };
+    const { h, client, toasts } = await setup(opts);
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    expect(toasts).toEqual([RECORDING_STARTED]);
+    await tapKey(client, 'up', 240);
+    await tapKey(client, 'colorbutton', 100);
+    await holdKey(client, 'playpause', 2000);
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    expect(posts(h)).toHaveLength(1);
+    expect(posts(h)[0]!.headers['X-Everframe-Capture-Token']).toBe(TOKEN_A);
+    expect(JSON.parse(posts(h)[0]!.body)).toEqual({
+      events: [
+        { key: 'DPAD_UP', downMs: 0, upMs: 60 },
+        { key: 'MEDIA_PLAY_PAUSE', downMs: 460, upMs: 2460 },
+      ],
+    });
+    // The 2 s hold during the window was a recorded key, not a capture.
+    expect(ingest(h)).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(toasts).toContain(RECORDING_SENT);
+  });
+
+  it('noGestureFiresWhileRecording', async () => {
+    const opts: { link: string; linkExtra: Record<string, unknown> } = {
+      link: TOKEN_A,
+      linkExtra: pending(),
+    };
+    const { h, client } = await setup(opts);
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    await holdKey(client, 'playpause', 3000);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest(h)).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    // After the window the gesture works again (and the handled request is not rerun).
+    opts.linkExtra = {};
+    await holdKey(client, 'playpause', 1600);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest(h)).toHaveLength(1);
+  });
+
+  it('aPendingHoldDoesNotFireOnceARecordingStarts', async () => {
+    const opts: { link: string; linkExtra: Record<string, unknown> } = {
+      link: TOKEN_A,
+      linkExtra: {},
+    };
+    const { h, client, toasts } = await setup(opts);
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    await vi.advanceTimersByTimeAsync(1000);
+    opts.linkExtra = pending();
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(toasts).toContain(RECORDING_STARTED);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(ingest(h)).toHaveLength(0);
+  });
+
+  it('recordingWorksWithQuickCaptureOffOnTheServer', async () => {
+    const opts = {
+      link: TOKEN_A,
+      linkExtra: pending(),
+      config: { captureHotkey: { enabled: false }, deviceLinking: { enabled: true } },
+    };
+    const { h, client } = await setup(opts);
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    expect(client.armed()).toBe(false);
+    await tapKey(client, 'select');
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    expect(JSON.parse(posts(h)[0]!.body).events).toEqual([
+      { key: 'DPAD_CENTER', downMs: 0, upMs: 60 },
+    ]);
+  });
+
+  it('unlinkedDeviceNeverRecords', async () => {
+    const { h, toasts } = await setup({ debug: true, linkExtra: pending() });
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    expect(toasts).toEqual([]);
+    expect(posts(h)).toEqual([]);
+  });
+});
+
+describe('recording boundaries on a device', () => {
+  const RECORDING = '0b9f1e2a-3c4d-4e5f-8a6b-7c8d9e0f1a2b';
+  const pending = () => ({
+    recording: { id: RECORDING, expiresAt: new Date(Date.now() + 60_000).toISOString() },
+  });
+
+  it('aKeyHeldAcrossTheRecordingEndTakesNoCapture', async () => {
+    const { h, client } = await setup({ link: TOKEN_A, linkExtra: pending() });
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    expect(client.quickCaptureParts().overlay!.snapshot().toast).toBe(RECORDING_STARTED);
+    await vi.advanceTimersByTimeAsync(9000);
+    // Play/Pause held from 9 s to 12 s, across the 10 s end of the window.
+    await holdKey(client, 'playpause', 3000);
+    await vi.advanceTimersByTimeAsync(CAPTURE_COOLDOWN_MS);
+    expect(ingest(h)).toHaveLength(0);
+    // Once released, a new long press captures again.
+    await holdKey(client, 'playpause', 1600);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest(h)).toHaveLength(1);
+  });
+
+  it('theWindowWaitsForTheOverlay', async () => {
+    const opts: { link: string; linkExtra: Record<string, unknown> } = {
+      link: TOKEN_A,
+      linkExtra: {},
+    };
+    const { h, client, toasts } = await setup(opts);
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    const overlay = client.quickCaptureParts().overlay!;
+    overlay.setMounted(false);
+    opts.linkExtra = pending();
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(12_000);
+    // Nothing on screen yet: the window has not started, so no upload, and a
+    // key pressed now is not recorded.
+    expect(h.fetch.all.filter((r) => r.url.includes('/recordings/'))).toHaveLength(0);
+    await tapKey(client, 'up');
+    overlay.setMounted(true);
+    expect(toasts).toContain(RECORDING_STARTED);
+    await tapKey(client, 'select');
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    const posts = h.fetch.all.filter((r) => r.url.includes('/recordings/'));
+    expect(JSON.parse(posts[0]!.body).events).toEqual([
+      { key: 'DPAD_CENTER', downMs: 0, upMs: 60 },
+    ]);
+  });
+});
+
+/** A multi-component Vega app's AppState: `change` can describe one component. */
+function moduleAppState() {
+  const listeners = new Map<string, Array<(value: unknown) => void>>();
+  const state = {
+    currentState: 'active' as unknown,
+    currentModuleStates: [
+      { module_name: 'main', module_state: 'active' },
+      { module_name: 'player', module_state: 'active' },
+    ] as unknown,
+    addEventListener(event: 'change' | 'moduleChange', listener: (value: unknown) => void) {
+      const list = listeners.get(event) ?? [];
+      list.push(listener);
+      listeners.set(event, list);
+      return { remove: () => undefined };
+    },
+    /** One component goes to the background; another stays active. */
+    componentToBackground() {
+      state.currentModuleStates = [
+        { module_name: 'main', module_state: 'active' },
+        { module_name: 'player', module_state: 'background' },
+      ];
+      state.currentState = 'background';
+      listeners.get('moduleChange')?.forEach((l) => l(state.currentModuleStates));
+      listeners.get('change')?.forEach((l) => l('background'));
+    },
+    /** Every component in one state. */
+    all(moduleState: 'active' | 'background') {
+      state.currentModuleStates = [
+        { module_name: 'main', module_state: moduleState },
+        { module_name: 'player', module_state: moduleState },
+      ];
+      state.currentState = moduleState;
+      listeners.get('moduleChange')?.forEach((l) => l(state.currentModuleStates));
+      listeners.get('change')?.forEach((l) => l(moduleState));
+    },
+  };
+  return state;
+}
+
+describe('recording with Vega module states', () => {
+  const RECORDING = '0b9f1e2a-3c4d-4e5f-8a6b-7c8d9e0f1a2b';
+  const pending = () => ({
+    recording: { id: RECORDING, expiresAt: new Date(Date.now() + 60_000).toISOString() },
+  });
+  const posts = (h: Harness) =>
+    h.fetch.all.filter((r) => r.url.includes('/api/device-link/recordings/'));
+
+  it('promptStartsWhileAnotherComponentIsInTheBackground', async () => {
+    const appState = moduleAppState();
+    const opts: { link: string; linkExtra: Record<string, unknown>; appState: AppStateLike } = {
+      link: TOKEN_A,
+      linkExtra: {},
+      appState,
+    };
+    const { h, client, toasts } = await setup(opts);
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    appState.componentToBackground();
+    opts.linkExtra = pending();
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(toasts).toContain(RECORDING_STARTED);
+    await tapKey(client, 'select');
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    expect(posts(h)).toHaveLength(1);
+    expect(JSON.parse(posts(h)[0]!.body).events).toEqual([
+      { key: 'DPAD_CENTER', downMs: 0, upMs: 60 },
+    ]);
+  });
+
+  it('heldKeyStaysSuppressedWhileAnotherComponentGoesBackground', async () => {
+    const appState = moduleAppState();
+    const { h, client } = await setup({ link: TOKEN_A, linkExtra: pending(), appState });
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    await vi.advanceTimersByTimeAsync(9000);
+    // Play/Pause held from 9 s to 14 s; at 10.5 s another component goes to
+    // the background while this one stays on screen.
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    for (let t = 9200; t < 14_000; t += 200) {
+      await vi.advanceTimersByTimeAsync(200);
+      if (t === 10_600) appState.componentToBackground();
+      client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    }
+    await vi.advanceTimersByTimeAsync(200);
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 1 });
+    await vi.advanceTimersByTimeAsync(CAPTURE_COOLDOWN_MS);
+    expect(ingest(h)).toHaveLength(0);
+  });
+
+  it('promptWaitsWhileEveryComponentIsInTheBackground', async () => {
+    const appState = moduleAppState();
+    const opts: { link: string; linkExtra: Record<string, unknown>; appState: AppStateLike } = {
+      link: TOKEN_A,
+      linkExtra: {},
+      appState,
+    };
+    const { h, client } = await setup(opts);
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    appState.all('background');
+    opts.linkExtra = pending();
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(RECORDING_MS + 2000);
+    expect(posts(h)).toHaveLength(0);
+    appState.all('active');
+    await vi.advanceTimersByTimeAsync(0);
+    await tapKey(client, 'select');
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    expect(JSON.parse(posts(h)[0]!.body).events).toEqual([
+      { key: 'DPAD_CENTER', downMs: 0, upMs: 60 },
+    ]);
   });
 });

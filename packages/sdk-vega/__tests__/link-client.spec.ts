@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createLinkClient, helloDevice, type HelloDevice } from '../src/link-client.js';
+import { RECORDING_POST_TIMEOUT_MS } from '../src/gesture-recording.js';
 import { SDK_VERSION } from '../src/version.js';
 import { createFetch, type FakeFetch } from './fakes.js';
 
@@ -225,5 +226,84 @@ describe('link client', () => {
     await c.hello(NONCE, DEVICE);
     await c.check(ATTEMPT, NONCE);
     for (const req of fetch.all) expect(req.url).not.toContain(NONCE);
+  });
+});
+
+const RECORDING = '0b9f1e2a-3c4d-4e5f-8a6b-7c8d9e0f1a2b';
+const EVENTS = [
+  { key: 'DPAD_UP' as const, downMs: 0, upMs: 80 },
+  { key: 'MEDIA_PLAY_PAUSE' as const, downMs: 300, upMs: 1900 },
+];
+
+describe('recording upload', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('postRecordingBodyAndHeaders', async () => {
+    const fetch = createFetch();
+    fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    expect(await client(fetch).postRecording(RECORDING, TOKEN, EVENTS)).toBe(true);
+    const req = fetch.all[0]!;
+    expect(req.url).toBe(`https://everframe.dev/api/device-link/recordings/${RECORDING}`);
+    expect(req.method).toBe('POST');
+    expect(req.headers.Authorization).toBe('Bearer evf_live_k');
+    expect(req.headers['X-Everframe-Capture-Token']).toBe(TOKEN);
+    expect(req.headers['Content-Type']).toBe('application/json');
+    expect(req.redirect).toBe('error');
+    expect(JSON.parse(req.body)).toEqual({ events: EVENTS });
+    expect(req.url).not.toContain(TOKEN);
+  });
+
+  it('postRecording204True404False', async () => {
+    for (const [status, ok] of [
+      [204, true],
+      [200, false],
+      [404, false],
+      [401, false],
+      [500, false],
+      [0, false],
+    ] as const) {
+      const fetch = createFetch();
+      fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status });
+      expect(await client(fetch).postRecording(RECORDING, TOKEN, [])).toBe(ok);
+    }
+  });
+
+  it('postRecordingRedirectFalse', async () => {
+    const fetch = createFetch();
+    fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, {
+      status: 204,
+      url: 'https://evil.dev/collect',
+    });
+    expect(await client(fetch).postRecording(RECORDING, TOKEN, EVENTS)).toBe(false);
+  });
+
+  it('postRecordingIdIsOnePathSegmentAndTokenMustBeValid', async () => {
+    const fetch = createFetch();
+    fetch.route('POST', /recordings/, { status: 204 });
+    for (const id of ['a/b', '../config', '', 'x'.repeat(65), 'a?b=1'])
+      expect(await client(fetch).postRecording(id, TOKEN, [])).toBe(false);
+    for (const token of ['', 'evf_cap_' + 'a'.repeat(32), 'evf_dev_short'])
+      expect(await client(fetch).postRecording(RECORDING, token, [])).toBe(false);
+    expect(fetch.all).toEqual([]);
+  });
+
+  it('hungPostRecordingGivesUpAt30s', async () => {
+    vi.useFakeTimers();
+    const fetch = createFetch();
+    fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, {
+      status: 204,
+      gate: new Promise(() => undefined),
+    });
+    let done: boolean | undefined;
+    void client(fetch)
+      .postRecording(RECORDING, TOKEN, EVENTS)
+      .then((ok) => (done = ok));
+    // Longer than the 10 s request timeout of the other link calls.
+    await vi.advanceTimersByTimeAsync(RECORDING_POST_TIMEOUT_MS - 1);
+    expect(done).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(done).toBe(false);
   });
 });

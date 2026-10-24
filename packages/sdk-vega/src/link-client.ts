@@ -2,9 +2,12 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // HTTP for device linking: the hello an unlinked device sends when the
-// capture gesture fires, and the attempt check it polls while a teammate
-// picks its number. The nonce travels only in request bodies, never in a URL.
+// capture gesture fires, the attempt check it polls while a teammate picks
+// its number, and the upload of a gesture recorded on a linked device. The
+// nonce and the token travel only in bodies and headers, never in a URL.
+import { RECORDING_POST_TIMEOUT_MS, type RecordedKey } from './gesture-recording.js';
 import { isDeviceToken, parseOwner, type LinkOwner } from './link-token.js';
+import { CAPTURE_TOKEN_HEADER } from './remote-config.js';
 import { requestJson, type SendDeps } from './transport.js';
 import { SDK_VERSION } from './version.js';
 
@@ -32,6 +35,14 @@ export type CheckResult =
 export interface LinkClient {
   hello(nonce: string, device: HelloDevice): Promise<HelloResult>;
   check(attemptId: string, nonce: string): Promise<CheckResult>;
+}
+
+export interface RecordingClient {
+  /**
+   * `POST /api/device-link/recordings/:id` with the device token. True only
+   * on a 204; a redirect, a timeout or any other answer is false.
+   */
+  postRecording(recordingId: string, token: string, events: RecordedKey[]): Promise<boolean>;
 }
 
 const ATTEMPT_ID = /^[0-9A-Za-z-]{1,64}$/;
@@ -65,7 +76,11 @@ export function parsePendingAttempt(raw: unknown): { attemptId: string; number: 
   return { attemptId, number };
 }
 
-export function createLinkClient(deps: SendDeps, apiBase: string, sdkKey: string): LinkClient {
+export function createLinkClient(
+  deps: SendDeps,
+  apiBase: string,
+  sdkKey: string,
+): LinkClient & RecordingClient {
   const headers = {
     Authorization: `Bearer ${sdkKey}`,
     'Content-Type': 'application/json',
@@ -107,6 +122,22 @@ export function createLinkClient(deps: SendDeps, apiBase: string, sdkKey: string
         if (isDeviceToken(body.token) && owner) return { kind: 'linked', token: body.token, owner };
       }
       return { kind: 'expired' };
+    },
+    async postRecording(recordingId, token, events) {
+      if (typeof recordingId !== 'string' || !ATTEMPT_ID.test(recordingId)) return false;
+      if (!isDeviceToken(token)) return false;
+      const result = await requestJson(
+        { ...deps, timeoutMs: RECORDING_POST_TIMEOUT_MS },
+        {
+          url: `${apiBase}/api/device-link/recordings/${encodeURIComponent(recordingId)}`,
+          method: 'POST',
+          headers: { ...headers, [CAPTURE_TOKEN_HEADER]: token },
+          body: JSON.stringify({
+            events: events.map(({ key, downMs, upMs }) => ({ key, downMs, upMs })),
+          }),
+        },
+      );
+      return !result.redirected && result.status === 204;
     },
   };
 }

@@ -20,6 +20,42 @@ export interface AppStateLike {
     listener: (value: unknown) => void,
   ): { remove(): void };
 }
+/**
+ * Whether the app is on screen, from Vega's lifecycle. A multi-component app
+ * reports per component: `change('background')` can describe one component
+ * while another is still active, so once `currentModuleStates` is an array it
+ * decides (active while any component is active, background once every one
+ * is). Without module states, `change` decides. Other values change nothing.
+ * `onState` may repeat a state. Subscriptions are pushed as they are made, so
+ * a caller can remove a partial set if a later call throws.
+ */
+export function watchForeground(
+  state: AppStateLike,
+  onState: (value: 'active' | 'background') => void,
+  subscriptions: Array<{ remove(): void }>,
+): void {
+  let moduleMode = false;
+  const fromState = (value: unknown): void => {
+    if (value === 'active' || value === 'background') onState(value);
+  };
+  const fromModules = (value: unknown): void => {
+    if (!Array.isArray(value)) return;
+    moduleMode = true;
+    if (value.some((item) => item?.module_state === 'active')) onState('active');
+    else if (value.length > 0 && value.every((item) => item?.module_state === 'background'))
+      onState('background');
+  };
+  subscriptions.push(state.addEventListener('moduleChange', fromModules));
+  subscriptions.push(
+    state.addEventListener('change', (value) => {
+      fromModules(state.currentModuleStates);
+      if (!moduleMode) fromState(value);
+    }),
+  );
+  fromModules(state.currentModuleStates);
+  if (!moduleMode) fromState(state.currentState);
+}
+
 export const HEALTH_OUTBOX_KEY = '@everframe/vega/release-health/v1';
 export const HEALTH_MAX_ITEMS = 100;
 const RETRY_MS = [2_000, 10_000, 60_000, 300_000];
@@ -48,7 +84,6 @@ export function createReleaseHealth(
   let pointer: NativeExposurePointer | undefined;
   let terminated = false;
   let observing = false;
-  let moduleMode = false;
   const processLaunchId = uuidV4(env.random);
   const subscriptions: Array<{ remove(): void }> = [];
 
@@ -183,29 +218,13 @@ export function createReleaseHealth(
       .then(() => drain())
       .catch(() => undefined);
   }
-  function observe(value: unknown): void {
-    if (value === 'active') start();
-    else if (value === 'background') end('background');
-  }
-  function observeModules(value: unknown): void {
-    if (!Array.isArray(value)) return;
-    moduleMode = true;
-    if (value.some((item) => item?.module_state === 'active')) observe('active');
-    else if (value.length > 0 && value.every((item) => item?.module_state === 'background'))
-      observe('background');
-  }
   try {
-    const state = env.appState!;
-    subscriptions.push(state.addEventListener('moduleChange', observeModules));
-    subscriptions.push(
-      state.addEventListener('change', (value) => {
-        observeModules(state.currentModuleStates);
-        if (!moduleMode) observe(value);
-      }),
-    );
     observing = true;
-    observeModules(state.currentModuleStates);
-    if (!moduleMode) observe(state.currentState);
+    watchForeground(
+      env.appState!,
+      (value) => (value === 'active' ? start() : end('background')),
+      subscriptions,
+    );
   } catch {
     // A partially installed observer must never produce a monitored denominator.
     terminated = true;
