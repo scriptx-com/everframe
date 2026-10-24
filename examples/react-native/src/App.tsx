@@ -39,7 +39,6 @@ import { Home } from './screens/Home';
 import { Specimens } from './screens/Specimens';
 import { FieldLog } from './screens/FieldLog';
 import { Form } from './screens/Form';
-import { Companion } from './screens/Companion';
 
 // Manual top inset, same approach on both phone platforms.
 //   - Android: StatusBar.currentHeight — translucent status bar overlays
@@ -157,13 +156,12 @@ function GuideApp(): React.JSX.Element {
             {tab === 'desk' && <Home />}
             {tab === 'specimens' && <Specimens />}
             {tab === 'profile' && <Form />}
-            {tab === 'companion' && <Companion />}
             {tab === 'playback' && renderPlayback()}
           </ScrollView>
         )}
 
         <TabBar active={tab} onSelect={selectTab} />
-        <ReportFab onCompanion={() => selectTab('companion')} />
+        <ReportFab />
       </View>
     </EverframeProvider>
   );

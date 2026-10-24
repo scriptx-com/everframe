@@ -30,7 +30,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         let original = Self.faults.contains(mode)
         do {
             try Everframe.shared.start(config: .init(sdkKey: key, release: original ? "release-A" : "release-B",
-                capture: .init(logs: false, crash: mode != "off"), companionBadgeEnabled: false,
+                capture: .init(logs: false, crash: mode != "off"),
                 shakeToReportEnabled: false, installIdentifierEnabled: false, vitals: .init(enabled: false)))
             Everframe.shared.setUser(.init(id: original ? "user-A" : "user-B"))
         } catch { ready(["error": String(describing: error)]); return true }

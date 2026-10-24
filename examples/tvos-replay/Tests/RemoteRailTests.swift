@@ -59,7 +59,7 @@ final class RemoteRailTests: XCTestCase {
         while !FileManager.default.fileExists(atPath: control.path), Date() < releaseDeadline {
             Thread.sleep(forTimeInterval: 0.1)
         }
-        XCTAssertTrue(FileManager.default.fileExists(atPath: control.path), "Companion ownership release timed out")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: control.path), "Ownership release timed out")
     }
 
     private func emit(_ value: String) {

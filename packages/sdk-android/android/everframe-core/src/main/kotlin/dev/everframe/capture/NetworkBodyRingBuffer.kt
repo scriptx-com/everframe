@@ -19,7 +19,7 @@
 // direction remains unimplemented (spec §14), so no request-side entry is
 // ever appended. [freeze]/[discardAndResume]/[clear] stay wired into the
 // real reporter/kill/logout lifecycle in `Everframe.kt` and
-// `CompanionSubmissionComposer.kt`, and [EnvelopeBuilder] emits whatever this
+// `SubmissionComposer.kt`, and [EnvelopeBuilder] emits whatever this
 // buffer holds.
 package dev.everframe.capture
 

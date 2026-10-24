@@ -111,7 +111,7 @@ export interface ShotCaptureOptions {
   /**
    * Hand out the smart-TV pre-capture taken as the reporter opened. ONLY the
    * in-app dialog's open-time capture sets this; every other capture (an
-   * added shot, the companion) must be fresh, never a shot of an earlier open.
+   * added shot) must be fresh, never a shot of an earlier open.
    */
   consumePreCapture?: boolean;
 }
@@ -124,7 +124,7 @@ interface ShotCapableAdapter {
 /**
  * The adapter's shot capture, or its plain screenshot for adapters that
  * predate `__captureShot` — `ReporterDialog` is public and hand-wired hosts
- * implement the companion seam themselves.
+ * implement this seam themselves.
  */
 export function captureShotVia(
   adapter: ShotCapableAdapter,

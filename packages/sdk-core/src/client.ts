@@ -206,7 +206,7 @@ function budgetExtraObjectOrWarn(source: string, value: Record<string, unknown>)
 /**
  * THE single resolve seam for `payload.extra` (spec 2026-09-17
  * setExtra-resolver). Every reader that needs the current `extra` value —
- * `@everframe/web`'s in-app + companion report-build paths, `@everframe/react`'s
+ * `@everframe/web`'s in-app report-build paths, `@everframe/react`'s
  * equivalents — MUST call this rather than reading `ClientState.extra`
  * directly, or it gets the unresolved `{ kind: 'resolver' }` record instead
  * of a value.
@@ -305,8 +305,7 @@ export function createClient(adapter: PlatformAdapter): EverframeClient {
       // straight into the envelope, the outbox, event storage and outbound
       // webhooks. Doing it HERE — the point where the value enters the SDK —
       // makes every downstream reader (`state.user`: the Provider's getter for
-      // the in-process report path, `CompanionHost.getUser` for the companion
-      // path, and the web crash sink) clean by construction instead of each one
+      // the in-process report path, and the web crash sink) clean by construction instead of each one
       // having to remember. `projectUserMetadata` also copies, so a later host
       // mutation of the same object cannot change what ships.
       state.user = projectUserMetadata(user);

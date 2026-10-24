@@ -122,7 +122,7 @@ export interface ReporterDialogProps {
 }
 
 // Character caps shared with the Zod protocol schema and the other reporter
-// UI surfaces (phone-companion SPA, iOS native, Android native). Single source
+// UI surfaces (iOS native, Android native). Single source
 // of truth for the web modal — duplicated as raw numbers at the leaf input
 // `maxLength` attributes below.
 //

@@ -11,8 +11,7 @@
 //      partial or unstable value" — the caller feeds this into the config
 //      URL, and that read is the SDK's remote kill switch.
 //
-// Plain SharedPreferences, not EncryptedFile: unlike CompanionDeviceTest's
-// storage cases this needs no AndroidKeyStore probe-and-skip, so every case
+// Plain SharedPreferences, not EncryptedFile: this needs no AndroidKeyStore probe-and-skip, so every case
 // here runs for real on the Robolectric host.
 //
 // Run locally:

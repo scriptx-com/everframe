@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 
 import UIKit
-import Combine
 import EverframeKit
 
 @main final class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -14,9 +13,6 @@ import EverframeKit
 
 @MainActor final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
-    private var relay: RelayWSClient?
-    private var bridge: CompanionCaptureBridge?
-    private var subscriptions = Set<AnyCancellable>()
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
         guard let scene = scene as? UIWindowScene else { return }
@@ -43,22 +39,11 @@ import EverframeKit
               url.host == "127.0.0.1" || url.host == "localhost" else { return }
         do {
             var config = EverframeConfig(sdkKey: key, environment: .development,
-                release: "tvos-video-e2e", capture: CaptureConfig(logs: false, network: false, crash: env["REPLAY_TV_ERROR_AFTER"] != nil),
-                companionBadgeEnabled: false)
+                release: "tvos-video-e2e", capture: CaptureConfig(logs: false, network: false, crash: env["REPLAY_TV_ERROR_AFTER"] != nil))
             // REPLAY_TV_RELEASE_MODE=1 runs the SDK as a release build, so the
             // unlinked-release quick-capture rules can be checked in a simulator.
             if env["REPLAY_TV_RELEASE_MODE"] == "1" { config.debugBuild = false }
             try Everframe.shared.start(config: config)
-            let client = RelayWSClient(endpoint: url, companion: Everframe.shared.companion,
-                sdkKey: key, deviceLabel: "tvOS Replay Validation")
-            relay = client
-            bridge = CompanionCaptureBridge(client: client)
-            Everframe.shared.companion.$pairUrl.sink { url in
-                guard let url else { return }
-                // Runtime-only token handoff to the local browser driver. Never log/commit it.
-                try? Data(url.utf8).write(to: ProbeFiles.url("pair-url.txt"), options: .atomic)
-            }.store(in: &subscriptions)
-            client.connect()
             ErrorProbe.scheduleIfRequested(env: env)
         } catch { NSLog("ReplayTV Everframe SDK startup failed: %@", String(describing: error)) }
     }

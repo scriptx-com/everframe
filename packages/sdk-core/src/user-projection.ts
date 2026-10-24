@@ -23,13 +23,11 @@
 //
 //   1. `client.setUser()` (sdk-core) — the host-facing API. Everything that
 //      reads `state.user` (the in-process report path via the Provider's
-//      getter, the companion path via `CompanionHost.getUser`, and the web
-//      crash sink) is downstream of it.
+//      getter, and the web crash sink) is downstream of it.
 //   2. `captureUserSnapshot()` (sdk-react) — the submit-boundary snapshot. It
-//      is a SECOND entrance, not merely a reader: the companion seam reads
-//      through a host-implemented `CompanionHost.getUser()`, and a hand-wired
-//      host can supply that without the Provider (and therefore without
-//      `setUser`) ever having been involved.
+//      is a SECOND entrance, not merely a reader: a hand-wired host can supply
+//      a user without the Provider (and therefore without `setUser`) ever
+//      having been involved.
 //
 // Deliberately NOT fixed by tightening `packages/protocol`'s `.passthrough()`:
 // that exists for forward compatibility of the envelope as a whole — an older

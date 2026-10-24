@@ -127,6 +127,16 @@ done
 unzip -p "${CORE_CLASSES}" dev/everframe/devicelink/SdkOverlayWindows.class | strings | grep -Fx shown >/dev/null ||
     fail "${CORE_AAR} release SdkOverlayWindows has no shown()"
 
+# Public API that apps and the separately compiled RN bridge name by FQN: the
+# deprecated Companion stubs (kept until the next major so documented code
+# still compiles) and the quick-capture submit pipeline. Renamed by R8, a
+# host that follows the docs stops compiling against the release AAR.
+for public_type in 'companion/Companion' 'companion/CompanionState' 'companion/AttachChallengeInfo' \
+    'quickcapture/SubmissionComposer' 'quickcapture/SubmissionComposer$Inputs'; do
+    grep -Fx "dev/everframe/${public_type}.class" <<<"${CORE_ENTRIES}" >/dev/null ||
+        fail "${CORE_AAR} is missing dev.everframe.${public_type//\//.} from its release classes"
+done
+
 REPORTER_AAR="${GROUP_DIRECTORY}/reporter-ui/${VERSION}/reporter-ui-${VERSION}.aar"
 unzip -p "${REPORTER_AAR}" classes.jar >"${REPORTER_CLASSES}"
 unzip -Z1 "${REPORTER_CLASSES}" | grep -Fx 'dev/everframe/ui/EFReporterFromImage.class' >/dev/null ||

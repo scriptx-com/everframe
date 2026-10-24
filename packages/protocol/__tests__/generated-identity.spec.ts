@@ -13,7 +13,7 @@ const kotlinRoot = path.resolve(
 );
 
 describe('generated Everframe protocol identity', () => {
-  it.each(['Generated.swift', 'Relay.swift', 'VTree.swift'])(
+  it.each(['Generated.swift', 'VTree.swift'])(
     '%s prefixes every public protocol declaration with Everframe',
     (file) => {
       const source = readFileSync(path.join(swiftRoot, file), 'utf8');
@@ -25,14 +25,11 @@ describe('generated Everframe protocol identity', () => {
     },
   );
 
-  it.each(['Generated.kt', 'Relay.kt', 'VTree.kt'])(
-    '%s uses the verified Maven namespace',
-    (file) => {
-      const source = readFileSync(path.join(kotlinRoot, file), 'utf8');
-      expect(source).toMatch(/^package dev\.everframe\.protocol\.generated$/mu);
-      expect(source).not.toMatch(new RegExp(`^package com\\.${'trace' + 'itx'}\\.`, 'mu'));
-    },
-  );
+  it.each(['Generated.kt', 'VTree.kt'])('%s uses the verified Maven namespace', (file) => {
+    const source = readFileSync(path.join(kotlinRoot, file), 'utf8');
+    expect(source).toMatch(/^package dev\.everframe\.protocol\.generated$/mu);
+    expect(source).not.toMatch(new RegExp(`^package com\\.${'trace' + 'itx'}\\.`, 'mu'));
+  });
 
   it('generated Swift decodes the legacy video value but encodes it canonically', () => {
     const source = readFileSync(path.join(swiftRoot, 'Generated.swift'), 'utf8');

@@ -66,8 +66,6 @@ class ReplaySession(
      * compared against the live rate again on each refresh. Guarded by the report authorization lock.
      */
     private val admittedKinds = mutableSetOf<ReplayCoverage>()
-    /** The config of the last refresh that succeeded; null after a failed one. Guarded by [refreshMutex]. */
-    private var lastConfirmedConfig: ReplayConfig? = null
     private var generation = 0L
     private var authorized = false
     private var settings: NativeVideoSettings? = null
@@ -170,27 +168,17 @@ class ReplaySession(
         }
     }
 
-    /**
-     * A companion bond upgraded this crash-only session (spec 2026-10-12). Re-applies the last confirmed
-     * config under the new coverage without a fetch, so an unreachable server at the bond cannot revoke a
-     * recording; fetches only when no refresh has succeeded yet.
-     */
-    internal suspend fun applyCompanionUpgrade() = refreshConfigNow(reusingConfirmedConfig = true)
-
-    internal suspend fun refreshConfigNow(reusingConfirmedConfig: Boolean = false): Unit = refreshMutex.withLock {
+    internal suspend fun refreshConfigNow(): Unit = refreshMutex.withLock {
         val capturedEpoch = epoch.get()
         // A superseded or torn-down session fetches nothing: its request would be built for its own key and
         // origin, long after a later start() moved on.
         if (!currentGenerationValid(capturedEpoch)) return
-        val confirmed = lastConfirmedConfig?.takeIf { reusingConfirmedConfig }
-        val succeeded = confirmed != null || provider.refresh(force = true)
-        val latest = confirmed ?: provider.current
+        val succeeded = provider.refresh(force = true)
+        val latest = provider.current
         if (!currentGenerationValid(capturedEpoch)) return
-        lastConfirmedConfig = if (succeeded) latest else null
         val wasIdentityEnabled = isIdentityEnabled(configBox)
         configBox = latest
         // Signals retain their existing independent effects; never publish from a superseded generation.
-        dev.everframe.companion.CompanionBadgeServerConfigSignal.publish(latest.companionBadge) { currentGenerationValid(capturedEpoch) }
         BrandingServerConfigSignal.publish(latest.branding) { currentGenerationValid(capturedEpoch) }
         dev.everframe.vitals.VitalsServerConfigSignal.publish(latest.toVitalsServerConfig()) { currentGenerationValid(capturedEpoch) }
         dev.everframe.trigger.ShakeToReportTrigger.publishRemote(latest.shakeToReport?.enabled) {
@@ -233,8 +221,7 @@ class ReplaySession(
         } else {
             resourceSampler.stop()
         }
-        // Crash-only sessions (spec 2026-10-12): read once, so bodies and video agree for this refresh. A
-        // companion bond flips it and then re-applies the confirmed config (applyCompanionUpgrade).
+        // Crash-only sessions (spec 2026-10-12): read once, so bodies and video agree for this refresh.
         val coverage = Everframe.replayCoverage()
         val crashOnly = coverage == ReplayCoverage.CrashOnly
         NetworkBodyCaptureState.applyConfig(if (succeeded) latest.networkBodies else null,
@@ -253,7 +240,7 @@ class ReplaySession(
         Everframe.withReportAuthorizationLock {
             if (!currentGenerationValid(capturedEpoch)) return@withReportAuthorizationLock
             // One draw for every kind, and an admission is kept for the session: a refresh that lowers a
-            // rate, or an upgrade that sees lower rates, never stops a recording. Forcing bypasses the
+            // rate never stops a recording. Forcing bypasses the
             // admission but never replaces it: the draw is still checked at the configured rate first, and
             // decides again once forcing ends.
             val effective = effectiveNativeVideo(latest, succeeded, locallyDisabled, forced = replayForced)
@@ -267,8 +254,6 @@ class ReplaySession(
 
     /** Sampled only against a confirmed config: the fail-closed OFF default carries a rate of 1. */
     private fun admitsLocked(kind: ReplayCoverage, config: ReplayConfig): Boolean {
-        // An upgrade never stops a recording: it inherits the crash-only admission, even after both rates drop.
-        if (kind == ReplayCoverage.Upgraded && ReplayCoverage.CrashOnly in admittedKinds) admittedKinds += kind
         if (kind in admittedKinds) return true
         if (samplingDraw >= kind.samplingRate(config.samplingRate, config.crashOnlySamplingRate)) return false
         admittedKinds += kind
@@ -347,7 +332,7 @@ class ReplaySession(
         if (state == NativeVideoRecorder.State.SUSPENDED) state = NativeVideoRecorder.State.BUFFERING
     }
 
-    /** True while a report capture (reporter, companion or quick capture) holds this session's freeze. */
+    /** True while a report capture (reporter or quick capture) holds this session's freeze. */
     internal val hasReportOwner: Boolean get() = Everframe.withReportAuthorizationLock { activeOwner != null }
 
     /** Called under Everframe's capture coordinator, which serializes snapshots with start/kill epoch changes. */

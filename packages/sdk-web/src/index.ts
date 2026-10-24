@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // `@everframe/web` — the framework-free half of the Everframe web SDK: capture,
-// transport, outbox, branding, triggers, the companion (TV/phone pairing)
-// client and the reporter stylesheet. `@everframe/react` composes its React
+// transport, outbox, branding, triggers, the deprecated Companion stubs and
+// the reporter stylesheet. `@everframe/react` composes its React
 // surface on top of this; a Vue/Svelte/Angular/vanilla host consumes it
 // directly.
 //
@@ -116,14 +116,15 @@ export { scopedReporterTokenStorageKey } from './reporter/credential-store.js';
 export { createScreenRecorder } from './breadcrumbs/record-screen.js';
 export type { ScreenRecorder } from './breadcrumbs/record-screen.js';
 
-// ── Companion (TV / phone pairing) ──────────────────────────────────────
-// The namespace mirrors what `@everframe/react` has always exposed as
-// `companion.*`, minus `useCompanion` — the one React-coupled member, which
-// lives in `@everframe/react` and re-composes this namespace with it.
+// ── Companion (removed; deprecated no-op stubs) ─────────────────────────
+// Everframe Companion has been removed. The documented members stay until the
+// next major so apps that follow the docs keep compiling: `start()` logs one
+// warning and opens nothing, every getter is idle, and no handler is called.
+// The namespace mirrors `@everframe/react`'s `companion.*`, minus
+// `useCompanion` — the one React-coupled member, which lives there.
 export * as companion from './companion/index.js';
-// The same members, flat, so `@everframe/react` can re-export them by name
-// (a namespace object cannot be spread back into an ES module's exports).
-export { createCompanion } from './companion/state.js';
+// The same members, flat, so `@everframe/react` can re-export them by name.
+export { createCompanion, start, stop, __getCompanionApi } from './companion/singleton.js';
 export type {
   CompanionAPI,
   CompanionState,
@@ -134,52 +135,15 @@ export type {
   CompanionResolvedNameHandler,
   CompanionAttachChallenge,
   CompanionAttachChallengeHandler,
-} from './companion/state.js';
-export { announce } from './companion/announce.js';
-export type { AnnounceResult, AnnounceDeviceBlock } from './companion/announce.js';
-export { createRelayWSClient } from './companion/ws-client.js';
-export type {
-  RelayWSClient,
-  RelayWSClientOpts,
-  RelayMessage,
-  ReportSubmit,
-} from './companion/ws-client.js';
-export {
-  handleReportRequest,
-  handleCompanionSubmitText,
-  handleCompanionSubmitBinary,
-} from './companion/capture-bridge.js';
-export type { ReportCounts } from './companion/capture-bridge.js';
-export { start, stop } from './companion/singleton.js';
-export type {
   CompanionStartOptions,
   AttachPinUiMode,
   CompanionBadgeOptions,
   BadgePosition,
+  ReportSubmit,
+  RelayMessage,
+  RelayWSClient,
+  ReportCounts,
 } from './companion/singleton.js';
-// Companion seams read by `@everframe/react`'s Provider, badge and PIN card.
-export {
-  __getCompanionApi,
-  __getAttachPinUiMode,
-  __getCompanionBadgeConfig,
-  __setCompanionDefaults,
-  __getCompanionRunning,
-  __onCompanionRunning,
-} from './companion/singleton.js';
-// Crash-only sessions (spec 2026-10-12): both hosts upgrade a crash-only
-// session on a companion bond through this one watcher.
-export { __watchCompanionBond } from './companion/bond-upgrade.js';
-export {
-  __setCompanionHost,
-  __getCompanionHost,
-  // Codex round-5 findings 1/3 — the seam carries identity, not a page-global
-  // teardown flag. A host wiring `createRelayWSClient` by hand takes one of
-  // these when its session opens and hands it to `handleReportRequest`, so its
-  // fallback is judged against where IT started. Omitting it keeps the
-  // page-wide answer, which is the conservative one.
-  __companionSeamTicket,
-} from './companion/host-seam.js';
-export type { CompanionHost, CompanionSeamTicket } from './companion/host-seam.js';
 /**
  * @internal Real-device quick capture on Samsung Tizen and LG webOS TVs.
  * `init()` installs it; `@everframe/react`'s Provider installs it from this
@@ -188,14 +152,6 @@ export type { CompanionHost, CompanionSeamTicket } from './companion/host-seam.j
 export { installQuickCapture as __installQuickCapture } from './quickcapture/install.js';
 export type { QuickCaptureInstall } from './quickcapture/install.js';
 export type { QuickCaptureHost } from './quickcapture/host.js';
-// The getter and subscriber are exported too: dist/ui.js imports them from
-// this entry (CompanionBadge), so the badge reads the same box the adapter
-// writes — see scripts/ui-shared-modules.ts.
-export {
-  __setCompanionBadgeServerConfig,
-  __getCompanionBadgeServerConfig,
-  __subscribeCompanionBadgeServerConfig,
-} from './companion/server-config.js';
 
 // ── Test seams ──────────────────────────────────────────────────────────
 // Not product API. Exported only because `@everframe/react`'s specs — which
@@ -209,8 +165,6 @@ export {
 // mean editing those specs. Every barrel member with NO consumer was dropped
 // in that same audit (`INGEST_URL`, the badge-config getter/subscriber, and
 // `src/ui.ts`'s portal-target / theme-host seams). Retargeting the remaining
-// spec imports at sdk-web's source by relative path — the pattern
-// `provider-companion-user.spec.tsx` already uses — is what would take these
+// spec imports at sdk-web's source by relative path is what would take these
 // off the published surface too.
 export { __filterNodeForTests } from './capture/screenshot.js';
-export { __resetDeviceIdForTests } from './companion/device-id.js';

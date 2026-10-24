@@ -132,8 +132,7 @@ final class ReplayConfigProviderTests: XCTestCase {
 
     /// Fetch-and-decode shorthand shared by the branding tests below (and
     /// usable anywhere else a test just needs the decoded `ReplayConfig` for
-    /// a canned 200 body) — mirrors the companionBadge tests'
-    /// fetch-then-`provider.current` pattern one-for-one.
+    /// a canned 200 body) — the fetch-then-`provider.current` pattern.
     private func decodedConfig(json: String) async -> ReplayConfig {
         let fetcher = StubFetcher([.success(status: 200, body: body(json))])
         let provider = makeProvider(fetcher)
@@ -329,12 +328,10 @@ final class ReplayConfigProviderTests: XCTestCase {
         XCTAssertFalse(ReplayConfigProvider.sdkFeaturesHeaderValue.contains("replayimages"))
     }
 
-    // MARK: - companionBadge block (dashboard config plan 2026-08-25)
+    // MARK: - companionBadge block (deprecated: Companion removed)
     //
-    // `position` stays a raw String on the wire — resolution to
-    // `CompanionBadgePosition` happens at the badge (`CompanionBadgeResolution`),
-    // so an unrecognised future position degrades gracefully there rather than
-    // here. See `CompanionBadgeConfigWire`'s own doc comment.
+    // Nothing reads the block any more, but a config from an older server or
+    // a stale cache can still carry it, so it must keep decoding.
 
     func testDecodesCompanionBadgeBlock() async {
         let fetcher = StubFetcher([
@@ -377,8 +374,8 @@ final class ReplayConfigProviderTests: XCTestCase {
         XCTAssertNil(c.companionBadge)
     }
 
-    func testFeaturesHeaderAdvertisesCompanionBadge() {
-        XCTAssertTrue(ReplayConfigProvider.sdkFeaturesHeaderValue.contains("companionbadge"))
+    func testFeaturesHeaderNoLongerAdvertisesCompanionBadge() {
+        XCTAssertFalse(ReplayConfigProvider.sdkFeaturesHeaderValue.contains("companionbadge"))
     }
 
     // MARK: - resources block (Report EverframeResource Window, spec 2026-09-05)
@@ -697,15 +694,14 @@ final class ReplayConfigProviderTests: XCTestCase {
         let req = fetcher.lastRequest
         // Widened to also declare `identity` (native identity Task 2) —
         // see IdentityConfigGateTests.testTheConfigRequestDeclaresTheIdentityCapability
-        // for the regression guard on that specific token — `companionBadge`,
-        // `resources` (Report EverframeResource Window, spec 2026-09-05),
+        // for the regression guard on that specific token — `resources` (Report EverframeResource Window, spec 2026-09-05),
         // and `vitals` (Session Vitals iOS spec 2026-09-05 §1).
         // Exact-string on purpose: the server emits a block ONLY to
         // callers that declare it, so this header is the whole reason any of
         // these blocks arrive, and widening it should have to be deliberate.
         XCTAssertEqual(
             req?.value(forHTTPHeaderField: "X-Everframe-SDK-Features"),
-            "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking"
+            "networkbodies, identity, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking"
         )
     }
 

@@ -5,8 +5,7 @@
 // Crash-only sessions (spec 2026-10-12), through the REAL adapter and client
 // wiring. `reporter.disabled` turns off every on-device way to open the
 // reporter, keeps network bodies off and samples replay against
-// `crashOnlySamplingRate`. A companion bond upgrades replay and bodies to the
-// normal server rules; the reporter stays off.
+// `crashOnlySamplingRate` for the whole session.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createClient, __internalClientState, type ReportDraft } from '@everframe/sdk-core';
 import { createWebPlatformAdapter, type WebPlatformAdapter } from '../src/adapter.js';
@@ -101,67 +100,6 @@ describe('crash-only sessions: replay coverage', () => {
     await adapter.__initReplay();
     expect(adapter.__replayLifecycle?.state).toBe('BUFFERING');
   });
-
-  it('a companion bond upgrades the session and starts recording at once', async () => {
-    const { adapter } = wire(replayOn({ crashOnlySamplingRate: 0 }), true);
-    await adapter.__initReplay();
-    expect(adapter.__replayLifecycle?.state).toBe('IDLE');
-    adapter.__setCompanionAttached();
-    expect(adapter.__replayLifecycle?.state).toBe('BUFFERING');
-  });
-
-  it('an upgrade keeps a recording the crash-only rate admitted', async () => {
-    // Draw 0.03: under the crash-only 5%, over the report 1%.
-    vi.spyOn(Math, 'random').mockReturnValue(0.03);
-    const { adapter } = wire(replayOn({ samplingRate: 0.01, crashOnlySamplingRate: 0.05 }), true);
-    await adapter.__initReplay();
-    expect(adapter.__replayLifecycle?.state).toBe('BUFFERING');
-    adapter.__setCompanionAttached();
-    expect(adapter.__replayLifecycle?.state).toBe('BUFFERING');
-    // A restart after an identity change samples the upgraded kind.
-    adapter.__replayLifecycle!.forceDiscard();
-    expect(adapter.__replayLifecycle!.tryStart()).toBe(true);
-  });
-
-  it('an upgraded session records at the crash-only rate when samplingRate is lower', async () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.03);
-    const { adapter } = wire(replayOn({ samplingRate: 0.01, crashOnlySamplingRate: 0.05 }), true);
-    adapter.__setCompanionAttached();
-    await adapter.__initReplay();
-    expect(adapter.__replayLifecycle?.state).toBe('BUFFERING');
-  });
-
-  it('a bond before config resolves takes effect once config arrives', async () => {
-    const { adapter } = wire(replayOn({ crashOnlySamplingRate: 0 }), true);
-    adapter.__setCompanionAttached();
-    expect(adapter.__replayLifecycle?.state).toBe('IDLE');
-    await adapter.__initReplay();
-    expect(adapter.__replayLifecycle?.state).toBe('BUFFERING');
-  });
-
-  it('sessionReplay.disabled still wins after an upgrade', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response(JSON.stringify(replayOn()), { status: 200 })),
-    );
-    const adapter = createWebPlatformAdapter({
-      sdkKey: 'k',
-      reporter: { disabled: true },
-      sessionReplay: { disabled: true },
-    });
-    adapters.push(adapter);
-    await adapter.__initReplay();
-    adapter.__setCompanionAttached();
-    expect(adapter.__replayLifecycle?.state).toBe('IDLE');
-  });
-
-  it('is a no-op in a report session', async () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.9);
-    const { adapter } = wire(replayOn({ samplingRate: 0.5, crashOnlySamplingRate: 1 }), false);
-    await adapter.__initReplay();
-    adapter.__setCompanionAttached();
-    expect(adapter.__replayLifecycle?.state).toBe('IDLE');
-  });
 });
 
 describe('crash-only sessions: network bodies', () => {
@@ -179,15 +117,6 @@ describe('crash-only sessions: network bodies', () => {
     await fetch('https://api.test/x');
     await flush();
     expect(bodies().size).toBe(0);
-  });
-
-  it('captures bodies by the server rules after a companion bond', async () => {
-    const { adapter, bodies } = wire(bodiesOn, true);
-    await adapter.__initReplay();
-    adapter.__setCompanionAttached();
-    await fetch('https://api.test/x');
-    await flush();
-    expect(bodies().size).toBeGreaterThan(0);
   });
 
   it('a report session still captures bodies', async () => {
@@ -211,15 +140,6 @@ describe('crash-only sessions: entry points', () => {
     });
     expect(show).not.toHaveBeenCalled();
     expect(PublicError).toBe(EverframeReporterDisabledError);
-  });
-
-  it('open() still rejects after a companion upgrade', async () => {
-    const { adapter } = wire(replayOn(), true);
-    const show = vi.fn();
-    adapter.__registerShowModal(show);
-    adapter.__setCompanionAttached();
-    await expect(adapter.__openReporter()).rejects.toBeInstanceOf(EverframeReporterDisabledError);
-    expect(show).not.toHaveBeenCalled();
   });
 
   it('never hands out a hotkey binding', async () => {

@@ -68,18 +68,12 @@ const applyDeliveryMethod = Reflect.apply;
  * host-defined, it's owned by the SDK and stamped per release on the native
  * side (`Everframe.SDK_VERSION`). See extractBridgeConfig.
  *
- * External review, finding NN4 — also OMITS `companionBadgeEnabled` /
- * `companionBadgePosition`, the FLAT wire-shaped fields `ConfigOpts` declares
- * for codegen (RN codegen cannot express the nested `{ enabled, position }`
- * object at all — see `companionBadge` below). Without this, `RuntimeConfig`
- * structurally inherited BOTH the flat wire fields AND the nested
- * `companionBadge` declared below, so `{ companionBadgeEnabled: false }`
- * type-checked as a valid host config and silently no-opped: `extractBridge
- * Config` only ever reads the nested `companionBadge` object, never the flat
- * keys, so a host reaching for the (also-valid-looking) flat shape got no
- * error and no effect. Omitting them here makes `companionBadge` the ONLY
- * public surface for this option — passing the flat form is now a
- * compile-time error, matching the runtime's actual (nested-only) behavior.
+ * External review, finding NN4 — also OMITS the FLAT wire-shaped fields
+ * `ConfigOpts` declares for codegen wherever a nested host-facing option
+ * exists below (RN codegen cannot express nested objects). Without the Omit,
+ * `RuntimeConfig` structurally inherits BOTH shapes, and the flat one
+ * type-checks as a valid host config and silently no-ops, because
+ * `extractBridgeConfig` only ever reads the nested object.
  * Deliberately NOT applied to `networkBodiesDisabled`, even though the same
  * shape of gap arguably exists there too (`RuntimeConfig` also declares its
  * own nested `networkBodies?: { disabled? }` below, alongside the inherited
@@ -87,44 +81,38 @@ const applyDeliveryMethod = Reflect.apply;
  * review instruction, left as pre-existing behavior rather than folded in
  * here.
  */
-export interface RuntimeConfig
-  // companion-bridge-wiring.spec.ts pins this Omit clause while allowing the
-  // formatter to wrap its generic arguments (NN4 lock).
-  extends Omit<
-    ConfigOpts,
-    | 'sdkVersion'
-    | 'interactionsJson'
-    | 'installIdentifierDisabled'
-    | 'crashReportingDisabled'
-    | 'companionBadgeEnabled'
-    | 'companionBadgePosition'
-    | 'shakeToReportEnabled'
-    | 'quickCaptureEnabled'
-    // Crash-only sessions (spec 2026-10-12) — same NN4 rationale: the nested
-    // `reporter` below is the ONLY public surface.
-    | 'reporterDisabled'
-    // The 8 flat theme wire fields (reporter branding spec 2026-08-25, RN
-    // slice) — same NN4 rationale as the companionBadge pair above: the
-    // nested `theme` below is the ONLY public surface; without these Omits a
-    // host passing `{ themeAccent: … }` would type-check and silently no-op.
-    | 'themeBackground'
-    | 'themeSurface'
-    | 'themeBorder'
-    | 'themeText'
-    | 'themeTextMuted'
-    | 'themeAccent'
-    | 'themeAccentForeground'
-    | 'themeDestructive'
-    // Session Vitals (spec 2026-09-06) — same NN4 rationale: the nested
-    // `vitals` below is the ONLY public surface.
-    | 'vitalsEnabled'
-    | 'vitalsSampleRate'
-    | 'vitalsCaptureSourceQuery'
-    | 'releaseHealthEnabled'
-    | 'releaseHealthLoadedBuildId'
-    | 'releaseHealthUserId'
-    | 'releaseHealthIncludeDebugBuilds'
-  > {
+export interface RuntimeConfig extends Omit<
+  ConfigOpts,
+  | 'sdkVersion'
+  | 'interactionsJson'
+  | 'installIdentifierDisabled'
+  | 'crashReportingDisabled'
+  | 'shakeToReportEnabled'
+  | 'quickCaptureEnabled'
+  // Crash-only sessions (spec 2026-10-12) — same NN4 rationale: the nested
+  // `reporter` below is the ONLY public surface.
+  | 'reporterDisabled'
+  // The 8 flat theme wire fields (reporter branding spec 2026-08-25, RN
+  // slice) — same NN4 rationale: the nested `theme` below is the ONLY public surface; without these Omits a
+  // host passing `{ themeAccent: … }` would type-check and silently no-op.
+  | 'themeBackground'
+  | 'themeSurface'
+  | 'themeBorder'
+  | 'themeText'
+  | 'themeTextMuted'
+  | 'themeAccent'
+  | 'themeAccentForeground'
+  | 'themeDestructive'
+  // Session Vitals (spec 2026-09-06) — same NN4 rationale: the nested
+  // `vitals` below is the ONLY public surface.
+  | 'vitalsEnabled'
+  | 'vitalsSampleRate'
+  | 'vitalsCaptureSourceQuery'
+  | 'releaseHealthEnabled'
+  | 'releaseHealthLoadedBuildId'
+  | 'releaseHealthUserId'
+  | 'releaseHealthIncludeDebugBuilds'
+> {
   /**
    * Per-app SDK key (publishable, not secret). Required on the host-facing
    * config — narrows the bridge `ConfigOpts.sdkKey?` to required so a missing
@@ -208,27 +196,21 @@ export interface RuntimeConfig
     disabled?: boolean;
   };
   /**
-   * Built-in attach-PIN surface mode (spec 2026-08-19). Narrows the bridge
-   * `ConfigOpts.attachPinUi?: string` to a literal union here — the flat
-   * `string` on `ConfigOpts` is a codegen constraint on the WIRE type only
-   * (RN codegen can't express a string-literal union in a struct field, see
-   * `NativeEverframe.ts`'s D-decision header note); this host-facing surface
-   * doesn't cross codegen and gets normal DX. `extractBridgeConfig` passes
-   * it through unchanged — the union is a subtype of `string`, so no
-   * conversion is needed, same as `captureScreenshot` above.
+   * Accepted and ignored.
+   *
+   * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
    */
   attachPinUi?: 'builtin' | 'custom' | 'off';
   /**
-   * Companion on-screen name-badge visibility/position (naming spec
-   * 2026-08-24, controller ruling / Task 6b) — lets a host that finds the
-   * badge intrusive turn it off in one line: `companionBadge: { enabled:
-   * false }`. Nested host-facing shape, unlike `attachPinUi` above: RN
-   * codegen cannot express a nested object in a struct field at all (not
-   * even a flat one with a narrowed literal-union member), so
-   * `extractBridgeConfig` flattens both fields onto the wire `ConfigOpts`
-   * (`companionBadgeEnabled`/`companionBadgePosition`) — the same
-   * flattening idiom `networkBodies.disabled` → `networkBodiesDisabled`
-   * above already uses for the same reason.
+   * Accepted and ignored.
+   *
+   * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+   */
+  companionDeviceId?: string;
+  /**
+   * Accepted and ignored.
+   *
+   * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
    */
   companionBadge?: {
     enabled?: boolean;
@@ -263,9 +245,7 @@ export interface RuntimeConfig
    * (shake, `open()`, which then rejects with
    * `EverframeReporterDisabledError`), keeps network bodies off and samples
    * session replay with the server's crash-only rate (default 0) instead of
-   * the normal one. A companion bond upgrades the session: replay and bodies
-   * then follow the normal server rules for the rest of the session, and
-   * reports come through the companion. Crash and error capture are
+   * the normal one. Crash and error capture are
    * unaffected. Flattened onto `ConfigOpts.reporterDisabled` by
    * `extractBridgeConfig`.
    */
@@ -277,8 +257,8 @@ export interface RuntimeConfig
    * 8 optional `#rrggbb` role strings for the NATIVE report dialogs the RN
    * SDK presents (`open()`); RN itself renders no reporter UI. Nested
    * host-facing shape, flattened onto the 8 flat `ConfigOpts.theme*` wire
-   * fields by `extractBridgeConfig` — the same idiom (and codegen reason) as
-   * `companionBadge` above.
+   * fields by `extractBridgeConfig` (RN codegen cannot express nested
+   * objects).
    *
    * Rendering is entitlement-gated NATIVELY per the branding contract
    * (precedence server → inline → default): the theme applies only when the
@@ -324,19 +304,16 @@ export interface Runtime extends EverframeContextValue {
 
 // ---------------- Extra-resolver ask-and-wait (spec 2026-09-17) ----------------
 //
-// Mirrors `companion.ts`'s `installReportRequestedHandler` shape exactly:
-// native fires an event BEFORE it drains pending attachments for a report
+// Native fires an event BEFORE it drains pending attachments for a report
 // and waits a short bounded time for JS to answer via
 // `signalExtraResolverReady`. Module-scoped (not per-runtime) because
 // single-instance enforcement (T-06-05-04) guarantees at most one mounted
-// runtime at a time, matching how `companion.ts` keeps its own module-scope
-// state. Installed LAZILY — only the first time a host actually calls
+// runtime at a time. Installed LAZILY — only the first time a host actually calls
 // `setExtra(resolver)` — so a string/object-only host (today's entire
 // installed base) never constructs a `NativeEventEmitter` at all. This is
 // NOT just an optimization: `NativeEventEmitter` isn't mocked in most of
-// this package's unit tests (only files that need it, e.g.
-// `companion-code.spec.ts`, override the package-wide `react-native` mock to
-// add it), so an unconditional install here would break every other test
+// this package's unit tests (only files that need it override the
+// package-wide `react-native` mock to add it), so an unconditional install here would break every other test
 // that mounts a runtime.
 const EXTRA_RESOLVE_REQUESTED_EVENT = 'everframe.extra.resolveRequested';
 
@@ -833,30 +810,8 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
   if (config.crashReporting?.disabled !== undefined) {
     bridge.crashReportingDisabled = config.crashReporting.disabled;
   }
-  // Attach-PIN UI mode (spec 2026-08-19). `RuntimeConfig` inherits
-  // `attachPinUi?` structurally from `ConfigOpts` (it isn't `Omit`ted like
-  // `sdkVersion` is) — same name on both sides, no flattening/renaming
-  // needed, straight passthrough like `captureScreenshot` above.
-  if (config.attachPinUi !== undefined) bridge.attachPinUi = config.attachPinUi;
-  // Companion device-identity override (naming spec 2026-08-24).
-  // `RuntimeConfig` inherits `companionDeviceId?` structurally from
-  // `ConfigOpts` (it isn't `Omit`ted like `sdkVersion` is) — same name on
-  // both sides, no flattening/renaming needed, straight passthrough like
-  // `attachPinUi` above.
-  if (config.companionDeviceId !== undefined) {
-    bridge.companionDeviceId = config.companionDeviceId;
-  }
-  // Companion on-screen name badge (naming spec 2026-08-24, controller
-  // ruling / Task 6b). Flatten the nested host-facing option for the
-  // codegen boundary, same idiom `networkBodies.disabled` above uses:
-  // JS names the nested shape (`companionBadge.enabled`/`.position`),
-  // native takes the two flat fields.
-  if (config.companionBadge?.enabled !== undefined) {
-    bridge.companionBadgeEnabled = config.companionBadge?.enabled;
-  }
-  if (config.companionBadge?.position !== undefined) {
-    bridge.companionBadgePosition = config.companionBadge?.position;
-  }
+  // Companion was removed: `attachPinUi`, `companionDeviceId` and
+  // `companionBadge` are accepted on `RuntimeConfig` and never forwarded.
   if (config.shakeToReport?.enabled !== undefined) {
     bridge.shakeToReportEnabled = config.shakeToReport.enabled;
   }
@@ -869,8 +824,7 @@ function extractBridgeConfig(config: RuntimeConfig): ConfigOpts {
     bridge.reporterDisabled = true;
   }
   // Inline reporter theme (reporter branding spec 2026-08-25, RN slice).
-  // Flatten the nested host-facing shape onto the 8 flat wire fields, same
-  // idiom as `companionBadge` above. Only supplied roles cross the wire —
+  // Flatten the nested host-facing shape onto the 8 flat wire fields. Only supplied roles cross the wire —
   // an absent role must stay absent so native sees "host did nothing" for
   // that role. No hex validation here: both native ThemeResolvers
   // revalidate per-field and ignore invalid values.

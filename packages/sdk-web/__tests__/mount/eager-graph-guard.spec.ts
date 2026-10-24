@@ -16,8 +16,7 @@
 //              '@everframe/web/ui'. The subpath resolves to the separately
 //              built dist/ui.js, which shares no chunk with dist/index.js —
 //              giving a vanilla host TWO copies of every module-level
-//              singleton (portal target, theme host, inline theme, companion
-//              host seam). init() would write its seams on copy A and the
+//              singleton (portal target, theme host, inline theme). init() would write its seams on copy A and the
 //              dialog would read copy B: the reporter opens and captures
 //              nothing.
 //

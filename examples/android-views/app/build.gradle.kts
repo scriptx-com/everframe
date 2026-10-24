@@ -85,9 +85,4 @@ dependencies {
     // the Activity's lifecycleScope (per plan-checker W2 — never GlobalScope).
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-    // Plan 06.2-08: ZXing QR rendering — lives in the EXAMPLE app only
-    // (T-06.2-08-04 mitigation: SDK AAR stays QR-library-free). 4.3.0 pulls
-    // the zxing core jar transitively, which already provides BitMatrix +
-    // QRCodeWriter. The "embedded" portion ships scanning UI we ignore here.
-    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 }

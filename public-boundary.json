@@ -73,7 +73,6 @@
     "examples/ios-native",
     "examples/macos-window-capture-probe",
     "examples/react-native",
-    "examples/react-tv-sample",
     "examples/react-web",
     "examples/roku-channel",
     "examples/smarttv-tester",
@@ -104,7 +103,7 @@
   ],
   "forbiddenPathPatterns": [
     "(^|/)apps/",
-    "examples/tvos-replay/scripts/(benchmark|companion|dashboard|drive-xctest|verify-recording)\\.mjs$"
+    "examples/tvos-replay/scripts/(benchmark|dashboard|drive-xctest|verify-recording)\\.mjs$"
   ],
   "ignoredPathPatterns": [
     "^\\.superpowers/",

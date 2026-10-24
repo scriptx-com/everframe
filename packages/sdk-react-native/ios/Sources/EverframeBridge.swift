@@ -9,10 +9,9 @@
 //   The RN bridge surface is the Phase 06 5-method TurboModule (configure,
 //   openReporter, registerSensitiveRect, setExtra). The native
 //   EFReporterPresenter owns the entire report UX (capture + annotate + redact +
-//   submit) on iOS/iPadOS. On tvOS the on-device modal reporter was removed —
-//   tvOS hosts call the companion start API and route reporting through the
-//   phone-companion (QR → phone browser SPA) flow instead, so openReporter()
-//   on tvOS resolves to .cancelled by way of the absent presenter installer.
+//   submit) on iOS/iPadOS. On tvOS the on-device modal reporter was removed,
+//   so openReporter() on tvOS resolves to .cancelled by way of the absent
+//   presenter installer.
 //
 //     1. configure(opts)            → start Everframe.shared with EverframeConfig
 //                                     + install EFReporterPresenter resolver
@@ -55,12 +54,8 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         networkBodiesDisabled: Bool,
         installIdentifierDisabled: Bool,
         crashReportingDisabled: Bool,
-        attachPinUi: NSString?,
-        companionDeviceId: NSString?,
-        companionBadgeEnabled: Bool,
         shakeToReportEnabled: Bool,
         quickCaptureEnabled: Bool,
-        companionBadgePosition: NSString?,
         theme: NSDictionary?,
         vitalsEnabled: NSNumber?,
         vitalsSampleRate: NSNumber?,
@@ -95,26 +90,11 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         // Polarity flips exactly once, here: JS sends the veto
         // (`crashReportingDisabled`), native stores the permission.
         cfg.capture.crash = !crashReportingDisabled
-        // Explicit companion device-identity override (naming spec
-        // 2026-08-24) — read straight off the flat ConfigOpts field, same
-        // shape as attachPinUi below. nil/absent falls through to the
-        // Keychain-then-stored-UUID chain inside CompanionDeviceId.resolve.
-        cfg.companionDeviceId = companionDeviceId as String?
-        // Companion on-screen name badge (naming spec 2026-08-24, controller
-        // ruling / Task 6b) — read straight off the flat ConfigOpts fields,
-        // same shape as companionDeviceId above. `companionBadgeEnabled` is
-        // already defaulted to `true` by the .mm's `.value_or(true)`;
-        // `companionBadgePosition` stays the raw string here — parsed into
-        // `CompanionBadgePosition` only at `startCompanion()`, since a
-        // position can't affect anything before a relay client (and its
-        // badge) exist, mirroring `companionAttachPinUi` below.
-        cfg.companionBadgeEnabled = companionBadgeEnabled
         cfg.shakeToReportEnabled = shakeToReportEnabled
         cfg.quickCaptureEnabled = quickCaptureEnabled
         // Polarity flips exactly once, here: JS sends the crash-only switch
         // (`reporterDisabled`), native stores the permission.
         cfg.reporterEnabled = !reporterDisabled
-        cfg.companionBadgePosition = companionBadgePosition as String?
         // Inline reporter theme (reporter branding spec 2026-08-25, RN
         // slice). The .mm collapses the 8 flat ConfigOpts `theme*` wire
         // fields into one role-keyed dictionary (nil when the host set no
@@ -135,13 +115,6 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         if let vitalsCaptureSourceQuery { cfg.vitals.captureSourceQuery = vitalsCaptureSourceQuery.boolValue }
         // Absent stays nil, so the native SDK detects a debug build itself; present wins.
         cfg.debugBuild = debugBuild?.boolValue
-        // The attach-PIN UI mode for startCompanion() to read (spec 2026-08-19). configure()
-        // precedes startCompanion() in every host's lifecycle, so this is the natural place to
-        // parse the flat ConfigOpts string into the native enum; startCompanion is where it is
-        // actually consumed (RelayWSClient's announce arg + the suppression seam), since a mode
-        // can't affect anything before a relay client exists. A changed value forces native
-        // reconfiguration even when the SDK configuration itself compares equal.
-        let newAttachPinUi = Self.parseAttachPinUi(attachPinUi as String?)
         let health: ReleaseHealthConfiguration?
         if releaseHealthEnabled, let loaded = releaseHealthLoadedBuildId {
             // The SDK reads the app version itself; the bridge carries the loaded bundle, the user ID and
@@ -158,11 +131,9 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         // the unchanged-configuration comparison.
         cfg.releaseHealth = nil
         // Native code atomically checks installed config and reserves its exact owner.
-        // An identical configure preserves the session; a changed attach-PIN mode still
-        // requires the same full restart as the other native configuration changes.
+        // An identical configure preserves the session.
         let applyHealth = try Everframe.shared.configureAndPrepareReleaseHealth(
-            config: cfg, health: health, forceRestart: companionAttachPinUi != newAttachPinUi)
-        companionAttachPinUi = newAttachPinUi
+            config: cfg, health: health, forceRestart: false)
         // Reservation is tied to this configure's exact native start generation. Later
         // configure/disable or a native restart invalidates the asynchronous operation.
         if let applyHealth {
@@ -170,12 +141,9 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         }
         installPresenterResolverIfNeeded()
         // Spec 2026-09-17 setExtra-resolver — installed unconditionally,
-        // every configure(), NOT gated behind startCompanion() the way the
-        // companion Combine subscriptions are: this must also cover the
-        // plain in-app openReporter() path and native shake, both of which
-        // funnel through Everframe.shared.report.open() →
-        // __consumePendingAttachments() with no companion involvement at
-        // all. See `installExtraResolveHook()`'s own doc comment.
+        // every configure(): this must cover the plain in-app openReporter()
+        // path and native shake, both of which funnel through
+        // Everframe.shared.report.open() → __consumePendingAttachments(). See `installExtraResolveHook()`'s own doc comment.
         installExtraResolveHook()
         // Task 13: prime the device-metadata cache off the main queue so a
         // crash arriving shortly after configure() still has device context.
@@ -203,35 +171,10 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         )
     }
 
-    /// Coerce the flat `ConfigOpts.attachPinUi` string into `AttachPinUi`.
-    /// `nil` (field absent) and any unrecognised value both degrade to
-    /// `.builtin` — the safe default matching "host did nothing special".
-    private static func parseAttachPinUi(_ raw: String?) -> AttachPinUi {
-        guard let raw, let mode = AttachPinUi(rawValue: raw) else { return .builtin }
-        return mode
-    }
-
-    /// Coerce the flat `ConfigOpts.companionBadgePosition` string into
-    /// `CompanionBadgePosition` (naming spec 2026-08-24, controller ruling /
-    /// Task 6b). `nil` (field absent) and any unrecognised value both
-    /// degrade to `.bottomRight` — matches `CompanionBadgeOptions.position`'s
-    /// own default, so an absent field behaves exactly like never touching
-    /// the option at all.
-    private static func parseCompanionBadgePosition(_ raw: String?) -> CompanionBadgePosition {
-        switch raw {
-        case "bottom-left": return .bottomLeft
-        case "top-right": return .topRight
-        case "top-left": return .topLeft
-        default: return .bottomRight
-        }
-    }
-
     /// Wires `EFReporterPresenter` as the resolver for `Everframe.shared.report
     /// .open()`. Called from configure(); the first call installs, subsequent
-    /// calls no-op. tvOS has no on-device modal — reporting goes through the
-    /// phone-companion flow (QR → phone browser) — so EverframeReporterUI's
-    /// tvOS `installResolver()` is a no-op. The gate here skips that call and
-    /// logs where tvOS reporting goes instead.
+    /// calls no-op. tvOS has no on-device modal, so EverframeReporterUI's
+    /// tvOS `installResolver()` is a no-op. The gate here skips that call.
     private static func installPresenterResolverIfNeeded() {
         #if !os(tvOS)
         resolverInstallLock.lock()
@@ -246,7 +189,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
             os_log("[everframe] installed EFReporterPresenter resolver", log: log, type: .info)
         }
         #else
-        os_log("[everframe] tvOS — EFReporterPresenter not installed; reporting routes through phone companion", log: log, type: .info)
+        os_log("[everframe] tvOS — EFReporterPresenter not installed (no on-device reporter)", log: log, type: .info)
         #endif
     }
 
@@ -335,9 +278,8 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     }
 
     /// Per-correlation_id continuation map, released by
-    /// `signalExtraResolverReady`. Mirrors `CompanionCaptureBridge`'s
-    /// `pendingAttachContinuations` exactly (same lock-guarded dictionary,
-    /// same "the timeout resumes it if JS never calls back" shape).
+    /// `signalExtraResolverReady`. A lock-guarded dictionary; the timeout
+    /// resumes a continuation if JS never calls back.
     nonisolated(unsafe) private static var pendingExtraResolveContinuations:
         [String: CheckedContinuation<Void, Never>] = [:]
     private static let pendingExtraResolveLock = NSLock()
@@ -348,8 +290,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// string/object-only host's report path exactly as fast as before this
     /// feature landed (requirement: "no behaviour change whatsoever").
     ///
-    /// Otherwise mirrors `CompanionCaptureBridge.awaitJsReactTreeAttach`
-    /// exactly: send `EverframeEventEmitter.sendExtraResolveRequested`, then
+    /// Otherwise send `EverframeEventEmitter.sendExtraResolveRequested`, then
     /// suspend up to 250ms for JS's `signalExtraResolverReady` ack.
     private static func awaitJsExtraResolve() async {
         extraResolverActiveLock.lock()
@@ -363,8 +304,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
             pendingExtraResolveContinuations[correlationId] = cont
             pendingExtraResolveLock.unlock()
             // Send AFTER registering the continuation so a fast JS callback
-            // can't lose the race — same ordering `awaitJsReactTreeAttach`
-            // uses.
+            // can't lose the race.
             EverframeEventEmitter.sendExtraResolveRequested(correlationId)
             // 250ms bounded fallback — resume if JS hasn't called back by then.
             DispatchQueue.global().asyncAfter(deadline: .now() + 0.25) {
@@ -376,8 +316,7 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
     /// JS handshake ack: called once the `everframe.extra.resolveRequested`
     /// listener has — if a resolver is registered — pushed a freshly
     /// resolved value through `setExtra` above. Idempotent — a late signal
-    /// after the 250ms fallback already fired is a harmless no-op, exactly
-    /// like `signalCompanionReportRequestReady` below.
+    /// after the 250ms fallback already fired is a harmless no-op.
     @objc public static func signalExtraResolverReady(_ correlationId: NSString) {
         resumeAndDropPendingExtraResolve(correlationId: correlationId as String)
     }
@@ -468,67 +407,6 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
         for (_, cont) in stillPending {
             cont.resume()
         }
-    }
-
-    /// Install-race fix (spec 2026-08-19 review finding 3). `configure()`
-    /// (above) queues the PIN presenter install via
-    /// `installPresenterResolverIfNeeded()`'s `DispatchQueue.main.async` —
-    /// note that call marks `resolverInstalled = true` BEFORE the async block
-    /// actually runs, so that flag alone cannot tell a caller here whether
-    /// `CompanionPinPresenter.install()` (which sets
-    /// `CompanionAPI.__builtinPinUiInstalled`) has genuinely finished.
-    ///
-    /// `startCompanion()` builds `RelayWSClient` and calls `connect()`
-    /// synchronously right after this; `connect()`'s announce path reads
-    /// `__builtinPinUiInstalled` from a freshly-spawned `Task` that can run
-    /// before the main-queue-dispatched install block does, especially early
-    /// in a host's launch sequence when the main queue is already busy. A
-    /// host that calls `startCompanion()` immediately after `configure()`
-    /// resolves — the ordinary RN lifecycle — would then read `false` for
-    /// the capability check for the ENTIRE session, so `.builtin` mode would
-    /// never advertise `supportsAttachPin` even though the presenter finishes
-    /// installing moments later.
-    ///
-    /// Fix: synchronously hop to MainActor and call
-    /// `CompanionPinPresenter.install()` directly — the same call
-    /// `EFReporterPresenter.installResolver()` itself makes — and WAIT for
-    /// it, before `startCompanion()` constructs the client. `install()` is
-    /// `@MainActor` and idempotent (its own internal `installed` flag), so
-    /// this is cheap on every call after the first: the common case (install
-    /// already genuinely finished by the time `startCompanion()` runs) pays
-    /// only a MainActor hop, not real work. Scoped to the smallest change
-    /// that closes the race — `installPresenterResolverIfNeeded()`'s async
-    /// dispatch and its own `resolverInstalled` flag are untouched, since
-    /// `EFReporterPresenter.installResolver()` also wires the full modal
-    /// reporter (openReporter's resolver), which this call does not need to
-    /// duplicate or wait for.
-    ///
-    /// Gate: `#if canImport(UIKit)`, matching `CompanionPinPresenter.swift`'s
-    /// own gate — NOT `#if !os(tvOS)`. Round-2 review finding 2: tvOS hosts
-    /// are a PRIMARY consumer of companion (see `CompanionPinPresenter.swift`
-    /// header + `RelayWSClient`'s), and only `EFReporterPresenter` (the full
-    /// modal reporter, iOS-only — tvOS has no on-device modal) needs the
-    /// `!os(tvOS)` exclusion `installPresenterResolverIfNeeded()` above
-    /// correctly keeps. Gating THIS call the same way silently left RN-tvOS
-    /// builtin hosts with `CompanionAPI.__builtinPinUiInstalled` permanently
-    /// false, so `startCompanion()`'s announce always reported
-    /// `supportsAttachPin: false` and every tvOS host fell back to legacy
-    /// one-click attach even though `CompanionPinPresenter` builds and runs
-    /// fine there.
-    private static func ensurePinPresenterInstalledSync() {
-        #if canImport(UIKit)
-        if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                CompanionPinPresenter.install()
-            }
-        } else {
-            DispatchQueue.main.sync {
-                MainActor.assumeIsolated {
-                    CompanionPinPresenter.install()
-                }
-            }
-        }
-        #endif
     }
 
     // MARK: - openReporter
@@ -791,323 +669,5 @@ import EverframeReporterUI    // tvOS slice present per Package.swift:12 (TV-03 
             return
         }
         markSensitive(v)
-    }
-
-    // MARK: - Companion (Plan 06.2-11)
-    //
-    // Bridge-side ownership of:
-    //   • At most ONE live RelayWSClient against the configured ingest endpoint.
-    //   • Combine subscriptions on `Everframe.shared.companion.$state`,
-    //     `.$pairUrl`, `.$code` and `.$attachedUserName` that forward into
-    //     `EverframeEventEmitter`.
-    //
-    // The Combine subscriptions are installed lazily on first `startCompanion`
-    // and kept across stop/start cycles (the companion observable survives the
-    // WS lifetime — see CompanionAPI.swift). This avoids missing the initial
-    // values that may already be present from a prior start.
-    //
-    // Concurrency: a single NSLock guards `companionClient` + `companionCancellables`
-    // mirrors the RelayWSClient internal locking pattern. NEVER called from
-    // RN's JS thread directly — the .mm shim hops to MainActor below to satisfy
-    // both `Everframe.shared.start` semantics and the RelayWSClient init/teardown
-    // contract.
-
-    private static let companionLock = NSLock()
-    nonisolated(unsafe) private static var companionClient: RelayWSClient?
-    /// The host's configured attach-PIN UI mode (spec 2026-08-19), parsed
-    /// from `ConfigOpts.attachPinUi` at `configure()` time. Defaults to
-    /// `.builtin` for a host that never sets the flag.
-    nonisolated(unsafe) private static var companionAttachPinUi: AttachPinUi = .builtin
-    // `CompanionCaptureBridge` subscribes to the report.request notification
-    // posted by RelayWSClient and runs the capture+send dance. Without an
-    // instance alive, report.request fires into the void → phone hangs on
-    // "Capturing the TV screen" forever (Plan 06.2-11 bugfix).
-    nonisolated(unsafe) private static var companionCaptureBridge: CompanionCaptureBridge?
-    nonisolated(unsafe) private static var companionCancellables: Set<AnyCancellable> = []
-    nonisolated(unsafe) private static var companionSubscriptionsInstalled = false
-
-    /// Open a relay WS connection and start forwarding
-    /// `Everframe.shared.companion` signals to the JS event emitter. Idempotent:
-    /// if a client is already live this is a no-op — the socket is NOT
-    /// recreated. Call `stopCompanion()` first to tear the existing connection
-    /// down before a subsequent `startCompanion()` opens a fresh one.
-    @objc public static func startCompanion(_ endpoint: NSString) {
-        // The JS-side `endpoint` arg is ignored — RelayWSClient defaults
-        // to the build-time-baked `IngestEndpoint.url`.
-        _ = endpoint
-
-        // MUST run before `RelayWSClient` is constructed below — see
-        // `ensurePinPresenterInstalledSync()`'s doc comment for the race this
-        // closes (finding 3, spec 2026-08-19 review).
-        ensurePinPresenterInstalledSync()
-
-        // Combine subscriptions install once and survive stop/start cycles;
-        // safe to (re-)call on every start (self-guarded). MUST run OUTSIDE
-        // `companionLock` — it self-acquires the same non-reentrant lock.
-        installCompanionSubscriptionsIfNeeded()
-
-        companionLock.lock()
-        // Idempotent: a live client means a prior startCompanion already
-        // opened the socket. Do NOT recreate it — callers must stopCompanion()
-        // first. Holding the lock across the check + install keeps two racing
-        // starts from both constructing a client (belt-and-suspenders; the
-        // .mm shim already serialises this on MainActor).
-        if companionClient != nil {
-            companionLock.unlock()
-            os_log("[everframe] startCompanion ignored — already running; call stopCompanion() first",
-                   log: log, type: .info)
-            return
-        }
-        os_log("[everframe] startCompanion (endpoint arg ignored)",
-               log: log, type: .info)
-        // Runtime suppression of the built-in PIN presenter (spec 2026-08-19,
-        // controller ruling): a runtime flag, not an install-site gate.
-        // `EFReporterPresenter.installResolver()` always installs
-        // `CompanionPinPresenter` (see `installPresenterResolverIfNeeded()`
-        // above) so `__builtinPinUiInstalled` stays an honest capability
-        // signal regardless of the host's chosen mode — only the PRESENTING
-        // is silenced, here, at the one site where the mode is already known
-        // (configure() precedes startCompanion() in every host's lifecycle).
-        Everframe.shared.companion.__setBuiltinPinUiSuppressed(companionAttachPinUi != .builtin)
-        // Companion discovery (spec 2026-08-07): announcing is what makes this
-        // device appear in the dashboard's Companion tab. It is opt-in on the
-        // SDK key the host ALREADY configured via `configure()` — we never ask
-        // for a second one. A nil key takes the ticketless path: RelayWSClient
-        // builds no announcer and connects to plain `/relay/tv`, byte-identical
-        // to pre-companion behaviour. Announce must never be able to break
-        // reporting — no key means "no dashboard presence", never "no socket".
-        let client = RelayWSClient(
-            companion: Everframe.shared.companion,
-            sdkKey: configuredSdkKey(),
-            deviceLabel: companionDeviceLabel(),
-            attachPinUi: companionAttachPinUi,
-            // Naming spec 2026-08-24 — read off the same `currentConfig`
-            // snapshot `configuredSdkKey()` above already reads, not a
-            // second configuration surface. nil falls through to
-            // RelayWSClient's own Keychain-then-stored-UUID chain.
-            companionDeviceId: Everframe.shared.currentConfig?.companionDeviceId,
-            // Companion on-screen name badge (naming spec 2026-08-24,
-            // controller ruling / Task 6b) — same `currentConfig` snapshot,
-            // read fresh at start time (a mode/toggle can't affect anything
-            // before a relay client and its badge exist). `?? true` covers
-            // the same "never configured" edge `configuredSdkKey()`'s own
-            // optional chain already tolerates.
-            companionBadge: CompanionBadgeOptions(
-                enabled: Everframe.shared.currentConfig?.companionBadgeEnabled ?? true,
-                position: Self.parseCompanionBadgePosition(Everframe.shared.currentConfig?.companionBadgePosition)
-            )
-        )
-        // Wire the capture bridge BEFORE connecting so the report.request
-        // notification observer is registered before the first frame can fire.
-        let captureBridge = CompanionCaptureBridge(client: client)
-        companionClient = client
-        companionCaptureBridge = captureBridge
-        companionLock.unlock()
-
-        client.connect()
-    }
-
-    /// The SDK key the host already configured through `configure()`, or nil
-    /// when there isn't a usable one. Read straight off `Everframe.shared`'s
-    /// own config snapshot — deliberately NOT a second place a key can be
-    /// configured, and NOT a new public surface (`currentConfig` is already
-    /// public and read-only).
-    ///
-    /// Returns nil when `Everframe.start` never ran, and when the host
-    /// configured a blank/whitespace-only key. Both are "no dashboard
-    /// presence", never "no socket": RelayWSClient skips the announce hop
-    /// entirely on a nil key and reporting is unaffected.
-    private static func configuredSdkKey() -> String? {
-        guard let sdkKey = Everframe.shared.currentConfig?.sdkKey,
-              !sdkKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        else { return nil }
-        return sdkKey
-    }
-
-    /// Non-personal device label for the dashboard's device list — "Apple TV",
-    /// "iPhone", "iPad". Deliberately `UIDevice.current.model` and NOT
-    /// `UIDevice.current.name`, which is commonly a person's name
-    /// ("Aurimas's Apple TV") and would leak into a shared dashboard list as a
-    /// side effect of turning companion on. The display code is the real
-    /// disambiguator; the label is only a convenience.
-    private static func companionDeviceLabel() -> String? {
-        let model = UIDevice.current.model
-        return model.isEmpty ? nil : model
-    }
-
-    /// Test-only — object identity of the live companion client, so tests can
-    /// prove a repeat `startCompanion()` is a no-op (same instance, not
-    /// recreated). Nil when no client is live.
-    static func _companionClientIdentityForTesting() -> ObjectIdentifier? {
-        companionLock.lock()
-        defer { companionLock.unlock() }
-        return companionClient.map(ObjectIdentifier.init)
-    }
-
-    /// JS handshake: called from the RN-bridge ObjC shim once the JS-side
-    /// `everframe.companion.reportRequested` listener is ready for capture to
-    /// proceed. Releases the CompanionCaptureBridge's bounded wait.
-    @objc public static func signalCompanionReportRequestReady(_ correlationId: NSString) {
-        CompanionCaptureBridge.signalReactTreeAttached(correlationId: correlationId as String)
-    }
-
-    /// Disconnect the active companion WS client (if any) and drop the
-    /// reference. Combine subscriptions stay alive across stop/start cycles
-    /// because the underlying CompanionAPI singleton on `Everframe.shared`
-    /// outlives the WS — replaying any state changes that happen between
-    /// stop and the next start would otherwise be lost from JS's view.
-    @objc public static func stopCompanion() {
-        os_log("[everframe] stopCompanion", log: log, type: .info)
-        companionLock.lock()
-        let client = companionClient
-        companionClient = nil
-        // Drop the capture bridge so its NotificationCenter observers
-        // deregister (CompanionCaptureBridge cleans up in deinit).
-        companionCaptureBridge = nil
-        companionLock.unlock()
-        client?.disconnect()
-    }
-
-    /// Install Combine sinks on `Everframe.shared.companion.$state`,
-    /// `.$pairUrl`, `.$code` and `.$attachedUserName` that forward to
-    /// `EverframeEventEmitter`. Idempotent — the
-    /// `companionSubscriptionsInstalled` flag guards re-entry.
-    ///
-    /// `@Published` publishers fire `.sink` synchronously on the writer's
-    /// thread (URLSession delegate queue, our `__setState` callsite). The
-    /// emitter's `sendEvent(withName:body:)` is thread-safe (RN bridge
-    /// enqueues onto the JS thread), so no main-thread hop is needed.
-    private static func installCompanionSubscriptionsIfNeeded() {
-        companionLock.lock()
-        let alreadyInstalled = companionSubscriptionsInstalled
-        companionSubscriptionsInstalled = true
-        companionLock.unlock()
-        guard !alreadyInstalled else { return }
-
-        let companion = Everframe.shared.companion
-        var bag = Set<AnyCancellable>()
-        companion.$state
-            .sink { state in
-                // CompanionState.rawValue is camelCase (Swift's default for
-                // String-backed enums) — `.reportInProgress` would cross to
-                // JS as "reportInProgress" and silently fail the union match
-                // in `src/companion.ts` (CompanionState = 'report_in_progress'
-                // | ...). Map to snake_case at the bridge boundary so both
-                // platforms emit the same JS-facing strings. Android does the
-                // equivalent via `CompanionState.toRnString()` in
-                // EverframeModule.kt.
-                EverframeEventEmitter.sendState(Self.rnString(for: state))
-            }
-            .store(in: &bag)
-        companion.$pairUrl
-            .sink { url in
-                EverframeEventEmitter.sendPairUrl(url)
-            }
-            .store(in: &bag)
-
-        // Companion discovery (spec 2026-08-07). `CompanionState.swift` also
-        // posts `.everframeCompanionCodeChange` /
-        // `.everframeCompanionAttachedUserNameChange` for UIKit/ObjC hosts, but
-        // we take the `@Published` route here for the same reason `$pairUrl`
-        // does: a `Published.Publisher` replays its CURRENT value to a new
-        // subscriber, so JS still learns a code that was already set by a
-        // prior start. NotificationCenter has no replay and posts only on a
-        // real change — subscribing there would silently lose exactly the
-        // initial values this install-once-and-survive-stop/start design
-        // exists to preserve.
-        companion.$code
-            .sink { code in
-                EverframeEventEmitter.sendCode(code)
-            }
-            .store(in: &bag)
-        companion.$attachedUserName
-            .sink { name in
-                EverframeEventEmitter.sendAttachedUserName(name)
-            }
-            .store(in: &bag)
-
-        // Resolved device display name (naming spec 2026-08-24). Same
-        // replay-on-subscribe rationale as `$code`/`$attachedUserName`
-        // above — a `Published` publisher replays its CURRENT value to a
-        // new subscriber, so JS still learns a name that was already
-        // resolved by a prior announce.
-        companion.$resolvedName
-            .sink { name in
-                EverframeEventEmitter.sendResolvedName(name)
-            }
-            .store(in: &bag)
-
-        // Attach-PIN challenge (spec 2026-08-19). Same replay-on-subscribe
-        // rationale as `$code`/`$attachedUserName` above — a `Published`
-        // publisher replays its CURRENT value to a new subscriber, so a
-        // `'custom'`-mode host that starts JS-side listening after the
-        // challenge already arrived still learns about it.
-        companion.$attachChallenge
-            .sink { challenge in
-                EverframeEventEmitter.sendAttachChallenge(challenge.map {
-                    ["code": $0.code, "requestedByName": $0.requestedByName, "ttlMs": $0.ttlMs]
-                })
-            }
-            .store(in: &bag)
-
-        // Forward `report.request` arrival to JS so the companion module
-        // can acknowledge before the bridge proceeds with native capture
-        // (see CompanionCaptureBridge.awaitJsReactTreeAttach). The
-        // CompanionCaptureBridge posts this notification at the top of
-        // handleReportRequest and then awaits the JS callback up to
-        // 250ms before falling through.
-        NotificationCenter.default.publisher(
-            for: CompanionCaptureBridge.shouldAttachReactTreeNotification
-        )
-        .sink { note in
-            guard let corrId = note.userInfo?["correlation_id"] as? String else { return }
-            EverframeEventEmitter.sendReportRequested(corrId)
-        }
-        .store(in: &bag)
-
-        companionLock.lock()
-        companionCancellables = bag
-        companionLock.unlock()
-        os_log("[everframe] installed companion Combine subscriptions",
-               log: log, type: .info)
-    }
-
-    /// Map `CompanionState` to the snake_case payload string the JS facade
-    /// expects (`'unpaired' | 'paired' | 'report_in_progress' |
-    /// 'phone_disconnected'`). MUST match `EverframeModule.toRnString()` on
-    /// Android. Not `@objc` — `CompanionState` is a Swift enum that does not
-    /// bridge to ObjC; consumers call this from Swift only (the .mm shim sends
-    /// already-stringified payloads to the event emitter).
-    public static func rnString(for state: CompanionState) -> String {
-        switch state {
-        case .unpaired: return "unpaired"
-        case .paired: return "paired"
-        case .reportInProgress: return "report_in_progress"
-        case .phoneDisconnected: return "phone_disconnected"
-        }
-    }
-
-    // MARK: - Test seams (internal access via @testable import)
-
-    /// Whether a RelayWSClient is currently owned by the bridge. The test
-    /// target uses this to assert that `startCompanion(...)` installs the
-    /// client and `stopCompanion()` drops it.
-    @objc public static func _hasCompanionClientForTesting() -> Bool {
-        companionLock.lock()
-        defer { companionLock.unlock() }
-        return companionClient != nil
-    }
-
-    /// Test-only reset for the Combine subscription latch + cancellables —
-    /// XCTest creates a fresh bridge state per test method.
-    @objc public static func _resetCompanionForTesting() {
-        companionLock.lock()
-        companionClient?.disconnect()
-        companionClient = nil
-        companionCancellables.removeAll()
-        companionSubscriptionsInstalled = false
-        companionAttachPinUi = .builtin
-        companionLock.unlock()
-        Everframe.shared.companion.__setBuiltinPinUiSuppressed(false)
     }
 }

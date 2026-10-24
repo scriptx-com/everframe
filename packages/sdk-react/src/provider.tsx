@@ -26,10 +26,7 @@ import {
   injectReporterStyles,
   submitReportFromDraft,
   drainOutbox,
-  __setCompanionHost,
-  __setCompanionDefaults,
   __setInlineReporterTheme,
-  __watchCompanionBond,
   __installQuickCapture,
   setupVitals,
   INGEST_URL,
@@ -48,8 +45,6 @@ import {
   ReporterDialog,
   type ReporterCompletePayload,
   ReporterFab,
-  CompanionPinCard,
-  CompanionBadge,
   InboxDialog,
   Toast,
   type ToastTone,
@@ -199,13 +194,13 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     // Reporter identity recognition (spec 2026-08-06) — same late-bind seam:
     // the holder lives in sdk-core client state, bound here right after
     // createClient so adapter.__identityTokenReader (consumed by this
-    // Provider's own submit/drain calls below, the thread-client's reporter
-    // API, and the companion capture bridge) can reach it.
+    // Provider's own submit/drain calls below and the thread-client's
+    // reporter API) can reach it.
     adapter.__setIdentityTokenHolder(() => __internalClientState.get(client)?.identityToken);
     // Self-declared recognition (spec 2026-08-12) — same late-bind seam, for
     // the CRASH sink specifically: it fires from a window error handler with
-    // no React context, so it cannot reach `state.user` the way the report and
-    // companion paths do. A getter, not a snapshot: the host's user changes
+    // no React context, so it cannot reach `state.user` the way the report
+    // path does. A getter, not a snapshot: the host's user changes
     // over the session and a captured value would pin whoever was signed in at
     // mount onto every later crash.
     adapter.__setUserGetter(() => __internalClientState.get(client)?.user ?? null);
@@ -320,28 +315,6 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     return () => __setCurrentContext(null);
   }, [ctxValue]);
 
-  // Publish the companion host seam so the phone-companion `report.submit`
-  // path can reach config (sdkKey) + adapter (capture + outbox) from its
-  // non-React call site. Cleared on unmount. Without this the companion
-  // submit degrades to `report.failed` instead of submitting to ingest.
-  useEffect(() => {
-    __setCompanionHost({
-      config: ctxValue.config,
-      adapter: ctxValue.adapter,
-      sdkVersion: PKG_VERSION,
-      // Getter, not a captured value — read at companion submit time so a
-      // sign-in/out between mount and submit is reflected (spec 2026-08-12).
-      getUser: () => __internalClientState.get(ctxValue.client)?.user ?? null,
-      // Same doctrine for the host's setExtra value — read at submit time so
-      // companion reports carry the same payload.extra the in-app path does.
-      // Resolved through the single `resolveClientExtra` seam — never
-      // `.extra` directly, which would hand back the unresolved
-      // `{ kind: 'resolver' }` record for a host using the resolver form.
-      getExtra: () => resolveClientExtra(ctxValue.client),
-    });
-    return () => __setCompanionHost(null);
-  }, [ctxValue]);
-
   // Quick capture on Samsung Tizen and LG webOS TVs (device linking and the
   // capture gesture). A no-op on every other browser. Keyed on the committed
   // ctxValue, so StrictMode's mount → cleanup → mount installs once for the
@@ -359,32 +332,10 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
     return () => install.dispose();
   }, [ctxValue]);
 
-  // Crash-only sessions (spec 2026-10-12): a companion bond upgrades replay
-  // and network-body coverage for the rest of the session. Keyed on ctxValue
-  // and seeded from the current companion state, because StrictMode rebuilds
-  // the adapter after the bond may already have happened.
-  useEffect(() => {
-    if (ctxValue.config.reporter?.disabled !== true) return;
-    return __watchCompanionBond(ctxValue.adapter);
-  }, [ctxValue]);
-
-  // Default companion.start() options from the provider's own config, so
-  // `companion.start()` can be called with no arguments — matching the RN
-  // SDK's zero-argument call — instead of making the host repeat a key the
-  // provider is already holding. Cleared on unmount, same doctrine as the
-  // companion host seam above.
-  useEffect(() => {
-    __setCompanionDefaults({
-      ...(ctxValue.config.sdkKey ? { sdkKey: ctxValue.config.sdkKey } : {}),
-      ...(ctxValue.config.appName ? { deviceLabel: ctxValue.config.appName } : {}),
-    });
-    return () => __setCompanionDefaults(null);
-  }, [ctxValue.config.sdkKey, ctxValue.config.appName]);
-
   // Mirror the host's inline theme option into the branding box (spec
   // 2026-08-25) so Modal's useReporterThemeVars sees it without prop
   // drilling. Cleared on unmount — a dead provider's theme must not leak
-  // into a fresh mount (the companion-badge Fix B doctrine).
+  // into a fresh mount.
   useEffect(() => {
     __setInlineReporterTheme(config.theme);
     return () => __setInlineReporterTheme(undefined);
@@ -914,8 +865,6 @@ export const EverframeProvider = ({ config, identity, children }: EverframeProvi
         onComplete={onComplete}
         onCancel={onCancel}
       />
-      <CompanionPinCard />
-      <CompanionBadge />
       {/* A crash-only session (`reporter.disabled`) has no on-device way to
           open the reporter, so it gets no FAB and therefore no inbox. */}
       {ctxValue.adapter.threads &&

@@ -29,7 +29,7 @@ object ImportProbe {
             sdkKey=if(original) "frozen-qualification-key" else "replacement-qualification-key",
             release=if(original) "original-native-build" else "replacement-native-build",
             capture=dev.everframe.config.CaptureConfig(screenshot=false,focus=false,logs=false,network=false,crash=false,networkBodies=false),
-            companionBadgeEnabled=false,installIdentifierEnabled=false,shakeToReportEnabled=false,
+            installIdentifierEnabled=false,shakeToReportEnabled=false,
             vitals=dev.everframe.config.VitalsConfig(enabled=false)),activity)
         startEpoch=dev.everframe.Everframe.currentStartEpochVolatile()
     }

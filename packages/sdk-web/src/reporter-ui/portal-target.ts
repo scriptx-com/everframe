@@ -11,7 +11,7 @@
  * `document.body` escapes that root and renders unstyled.
  *
  * A module-level slot rather than context: Modal and Toast render from several
- * roots (provider, companion, inbox) and threading a prop through each buys
+ * roots (provider, inbox) and threading a prop through each buys
  * nothing, since exactly one reporter UI is mounted at a time — the same
  * single-instance rule `contextSeam` already enforces for `open()`.
  */

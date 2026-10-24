@@ -14,7 +14,8 @@
 //     discriminated union into a single all-optional struct. Both break the
 //     traceitx-vtree-v1 contract for Phases 22/23/25.
 //
-//   - This emitter is modeled on codegen-relay-swift.mjs but the vtree schema
+//   - This emitter is modeled on the former relay emitter (removed with
+//     Companion) but the vtree schema
 //     ROOT is the `VTreeTimeline` OBJECT (not a top-level `oneOf` like relay):
 //       * the recursive VNode is anonymized by z.toJSONSchema to a `$defs`
 //         entry keyed `__schema0` and referenced via `{"$ref":"#/$defs/__schema0"}`

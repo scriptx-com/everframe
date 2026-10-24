@@ -28,8 +28,8 @@
 //     during unload can itself be cut short by the navigation.
 //
 // Kill-gate discipline matches the rest of the SDK (see
-// packages/sdk-web/src/transport/submit.ts's identity-gating comments and
-// companion/host-seam.ts's `hostSaysKilled`): `isKilled()` is read fresh at
+// packages/sdk-web/src/transport/submit.ts's identity-gating comments):
+// `isKilled()` is read fresh at
 // every send boundary rather than cached, INCLUDING the retry — up to 5s can
 // pass between the first attempt and the retry, during which a `kill()` can
 // land, and a killed client must produce zero further network traffic.

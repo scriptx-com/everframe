@@ -437,7 +437,7 @@ class EverframeTest {
      * user intact, so a remount + reconfigure inherits the previous user.
      *
      * `currentUser` is the exact state every envelope call site reads
-     * (`CrashReporter.kt`, `ReporterDialog.kt`, `CompanionSubmissionComposer.kt`),
+     * (`CrashReporter.kt`, `ReporterDialog.kt`, `SubmissionComposer.kt`),
      * which is why asserting on it is asserting on what ships.
      */
     @Test
@@ -474,78 +474,9 @@ class EverframeTest {
         assertNull("a same-key restart clears the user too", Everframe.currentUser)
     }
 
-    /**
-     * Codex round-1 fix D, finding 4 (partial by ruling — no epoch-guarded
-     * setter). Same session-boundary argument as `_user` above, applied to
-     * the dashboard-configured companion-badge override
-     * (`CompanionBadgeServerConfigSignal.flow`): a new `start()` against a
-     * different app must not keep showing/hiding the badge per project A's
-     * server block while project B's first config fetch is still in flight.
-     * The write lives in the SAME synchronous `stateLock` critical section
-     * as `_user = null` (Everframe.kt, ~L558), so — unlike the heavy-init
-     * coroutine assertions elsewhere in this file — this is directly
-     * observable with no dispatcher wait, exactly like the `_user` test
-     * above.
-     */
-    @Test
-    fun `start with a new configuration clears the previous session's companion-badge server override`() {
-        Everframe.start(context, validConfig())
-        dev.everframe.companion.CompanionBadgeServerConfigSignal.flow.value =
-            dev.everframe.config.CompanionBadgeConfigWire(enabled = false, position = "top-left")
-        assertNotNull(
-            "precondition: project A's badge override is installed",
-            dev.everframe.companion.CompanionBadgeServerConfigSignal.flow.value,
-        )
-
-        // Reconfigure onto a DIFFERENT project — no config fetch has landed
-        // for it yet.
-        Everframe.start(
-            context,
-            validConfig().copy(sdkKey = "txx_live_other0987654321"),
-        )
-
-        assertNull(
-            "project A's badge override must not survive into project B's session",
-            dev.everframe.companion.CompanionBadgeServerConfigSignal.flow.value,
-        )
-        dev.everframe.companion.CompanionBadgeServerConfigSignal.resetForTesting()
-    }
-
-    /**
-     * Codex round-2 fix — the twin of the `start()` test directly above,
-     * now for `kill()`. The companion client keeps running by design after
-     * a kill, but the config machinery that DELIVERED a server badge
-     * override is dead — a prior override (e.g. `enabled: true` over an
-     * inline `false`, or a position override) must not survive indefinitely.
-     * `kill()` clears the signal AFTER its synchronous
-     * `_replaySession?.teardown()` block, OUTSIDE `stateLock` (StateFlow
-     * emission runs collector code synchronously on the emitting thread) —
-     * but `kill()` itself is a plain synchronous function with no coroutine
-     * dispatch, so the write is already observable the instant `kill()`
-     * returns, same as the `start()` test above.
-     */
-    @Test
-    fun `kill clears the companion-badge server override`() {
-        Everframe.start(context, validConfig())
-        dev.everframe.companion.CompanionBadgeServerConfigSignal.flow.value =
-            dev.everframe.config.CompanionBadgeConfigWire(enabled = true, position = "top-left")
-        assertNotNull(
-            "precondition: a server badge override is installed",
-            dev.everframe.companion.CompanionBadgeServerConfigSignal.flow.value,
-        )
-
-        Everframe.kill()
-
-        assertNull(
-            "kill() must clear the badge server-config override so it cannot survive indefinitely",
-            dev.everframe.companion.CompanionBadgeServerConfigSignal.flow.value,
-        )
-        dev.everframe.companion.CompanionBadgeServerConfigSignal.resetForTesting()
-    }
-
     // Branding (Android spec 2026-08-26): both session boundaries clear the
     // server signal — a previous session's paid entitlement must never leak
-    // into the next session's dialog (mirrors the companion-badge clears).
+    // into the next session's dialog.
     // start() additionally seeds the inline theme from the validated config.
 
     @Test
@@ -573,7 +504,7 @@ class EverframeTest {
 
     // Session Vitals (spec 2026-09-05): both session boundaries clear the
     // vitals server signal, and both tear the live controller down. Twins of
-    // the branding/companion clears immediately above.
+    // the branding clears immediately above.
 
     @Test
     fun `kill clears the vitals server signal`() {
@@ -1018,7 +949,6 @@ class EverframeTest {
     @Config(application = PublicationReentrantApplication::class)
     fun `superseded start cannot launch health or heavy work using a later start snapshot`() {
         val app = context as PublicationReentrantApplication
-        dev.everframe.companion.CompanionActivityTracker.resetForTesting()
         val launched = mutableListOf<String?>()
         Everframe.__beforeDrainLaunchForTesting = { launched.add(Everframe.currentConfig?.sdkKey) }
         app.onRegister = {
@@ -1032,7 +962,6 @@ class EverframeTest {
         } finally {
             app.onRegister = null
             Everframe.__beforeDrainLaunchForTesting = null
-            dev.everframe.companion.CompanionActivityTracker.resetForTesting()
         }
     }
 
@@ -1042,6 +971,8 @@ class PublicationReentrantApplication : android.app.Application() {
     var onRegister: (() -> Unit)? = null
     override fun registerActivityLifecycleCallbacks(callback: ActivityLifecycleCallbacks) {
         super.registerActivityLifecycleCallbacks(callback)
-        if (callback === dev.everframe.companion.CompanionActivityTracker) onRegister?.invoke()
+        // The automatic state facts register synchronously right after start() publishes its
+        // session and before its heavy initialization launches: the window this test re-enters.
+        if (callback is dev.everframe.state.AutomaticStateFacts) onRegister?.invoke()
     }
 }

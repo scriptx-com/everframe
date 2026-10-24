@@ -38,7 +38,7 @@ open class MainActivity : Activity() {
             sdkKey = requireNotNull(intent.getStringExtra("sdkKey$suffix")),
             release = intent.getStringExtra("release$suffix") ?: "release-A",
             capture = CaptureConfig(screenshot=false, focus=false, logs=false, network=false, crash=crash, networkBodies=false),
-            bubble=false, companionBadgeEnabled=false, shakeToReportEnabled=false,
+            bubble=false, shakeToReportEnabled=false,
             installIdentifierEnabled=false, vitals=VitalsConfig(enabled=false))
         // Initializing WebView installs its in-process crash handler before start() arms the collector.
         if (mode == "webview-before") webView = WebView(this)

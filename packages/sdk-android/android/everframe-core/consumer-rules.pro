@@ -134,7 +134,7 @@
 
 # Self-declared user snapshot (external review, finding 1, 2026-08-12) —
 # `Everframe.captureUserSnapshot()` returns it and :everframe-reporter-ui threads
-# it through `submitBaked` into `CompanionSubmissionComposer.Inputs`, so
+# it through `submitBaked` into `SubmissionComposer.Inputs`, so
 # reporter-ui's own R8 pass must resolve it against the published core AAR.
 # Without this the reporter-ui release build fails with "Missing class
 # dev.everframe.TXCapturedUser".
@@ -206,69 +206,20 @@
 -keep class dev.everframe.sensitive.** { *; }
 
 # ---------------------------------------------------------------------------
-# Companion (phone-companion reporter) — RN bridge in EverframeModule.kt
-# references these classes by FQN. Keep so cross-package autolinking works.
+# Companion (removed) — deprecated no-op stubs kept as public API until the
+# next major. Apps and the RN bridge may still reference them by FQN.
 # ---------------------------------------------------------------------------
 -keep class dev.everframe.companion.Companion { *; }
 -keep class dev.everframe.companion.CompanionState { *; }
--keep class dev.everframe.companion.CompanionState$* { *; }
--keep class dev.everframe.companion.RelayWSClient { *; }
--keep class dev.everframe.companion.RelayWSClient$* { *; }
--keep class dev.everframe.companion.CompanionCaptureBridge { *; }
-# Nested types — AssembledPayload, SubmitResult (sealed + Ok/Err) consumed
-# by the RN bridge's provider lambdas.
--keep class dev.everframe.companion.CompanionCaptureBridge$* { *; }
--keep class dev.everframe.companion.CompanionSubmissionComposer { *; }
--keep class dev.everframe.companion.CompanionSubmissionComposer$* { *; }
-# Task 11 — PreviewCapture is CompanionCaptureBridge.__previewProvider's
-# return type; a TOP-LEVEL class (CompanionPreviewSession.kt), not a nested
-# type of CompanionCaptureBridge, so it needs its own entry. Consumed by the
-# RN bridge's preview-provider lambda (Task 11b, :sdk-react-native).
--keep class dev.everframe.companion.PreviewCapture { *; }
-# Task 6 (naming spec 2026-08-24) — CompanionBadge's __activityProvider seam
-# is installed by FQN from the RN bridge (EverframeModule.startCompanion/
-# stopCompanion), same reasoning as CompanionCaptureBridge above: an
-# unrenamed reference from OUTSIDE this AAR needs its own explicit keep,
-# package wildcards don't cover cross-module FQN lookups. Mirrors the removed
-# CompanionSharingIndicator's identical keep entry (see git history).
--keep class dev.everframe.companion.CompanionBadge { *; }
--keep class dev.everframe.companion.CompanionBadge$* { *; }
-# External review, finding N1 (High) — mirrors the identical addition in
-# ../proguard-rules.pro (see that file for the full rationale). This copy
-# drives the CONSUMER app's own R8 pass: `EverframeModule.kt` constructs
-# `CompanionBadgeOptions(enabled=..., position=...)` directly, and `position`
-# comes from calling core's `parseCompanionBadgePosition()` helper (moved
-# into core by finding N3), whose return type embeds `CompanionBadgePosition`
-# in the RN module's compiled call even with no local of that type declared.
--keep class dev.everframe.companion.CompanionBadgeOptions { *; }
--keep class dev.everframe.companion.CompanionBadgePosition { *; }
-# External review, finding N1 (High) — `EverframeModule.kt`'s deviceProvider
-# closure (`startCompanion()`) calls `CompanionDeviceFacts.current(...)`
-# directly by FQN. Same cross-AAR reasoning as CompanionCaptureBridge/
-# CompanionBadge above.
--keep class dev.everframe.companion.CompanionDeviceFacts { *; }
-# Finding N3's fix moved `parseCompanionBadgePosition` (a top-level function
-# in CompanionBadge.kt, compiled to the synthetic `CompanionBadgeKt` class)
-# out of `EverframeModule.kt` and into core so both the RN bridge and the
-# core facade's own native-host companion start path (`Everframe.startCompanion`)
-# share one copy. `EverframeModule.kt` now calls it by FQN — same cross-AAR
-# reasoning as every other entry in this section. Mirrors ../proguard-rules.pro;
-# see that file for how omitting this was actually caught (a real RN-module
-# compile against the R8'd release AAR).
--keep class dev.everframe.companion.CompanionBadgeKt { *; }
-# Attach-PIN challenge (spec 2026-08-19) — `Companion.attachChallenge:
-# StateFlow<AttachChallengeInfo?>` is public, and :everframe-reporter-ui's
-# `CompanionPinPresenter` references `AttachChallengeInfo` by name
-# (`present(challenge: AttachChallengeInfo)`); AGP applies this file's rules
-# to reporter-ui's OWN R8 pass too, since it depends on :everframe-core as a
-# library. Without this, reporter-ui's release build fails with "Missing
-# class dev.everframe.companion.AttachChallengeInfo (referenced from: ...
-# CompanionPinPresenter$present$1.$challenge ...)" — same failure shape as
-# `TXCapturedUser` above. `AttachPinUi` is kept for the same "RN bridge refs
-# by FQN" reason as the rest of this section — `EverframeModule.kt` now
-# imports it directly.
 -keep class dev.everframe.companion.AttachChallengeInfo { *; }
--keep class dev.everframe.companion.AttachPinUi { *; }
+
+# ---------------------------------------------------------------------------
+# Quick-capture submit pipeline — QuickCapture.kt in this AAR is the caller,
+# but the composer is public API and the RN bridge may reference it by FQN.
+# Nested types (Inputs) need their own entry.
+# ---------------------------------------------------------------------------
+-keep class dev.everframe.quickcapture.SubmissionComposer { *; }
+-keep class dev.everframe.quickcapture.SubmissionComposer$* { *; }
 
 # ---------------------------------------------------------------------------
 # Capture entry points used by the RN bridge.

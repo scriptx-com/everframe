@@ -338,7 +338,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
   // the only web call site, and it omitted the field. A web crash from a
   // signed-in user therefore shipped anonymous while iOS
   // (`CrashReporter.swift`) and Android (`CrashReporter.kt`) both attributed
-  // theirs. The web report and companion paths were wired; only the crash sink
+  // theirs. The web report path was wired; only the crash sink
   // was not — which is exactly the gap a per-path test could not see.
   it('an error no React boundary caught → fatal crash with the component stack, reported once', async () => {
     const adapter = mk({ sdkKey: 'pk_test', appName: 'demo', appVersion: '1.0.0' });
@@ -437,8 +437,7 @@ describe('web crash reporting (spec 2026-07-18)', () => {
       expect((await drainedEnvelope()).reporter.user).toBeUndefined();
     });
 
-    // THE reason this is a getter and not a snapshot — the same reason the
-    // companion seam's `getUser` is one. A value captured when the Provider
+    // THE reason this is a getter and not a snapshot: a value captured when the Provider
     // mounted would pin whoever was signed in then onto every later crash.
     it('reads the user AT CRASH TIME, not at bind time', async () => {
       const adapter = mk({ sdkKey: 'pk_test' });

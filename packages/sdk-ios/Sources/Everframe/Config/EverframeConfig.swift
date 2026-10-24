@@ -44,32 +44,32 @@ public struct EverframeConfig: Sendable, Equatable {
     public let release: String?
     public var capture: CaptureConfig
     public var redaction: RedactionConfig
-    /// Explicit companion device-identity override (naming spec 2026-08-24) —
-    /// an MDM id or provisioning serial the host already knows, hashed
-    /// (SHA-256 → UUID shape) before it ever reaches the announce `device`
-    /// block; see `CompanionDeviceId.resolve`. `nil` (the default) falls
-    /// through to the Keychain-then-stored-UUID chain. Mirrors Android's
-    /// `EverframeConfig.companionDeviceId`.
-    public var companionDeviceId: String?
-    /// Companion on-screen name-badge visibility toggle (naming spec
-    /// 2026-08-24, controller ruling / Task 6b) — lets a host that finds
-    /// the badge intrusive turn it off in one line. Defaults to `true`
-    /// (badge shown), matching `CompanionBadgeOptions.enabled`'s own
-    /// default. Flat `Bool`, not `CompanionBadgeOptions` itself — mirrors
-    /// `companionDeviceId` above staying a flat wire-shaped field rather
-    /// than a richer type. Mirrors Android's
-    /// `EverframeConfig.companionBadgeEnabled`.
-    public var companionBadgeEnabled: Bool
+    /// Deprecated: the removed Companion's device-identity override. Accepted
+    /// and ignored. Removed at the next major.
+    @available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+    public var companionDeviceId: String? {
+        get { _companionDeviceId }
+        set { _companionDeviceId = newValue }
+    }
+    private var _companionDeviceId: String?
+    /// Deprecated: the removed Companion name badge's visibility. Accepted and
+    /// ignored. Removed at the next major.
+    @available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+    public var companionBadgeEnabled: Bool {
+        get { _companionBadgeEnabled }
+        set { _companionBadgeEnabled = newValue }
+    }
+    private var _companionBadgeEnabled: Bool
     /// Local veto for native mobile shake-to-report. Dashboard disablement always wins.
     public var shakeToReportEnabled: Bool
-    /// Companion on-screen name-badge corner (naming spec 2026-08-24,
-    /// controller ruling / Task 6b) — raw string mirroring
-    /// `CompanionBadgePosition`'s four cases ('bottom-right' |
-    /// 'bottom-left' | 'top-right' | 'top-left'). `nil` or an unrecognised
-    /// value falls through to `.bottomRight` — see
-    /// `EverframeBridge.parseCompanionBadgePosition`. Mirrors Android's
-    /// `EverframeConfig.companionBadgePosition`.
-    public var companionBadgePosition: String?
+    /// Deprecated: the removed Companion name badge's corner. Accepted and
+    /// ignored. Removed at the next major.
+    @available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+    public var companionBadgePosition: String? {
+        get { _companionBadgePosition }
+        set { _companionBadgePosition = newValue }
+    }
+    private var _companionBadgePosition: String?
     /// Inline reporter theme (branding spec 2026-08-26) — 8 semantic color
     /// roles, #rrggbb strings only, exact web/Android names (see
     /// ReporterThemeOptions). Applies ONLY once the server confirms a paid
@@ -88,7 +88,7 @@ public struct EverframeConfig: Sendable, Equatable {
     /// CLIENT VETO only — `false` turns it off locally from that point on; it
     /// can never force it on. Flat `Bool` rather than web's nested
     /// `{ disabled }`, matching this platform's existing veto idiom
-    /// (`capture.networkBodies`, `companionBadgeEnabled`). Mirrors Android's
+    /// (`capture.networkBodies`, `shakeToReportEnabled`). Mirrors Android's
     /// `EverframeConfig.installIdentifierEnabled`.
     ///
     /// NOT retroactive and NOT org-wide: installs already recorded earlier in
@@ -117,10 +117,7 @@ public struct EverframeConfig: Sendable, Equatable {
     /// crash-only session: shake and `report.open()` are off (`open()` throws
     /// `EverframeReporterError.reporterDisabled`), network bodies are not captured, and session
     /// replay records only in the dashboard's crash-only share of sessions (none by default).
-    /// A companion bond (a phone scanning the QR code, or a dashboard member attaching) upgrades
-    /// the session until the next `start` or `kill`: replay and network bodies then follow the
-    /// normal server rules, while shake and `open()` stay off. Crash and error capture are
-    /// unchanged. CLIENT VETO only, a flat `Bool` like `shakeToReportEnabled`. Mirrors Android's
+    /// Crash and error capture are unchanged. CLIENT VETO only, a flat `Bool` like `shakeToReportEnabled`. Mirrors Android's
     /// `EverframeConfig.reporterEnabled`.
     public var reporterEnabled: Bool
     /// Quick capture: ⇧B in debug simulator builds, and shake on a real iPhone or iPad (hold
@@ -144,6 +141,8 @@ public struct EverframeConfig: Sendable, Equatable {
         release: String? = nil,
         capture: CaptureConfig = .defaults,
         redaction: RedactionConfig = .defaults,
+        // Deprecated and ignored (Companion removed): companionDeviceId,
+        // companionBadgeEnabled, companionBadgePosition.
         companionDeviceId: String? = nil,
         companionBadgeEnabled: Bool = true,
         shakeToReportEnabled: Bool = true,
@@ -160,10 +159,10 @@ public struct EverframeConfig: Sendable, Equatable {
         self.release = release
         self.capture = capture
         self.redaction = redaction
-        self.companionDeviceId = companionDeviceId
-        self.companionBadgeEnabled = companionBadgeEnabled
+        self._companionDeviceId = companionDeviceId
+        self._companionBadgeEnabled = companionBadgeEnabled
         self.shakeToReportEnabled = shakeToReportEnabled
-        self.companionBadgePosition = companionBadgePosition
+        self._companionBadgePosition = companionBadgePosition
         self.theme = theme
         self.installIdentifierEnabled = installIdentifierEnabled
         self.vitals = vitals
@@ -292,8 +291,7 @@ public enum EverframeConfigError: Error, Equatable {
 /// Thrown by `report.open()` when the host's own configuration turned the reporter off. It is
 /// not `.cancelled`: the host asked for something its configuration disabled.
 public enum EverframeReporterError: LocalizedError, Equatable, Sendable {
-    /// `EverframeConfig.reporterEnabled` is `false`, so this is a crash-only session. A companion
-    /// upgrade does not change it: reports from that session come through companion.
+    /// `EverframeConfig.reporterEnabled` is `false`, so this is a crash-only session.
     case reporterDisabled
 
     public var errorDescription: String? {

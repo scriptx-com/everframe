@@ -286,9 +286,8 @@ class IdentityProviderWarmTest {
     //
     // Fix: Everframe.__warmIdentityToken() — the same warm setIdentityToken
     // already fires — is now also called at reporter-open
-    // (TXReporterPresenter.openReporter / CompanionCaptureBridge
-    // .onReportRequest, proven wired in TXReporterPresenterIdentityWarmTest
-    // and CompanionCaptureBridgeIdentityWarmTest).
+    // (TXReporterPresenter.openReporter, proven wired in
+    // TXReporterPresenterIdentityWarmTest).
     // -------------------------------------------------------------------
 
     /**
@@ -357,8 +356,7 @@ class IdentityProviderWarmTest {
         assertEquals("fixture sanity: nothing has re-invoked the provider yet", 1, callCount.get())
 
         // THE FIX under test: this is exactly what
-        // TXReporterPresenter.openReporter and
-        // CompanionCaptureBridge.onReportRequest now call at reporter-open.
+        // TXReporterPresenter.openReporter now calls at reporter-open.
         Everframe.__warmIdentityToken()
 
         captured = pollForCapturedSubject()
@@ -459,8 +457,7 @@ class IdentityProviderWarmTest {
             },
         )
 
-        // Exactly what TXReporterPresenter.openReporter /
-        // CompanionCaptureBridge.onReportRequest call at reporter-open —
+        // Exactly what TXReporterPresenter.openReporter calls at reporter-open —
         // invoked explicitly a second time here to isolate it as its own
         // assertion, even though the install call above already exercises
         // the identical gate.

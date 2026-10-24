@@ -3,29 +3,6 @@
 #if canImport(UIKit)
 import UIKit
 
-/// Bytes plus the shape and encoding that actually produced them.
-///
-/// `mime` travels WITH the bytes so nothing downstream has to guess or
-/// hardcode an encoding. The Android twin originally announced
-/// `"image/webp"` over JPEG bytes and shipped them as report evidence.
-///
-/// Top-level rather than nested in `ScreenshotCapture`: it is the shape that
-/// crosses from the capture layer into the companion layer, and both sides
-/// name it constantly.
-public struct PreviewCapture: Sendable {
-    public let bytes: Data
-    public let width: Int
-    public let height: Int
-    public let mime: String
-
-    public init(bytes: Data, width: Int, height: Int, mime: String) {
-        self.bytes = bytes
-        self.width = width
-        self.height = height
-        self.mime = mime
-    }
-}
-
 @MainActor
 public enum ScreenshotCapture {
 
@@ -46,25 +23,8 @@ public enum ScreenshotCapture {
         }
     }
 
-    /// `CGImage` is immutable and safe to hand to another executor, but is not
-    /// formally `Sendable`; this box carries it across the encode hop without
-    /// silencing the check globally.
-    private struct UncheckedBox: @unchecked Sendable {
-        let value: CGImage
-        init(_ value: CGImage) { self.value = value }
-    }
-
     /// Max output dimension (longer edge). RESEARCH Finding 2 — caps multipart payload size.
     public static let MAX_EDGE_PT: CGFloat = 2048.0
-
-    /// Default longest edge for a live-preview frame. Spec 2026-07-17 §3
-    /// budgets ~480p-class JPEG at 1–2 fps; a report-grade frame at that rate
-    /// would blow the relay's per-pair byte cap several times over while
-    /// pinning the device's CPU for pixels discarded half a second later.
-    public static let PREVIEW_MAX_EDGE_PT: CGFloat = 854.0
-
-    /// Default JPEG quality for a live-preview frame (spec: ~0.6).
-    public static let PREVIEW_QUALITY: CGFloat = 0.6
 
     /// Capture the host's active foreground key window. Returns nil if no foreground scene found
     /// (background app, no UI scene yet, etc.). Per RESEARCH Finding 7 — uses
@@ -78,8 +38,8 @@ public enum ScreenshotCapture {
 
     /// Renders `drawContent` into a (possibly downscaled) bitmap and bakes
     /// `blackoutRects` black over it, BEFORE any encode. The one place the
-    /// PRIV-03 ordering lives, shared by the report path and the preview path
-    /// so there are not two copies of it to drift apart.
+    /// PRIV-03 ordering lives, so there are not two copies of it to drift
+    /// apart.
     ///
     /// `drawContent` is injected rather than hardcoded to
     /// `window.drawHierarchy` because that call renders NOTHING — a uniformly
@@ -172,67 +132,6 @@ public enum ScreenshotCapture {
                       pngData: png)
     }
 
-    // MARK: - Live preview (companion multi-shot, spec 2026-07-17 §3)
-
-    /// Preview-grade capture of `window`: same acquisition and the same
-    /// PRIV-03 bake as the report path, at the preview's own much smaller cap,
-    /// JPEG-encoded.
-    ///
-    /// Sensitive-rect baking still applies, and matters MORE here rather than
-    /// less: a preview streams the live screen to another human's browser.
-    ///
-    /// The render runs on the main actor (it touches the view hierarchy); the
-    /// ENCODE is pushed off it. At 2 fps for up to two minutes that is worth
-    /// doing — the Android twin ran scale-plus-encode on the UI thread every
-    /// 500 ms, which an emulator backed by a desktop CPU never surfaces and a
-    /// mid-range phone does.
-    public static func capturePreviewFrame(window: UIWindow,
-                                           blackoutRects: [CGRect],
-                                           maxEdgePt: CGFloat = PREVIEW_MAX_EDGE_PT,
-                                           quality: CGFloat = PREVIEW_QUALITY) async -> PreviewCapture? {
-        // Preview frames are display-only and never become report evidence, so
-        // scale 1.0 rather than the screen's: a Retina-scale 854pt frame is
-        // several times the bytes for pixels the phone downsamples into a
-        // thumbnail anyway.
-        guard let image = renderMasked(bounds: window.bounds,
-                                       scale: 1.0,
-                                       maxEdge: maxEdgePt,
-                                       blackoutRects: blackoutRects,
-                                       drawContent: { bounds in
-                                           window.drawHierarchy(in: bounds, afterScreenUpdates: true)
-                                       }),
-              let cgImage = image.cgImage
-        else { return nil }
-        return await encodePreviewJPEG(cgImage, quality: quality)
-    }
-
-    /// JPEG-encodes off the main actor. Split out so both the window path above
-    /// and tests share one encode.
-    static func encodePreviewJPEG(_ cgImage: CGImage, quality: CGFloat) async -> PreviewCapture? {
-        let width = cgImage.width
-        let height = cgImage.height
-        let box = UncheckedBox(cgImage)
-        let bytes = await Task.detached(priority: .userInitiated) {
-            UIImage(cgImage: box.value).jpegData(compressionQuality: quality)
-        }.value
-        guard let bytes else { return nil }
-        return PreviewCapture(bytes: bytes, width: width, height: height, mime: "image/jpeg")
-    }
-
-    /// Production entry point — resolves the host's foreground window itself.
-    ///
-    /// iOS needs no host-installed provider seam for this, unlike the Android
-    /// core AAR which cannot resolve an Activity and must be handed one by the
-    /// RN module. That difference is why there is no iOS equivalent of
-    /// Android's `__previewProvider`.
-    public static func capturePreviewFrame(maxEdgePt: CGFloat = PREVIEW_MAX_EDGE_PT,
-                                           quality: CGFloat = PREVIEW_QUALITY) async -> PreviewCapture? {
-        guard let window = activeKeyWindow() else { return nil }
-        let rects = SensitiveRectRegistry.collectSensitiveRects(in: window)
-        return await capturePreviewFrame(window: window, blackoutRects: rects,
-                                         maxEdgePt: maxEdgePt, quality: quality)
-    }
-
     /// Per RESEARCH Finding 7 — find the foreground active host window across multi-scene iPad.
     /// Avoids the legacy shared-screen API (Pitfall 6 — Stage Manager / external display safety).
     ///
@@ -246,12 +145,11 @@ public enum ScreenshotCapture {
     /// finds it, and naturally skips bubble overlays AND our own reporter
     /// window (which sits at `.alert + 1`).
     /// Test-only override — a SwiftPM test bundle has NO UI scenes at all
-    /// (`UIApplication.shared.connectedScenes` is empty; see
-    /// `CompanionBadgeTests.swift`'s file header for the same constraint),
-    /// so `activeKeyWindow()`'s real window source can't be driven from a
+    /// (`UIApplication.shared.connectedScenes` is empty), so
+    /// `activeKeyWindow()`'s real window source can't be driven from a
     /// host-runnable test. When set, `activeKeyWindow()` filters/sorts THIS
     /// list instead of querying `UIApplication.shared` — lets finding N4's
-    /// badge-window-exclusion be asserted deterministically with plain
+    /// overlay-window exclusion be asserted deterministically with plain
     /// `UIWindow(frame:)` fixtures (no scene needed for that constructor).
     /// `nil` (the default) is production behavior, untouched.
     nonisolated(unsafe) static var __windowsOverrideForTesting: [UIWindow]?
@@ -267,28 +165,27 @@ public enum ScreenshotCapture {
             guard let sceneWindows = scene?.windows.filter({ !$0.isHidden }) else { return nil }
             candidates = sceneWindows
         }
-        // External review, finding N4 — filter out the companion badge's own
-        // overlay window BEFORE the level sort runs. The level-ordering
+        // External review, finding N4 — filter out the Everframe SDK's own
+        // overlay windows BEFORE the level sort runs. The level-ordering
         // heuristic below picks the LOWEST-level visible window as a proxy
         // for "the host's main window", which breaks the moment the host's
         // real window is only TRANSIENTLY hidden (a scene transition, a host
         // animating its window out and back): with the host window
-        // momentarily `isHidden`, the badge's own overlay becomes the lowest
+        // momentarily `isHidden`, an SDK overlay becomes the lowest
         // surviving candidate and every capture path routing through this
-        // method (screenshot, VTree, UITree, preview) resolves to an Everframe SDK
+        // method (screenshot, VTree, UITree) resolves to an Everframe SDK
         // overlay instead of the host's UI. Capture must never resolve to an
         // Everframe SDK overlay window even when it is momentarily the only visible
         // one — the level rule below remains the tie-breaker for ordinary
         // host layering, it just never gets to see this window at all.
-        // The quick-capture toast and the device-link banner are excluded for
-        // the same reason.
-        let nonBadgeCandidates = candidates.filter {
-            !($0 is EFCompanionBadgeWindow) && !($0 is EFQuickCaptureToastWindow)
-                && !($0 is EFDeviceLinkBannerWindow)
+        // The quick-capture toast and the device-link banner are the
+        // overlays excluded here.
+        let nonOverlayCandidates = candidates.filter {
+            !($0 is EFQuickCaptureToastWindow) && !($0 is EFDeviceLinkBannerWindow)
         }
         // Lowest windowLevel = host's main window. Tie-breaker: prefer the
         // current isKeyWindow if multiple windows share that level.
-        return nonBadgeCandidates
+        return nonOverlayCandidates
             .sorted { lhs, rhs in
                 if lhs.windowLevel != rhs.windowLevel {
                     return lhs.windowLevel < rhs.windowLevel

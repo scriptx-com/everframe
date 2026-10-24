@@ -96,21 +96,6 @@
       "reason": "Historical release evidence records the former package slug"
     },
     {
-      "path": "examples/react-tv-sample/CHANGELOG.md",
-      "pattern": "@traceitx/example-react-tv",
-      "reason": "Historical release evidence records the package name published at that time"
-    },
-    {
-      "path": "examples/react-tv-sample/CHANGELOG.md",
-      "pattern": "@traceitx/react",
-      "reason": "Historical release evidence records the dependency name published at that time"
-    },
-    {
-      "path": "examples/react-tv-sample/CHANGELOG.md",
-      "pattern": "traceitx-react",
-      "reason": "Historical release evidence records the former package slug"
-    },
-    {
       "path": "examples/react-web/CHANGELOG.md",
       "pattern": "@traceitx/react",
       "reason": "Historical release evidence records the dependency name published at that time"

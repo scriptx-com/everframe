@@ -111,15 +111,9 @@ public final class ReportSubmitter: Sendable {
     ///     5xx, 408, 429) — the entry is enqueued to the outbox for later drain
     /// Throws `EverframeTransportError` on terminal HTTP errors (4xx other than
     /// 408/429) or genuinely unrecoverable transport errors.
-    /// - Parameter companionAttribution: see `MultipartUploader.upload`. Not
-    ///   persisted with an outbox entry: a report that falls back to the
-    ///   outbox is retried later, potentially after the pair (and the token's
-    ///   10-minute TTL) is long gone, so the retry submits unattributed rather
-    ///   than with a token ingest would reject.
     /// - Parameter captureToken: quick-capture token, see
-    ///   `MultipartUploader.upload`. Never persisted with an outbox entry,
-    ///   like `companionAttribution`: a retry of a simulator capture submits
-    ///   without it. A device-link token (`evf_dev_`) queues only its
+    ///   `MultipartUploader.upload`. Never persisted with an outbox entry: a
+    ///   retry of a simulator capture submits without it. A device-link token (`evf_dev_`) queues only its
     ///   fingerprint, and the retry is sent only while that same token is
     ///   stored (`OutboxEntry.deviceTokenFingerprint`). SECURITY: never log it.
     /// - Parameters sdkKey/endpoint: the credentials this report was CAPTURED
@@ -145,7 +139,6 @@ public final class ReportSubmitter: Sendable {
         idempotencyKey: String,
         attachments: [Attachment],
         reportId: UUID = UUID(),
-        companionAttribution: String? = nil,
         captureToken: String? = nil,
         sdkKey: String? = nil,
         endpoint: String? = nil,
@@ -153,7 +146,7 @@ public final class ReportSubmitter: Sendable {
         identityToken: String? = nil
     ) async throws -> ReportResult {
         try await performSubmit(envelopeBytes: envelopeBytes, idempotencyKey: idempotencyKey,
-            attachments: attachments, reportId: reportId, companionAttribution: companionAttribution,
+            attachments: attachments, reportId: reportId,
             captureToken: captureToken, sdkKey: sdkKey, endpoint: endpoint, identitySubject: identitySubject,
             identityToken: identityToken, alreadyPersisted: false)
     }
@@ -171,7 +164,6 @@ public final class ReportSubmitter: Sendable {
         idempotencyKey: String,
         attachments: [Attachment],
         reportId: UUID = UUID(),
-        companionAttribution: String? = nil,
         captureToken: String? = nil,
         sdkKey: String? = nil,
         endpoint: String? = nil,
@@ -181,14 +173,14 @@ public final class ReportSubmitter: Sendable {
         onAccepted: (@Sendable (Data) -> Void)?
     ) async throws -> ReportResult {
         try await performSubmit(envelopeBytes: envelopeBytes, idempotencyKey: idempotencyKey,
-            attachments: attachments, reportId: reportId, companionAttribution: companionAttribution,
+            attachments: attachments, reportId: reportId,
             captureToken: captureToken, sdkKey: sdkKey, endpoint: endpoint, identitySubject: identitySubject,
             identityToken: identityToken, linkNonce: linkNonce, onAccepted: onAccepted, alreadyPersisted: false)
     }
 
     private func performSubmit(
         envelopeBytes: Data, idempotencyKey: String, attachments: [Attachment], reportId: UUID,
-        companionAttribution: String? = nil, captureToken: String? = nil,
+        captureToken: String? = nil,
         sdkKey: String? = nil, endpoint: String? = nil,
         identitySubject: String? = nil, identityToken: String? = nil,
         linkNonce: String? = nil, onAccepted: (@Sendable (Data) -> Void)? = nil,
@@ -217,7 +209,6 @@ public final class ReportSubmitter: Sendable {
             let (status, headers, body) = try await observeUpload { try await uploader.send(
                 parts: parts,
                 idempotencyKey: idempotencyKey,
-                companionAttribution: companionAttribution,
                 captureToken: captureToken,
                 identityToken: identityToken,
                 linkNonce: linkNonce,
@@ -748,9 +739,8 @@ public final class ReportSubmitter: Sendable {
 /// to server B, with a plain `URLSession` and no delegate installed.
 /// Result: `Authorization` was stripped by Foundation itself before the
 /// follow-up request was ever sent (confirming the same protection OkHttp
-/// already provides on Android); `X-Everframe-Identity-Token` — and, separately,
-/// `X-Everframe-Companion-Attribution` — were NOT stripped and arrived at server
-/// B intact. A `URLProtocol`-based mock (`RecordingURLProtocol`, used
+/// already provides on Android); `X-Everframe-Identity-Token` was NOT stripped
+/// and arrived at server B intact. A `URLProtocol`-based mock (`RecordingURLProtocol`, used
 /// elsewhere in this test target) could not have answered this: a custom
 /// `URLProtocol` substitutes the real network transport entirely and
 /// constructs its OWN proposed redirect request via `wasRedirectedTo:`,
@@ -774,10 +764,6 @@ public final class ReportSubmitter: Sendable {
 /// Stripping degrades to the anonymous direction instead: the report still
 /// reaches wherever the server actually wanted it, just without presenting
 /// a credential to a host that never should have seen it.
-///
-/// Deliberately does NOT touch `X-Everframe-Companion-Attribution` — established
-/// above to have the identical exposure, but it predates this branch and
-/// is out of scope for this fix; flagged for its own follow-up.
 final class IdentityHeaderRedirectGuard: NSObject, URLSessionTaskDelegate {
     func urlSession(
         _ session: URLSession,

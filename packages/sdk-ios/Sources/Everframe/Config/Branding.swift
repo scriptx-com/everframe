@@ -5,12 +5,12 @@
 //
 // Everything in this file is deliberately OUTSIDE any #if canImport(UIKit)
 // gate so its tests run under host `swift test` (TESTING.md's false-green
-// rule — the CompanionBadgeResolution precedent). Colors are UInt32 ARGB;
+// rule). Colors are UInt32 ARGB;
 // EverframeReporterUI converts once via UIColor(argb:) (ResolvedPalette).
 //
 // Everything here is `public` on purpose: EverframeReporterUI is a separate
 // SPM target and must read the box and run the resolver at presentation
-// time. (The companion box stays internal because only EverframeKit reads it.)
+// time.
 import Combine
 import Foundation
 
@@ -24,10 +24,10 @@ public func shouldShowWatermark(_ server: BrandingConfigWire?) -> Bool {
 
 /// Thread-safe snapshot of the fetched server branding block. Written by
 /// ReplaySession on every successful config apply (under the same
-/// parked-continuation epoch re-check as the companion-badge write); cleared
+/// parked-continuation epoch re-check as the other config writes); cleared
 /// at both Everframe session boundaries (start()'s synchronous reset, kill()'s
 /// @MainActor task) so a dead session's entitlement never outlives it.
-/// Structure mirrors CompanionBadgeServerConfigBox — NSLock-guarded mirror
+/// Structure: NSLock-guarded mirror
 /// for a plain synchronous getter on the apply path, CurrentValueSubject for
 /// observation (currently informational: the reporter resolves once at
 /// presentation time by design — iOS spec, Approach A).

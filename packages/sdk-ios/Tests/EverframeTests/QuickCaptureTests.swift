@@ -238,7 +238,6 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertTrue(inputs.includeLogs)
         XCTAssertTrue(inputs.includeNetwork)
         XCTAssertTrue(inputs.includeMetadata)
-        XCTAssertNil(inputs.companionAttribution)
         XCTAssertEqual(freezes, 1)
         XCTAssertEqual(closes.count, 1)
         XCTAssertTrue(cancels.isEmpty)
@@ -747,7 +746,7 @@ final class QuickCaptureTests: XCTestCase {
     }
 
     /// The reporter freezes before it flips `isPresenting`, so a held reporter
-    /// owner (reporter opening, companion capture) must also stop a quick capture
+    /// owner (reporter opening) must also stop a quick capture
     /// from freezing over and consuming that frozen evidence.
     func testIgnoredWhileAnotherCaptureHoldsTheFrozenReplay() async {
         let qc = makeArmed()

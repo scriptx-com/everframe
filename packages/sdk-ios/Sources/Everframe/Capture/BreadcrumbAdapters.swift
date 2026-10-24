@@ -147,10 +147,8 @@ enum NetworkBreadcrumbAdapter {
 
 #if canImport(UIKit)
 /// Bridges `UIApplication` background/foreground transitions into
-/// `.lifecycle` crumbs. Pattern: RelayWSClient's `willResignActive` /
-/// `didBecomeActive` observer pair
-/// (Companion/RelayWSClient.swift:86-92) — a `NotificationCenter` observer
-/// object with `@objc` selectors, `removeObserver` in `deinit`. A single
+/// `.lifecycle` crumbs. A `NotificationCenter` observer object with `@objc`
+/// selectors, `removeObserver` in `deinit`. A single
 /// process-lifetime instance (`shared`) so install-once semantics hold
 /// across repeated `Everframe.start()` calls (mirrors `LogCapture.install()`'s
 /// idempotency).

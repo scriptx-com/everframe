@@ -67,7 +67,7 @@ test('the eager entry reaches React only through a dynamic import, and shares th
 
   // RULING 11, on the artifact. The island must statically import the SAME
   // core chunk the entry does — that shared chunk is where the module-level
-  // seams (portal target, theme host, inline theme, companion host seam) live,
+  // seams (portal target, theme host, inline theme) live,
   // and sharing it is what gives the two graphs one instance of each. Pinned
   // to the LARGEST of the entry's eager chunks rather than "some overlap":
   // esbuild emits a sub-kilobyte interop helper that every chunk imports, so

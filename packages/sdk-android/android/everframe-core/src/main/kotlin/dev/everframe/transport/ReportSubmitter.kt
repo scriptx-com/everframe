@@ -179,16 +179,6 @@ class ReportSubmitter(
         attachments: List<Attachment>,
         reportId: UUID = UUID.randomUUID(),
         /**
-         * Companion attribution token (spec 2026-08-07) — rides the ingest
-         * POST as `X-Everframe-Companion-Attribution`. Null (the default) for every
-         * in-process reporter submit; non-null only for a report the dashboard
-         * asked this device to file. Deliberately NOT persisted into the
-         * outbox: the token is short-lived, so a retried-hours-later drain
-         * would present a stale credential rather than an unattributed report.
-         * SECURITY: never log.
-         */
-        companionAttribution: String? = null,
-        /**
          * The verified-identity subject this report was CAPTURED under
          * (`TXCapturedUser.identitySubject` on the live path,
          * `OutboxEntry.identitySubject` on drain) — persisted onto the
@@ -246,7 +236,7 @@ class ReportSubmitter(
         val result = try {
             uploadObserved(TransportOrigin.LIVE_SUBMIT) {
                 uploader.upload(candidate.endpoint, candidate.sdkKey, candidate.idempotencyKey, candidate.envelopeBytes,
-                    candidate.parts(), companionAttribution, identityToken, capturedAuthorization,
+                    candidate.parts(), identityToken, capturedAuthorization,
                     captureToken, deviceLink?.nonce)
             }
         } catch (_: ReportAuthorizationCancelled) {
@@ -681,14 +671,6 @@ private fun OutboxEntry.hasVideo(): Boolean = attachmentRefs.any { it.contentTyp
  * ordinary, legitimate server-side redirect (a load balancer or CDN
  * change) would otherwise turn into a dropped report instead of degrading
  * to the anonymous direction.
- *
- * Deliberately does NOT touch `X-Everframe-Companion-Attribution` — established to
- * have the identical exposure (verified on iOS; not independently
- * re-verified against OkHttp's specific behaviour here, but there is no
- * reason to expect OkHttp treats it any differently from
- * [IDENTITY_TOKEN_HEADER], another arbitrary custom header) — but it
- * predates this branch and is out of scope for this fix; flagged for its
- * own follow-up.
  */
 internal object IdentityHeaderRedirectGuard : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {

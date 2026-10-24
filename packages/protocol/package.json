@@ -31,7 +31,7 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "check:publish": "attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm --exclude-entrypoints ./schemas-json/envelope.v1.schema.json ./schemas-json/relay.v1.schema.json ./schemas-json/vtree.v1.schema.json ./schemas-json/interaction-target.v1.schema.json ./schemas-json/interaction-event.v1.schema.json ./data/* && publint",
-    "codegen": "node scripts/codegen-swift.mjs && node scripts/codegen-kotlin.mjs && node scripts/codegen-relay-swift.mjs && node scripts/codegen-relay-kotlin.mjs && node scripts/codegen-vtree-swift.mjs && node scripts/codegen-vtree-kotlin.mjs",
+    "codegen": "node scripts/codegen-swift.mjs && node scripts/codegen-kotlin.mjs && node scripts/codegen-vtree-swift.mjs && node scripts/codegen-vtree-kotlin.mjs",
     "clean": "rm -rf dist",
     "schema:interaction-target": "node scripts/generate-interaction-target-schema.mjs",
     "schema:interaction-event": "node scripts/generate-interaction-event-schema.mjs"

@@ -4,7 +4,7 @@
 // Reporter theme contract + resolution (branding spec 2026-08-25).
 //
 // Eight semantic color roles, resolved PER-FIELD server → inline → default
-// (the companionBadge precedence doctrine), then expanded into the concrete
+// (per-field precedence), then expanded into the concrete
 // --everframe-* custom-property overrides reporter.css.ts consumes. Derived shades
 // are computed here in plain sRGB hex — the stylesheet's header explains why
 // the SDK must not depend on oklch()/color-mix() in arbitrary host pages.

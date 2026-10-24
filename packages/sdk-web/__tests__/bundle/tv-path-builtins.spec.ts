@@ -16,12 +16,11 @@ import { ensureGlobalThis, globalScope } from '../../src/internal/global-scope.j
 
 const PKG = path.resolve(__dirname, '..', '..');
 const SRC = path.join(PKG, 'src');
-/** What the tv-snapshot and companion-submit chunks are built from (besides shared eager code). */
+/** What the tv-snapshot chunk is built from (besides shared eager code). */
 const TV_PATH = [
   path.join(SRC, 'capture/tv-snapshot') + path.sep,
   path.join(SRC, 'capture/shot-capture.ts'),
   path.join(SRC, 'capture/sha256.ts'),
-  path.join(SRC, 'companion/companion-submit.ts'),
   path.join(SRC, 'internal/blob.ts'),
   `${path.sep}node_modules${path.sep}rrweb-snapshot${path.sep}`,
 ];
@@ -57,10 +56,7 @@ const tvPathOnly: Plugin = {
 
 async function tvPathCode(): Promise<string> {
   const result = await build({
-    entryPoints: [
-      path.join(SRC, 'capture/tv-snapshot/tv-snapshot.ts'),
-      path.join(SRC, 'companion/companion-submit.ts'),
-    ],
+    entryPoints: [path.join(SRC, 'capture/tv-snapshot/tv-snapshot.ts')],
     bundle: true,
     write: false,
     outdir: '/tmp/tv-path-builtins',
@@ -180,10 +176,7 @@ describe('no regex literal an old TV engine cannot parse', () => {
 
   it('the TV-path bundle has none', async () => {
     const base = {
-      entryPoints: [
-        path.join(SRC, 'capture/tv-snapshot/tv-snapshot.ts'),
-        path.join(SRC, 'companion/companion-submit.ts'),
-      ],
+      entryPoints: [path.join(SRC, 'capture/tv-snapshot/tv-snapshot.ts')],
       bundle: true,
       write: false,
       outdir: '/tmp/tv-path-regex',

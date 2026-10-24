@@ -66,7 +66,6 @@ import dev.everframe.capture.EmulatorEnvironment
 import dev.everframe.capture.ScreenshotCapture
 import dev.everframe.capture.SensitiveRectRegistry
 import dev.everframe.capture.video.FrozenReportCapture
-import dev.everframe.companion.CompanionSubmissionComposer
 import dev.everframe.config.CaptureGestureConfigWire
 import dev.everframe.config.CaptureHotkeyConfigWire
 import dev.everframe.config.IngestEndpoint
@@ -153,7 +152,7 @@ internal object QuickCapture {
     // ---- Test seams ----
 
     @Volatile
-    internal var submitter: suspend (CompanionSubmissionComposer.Inputs) -> ReportResult = CompanionSubmissionComposer::submit
+    internal var submitter: suspend (SubmissionComposer.Inputs) -> ReportResult = SubmissionComposer::submit
 
     @Volatile
     internal var isEmulator: () -> Boolean = EmulatorEnvironment::isEmulator
@@ -437,8 +436,7 @@ internal object QuickCapture {
         }
         if (!inFlight.compareAndSet(false, true)) return QuickCaptureOutcome.Ignored("in_flight")
         try {
-            // The in-app reporter freezes before its dialog shows, and the companion never marks itself
-            // presenting: a held owner means another capture's frozen evidence, which this capture must
+            // The in-app reporter freezes before its dialog shows: a held owner means another capture's frozen evidence, which this capture must
             // not freeze over or consume. Checked after the claim, so no capture of ours can slip between.
             if (Everframe.__replayHasReporterOwner) return QuickCaptureOutcome.Ignored("capture_frozen")
             val appContext = activity!!.applicationContext
@@ -552,7 +550,7 @@ internal object QuickCapture {
             confirm()
             handedOff = true
             val result = submitter(
-                CompanionSubmissionComposer.Inputs(
+                SubmissionComposer.Inputs(
                     activity = activity,
                     captureBitmap = shot.bitmap,
                     capture = capture,
@@ -562,7 +560,6 @@ internal object QuickCapture {
                     includeNetwork = true,
                     includeMetadata = true,
                     hostExtra = hostExtra,
-                    companionAttribution = null,
                     capturedSession = capturedSession,
                     quickCapture = true,
                     // SECURITY: never log. The device link token on a linked device (it wins over an emulator's
@@ -670,7 +667,7 @@ internal object QuickCapture {
 
     /** Tests only: restore the production seams and forget the last trigger. */
     internal fun __resetForTesting() {
-        submitter = CompanionSubmissionComposer::submit
+        submitter = SubmissionComposer::submit
         isEmulator = EmulatorEnvironment::isEmulator
         screenshotter = { activity, rects -> ScreenshotCapture.captureBeforeReporter(activity, rects) }
         freezer = { Everframe.__replayFreeze(it) }

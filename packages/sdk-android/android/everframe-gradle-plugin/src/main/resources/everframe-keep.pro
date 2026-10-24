@@ -53,15 +53,12 @@
 -keep class dev.everframe.sensitive.SensitiveKt { *; }
 -keep class dev.everframe.sensitive.SensitivePropertyKeyKt { *; }
 
+# Companion (removed): deprecated no-op stubs, kept until the next major.
 -keep class dev.everframe.companion.Companion { *; }
 -keep class dev.everframe.companion.CompanionState { *; }
--keep class dev.everframe.companion.CompanionState$* { *; }
--keep class dev.everframe.companion.RelayWSClient { *; }
--keep class dev.everframe.companion.RelayWSClient$* { *; }
--keep class dev.everframe.companion.CompanionCaptureBridge { *; }
--keep class dev.everframe.companion.CompanionCaptureBridge$* { *; }
--keep class dev.everframe.companion.CompanionSubmissionComposer { *; }
--keep class dev.everframe.companion.CompanionSubmissionComposer$* { *; }
+-keep class dev.everframe.companion.AttachChallengeInfo { *; }
+-keep class dev.everframe.quickcapture.SubmissionComposer { *; }
+-keep class dev.everframe.quickcapture.SubmissionComposer$* { *; }
 
 -keep class dev.everframe.capture.UITreeCapture { *; }
 -keep class dev.everframe.capture.ScreenshotCapture { *; }

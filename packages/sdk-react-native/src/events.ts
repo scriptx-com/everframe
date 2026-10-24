@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Shared native-event-emitter accessor. Extracted from `companion.ts` (spec
-// 2026-09-17 setExtra-resolver) so `runtime.ts` can reuse the SAME emitter
-// for the extra-resolver ask-and-wait round trip instead of duplicating the
-// per-platform module-selection logic. `companion.ts` re-exports `getEmitter`
-// so existing imports elsewhere keep working unchanged.
+// Shared native-event-emitter accessor (spec 2026-09-17 setExtra-resolver):
+// `runtime.ts` uses it for the extra-resolver ask-and-wait round trip.
 //
 // Emitter selection:
 //   • iOS — `EverframeEventEmitter` (dedicated RCTEventEmitter subclass).
@@ -48,7 +45,7 @@ export function getEmitter(): EverframeNativeEventEmitter {
     if (mod === undefined && __DEV__) {
       // eslint-disable-next-line no-console
       console.warn(
-        '[everframe] EverframeEventEmitter native module not found — companion events will not fire. Did the host run `pod install`?',
+        '[everframe] EverframeEventEmitter native module not found — SDK events will not fire. Did the host run `pod install`?',
       );
     }
     _emitter = new NativeEventEmitter(mod);

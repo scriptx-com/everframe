@@ -191,7 +191,7 @@ class EnvelopeBuilder(
         /**
          * `payload.networkBodies` — captured request/response bodies (spec
          * network-body-capture / Task 15), independent of [networkRows]'s
-         * metadata-only rows. The caller (CompanionSubmissionComposer /
+         * metadata-only rows. The caller (SubmissionComposer /
          * ReporterDialog) supplies the reporter's frozen snapshot
          * ([sharedNetworkBodyBuffer.takeFrozen]) when the network include
          * toggle is ON, or `null` (after [sharedNetworkBodyBuffer.discardAndResume])
@@ -249,7 +249,7 @@ class EnvelopeBuilder(
         excluded: List<String> = emptyList(),
         /**
          * Trimmed breadcrumb chain (spec §4) for `payload.breadcrumbs`. The
-         * caller (CompanionSubmissionComposer / ReporterDialog) supplies the
+         * caller (SubmissionComposer / ReporterDialog) supplies the
          * frozen ring-buffer snapshot ([sharedBreadcrumbBuffer.takeFrozen]);
          * null/empty ships an envelope byte-identical to the pre-breadcrumbs
          * builder EXCEPT `Captures.breadcrumbs`, which now always comes back
@@ -283,8 +283,8 @@ class EnvelopeBuilder(
          * encode boundary (like the trim helpers above) keeps this call site
          * from silently drifting apart from the ring's own limit; a stamp
          * exceeding the server's cap rejects the WHOLE report,
-         * non-retryably. The caller (ReporterDialog / CompanionSubmission
-         * Composer / CrashReporter) supplies `sharedResourceBuffer.snapshot()`.
+         * non-retryably. The caller (ReporterDialog / SubmissionComposer /
+         * CrashReporter) supplies `sharedResourceBuffer.snapshot()`.
          */
         resources: List<ResourceRingBuffer.Entry> = emptyList(),
         /**
@@ -516,7 +516,7 @@ class EnvelopeBuilder(
              * Maps the host-declared [TXUser] (self-declared identity, spec
              * 2026-08-12) into the wire shape this builder consumes. Single
              * source of truth for all three real `buildEncoded` call sites
-             * (`CompanionSubmissionComposer`, `CrashReporter`,
+             * (`SubmissionComposer`, `CrashReporter`,
              * `ReporterDialog`) — this used to be copy-pasted verbatim at
              * each one, which risks one silently diverging from the other
              * two while the tested paths stay green.

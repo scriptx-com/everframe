@@ -7,10 +7,9 @@
 //
 // Why: dist/index.js and dist/ui.js are separate builds. Each of these modules
 // holds module-level state that `@everframe/web` WRITES (the adapter's live
-// config, the provider's inline theme, `companion.start()`) and a `/ui`
-// component READS (ReporterDialog's theme and watermark, CompanionBadge,
-// CompanionPinCard). Inlined, `@everframe/react` got two copies: the writes
-// landed in index.js's copy and the dialog, badge and PIN card subscribed to
+// config, the provider's inline theme) and a `/ui` component READS
+// (ReporterDialog's theme and watermark). Inlined, `@everframe/react` got two
+// copies: the writes landed in index.js's copy and the dialog subscribed to
 // ui.js's, which nothing ever wrote. Importing them from ./index.js leaves ONE
 // instance on the page.
 //
@@ -26,8 +25,6 @@ const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'sr
 export const UI_SHARED_MODULES: readonly string[] = [
   'branding/server-config',
   'branding/inline-theme',
-  'companion/singleton',
-  'companion/server-config',
 ];
 
 const SHARED = new Set(UI_SHARED_MODULES.map((m) => path.join(SRC, `${m}.js`)));

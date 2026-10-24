@@ -241,7 +241,7 @@ export function draftToEnvelope(
    * `sdkName: 'everframe-react'` to its `submitReportFromDraft` call, then make
    * this parameter required and delete the default. Until `@everframe/react`
    * can be edited, a vanilla caller MUST pass `sdkName` explicitly — as
-   * `init()` (RULING 18) and the companion host seam both do.
+   * `init()` (RULING 18) does.
    */
   sdkName: HostSdkName = REACT_SDK_NAME,
   /**

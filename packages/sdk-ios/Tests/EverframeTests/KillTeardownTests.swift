@@ -74,19 +74,13 @@ struct KillTeardownTests {
     }
 
     // Codex round-2 fix — `start()`'s session-boundary reset
-    // (Everframe.swift, `_user = nil` section) already clears
-    // `CompanionBadgeServerConfigBox` so a new app never inherits the
-    // previous one's dashboard-configured badge override; `kill()` had no
-    // twin, so an override delivered before `kill()` (e.g. `enabled: true`
-    // over an inline `false`, or a position override) survived a kill()
-    // indefinitely even though the companion client keeps running by
-    // design and nothing is left alive to refresh the override away.
-    @Test func killClearsTheCompanionBadgeServerConfigOverride() async throws {
+    // (Everframe.swift, `_user = nil` section) clears
+    // `BrandingServerConfigBox` so a new app never inherits the previous
+    // one's dashboard-configured branding; `kill()` must have the same twin,
+    // or a block delivered before `kill()` survives it indefinitely with
+    // nothing left alive to refresh it away.
+    @Test func killClearsTheBrandingServerConfigOverride() async throws {
         try await withGlobalCaptureStateLock {
-            CompanionBadgeServerConfigBox.shared.value = nil
-            defer { CompanionBadgeServerConfigBox.shared.value = nil }
-            // Branding (iOS spec 2026-08-26) — kill()'s twin clear, same
-            // seed/assert shape as the companion box beside it.
             BrandingServerConfigBox.shared.value = nil
             defer { BrandingServerConfigBox.shared.value = nil }
 
@@ -94,14 +88,11 @@ struct KillTeardownTests {
             try Everframe.shared.start(config: config)
 
             // Simulate a server override having been delivered before kill() fires.
-            CompanionBadgeServerConfigBox.shared.value = CompanionBadgeConfigWire(enabled: true, position: "top-left")
             BrandingServerConfigBox.shared.value = BrandingConfigWire(watermark: false)
             #expect(BrandingServerConfigBox.shared.value != nil, "precondition: a prior app's branding override is installed")
 
             Everframe.shared.kill()
 
-            let cleared = await AsyncTestHelpers.waitFor({ CompanionBadgeServerConfigBox.shared.value == nil })
-            #expect(cleared, "kill() must clear the badge server-config override so it cannot survive indefinitely")
             let brandingCleared = await AsyncTestHelpers.waitFor({ BrandingServerConfigBox.shared.value == nil })
             #expect(brandingCleared, "kill() must clear the branding server-config override so it cannot survive indefinitely")
 

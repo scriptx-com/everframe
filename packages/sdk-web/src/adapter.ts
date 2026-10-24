@@ -26,7 +26,6 @@ import {
   getBreadcrumbsConfig,
   BREADCRUMBS_CONFIG_DEFAULT,
   getNetworkBodiesConfig,
-  getCompanionBadgeServerConfig,
   getBrandingServerConfig,
   getResourcesServerConfig,
   buildCrashEnvelope,
@@ -45,7 +44,6 @@ import {
 } from '@everframe/sdk-core';
 import type { OutboxItem } from '@everframe/sdk-core';
 import type { CaptureExceptionOptions } from '@everframe/sdk-core';
-import { __setCompanionBadgeServerConfig } from './companion/server-config.js';
 import { __setBrandingServerConfig } from './branding/server-config.js';
 import { __setVitalsServerConfig } from './vitals/server-config.js';
 import { stampActiveVitals } from './vitals/stamp-active-vitals.js';
@@ -260,17 +258,6 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    */
   __subscribeReportHotkey(listener: (binding: string) => void): () => void;
   /**
-   * Crash-only sessions (spec 2026-10-12): a companion bond was seen. In a
-   * session whose host set `reporter.disabled`, this upgrades the session for
-   * the rest of its life: replay samples against the higher of
-   * `samplingRate` and `crashOnlySamplingRate`, so an upgrade never stops a
-   * recording, and network bodies follow the server rules. A
-   * detach never downgrades it. Starts the replay window at once when the
-   * upgraded rate admits the session. The on-device reporter stays off.
-   * A no-op in a report session. Never throws.
-   */
-  __setCompanionAttached(): void;
-  /**
    * DegradedReason of the most recent capture. DIAGNOSTIC ONLY (tests, perf
    * harness): it is shared and reset at the start of every capture, so an
    * overlapping capture can overwrite it before the previous one's caller
@@ -284,7 +271,7 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    * Smart-TV snapshot path (spec 2026-09-29): one shot as the internal capture
    * result — image, DOM snapshot, both, or neither (`screenshot_unavailable`).
    * Rejects after `kill()`. Optional: ReporterDialog is public and hand-wired
-   * companion hosts implement this seam themselves (see captureShotVia).
+   * hosts implement this seam themselves (see captureShotVia).
    * `consumePreCapture` is for the in-app dialog's open-time capture only.
    */
   __captureShot?(options?: ShotCaptureOptions): Promise<ShotCapture>;
@@ -339,7 +326,7 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    * one chain, one redaction pass, one freeze lifecycle.
    */
   __setBreadcrumbBuffer(get: () => BreadcrumbBuffer | undefined): void;
-  /** Companion seam: read access to the buffer registered by the provider. */
+  /** Read access to the buffer registered by the provider. */
   __getBreadcrumbBuffer(): BreadcrumbBuffer | undefined;
   /**
    * Network bodies (spec 2026-07-18 §7) — late-bind the body sink to the
@@ -349,7 +336,7 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    * One buffer, one freeze/clear lifecycle shared with the crumb chain.
    */
   __setNetworkBodiesBuffer(get: () => NetworkBodyBuffer | undefined): void;
-  /** Companion/report seam: read access to the body buffer registered by the provider. */
+  /** Report seam: read access to the body buffer registered by the provider. */
   __getNetworkBodiesBuffer(): NetworkBodyBuffer | undefined;
   /**
    * Reporter identity recognition (spec 2026-08-06) — late-bind the identity
@@ -364,14 +351,13 @@ export interface WebPlatformAdapter extends PlatformAdapter {
   /**
    * Self-declared recognition (spec 2026-08-12) — the SAME late-bind seam
    * breadcrumbs/networkBodies/identity use above, for the host's `setUser`
-   * value. The report and phone-companion paths reach `state.user` through
-   * their own React/host-seam call sites; the CRASH sink cannot — it fires
+   * value. The report path reaches `state.user` through its own React call
+   * site; the CRASH sink cannot — it fires
    * from a window error handler with no React context — so it reads the user
    * through this getter instead. Without it a web crash from a signed-in user
    * ships anonymous while iOS and Android both attribute theirs.
    *
-   * A GETTER, not a snapshot, for the same reason the companion seam's
-   * `getUser` is one: the host's user changes over the session, and a captured
+   * A GETTER, not a snapshot: the host's user changes over the session, and a captured
    * value would pin whoever was signed in when the Provider mounted onto every
    * later crash. Read defensively at crash time — a crash sink must never
    * block or throw.
@@ -386,7 +372,7 @@ export interface WebPlatformAdapter extends PlatformAdapter {
    * with no signing secret never invokes the host's `setIdentityToken`
    * provider at all. Always present (never `undefined`) so every call site —
    * this adapter's own thread-client polling, provider.tsx's submit/drain
-   * calls, and the companion capture bridge — can pass it straight into
+   * calls — can pass it straight into
    * `submitReport`/`createReporterApi` unconditionally; it resolves `null`
    * on its own whenever there's nothing to present (SDK disabled, no holder
    * bound yet, feature disabled, or the holder itself resolves null).
@@ -395,8 +381,7 @@ export interface WebPlatformAdapter extends PlatformAdapter {
   /**
    * PR review, round 4 (Serious) — capture the identity token to pin for a
    * submit, AT THE SUBMIT BOUNDARY: the moment the user's report is handed
-   * to the SDK (`onComplete` in provider.tsx, `runCompanionSubmit` in
-   * capture-bridge.ts), before ANY asynchronous preparation (replay
+   * to the SDK (`onComplete` in provider.tsx), before ANY asynchronous preparation (replay
    * hashing, attachment reads, multipart construction, credential access)
    * runs. Rounds 2/3 closed this same class of bug at the drain, the
    * enqueue, and the live request in turn — each fix was correct for the
@@ -944,7 +929,7 @@ export function createWebPlatformAdapter(
 
   // Reporter identity recognition (spec 2026-08-06) — the ONE reader every
   // submit/reporter-API call site in this adapter (and, via
-  // `__identityTokenReader`, provider.tsx + the companion capture bridge)
+  // `__identityTokenReader`, provider.tsx)
   // shares. Reads `configProvider` and `identityTokenHolderGet` LAZILY on
   // every call — not captured at construction time — because both are bound
   // AFTER this point in construction (config provider a few lines down;
@@ -1013,9 +998,8 @@ export function createWebPlatformAdapter(
   // `__captureIdentityAtSubmitBoundary` (see its interface doc above): try
   // the free, synchronous `peekIdentityToken()` first; only fall back to a
   // real (bounded, never-throwing) `identityTokenReader.get()` call when the
-  // cache is genuinely cold. Exported on the adapter so BOTH entry points
-  // into report submission — provider.tsx's `onComplete` and
-  // capture-bridge.ts's `runCompanionSubmit` — share the identical
+  // cache is genuinely cold. Exported on the adapter so every entry point
+  // into report submission (provider.tsx's `onComplete`) shares the identical
   // gate+peek+bounded-fallback logic instead of each reimplementing it.
   async function captureIdentityAtSubmitBoundary(): Promise<string | null> {
     const cached = peekIdentityToken();
@@ -1105,14 +1089,8 @@ export function createWebPlatformAdapter(
   // Crash-only sessions (spec 2026-10-12). `reporter.disabled` turns off every
   // on-device way to open the reporter for the whole session, keeps network
   // bodies off, and samples replay against the server's crashOnlySamplingRate.
-  // A companion bond sets `upgradedByCompanion` (never reset): replay then
-  // samples against the higher of the two rates (an upgrade never stops a
-  // recording) and bodies follow the normal server rules, while the reporter
-  // stays off, because reports from an upgraded session come through the
-  // companion.
   const crashOnly = _config.reporter?.disabled === true;
-  let upgradedByCompanion = false;
-  const crashOnlyCoverage = (): boolean => crashOnly && !upgradedByCompanion;
+  const crashOnlyCoverage = (): boolean => crashOnly;
 
   /**
    * Re-attempt the replay start against the CURRENT config cache. A guarded
@@ -1190,17 +1168,17 @@ export function createWebPlatformAdapter(
       sdkKey: _config.sdkKey,
       ...(installIdProvider ? { installIdProvider } : {}),
       // Capability negotiation (spec 2026-08-01 §4.3 networkBodies; two-way
-      // replies; reporter identity recognition, spec 2026-08-06; dashboard
-      // companion badge override, plan 2026-08-25; reporter branding, spec
-      // 2026-08-25; session vitals, spec 2026-09-01; report resource window,
-      // spec 2026-09-05; dashboard report hotkey; smart-TV server render, spec
-      // 2026-09-29; crash-only replay coverage, spec 2026-10-12): declare ALL
-      // TEN tokens so the server emits every feature-gated config block on
-      // this one shared /api/config fetch.
+      // replies; reporter identity recognition, spec 2026-08-06; reporter
+      // branding, spec 2026-08-25; session vitals, spec 2026-09-01; report
+      // resource window, spec 2026-09-05; dashboard report hotkey; smart-TV
+      // server render, spec 2026-09-29; crash-only replay coverage, spec
+      // 2026-10-12): declare ALL of these tokens so the server emits every
+      // feature-gated config block on this one shared /api/config fetch.
+      // `companionbadge` is no longer declared: Companion has been removed.
       // Omitting 'identity' here means the server never sends the `identity`
       // block at all — `identity.enabled` stays undefined forever with
       // nothing in the logs to explain why; the same is true of
-      // `companionbadge`, `branding`, `vitals`
+      // `branding`, `vitals`
       // (`vitalsEnabled`/`vitalsSampleRate` would stay undefined forever),
       // and now `resources` — without this token `resources.enabled` stays
       // undefined forever and the whole feature is silently, permanently
@@ -1209,7 +1187,6 @@ export function createWebPlatformAdapter(
         'replies',
         'networkbodies',
         'identity',
-        'companionbadge',
         'branding',
         'vitals',
         'resources',
@@ -1248,7 +1225,7 @@ export function createWebPlatformAdapter(
       getConfig: (): ReplayConfig => provider.get(),
       locallyDisabled: _config.sessionReplay?.disabled === true,
       // `sessionReplay.disabled` above still wins in every kind.
-      sessionKind: () => (!crashOnly ? 'report' : upgradedByCompanion ? 'upgraded' : 'crashOnly'),
+      sessionKind: () => (!crashOnly ? 'report' : 'crashOnly'),
       // Real-device quick capture: a linked or debug TV keeps a replay buffer
       // while the gesture is armed with `captureHotkey.replay`.
       ...(tvPlatform !== null ? { forced: (): boolean => tvForcesReplay(provider.get()) } : {}),
@@ -1262,7 +1239,7 @@ export function createWebPlatformAdapter(
       // config: `refreshGate` (Fix C, below) and the periodic tick both call
       // this after an awaited fetch, and `killed` can flip true while that
       // fetch was in flight. Without this guard a dead adapter's stale read
-      // could still write the shared companion-badge box (and breadcrumb/
+      // could still write the shared branding box (and breadcrumb/
       // body-buffer config) after teardown, outliving the client that owned
       // it.
       if (killed) return;
@@ -1274,11 +1251,6 @@ export function createWebPlatformAdapter(
       try {
         const bodiesCfg = getNetworkBodiesConfig(provider.get());
         networkBodiesBufferGet?.()?.setByteBudget(bodiesCfg.bodyTotalBudget);
-      } catch {
-        /* swallow — DEFE-02 */
-      }
-      try {
-        __setCompanionBadgeServerConfig(getCompanionBadgeServerConfig(provider.get()));
       } catch {
         /* swallow — DEFE-02 */
       }
@@ -1295,8 +1267,7 @@ export function createWebPlatformAdapter(
       try {
         // Session Vitals (spec 2026-09-01, Task 8). Per-field lenient — an
         // old server that omits both fields (or Task 11 not yet deployed)
-        // must degrade to disabled, never throw. Unlike branding/companion-
-        // badge this box always holds a fully-defaulted pair rather than the
+        // must degrade to disabled, never throw. Unlike branding this box always holds a fully-defaulted pair rather than the
         // raw (possibly-absent) server block; see vitals/server-config.ts's
         // header for why.
         const cfg = provider.get();
@@ -1619,8 +1590,7 @@ export function createWebPlatformAdapter(
     const crumbsExcludeNetwork = !crumbs.enabled || !crumbs.kinds.includes('network');
     return computeBodyCaptureEnabled(
       serverEnabled,
-      // A crash-only session captures no bodies until a companion bond
-      // upgrades it (spec 2026-10-12).
+      // A crash-only session captures no bodies (spec 2026-10-12).
       _config.networkBodies?.disabled === true || crashOnlyCoverage(),
       sampledIn,
       crumbsExcludeNetwork,
@@ -1827,8 +1797,8 @@ export function createWebPlatformAdapter(
               // an anonymous crash report.
               //
               // External review, finding 1 (Serious) — goes through
-              // `captureUserSnapshot` (the same helper the report and
-              // companion submit boundaries use) rather than `readUser()`
+              // `captureUserSnapshot` (the same helper the report submit
+              // boundary uses) rather than `readUser()`
               // directly, so the crash path projects to `{id, email,
               // displayName}` by the same construction they do. `setUser`
               // already projects on the way in, but the getter bound here is
@@ -2248,12 +2218,9 @@ export function createWebPlatformAdapter(
     // Codex round-3 findings 2 and 4. These four are THE choke point for
     // reading the user's device: every in-process caller (sdk-core's report
     // flow, ReporterDialog's initial capture and its add-a-shot re-capture)
-    // and every phone-companion caller (`report.request`'s full bundle, the
-    // preview loop's 2 fps frames, the shot stash's full-res captures) goes
-    // through this object. Gating them here is what makes "after kill(),
-    // nothing is captured" true for the companion's async loops as well —
-    // a preview loop STARTED before the switch was pulled keeps ticking, and
-    // its tick lands here.
+    // goes through this object. Gating them here is what makes "after kill(),
+    // nothing is captured" true for every async caller as well — one
+    // STARTED before the switch was pulled still lands here.
     //
     // `reportingKilled` (revivable by a live mount's `__rebindCrumbHooks()`),
     // for the same StrictMode reason `__openReporter` and `crashSink` use it:
@@ -2263,9 +2230,7 @@ export function createWebPlatformAdapter(
     captureScreenshot: () => {
       // REJECTS rather than resolving an empty result: every caller already
       // has a failure path for a screenshot that cannot be taken (the dialog
-      // shows its capture error, the companion answers `report.failed` /
-      // `shot.failed`, the preview loop stops with `capture_unavailable`), and
-      // a synthetic blank image would be indistinguishable from a real capture
+      // shows its capture error), and a synthetic blank image would be indistinguishable from a real capture
       // of a blank page.
       if (reportingKilled) {
         return Promise.reject(
@@ -2283,8 +2248,8 @@ export function createWebPlatformAdapter(
         );
       }
       // The pre-capture belongs to the dialog open that took it: only that
-      // dialog's open-time capture may consume it. An added shot or a
-      // companion capture is always fresh (and leaves the slot alone).
+      // dialog's open-time capture may consume it. An added shot is always
+      // fresh (and leaves the slot alone).
       if (options?.consumePreCapture === true) {
         const pre = tvPreCapture;
         tvPreCapture = null;
@@ -2308,7 +2273,7 @@ export function createWebPlatformAdapter(
     // no buffer to stop filling and no stored artifact to withhold. It is also
     // the one primitive with a non-nullable return type whose callers have no
     // "absent" branch. Every path that could ever SHIP it — the in-app submit,
-    // the outbox drain, the crash sink, the companion submit — is gated
+    // the outbox drain, the crash sink — is gated
     // upstream, so a killed client computing a device block that nothing can
     // send costs nothing and keeps this signature honest.
     getDeviceMetadata: (): DeviceMetadata => getDeviceMetadataImpl(),
@@ -2344,8 +2309,7 @@ export function createWebPlatformAdapter(
     __openReporter: (): Promise<ReporterResult> => {
       // Crash-only sessions (spec 2026-10-12): REJECTS, unlike the kill
       // switch below. The host asked for something its own configuration
-      // turned off, which is a host bug to surface, not a user's cancel. Stays
-      // off after a companion upgrade: those reports come through the phone.
+      // turned off, which is a host bug to surface, not a user's cancel.
       if (crashOnly) {
         return Promise.reject(new EverframeReporterDisabledError());
       }
@@ -2404,14 +2368,6 @@ export function createWebPlatformAdapter(
         /* swallow — DEFE-02 */
       }
       return () => reportHotkeyListeners.delete(listener);
-    },
-    __setCompanionAttached: (): void => {
-      if (!crashOnly || upgradedByCompanion) return;
-      upgradedByCompanion = true;
-      // Replay starts at the bond, so a report filed through the companion
-      // carries a replay from this moment on. A guarded no-op until config
-      // has resolved; the next resolution retries with the upgraded rate.
-      attemptReplayStart();
     },
     __registerOutboxDrainTrigger: (cb: () => void | Promise<void>): void => {
       drainCallback = cb;
@@ -2716,17 +2672,10 @@ export function createWebPlatformAdapter(
         /* swallow — DEFE-02 */
       }
       // Codex round-1 fix B, finding 2 (partial by ruling) — clear the
-      // shared companion-badge box so a dead adapter's override never
+      // shared branding box so a dead adapter's last-read value never
       // outlives it. A fresh Provider mount (StrictMode double-invoke, Fast
       // Refresh, or a genuine remount) starts from "no server override"
       // rather than inheriting a killed instance's last-read value forever.
-      try {
-        __setCompanionBadgeServerConfig(undefined);
-      } catch {
-        /* swallow — DEFE-02 */
-      }
-      // Same doctrine as the companion-badge box above — clear the shared
-      // branding box so a dead adapter's last-read value never outlives it.
       try {
         __setBrandingServerConfig(undefined);
       } catch {
@@ -2751,8 +2700,7 @@ export function createWebPlatformAdapter(
       //
       // Round-review Finding 5 (2026-09-05) — `__setActiveResources(undefined)`
       // now runs in its OWN try, FIRST, before anything that can throw —
-      // matching every sibling zeroization above (companion-badge / branding
-      // / vitals boxes, each wrapped as a single call). The four statements
+      // matching every sibling zeroization above (branding / vitals boxes, each wrapped as a single call). The four statements
       // used to share ONE try/catch: `stopResourceSampler?.()`'s disposer
       // calls `observer?.disconnect()` unguarded (resources/sampler.ts), and
       // a throw there would have skipped `__setActiveResources(undefined)`

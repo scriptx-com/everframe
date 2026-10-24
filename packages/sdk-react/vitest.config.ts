@@ -20,8 +20,7 @@ export default mergeConfig(
     //      so these specs keep seeing http://localhost:8787 exactly as they
     //      did when this code lived in sdk-react.
     //   2. sdk-web is full of module-level singletons and `__`-prefixed seams
-    //      (`__setCompanionHost`, `__setBrandingServerConfig`, the companion
-    //      singleton). A spec and the Provider it renders must observe ONE
+    //      (`__setBrandingServerConfig`, the inline theme box). A spec and the Provider it renders must observe ONE
     //      instance of each; two resolutions of the same package would give
     //      them two.
     //   3. `pnpm check` dispatches vitest directly, without turbo's `^build`,

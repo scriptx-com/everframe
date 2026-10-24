@@ -31,9 +31,7 @@ internal object ReporterInstallation {
     fun ensureInstalled(application: Application) = state.ensureInstalled(application)
 }
 
-internal class ReporterInstallationState(
-    private val installCompanion: () -> Unit = { CompanionPinPresenter.install() },
-) {
+internal class ReporterInstallationState {
     private var registeredApplication: Application? = null
     private val activitySupplier = { ActivityRegistry.activeActivity() }
     private val resolver: suspend () -> ReportResult = {
@@ -51,8 +49,6 @@ internal class ReporterInstallationState(
             application.registerActivityLifecycleCallbacks(ActivityRegistry)
             registeredApplication = application
         }
-        // An earlier successful registration survives a later failed step.
-        installCompanion()
         // Publish readiness last, and never replace callbacks owned by another host.
         if (Everframe.__activitySupplier == null) Everframe.__activitySupplier = activitySupplier
         if (Everframe.report.__resolver == null) Everframe.report.__resolver = resolver

@@ -338,14 +338,18 @@ installs and `Everframe.report.open()` throws `ReporterDisabledException`
 (`openAsync` passes it to `onError`). Network bodies stay off, and replay
 records only the share of these sessions set by the dashboard's crash-only
 coverage, none by default, so errors from the other sessions carry no replay.
-Crash and error capture, breadcrumbs, vitals, release health and companion
-work as usual.
+Crash and error capture, breadcrumbs, vitals and release health work as
+usual.
 
-When a companion bonds (a phone scans the QR code or a dashboard member
-attaches), the rest of that session gets normal replay coverage and server
-body rules, so a report filed through companion has a replay from the bond
-on. A detach keeps it; the next `start` or `kill` ends it. The on-device
-entry points stay off.
+**Companion (removed).** Everframe Companion (phone / TV pairing) has been
+removed. Its API remains, deprecated, until the next major version:
+`Everframe.companion`'s flows hold their idle values (`Unpaired`, `null`),
+`Everframe.startCompanion()` logs one warning and opens nothing, and
+`stopCompanion()` does nothing. The `companionDeviceId`,
+`companionBadgeEnabled` and `companionBadgePosition` `EverframeConfig`
+parameters keep their positions and are ignored. To capture from a real
+device, link it under Settings → Devices in the dashboard and use quick
+capture.
 
 All other trigger detection stays in the host app. Below are the canonical
 recipes the sample apps demonstrate and that real hosts can copy-paste.

@@ -22,8 +22,7 @@
 //      `Everframe.start(...)` again — a start SUPERSEDES the running SDK and detaches every
 //      player integration it had announced, which is a wildly expensive answer to a Provider
 //      that merely remounted with the same config. The gate is
-//      `captureGate && currentConfig == config && stashed attachPinUi == parsed`, and all
-//      three terms are pinned below — including the case round-5's cached snapshot got wrong,
+//      `captureGate && currentConfig == config`, and both terms are pinned below — including the case round-5's cached snapshot got wrong,
 //      where something ELSE started the SDK between two identical bridge configures.
 //
 // Lives beside `EverframeModuleConfigureTest.kt` (and not in
@@ -253,26 +252,6 @@ class EverframeModuleVitalsTest {
         module.configureSync(JavaOnlyMap.of("sdkKey", "tx_test_key"))
         assertNotSame(other, Everframe.currentConfig)
         assertEquals("tx_test_key", Everframe.currentConfig!!.appId)
-    }
-
-    /**
-     * The third gate term. `attachPinUi` is the one bridge option that lands in MODULE state
-     * rather than in `EverframeConfig`, so config equality alone is blind to it changing — and a
-     * host that switches to its own attach-PIN UI would have gone on getting the built-in one.
-     */
-    @Test
-    fun `a changed attachPinUi restarts even though the EverframeConfig is identical`() {
-        module.configureSync(JavaOnlyMap.of("sdkKey", "tx_test_key", "attachPinUi", "custom"))
-        val first = Everframe.currentConfig
-        assertNotNull(first)
-
-        // Same call again: identical config AND identical stashed mode — no start.
-        module.configureSync(JavaOnlyMap.of("sdkKey", "tx_test_key", "attachPinUi", "custom"))
-        assertSame(first, Everframe.currentConfig)
-
-        // Dropping the field means BUILTIN, which is a different installed behaviour.
-        module.configureSync(JavaOnlyMap.of("sdkKey", "tx_test_key"))
-        assertNotSame(first, Everframe.currentConfig)
     }
 
     private fun registryOf(m: EverframeModule): RemotePlayerRegistry =

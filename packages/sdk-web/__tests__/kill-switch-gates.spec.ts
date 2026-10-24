@@ -253,9 +253,7 @@ describe('kill switch: a killed adapter opens nothing and reports nothing', () =
 
   // Codex round-3 findings 2 and 4 — the capture primitives themselves. These
   // four are the choke point for reading the user's device: sdk-core's report
-  // flow, the reporter dialog and EVERY phone-companion route (report.request's
-  // bundle, the preview loop's frames, the shot stash's full-res captures) go
-  // through this object, so gating here is what makes "after kill(), nothing is
+  // flow and the reporter dialog go through this object, so gating here is what makes "after kill(), nothing is
   // captured" hold for async loops that were started before the switch.
   describe('round-3 — the capture primitives', () => {
     it('LIVE control: a live adapter captures', async () => {

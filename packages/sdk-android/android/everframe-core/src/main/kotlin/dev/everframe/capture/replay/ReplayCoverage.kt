@@ -11,18 +11,11 @@ internal enum class ReplayCoverage {
     /** A session that can file a report: `samplingRate`. */
     Report,
 
-    /** Started with `reporterEnabled = false`, no companion bond yet: `crashOnlySamplingRate`, 0 when absent. */
-    CrashOnly,
-
-    /**
-     * A crash-only session after a companion bond: the higher of the two rates, so an upgrade never
-     * stops a recording the crash-only rate admitted.
-     */
-    Upgraded;
+    /** Started with `reporterEnabled = false`: `crashOnlySamplingRate`, 0 when absent. */
+    CrashOnly;
 
     fun samplingRate(samplingRate: Double, crashOnlySamplingRate: Double?): Double = when (this) {
         Report -> samplingRate
         CrashOnly -> crashOnlySamplingRate ?: 0.0
-        Upgraded -> maxOf(samplingRate, crashOnlySamplingRate ?: 0.0)
     }
 }

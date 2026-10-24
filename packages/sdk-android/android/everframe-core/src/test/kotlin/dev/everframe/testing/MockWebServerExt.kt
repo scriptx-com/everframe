@@ -6,8 +6,8 @@
 // "JVM unit tests" step, with no output to say what was wrong. A bounded wait
 // converts the same bug into a named failure in seconds.
 //
-// `CompanionAttributionFlowTest` already used `takeRequest(5, TimeUnit.SECONDS)`
-// directly; this extension is that pattern, shared, with a message.
+// This extension is the `takeRequest(5, TimeUnit.SECONDS)` pattern, shared,
+// with a message.
 package dev.everframe.testing
 
 import okhttp3.mockwebserver.MockWebServer

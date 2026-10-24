@@ -17,7 +17,7 @@
 // But the SDK CONFIGURATION — which carries the SDK key and therefore the
 // project every byte is uploaded to — is still read later, inside the
 // asynchronous submission (`ReporterDialog.submitBaked`'s and
-// `CompanionSubmissionComposer.submit`'s `Everframe.currentConfig` reads). Those
+// `SubmissionComposer.submit`'s `Everframe.currentConfig` reads). Those
 // two reads are not atomic, so:
 //
 //     setUser(A) -> [Send tap: snapshot A] -> start(projectB) -> submit reads

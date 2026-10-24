@@ -14,7 +14,8 @@
 //     Node instead of one VNode) and FLATTENS the VOp discriminated union into
 //     an all-optional data class. Both break the traceitx-vtree-v1 contract.
 //
-//   - Modeled on codegen-relay-kotlin.mjs, but the vtree schema ROOT is the
+//   - Modeled on the former relay emitter (removed with Companion), but the
+//     vtree schema ROOT is the
 //     `VTreeTimeline` OBJECT (not a top-level `oneOf`):
 //       * the recursive VNode is anonymized by z.toJSONSchema to `$defs.__schema0`
 //         and referenced via `{"$ref":"#/$defs/__schema0"}` (Finding A). We

@@ -40,12 +40,11 @@ settings:
     SKIP_INSTALL: NO
     DEFINES_MODULE: YES
     SWIFT_VERSION: '5.10'
-    # `package`-scoped declarations (CompanionAPI.__builtinPinUiInstalled /
-    # __builtinPinUiSuppressed, written from the EverframeReporterUI module)
-    # need swiftc's `-package-name`. SwiftPM derives it from Package.swift, so
-    # `swift build` / `swift test` were fine while the xcodegen project — which
+    # `package`-scoped declarations (written from one module of this package
+    # and read from another) need swiftc's `-package-name`. SwiftPM derives
+    # it from Package.swift, so `swift build` / `swift test` were fine while the xcodegen project — which
     # has no notion of a package — failed to compile at all:
-    #   "the package access level used on '__builtinPinUiInstalled' requires a
+    #   "the package access level used on '<declaration>' requires a
     #    package name; set it with the compiler flag -package-name"
     # Every target here belongs to the one Swift package, so a single
     # project-level value is correct; it must match across them or `package`
@@ -110,7 +109,7 @@ targets:
 
   # Module name `EverframeKit` avoids the Swift library-evolution collision
   # where `module Everframe` + `public class Everframe` makes .swiftinterface
-  # references `Everframe.CompanionState` unparseable (parser resolves the
+  # references such as `Everframe.ReporterTrigger` unparseable (parser resolves the
   # leftmost `Everframe` to the class, then fails). Apple convention reserves
   # "Kit" suffix for framework modules whose primary classes drop it
   # (UIKit/UIScreen, MapKit/MKMapView). Customer code: `import EverframeKit`

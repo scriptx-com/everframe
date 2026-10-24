@@ -17,7 +17,6 @@ import android.widget.Toast
 import androidx.test.core.app.ApplicationProvider
 import dev.everframe.Everframe
 import dev.everframe.capture.ScreenshotCapture
-import dev.everframe.companion.CompanionSubmissionComposer
 import dev.everframe.config.CaptureHotkeyConfigWire
 import dev.everframe.config.ReportResult
 import dev.everframe.devicelink.DeviceLink
@@ -50,8 +49,8 @@ import org.robolectric.shadows.ShadowToast
 class QuickCaptureRealDeviceTest {
     private val app: Application = ApplicationProvider.getApplicationContext()
     private lateinit var activity: Activity
-    private val submits = CopyOnWriteArrayList<CompanionSubmissionComposer.Inputs>()
-    private var submitResult: suspend (CompanionSubmissionComposer.Inputs) -> ReportResult =
+    private val submits = CopyOnWriteArrayList<SubmissionComposer.Inputs>()
+    private var submitResult: suspend (SubmissionComposer.Inputs) -> ReportResult =
         { ReportResult.Submitted(UUID.randomUUID()) }
     private val attempts = CopyOnWriteArrayList<Triple<String, Int, String>>()
     private var priorSupplier: (() -> Activity?)? = null

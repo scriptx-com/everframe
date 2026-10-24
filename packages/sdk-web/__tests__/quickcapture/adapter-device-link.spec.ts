@@ -15,7 +15,7 @@ const TIZEN =
 const TOKEN = 'evf_dev_' + 'L'.repeat(32);
 const ID = '0b7c2c3e-8f2a-4c1d-9e1b-3f6a5d4c2b1a';
 const DESKTOP_FEATURES =
-  'replies, networkbodies, identity, companionbadge, branding, vitals, resources, reporthotkey, screenshotrender, crashonly';
+  'replies, networkbodies, identity, branding, vitals, resources, reporthotkey, screenshotrender, crashonly';
 
 const adapters: WebPlatformAdapter[] = [];
 

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Shared gzip helper (RFC 1952). Lifted from `CompanionCaptureBridge.gzipData`
-// (Phase 06.2) into a single home so BOTH the phone-companion uiTree path AND
-// the session-replay timeline path (Phase 22-04) emit byte-identical gzip
-// streams through one proven implementation.
+// Shared gzip helper (RFC 1952). Originally lifted out of the (since
+// removed) Companion capture bridge (Phase 06.2) into a single home so every
+// caller, including the session-replay timeline path (Phase 22-04), emits
+// byte-identical gzip streams through one proven implementation.
 //
 // Apple's `Compression` framework with `COMPRESSION_ZLIB` produces RAW deflate
 // (RFC 1951) per Apple's own docs — no zlib header/trailer — so we wrap the
@@ -13,10 +13,8 @@
 import Foundation
 import Compression
 
-/// Stateless gzip helper. The implementation is byte-for-byte the proven
-/// companion impl; the only change is hoisting it out of an instance method
-/// into a `static` so the replay submit path (a `MainActor` enum) and the
-/// companion bridge (a class) can both call it without an instance.
+/// Stateless gzip helper. A `static` so callers such as the replay submit
+/// path (a `MainActor` enum) can use it without an instance.
 public enum Gzip {
 
     /// Gzip-wrap raw bytes (RFC 1952). Returns nil if the deflate step fails

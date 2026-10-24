@@ -16,9 +16,9 @@ What it reports:
 
 What it does not report: native and C++ crashes, Hermes engine aborts, ANRs
 and watchdog kills. Those never reach JavaScript; Vega OS records them in its
-own crash reports. There is no screenshot, reporter UI, session replay or
-companion mode on Vega OS. Team members can file quick captures from a linked
-device with the remote (see [Quick capture on Vega OS](#quick-capture-on-vega-os)).
+own crash reports. There is no screenshot, reporter UI or session replay on
+Vega OS. Team members can file quick captures from a linked device with the
+remote (see [Quick capture on Vega OS](#quick-capture-on-vega-os)).
 
 ## Install
 

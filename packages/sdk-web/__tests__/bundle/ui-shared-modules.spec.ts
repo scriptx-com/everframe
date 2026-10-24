@@ -56,18 +56,13 @@ describe('dist/ui.js shares stateful modules with dist/index.js', () => {
       .map((s) => s.trim().split(/\s+as\s+/)[0]!)
       .filter(Boolean);
 
-    // Theme, watermark, badge and PIN card all read through the shared entry.
+    // Theme and watermark read through the shared entry.
     expect(names).toEqual(
       expect.arrayContaining([
         '__getBrandingServerConfig',
         '__subscribeBrandingServerConfig',
         '__getInlineReporterTheme',
         '__subscribeInlineReporterTheme',
-        '__getCompanionApi',
-        '__getCompanionBadgeConfig',
-        '__getAttachPinUiMode',
-        '__getCompanionBadgeServerConfig',
-        '__subscribeCompanionBadgeServerConfig',
       ]),
     );
 

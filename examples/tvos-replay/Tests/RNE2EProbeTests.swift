@@ -4,7 +4,7 @@
 import XCTest
 
 final class RNE2EProbeTests: XCTestCase {
-    func testReporterButtonOpensCompanion() {
+    func testReporterButtonKeepsTheAppRunning() {
         let app = XCUIApplication(bundleIdentifier: "dev.everframe.example")
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
@@ -12,6 +12,7 @@ final class RNE2EProbeTests: XCTestCase {
         XCTAssertTrue(reportButton.waitForExistence(timeout: 10))
         XCTAssertTrue(reportButton.hasFocus)
         XCUIRemote.shared.press(.select)
-        XCTAssertTrue(app.staticTexts["Companion"].firstMatch.waitForExistence(timeout: 15))
+        // tvOS has no on-device reporter: the press must not take the app down.
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
     }
 }

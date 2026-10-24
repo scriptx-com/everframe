@@ -164,7 +164,7 @@ const vanillaEntry = {
   // gate fails and every vanilla host downloads React on page load.
   //
   // Splitting is also what keeps ONE instance of every module-level seam
-  // (portal target, theme host, inline theme, companion host seam) — the eager
+  // (portal target, theme host, inline theme) — the eager
   // entry and the island chunk share them. That only works because the island
   // imports the dialog by the RELATIVE path '../ui.js', keeping it in this
   // build graph; see mount/react-island.tsx's header (Ruling 11).

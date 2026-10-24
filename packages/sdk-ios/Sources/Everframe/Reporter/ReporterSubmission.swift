@@ -2,10 +2,9 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // ReporterSubmission — shared envelope-build + submit pipeline used by the
-// iOS/iPadOS reporter (ReporterViewController) AND the phone-companion path
-// (CompanionCaptureBridge). Same Everframe SDK, same protocol → must produce
-// byte-identical wire envelopes regardless of which front-end produced the
-// inputs. The ingest service has one schema and one parser; it does not
+// iOS/iPadOS reporter (ReporterViewController) AND quick capture. Same
+// Everframe SDK, same protocol → must produce byte-identical wire envelopes
+// regardless of which front-end produced the inputs. The ingest service has one schema and one parser; it does not
 // care which surface the user tapped Send on.
 //
 // Historical: the tvOS modal reporter (now removed) previously hand-rolled a
@@ -36,9 +35,9 @@ import CryptoKit
 import EverframeProtocol
 
 // NOTE: Moved from EverframeReporterUI → Everframe in Plan 06.2-12 so that
-// `CompanionCaptureBridge` (which lives in Everframe and cannot reach into the
-// higher-layer ReporterUI module) can compose the SAME envelope+submit
-// pipeline used by the in-process iOS/tvOS reporter VCs. Module direction
+// callers inside Everframe (quick capture), which cannot reach into the
+// higher-layer ReporterUI module, can compose the SAME envelope+submit
+// pipeline used by the in-process iOS reporter VCs. Module direction
 // makes "promote internal → public" insufficient — the file itself must live
 // in the lower module so both callsites can reach it. Behaviour is otherwise
 // unchanged; see SUMMARY.md "Deviations" for rationale.
@@ -47,7 +46,7 @@ import EverframeProtocol
 public enum ReporterSubmission {
 
     /// Hard cap on title length — matches the Zod protocol schema and every
-    /// other reporter UI (web, phone-companion SPA, Android Compose, iOS UIKit).
+    /// other reporter UI (web, Android Compose, iOS UIKit).
     public static let titleMaxChars: Int = 200
     /// Hard cap on description length — see `titleMaxChars`.
     public static let descriptionMaxChars: Int = 600
@@ -94,8 +93,8 @@ public enum ReporterSubmission {
 
         public let captureResult: ScreenshotCapture.Result
         /// One or more screenshot parts (Task 10 — multi-shot). Shot 0 is
-        /// the reporter's open-time auto-capture (or the sole shot on the
-        /// companion path, which has no annotation UI of its own). Order is
+        /// the reporter's open-time auto-capture (or the sole shot of a quick
+        /// capture, which has no annotation UI of its own). Order is
         /// wire order: `partName(kind:index:)` derives each part's name
         /// from its index here.
         public let shots: [Shot]
@@ -121,7 +120,7 @@ public enum ReporterSubmission {
         /**
          Self-declared user (`setUser`, spec 2026-08-12) SNAPSHOTTED at the
          moment this report's submission began — the Send tap for the in-app
-         reporter, the paired submit+binary frames for the companion.
+         reporter, the gesture for a quick capture.
 
          External review, finding 3 (Serious). `submit(_:)` used to read the
          live singleton's user inline, deep inside asynchronous
@@ -132,8 +131,7 @@ public enum ReporterSubmission {
          that window (a sign-out/sign-in, an account switch) permanently
          grouped A's report under B.
 
-         Deliberately has NO default, exactly like `companionAttribution`
-         above and for the identical reason: every caller must state who this
+         Deliberately has NO default: every caller must state who this
          report belongs to. A default of "read the live singleton" is the
          precise defect this field exists to prevent, and a default of `nil`
          would let a new submit surface silently ship anonymous.
@@ -164,12 +162,6 @@ public enum ReporterSubmission {
          `submit` re-checks at the submit boundary.
          */
         public let capturedSession: EFCapturedSession
-        /// Companion attribution token (spec 2026-08-07), supplied ONLY by
-        /// `CompanionCaptureBridge` for a dashboard-initiated report. Sent as
-        /// the `X-Everframe-Companion-Attribution` header on the ingest POST; it
-        /// never enters the envelope. nil for every in-app reporter submit.
-        /// SECURITY: never log.
-        public let companionAttribution: String?
         /// Simulator quick-capture: marks the envelope `quickCapture: true`.
         public let quickCapture: Bool
         /// Quick-capture token, sent as `X-Everframe-Capture-Token`; never
@@ -194,7 +186,6 @@ public enum ReporterSubmission {
             hostReplayVTree: Data? = nil,
             sdkName: String = "everframe-ios",
             capturedSession: EFCapturedSession,
-            companionAttribution: String? = nil,
             quickCapture: Bool = false,
             captureToken: String? = nil,
             linkNonce: String? = nil,
@@ -218,7 +209,6 @@ public enum ReporterSubmission {
             self.hostReplayVTree = hostReplayVTree
             self.sdkName = sdkName
             self.capturedSession = capturedSession
-            self.companionAttribution = companionAttribution
             self.quickCapture = quickCapture
             self.captureToken = captureToken
             self.linkNonce = linkNonce
@@ -335,8 +325,8 @@ public enum ReporterSubmission {
         // NETWORK BODIES (network-body-capture spec): bodies ride the SAME
         // includeNetwork toggle as network metadata — one user-facing
         // "network" switch controls both channels. include → takeFrozen()
-        // (freeze() was called at reporter-open, __replayFreeze below /
-        // CompanionCaptureBridge); exclude → discardAndResume() so the live
+        // (freeze() was called at reporter-open, __replayFreeze below);
+        // exclude → discardAndResume() so the live
         // buffer resumes capturing rather than sitting frozen forever, and
         // nil ships (no payload.networkBodies, no captureControl marker).
         let frozenBodies: [EverframeNetworkBody]?
@@ -407,9 +397,8 @@ public enum ReporterSubmission {
         // image encoding, hashing) can run for seconds after the user tapped
         // Send; a live read here attributed A's report to whoever `setUser`
         // named by the time it executed. `Inputs.capturedSession` is snapshotted
-        // at the true submit boundary by each caller — the same treatment
-        // `companionAttribution` already gets, and the native counterpart of
-        // web's `captureUserSnapshot`.
+        // at the true submit boundary by each caller — the native counterpart
+        // of web's `captureUserSnapshot`.
         //
         // External review, finding 1 (Serious) — `resolve()`, not the raw
         // snapshot. `cfg` above carries the Everframe SDK key, i.e. the PROJECT this
@@ -434,7 +423,7 @@ public enum ReporterSubmission {
         }
 
         // DEFE-02 soft-degrade: caller decides via extraOverrides. Both the
-        // in-app reporter and the companion path currently pass an empty dict.
+        // in-app reporter and quick capture currently pass an empty dict.
         for (key, value) in inputs.extraOverrides {
             extra[key] = value
         }
@@ -538,8 +527,7 @@ public enum ReporterSubmission {
         // the runtime resolves the epoch atomically with the controller it selects.
         let builder = EnvelopeBuilder(vitalsStartEpoch: inputs.capturedSession.user.startEpoch)
         // BREADCRUMBS (Task 6): consume the frozen chain snapshotted at
-        // reporter-open in EFReporterPresenter, or at report.request in
-        // CompanionCaptureBridge.beginReportCaptureLifecycle (__replayFreeze →
+        // reporter-open in EFReporterPresenter (__replayFreeze →
         // BreadcrumbRingBuffer.freeze(), same lifecycle as the replay timeline
         // above). takeFrozen() never throws
         // and returning nil (freeze() never called, or an empty chain) is a
@@ -744,9 +732,6 @@ public enum ReporterSubmission {
             envelopeBytes: envelopeBytes,
             idempotencyKey: idempotencyKey,
             attachments: multipartAttachments,
-            // Companion-only; nil (and therefore header-less) on every
-            // in-app reporter submit. SECURITY: never log.
-            companionAttribution: inputs.companionAttribution,
             // Quick-capture only; never persisted to the outbox.
             // SECURITY: never log.
             captureToken: inputs.captureToken,

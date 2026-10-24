@@ -38,7 +38,7 @@ export type { ReporterResult } from '@everframe/web';
 export { useEverframeScreen, EverframeScreen } from './EverframeScreen.js';
 export type { EverframeScreenProps } from './EverframeScreen.js';
 
-// Phase 06.2-09 — React-TV companion namespace (Tizen / WebOS browser runtime).
+// Companion (removed; deprecated no-op stubs kept until the next major).
 // Mirrors the RN SDK surface — `companion` namespace plus top-level
 // `useCompanion` + `CompanionState` ergonomic re-exports.
 export * as companion from './companion/index.js';

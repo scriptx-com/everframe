@@ -274,17 +274,15 @@ export async function submitReportFromDraft(opts: {
   identityToken?: IdentityTokenReader;
   /**
    * PR review, round 4 (Serious) — the identity TOKEN already captured at
-   * the SUBMIT BOUNDARY by the caller (provider.tsx's `onComplete` /
-   * capture-bridge.ts's `runCompanionSubmit`, both via the adapter's
-   * `__captureIdentityAtSubmitBoundary()`), before any of THIS function's
+   * the SUBMIT BOUNDARY by the caller (provider.tsx's `onComplete`, via the
+   * adapter's `__captureIdentityAtSubmitBoundary()`), before any of THIS function's
    * own async prep (multipart build, device-token minting) even starts.
    *
    * Rounds 2 and 3 pinned the token used for the live request and the
    * subject recorded for a later retry to the SAME resolution — but that
    * resolution still happened inside `submitReportFromDraft`, which is
    * itself called only after provider.tsx's `onComplete` has already done
-   * replay-capture hashing, breadcrumb/network-body snapshotting, and (for
-   * the companion path) baked-screenshot hashing — awaits that can span
+   * replay-capture hashing and breadcrumb/network-body snapshotting — awaits that can span
    * hundreds of milliseconds to seconds for a report carrying a screenshot
    * or replay buffer. An account switch during THAT window pinned the NEW
    * identity to a report the OLD identity actually created.
@@ -418,10 +416,9 @@ export async function submitReportFromDraft(opts: {
   // one — a hung provider now costs ~2s here, not ~4s.
   //
   // PR review, round 4 (Serious) — resolving even here is still one step
-  // too late: this line runs AFTER the caller (provider.tsx's `onComplete`,
-  // capture-bridge.ts's `runCompanionSubmit`) has already done replay
-  // hashing / breadcrumb + network-body snapshotting / (companion path)
-  // baked-screenshot hashing above `submitReportFromDraft` in the call
+  // too late: this line runs AFTER the caller (provider.tsx's `onComplete`)
+  // has already done replay hashing / breadcrumb + network-body snapshotting
+  // above `submitReportFromDraft` in the call
   // stack — an account switch during THAT prep would still get pinned here.
   // `opts.capturedIdentityToken`, when the caller supplies it (every real
   // entry point does — see its doc), is what was ALREADY live at the true

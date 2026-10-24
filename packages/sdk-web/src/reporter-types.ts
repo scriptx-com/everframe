@@ -36,8 +36,7 @@ export class EverframeNotMountedError extends Error {
 /**
  * Rejected by `open()` when the host turned the reporter off
  * (`reporter: { disabled: true }`, a crash-only session). The session keeps
- * this for its whole life, including after a companion bond upgrades it:
- * reports then come through the companion, not through `open()`.
+ * this for its whole life.
  */
 export class EverframeReporterDisabledError extends Error {
   override readonly name = 'EverframeReporterDisabledError';

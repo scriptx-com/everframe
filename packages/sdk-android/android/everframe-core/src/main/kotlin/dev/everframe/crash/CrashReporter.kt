@@ -454,7 +454,7 @@ object CrashReporter {
      *   `start(projectB)` crossed a project boundary outright because the user
      *   was bound to no session. Snapshotting at entry and [TXCapturedUser
      *   .resolve]-ing at encode time is the same mechanism the reporter-dialog
-     *   and companion submit paths already use.
+     *   and quick-capture submit paths already use.
      *
      *   Blocking: `captureSessionSnapshot()` takes `Everframe.stateLock` for a
      *   handful of uncontended field reads — the SAME lock the removed

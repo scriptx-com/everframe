@@ -4,9 +4,8 @@
 // The quick-capture confirmation toast. Created only after the screenshot,
 // in its own overlay window that `ScreenshotCapture.activeKeyWindow()` filters
 // out, so neither this capture nor the next one (nor a replay frame) shows
-// it. Same window mechanics as the companion badge: never key, never
-// interactive, `.alert + 2`. On Apple TV it uses the TV sizes, and its root
-// controller offers nothing to focus.
+// it. Never key, never interactive, `.alert + 2`. On Apple TV it uses the TV
+// sizes, and its root controller offers nothing to focus.
 #if canImport(UIKit)
 import UIKit
 

@@ -48,34 +48,24 @@ data class EverframeConfig(
     /** Compose Material You dynamic-color opt-in (UI-SPEC line 48). */
     val useDynamicColor: Boolean = false,
     /**
-     * Explicit companion device-identity override (naming spec 2026-08-24) —
-     * an MDM id or provisioning serial the host already knows, hashed
-     * (SHA-256 → UUID shape) before it ever reaches the announce `device`
-     * block; see `CompanionDeviceId.resolve`. `null` (the default) falls
-     * through to the SSAID-then-stored-UUID chain.
+     * Deprecated: the removed Companion's device-identity override. Accepted
+     * and ignored; kept in its positional slot until the next major.
      */
+    @Deprecated(dev.everframe.companion.COMPANION_REMOVED_MESSAGE)
     val companionDeviceId: String? = null,
     /**
-     * Companion on-screen name-badge visibility toggle (naming spec
-     * 2026-08-24, controller ruling / Task 6b) — lets a host that finds the
-     * badge intrusive turn it off in one line. Defaults to `true` (badge
-     * shown), matching `CompanionBadgeOptions.enabled`'s own default. Flat
-     * `Boolean`, not `CompanionBadgeOptions` itself — mirrors
-     * [companionDeviceId] above staying a flat wire-shaped field rather
-     * than a richer type. Mirrors iOS's `EverframeConfig.companionBadgeEnabled`.
+     * Deprecated: the removed Companion name badge's visibility. Accepted and
+     * ignored; kept in its positional slot until the next major.
      */
+    @Deprecated(dev.everframe.companion.COMPANION_REMOVED_MESSAGE)
     val companionBadgeEnabled: Boolean = true,
     /** Local veto for native mobile shake-to-report. Dashboard disablement always wins. */
     val shakeToReportEnabled: Boolean = true,
     /**
-     * Companion on-screen name-badge corner (naming spec 2026-08-24,
-     * controller ruling / Task 6b) — raw string mirroring
-     * [dev.everframe.companion.CompanionBadgePosition]'s four cases
-     * ('bottom-right' | 'bottom-left' | 'top-right' | 'top-left'). `null` or
-     * an unrecognised value falls through to `BOTTOM_RIGHT` — see
-     * `EverframeModule.parseCompanionBadgePosition`. Mirrors iOS's
-     * `EverframeConfig.companionBadgePosition`.
+     * Deprecated: the removed Companion name badge's corner. Accepted and
+     * ignored; kept in its positional slot until the next major.
      */
+    @Deprecated(dev.everframe.companion.COMPANION_REMOVED_MESSAGE)
     val companionBadgePosition: String? = null,
     /**
      * Inline reporter theme (branding spec 2026-08-26) — 8 semantic color
@@ -96,7 +86,7 @@ data class EverframeConfig(
      * CLIENT VETO only — `false` turns it off locally from that point on; it
      * can never force it on. Flat `Boolean` rather than web's nested
      * `{ disabled }`, matching this platform's existing veto idiom
-     * ([CaptureConfig.networkBodies], [companionBadgeEnabled]). Mirrors iOS's
+     * ([CaptureConfig.networkBodies], [shakeToReportEnabled]). Mirrors iOS's
      * `EverframeConfig.installIdentifierEnabled`.
      *
      * NOT retroactive and NOT org-wide: installs already recorded earlier in
@@ -136,9 +126,8 @@ data class EverframeConfig(
      * Crash-only session switch (spec 2026-10-12). `false` turns off every on-device way to open the
      * reporter: shake never installs, and [dev.everframe.Everframe.report] `open()` throws
      * [ReporterDisabledException]. Network bodies stay off and replay records at the dashboard's crash-only
-     * coverage (none by default) until a companion bonds, which gives the rest of the session normal replay
-     * coverage and server body rules; the entry points stay off. Crash and error capture, breadcrumbs,
-     * vitals, release health and companion are unchanged. Flat `Boolean` veto, like [shakeToReportEnabled].
+     * coverage (none by default). Crash and error capture, breadcrumbs, vitals and release health are
+     * unchanged. Flat `Boolean` veto, like [shakeToReportEnabled].
      */
     val reporterEnabled: Boolean = true,
     val loadedJsBundle: LoadedJsBundle? = null,
@@ -243,8 +232,7 @@ sealed class EverframeConfigError(message: String) : Exception(message) {
 /**
  * Thrown by `Everframe.report.open()` (and delivered to `openAsync`'s `onError`) in a crash-only session,
  * started with [EverframeConfig.reporterEnabled] `= false`. It is an error rather than
- * [ReportResult.Cancelled] because the host asked for something its own configuration turned off. A companion
- * bond does not lift it: reports from that session come through companion.
+ * [ReportResult.Cancelled] because the host asked for something its own configuration turned off.
  */
 class ReporterDisabledException :
     IllegalStateException("The reporter is turned off for this session (reporterEnabled = false).")

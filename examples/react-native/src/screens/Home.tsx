@@ -98,7 +98,7 @@ export function Home(): React.JSX.Element {
 
       <Text style={[type.monoNote, styles.footnote]}>
         Specimens · plates to capture{'\n'}Log · a long list to scroll{'\n'}Profile · seeded PII to
-        redact{'\n'}Companion · pair a phone to file from it
+        redact
       </Text>
     </View>
   );

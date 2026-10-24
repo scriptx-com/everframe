@@ -187,33 +187,11 @@ RCT_EXPORT_MODULE(Everframe)
   BOOL installIdentifierDisabled = opts.installIdentifierDisabled().value_or(false);
   // `crashReportingDisabled` — same `std::optional<bool>` shape. Absent keeps capture on.
   BOOL crashReportingDisabled = opts.crashReportingDisabled().value_or(false);
-  // `attachPinUi` (spec 2026-08-19) is a plain optional STRING field —
-  // `opts.attachPinUi()` returns a nullable NSString*, same shape as
-  // `opts.sdkKey()` above, NOT the `std::optional<bool>` shape
-  // `networkBodiesDisabled()` uses. `EverframeBridge.configure` coerces a
-  // nil/unrecognised value to `.builtin`.
-  NSString *attachPinUi = opts.attachPinUi();
-  // `companionDeviceId` (naming spec 2026-08-24) is a plain optional STRING
-  // field — same nullable-NSString* shape as `attachPinUi` above, not the
-  // `std::optional<bool>` shape `networkBodiesDisabled()` uses.
-  NSString *companionDeviceId = opts.companionDeviceId();
-  // `companionBadgeEnabled`/`companionBadgePosition` (naming spec
-  // 2026-08-24, controller ruling / Task 6b) — flat fields on ConfigOpts;
-  // RN codegen cannot express the nested `{enabled, position}` shape the JS
-  // facade's `RuntimeConfig.companionBadge` uses, so `extractBridgeConfig`
-  // flattens it before it crosses. `companionBadgeEnabled()` is
-  // `std::optional<bool>`, same shape as `networkBodiesDisabled()` above;
-  // absent defaults to `true` (badge shown), matching
-  // `CompanionBadgeOptions.enabled`'s own default. `companionBadgePosition()`
-  // is a nullable NSString*, same shape as `attachPinUi`/`companionDeviceId`
-  // above; `EverframeBridge` coerces nil/unrecognised to `.bottomRight`.
-  BOOL companionBadgeEnabled = opts.companionBadgeEnabled().value_or(true);
   BOOL shakeToReportEnabled = opts.shakeToReportEnabled().value_or(true);
   BOOL quickCaptureEnabled = opts.quickCaptureEnabled().value_or(true);
   // Crash-only session switch (spec 2026-10-12) — `std::optional<bool>`, same shape as
   // `networkBodiesDisabled()`. Absent means a normal report session.
   BOOL reporterDisabled = opts.reporterDisabled().value_or(false);
-  NSString *companionBadgePosition = opts.companionBadgePosition();
   // Inline reporter theme (reporter branding spec 2026-08-25, RN slice) —
   // 8 flat optional STRING fields on ConfigOpts (RN codegen cannot express
   // the nested `theme: { … }` shape the JS facade's `RuntimeConfig.theme`
@@ -254,12 +232,8 @@ RCT_EXPORT_MODULE(Everframe)
                networkBodiesDisabled:networkBodiesDisabled
            installIdentifierDisabled:installIdentifierDisabled
               crashReportingDisabled:crashReportingDisabled
-                         attachPinUi:attachPinUi
-                   companionDeviceId:companionDeviceId
-               companionBadgeEnabled:companionBadgeEnabled
                   shakeToReportEnabled:shakeToReportEnabled
                    quickCaptureEnabled:quickCaptureEnabled
-              companionBadgePosition:companionBadgePosition
                                theme:(theme.count > 0 ? theme : nil)
                        vitalsEnabled:vitalsEnabled
                     vitalsSampleRate:vitalsSampleRate
@@ -391,8 +365,7 @@ RCT_EXPORT_MODULE(Everframe)
   [EverframeBridge setExtraResolverActive:active];
 }
 
-// JS handshake ack — mirrors `signalCompanionReportRequestReady` below
-// exactly. Releases `EverframeBridge.awaitJsExtraResolve`'s bounded wait for
+// JS handshake ack. Releases `EverframeBridge.awaitJsExtraResolve`'s bounded wait for
 // this correlation id.
 - (void)signalExtraResolverReady:(NSString *)correlationId {
   [EverframeBridge signalExtraResolverReady:(correlationId ?: @"")];
@@ -562,33 +535,10 @@ RCT_EXPORT_MODULE(Everframe)
   return @([EverframeBridge captureHandledException:(crashJson ?: @"")]);
 }
 
-// MARK: - startCompanion / stopCompanion (Plan 06.2-11)
-
-// Opens a relay WS connection against the build-time-baked ingest URL
-// (sdk-ios IngestEndpoint.url) and starts forwarding `Everframe.shared
-// .companion` signals (state + pairUrl) to JS via the
-// `EverframeEventEmitter` RCTEventEmitter subclass.
-- (void)startCompanion {
-  [EverframeBridge startCompanion:@""];
-}
-
-- (void)stopCompanion {
-  [EverframeBridge stopCompanion];
-}
-
-// MARK: - signalCompanionReportRequestReady(correlationId)
-
-// Companion handshake: JS calls this when it is ready for capture to
-// proceed, releasing the native bridge's bounded wait
-// (CompanionCaptureBridge.awaitJsReactTreeAttach).
-- (void)signalCompanionReportRequestReady:(NSString *)correlationId {
-  [EverframeBridge signalCompanionReportRequestReady:(correlationId ?: @"")];
-}
-
 // MARK: - addListener / removeListeners (RN NativeEventEmitter contract)
 //
 // These are intentional no-ops on `EverframeModule` — the JS facade
-// (`src/companion.ts`) constructs `NativeEventEmitter(NativeModules
+// (`src/events.ts`) constructs `NativeEventEmitter(NativeModules
 // .EverframeEventEmitter)`, NOT NativeModules.Everframe, so the real
 // addListener/removeListeners traffic flows to the `EverframeEventEmitter`
 // subclass via RCTEventEmitter's built-in implementations. We still need

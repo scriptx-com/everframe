@@ -17,8 +17,8 @@ import {
 import { __resetPlayerTokenCounterForTests } from '../src/vitals.js';
 
 // `fileURLToPath(import.meta.url)` per this package's existing convention
-// (see rbridge-no-surface.test.ts, companion-bridge-wiring.spec.ts,
-// install-id-inheritance.spec.ts, integrations-react-native-video.spec.tsx)
+// (see rbridge-no-surface.test.ts, install-id-inheritance.spec.ts,
+// integrations-react-native-video.spec.tsx)
 // — `new URL(x, import.meta.url)` throws under the jsdom environment this
 // spec needs for @testing-library/react.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

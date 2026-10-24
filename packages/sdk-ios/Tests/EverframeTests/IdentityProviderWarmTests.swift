@@ -300,8 +300,8 @@ final class IdentityProviderWarmTests: XCTestCase {
     //
     // Fix: `Everframe.__warmIdentityToken()` — the same warm `setIdentityToken`
     // already fires — is now also called at reporter-open
-    // (`EFReporterPresenter.openAndAwait()` / `CompanionCaptureBridge
-    // .handleReportRequest`, both UIKit-gated and source-gated below).
+    // (`EFReporterPresenter.openAndAwait()`, UIKit-gated and source-gated
+    // below).
 
     /// THE test that must exist per the re-review: age the cached token PAST
     /// the refresh margin, then capture, and assert the header still
@@ -357,8 +357,8 @@ final class IdentityProviderWarmTests: XCTestCase {
         XCTAssertEqual(calls, 1, "fixture sanity: nothing has re-invoked the provider yet")
 
         // THE FIX under test: this is exactly what `EFReporterPresenter
-        // .openAndAwait()` and `CompanionCaptureBridge.handleReportRequest`
-        // now call at reporter-open (see the source-gate tests below).
+        // .openAndAwait()` now calls at reporter-open (see the source-gate
+        // test below).
         Everframe.shared.__warmIdentityToken()
 
         captured = await pollForCapturedSubject()
@@ -435,8 +435,7 @@ final class IdentityProviderWarmTests: XCTestCase {
             return self.jwt(sub: "iris", exp: Date().addingTimeInterval(300))
         })
 
-        // Exactly what `EFReporterPresenter.openAndAwait()` /
-        // `CompanionCaptureBridge.handleReportRequest` call at reporter-open
+        // Exactly what `EFReporterPresenter.openAndAwait()` calls at reporter-open
         // — invoked explicitly a second time here to isolate it as its own
         // assertion, even though the install call above already exercises
         // the identical gate.
@@ -618,15 +617,14 @@ final class IdentityProviderWarmTests: XCTestCase {
 // `CallCounter` reused from `IdentityTokenHolderTests.swift` (file-scope,
 // internal — visible target-wide) rather than re-declared here.
 
-// MARK: - Source gates: the two UIKit-gated reporter-open call sites
+// MARK: - Source gate: the UIKit-gated reporter-open call site
 //
-// `EFReporterPresenter.swift` (EverframeReporterUI module) and
-// `CompanionCaptureBridge.swift`'s `handleReportRequest` are both entirely
-// (or, for the latter, substantially) `#if canImport(UIKit)`-gated and do not
-// exist in the macOS `swift test` binary — same established reason
+// `EFReporterPresenter.swift` (EverframeReporterUI module) is entirely
+// `#if canImport(UIKit)`-gated and does not exist in the macOS `swift test`
+// binary — same established reason
 // `ReporterSubmissionUserExtrasSourceGate` (EnvelopeUserTests.swift) source-
-// gates `ReporterSubmission.swift` instead of driving it behaviourally. These
-// pin that both real call sites actually invoke `__warmIdentityToken()`, not
+// gates `ReporterSubmission.swift` instead of driving it behaviourally. This
+// pins that the real call site actually invokes `__warmIdentityToken()`, not
 // just that the mechanism itself works in isolation (proven above).
 
 final class ReporterOpenIdentityWarmSourceGate: XCTestCase {
@@ -669,20 +667,6 @@ final class ReporterOpenIdentityWarmSourceGate: XCTestCase {
         XCTAssertTrue(
             warmCall.lowerBound < captureCall.lowerBound,
             "the identity warm should fire as early as possible — before capture — to maximise the provider's time to resolve before Send"
-        )
-    }
-
-    func testCompanionCaptureBridgeWarmsIdentityAtReportRequest() throws {
-        let code = Self.strippingLineComments(
-            try Self.source("Sources/Everframe/Companion/CompanionCaptureBridge.swift"))
-
-        XCTAssertNotNil(
-            code.range(of: "Everframe.shared.__warmIdentityToken()"),
-            """
-            CompanionCaptureBridge.swift no longer calls Everframe.shared.__warmIdentityToken() at \
-            report.request (the companion path's own reporter-open moment — see this file's own \
-            "report.request IS reporter-open" note).
-            """
         )
     }
 }

@@ -5,9 +5,8 @@
 // Written by adapter.ts's applyLiveConfig (one-shot after the first
 // successful GET /api/config, then every periodic refresh); read by the
 // reporter UI (watermark gate in ReporterDialog, theme resolution in
-// provider.tsx). Copy of companion/server-config.ts's pattern — see its
-// header for why the subscribers exist (a config landing between renders
-// must trigger its own re-render).
+// provider.tsx). The subscribers exist because a config landing between
+// renders must trigger its own re-render.
 import type { BrandingServerConfig } from '@everframe/sdk-core';
 
 let _serverConfig: BrandingServerConfig | undefined;

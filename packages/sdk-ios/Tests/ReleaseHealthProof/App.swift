@@ -34,7 +34,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         let configuration = try! ReleaseHealthConfiguration(userId: original ? "proof-a" : "proof-b", includeDebugBuilds: true)
         do {
             try Everframe.shared.start(config: .init(sdkKey: key, release: original ? "release-A" : "release-B",
-                capture: .init(logs: false, crash: mode != "off" && mode != "health-only"), companionBadgeEnabled: false,
+                capture: .init(logs: false, crash: mode != "off" && mode != "health-only"),
                 shakeToReportEnabled: false, installIdentifierEnabled: false, vitals: .init(enabled: false),
                 releaseHealth: mode == "off" ? nil : configuration))
             Everframe.shared.setUser(.init(id: original ? "user-A" : "user-B"))

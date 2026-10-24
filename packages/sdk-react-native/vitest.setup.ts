@@ -49,7 +49,7 @@ vi.mock('react-native', () => ({
       trackVitals: vi.fn(),
     }),
   },
-  // `Platform` is read at module scope by companion.ts and by the
+  // `Platform` is read at module scope by events.ts and by the
   // react-native-video adapter (the onBandwidthUpdate platform split), so the
   // mock must carry it. iOS is the default; adapters take an explicit
   // `platform` option in tests that need the Android path.

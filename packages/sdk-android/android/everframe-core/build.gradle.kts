@@ -161,30 +161,11 @@ android {
     }
 }
 
-// Companion (spec 2026-08-07) — `CompanionAnnounceTest` is a DEBUG-variant test.
-// It class-loads `dev.everframe.companion.CompanionAnnounce` by name, and that
-// type is `internal`, so the release variant's R8 pass (isMinifyEnabled above,
-// keeping only the public API per proguard-rules.pro:8-14) renames it and the
-// whole class fails with `NoClassDefFoundError: com/everframe/companion/
-// CompanionAnnounce` before any assertion runs. Excluding it here is preferred
-// over a `-keep` rule, which would pin an internal helper into the published
-// AAR's symbol table for the sake of a test. Same shape, and the same remedy, as
-// `packages/sdk-react-native/android/build.gradle.kts`'s test exclusions.
-//
-// The announce leg still has release-variant coverage: `RelayWSClientAnnounceTest`
-// exercises it end to end through the real socket path without naming any
-// obfuscated type.
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>()
-    .matching { it.name == "compileReleaseUnitTestKotlin" }
-    .configureEach {
-        exclude("**/companion/CompanionAnnounceTest.kt")
-    }
-
 // Release-variant unit tests (soft-launch CI repair, 2026-08-10).
 //
-// The exclusion directly above treated CompanionAnnounceTest as one class with
-// an unlucky dependency on an `internal` type. It is not — it was the first
-// instance of a property that holds for this whole source set. Measured on
+// An earlier per-class exclusion treated one test as a class with an unlucky
+// dependency on an `internal` type. It is not — it was the first instance of a
+// property that holds for this whole source set. Measured on
 // this commit: `:everframe-core:testReleaseUnitTest` produces 162 failures,
 // every one a NoClassDefFoundError / NoSuchMethodError, because these tests
 // name internal types (Everframe's own gates and buffers, BreadcrumbAdapters,
@@ -193,8 +174,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>()
 // signal in the run at all — it fails at class load.
 //
 // So the release variant is disabled here for the same reason, and with the
-// same tradeoff, the CompanionAnnounceTest comment already argues: the
-// alternative is `-keep` rules that pin internal symbols into the published
+// same tradeoff: the alternative is `-keep` rules that pin internal symbols into the published
 // AAR to satisfy tests, which makes the shipped artifact worse to make CI
 // green. `:everframe-reporter-ui` carries the identical block for the identical
 // reason.
@@ -233,9 +213,9 @@ dependencies {
     implementation(libs.serialization.json)
     implementation(libs.androidx.annotation)
     implementation(libs.datastore.preferences)
-    // Plan 06.2-08 — RelayWSClient observes ProcessLifecycleOwner to cancel the
-    // WS on app-backgrounded and reconnect on app-foregrounded. Pure AndroidX;
-    // does NOT pull Compose/Material into the AAR (Compose-isolation gate stays green).
+    // ProcessLifecycleOwner for the lifecycle breadcrumbs and release health.
+    // Pure AndroidX; does NOT pull Compose/Material into the AAR
+    // (Compose-isolation gate stays green).
     implementation(libs.androidx.startup.runtime)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.lifecycle.common)

@@ -15,11 +15,28 @@
 export { ReporterDialog } from './reporter-ui/ReporterDialog.js';
 export type { ReporterCompletePayload, ReporterDialogProps } from './reporter-ui/ReporterDialog.js';
 export { ReporterFab } from './reporter-ui/ReporterFab.js';
-export { CompanionBadge } from './reporter-ui/CompanionBadge.js';
-export { CompanionPinCard } from './reporter-ui/CompanionPinCard.js';
 export { InboxDialog } from './reporter-ui/inbox/InboxDialog.js';
 export { Toast } from './reporter-ui/primitives/Toast.js';
 export type { ToastTone } from './reporter-ui/primitives/Toast.js';
+
+/**
+ * Renders nothing.
+ *
+ * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+ */
+export function CompanionBadge(): null {
+  return null;
+}
+
+/**
+ * Renders nothing.
+ *
+ * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+ */
+export function CompanionPinCard(): null {
+  return null;
+}
+
 // NOTE: the portal-target and theme-host seams are deliberately NOT re-exported
 // here. `init()` and the dialog primitives reach those modules by relative path
 // inside this package, and `@everframe/react` never touches them — exporting

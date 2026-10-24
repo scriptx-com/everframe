@@ -26,8 +26,9 @@ export type ReplayState = 'IDLE' | 'BUFFERING' | 'FROZEN' | 'SUBMITTED' | 'DISCA
  * Which replay coverage a session samples against (crash-only sessions spec
  * 2026-10-12). `'report'` is the default: a session that can file a report.
  * `'crashOnly'` is a session whose host turned the reporter off
- * (`reporter.disabled`) and that no companion bond has upgraded yet.
- * `'upgraded'` is such a session after a companion bond.
+ * (`reporter.disabled`). `'upgraded'` was such a session after a Companion
+ * bond; Companion has been removed and no SDK produces it any more, but the
+ * value stays accepted until the next major.
  */
 export type ReplaySessionKind = 'report' | 'crashOnly' | 'upgraded';
 
