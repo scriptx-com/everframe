@@ -27,7 +27,7 @@ internal object RnInteractionTargetAdapter : InteractionTargetViewAdapter {
         return InteractionTargetViewHints(testId = testId, role = role,
             // ReactSurfaceView (Fabric) also extends ReactRootView. The module
             // identity is assigned by the framework, independent of rendered labels.
-            devtools = view is ReactRootView && runCatching { view.jsModuleName in setOf("LogBox", "DevMenu") }.getOrDefault(false),
+            devtools = view is ReactRootView && runCatching { view.getJSModuleName() in setOf("LogBox", "DevMenu") }.getOrDefault(false),
             actionable = role in setOf("button", "tab", "link", "switch", "checkbox", "radio", "slider", "menuitem", "textfield"))
     }
 }
