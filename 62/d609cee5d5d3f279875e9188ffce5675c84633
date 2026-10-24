@@ -1,0 +1,31 @@
+.changeset/companion-stubs-web.md
+  s_f1c043e85606b2::t_7065bf382a4dde 13,18-19
+packages/sdk-react/__tests__/companion-start-options.types.ts
+  s_f1c043e85606b2::t_df5ef5ecfce4f4 1-28
+packages/sdk-react/src/companion/index.ts
+  s_f1c043e85606b2::t_7ae948c357c955 52-59
+packages/sdk-web/__tests__/companion-start-options.types.ts
+  s_f1c043e85606b2::t_5e9a7c92949ced 1-41
+packages/sdk-web/src/companion/index.ts
+  s_f1c043e85606b2::t_accd7e0f11e980 25-28
+packages/sdk-web/src/companion/singleton.ts
+  s_f1c043e85606b2::t_44b298321f7ca8 10-11,72-111,134-138
+packages/sdk-web/src/index.ts
+  s_f1c043e85606b2::t_27d63c4ae1c77f 142-145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "62d609cee5d5d3f279875e9188ffce5675c84633",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
