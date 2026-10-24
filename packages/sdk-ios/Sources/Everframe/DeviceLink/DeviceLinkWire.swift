@@ -227,3 +227,38 @@ struct DeviceLinkHelloRequest: Encodable, Sendable {
         let formFactor: String
     }
 }
+
+/// `deviceLinking.link.recording`: the dashboard asked this linked device to
+/// record the remote keys pressed for 10 s (Record on device, TVs only).
+struct DeviceLinkRecordingRequest: Equatable, Sendable {
+    /// Goes into the recording URL as one path segment, so it is limited to
+    /// `^[0-9A-Za-z-]{1,64}$`.
+    let id: String
+    let expiresAt: Date
+
+    init(id: String, expiresAt: Date) {
+        self.id = id
+        self.expiresAt = expiresAt
+    }
+
+    /// Lenient: nil for anything outside the contract.
+    static func decode(id rawId: String?, expiresAt rawExpiry: String?) -> DeviceLinkRecordingRequest? {
+        guard let rawId, isValidId(rawId), let rawExpiry, let date = parseDate(rawExpiry) else { return nil }
+        return DeviceLinkRecordingRequest(id: rawId, expiresAt: date)
+    }
+
+    static func isValidId(_ id: String) -> Bool {
+        let bytes = Array(id.utf8)
+        guard (1...64).contains(bytes.count) else { return false }
+        return bytes.allSatisfy { DeviceLinkNonce.isAlphanumeric($0) || $0 == UInt8(ascii: "-") }
+    }
+
+    /// ISO 8601, with or without fractional seconds (the server sends
+    /// `toISOString()`).
+    static func parseDate(_ raw: String) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: raw) { return date }
+        return ISO8601DateFormatter().date(from: raw)
+    }
+}

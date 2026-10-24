@@ -2,8 +2,10 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
 // Quick capture: a hotkey (the dashboard's binding, Shift+B by default)
-// pressed in a debug simulator, or a shake on a real iPhone or iPad that is
-// linked to a teammate or runs a debug build, files a report with no UI. The SDK takes the screenshot,
+// pressed in a debug simulator, a shake on a real iPhone or iPad, or the TV
+// binding on a real Apple TV's Siri Remote (hold Play/Pause by default), on a
+// device that is linked to a teammate or runs a debug build, files a report
+// with no UI. The SDK takes the screenshot,
 // freezes replay and evidence exactly as the reporter does at open, shows a
 // short `Captured` toast as soon as the frozen capture is handed to the
 // submission, then submits with `quickCapture: true` plus the developer's
@@ -16,7 +18,7 @@
 // names the owner ("Captured · Aurimas", "Captured · team device"). A
 // `403 device_unlinked` shows "This device was unlinked" and drops the token.
 //
-// Inert unless every gate holds: a simulator or a real iPhone/iPad, a debug
+// Inert unless every gate holds: a simulator or a real iPhone, iPad or Apple TV, a debug
 // build or a linked device, the local
 // `quickCaptureEnabled` and `reporterEnabled` options, the dashboard's
 // `captureHotkey` block, an open capture gate, an active app, no reporter on
@@ -84,10 +86,11 @@ private final class QuickCaptureEvidenceWait {
     }
 }
 
-/// What fired the capture. A shake that cannot capture safely (no host
-/// evidence) says so; a hotkey stays silent, as it always has.
+/// What fired the capture. A shake or a Siri Remote gesture that cannot
+/// capture safely (no host evidence) says so; a hotkey stays silent, as it
+/// always has.
 enum QuickCaptureTrigger: Equatable, Sendable {
-    case hotkey, shake
+    case hotkey, shake, remote
 }
 
 enum QuickCaptureOutcome: Equatable {
@@ -116,6 +119,8 @@ private final class QuickCaptureGate: @unchecked Sendable {
     private var binding: CaptureHotkeyBinding = .doubleShift
     private var replay = false
     private var screenshot = true
+    /// The TV binding this device acts on (`TvRemoteKeys.effectiveBinding`).
+    private var tvBinding: TvGestureBinding?
 
     func reset(localEnabled: Bool, debug: Bool, screenshot: Bool = true) {
         lock.lock(); defer { lock.unlock() }
@@ -126,6 +131,17 @@ private final class QuickCaptureGate: @unchecked Sendable {
         remoteEnabled = false
         binding = .doubleShift
         replay = false
+        tvBinding = nil
+    }
+
+    func setTvBinding(_ value: TvGestureBinding?) {
+        lock.lock(); defer { lock.unlock() }
+        tvBinding = value
+    }
+
+    var storedTvBinding: TvGestureBinding? {
+        lock.lock(); defer { lock.unlock() }
+        return tvBinding
     }
 
     func setRemote(_ remote: CaptureHotkeyConfigWire?) {
@@ -203,7 +219,7 @@ final class QuickCapture {
     }
     /// Passed to `CaptureTokenReader.read`; also names the device in the toast.
     var environment: [String: String] = ProcessInfo.processInfo.environment
-    /// Simulator, real iPhone/iPad, or a host where quick capture never arms.
+    /// Simulator, real iPhone/iPad/Apple TV, or a host where quick capture never arms.
     var hostMode: QuickCaptureHostMode = .current
     /// The real device's link for the capture's own session scope (ingest
     /// origin and SDK key; nil before `start()`), read once per capture.
@@ -239,6 +255,10 @@ final class QuickCapture {
     /// True while an editable text input is first responder. Asked only when a
     /// key reaches `handle` without a pre-delivery answer.
     var isEditingText: @MainActor () -> Bool = { QuickCaptureTextInput.firstResponderIsEditable() }
+    /// Phone, Apple TV or other: only an Apple TV arms the remote binding.
+    var devicePlatform: QuickCaptureDevicePlatform = .current
+    /// The app's device linking switch, on a real device.
+    var linkingEnabled: @MainActor () -> Bool = { DeviceLinkCoordinator.shared.isLinkingEnabled }
 
     // MARK: State
 
@@ -317,6 +337,32 @@ final class QuickCapture {
         stateLock.lock(); defer { stateLock.unlock() }
         guard ifCurrent() else { return }
         gate.setRemote(remote)
+    }
+
+    /// The config's `captureGesture` block: stores the TV binding this device
+    /// acts on (an unreachable key falls back to the default). `beginSession`
+    /// and `teardown` clear it.
+    nonisolated func publishGesture(_ wire: CaptureGestureConfigWire?, ifCurrent: () -> Bool = { true }) {
+        let binding = TvRemoteKeys.effectiveBinding(wire?.tv)
+        stateLock.lock(); defer { stateLock.unlock() }
+        guard ifCurrent() else { return }
+        gate.setTvBinding(binding)
+    }
+
+    /// The TV binding the last config published, armed or not.
+    nonisolated var publishedTvBinding: TvGestureBinding? { gate.storedTvBinding }
+
+    /// The TV binding to watch the Siri Remote for, or nil. Non-nil only on an
+    /// Apple TV (or its simulator) with an open kill switch, quick capture
+    /// configured and a binding published, when a press could do something:
+    /// a debug build or a linked device captures, and an unlinked release
+    /// device says hello while linking is on. An unlinked release device with
+    /// linking off watches nothing.
+    var armedTvBinding: TvGestureBinding? {
+        guard devicePlatform == .tv, hostMode != .unsupported, Everframe.captureGate, isConfigured,
+              let binding = gate.storedTvBinding else { return nil }
+        guard isDebug || isLinked || (hostMode == .device && linkingEnabled()) else { return nil }
+        return binding
     }
 
     /// Whether this real device holds a device link: a linked device arms
@@ -478,9 +524,9 @@ final class QuickCapture {
         // Read once: the gate and the pipeline must agree on the provider.
         let provider = currentEvidenceProvider()
         if let reason = ignoreReason(hasProvider: provider != nil) {
-            // A shake on a host that masks its own pixels but installed no
-            // provider says so; a hotkey stays silent, as it always has.
-            if trigger == .shake, reason == "screenshot_disabled", let text = QuickCaptureToast.text(for: .failed) {
+            // A shake or remote gesture on a host that masks its own pixels but
+            // installed no provider says so; a hotkey stays silent, as it always has.
+            if trigger != .hotkey, reason == "screenshot_disabled", let text = QuickCaptureToast.text(for: .failed) {
                 showToast(text)
             }
             return .ignored(reason: reason)

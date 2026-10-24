@@ -142,6 +142,47 @@ final class DeviceLinkClientTests: XCTestCase {
         }
     }
 
+    func testPostRecordingSendsKeyTokenAndBody() async throws {
+        let fetcher = ScriptedFetcher([.status(204, "")])
+        let events = [RecordedKey(key: "MEDIA_PLAY_PAUSE", downMs: 0, upMs: 1620),
+                      RecordedKey(key: "DPAD_UP", downMs: 2000, upMs: 2080)]
+        let ok = await client(fetcher).postRecording(recordingId: "6f1c2a8e-3b4d-4e5f-8a9b-0c1d2e3f4a5b",
+                                                     token: fixtureToken, events: events)
+        XCTAssertTrue(ok)
+        let request = try XCTUnwrap(fetcher.recorded.first)
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.url?.absoluteString,
+                       "https://h.example/api/device-link/recordings/6f1c2a8e-3b4d-4e5f-8a9b-0c1d2e3f4a5b")
+        XCTAssertNil(request.url?.query)
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer k")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+        // Compared, never printed.
+        XCTAssertTrue(request.value(forHTTPHeaderField: "X-Everframe-Capture-Token") == fixtureToken)
+        let body = try XCTUnwrap(bodyObject(request))
+        XCTAssertEqual(Set(body.keys), ["events"])
+        let sent = try XCTUnwrap(body["events"] as? [[String: Any]])
+        XCTAssertEqual(sent.count, 2)
+        XCTAssertEqual(sent[0]["key"] as? String, "MEDIA_PLAY_PAUSE")
+        XCTAssertEqual(sent[0]["downMs"] as? Int, 0)
+        XCTAssertEqual(sent[0]["upMs"] as? Int, 1620)
+        XCTAssertEqual(Set(sent[1].keys), ["key", "downMs", "upMs"])
+    }
+
+    func testPostRecordingIsTrueOnlyOn204() async {
+        let outcomes: [ScriptedFetcher.Outcome] = [
+            .status(200, ""), .status(404, ""), .status(302, ""), .status(500, ""), .error(URLError(.timedOut)),
+        ]
+        for (index, outcome) in outcomes.enumerated() {
+            let ok = await client(ScriptedFetcher([outcome])).postRecording(recordingId: "abc", token: fixtureToken, events: [])
+            XCTAssertFalse(ok, "case \(index)")
+        }
+        // An id outside the contract never reaches the network.
+        let fetcher = ScriptedFetcher([.status(204, "")])
+        let bad = await client(fetcher).postRecording(recordingId: "a/b", token: fixtureToken, events: [])
+        XCTAssertFalse(bad)
+        XCTAssertTrue(fetcher.recorded.isEmpty)
+    }
+
     func testNoRedirectSessionRefusesRedirects() {
         let delegate = DeviceLinkNoRedirectDelegate()
         let session = URLSession(configuration: .ephemeral)

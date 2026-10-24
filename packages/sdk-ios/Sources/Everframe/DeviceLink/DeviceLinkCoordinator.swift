@@ -49,6 +49,10 @@ final class DeviceLinkCoordinator {
         /// on another thread at any moment, so the receiver applies the change
         /// only while `isCurrent()` holds, checked where it writes.
         var linkChanged: @MainActor (_ linked: Bool, _ isCurrent: @escaping @Sendable () -> Bool) -> Void
+        /// A linked device's config carried a Record on device request, for
+        /// the token that config request sent. `isCurrent` names the session.
+        var recordingRequested: @MainActor (DeviceLinkRecordingRequest, _ isCurrent: @escaping @Sendable () -> Bool)
+            -> Void = { _, _ in }
 
         static var live: Seams {
             Seams(
@@ -76,6 +80,12 @@ final class DeviceLinkCoordinator {
                     QuickCapture.shared.setLinked(linked, ifCurrent: isCurrent)
                     #endif
                     if isCurrent() { Everframe.shared.__refreshConfigForDeviceLink() }
+                },
+                recordingRequested: { request, isCurrent in
+                    // Only Apple TV records remote keys.
+                    #if os(tvOS)
+                    GestureRecording.shared.onRequest(request, isCurrent: isCurrent)
+                    #endif
                 }
             )
         }
@@ -138,6 +148,7 @@ final class DeviceLinkCoordinator {
     /// the stored token is the one that config request sent.
     nonisolated func publish(remote newRemote: DeviceLinkingConfigWire?, ifCurrent: () -> Bool = { true }) {
         var unlinked = false
+        var recording: DeviceLinkRecordingRequest?
         lock.lock()
         guard ifCurrent(), let session else { lock.unlock(); return }
         let generation = session.generation
@@ -148,16 +159,27 @@ final class DeviceLinkCoordinator {
             case .unlinked:
                 unlinked = store.clear(endpoint: session.endpoint, sdkKey: session.sdkKey, ifFingerprint: fingerprint)
             case .linked:
-                if let owner = link.owner,
-                   !store.updateOwner(owner, endpoint: session.endpoint, sdkKey: session.sdkKey, ifFingerprint: fingerprint) {
-                    // A refused write that took the stored link with it leaves
-                    // the device unlinked; a refused one that kept it changes nothing.
-                    unlinked = store.link(endpoint: session.endpoint, sdkKey: session.sdkKey) == nil
+                if let owner = link.owner {
+                    if store.updateOwner(owner, endpoint: session.endpoint, sdkKey: session.sdkKey, ifFingerprint: fingerprint) {
+                        // The stored token is the one this config was for.
+                        recording = link.recording
+                    } else {
+                        // A refused write that took the stored link with it leaves
+                        // the device unlinked; a refused one that kept it changes nothing.
+                        unlinked = store.link(endpoint: session.endpoint, sdkKey: session.sdkKey) == nil
+                    }
                 }
             }
         }
         lock.unlock()
         if unlinked { onMain { $0.notifyLinkChanged(false, generation: generation) } }
+        if let recording {
+            onMain { coordinator in
+                coordinator.seams.recordingRequested(recording) { [weak coordinator] in
+                    coordinator?.isCurrent(generation) ?? false
+                }
+            }
+        }
     }
 
     nonisolated func teardown(ifCurrent: () -> Bool = { true }) {
@@ -169,7 +191,11 @@ final class DeviceLinkCoordinator {
         session = nil
         remote = nil
         lock.unlock()
-        onMain { $0.endAttempt(olderThan: newGeneration) }
+        onMain {
+            $0.endAttempt(olderThan: newGeneration)
+            // A recording in progress belongs to the session that ended.
+            GestureRecording.shared.teardown()
+        }
     }
 
     /// A real device whose app has device linking switched on.
@@ -196,6 +222,15 @@ final class DeviceLinkCoordinator {
               let account = DeviceLinkStore.account(endpoint: endpoint, sdkKey: sdkKey),
               account == DeviceLinkStore.account(endpoint: session.endpoint, sdkKey: session.sdkKey) else { return nil }
         return store.link(endpoint: endpoint, sdkKey: sdkKey)
+    }
+
+    /// The token, origin and SDK key a Record on device upload is sent with:
+    /// only for a `.device` session with a stored link.
+    nonisolated func recordingSnapshot() -> (token: String, endpoint: URL, sdkKey: String)? {
+        lock.lock(); defer { lock.unlock() }
+        guard let session, session.hostMode == .device,
+              let link = store.link(endpoint: session.endpoint, sdkKey: session.sdkKey) else { return nil }
+        return (link.token, session.endpoint, session.sdkKey)
     }
 
     var isAttemptActive: Bool { attempt != nil }

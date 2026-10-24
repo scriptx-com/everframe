@@ -324,6 +324,16 @@ final class QuickCaptureDeviceTests: XCTestCase {
         XCTAssertTrue(submitted.isEmpty)
     }
 
+    func testRemoteWithScreenshotDisabledShowsCaptureFailed() async {
+        let qc = makeArmed(debug: true)
+        qc.beginSession(localEnabled: true, debug: true, screenshot: false)
+        qc.publish(remote: CaptureHotkeyConfigWire(enabled: true))
+        let remote = await qc.capture(trigger: .remote)
+        XCTAssertEqual(remote, .ignored(reason: "screenshot_disabled"))
+        XCTAssertEqual(toasts, ["Capture failed"])
+        XCTAssertTrue(submitted.isEmpty)
+    }
+
     func testGateOrderAndLinkedFlagReset() {
         let qc = makeArmed(debug: false, link: DeviceLink(token: fixtureToken, owner: .team))
         XCTAssertNil(qc.configurationGateReason)

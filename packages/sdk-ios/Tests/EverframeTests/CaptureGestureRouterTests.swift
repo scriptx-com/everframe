@@ -69,6 +69,21 @@ final class CaptureGestureRouterTests: XCTestCase {
         XCTAssertEqual(quickCaptures, [.hotkey])
     }
 
+    func testRemoteStartsARemoteTrigger() {
+        let decision = router(mode: .device, configured: true, debug: false, linked: true, linkingEnabled: true)
+            .handle(.remote)
+        XCTAssertEqual(quickCaptures, [.remote])
+        XCTAssertEqual(decision, CaptureGestureDecision(action: .quickCapture, sendHello: false, swallowKeys: true))
+        XCTAssertEqual(reporters, 0)
+        XCTAssertEqual(hellos, 0)
+        let release = router(mode: .device, configured: true, debug: false, linked: false, linkingEnabled: true)
+            .handle(.remote)
+        XCTAssertEqual(release, CaptureGestureDecision(action: .nothing, sendHello: true, swallowKeys: false))
+        XCTAssertEqual(quickCaptures, [.remote])
+        XCTAssertEqual(reporters, 0)
+        XCTAssertEqual(hellos, 1)
+    }
+
     func testLiveRouterReadsQuickCaptureAndCoordinator() {
         let inputs = CaptureGestureRouter.live.inputs()
         XCTAssertEqual(inputs.hostMode, QuickCapture.shared.hostMode)

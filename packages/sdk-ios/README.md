@@ -444,9 +444,10 @@ For the cross-SDK contract statement see the top-level
 ## Quick capture
 
 Quick capture files a report with no UI: in the iOS simulator with a key
-press, and on a real iPhone or iPad with a shake once the device is linked to
-you (or runs a debug build). Titling and filing always happen on the
-dashboard, in the live capture card.
+press, on a real iPhone or iPad with a shake, and on a real Apple TV by holding
+Play/Pause on the Siri Remote, once the device is linked to you (or runs a
+debug build). Titling and filing always happen on the dashboard, in the live
+capture card.
 
 ### Simulators
 
@@ -584,13 +585,81 @@ capture setting, no reporter on screen and one capture at a time.
 - **Device linking off.** The dashboard's per-app device linking switch stops
   devices from asking to link. `quickCaptureEnabled = false` (or the
   dashboard's quick capture switch) turns off both quick capture and linking.
-- **tvOS.** Apple TV devices are not supported yet; a tvOS app behaves as before.
+- **Apple TV.** See [Quick capture on Apple TV](#quick-capture-on-apple-tv).
 - **Testing in a simulator.** Launch the app with `EVERFRAME_SIMULATE_DEVICE=1`
   in its environment (for example
   `SIMCTL_CHILD_EVERFRAME_SIMULATE_DEVICE=1 xcrun simctl launch <udid> <bundle-id>`)
   to make an iPhone simulator behave as a real phone: the Darwin notification
   `com.everframe.capture` (or **Device → Shake** in Simulator) then follows the
   real-device rules, including linking. The switch is ignored on real devices.
+
+### Quick capture on Apple TV
+
+On a real Apple TV, **hold Play/Pause** on the Siri Remote for about 1.5
+seconds. It takes the same capture as a shake on a phone, under the same rules:
+a linked Apple TV captures in any build, and a debug build captures to the
+shared inbox. Select is never the default, because holding Select is how many
+apps open a context menu. No app code is needed.
+
+| Apple TV                                                           | Hold Play/Pause                      | Link hello              | Presses kept from the app |
+| ------------------------------------------------------------------ | ------------------------------------ | ----------------------- | ------------------------- |
+| Linked (any build)                                                 | Captures, `Captured · <name>`        | No                      | The gesture's own (below) |
+| Unlinked, debug build                                              | Captures, `Captured · <device name>` | If device linking is on | None                      |
+| Unlinked, release build                                            | Nothing visible                      | If device linking is on | None                      |
+| Quick capture off (`quickCaptureEnabled = false` or the dashboard) | Nothing                              | No                      | None                      |
+
+Linking works as on a phone: click **Link a device** on the dashboard, then
+hold Play/Pause on the Apple TV. The banner `Linking to Everframe · <number>`
+and the toasts use TV sizes, and they never take focus, so the remote keeps
+moving focus in your app while the banner shows.
+
+- **The gesture.** The dashboard's per-app TV gesture can replace the default
+  with another long press (0.5 to 5 s), a sequence of 2 to 8 presses, or a
+  chord of 2 to 4 keys. Apple TV delivers these keys: the arrows
+  (`DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT`, `DPAD_RIGHT`), Select (`DPAD_CENTER`),
+  Back (`BACK`, the remote's Back or Menu button), Play/Pause
+  (`MEDIA_PLAY_PAUSE`), and on a connected keyboard the letters, digits and
+  Shift. `MENU`, `MEDIA_FAST_FORWARD`, `MEDIA_REWIND` and the colour keys never
+  reach an Apple TV app, so a gesture that uses one falls back to holding
+  Play/Pause. A gesture with letters, digits or Shift stands aside while a
+  text field is being edited.
+- **Key handling.** The SDK reads presses as they reach the app's windows,
+  before the app does.
+  - A linked Apple TV keeps the gesture's presses from the app: the release of
+    a fired long press, so the hold does not also toggle playback, and the
+    completing press of a sequence or chord, with its release. Every other
+    press, and every press on an unlinked device, reaches the app unchanged.
+  - The first press of a long press always reaches the app: it is not a
+    gesture until it has been held for 1.5 s. In our checks, a UIKit
+    Play/Pause tap recognizer, `AVPlayerViewController` and SwiftUI's
+    `onPlayPauseCommand` all act on a press's release, not its start, and
+    only `onPlayPauseCommand` also acts on the release of a 1.6 s hold; so a
+    hold on a linked Apple TV never toggles playback in any of them, and on an
+    unlinked debug build it toggles only an `onPlayPauseCommand` handler.
+  - A press the SDK keeps from the app does nothing in it: a kept arrow does
+    not move focus, and a kept Select does not trigger the focused button.
+  - tvOS sends one start and one release per press, with no key repeat. The
+    SDK sees only the presses UIKit delivers: the Siri, TV, volume and mute
+    buttons and swipes on the touch surface never reach it, so a sequence
+    counts clicks only. Holding Back or Menu belongs to the system.
+- **Record on device.** On the dashboard, a teammate can set the app's TV
+  gesture by pressing it on a linked Apple TV. The Apple TV shows
+  `Recording remote keys for 10 seconds`, records the keys pressed (at most
+  32), sends them with its device token and shows `Keys sent to Everframe`.
+  Nothing captures while it records, and every press still reaches the app.
+  A request that arrives while the app is not on screen waits until it is, so
+  the prompt is seen. A recording whose link changed or ended before the 10 s
+  were up is not sent.
+- **Foreground refresh.** A linked Apple TV fetches its config when the app
+  returns to the foreground, at most every 10 seconds, so a Record on device
+  request reaches it without a relaunch. Unlinked Apple TVs never do.
+- **Testing in the tvOS simulator.** Launch the app with
+  `EVERFRAME_SIMULATE_DEVICE=1` (for example
+  `SIMCTL_CHILD_EVERFRAME_SIMULATE_DEVICE=1 xcrun simctl launch <udid> <bundle-id>`)
+  and hold Play/Pause on the Simulator's Apple TV remote, or with
+  `XCUIRemote.shared.press(.playPause, forDuration: 1.6)` in a UI test. The
+  app then follows the real-device rules, including linking. Without the
+  switch, a debug tvOS simulator build follows the simulator rules instead.
 
 ---
 

@@ -93,6 +93,7 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
     private var hides = 0
     private var toasts: [String] = []
     private var linkChanges: [Bool] = []
+    private var recordings: [DeviceLinkRecordingRequest] = []
 
     override func setUp() async throws {
         secure = InMemoryDeviceLinkSecureStore()
@@ -102,6 +103,7 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
         hides = 0
         toasts = []
         linkChanges = []
+        recordings = []
     }
 
     private func makeCoordinator() -> DeviceLinkCoordinator {
@@ -115,7 +117,8 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
             deviceInfo: { .init(model: "iPhone16,1", os: "iOS", osVersion: "18.2", appVersion: "1.0.0",
                                 sdk: "ios/test", formFactor: "phone") },
             makeNonce: { DeviceLinkNonce.make() },
-            linkChanged: { [unowned self] linked, _ in self.linkChanges.append(linked) })
+            linkChanged: { [unowned self] linked, _ in self.linkChanges.append(linked) },
+            recordingRequested: { [unowned self] request, _ in self.recordings.append(request) })
         return DeviceLinkCoordinator(store: store, seams: seams)
     }
 
@@ -349,6 +352,54 @@ final class DeviceLinkCoordinatorTests: XCTestCase {
         // An absent link changes nothing.
         c.publish(remote: .init(enabled: true))
         XCTAssertEqual(c.currentLink?.owner, .user(name: "Aurimas M."))
+    }
+
+    private let recording = DeviceLinkRecordingRequest(id: "rec-1", expiresAt: Date(timeIntervalSince1970: 2_000_000_000))
+
+    func testLinkedConfigWithRecordingHandsItOff() {
+        store.save(DeviceLink(token: fixtureToken, owner: .team), endpoint: ingest, sdkKey: "k")
+        let c = makeEnabled(ScriptedTransport())
+        c.publish(remote: .init(enabled: true, link: .init(status: .linked, owner: .team, recording: recording),
+                                requestTokenFingerprint: DeviceLinkToken.fingerprint(fixtureToken)))
+        XCTAssertEqual(recordings, [recording])
+        let snapshot = c.recordingSnapshot()
+        XCTAssertTrue(snapshot?.token == fixtureToken)
+        XCTAssertEqual(snapshot?.endpoint, ingest)
+        XCTAssertEqual(snapshot?.sdkKey, "k")
+        // Without a recording, nothing is handed off.
+        c.publish(remote: .init(enabled: true, link: .init(status: .linked, owner: .team),
+                                requestTokenFingerprint: DeviceLinkToken.fingerprint(fixtureToken)))
+        XCTAssertEqual(recordings, [recording])
+    }
+
+    func testRecordingForAnotherTokenIsIgnored() {
+        store.save(DeviceLink(token: fixtureToken, owner: .team), endpoint: ingest, sdkKey: "k")
+        let c = makeEnabled(ScriptedTransport())
+        c.publish(remote: .init(enabled: true, link: .init(status: .linked, owner: .team, recording: recording),
+                                requestTokenFingerprint: DeviceLinkToken.fingerprint(otherToken)))
+        c.publish(remote: .init(enabled: true, link: .init(status: .linked, owner: .team, recording: recording)))
+        XCTAssertEqual(recordings, [])
+    }
+
+    func testUnlinkedConfigNeverHandsOffARecording() {
+        store.save(DeviceLink(token: fixtureToken, owner: .team), endpoint: ingest, sdkKey: "k")
+        let c = makeEnabled(ScriptedTransport())
+        c.publish(remote: .init(enabled: true, link: .init(status: .unlinked, owner: nil, recording: recording),
+                                requestTokenFingerprint: DeviceLinkToken.fingerprint(fixtureToken)))
+        XCTAssertEqual(recordings, [])
+        XCTAssertNil(c.recordingSnapshot())
+    }
+
+    func testRecordingSnapshotOnlyForALinkedDeviceSession() {
+        store.save(DeviceLink(token: fixtureToken, owner: .team), endpoint: ingest, sdkKey: "k")
+        let simulator = makeEnabled(ScriptedTransport(), hostMode: .simulator)
+        XCTAssertNil(simulator.recordingSnapshot())
+        simulator.publish(remote: .init(enabled: true, link: .init(status: .linked, owner: .team, recording: recording),
+                                        requestTokenFingerprint: DeviceLinkToken.fingerprint(fixtureToken)))
+        XCTAssertEqual(recordings, [])
+        let device = makeEnabled(ScriptedTransport())
+        device.teardown()
+        XCTAssertNil(device.recordingSnapshot())
     }
 
     func testDeviceUnlinkedClearsOnlyTheTokenSent() {

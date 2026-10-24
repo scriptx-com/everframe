@@ -112,20 +112,33 @@ final class DeviceLinkWireTests: XCTestCase {
     }
 
     func testHostModeResolution() {
-        XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: false, isPhoneOS: true, environment: [:]), .device)
-        XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: true, isPhoneOS: true, environment: [:]), .simulator)
-        XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: true, isPhoneOS: true,
-                                                    environment: ["EVERFRAME_SIMULATE_DEVICE": "1"]), .device)
-        XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: true, isPhoneOS: true,
-                                                    environment: ["EVERFRAME_SIMULATE_DEVICE": "0"]), .simulator)
-        // tvOS simulator
-        XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: true, isPhoneOS: false,
-                                                    environment: ["EVERFRAME_SIMULATE_DEVICE": "1"]), .simulator)
-        // tvOS device
-        XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: false, isPhoneOS: false, environment: [:]), .unsupported)
-        // The switch is ignored on a real device.
-        XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: false, isPhoneOS: false,
-                                                    environment: ["EVERFRAME_SIMULATE_DEVICE": "1"]), .unsupported)
+        let simulate = ["EVERFRAME_SIMULATE_DEVICE": "1"]
+        // A real phone or Apple TV is a device; the switch changes nothing there.
+        for platform in [QuickCaptureDevicePlatform.phone, .tv] {
+            XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: false, platform: platform, environment: [:]), .device)
+            XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: false, platform: platform, environment: simulate), .device)
+        }
+        // Mac Catalyst and macOS never arm.
+        XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: false, platform: .other, environment: [:]), .unsupported)
+        XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: false, platform: .other, environment: simulate), .unsupported)
+        // An iPhone or Apple TV simulator acts as a device only with the switch.
+        for platform in [QuickCaptureDevicePlatform.phone, .tv] {
+            XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: true, platform: platform, environment: simulate), .device)
+            XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: true, platform: platform, environment: [:]), .simulator)
+            XCTAssertEqual(QuickCaptureHostMode.resolve(
+                isSimulator: true, platform: platform, environment: ["EVERFRAME_SIMULATE_DEVICE": "0"]), .simulator)
+        }
+        XCTAssertEqual(QuickCaptureHostMode.resolve(isSimulator: true, platform: .other, environment: simulate), .simulator)
+    }
+
+    func testCurrentDevicePlatform() {
+        #if os(tvOS)
+        XCTAssertEqual(QuickCaptureDevicePlatform.current, .tv)
+        #elseif os(iOS) && !targetEnvironment(macCatalyst)
+        XCTAssertEqual(QuickCaptureDevicePlatform.current, .phone)
+        #else
+        XCTAssertEqual(QuickCaptureDevicePlatform.current, .other)
+        #endif
     }
 
     func testHelloRequestEncodesContractKeys() throws {
