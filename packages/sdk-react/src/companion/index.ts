@@ -49,4 +49,12 @@ export type AttachPinUiMode = web.AttachPinUiMode;
 export type CompanionBadgeOptions = web.CompanionBadgeOptions;
 /** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
 export type BadgePosition = web.BadgePosition;
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+export type ReportSubmit = web.ReportSubmit;
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+export type RelayMessage = web.RelayMessage;
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+export type RelayWSClient = web.RelayWSClient;
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+export type ReportCounts = web.ReportCounts;
 export { useCompanion } from './use-companion.js';

@@ -7,6 +7,8 @@
 // subscribe function returns an unsubscribe without ever calling its handler.
 'use client';
 
+import type { z } from 'zod';
+import type { relay } from '@everframe/protocol';
 import { warnCompanionRemovedOnce } from './deprecation.js';
 
 /**
@@ -67,6 +69,46 @@ export interface CompanionAPI {
   onAttachChallenge(handler: CompanionAttachChallengeHandler): () => void;
 }
 
+// Type-only compatibility: the argument shapes of the old `companion.start()`
+// callbacks, so existing inline callbacks (`msg.title`, `ws.send(...)`) and
+// callbacks annotated with these names keep compiling. Nothing produces these
+// values any more; there is no runtime behind them.
+
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+export type ReportSubmit = z.infer<typeof relay.ReportSubmit>;
+
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+export type RelayMessage =
+  | z.infer<typeof relay.PairCreated>
+  | z.infer<typeof relay.PairBonded>
+  | z.infer<typeof relay.PairExpired>
+  | z.infer<typeof relay.PhoneDisconnected>
+  | z.infer<typeof relay.ReportRequest>
+  | z.infer<typeof relay.ReportAssembled>
+  | z.infer<typeof relay.ReportDraftUpdate>
+  | ReportSubmit
+  | z.infer<typeof relay.ReportCompleted>
+  | z.infer<typeof relay.ReportFailed>
+  | z.infer<typeof relay.ReportRejected>
+  | z.infer<typeof relay.ReportCancelled>;
+
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+export interface RelayWSClient {
+  start(): void;
+  send(msg: RelayMessage): void;
+  sendBinary(bytes: ArrayBuffer): void;
+  stop(): void;
+  getCompanionAttribution(): string | null;
+}
+
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+export interface ReportCounts {
+  logs: number;
+  network: number;
+  uiTreeNodes: number;
+  breadcrumbs?: number;
+}
+
 /** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
 export type AttachPinUiMode = 'builtin' | 'custom' | 'off';
 
@@ -89,11 +131,11 @@ export interface CompanionStartOptions {
   sdkKey?: string;
   deviceLabel?: string;
   attachPinUi?: AttachPinUiMode;
-  counts?: { logs: number; network: number; uiTreeNodes: number; breadcrumbs?: number };
-  // Method syntax on purpose: a callback typed against the removed relay
-  // types stays assignable. Neither is ever called.
-  onReportRequest?(correlationId: string, ws: unknown): void;
-  onReportSubmit?(msg: unknown): void;
+  counts?: ReportCounts;
+  /** Never called. */
+  onReportRequest?: (correlationId: string, ws: RelayWSClient) => void;
+  /** Never called. */
+  onReportSubmit?: (msg: ReportSubmit) => void;
   companionDeviceId?: string | (() => string | Promise<string>);
   companionBadge?: CompanionBadgeOptions;
 }

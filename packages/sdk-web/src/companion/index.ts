@@ -22,4 +22,8 @@ export type {
   AttachPinUiMode,
   CompanionBadgeOptions,
   BadgePosition,
+  ReportSubmit,
+  RelayMessage,
+  RelayWSClient,
+  ReportCounts,
 } from './singleton.js';

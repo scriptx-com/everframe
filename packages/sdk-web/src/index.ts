@@ -139,6 +139,10 @@ export type {
   AttachPinUiMode,
   CompanionBadgeOptions,
   BadgePosition,
+  ReportSubmit,
+  RelayMessage,
+  RelayWSClient,
+  ReportCounts,
 } from './companion/singleton.js';
 
 // ── Test seams ──────────────────────────────────────────────────────────

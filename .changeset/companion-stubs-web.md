@@ -10,13 +10,13 @@
 
 The SDK no longer sends the `X-Everframe-Companion-Attribution` header or declares the `companionbadge` capability; a config that still carries a `companionBadge` block parses and the block is ignored. Crash-only sessions (`reporter: { disabled: true }`) no longer upgrade when a phone pairs.
 
-Kept, deprecated: the `companion` namespace (`start`, `stop`, `createCompanion`), the top-level `start`, `stop`, `createCompanion` and `__getCompanionApi`, the types `CompanionAPI`, `CompanionState`, `CompanionAttachChallenge`, the `Companion*Handler` types, `CompanionStartOptions`, `AttachPinUiMode`, `CompanionBadgeOptions` and `BadgePosition`; in `@everframe/react`, `companion` (the same members plus `useCompanion`), `useCompanion` and `CompanionState`.
+Kept, deprecated: the `companion` namespace (`start`, `stop`, `createCompanion`), the top-level `start`, `stop`, `createCompanion` and `__getCompanionApi`, the types `CompanionAPI`, `CompanionState`, `CompanionAttachChallenge`, the `Companion*Handler` types, `CompanionStartOptions`, `AttachPinUiMode`, `CompanionBadgeOptions` and `BadgePosition`, and, as types only so existing `companion.start()` callbacks keep compiling, `ReportSubmit`, `RelayMessage`, `RelayWSClient` and `ReportCounts`; in `@everframe/react`, `companion` (the same members plus `useCompanion`), `useCompanion` and `CompanionState`.
 
 Removed (undocumented plumbing), from `@everframe/web` and the matching re-exports from `@everframe/react`:
 
 - `announce`, `AnnounceResult` and `AnnounceDeviceBlock`
-- `createRelayWSClient`, `RelayWSClient`, `RelayWSClientOpts`, `RelayMessage` and `ReportSubmit`
-- `handleReportRequest`, `handleCompanionSubmitText`, `handleCompanionSubmitBinary` and `ReportCounts`
+- `createRelayWSClient` and `RelayWSClientOpts`
+- `handleReportRequest`, `handleCompanionSubmitText` and `handleCompanionSubmitBinary`
 - every `__*Companion*` seam except `__getCompanionApi` (`__setCompanionHost`, `__getCompanionHost`, `__companionSeamTicket`, `__watchCompanionBond`, `__setCompanionDefaults`, `__getCompanionRunning`, `__onCompanionRunning`, `__getAttachPinUiMode`, `__getCompanionBadgeConfig`, `__setCompanionBadgeServerConfig`, `__getCompanionBadgeServerConfig`, `__subscribeCompanionBadgeServerConfig`) and the `CompanionHost` / `CompanionSeamTicket` types
 - `__resetDeviceIdForTests`
 - the `__setCompanionAttached` adapter seam
