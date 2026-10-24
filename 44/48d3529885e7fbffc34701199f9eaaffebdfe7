@@ -1,0 +1,247 @@
+.changeset/vega-capture-gesture.md
+  s_f1c043e85606b2::t_8343108c6df18a 1-8
+.changeset/vega-device-linking.md
+  s_f1c043e85606b2::t_1ccb222c075ee4 1-8
+.changeset/web-tv-capture-gesture.md
+  s_f1c043e85606b2::t_45805e6851f1ba 1-9
+.changeset/web-tv-device-linking.md
+  s_f1c043e85606b2::t_832957c9fdaa9d 1-9
+packages/sdk-core/__tests__/frozen-state.spec.ts
+  s_f1c043e85606b2::t_bf4ad57a616710 1-35
+packages/sdk-core/__tests__/replay/device-link-config.spec.ts
+  s_f1c043e85606b2::t_07965fa87f1f0c 1-252
+packages/sdk-core/__tests__/replay/lifecycle-forced.spec.ts
+  s_f1c043e85606b2::t_5ae180f9da742b 1-271
+packages/sdk-core/src/breadcrumbs/buffer.ts
+  s_f1c043e85606b2::t_84d3af3e21cc96 54-58,135-138
+packages/sdk-core/src/capture/network-body-buffer.ts
+  s_f1c043e85606b2::t_15f43d5d9ab666 37-41,151-153
+packages/sdk-core/src/index.ts
+  s_f1c043e85606b2::t_d5231613009d33 81,153-158
+packages/sdk-core/src/types/replay/config-provider.ts
+  s_f1c043e85606b2::t_d1e67f2d4c207d 78-141,385-389,447-454,506-512,582,589-592,606-616,632-640,642,683,689
+packages/sdk-core/src/types/replay/index.ts
+  s_f1c043e85606b2::t_8e6bb09c19aed4 31-36
+packages/sdk-core/src/types/replay/lifecycle.ts
+  s_f1c043e85606b2::t_5aabb3b1b0fff9 73-79,100-106,121,124-127,138-142,145-198,224-231,252-260,262,295,309,323-324,327-351
+packages/sdk-react/README.md
+  s_f1c043e85606b2::t_69de92f4c9bec4 137-144
+packages/sdk-react/__tests__/provider-quick-capture.spec.tsx
+  s_f1c043e85606b2::t_23033e452ed7d7 1-116
+packages/sdk-react/src/provider.tsx
+  s_f1c043e85606b2::t_c77b338e716cfe 30,218-223,318-334,599,803
+packages/sdk-vega/README.md
+  s_f1c043e85606b2::t_92890ea03408f1 20-21,29,87,92-202
+packages/sdk-vega/__tests__/client.spec.ts
+  s_f1c043e85606b2::t_3a20a53466cb72 4-12,507-672
+packages/sdk-vega/__tests__/device-link.spec.ts
+  s_f1c043e85606b2::t_4cc7bfe9f91e43 1-614
+packages/sdk-vega/__tests__/dist.spec.ts
+  s_f1c043e85606b2::t_29127a14400818 85-90,105-109
+packages/sdk-vega/__tests__/envelope.spec.ts
+  s_f1c043e85606b2::t_636da4b787cab5 5-6,132-163
+packages/sdk-vega/__tests__/fakes.ts
+  s_f1c043e85606b2::t_b44a874dcc1868 121,125-150,156-164,166-168,170-184,188-204,207-212,215-217,219,221-240,242,245,247-249
+packages/sdk-vega/__tests__/gesture-detector.spec.ts
+  s_f1c043e85606b2::t_951cd0c282c809 1-419
+packages/sdk-vega/__tests__/gesture-recording.spec.ts
+  s_f1c043e85606b2::t_33bb4d984fd5be 1-382
+packages/sdk-vega/__tests__/index.spec.ts
+  s_f1c043e85606b2::t_5d61e342820290 54-80
+packages/sdk-vega/__tests__/link-client.spec.ts
+  s_f1c043e85606b2::t_2642cc4ce88230 1-309
+packages/sdk-vega/__tests__/link-store.spec.ts
+  s_f1c043e85606b2::t_11b2061f101919 1-112
+packages/sdk-vega/__tests__/link-token.spec.ts
+  s_f1c043e85606b2::t_eb458302b96b8e 1-141
+packages/sdk-vega/__tests__/outbox.spec.ts
+  s_f1c043e85606b2::t_7c0e91cc663594 123-148
+packages/sdk-vega/__tests__/overlay-roots.spec.ts
+  s_f1c043e85606b2::t_53f0399a9b627e 1-156
+packages/sdk-vega/__tests__/overlay.spec.ts
+  s_f1c043e85606b2::t_c169b875eedff2 1-296
+packages/sdk-vega/__tests__/quick-capture.spec.ts
+  s_f1c043e85606b2::t_ee0886768ae3ef 1-984
+packages/sdk-vega/__tests__/remote-config.spec.ts
+  s_f1c043e85606b2::t_c4ada1e0eba6ef 1-271
+packages/sdk-vega/__tests__/remote-keys.spec.ts
+  s_f1c043e85606b2::t_98a1feb749b369 1-68
+packages/sdk-vega/__tests__/stubs/react-native.ts
+  s_f1c043e85606b2::t_bb2c3736f97646 7,37-69
+packages/sdk-vega/__tests__/transport.spec.ts
+  s_f1c043e85606b2::t_a313b508305c1c 4,69-200
+packages/sdk-vega/package.json
+  s_f1c043e85606b2::t_c1079b0329ac4a 60,67,69,71-72
+packages/sdk-vega/src/client.ts
+  s_f1c043e85606b2::t_b9d7c0d345752a 17-27,37-61,63-68,104-107,134-159,163-166,218,243-258,343-422,424-427,442,449,473-476,493,496-497,504-513,533-661,663-780,932-938,974-989
+packages/sdk-vega/src/config.ts
+  s_f1c043e85606b2::t_4d307d30badd0c 80-87,104-106,148-149
+packages/sdk-vega/src/device-link.ts
+  s_f1c043e85606b2::t_fc2edaa9534712 1-263
+packages/sdk-vega/src/envelope.ts
+  s_f1c043e85606b2::t_6bb2f0ca39b42e 214-257
+packages/sdk-vega/src/gesture-detector.ts
+  s_f1c043e85606b2::t_0a1f5ed26646bb 1-200
+packages/sdk-vega/src/gesture-recording.ts
+  s_f1c043e85606b2::t_49c5bed01ebd61 1-187
+packages/sdk-vega/src/index.ts
+  s_f1c043e85606b2::t_2149daefba516f 13-14,25-26,59-69
+packages/sdk-vega/src/link-client.ts
+  s_f1c043e85606b2::t_99bc86afe5b9c8 1-143
+packages/sdk-vega/src/link-copy.ts
+  s_f1c043e85606b2::t_d950443132894d 1-33
+packages/sdk-vega/src/link-store.ts
+  s_f1c043e85606b2::t_0513b975b0e48b 1-97
+packages/sdk-vega/src/link-token.ts
+  s_f1c043e85606b2::t_456970cddb1714 1-126
+packages/sdk-vega/src/outbox.ts
+  s_f1c043e85606b2::t_6f4725e6e7018c 38-45,85-88
+packages/sdk-vega/src/overlay.ts
+  s_f1c043e85606b2::t_a58b1b01134793 1-366
+packages/sdk-vega/src/quick-capture.ts
+  s_f1c043e85606b2::t_9476855d1e1a1a 1-59
+packages/sdk-vega/src/react-native-tv.d.ts
+  s_f1c043e85606b2::t_fe80b3a142f891 1-14
+packages/sdk-vega/src/release-health.ts
+  s_f1c043e85606b2::t_9f38391ed0bbbd 23-58,223-227
+packages/sdk-vega/src/remote-config.ts
+  s_f1c043e85606b2::t_2ffd37c4bb6858 1-133
+packages/sdk-vega/src/remote-keys.ts
+  s_f1c043e85606b2::t_97e5dcddcde5e6 1-79
+packages/sdk-vega/src/transport.ts
+  s_f1c043e85606b2::t_2371469ee23e12 8,10-30,39-41,59-62,64,66,68-107,109,116,120,125-226
+packages/sdk-vega/tsup.config.ts
+  s_f1c043e85606b2::t_0ece306373ad71 32
+packages/sdk-web/.size-limit.json
+  s_f1c043e85606b2::t_bacc20334590c6 13-14,28-29
+packages/sdk-web/README.md
+  s_f1c043e85606b2::t_5b2b1cafad3b47 378-469
+packages/sdk-web/__tests__/capture/network-device-link.spec.ts
+  s_f1c043e85606b2::t_c454a00868b71d 1-187
+packages/sdk-web/__tests__/devicelink/gesture-rule.spec.ts
+  s_f1c043e85606b2::t_b67e79efed9c40 1-102
+packages/sdk-web/__tests__/devicelink/store.spec.ts
+  s_f1c043e85606b2::t_df209b4feb39fd 1-156
+packages/sdk-web/__tests__/devicelink/token.spec.ts
+  s_f1c043e85606b2::t_a40e8ce8072c49 1-136
+packages/sdk-web/__tests__/devicelink/tv-platform.spec.ts
+  s_f1c043e85606b2::t_f15f128793b0e1 1-136
+packages/sdk-web/__tests__/quickcapture/adapter-device-link.spec.ts
+  s_f1c043e85606b2::t_82eebc4b7b8eff 1-337
+packages/sdk-web/__tests__/quickcapture/device-link.spec.ts
+  s_f1c043e85606b2::t_ce09f9158589ab 1-433
+packages/sdk-web/__tests__/quickcapture/gesture-detector.spec.ts
+  s_f1c043e85606b2::t_3e65a1ebe6d112 1-296
+packages/sdk-web/__tests__/quickcapture/install.spec.ts
+  s_f1c043e85606b2::t_893a8026e1d889 1-365
+packages/sdk-web/__tests__/quickcapture/key-listener.spec.ts
+  s_f1c043e85606b2::t_25793f7ffc2131 1-529
+packages/sdk-web/__tests__/quickcapture/link-client.spec.ts
+  s_f1c043e85606b2::t_195393b8fbbd20 1-303
+packages/sdk-web/__tests__/quickcapture/overlay.spec.ts
+  s_f1c043e85606b2::t_019fdddbdf76c6 1-141
+packages/sdk-web/__tests__/quickcapture/pipeline.spec.ts
+  s_f1c043e85606b2::t_87fabedab1f088 1-604
+packages/sdk-web/__tests__/quickcapture/recorder.spec.ts
+  s_f1c043e85606b2::t_2d93aaa2416d12 1-88
+packages/sdk-web/__tests__/quickcapture/recording.spec.ts
+  s_f1c043e85606b2::t_7e2592e029df96 1-227
+packages/sdk-web/__tests__/quickcapture/remote-keys.spec.ts
+  s_f1c043e85606b2::t_2ddf4a08bb931b 1-250
+packages/sdk-web/__tests__/quickcapture/runtime-gesture.spec.ts
+  s_f1c043e85606b2::t_3bb17acbf6f123 1-341
+packages/sdk-web/__tests__/quickcapture/tizen-keys.spec.ts
+  s_f1c043e85606b2::t_4585c4ebe94e25 1-205
+packages/sdk-web/__tests__/transport/drain-device-link.spec.ts
+  s_f1c043e85606b2::t_21d7ff8c1837f5 1-264
+packages/sdk-web/__tests__/transport/submit-device-link.spec.ts
+  s_f1c043e85606b2::t_74fbaecc2b7256 1-289
+packages/sdk-web/e2e/fixtures/tv-quick-capture.html
+  s_f1c043e85606b2::t_f5b1f19bf2a5c7 1-42
+packages/sdk-web/e2e/tv-quick-capture.spec.ts
+  s_f1c043e85606b2::t_bc92d1cbc9d085 1-227
+packages/sdk-web/perf/README.md
+  s_f1c043e85606b2::t_eaa36706a1c53b 230-273
+packages/sdk-web/perf/tv-device-harness.mjs
+  s_f1c043e85606b2::t_40c0ee7101b937 10-14,17,34-36,47,51,77,79-89,95-103,165-175,210-213,229-233
+packages/sdk-web/perf/tv-device/keys-entry.ts
+  s_f1c043e85606b2::t_49ccde8ae84d0b 1-172
+packages/sdk-web/perf/tv-device/keys.html
+  s_f1c043e85606b2::t_8ef182b8129b42 1-31
+packages/sdk-web/perf/tv-device/tizen-app/config.xml
+  s_f1c043e85606b2::t_191b9fadd0152f 1-18
+packages/sdk-web/src/adapter.ts
+  s_f1c043e85606b2::t_94559eaae7b010 93,96-100,494-530,611-649,884-919,1147-1152,1155-1166,1200-1202,1229-1231,1342-1368,1935,2531-2586,2611-2621
+packages/sdk-web/src/capture/network.ts
+  s_f1c043e85606b2::t_e5ce9f869e2e60 9-10,263-264,271-273,276-308,570,577,592,596,729,833
+packages/sdk-web/src/devicelink/gesture-rule.ts
+  s_f1c043e85606b2::t_620b29aeb83654 1-67
+packages/sdk-web/src/devicelink/store.ts
+  s_f1c043e85606b2::t_5b6b58627e6ad8 1-163
+packages/sdk-web/src/devicelink/token.ts
+  s_f1c043e85606b2::t_115ae138f97ae3 1-116
+packages/sdk-web/src/devicelink/tv-platform.ts
+  s_f1c043e85606b2::t_4999d5024f8a0a 1-50
+packages/sdk-web/src/index.ts
+  s_f1c043e85606b2::t_b13bbf2cff5eaf 147-154
+packages/sdk-web/src/init.ts
+  s_f1c043e85606b2::t_66918d6b718d53 31,126-127,335-347,378-383,446,453,1038-1039,1081
+packages/sdk-web/src/internal/types.ts
+  s_f1c043e85606b2::t_50999f01bdc9c6 57-63
+packages/sdk-web/src/quickcapture/copy.ts
+  s_f1c043e85606b2::t_93b06b73fd06b8 1-32
+packages/sdk-web/src/quickcapture/device-link.ts
+  s_f1c043e85606b2::t_4178bc829d0731 1-309
+packages/sdk-web/src/quickcapture/gesture-detector.ts
+  s_f1c043e85606b2::t_a3e080900fe923 1-189
+packages/sdk-web/src/quickcapture/hello-device.ts
+  s_f1c043e85606b2::t_eea43efb343ba3 1-129
+packages/sdk-web/src/quickcapture/host.ts
+  s_f1c043e85606b2::t_df4b87a17efc57 1-25
+packages/sdk-web/src/quickcapture/install.ts
+  s_f1c043e85606b2::t_888278db77ff57 1-143
+packages/sdk-web/src/quickcapture/key-listener.ts
+  s_f1c043e85606b2::t_1ea6daf0adfb7e 1-351
+packages/sdk-web/src/quickcapture/link-client.ts
+  s_f1c043e85606b2::t_a7e0a6a9595dc7 1-198
+packages/sdk-web/src/quickcapture/overlay.ts
+  s_f1c043e85606b2::t_63c61a7520bc35 1-185
+packages/sdk-web/src/quickcapture/pipeline.ts
+  s_f1c043e85606b2::t_1d6be1990f0618 1-321
+packages/sdk-web/src/quickcapture/quick-capture-runtime.ts
+  s_f1c043e85606b2::t_2aed5f1da71ca1 1-293
+packages/sdk-web/src/quickcapture/recorder.ts
+  s_f1c043e85606b2::t_2b495ef4344208 1-64
+packages/sdk-web/src/quickcapture/recording.ts
+  s_f1c043e85606b2::t_9e740971affdb7 1-130
+packages/sdk-web/src/quickcapture/remote-keys.ts
+  s_f1c043e85606b2::t_6006c3114cac59 1-314
+packages/sdk-web/src/quickcapture/tizen-keys.ts
+  s_f1c043e85606b2::t_e545e621f05878 1-145
+packages/sdk-web/src/transport/device-link-upload.ts
+  s_f1c043e85606b2::t_d43a398a618ecd 1-96
+packages/sdk-web/src/transport/draft-to-envelope.ts
+  s_f1c043e85606b2::t_c2864c5490835c 247-251,449-452
+packages/sdk-web/src/transport/submit.ts
+  s_f1c043e85606b2::t_47edbee59d6ce6 26-35,213-220,314-329,338,434-486,490,525-526,532,552-579,588-590,628-633,789-830,866-873,912,952,985-992
+packages/sdk-web/src/triggers/hotkey.ts
+  s_f1c043e85606b2::t_702c47a79a1b9d 96-97
+pnpm-lock.yaml
+  s_f1c043e85606b2::t_88c5d6650d9e73 638-640,644-646,650-655
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4448d3529885e7fbffc34701199f9eaaffebdfe7",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
