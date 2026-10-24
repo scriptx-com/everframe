@@ -16,8 +16,11 @@ import {
 } from './config.js';
 import { createDeviceLink, type DeviceLink } from './device-link.js';
 import {
+  bindingsEqual,
   createGestureDetector,
   DEFAULT_TV_BINDING,
+  resolveTvBinding,
+  type GestureBinding,
   type GestureDetector,
 } from './gesture-detector.js';
 import { buildQuickCaptureEnvelope, buildVegaEnvelope } from './envelope.js';
@@ -153,6 +156,8 @@ export const FATAL_HANDOFF_MS = 1500;
 export const RETRY_DELAYS_MS = [2_000, 10_000, 60_000, 300_000] as const;
 /** A linked device re-reads `/api/config` when it comes to the foreground, at most this often. */
 export const FOREGROUND_REFRESH_MS = 10_000;
+export const UNSUPPORTED_BINDING_WARNING =
+  '[everframe] the capture gesture uses keys a Vega remote does not have; quick capture is off on this device';
 const AUTOMATIC_KEYS_MAX = 10;
 const VALUE_KEYS_MAX = 5;
 const HANDLED_KEYS_MAX = 10;
@@ -238,6 +243,9 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
   let lastConfigAt = -Infinity;
   let gestureBusy = false;
   let detector: GestureDetector | undefined;
+  /** The binding in effect; null when the app's binding uses keys Vega lacks. */
+  let tvBinding: GestureBinding | null = DEFAULT_TV_BINDING;
+  let warnedUnsupported = false;
   let lastGestureAt = -Infinity;
 
   function admit(mechanism: Mechanism, fatal: boolean, key: string, value: unknown): boolean {
@@ -581,14 +589,34 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
     }
   }
 
+  const gestureArmed = (): boolean => tvBinding !== null && isArmed(gestureInput());
+
+  /**
+   * The app's binding from a config reply. The detector is rebuilt only when
+   * the binding changes by value, so a routine refresh never resets a press
+   * in progress; a change drops the old detector and its pending hold.
+   */
+  function applyBinding(cfg: RemoteConfig): void {
+    const resolved = resolveTvBinding(cfg.tvBinding);
+    if (resolved.unsupported && !warnedUnsupported) {
+      warnedUnsupported = true;
+      debug(UNSUPPORTED_BINDING_WARNING);
+    }
+    if (bindingsEqual(resolved.binding, tvBinding)) return;
+    tvBinding = resolved.binding;
+    detector?.reset();
+    detector = undefined;
+  }
+
   /**
    * One remote key from the root wrapper. A disarmed device (every end user
-   * of a release build that is not linked, or an app with linking off) does
-   * no work per key: no detector, no timer. Keys are only observed, never
-   * consumed, so the app receives each one exactly as before.
+   * of a release build that is not linked, an app with linking off, or a
+   * binding this remote cannot press) does no work per key: no detector, no
+   * timer. Keys are only observed, never consumed, so the app receives each
+   * one exactly as before.
    */
   function onRemoteKey(event: HWEventLike): void {
-    if (!isArmed(gestureInput())) {
+    if (!gestureArmed() || !tvBinding) {
       detector?.reset();
       return;
     }
@@ -596,12 +624,16 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
     if (!action) return;
     const key = keyForVegaEvent(event?.eventType);
     if (!detector) {
-      detector = createGestureDetector(DEFAULT_TV_BINDING, {
+      const created = createGestureDetector(tvBinding, {
         now: env.now,
         setTimeout: env.setTimeout,
         clearTimeout: env.clearTimeout,
-        onFire: onGesture,
+        // A hold that ends after its binding was replaced does nothing.
+        onFire: () => {
+          if (detector === created) onGesture();
+        },
       });
+      detector = created;
     }
     detector.onKey(key, action);
   }
@@ -621,6 +653,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
         configApplied = seq;
         remote = next;
         link.applyConfig(sent, next);
+        applyBinding(next);
       })
       .catch(() => undefined);
   }
@@ -882,7 +915,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
       }
     },
     gestureInput,
-    armed: () => isArmed(gestureInput()),
+    armed: gestureArmed,
     refreshConfig,
     quickCaptureParts: () => ({
       ...(overlay ? { overlay } : {}),

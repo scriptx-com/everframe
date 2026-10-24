@@ -566,7 +566,7 @@ describe('quick capture wiring', () => {
     expect(w.configs()).toHaveLength(1);
     expect(w.configs()[0]!.headers['X-Everframe-Capture-Token']).toBe(TOKEN);
     expect(w.configs()[0]!.headers['X-Everframe-SDK-Features']).toBe(
-      'capturehotkey, devicelinking',
+      'capturehotkey, devicelinking, capturegesture',
     );
   });
 

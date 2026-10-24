@@ -60,12 +60,13 @@ async function setup(
     config?: unknown;
     storage?: FakeStorage;
     model?: string;
+    dev?: boolean;
   } = {},
 ): Promise<Setup> {
   const storage = opts.storage ?? createStorage();
   if (opts.link) storedLink(storage, opts.link, opts.owner);
   const registry: AppRegistryLike = { setWrapperComponentProvider: () => undefined };
-  const h = createEnv({ appRegistry: registry });
+  const h = createEnv({ appRegistry: registry, dev: opts.dev ?? false });
   h.fetch.route('GET', '/api/config', (req) => {
     const token = req.headers['X-Everframe-Capture-Token'];
     const base = (opts.config ?? CONFIG) as Record<string, any>;
@@ -580,5 +581,141 @@ describe('quick capture on a device', () => {
       },
     ];
     for (const event of garbage) expect(() => client.onRemoteKey(event as never)).not.toThrow();
+  });
+});
+
+/** Vega's shape of a held key: one down, repeated downs from ~530 ms every 200 ms, one up. */
+async function holdKey(client: Setup['client'], eventType: string, ms: number) {
+  client.onRemoteKey({ eventType, eventKeyAction: 0 });
+  let t = 0;
+  for (let next = 530; next < ms; next += 200) {
+    await vi.advanceTimersByTimeAsync(next - t);
+    t = next;
+    client.onRemoteKey({ eventType, eventKeyAction: 0 });
+  }
+  await vi.advanceTimersByTimeAsync(ms - t);
+  client.onRemoteKey({ eventType, eventKeyAction: 1 });
+}
+
+async function tapKey(client: Setup['client'], eventType: string, gapMs = 200) {
+  client.onRemoteKey({ eventType, eventKeyAction: 0 });
+  await vi.advanceTimersByTimeAsync(60);
+  client.onRemoteKey({ eventType, eventKeyAction: 1 });
+  await vi.advanceTimersByTimeAsync(gapMs);
+}
+
+const UNSUPPORTED_WARNING =
+  '[everframe] the capture gesture uses keys a Vega remote does not have; quick capture is off on this device';
+const KONAMI = {
+  kind: 'sequence',
+  keys: ['DPAD_UP', 'DPAD_UP', 'DPAD_DOWN', 'DPAD_DOWN'],
+  windowMs: 1000,
+};
+
+describe('capture gesture binding on a device', () => {
+  it('sequenceBindingTakesACapture', async () => {
+    const { h, client } = await setup({
+      link: TOKEN_A,
+      config: { ...CONFIG, captureGesture: { tv: KONAMI } },
+    });
+    // The default long press no longer captures.
+    await holdKey(client, 'playpause', 2000);
+    await vi.advanceTimersByTimeAsync(CAPTURE_COOLDOWN_MS);
+    expect(ingest(h)).toHaveLength(0);
+    for (const key of ['up', 'up', 'down', 'down']) await tapKey(client, key);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest(h)).toHaveLength(1);
+  });
+
+  it('invalidBindingFallsBackToDefault', async () => {
+    const { h, client } = await setup({
+      link: TOKEN_A,
+      config: {
+        ...CONFIG,
+        captureGesture: { tv: { kind: 'longPress', keys: ['MEDIA_PLAY_PAUSE'], holdMs: 99 } },
+      },
+    });
+    expect(client.armed()).toBe(true);
+    await holdKey(client, 'playpause', 1600);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest(h)).toHaveLength(1);
+  });
+
+  it('letterBindingDisarmsWithOneDevWarning', async () => {
+    const { h, client } = await setup({
+      link: TOKEN_A,
+      dev: true,
+      debug: true,
+      config: { ...CONFIG, captureGesture: { tv: { kind: 'chord', keys: ['SHIFT', 'B'] } } },
+    });
+    expect(client.armed()).toBe(false);
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(0);
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.warnings.filter((w) => w === UNSUPPORTED_WARNING)).toHaveLength(1);
+    await holdKey(client, 'playpause', 2000);
+    for (const key of ['up', 'up', 'down', 'down']) await tapKey(client, key);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(ingest(h)).toHaveLength(0);
+    expect(hellos(h)).toHaveLength(0);
+  });
+
+  it('unsupportedBindingWarnsNothingInRelease', async () => {
+    const { h } = await setup({
+      link: TOKEN_A,
+      config: { ...CONFIG, captureGesture: { tv: { kind: 'chord', keys: ['SHIFT', 'B'] } } },
+    });
+    expect(h.warnings).toEqual([]);
+  });
+
+  it('equalBindingKeepsDetector', async () => {
+    const { h, client } = await setup({
+      link: TOKEN_A,
+      config: {
+        ...CONFIG,
+        captureGesture: { tv: { kind: 'longPress', keys: ['MEDIA_PLAY_PAUSE'], holdMs: 1500 } },
+      },
+    });
+    const start = Date.now();
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    await vi.advanceTimersByTimeAsync(1000);
+    // A routine refresh with the same binding mid-press.
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(499);
+    expect(ingest(h)).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(ingest(h)).toHaveLength(1);
+    expect(Date.now() - start).toBe(1500);
+  });
+
+  it('aPendingHoldDoesNotFireAfterTheBindingChanges', async () => {
+    const config: Record<string, unknown> = { ...CONFIG };
+    const { h, client } = await setup({ link: TOKEN_A, config });
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    await vi.advanceTimersByTimeAsync(1000);
+    config.captureGesture = { tv: KONAMI };
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(ingest(h)).toHaveLength(0);
+  });
+
+  it('aPendingHoldDoesNotFireOnceTheBindingIsUnsupported', async () => {
+    const config: Record<string, unknown> = { ...CONFIG };
+    const { h, client } = await setup({ link: TOKEN_A, config });
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    await vi.advanceTimersByTimeAsync(1000);
+    config.captureGesture = { tv: { kind: 'longPress', keys: ['PROG_RED'], holdMs: 1500 } };
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(ingest(h)).toHaveLength(0);
+    expect(client.armed()).toBe(false);
+  });
+
+  it('featuresHeaderOnTheDeviceHasCapturegesture', async () => {
+    const { h } = await setup({ link: TOKEN_A });
+    expect(configs(h)[0]!.headers['X-Everframe-SDK-Features']).toBe(
+      'capturehotkey, devicelinking, capturegesture',
+    );
   });
 });
