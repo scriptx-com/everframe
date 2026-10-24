@@ -1,0 +1,31 @@
+.changeset/vega-device-linking.md
+  s_f1c043e85606b2::t_99d301b7b15975 1-8
+packages/sdk-vega/README.md
+  s_f1c043e85606b2::t_d5861b80f3abc2 20-21,29,87,92-157
+packages/sdk-vega/__tests__/client.spec.ts
+  s_f1c043e85606b2::t_fe3998dadd7b33 4-12,507-672
+packages/sdk-vega/__tests__/dist.spec.ts
+  s_f1c043e85606b2::t_127fc59bdee52a 89-90,105-109
+packages/sdk-vega/__tests__/index.spec.ts
+  s_f1c043e85606b2::t_b2e10e1ee9b518 54-80
+packages/sdk-vega/src/client.ts
+  s_f1c043e85606b2::t_7b4c1d47d0360e 154-155,238,611,652-654,660-679
+packages/sdk-vega/src/index.ts
+  s_f1c043e85606b2::t_46a409478faed1 13-14,25-26,59-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dbd52998ff4e3c61cbaacbe4d22d05d2b5afc89d",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
