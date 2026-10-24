@@ -485,4 +485,97 @@ describe('quick capture on a device', () => {
     expect(JSON.stringify(client.getStatus())).not.toContain('evf_dev_');
     expect(h.warnings.join('\n')).not.toContain('evf_dev_');
   });
+
+  it('longPressPlayPauseTakesACapture', async () => {
+    const { h, client } = await setup({ link: TOKEN_A });
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    for (let t = 530; t < 2000; t += 200) {
+      await vi.advanceTimersByTimeAsync(t === 530 ? 530 : 200);
+      client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    }
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 1 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest(h)).toHaveLength(1);
+  });
+
+  it('tapsAndHeldDpadTakeNoCapture', async () => {
+    const { h, client } = await setup({ link: TOKEN_A });
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    await vi.advanceTimersByTimeAsync(150);
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 1 });
+    client.onRemoteKey({ eventType: 'down', eventKeyAction: 0 });
+    for (let i = 0; i < 15; i++) {
+      await vi.advanceTimersByTimeAsync(200);
+      client.onRemoteKey({ eventType: 'down', eventKeyAction: 0 });
+    }
+    client.onRemoteKey({ eventType: 'down', eventKeyAction: 1 });
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(ingest(h)).toHaveLength(0);
+  });
+
+  it('disarmedDeviceDoesNoWorkPerKey', async () => {
+    const storage = createStorage();
+    const registry: AppRegistryLike = { setWrapperComponentProvider: () => undefined };
+    let timers = 0;
+    const h = createEnv({
+      appRegistry: registry,
+      setTimeout: (fn, ms) => {
+        timers++;
+        return setTimeout(fn, ms);
+      },
+    });
+    // An end user's release build: not linked, linking off.
+    h.fetch.route('GET', '/api/config', {
+      status: 200,
+      body: { captureHotkey: { enabled: true }, deviceLinking: { enabled: false } },
+    });
+    const client = createVegaClient(h.env);
+    client.init({
+      sdkKey: KEY,
+      endpoint: ENDPOINT,
+      storage,
+      debugBuild: false,
+      appVersion: '1.0.0',
+    });
+    client.quickCaptureParts().overlay!.setMounted(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(client.armed()).toBe(false);
+    const before = timers;
+    for (let i = 0; i < 20; i++) {
+      client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+      client.onRemoteKey({ eventType: 'down', eventKeyAction: 0 });
+    }
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(timers).toBe(before);
+    expect(h.fetch.all.filter((r) => !r.url.endsWith('/api/config'))).toEqual([]);
+  });
+
+  it('aHoldThatFiresAfterDisarmDoesNothing', async () => {
+    const { h, client } = await setup({ link: TOKEN_A });
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    await vi.advanceTimersByTimeAsync(1000);
+    client.quickCaptureParts().overlay!.setMounted(false);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(ingest(h)).toHaveLength(0);
+  });
+
+  it('onRemoteKeyNeverThrows', async () => {
+    const { client } = await setup({ link: TOKEN_A });
+    const garbage: unknown[] = [
+      undefined,
+      null,
+      42,
+      'playpause',
+      {},
+      { eventType: {}, eventKeyAction: 'x' },
+      { eventType: 'playpause', eventKeyAction: 7 },
+      Object.create(null),
+      {
+        get eventType() {
+          throw new Error('getter');
+        },
+      },
+    ];
+    for (const event of garbage) expect(() => client.onRemoteKey(event as never)).not.toThrow();
+  });
 });

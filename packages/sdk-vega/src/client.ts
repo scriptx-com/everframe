@@ -15,6 +15,11 @@ import {
   type VegaUser,
 } from './config.js';
 import { createDeviceLink, type DeviceLink } from './device-link.js';
+import {
+  createGestureDetector,
+  DEFAULT_TV_BINDING,
+  type GestureDetector,
+} from './gesture-detector.js';
 import { buildQuickCaptureEnvelope, buildVegaEnvelope } from './envelope.js';
 import { extractFacts, isErrorValue, renderLabel, renderValue } from './error-facts.js';
 import { uuidV4 } from './ids.js';
@@ -48,6 +53,7 @@ import {
   type GestureInput,
 } from './quick-capture.js';
 import { fetchRemoteConfig, type RemoteConfig } from './remote-config.js';
+import { keyAction, keyForVegaEvent } from './remote-keys.js';
 import { sendReport, type FetchLike, type SendDeps } from './transport.js';
 import { SDK_VERSION } from './version.js';
 import { createReleaseHealth, HEALTH_OUTBOX_KEY, type AppStateLike } from './release-health.js';
@@ -228,6 +234,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
   let configSeq = 0;
   let configApplied = 0;
   let gestureBusy = false;
+  let detector: GestureDetector | undefined;
   let lastGestureAt = -Infinity;
 
   function admit(mechanism: Mechanism, fatal: boolean, key: string, value: unknown): boolean {
@@ -568,8 +575,29 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
     }
   }
 
-  function onRemoteKey(_event: HWEventLike): void {
-    // Task 8 wires the gesture detector.
+  /**
+   * One remote key from the root wrapper. A disarmed device (every end user
+   * of a release build that is not linked, or an app with linking off) does
+   * no work per key: no detector, no timer. Keys are only observed, never
+   * consumed, so the app receives each one exactly as before.
+   */
+  function onRemoteKey(event: HWEventLike): void {
+    if (!isArmed(gestureInput())) {
+      detector?.reset();
+      return;
+    }
+    const action = keyAction(event?.eventKeyAction);
+    if (!action) return;
+    const key = keyForVegaEvent(event?.eventType);
+    if (!detector) {
+      detector = createGestureDetector(DEFAULT_TV_BINDING, {
+        now: env.now,
+        setTimeout: env.setTimeout,
+        clearTimeout: env.clearTimeout,
+        onFire: onGesture,
+      });
+    }
+    detector.onKey(key, action);
   }
 
   function refreshConfig(): void {
