@@ -1,0 +1,27 @@
+packages/sdk-ios/README.md
+  s_f1c043e85606b2::t_b54c441b99a624 650-652
+packages/sdk-ios/Sources/Everframe/DeviceLink/GestureRecording.swift
+  s_f1c043e85606b2::t_f16741abc216af 11-15,22-24,41-50,61-64,77-97,101-106,113-115,125-126,130-155,172-173,175
+packages/sdk-ios/Sources/Everframe/QuickCapture/TvGestureInput.swift
+  s_f1c043e85606b2::t_12b43467bcb1b6 102-106,109-123,125-126,153-157,160,163,169,175,185,187,198,202,204
+packages/sdk-ios/Tests/EverframeTests/GestureRecordingTests.swift
+  s_f1c043e85606b2::t_cc7e55e28fc41a 75-77,80-82,109-113,225-271
+packages/sdk-ios/Tests/EverframeTests/TvGestureInputTests.swift
+  s_f1c043e85606b2::t_ec860ef959f1c5 371-408
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "555bd069773e7f6495762e28d52eccf792955109",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
