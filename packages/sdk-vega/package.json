@@ -57,14 +57,18 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
+    "react": ">=18",
     "react-native": ">=0.72"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.0",
     "@everframe/protocol": "workspace:*",
     "@everframe/sdk-core": "workspace:*",
+    "@types/react": "^19.0.0",
     "acorn": "^8.11.0",
     "publint": "^0.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "tsup": "^8.0.0",
     "vitest": "^4.0.0"
   }

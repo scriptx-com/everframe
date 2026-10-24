@@ -82,9 +82,14 @@ describe('published bundle', () => {
     expect(FORBIDDEN_GLOBALS.filter((name) => names.has(name))).toEqual([]);
   });
 
-  it('imports only react-native and inlines everything else', () => {
-    const imports = [...code.matchAll(/^import\s.*?from\s+["']([^"']+)["']/gm)].map((m) => m[1]);
-    expect(imports).toEqual(['react-native']);
+  it('imports only react and react-native and inlines everything else', () => {
+    const imports = [...code.matchAll(/^import\s[\s\S]*?from\s+["']([^"']+)["']/gm)].map(
+      (m) => m[1],
+    );
+    // `react` arrives with the root wrapper once init() installs it.
+    expect([...new Set(imports)].every((name) => name === 'react' || name === 'react-native')).toBe(
+      true,
+    );
     expect(code).not.toMatch(/from ["'](?:zod|@everframe\/|@noble\/)/);
   });
 
