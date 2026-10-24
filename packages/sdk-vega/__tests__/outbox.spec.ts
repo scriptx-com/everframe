@@ -120,6 +120,32 @@ describe('outbox', () => {
     expect(warnings).toHaveLength(1);
   });
 
+  it('oldItemsWithoutFingerprintStillLoad', async () => {
+    const storage = createStorage({
+      initial: [
+        item('old'),
+        item('quick', { quickCapture: true, linkFingerprint: '0123456789abcdef' }),
+        item('unlinked', { quickCapture: true }),
+      ],
+    });
+    const outbox = createOutbox(deps({ storage }));
+    await outbox.ready;
+    expect((await outbox.due()).map((i) => i.reportId)).toEqual(['old', 'quick', 'unlinked']);
+  });
+
+  it('dropsItemsWithAMalformedLinkFingerprint', async () => {
+    const storage = createStorage({
+      initial: [
+        item('token', { linkFingerprint: 'evf_dev_' + 'a'.repeat(32) }),
+        item('flag', { quickCapture: 'yes' as never }),
+        item('ok'),
+      ],
+    });
+    const outbox = createOutbox(deps({ storage }));
+    await outbox.ready;
+    expect((await outbox.due()).map((i) => i.reportId)).toEqual(['ok']);
+  });
+
   it('works without storage', async () => {
     const outbox = createOutbox(deps({ storage: undefined }));
     await outbox.add(item('a'));

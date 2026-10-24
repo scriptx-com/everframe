@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { describe, expect, it } from 'vitest';
 import { CrashDetails, normalizeCrashDetails } from '@everframe/protocol';
-import { projectDetails } from '../src/envelope.js';
+import { buildQuickCaptureEnvelope, projectDetails } from '../src/envelope.js';
+import { expectValidEnvelope } from './fakes.js';
 
 const identity = (value: string) => value;
 
@@ -126,5 +127,37 @@ describe('handled-error details', () => {
       password: '[REDACTED]',
     });
     expect(read).toBe(false);
+  });
+});
+
+describe('quick capture envelope', () => {
+  it('is a valid manual quick capture with no attachments', () => {
+    const envelope = buildQuickCaptureEnvelope({
+      reportId: '3f2b6c1e-8d4a-4b7f-9e1c-2a5d8f0b7c3e',
+      occurredAt: '2026-10-24T10:00:00.000Z',
+      sdk: { name: 'everframe-vega', version: '1.5.0', platform: 'vega', formFactor: 'tv' },
+      app: { name: 'TV', version: '1.0.0', debug: false },
+      device: {
+        os: 'Vega OS',
+        osVersion: '1.1',
+        screenSize: { width: 1920, height: 1080 },
+        pixelRatio: 1,
+        locale: 'en-US',
+        timezone: 'UTC',
+      },
+      breadcrumbs: [],
+      user: { displayName: 'Tester' },
+    });
+    expectValidEnvelope(envelope);
+    expect(envelope.quickCapture).toBe(true);
+    expect(envelope.source).toBeUndefined();
+    expect(envelope.payload.crash).toBeUndefined();
+    expect(envelope.attachments).toEqual([]);
+    expect(envelope.captureControl.excluded).toEqual(['screenshot', 'uiTree', 'focus']);
+    expect(envelope.reporter).toEqual({
+      title: '',
+      description: '',
+      user: { displayName: 'Tester' },
+    });
   });
 });

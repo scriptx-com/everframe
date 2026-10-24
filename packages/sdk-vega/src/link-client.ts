@@ -41,9 +41,9 @@ const field = (value: unknown, max: number, fallback: string): string =>
 
 /** The device facts a hello carries, cut to the server's limits. */
 export function helloDevice(input: {
-  model?: string;
-  osVersion?: string;
-  appVersion?: string;
+  model?: string | undefined;
+  osVersion?: string | undefined;
+  appVersion?: string | undefined;
 }): HelloDevice {
   return {
     model: field(input.model, 100, 'Vega device'),
