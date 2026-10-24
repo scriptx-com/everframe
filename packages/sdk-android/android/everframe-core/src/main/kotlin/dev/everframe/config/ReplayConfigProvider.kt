@@ -24,6 +24,8 @@ package dev.everframe.config
 import androidx.annotation.VisibleForTesting
 import dev.everframe.devicelink.DeviceLinkOwner
 import dev.everframe.devicelink.DeviceLinkToken
+import dev.everframe.quickcapture.RemoteKeys
+import dev.everframe.quickcapture.TvGestureBinding
 import dev.everframe.transport.MultipartUploader
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +46,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.longOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -542,8 +545,21 @@ private object CaptureHotkeyConfigWireSerializer : KSerializer<CaptureHotkeyConf
 @Serializable(with = DeviceLinkingConfigWireSerializer::class)
 data class DeviceLinkingConfigWire(val enabled: Boolean, val link: DeviceLinkStatusWire? = null)
 
-/** [linked] is `status == "linked"`; [owner] is non-null only when linked. */
-data class DeviceLinkStatusWire(val linked: Boolean, val owner: DeviceLinkOwner? = null)
+/**
+ * [linked] is `status == "linked"`; [owner] is non-null only when linked. [recording] is a pending "Record on
+ * device" request for this device, read only when linked (capability `capturegesture`).
+ */
+data class DeviceLinkStatusWire(
+    val linked: Boolean,
+    val owner: DeviceLinkOwner? = null,
+    val recording: RecordingRequestWire? = null,
+)
+
+/**
+ * A gesture recording the dashboard asked this linked device for: `{id, expiresAt}` on the wire, with
+ * `expiresAt` an ISO-8601 instant. [id] is a path segment of `POST /api/device-link/recordings/:id`.
+ */
+data class RecordingRequestWire(val id: String, val expiresAtMs: Long)
 
 internal object DeviceLinkingConfigWireSerializer : KSerializer<DeviceLinkingConfigWire> {
     @Serializable
@@ -565,20 +581,98 @@ internal object DeviceLinkingConfigWireSerializer : KSerializer<DeviceLinkingCon
         val status = (link["status"] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
         if (status != "linked") return DeviceLinkStatusWire(linked = false)
         val owner = link["owner"] as? JsonObject ?: return null
+        val recording = decodeRecording(link["recording"])
         return when ((owner["kind"] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull) {
             "user" -> DeviceLinkStatusWire(
                 linked = true,
                 owner = DeviceLinkOwner.User(
                     (owner["name"] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull ?: "",
                 ),
+                recording = recording,
             )
-            "team" -> DeviceLinkStatusWire(linked = true, owner = DeviceLinkOwner.Team)
+            "team" -> DeviceLinkStatusWire(linked = true, owner = DeviceLinkOwner.Team, recording = recording)
             else -> null
         }
     }
 
+    private val RECORDING_ID = Regex("^[0-9A-Za-z-]{1,64}$")
+
+    /** A malformed recording is dropped on its own; the link status around it stands. */
+    private fun decodeRecording(element: kotlinx.serialization.json.JsonElement?): RecordingRequestWire? = try {
+        val obj = element as? JsonObject
+        val id = (obj?.get("id") as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
+        val expiresAt = (obj?.get("expiresAt") as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
+        if (id == null || !RECORDING_ID.matches(id) || expiresAt == null) null
+        else RecordingRequestWire(id, parseIsoInstantMs(expiresAt))
+    } catch (_: Throwable) {
+        null
+    }
+
+    /** `java.time` from API 26; older TVs (Fire OS 6 is API 25) parse the same ISO-8601 forms by hand. */
+    private fun parseIsoInstantMs(value: String): Long {
+        if (android.os.Build.VERSION.SDK_INT >= 26) return java.time.Instant.parse(value).toEpochMilli()
+        val pattern = if (value.contains('.')) "yyyy-MM-dd'T'HH:mm:ss.SSSX" else "yyyy-MM-dd'T'HH:mm:ssX"
+        val format = java.text.SimpleDateFormat(pattern, java.util.Locale.US).apply { isLenient = false }
+        return format.parse(value)!!.time
+    }
+
     override fun serialize(encoder: Encoder, value: DeviceLinkingConfigWire) {
         encoder.encodeSerializableValue(Surrogate.serializer(), Surrogate(value.enabled))
+    }
+}
+
+/**
+ * Real-device quick capture on TVs: the app's remote gesture, negotiated with the `capturegesture`
+ * capability. Phones use shake and ignore it. [tv] is null when the server sent no binding, or one this SDK
+ * cannot honor exactly (an unknown kind or key name, or a count or duration out of range): a binding that
+ * can't be followed as configured is never guessed at. A non-object block is absent altogether.
+ */
+@Serializable(with = CaptureGestureConfigWireSerializer::class)
+data class CaptureGestureConfigWire(val tv: TvGestureBinding?)
+
+internal object CaptureGestureConfigWireSerializer : KSerializer<CaptureGestureConfigWire> {
+    @Serializable
+    private data class Surrogate(val tv: kotlinx.serialization.json.JsonElement? = null)
+
+    internal val INVALID = CaptureGestureConfigWire(tv = null)
+    override val descriptor = Surrogate.serializer().descriptor
+
+    internal val HOLD_MS = 500L..10_000L
+    internal val WINDOW_MS = 200L..5_000L
+
+    override fun deserialize(decoder: Decoder): CaptureGestureConfigWire = try {
+        val obj = (decoder as JsonDecoder).decodeJsonElement() as? JsonObject
+        if (obj == null) INVALID else CaptureGestureConfigWire(decodeBinding(obj["tv"]))
+    } catch (_: Throwable) {
+        INVALID
+    }
+
+    private fun decodeBinding(element: kotlinx.serialization.json.JsonElement?): TvGestureBinding? {
+        val obj = element as? JsonObject ?: return null
+        val kind = (obj["kind"] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
+        val keys = (obj["keys"] as? kotlinx.serialization.json.JsonArray)?.map { key ->
+            (key as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
+                ?.takeIf { RemoteKeys.codesFor(it) != null } ?: return null
+        } ?: return null
+        return when (kind) {
+            "longPress" -> {
+                val holdMs = wholeNumber(obj["holdMs"]) ?: return null
+                if (keys.size != 1 || holdMs !in HOLD_MS) null else TvGestureBinding.LongPress(keys[0], holdMs)
+            }
+            "sequence" -> {
+                val windowMs = wholeNumber(obj["windowMs"]) ?: return null
+                if (keys.size !in 2..8 || windowMs !in WINDOW_MS) null else TvGestureBinding.Sequence(keys, windowMs)
+            }
+            "chord" -> if (keys.size !in 2..4 || keys.toSet().size != keys.size) null else TvGestureBinding.Chord(keys.toSet())
+            else -> null
+        }
+    }
+
+    private fun wholeNumber(element: kotlinx.serialization.json.JsonElement?): Long? =
+        (element as? JsonPrimitive)?.takeIf { !it.isString }?.longOrNull
+
+    override fun serialize(encoder: Encoder, value: CaptureGestureConfigWire) {
+        encoder.encodeSerializableValue(Surrogate.serializer(), Surrogate(null))
     }
 }
 
@@ -632,6 +726,8 @@ data class ReplayConfig(
     val crashOnlySamplingRate: Double? = null,
     /** Real-device quick capture, negotiated via `devicelinking`; null from an older server. */
     val deviceLinking: DeviceLinkingConfigWire? = null,
+    /** The TV capture gesture, negotiated via `capturegesture`; null from an older server (no TV gesture). */
+    val captureGesture: CaptureGestureConfigWire? = null,
 ) {
     companion object {
         /**
@@ -672,6 +768,7 @@ private data class ReplayConfigWire(
     val nativeVideo: NativeVideoSettings? = null,
     @Serializable(with = LenientDoubleSerializer::class) val crashOnlySamplingRate: Double? = null,
     val deviceLinking: DeviceLinkingConfigWire? = null,
+    val captureGesture: CaptureGestureConfigWire? = null,
 )
 
 /**
@@ -887,6 +984,9 @@ class ReplayConfigProvider(
                     deviceLinking = wire.deviceLinking?.takeUnless {
                         it === DeviceLinkingConfigWireSerializer.INVALID
                     },
+                    captureGesture = wire.captureGesture?.takeUnless {
+                        it === CaptureGestureConfigWireSerializer.INVALID
+                    },
                 )
                 __beforeCommitHookForTesting()
                 // F43: commit succeeds ONLY if [state] still shows `mySeq`
@@ -954,10 +1054,11 @@ class ReplayConfigProvider(
          * quick capture stands aside while a text editor has focus, so it may send a plain-key or Shift+key
          * `captureHotkey.binding`; callers without it get `Shift Shift`. `devicelinking` (real-device quick
          * capture) asks for the `deviceLinking` block: the per-app linking switch and, for a request carrying
-         * an `evf_dev_` token, that token's link status.
+         * an `evf_dev_` token, that token's link status. `capturegesture` asks for the `captureGesture` block (the
+         * app's TV remote binding) and for `deviceLinking.link.recording`.
          */
         val SDK_FEATURES_HEADER_VALUE: String
-            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking" +
+            get() = "networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking, capturegesture" +
                 if (android.os.Build.VERSION.SDK_INT >= 29) ", nativevideo, nativevideolowfps" else ""
 
         /**

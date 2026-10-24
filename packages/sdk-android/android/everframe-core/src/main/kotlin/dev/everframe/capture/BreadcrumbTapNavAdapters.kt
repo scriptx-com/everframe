@@ -59,6 +59,7 @@ import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.ActionMode
 import android.view.KeyEvent
 import android.view.KeyboardShortcutGroup
@@ -74,9 +75,14 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import androidx.annotation.VisibleForTesting
+import dev.everframe.devicelink.GestureRecording
 import dev.everframe.envelope.txGuard
 import dev.everframe.envelope.txGuardVoid
 import dev.everframe.protocol.generated.BreadcrumbKind
+import dev.everframe.quickcapture.QuickCapture
+import dev.everframe.quickcapture.RemoteKeys
+import dev.everframe.quickcapture.TvGestureBinding
+import dev.everframe.quickcapture.TvGestureDetector
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.util.concurrent.atomic.AtomicBoolean
@@ -356,8 +362,27 @@ internal class TXWindowCallbackWrapper(
     /** The key code of a quick-capture chord whose key-down was consumed, until its key-up. Main thread only. */
     private var consumedCaptureKey: Int? = null
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (txGuard("TXWindowCallbackWrapper.quickCaptureKey") { consumeQuickCaptureKey(event) } == true) return true
+    override fun dispatchKeyEvent(original: KeyEvent): Boolean {
+        // "Record on device": while a recording runs, every key is recorded and reaches the app untouched; the
+        // emulator chord and the TV gesture stand aside, so recording a binding never also captures.
+        val recorder = GestureRecording.active
+        if (recorder != null) {
+            txGuardVoid("TXWindowCallbackWrapper.recordKey") {
+                recorder.onKey(original.keyCode, original.action, original.repeatCount, original.eventTime)
+                resetTvGesture()
+            }
+        } else if (txGuard("TXWindowCallbackWrapper.quickCaptureKey") { consumeQuickCaptureKey(original) } == true) {
+            return true
+        }
+        // The TV capture gesture: null means swallowed (linked devices only, after detection); otherwise the
+        // original event, or on a linked device the gesture's key-up as a canceled copy. A failure delivers
+        // the original.
+        val event = if (recorder != null || (QuickCapture.armedTvBinding == null && tvDetector == null)) {
+            original
+        } else {
+            val step = txGuard("TXWindowCallbackWrapper.tvGesture") { TvGestureStep(handleTvGesture(original)) }
+            if (step == null) original else step.event ?: return true
+        }
         val scroll = if (isTvHost && event.action == KeyEvent.ACTION_DOWN && event.keyCode in setOf(
                 KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT)) {
             runCatching { remoteScrollContainer(activity.window?.currentFocus, event.keyCode) }.getOrNull()
@@ -381,6 +406,136 @@ internal class TXWindowCallbackWrapper(
         val result = delegate.dispatchKeyEvent(event)
         scroll?.let { (view, _) -> txGuardVoid("interaction.remote.after") { InteractionScrollAdapter.shared.moved(view) } }
         return result
+    }
+
+    // ---- TV capture gesture (see `TvGestureDetector`). Main thread only. ----
+
+    /** The detector for [tvDetectorBinding] (compared by identity), or null while disarmed. */
+    private var tvDetector: TvGestureDetector? = null
+    private var tvDetectorBinding: TvGestureBinding? = null
+
+    /**
+     * Each fired gesture key and whether its gesture's device swallows keys, until that key's own key-up. More
+     * than one when chord completions overlap.
+     */
+    private val tvGestureKeys = HashMap<Int, Boolean>()
+
+    /** The key whose hold timer is pending. */
+    private var tvHoldKey: Int? = null
+    private val tvHoldToken = Any()
+    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
+
+    /** Wraps a nullable step result so `txGuard`'s null (a failure) differs from "swallowed". */
+    private class TvGestureStep(val event: KeyEvent?)
+
+    /**
+     * Feeds [event] to the armed TV binding's detector. Returns null to swallow it, or the event to deliver:
+     * the original, or a canceled copy for a linked long press's key-up. Swallowing and canceling apply only
+     * when the fired gesture's decision says so (`swallowKeys`: a linked device); an unlinked device always
+     * gets the original instance. A binding that types (letters, digits, Shift) stands aside while a text
+     * editor has focus, like the emulator chord.
+     */
+    private fun handleTvGesture(event: KeyEvent): KeyEvent? {
+        val binding = QuickCapture.armedTvBinding
+        if (binding == null) {
+            resetTvGesture()
+            return event
+        }
+        if (binding !== tvDetectorBinding) {
+            resetTvGesture()
+            tvDetector = TvGestureDetector(binding)
+            tvDetectorBinding = binding
+        }
+        val detector = tvDetector ?: return event
+        if (binding.typesText() && isEditingText()) return standAsideForText(detector, event)
+        val verdict = detector.onKey(event.keyCode, event.action, event.repeatCount, event.metaState, event.eventTime, event.downTime)
+        verdict.holdDeadlineMs?.let { scheduleTvHold(detector, event.keyCode, it) }
+        if (event.action == KeyEvent.ACTION_UP && event.keyCode == tvHoldKey) cancelTvHold()
+        // A fresh press of a key whose release was lost is the app's unless it fires again.
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) tvGestureKeys.remove(event.keyCode)
+        if (verdict.fire) onTvGesture(event.keyCode)
+        val swallow = tvGestureKeys[event.keyCode] == true
+        val out = when {
+            swallow && verdict.consume -> null
+            swallow && verdict.cancelUp -> KeyEvent.changeFlags(event, event.flags or KeyEvent.FLAG_CANCELED)
+            else -> event
+        }
+        if (event.action == KeyEvent.ACTION_UP) tvGestureKeys.remove(event.keyCode)
+        return out
+    }
+
+    /**
+     * A typing binding while a text editor has focus: typing stays typing, and no gesture starts or completes.
+     * Pending recognition is dropped (a key pressed before the field took focus must not complete a gesture
+     * later, and keys whose releases are not tracked here must not stay held). Only a key consumed before the
+     * field took focus keeps being suppressed, until its own release.
+     */
+    private fun standAsideForText(detector: TvGestureDetector, event: KeyEvent): KeyEvent? {
+        detector.dropPending()
+        cancelTvHold()
+        val swallow = tvGestureKeys[event.keyCode] ?: return event
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            // A fresh press: its earlier release was lost, and this one is typing.
+            tvGestureKeys.remove(event.keyCode)
+            detector.forgetFired(event.keyCode)
+            return event
+        }
+        val verdict = detector.onKey(event.keyCode, event.action, event.repeatCount, event.metaState, event.eventTime, event.downTime)
+        if (event.action == KeyEvent.ACTION_UP) tvGestureKeys.remove(event.keyCode)
+        return when {
+            swallow && verdict.consume -> null
+            swallow && verdict.cancelUp -> KeyEvent.changeFlags(event, event.flags or KeyEvent.FLAG_CANCELED)
+            else -> event
+        }
+    }
+
+    /** Runs the mode rule once per gesture; its `swallowKeys` holds until the gesture key's key-up. */
+    private fun onTvGesture(keyCode: Int) {
+        val decision = dev.everframe.quickcapture.CaptureGesture.onGesture(dev.everframe.quickcapture.GestureSource.Remote)
+        tvGestureKeys[keyCode] = decision.swallowKeys
+    }
+
+    private fun scheduleTvHold(detector: TvGestureDetector, keyCode: Int, deadline: Long) {
+        cancelTvHold()
+        tvHoldKey = keyCode
+        mainHandler.postAtTime({
+            txGuardVoid("TXWindowCallbackWrapper.tvHold") {
+                if (tvDetector !== detector || tvHoldKey != keyCode) return@txGuardVoid
+                tvHoldKey = null
+                // A remote without autorepeat sends nothing between the DOWN and the UP, so nothing else noticed
+                // a change meanwhile: the binding replaced or disarmed, a recording started, a text field focused.
+                val binding = QuickCapture.armedTvBinding
+                if (binding == null || binding !== tvDetectorBinding || GestureRecording.active != null ||
+                    (binding.typesText() && isEditingText())
+                ) {
+                    resetTvGesture()
+                    return@txGuardVoid
+                }
+                if (detector.onHoldTimer(SystemClock.uptimeMillis())) onTvGesture(keyCode)
+            }
+        }, tvHoldToken, deadline)
+    }
+
+    private fun cancelTvHold() {
+        if (tvHoldKey == null) return
+        tvHoldKey = null
+        mainHandler.removeCallbacksAndMessages(tvHoldToken)
+    }
+
+    private fun resetTvGesture() {
+        cancelTvHold()
+        tvDetector = null
+        tvDetectorBinding = null
+        tvGestureKeys.clear()
+    }
+
+    private fun TvGestureBinding.typesText(): Boolean {
+        val keys = when (this) {
+            is TvGestureBinding.LongPress -> listOf(key)
+            is TvGestureBinding.Sequence -> keys
+            is TvGestureBinding.Chord -> keys
+        }
+        return keys.any { it.length == 1 || it == RemoteKeys.SHIFT }
     }
 
     /**
@@ -475,6 +630,7 @@ internal class TXWindowCallbackWrapper(
     }
 
     override fun onDetachedFromWindow() {
+        txGuardVoid("TXWindowCallbackWrapper.tvGestureDetach") { resetTvGesture() }
         delegate.onDetachedFromWindow()
     }
 

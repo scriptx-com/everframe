@@ -86,7 +86,17 @@ class DeviceLinkingConfigTest {
               |"recording":{"id":"6c1e2f6a-1b7e-4b43-9a55-0e0c2b8f3e10","expiresAt":"2026-10-23T10:00:00Z"}}}""".trimMargin(),
         )
         assertEquals(
-            DeviceLinkingConfigWire(true, DeviceLinkStatusWire(true, DeviceLinkOwner.User("Aurimas"))),
+            DeviceLinkingConfigWire(
+                true,
+                DeviceLinkStatusWire(
+                    true,
+                    DeviceLinkOwner.User("Aurimas"),
+                    RecordingRequestWire(
+                        "6c1e2f6a-1b7e-4b43-9a55-0e0c2b8f3e10",
+                        java.time.Instant.parse("2026-10-23T10:00:00Z").toEpochMilli(),
+                    ),
+                ),
+            ),
             c.deviceLinking,
         )
     }

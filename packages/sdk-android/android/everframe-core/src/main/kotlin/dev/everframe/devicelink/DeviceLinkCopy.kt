@@ -22,4 +22,8 @@ internal object DeviceLinkCopy {
     fun bannerTitle(number: Int): String = "Linking to Everframe · $number"
 
     const val BANNER_SUBLINE: String = "A teammate is linking a device. If that's not you, ignore this."
+
+    // "Record on device". Not contract copy: owned by the Android plan.
+    const val RECORDING_STARTED: String = "Recording remote keys for 10 seconds"
+    const val RECORDING_SENT: String = "Keys sent to Everframe"
 }

@@ -542,7 +542,7 @@ class ReplayConfigProviderTest {
         // that declare it, so this header is the whole reason any of these
         // blocks arrive. Adding a capability here is a real contract change and
         // should have to be made on purpose.
-        assertEquals("networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking, nativevideo, nativevideolowfps", seen?.header("X-Everframe-SDK-Features"))
+        assertEquals("networkbodies, identity, companionbadge, branding, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking, capturegesture, nativevideo, nativevideolowfps", seen?.header("X-Everframe-SDK-Features"))
     }
 
     @Test

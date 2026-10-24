@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Device link hello and attempt check (wire contract: "Linking endpoints").
+// Device link hello and attempt check (wire contract: "Linking endpoints"), and the gesture recording post
+// ("Gesture recording endpoint").
 //
 // Runs on `ReportSubmitter.buildIsolatedClient()`, which carries no
 // `EverframeInterceptor`, so this traffic never becomes host network
@@ -10,14 +11,17 @@
 // A call is cancelled with its coroutine, so the attempt loop can bound each
 // check by what is left of the attempt's window.
 //
-// SECURITY: never log the nonce or a minted token.
+// SECURITY: never log the nonce, a minted token or the device token.
 
 package dev.everframe.devicelink
 
 import android.content.Context
 import dev.everframe.Everframe
 import dev.everframe.capture.DeviceMetadata
+import dev.everframe.quickcapture.RecordedKey
+import dev.everframe.transport.MultipartUploader
 import dev.everframe.transport.ReportSubmitter
+import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -25,6 +29,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -103,7 +108,7 @@ internal class DeviceLinkClient(
     baseUrl: String,
     private val sdkKey: String,
     http: OkHttpClient = ReportSubmitter.buildIsolatedClient(),
-) : DeviceLinkApi {
+) : DeviceLinkApi, GestureRecordingApi {
     private val client: OkHttpClient = http.newBuilder().followRedirects(false).followSslRedirects(false).build()
 
     private val base: HttpUrl? = run {
@@ -182,6 +187,42 @@ internal class DeviceLinkClient(
         }
     }
 
+    /**
+     * `{"events":[{"key","downMs","upMs"}]}` with the device token. True only on 204; a redirect is a failure (this
+     * client follows none), and cancelling the caller cancels the call.
+     */
+    override suspend fun postRecording(recordingId: String, token: String, events: List<RecordedKey>): Boolean =
+        withContext(Dispatchers.IO) {
+            val url = base?.newBuilder()
+                ?.addPathSegments("api/device-link/recordings")
+                ?.addPathSegment(recordingId)
+                ?.build()
+                ?: return@withContext false
+            val body = buildJsonObject {
+                put(
+                    "events",
+                    buildJsonArray {
+                        events.forEach { e ->
+                            add(
+                                buildJsonObject {
+                                    put("key", e.key)
+                                    put("downMs", e.downMs)
+                                    put("upMs", e.upMs)
+                                },
+                            )
+                        }
+                    },
+                )
+            }
+            try {
+                post(url, body, captureToken = token).code == 204
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                false
+            }
+        }
+
     /** A token that is not a valid `evf_dev_` token, or an owner this SDK can't name, counts as expired. */
     private fun linked(obj: JsonObject): CheckResult {
         val token = obj.string("token") // SECURITY: never log
@@ -203,13 +244,17 @@ internal class DeviceLinkClient(
      * that hangs before its headers or in the middle of its body. The body is read on OkHttp's callback thread
      * while the caller is still suspended here.
      */
-    private suspend fun post(url: HttpUrl, body: JsonObject): LinkResponse = suspendCancellableCoroutine { cont ->
+    private suspend fun post(url: HttpUrl, body: JsonObject, captureToken: String? = null): LinkResponse =
+        suspendCancellableCoroutine { cont -> postInto(cont, url, body, captureToken) }
+
+    private fun postInto(cont: CancellableContinuation<LinkResponse>, url: HttpUrl, body: JsonObject, captureToken: String?) {
         val call = client.newCall(
             Request.Builder()
                 .url(url)
                 .post(body.toString().toRequestBody(JSON))
                 .header("Authorization", "Bearer $sdkKey")
                 .header("Accept", "application/json")
+                .apply { captureToken?.let { header(MultipartUploader.CAPTURE_TOKEN_HEADER, it) } } // SECURITY: never log
                 .build(),
         )
         cont.invokeOnCancellation { call.cancel() }
