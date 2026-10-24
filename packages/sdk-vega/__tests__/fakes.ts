@@ -118,39 +118,135 @@ export function createHermes(): FakeHermes {
 
 export interface SentRequest {
   url: string;
+  method: string;
   headers: Record<string, string>;
   body: string;
   envelope: Record<string, any>;
+  redirect?: string;
+}
+
+/** What a routed request answers. `status: 0` throws a network error. */
+export interface RouteReply {
+  status: number;
+  body?: unknown;
+  /** The response's final URL (a redirect); defaults to the request URL. */
+  url?: string;
+  /** Resolve this to let the reply through; never resolving hangs the request. */
+  gate?: Promise<void>;
+}
+
+export type RouteHandler = RouteReply | RouteReply[] | ((req: SentRequest) => RouteReply);
+
+interface Route {
+  method: string;
+  path: string | RegExp;
+  reply: RouteHandler;
+}
+
+export interface FakeResponse {
+  status: number;
+  ok: boolean;
+  url: string;
+  text: () => Promise<string>;
 }
 
 export interface FakeFetch {
   (
     url: string,
-    init: { method: string; headers: Record<string, string>; body: string },
-  ): Promise<{ status: number }>;
+    init: {
+      method: string;
+      headers: Record<string, string>;
+      body?: string;
+      signal?: unknown;
+      redirect?: 'error';
+    },
+  ): Promise<FakeResponse>;
+  /** POSTs other than device-link calls: ingest and release health, as before. */
   requests: SentRequest[];
-  /** Status codes returned in order; the last one repeats. `0` throws a network error. */
+  /** Every request, in order, including `GET /api/config` and device-link calls. */
+  all: SentRequest[];
+  /** Status codes returned in order for unrouted POSTs; the last one repeats. `0` throws. */
   statuses: number[];
+  /** Answer `method path` (exact path or a RegExp on the path) with `reply`. */
+  route(method: string, path: string | RegExp, reply: RouteHandler): void;
+}
+
+function pathOf(url: string): string {
+  return url.replace(/^[a-z]+:\/\/[^/]*/i, '').replace(/\?.*$/, '');
+}
+
+function parseBody(body: string | undefined): Record<string, any> {
+  if (typeof body !== 'string' || body.length === 0) return {};
+  try {
+    return JSON.parse(body) as Record<string, any>;
+  } catch {
+    return {};
+  }
 }
 
 export function createFetch(statuses: number[] = [200], order: string[] = []): FakeFetch {
+  const routes: Route[] = [];
+  const respond = async (url: string, reply: RouteReply): Promise<FakeResponse> => {
+    if (reply.gate) await reply.gate;
+    if (reply.status === 0) throw new TypeError('Network request failed');
+    const text =
+      reply.body === undefined
+        ? ''
+        : typeof reply.body === 'string'
+          ? reply.body
+          : JSON.stringify(reply.body);
+    return {
+      status: reply.status,
+      ok: reply.status >= 200 && reply.status < 300,
+      url: reply.url ?? url,
+      text: async () => text,
+    };
+  };
   const fetch = (async (
     url: string,
-    init: { method: string; headers: Record<string, string>; body: string },
+    init: {
+      method: string;
+      headers: Record<string, string>;
+      body?: string;
+      redirect?: 'error';
+    },
   ) => {
     order.push('fetch');
-    fetch.requests.push({
+    const method = (init.method ?? 'GET').toUpperCase();
+    const path = pathOf(url);
+    const request: SentRequest = {
       url,
+      method,
       headers: init.headers,
-      body: init.body,
-      envelope: JSON.parse(init.body),
-    });
+      body: init.body ?? '',
+      envelope: parseBody(init.body),
+      ...(init.redirect ? { redirect: init.redirect } : {}),
+    };
+    fetch.all.push(request);
+    const isLinkCall = path.startsWith('/api/device-link/');
+    if (method === 'POST' && !isLinkCall) fetch.requests.push(request);
+    const route = routes.find(
+      (r) =>
+        r.method === method && (typeof r.path === 'string' ? r.path === path : r.path.test(path)),
+    );
+    if (route) {
+      let reply: RouteReply;
+      if (typeof route.reply === 'function') reply = route.reply(request);
+      else if (Array.isArray(route.reply))
+        reply = route.reply.length > 1 ? route.reply.shift()! : route.reply[0]!;
+      else reply = route.reply;
+      return respond(url, reply);
+    }
+    if (method !== 'POST' || isLinkCall) return respond(url, { status: 404 });
     const status = fetch.statuses.length > 1 ? fetch.statuses.shift()! : fetch.statuses[0]!;
-    if (status === 0) throw new TypeError('Network request failed');
-    return { status };
+    return respond(url, { status });
   }) as FakeFetch;
   fetch.requests = [];
+  fetch.all = [];
   fetch.statuses = statuses;
+  fetch.route = (method, path, reply) => {
+    routes.unshift({ method: method.toUpperCase(), path, reply });
+  };
   return fetch;
 }
 
