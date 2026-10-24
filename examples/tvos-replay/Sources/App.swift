@@ -20,18 +20,35 @@ import EverframeKit
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
         guard let scene = scene as? UIWindowScene else { return }
-        let window = UIWindow(windowScene: scene)
+        let env = ProcessInfo.processInfo.environment
+        let window: UIWindow
+        #if os(tvOS)
+        // REPLAY_TV_PRESS_PROBE=1: the remote press probe replaces the rails and
+        // logs every press the window receives (see PressProbeController).
+        if PressProbe.enabled {
+            window = ProbeWindow(windowScene: scene)
+            window.rootViewController = PressProbeController()
+        } else {
+            window = UIWindow(windowScene: scene)
+            window.rootViewController = RailsController()
+        }
+        #else
+        window = UIWindow(windowScene: scene)
         window.rootViewController = RailsController()
+        #endif
         window.makeKeyAndVisible()
         self.window = window
-        let env = ProcessInfo.processInfo.environment
         guard let key = env["EVERFRAME_E2E_SDK_KEY"],
               let raw = env["EVERFRAME_DEV_INGEST_URL"], let url = URL(string: raw),
               url.host == "127.0.0.1" || url.host == "localhost" else { return }
         do {
-            try Everframe.shared.start(config: EverframeConfig(sdkKey: key, environment: .development,
+            var config = EverframeConfig(sdkKey: key, environment: .development,
                 release: "tvos-video-e2e", capture: CaptureConfig(logs: false, network: false, crash: env["REPLAY_TV_ERROR_AFTER"] != nil),
-                companionBadgeEnabled: false))
+                companionBadgeEnabled: false)
+            // REPLAY_TV_RELEASE_MODE=1 runs the SDK as a release build, so the
+            // unlinked-release quick-capture rules can be checked in a simulator.
+            if env["REPLAY_TV_RELEASE_MODE"] == "1" { config.debugBuild = false }
+            try Everframe.shared.start(config: config)
             let client = RelayWSClient(endpoint: url, companion: Everframe.shared.companion,
                 sdkKey: key, deviceLabel: "tvOS Replay Validation")
             relay = client

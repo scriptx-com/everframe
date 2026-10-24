@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 //
-// Applies `CaptureGestureRule` to a shake or the simulator's capture
-// notification: quick capture, the shake-to-report path, or nothing, plus a
-// device-link hello when the rule asks for one.
+// Applies `CaptureGestureRule` to a shake, the simulator's capture
+// notification or the Siri Remote binding: quick capture, the shake-to-report
+// path, or nothing, plus a device-link hello when the rule asks for one. The
+// decision goes back to the caller, which needs `swallowKeys` for the remote.
 //
 // The router never reads the shake-to-report switch. `shakeToReport` decides
 // only whether the reporter path opens the reporter; shake still captures on
@@ -36,17 +37,24 @@ struct CaptureGestureRouter {
             hello: { coordinator.sendHelloIfIdle() })
     }
 
-    func handle(_ source: CaptureGestureSource) {
+    @discardableResult
+    func handle(_ source: CaptureGestureSource) -> CaptureGestureDecision {
         let current = inputs()
         let decision = CaptureGestureRule.decide(
             source: source, hostMode: current.hostMode, quickCaptureConfigured: current.configured,
             debug: current.debug, linked: current.linked, linkingEnabled: current.linkingEnabled)
         switch decision.action {
-        case .quickCapture: quickCapture(source == .shake ? .shake : .hotkey)
+        case .quickCapture:
+            switch source {
+            case .shake: quickCapture(.shake)
+            case .simulatorNotification: quickCapture(.hotkey)
+            case .remote: quickCapture(.remote)
+            }
         case .reporter: reporter()
         case .nothing: break
         }
         if decision.sendHello { hello() }
+        return decision
     }
 }
 #endif

@@ -16,6 +16,57 @@ final class CaptureGestureRuleTests: XCTestCase {
         CaptureGestureDecision(action: action, sendHello: hello)
     }
 
+    // MARK: Siri Remote (`.remote`): swallowing only on linked devices
+
+    func testRemoteLinkedDeviceCapturesAndSwallows() {
+        XCTAssertEqual(decide(.remote, .device, configured: true, debug: false, linked: true, linkingEnabled: true),
+                       CaptureGestureDecision(action: .quickCapture, sendHello: false, swallowKeys: true))
+        XCTAssertEqual(decide(.remote, .device, configured: true, debug: true, linked: true, linkingEnabled: false),
+                       CaptureGestureDecision(action: .quickCapture, sendHello: false, swallowKeys: true))
+    }
+
+    func testRemoteDebugUnlinkedDeviceCapturesHellosNeverSwallows() {
+        XCTAssertEqual(decide(.remote, .device, configured: true, debug: true, linked: false, linkingEnabled: true),
+                       CaptureGestureDecision(action: .quickCapture, sendHello: true, swallowKeys: false))
+        XCTAssertEqual(decide(.remote, .device, configured: true, debug: true, linked: false, linkingEnabled: false),
+                       CaptureGestureDecision(action: .quickCapture, sendHello: false, swallowKeys: false))
+    }
+
+    func testRemoteReleaseUnlinkedDeviceDoesNothingVisibleAndHellos() {
+        XCTAssertEqual(decide(.remote, .device, configured: true, debug: false, linked: false, linkingEnabled: true),
+                       CaptureGestureDecision(action: .nothing, sendHello: true, swallowKeys: false))
+    }
+
+    func testRemoteReleaseUnlinkedLinkingOffDoesNothing() {
+        XCTAssertEqual(decide(.remote, .device, configured: true, debug: false, linked: false, linkingEnabled: false),
+                       CaptureGestureDecision(action: .nothing, sendHello: false, swallowKeys: false))
+    }
+
+    func testRemoteQuickCaptureOffDoesNothingAndNoHello() {
+        for linked in [false, true] {
+            XCTAssertEqual(decide(.remote, .device, configured: false, debug: true, linked: linked, linkingEnabled: true),
+                           CaptureGestureDecision(action: .nothing, sendHello: false, swallowKeys: false))
+        }
+    }
+
+    func testRemoteDebugSimulatorCapturesWithoutHello() {
+        XCTAssertEqual(decide(.remote, .simulator, configured: true, debug: true, linked: false, linkingEnabled: true),
+                       CaptureGestureDecision(action: .quickCapture, sendHello: false, swallowKeys: false))
+        XCTAssertEqual(decide(.remote, .simulator, configured: true, debug: false, linked: false, linkingEnabled: true),
+                       CaptureGestureDecision(action: .nothing, sendHello: false, swallowKeys: false))
+        XCTAssertEqual(decide(.remote, .unsupported, configured: true, debug: true, linked: true, linkingEnabled: true),
+                       CaptureGestureDecision(action: .nothing, sendHello: false, swallowKeys: false))
+    }
+
+    func testShakeNeverSwallows() {
+        for source in [CaptureGestureSource.shake, .simulatorNotification] {
+            for mode in [QuickCaptureHostMode.device, .simulator, .unsupported] {
+                XCTAssertFalse(decide(source, mode, configured: true, debug: true, linked: true,
+                                      linkingEnabled: true).swallowKeys)
+            }
+        }
+    }
+
     func testRow1LinkedDeviceCaptures() {
         XCTAssertEqual(decide(.shake, .device, configured: true, debug: false, linked: true, linkingEnabled: true),
                        expect(.quickCapture, hello: false))

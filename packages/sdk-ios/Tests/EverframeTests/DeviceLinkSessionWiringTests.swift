@@ -35,4 +35,46 @@ final class DeviceLinkSessionWiringTests: XCTestCase {
         try Everframe.shared.start(config: EverframeConfig(sdkKey: other, capture: CaptureConfig(logs: false), releaseHealth: nil))
         XCTAssertEqual(DeviceLinkCoordinator.shared.__sessionKeyForTesting, other)
     }
+
+    #if os(tvOS)
+    func testStartInstallsTheForegroundRefreshAndKillRemovesIt() throws {
+        defer { Everframe.shared.kill(); Everframe.__setConfigForTesting(nil) }
+        try Everframe.shared.start(config: EverframeConfig(sdkKey: key, capture: CaptureConfig(logs: false), releaseHealth: nil))
+        XCTAssertTrue(DeviceLinkForegroundRefresh.__isLiveInstalledForTesting)
+        Everframe.shared.kill()
+        XCTAssertFalse(DeviceLinkForegroundRefresh.__isLiveInstalledForTesting)
+    }
+    #endif
+
+    #if canImport(UIKit)
+    /// A config apply publishes the app's TV binding to quick capture, under
+    /// the session's epoch guard, right after the `captureHotkey` block.
+    @MainActor
+    func testConfigApplyPublishesTheTvBinding() async {
+        await withGlobalCaptureStateLock {
+            QuickCapture.shared.beginSession(localEnabled: true, debug: true)
+            defer { QuickCapture.shared.teardown() }
+            let body = #"{"replayEnabled":false,"replayDurationSec":30,"samplingRate":1,"captureHotkey":{"enabled":true},"#
+                + #""captureGesture":{"tv":{"kind":"sequence","keys":["DPAD_UP","DPAD_DOWN"],"windowMs":800}}}"#
+            let provider = ReplayConfigProvider(configUrl: URL(string: "https://example.test/api/config")!,
+                                                sdkKey: "test", fetcher: WiringConfigFetcher(body))
+            let session = ReplaySession(provider: provider, locallyDisabled: false)
+            defer { session.teardown() }
+            XCTAssertNil(QuickCapture.shared.publishedTvBinding)
+            await session.refreshConfigNow()
+            XCTAssertEqual(QuickCapture.shared.publishedTvBinding,
+                           .sequence(keys: ["DPAD_UP", "DPAD_DOWN"], windowMs: 800))
+        }
+    }
+    #endif
 }
+
+#if canImport(UIKit)
+private final class WiringConfigFetcher: URLSessionFetching, @unchecked Sendable {
+    let body: String
+    init(_ body: String) { self.body = body }
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        (Data(body.utf8), HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+    }
+}
+#endif

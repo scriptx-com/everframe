@@ -309,7 +309,8 @@ public struct BrandingConfigWire: Decodable, Sendable, Equatable {
 /// declare `devicelinking` in `X-Everframe-SDK-Features`. `enabled` is the
 /// app's device-linking switch. `link` is present only when the request
 /// carried an `evf_dev_` token, and says whether that token is still linked.
-/// `link.recording` (TV gesture recording) is ignored on phones.
+/// `link.recording` (Record on device) is decoded only for a linked device;
+/// a malformed one drops only the recording.
 ///
 /// Decoded leniently: a malformed block degrades to nil, and a malformed
 /// `link` degrades to nil on its own, keeping `enabled`.
@@ -325,6 +326,14 @@ struct DeviceLinkingConfigWire: Decodable, Sendable, Equatable {
         let status: Status
         /// Present only when `status == .linked`.
         let owner: DeviceLinkOwner?
+        /// A pending gesture recording. Only when `status == .linked`.
+        let recording: DeviceLinkRecordingRequest?
+
+        init(status: Status, owner: DeviceLinkOwner?, recording: DeviceLinkRecordingRequest? = nil) {
+            self.status = status
+            self.owner = owner
+            self.recording = status == .linked ? recording : nil
+        }
     }
 
     enum Status: Equatable, Sendable { case linked, unlinked }
@@ -336,7 +345,8 @@ struct DeviceLinkingConfigWire: Decodable, Sendable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey { case enabled, link }
-    private enum LinkKeys: String, CodingKey { case status, owner }
+    private enum LinkKeys: String, CodingKey { case status, owner, recording }
+    private enum RecordingKeys: String, CodingKey { case id, expiresAt }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -353,10 +363,16 @@ struct DeviceLinkingConfigWire: Decodable, Sendable, Equatable {
             return Link(status: .unlinked, owner: nil)
         case "linked":
             guard let owner = try? l.decode(DeviceLinkOwner.self, forKey: .owner) else { return nil }
-            return Link(status: .linked, owner: owner)
+            return Link(status: .linked, owner: owner, recording: decodeRecording(l))
         default:
             return nil
         }
+    }
+
+    private static func decodeRecording(_ l: KeyedDecodingContainer<LinkKeys>) -> DeviceLinkRecordingRequest? {
+        guard let r = try? l.nestedContainer(keyedBy: RecordingKeys.self, forKey: .recording) else { return nil }
+        return DeviceLinkRecordingRequest.decode(id: try? r.decode(String.self, forKey: .id),
+                                                 expiresAt: try? r.decode(String.self, forKey: .expiresAt))
     }
 }
 
@@ -384,6 +400,10 @@ public struct ReplayConfig: Sendable, Equatable {
     /// The `deviceLinking` block (real-device quick capture). nil when the
     /// server sent none or it was malformed.
     internal var deviceLinking: DeviceLinkingConfigWire?
+    /// The `captureGesture` block (the app's TV binding). Sent only to tvOS
+    /// builds, which declare `capturegesture`. nil when the server sent none
+    /// or it was not an object.
+    internal var captureGesture: CaptureGestureConfigWire?
 
     public init(
         replayEnabled: Bool,
@@ -451,6 +471,7 @@ private struct ReplayConfigWire: Decodable {
     let vitalsSampleRate: Double?
     let crashOnlySamplingRate: Double?
     let deviceLinking: DeviceLinkingConfigWire?
+    let captureGesture: CaptureGestureConfigWire?
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -500,12 +521,14 @@ private struct ReplayConfigWire: Decodable {
         let crashOnly = (try? c.decodeIfPresent(Double.self, forKey: .crashOnlySamplingRate)) ?? nil
         crashOnlySamplingRate = crashOnly.flatMap { (0...1).contains($0) ? $0 : nil }
         deviceLinking = (try? c.decodeIfPresent(DeviceLinkingConfigWire.self, forKey: .deviceLinking)) ?? nil
+        // Lenient: an invalid binding leaves `tv` nil, a non-object block is nil.
+        captureGesture = (try? c.decodeIfPresent(CaptureGestureConfigWire.self, forKey: .captureGesture)) ?? nil
     }
 
     enum CodingKeys: String, CodingKey {
         case replayEnabled, replayDurationSec, samplingRate, breadcrumbs, networkBodies, identity
         case companionBadge, branding, nativeVideo, vitalsEnabled, vitalsSampleRate
-        case resources, shakeToReport, captureHotkey, crashOnlySamplingRate, deviceLinking
+        case resources, shakeToReport, captureHotkey, crashOnlySamplingRate, deviceLinking, captureGesture
     }
 
     var config: ReplayConfig {
@@ -527,6 +550,7 @@ private struct ReplayConfigWire: Decodable {
             crashOnlySamplingRate: crashOnlySamplingRate
         )
         config.deviceLinking = deviceLinking
+        config.captureGesture = captureGesture
         return config
     }
 }
@@ -615,7 +639,7 @@ public actor ReplayConfigProvider {
     /// Convenience: build the provider from the base ingest endpoint by appending
     /// `/api/config` (mirrors MultipartUploader's base-URL path-append).
     ///
-    /// On a real iPhone or iPad the fetch carries the device-link token stored
+    /// On a real iPhone, iPad or Apple TV the fetch carries the device-link token stored
     /// for this origin and key. The default fetcher is the isolated report
     /// session, whose redirect guard strips that token on a cross-origin redirect.
     public static func make(
@@ -769,8 +793,16 @@ extension ReplayConfigProvider {
     /// callers without it get `Shift Shift`. `devicelinking` asks for the
     /// `deviceLinking` block. `capturegesture` (TV bindings) is deliberately
     /// not declared: phones always use shake.
-    public static let sdkFeaturesHeaderValue =
-        "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking"
+    /// `capturegesture` (the TV binding block) is declared only in tvOS
+    /// builds: iPhone, iPad and macOS keep the string without it.
+    public static let sdkFeaturesHeaderValue: String = {
+        let base = "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking"
+        #if os(tvOS)
+        return base + ", capturegesture"
+        #else
+        return base
+        #endif
+    }()
 
     /// Test seam: decode a raw `/api/config` body exactly as `refresh()` does.
     static func __decodeForTesting(_ data: Data) throws -> ReplayConfig {

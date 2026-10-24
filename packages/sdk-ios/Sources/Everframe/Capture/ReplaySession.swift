@@ -575,6 +575,10 @@ public final class ReplaySession: NSObject {
         QuickCapture.shared.publish(remote: latest.captureHotkey) {
             Everframe.shared.currentStartEpoch == startEpochAtCreation
         }
+        // The TV binding (Apple TV's Siri Remote gesture), under the same guard.
+        QuickCapture.shared.publishGesture(latest.captureGesture) {
+            Everframe.shared.currentStartEpoch == startEpochAtCreation
+        }
         // Simulator quick capture's `captureHotkey.replay`: replay also records
         // while quick capture is armed, even with `replayEnabled` false, and
         // regardless of sampling, because that is a developer's debug session.
