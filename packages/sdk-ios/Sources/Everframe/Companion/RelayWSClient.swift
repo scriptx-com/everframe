@@ -8,7 +8,7 @@
 import Foundation
 
 /// How the removed Companion flow advertised attach-PIN support. Ignored.
-@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.")
 public enum AttachPinUi: String, Sendable {
     case builtin
     case custom
@@ -16,7 +16,7 @@ public enum AttachPinUi: String, Sendable {
 }
 
 /// Corner of the removed Companion name badge. Ignored.
-@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.")
 public enum CompanionBadgePosition: Sendable, Equatable {
     case topLeft
     case topRight
@@ -25,7 +25,7 @@ public enum CompanionBadgePosition: Sendable, Equatable {
 }
 
 /// Options for the removed Companion name badge. Ignored.
-@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.")
 public struct CompanionBadgeOptions: Sendable, Equatable {
     public var enabled: Bool
     public var position: CompanionBadgePosition
@@ -37,7 +37,7 @@ public struct CompanionBadgeOptions: Sendable, Equatable {
 }
 
 /// The removed Companion relay client. Does nothing.
-@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.")
 public final class RelayWSClient: NSObject, @unchecked Sendable {
     /// Every argument is accepted and ignored.
     public init(

@@ -22,7 +22,7 @@ export type { ToastTone } from './reporter-ui/primitives/Toast.js';
 /**
  * Renders nothing.
  *
- * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+ * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
  */
 export function CompanionBadge(): null {
   return null;
@@ -31,7 +31,7 @@ export function CompanionBadge(): null {
 /**
  * Renders nothing.
  *
- * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+ * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
  */
 export function CompanionPinCard(): null {
   return null;

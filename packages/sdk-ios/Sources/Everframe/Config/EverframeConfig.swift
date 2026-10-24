@@ -46,7 +46,7 @@ public struct EverframeConfig: Sendable, Equatable {
     public var redaction: RedactionConfig
     /// Deprecated: the removed Companion's device-identity override. Accepted
     /// and ignored. Removed at the next major.
-    @available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+    @available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.")
     public var companionDeviceId: String? {
         get { _companionDeviceId }
         set { _companionDeviceId = newValue }
@@ -54,7 +54,7 @@ public struct EverframeConfig: Sendable, Equatable {
     private var _companionDeviceId: String?
     /// Deprecated: the removed Companion name badge's visibility. Accepted and
     /// ignored. Removed at the next major.
-    @available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+    @available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.")
     public var companionBadgeEnabled: Bool {
         get { _companionBadgeEnabled }
         set { _companionBadgeEnabled = newValue }
@@ -64,7 +64,7 @@ public struct EverframeConfig: Sendable, Equatable {
     public var shakeToReportEnabled: Bool
     /// Deprecated: the removed Companion name badge's corner. Accepted and
     /// ignored. Removed at the next major.
-    @available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+    @available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.")
     public var companionBadgePosition: String? {
         get { _companionBadgePosition }
         set { _companionBadgePosition = newValue }

@@ -198,19 +198,19 @@ export interface RuntimeConfig extends Omit<
   /**
    * Accepted and ignored.
    *
-   * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+   * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
    */
   attachPinUi?: 'builtin' | 'custom' | 'off';
   /**
    * Accepted and ignored.
    *
-   * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+   * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
    */
   companionDeviceId?: string;
   /**
    * Accepted and ignored.
    *
-   * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+   * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
    */
   companionBadge?: {
     enabled?: boolean;

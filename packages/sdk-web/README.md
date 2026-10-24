@@ -385,7 +385,7 @@ attributed to them. End users' TVs keep behaving exactly as before. Desktop
 browsers are not covered yet: this needs a Tizen or webOS user agent, and every
 other browser gets none of it (no new request, no new chunk).
 
-**Linking.** On the dashboard open **Settings → Devices → Link a device**, do
+**Linking.** On the dashboard open **Project settings → Devices → Link a device**, do
 the capture gesture on the TV, and pick the number the TV shows
 (`Linking to Everframe · 47`). The TV then toasts `Linked to <name>`.
 
@@ -487,7 +487,7 @@ connection, `companion.stop()` does nothing, `createCompanion()` and
 `__getCompanionApi()` return a surface whose getters are idle (`'unpaired'`,
 `null`) and whose `on*` subscriptions never fire, and `CompanionBadge` /
 `CompanionPinCard` from `@everframe/web/ui` render nothing. To capture from a
-real device, link it under Settings → Devices in the dashboard and use quick
+real device, link it under Project settings → Devices in the dashboard and use quick
 capture.
 
 ## The two builds

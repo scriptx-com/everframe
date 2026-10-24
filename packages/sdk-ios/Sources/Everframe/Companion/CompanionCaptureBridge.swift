@@ -7,7 +7,7 @@
 import Foundation
 
 /// The removed Companion capture bridge. Does nothing.
-@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.")
 public final class CompanionCaptureBridge: @unchecked Sendable {
     public init(client: RelayWSClient) {}
 }

@@ -141,7 +141,7 @@ an emulator ⇧B (below).
 
 Link your phone to yourself once, then shake it whenever you see a bug:
 
-1. On the dashboard, open **Settings → Devices → Link a device**.
+1. On the dashboard, open **Project settings → Devices → Link a device**.
 2. Shake the phone with the app running. A banner shows
    `Linking to Everframe · 47`, with the line
    `A teammate is linking a device. If that's not you, ignore this.`
@@ -181,7 +181,7 @@ What a shake does, with the dashboard's capture hotkey setting on:
   open **Link a device** and you shake. The capture is filed as usual, the
   banner shows a number, and when they pick it the device moves to them along
   with that capture.
-- **Unlinking.** Unlink a device under **Settings → Devices**. The phone finds
+- **Unlinking.** Unlink a device under **Project settings → Devices**. The phone finds
   out at its next capture or config fetch, shows `This device was unlinked`,
   and behaves as unlinked again. A capture refused this way is not filed in the
   shared inbox.
@@ -350,7 +350,7 @@ removed. Its API remains, deprecated, until the next major version:
 `stopCompanion()` does nothing. The `companionDeviceId`,
 `companionBadgeEnabled` and `companionBadgePosition` `EverframeConfig`
 parameters keep their positions and are ignored. To capture from a real
-device, link it under Settings → Devices in the dashboard and use quick
+device, link it under Project settings → Devices in the dashboard and use quick
 capture.
 
 All other trigger detection stays in the host app. Below are the canonical

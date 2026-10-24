@@ -112,7 +112,7 @@ What the gesture does, when quick capture is on for the app in the dashboard:
 
 A debug build is `debugBuild` when you pass it, else React Native's `__DEV__`.
 
-**Linking a device.** In the dashboard, open Settings → Devices → Link a
+**Linking a device.** In the dashboard, open Project settings → Devices → Link a
 device. On the device, do the capture gesture (by default, long press
 Play/Pause for about 1.5 s). The device shows
 `Linking to Everframe · 47`; pick the matching number in the dashboard. The

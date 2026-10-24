@@ -8,7 +8,7 @@
 import UIKit
 
 @MainActor
-@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.")
 public enum CompanionPinPresenter {
     /// Does nothing.
     public static func install() {}

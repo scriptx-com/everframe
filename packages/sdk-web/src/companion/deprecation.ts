@@ -9,7 +9,7 @@
 
 /** The message every deprecated Companion symbol carries, and the one-time warning. */
 export const COMPANION_REMOVED_MESSAGE =
-  'Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.';
+  'Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.';
 
 let emitted = 0;
 

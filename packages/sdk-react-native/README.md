@@ -428,7 +428,7 @@ code, every `on*` subscription returns an unsubscribe and never fires, and
 `useCompanion()` always returns `{ state: 'unpaired', running: false, … }`
 with every other value `null`. The `attachPinUi`, `companionDeviceId` and
 `companionBadge` config options are accepted and ignored. To capture from a
-real device, link it under Settings → Devices in the dashboard and use quick
+real device, link it under Project settings → Devices in the dashboard and use quick
 capture.
 
 ## Navigation breadcrumbs
@@ -759,7 +759,7 @@ debug build:
 | Unlinked, debug build   | Quick capture, a shared draft. Toast `Captured · <device name>`. Also answers a dashboard link window. |
 | Unlinked, release build | As before: the reporter opens if `shakeToReport` allows it. Also answers a dashboard link window.      |
 
-- **Link a phone.** On the dashboard, open **Settings → Devices → Link a
+- **Link a phone.** On the dashboard, open **Project settings → Devices → Link a
   device**, then shake the phone with the app running. A banner shows
   `Linking to Everframe · 47` with the line
   `A teammate is linking a device. If that's not you, ignore this.` Click the
@@ -774,7 +774,7 @@ debug build:
   another teammate opens **Link a device** and the phone is shaken, the capture
   is filed as usual and the banner shows a number; picking it moves the phone,
   and that capture, to the new teammate.
-- **Unlinking.** Unlink a phone under **Settings → Devices**. It finds out at
+- **Unlinking.** Unlink a phone under **Project settings → Devices**. It finds out at
   its next capture or config fetch and behaves as unlinked again. A capture
   refused this way is not filed anywhere and shows `This device was unlinked`.
   Android also shows that toast when a config fetch reports the unlink; iOS

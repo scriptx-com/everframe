@@ -11,7 +11,7 @@ import os
 /// The single message every deprecated Companion symbol carries, and the
 /// warning logged the first time a pairing entry point is called.
 let companionRemovedMessage =
-    "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture."
+    "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture."
 
 enum CompanionDeprecation {
     private static let log = Logger(subsystem: "dev.everframe", category: "companion")

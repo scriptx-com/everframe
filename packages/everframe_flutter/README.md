@@ -163,7 +163,7 @@ the build is a debug build:
 | Unlinked, debug build   | Quick capture, a shared draft. Toast `Captured · <device name>`. Also answers a dashboard link window. |
 | Unlinked, release build | As before. Also answers a dashboard link window.                                                       |
 
-- **Link a phone.** On the dashboard, open **Settings → Devices → Link a
+- **Link a phone.** On the dashboard, open **Project settings → Devices → Link a
   device**, then shake the phone with the app running. A banner shows
   `Linking to Everframe · 47` with the line
   `A teammate is linking a device. If that's not you, ignore this.` Click the
@@ -176,7 +176,7 @@ the build is a debug build:
 - **Hand a phone over.** When another teammate opens **Link a device** and a
   linked phone is shaken, the capture is filed as usual and the banner shows a
   number; picking it moves the phone, and that capture, to the new teammate.
-- **Unlinking.** Unlink a phone under **Settings → Devices**. It finds out at
+- **Unlinking.** Unlink a phone under **Project settings → Devices**. It finds out at
   its next capture or config fetch and behaves as unlinked again. A capture
   refused this way is not filed anywhere and shows `This device was unlinked`.
   Android also shows that toast when a config fetch reports the unlink; iOS
