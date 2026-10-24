@@ -11,6 +11,8 @@ export const LINKED_TEAM = 'Linked as team device';
 export const DEVICE_UNLINKED = 'This device was unlinked';
 export const CAPTURE_FAILED = "Capture didn't upload";
 export const BANNER_SUBLINE = "A teammate is linking a device. If that's not you, ignore this.";
+export const RECORDING_STARTED = 'Recording remote keys for 10 seconds';
+export const RECORDING_SENT = 'Keys sent to Everframe';
 
 export const bannerTitle = (number: number): string => `Linking to Everframe · ${number}`;
 

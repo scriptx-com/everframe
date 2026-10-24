@@ -23,6 +23,7 @@ import {
   type GestureBinding,
   type GestureDetector,
 } from './gesture-detector.js';
+import { createGestureRecording, type GestureRecording } from './gesture-recording.js';
 import { buildQuickCaptureEnvelope, buildVegaEnvelope } from './envelope.js';
 import { extractFacts, isErrorValue, renderLabel, renderValue } from './error-facts.js';
 import { uuidV4 } from './ids.js';
@@ -246,6 +247,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
   /** The binding in effect; null when the app's binding uses keys Vega lacks. */
   let tvBinding: GestureBinding | null = DEFAULT_TV_BINDING;
   let warnedUnsupported = false;
+  let recording: GestureRecording | undefined;
   let lastGestureAt = -Infinity;
 
   function admit(mechanism: Mechanism, fatal: boolean, key: string, value: unknown): boolean {
@@ -616,6 +618,13 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
    * one exactly as before.
    */
   function onRemoteKey(event: HWEventLike): void {
+    // Record on device: every key goes to the recording, none to the gesture.
+    if (recording?.active()) {
+      detector?.reset();
+      const action = keyAction(event?.eventKeyAction);
+      if (action) recording.onKey(keyForVegaEvent(event?.eventType), action);
+      return;
+    }
     if (!gestureArmed() || !tvBinding) {
       detector?.reset();
       return;
@@ -628,9 +637,10 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
         now: env.now,
         setTimeout: env.setTimeout,
         clearTimeout: env.clearTimeout,
-        // A hold that ends after its binding was replaced does nothing.
+        // A hold that ends after its binding was replaced, or once a
+        // recording started, does nothing.
         onFire: () => {
-          if (detector === created) onGesture();
+          if (detector === created && !recording?.active()) onGesture();
         },
       });
       detector = created;
@@ -665,9 +675,10 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
     const store = createOverlayStore(env);
     installRootWrapper(registry, { store, onKey: (event) => onRemoteKey(event) });
     overlay = store;
+    const linkClient = createLinkClient(deps, resolved.apiBase, resolved.sdkKey);
     deviceLink = createDeviceLink({
       store: createLinkStore(resolved.storage),
-      client: createLinkClient(deps, resolved.apiBase, resolved.sdkKey),
+      client: linkClient,
       scope: linkScope(resolved.apiBase, resolved.sdkKey),
       presenter: store,
       device: helloDevice({
@@ -683,7 +694,21 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
       setTimeout: env.setTimeout,
       clearTimeout: env.clearTimeout,
       refreshConfig,
+      onRecording: (request) => {
+        recording?.onRequest(request);
+        // A press in progress never completes into a capture during the window.
+        if (recording?.active()) detector?.reset();
+      },
       debug,
+    });
+    recording = createGestureRecording({
+      client: linkClient,
+      deviceLink,
+      presenter: store,
+      now: env.now,
+      wallNow: env.now,
+      setTimeout: env.setTimeout,
+      clearTimeout: env.clearTimeout,
     });
     // The foreground throttle starts at init: the first config request is
     // already on its way once the link loads.

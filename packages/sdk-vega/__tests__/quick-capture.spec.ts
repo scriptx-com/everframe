@@ -3,6 +3,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createVegaClient } from '../src/client.js';
 import { CHECK_INTERVAL_MS } from '../src/device-link.js';
+import { RECORDING_MS } from '../src/gesture-recording.js';
+import { RECORDING_SENT, RECORDING_STARTED } from '../src/link-copy.js';
 import { TOAST_MS } from '../src/overlay.js';
 import { LINK_STORAGE_KEY } from '../src/link-store.js';
 import { linkScope, tokenFingerprint } from '../src/link-token.js';
@@ -61,6 +63,8 @@ async function setup(
     storage?: FakeStorage;
     model?: string;
     dev?: boolean;
+    /** Read on every config request: extra fields of a linked status. */
+    linkExtra?: Record<string, unknown>;
   } = {},
 ): Promise<Setup> {
   const storage = opts.storage ?? createStorage();
@@ -77,7 +81,11 @@ async function setup(
         ...base,
         deviceLinking: {
           ...(base.deviceLinking ?? {}),
-          link: { status: 'linked', owner: opts.owner ?? { kind: 'user', name: 'Aurimas' } },
+          link: {
+            status: 'linked',
+            owner: opts.owner ?? { kind: 'user', name: 'Aurimas' },
+            ...(opts.linkExtra ?? {}),
+          },
         },
       },
     };
@@ -717,5 +725,94 @@ describe('capture gesture binding on a device', () => {
     expect(configs(h)[0]!.headers['X-Everframe-SDK-Features']).toBe(
       'capturehotkey, devicelinking, capturegesture',
     );
+  });
+});
+
+describe('record on device on a device', () => {
+  const RECORDING = '0b9f1e2a-3c4d-4e5f-8a6b-7c8d9e0f1a2b';
+  const pending = () => ({
+    recording: { id: RECORDING, expiresAt: new Date(Date.now() + 60_000).toISOString() },
+  });
+  const posts = (h: Harness) =>
+    h.fetch.all.filter((r) => r.url.includes('/api/device-link/recordings/'));
+
+  it('recordingRequestRecordsKeysAndPosts', async () => {
+    const opts = { link: TOKEN_A, linkExtra: pending() };
+    const { h, client, toasts } = await setup(opts);
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    expect(toasts).toEqual([RECORDING_STARTED]);
+    await tapKey(client, 'up', 240);
+    await tapKey(client, 'colorbutton', 100);
+    await holdKey(client, 'playpause', 2000);
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    expect(posts(h)).toHaveLength(1);
+    expect(posts(h)[0]!.headers['X-Everframe-Capture-Token']).toBe(TOKEN_A);
+    expect(JSON.parse(posts(h)[0]!.body)).toEqual({
+      events: [
+        { key: 'DPAD_UP', downMs: 0, upMs: 60 },
+        { key: 'MEDIA_PLAY_PAUSE', downMs: 460, upMs: 2460 },
+      ],
+    });
+    // The 2 s hold during the window was a recorded key, not a capture.
+    expect(ingest(h)).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(toasts).toContain(RECORDING_SENT);
+  });
+
+  it('noGestureFiresWhileRecording', async () => {
+    const opts: { link: string; linkExtra: Record<string, unknown> } = {
+      link: TOKEN_A,
+      linkExtra: pending(),
+    };
+    const { h, client } = await setup(opts);
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    await holdKey(client, 'playpause', 3000);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest(h)).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    // After the window the gesture works again (and the handled request is not rerun).
+    opts.linkExtra = {};
+    await holdKey(client, 'playpause', 1600);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest(h)).toHaveLength(1);
+  });
+
+  it('aPendingHoldDoesNotFireOnceARecordingStarts', async () => {
+    const opts: { link: string; linkExtra: Record<string, unknown> } = {
+      link: TOKEN_A,
+      linkExtra: {},
+    };
+    const { h, client, toasts } = await setup(opts);
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    await vi.advanceTimersByTimeAsync(1000);
+    opts.linkExtra = pending();
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(toasts).toContain(RECORDING_STARTED);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(ingest(h)).toHaveLength(0);
+  });
+
+  it('recordingWorksWithQuickCaptureOffOnTheServer', async () => {
+    const opts = {
+      link: TOKEN_A,
+      linkExtra: pending(),
+      config: { captureHotkey: { enabled: false }, deviceLinking: { enabled: true } },
+    };
+    const { h, client } = await setup(opts);
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    expect(client.armed()).toBe(false);
+    await tapKey(client, 'select');
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    expect(JSON.parse(posts(h)[0]!.body).events).toEqual([
+      { key: 'DPAD_CENTER', downMs: 0, upMs: 60 },
+    ]);
+  });
+
+  it('unlinkedDeviceNeverRecords', async () => {
+    const { h, toasts } = await setup({ debug: true, linkExtra: pending() });
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    expect(toasts).toEqual([]);
+    expect(posts(h)).toEqual([]);
   });
 });
