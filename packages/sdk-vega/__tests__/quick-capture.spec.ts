@@ -18,6 +18,7 @@ import {
   type GestureInput,
 } from '../src/quick-capture.js';
 import type { AppRegistryLike } from '../src/overlay.js';
+import type { AppStateLike } from '../src/release-health.js';
 import {
   createEnv,
   createStorage,
@@ -65,12 +66,17 @@ async function setup(
     dev?: boolean;
     /** Read on every config request: extra fields of a linked status. */
     linkExtra?: Record<string, unknown>;
+    appState?: AppStateLike;
   } = {},
 ): Promise<Setup> {
   const storage = opts.storage ?? createStorage();
   if (opts.link) storedLink(storage, opts.link, opts.owner);
   const registry: AppRegistryLike = { setWrapperComponentProvider: () => undefined };
-  const h = createEnv({ appRegistry: registry, dev: opts.dev ?? false });
+  const h = createEnv({
+    appRegistry: registry,
+    dev: opts.dev ?? false,
+    ...(opts.appState ? { appState: opts.appState } : {}),
+  });
   h.fetch.route('GET', '/api/config', (req) => {
     const token = req.headers['X-Everframe-Capture-Token'];
     const base = (opts.config ?? CONFIG) as Record<string, any>;
@@ -860,6 +866,118 @@ describe('recording boundaries on a device', () => {
     await vi.advanceTimersByTimeAsync(RECORDING_MS);
     const posts = h.fetch.all.filter((r) => r.url.includes('/recordings/'));
     expect(JSON.parse(posts[0]!.body).events).toEqual([
+      { key: 'DPAD_CENTER', downMs: 0, upMs: 60 },
+    ]);
+  });
+});
+
+/** A multi-component Vega app's AppState: `change` can describe one component. */
+function moduleAppState() {
+  const listeners = new Map<string, Array<(value: unknown) => void>>();
+  const state = {
+    currentState: 'active' as unknown,
+    currentModuleStates: [
+      { module_name: 'main', module_state: 'active' },
+      { module_name: 'player', module_state: 'active' },
+    ] as unknown,
+    addEventListener(event: 'change' | 'moduleChange', listener: (value: unknown) => void) {
+      const list = listeners.get(event) ?? [];
+      list.push(listener);
+      listeners.set(event, list);
+      return { remove: () => undefined };
+    },
+    /** One component goes to the background; another stays active. */
+    componentToBackground() {
+      state.currentModuleStates = [
+        { module_name: 'main', module_state: 'active' },
+        { module_name: 'player', module_state: 'background' },
+      ];
+      state.currentState = 'background';
+      listeners.get('moduleChange')?.forEach((l) => l(state.currentModuleStates));
+      listeners.get('change')?.forEach((l) => l('background'));
+    },
+    /** Every component in one state. */
+    all(moduleState: 'active' | 'background') {
+      state.currentModuleStates = [
+        { module_name: 'main', module_state: moduleState },
+        { module_name: 'player', module_state: moduleState },
+      ];
+      state.currentState = moduleState;
+      listeners.get('moduleChange')?.forEach((l) => l(state.currentModuleStates));
+      listeners.get('change')?.forEach((l) => l(moduleState));
+    },
+  };
+  return state;
+}
+
+describe('recording with Vega module states', () => {
+  const RECORDING = '0b9f1e2a-3c4d-4e5f-8a6b-7c8d9e0f1a2b';
+  const pending = () => ({
+    recording: { id: RECORDING, expiresAt: new Date(Date.now() + 60_000).toISOString() },
+  });
+  const posts = (h: Harness) =>
+    h.fetch.all.filter((r) => r.url.includes('/api/device-link/recordings/'));
+
+  it('promptStartsWhileAnotherComponentIsInTheBackground', async () => {
+    const appState = moduleAppState();
+    const opts: { link: string; linkExtra: Record<string, unknown>; appState: AppStateLike } = {
+      link: TOKEN_A,
+      linkExtra: {},
+      appState,
+    };
+    const { h, client, toasts } = await setup(opts);
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    appState.componentToBackground();
+    opts.linkExtra = pending();
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(toasts).toContain(RECORDING_STARTED);
+    await tapKey(client, 'select');
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    expect(posts(h)).toHaveLength(1);
+    expect(JSON.parse(posts(h)[0]!.body).events).toEqual([
+      { key: 'DPAD_CENTER', downMs: 0, upMs: 60 },
+    ]);
+  });
+
+  it('heldKeyStaysSuppressedWhileAnotherComponentGoesBackground', async () => {
+    const appState = moduleAppState();
+    const { h, client } = await setup({ link: TOKEN_A, linkExtra: pending(), appState });
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    await vi.advanceTimersByTimeAsync(9000);
+    // Play/Pause held from 9 s to 14 s; at 10.5 s another component goes to
+    // the background while this one stays on screen.
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    for (let t = 9200; t < 14_000; t += 200) {
+      await vi.advanceTimersByTimeAsync(200);
+      if (t === 10_600) appState.componentToBackground();
+      client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 0 });
+    }
+    await vi.advanceTimersByTimeAsync(200);
+    client.onRemoteKey({ eventType: 'playpause', eventKeyAction: 1 });
+    await vi.advanceTimersByTimeAsync(CAPTURE_COOLDOWN_MS);
+    expect(ingest(h)).toHaveLength(0);
+  });
+
+  it('promptWaitsWhileEveryComponentIsInTheBackground', async () => {
+    const appState = moduleAppState();
+    const opts: { link: string; linkExtra: Record<string, unknown>; appState: AppStateLike } = {
+      link: TOKEN_A,
+      linkExtra: {},
+      appState,
+    };
+    const { h, client } = await setup(opts);
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    appState.all('background');
+    opts.linkExtra = pending();
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(RECORDING_MS + 2000);
+    expect(posts(h)).toHaveLength(0);
+    appState.all('active');
+    await vi.advanceTimersByTimeAsync(0);
+    await tapKey(client, 'select');
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    expect(JSON.parse(posts(h)[0]!.body).events).toEqual([
       { key: 'DPAD_CENTER', downMs: 0, upMs: 60 },
     ]);
   });

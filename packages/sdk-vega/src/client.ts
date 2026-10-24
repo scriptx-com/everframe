@@ -60,7 +60,12 @@ import { fetchRemoteConfig, type RemoteConfig } from './remote-config.js';
 import { keyAction, keyForVegaEvent } from './remote-keys.js';
 import { sendReport, type FetchLike, type SendDeps } from './transport.js';
 import { SDK_VERSION } from './version.js';
-import { createReleaseHealth, HEALTH_OUTBOX_KEY, type AppStateLike } from './release-health.js';
+import {
+  createReleaseHealth,
+  HEALTH_OUTBOX_KEY,
+  watchForeground,
+  type AppStateLike,
+} from './release-health.js';
 import type { NativeExposurePointer } from '@everframe/protocol';
 
 type GlobalHandler = (error: unknown, isFatal?: boolean) => void;
@@ -730,27 +735,48 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
       // Linked captures stored by an earlier launch wait for the link.
       if (outbox && outbox.size() > 0) void drain();
     });
+    // On screen or not, from the same reading of Vega's lifecycle as release
+    // health: in a multi-component app, one component going to the
+    // background does not take this one off the screen.
+    let foreground = true;
+    const subscriptions: Array<{ remove(): void }> = [];
     try {
-      env.appState?.addEventListener('change', (state) => {
-        try {
-          overlay?.setForeground(state === 'active');
-          if (state !== 'active') {
-            // A hold never spans the app leaving the screen.
-            detector?.reset();
-            heldThroughRecording.clear();
-            return;
-          }
-          // Only a linked device re-reads: its link may have been revoked or
-          // reassigned. End users' devices make one request per launch.
-          if (!deviceLink?.current()) return;
-          if (env.now() - lastConfigAt < FOREGROUND_REFRESH_MS) return;
-          refreshConfig();
-        } catch {
-          // Never into the host.
-        }
-      });
+      if (env.appState)
+        watchForeground(
+          env.appState,
+          (state) => {
+            try {
+              const next = state === 'active';
+              if (next === foreground) return;
+              foreground = next;
+              overlay?.setForeground(next);
+              if (!next) {
+                // A hold never spans the app leaving the screen.
+                detector?.reset();
+                heldThroughRecording.clear();
+                return;
+              }
+              // Only a linked device re-reads: its link may have been revoked or
+              // reassigned. End users' devices make one request per launch.
+              if (!deviceLink?.current()) return;
+              if (env.now() - lastConfigAt < FOREGROUND_REFRESH_MS) return;
+              refreshConfig();
+            } catch {
+              // Never into the host.
+            }
+          },
+          subscriptions,
+        );
     } catch {
-      // No lifecycle events: the config is read once per launch.
+      // No lifecycle events: the config is read once per launch, and the
+      // overlay counts as on screen.
+      for (const subscription of subscriptions) {
+        try {
+          subscription.remove();
+        } catch {}
+      }
+      foreground = true;
+      overlay?.setForeground(true);
     }
   }
 
