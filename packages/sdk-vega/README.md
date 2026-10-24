@@ -164,7 +164,11 @@ then, at most every 10 seconds; unlinked devices don't). It shows
 still reach your app, and the capture gesture pauses meanwhile), sends them,
 and shows `Keys sent to Everframe`. The dashboard turns them into a binding for
 you to save. Keys a Vega app cannot tell apart, such as the color keys, are
-left out. If the device is unlinked or linked to someone else before the 10
+left out. The 10 seconds start when the prompt is actually on screen (after
+any toast already showing, with the app in the foreground); a request whose
+prompt could not be shown before it expired stays unused. A key still held
+when the 10 seconds end does not count toward the capture gesture until it is
+released. If the device is unlinked or linked to someone else before the 10
 seconds are up, nothing is sent.
 
 **Remote keys.** The SDK only listens to keys; it never consumes one. A long

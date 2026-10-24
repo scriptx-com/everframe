@@ -248,6 +248,8 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
   let tvBinding: GestureBinding | null = DEFAULT_TV_BINDING;
   let warnedUnsupported = false;
   let recording: GestureRecording | undefined;
+  /** Keys that went down during a recording; kept from the gesture until their up. */
+  const heldThroughRecording = new Set<string>();
   let lastGestureAt = -Infinity;
 
   function admit(mechanism: Mechanism, fatal: boolean, key: string, value: unknown): boolean {
@@ -618,11 +620,21 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
    * one exactly as before.
    */
   function onRemoteKey(event: HWEventLike): void {
+    const rawType = event?.eventType;
+    const keyId = typeof rawType === 'string' ? rawType : '';
     // Record on device: every key goes to the recording, none to the gesture.
     if (recording?.active()) {
       detector?.reset();
       const action = keyAction(event?.eventKeyAction);
-      if (action) recording.onKey(keyForVegaEvent(event?.eventType), action);
+      if (action === 'down') heldThroughRecording.add(keyId);
+      else if (action === 'up') heldThroughRecording.delete(keyId);
+      if (action) recording.onKey(keyForVegaEvent(rawType), action);
+      return;
+    }
+    // A key still held from the recording is not a new press: its repeats
+    // and its up never reach the gesture.
+    if (heldThroughRecording.has(keyId)) {
+      if (keyAction(event?.eventKeyAction) === 'up') heldThroughRecording.delete(keyId);
       return;
     }
     if (!gestureArmed() || !tvBinding) {
@@ -631,7 +643,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
     }
     const action = keyAction(event?.eventKeyAction);
     if (!action) return;
-    const key = keyForVegaEvent(event?.eventType);
+    const key = keyForVegaEvent(rawType);
     if (!detector) {
       const created = createGestureDetector(tvBinding, {
         now: env.now,
@@ -721,9 +733,11 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
     try {
       env.appState?.addEventListener('change', (state) => {
         try {
+          overlay?.setForeground(state === 'active');
           if (state !== 'active') {
             // A hold never spans the app leaving the screen.
             detector?.reset();
+            heldThroughRecording.clear();
             return;
           }
           // Only a linked device re-reads: its link may have been revoked or

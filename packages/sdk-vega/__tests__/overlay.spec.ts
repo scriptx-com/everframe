@@ -218,3 +218,79 @@ describe('root wrapper', () => {
     expect(() => tvEventHandlers[0]!(undefined)).not.toThrow();
   });
 });
+
+describe('prompts', () => {
+  it('promptShownOnlyOnceItIsTheVisibleToast', () => {
+    const s = store();
+    s.setMounted(true);
+    const shown: number[] = [];
+    const start = Date.now();
+    s.toast('Captured · Aurimas');
+    s.prompt('Recording remote keys for 10 seconds', () => shown.push(Date.now() - start));
+    expect(shown).toEqual([]);
+    vi.advanceTimersByTime(TOAST_MS);
+    expect(s.snapshot().toast).toBe('Recording remote keys for 10 seconds');
+    expect(shown).toEqual([TOAST_MS]);
+  });
+
+  it('promptWaitsForAMountedRoot', () => {
+    const s = store();
+    const shown: number[] = [];
+    s.prompt('Recording remote keys for 10 seconds', () => shown.push(Date.now()));
+    vi.advanceTimersByTime(TOAST_MS * 5);
+    expect(shown).toEqual([]);
+    const at = Date.now();
+    s.setMounted(true);
+    expect(shown).toEqual([at]);
+    // Its display time starts when it is shown.
+    vi.advanceTimersByTime(TOAST_MS - 1);
+    expect(s.snapshot().toast).toBe('Recording remote keys for 10 seconds');
+    vi.advanceTimersByTime(1);
+    expect(s.snapshot().toast).toBeNull();
+  });
+
+  it('promptWaitsForTheForeground', () => {
+    const s = store();
+    s.setMounted(true);
+    s.setForeground(false);
+    const shown: number[] = [];
+    s.prompt('Recording remote keys for 10 seconds', () => shown.push(1));
+    vi.advanceTimersByTime(TOAST_MS * 5);
+    expect(shown).toEqual([]);
+    s.setForeground(true);
+    expect(shown).toEqual([1]);
+  });
+
+  it('cancelledPromptIsNeverShown', () => {
+    const s = store();
+    s.setMounted(true);
+    const shown: number[] = [];
+    s.toast('first');
+    const cancel = s.prompt('Recording remote keys for 10 seconds', () => shown.push(1));
+    s.toast('after');
+    cancel();
+    vi.advanceTimersByTime(TOAST_MS);
+    expect(s.snapshot().toast).toBe('after');
+    vi.advanceTimersByTime(TOAST_MS * 3);
+    expect(shown).toEqual([]);
+  });
+
+  it('cancellingAPromptWaitingForMountMovesOn', () => {
+    const s = store();
+    const cancel = s.prompt('Recording remote keys for 10 seconds', () => undefined);
+    s.toast('next');
+    cancel();
+    expect(s.snapshot().toast).toBe('next');
+  });
+
+  it('promptSurvivesTheQueueCap', () => {
+    const s = store();
+    s.setMounted(true);
+    const shown: number[] = [];
+    s.toast('showing');
+    s.prompt('Recording remote keys for 10 seconds', () => shown.push(1));
+    for (let i = 0; i < TOAST_QUEUE_MAX + 2; i++) s.toast(`t${i}`);
+    vi.advanceTimersByTime(TOAST_MS);
+    expect(shown).toEqual([1]);
+  });
+});

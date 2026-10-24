@@ -11,6 +11,10 @@
 //   holds it: a relink or unlink during the window posts nothing.
 // - While a recording runs, the capture gesture is off (the client checks
 //   `active()`), so pressing the current gesture never files a capture.
+// - The 10 s window starts only once the prompt is on screen (the overlay
+//   may be showing other toasts, have no root mounted yet, or the app may be
+//   in the background). A request whose prompt could not be shown before it
+//   expired is not used up: the server can offer it again.
 import type { CurrentLink, Presenter } from './device-link.js';
 import type { RecordingClient } from './link-client.js';
 import { RECORDING_SENT, RECORDING_STARTED } from './link-copy.js';
@@ -39,7 +43,10 @@ export interface RecordingRequest {
 export interface GestureRecordingDeps {
   client: RecordingClient;
   deviceLink: { current(): CurrentLink | null; generation(): number };
-  presenter: Pick<Presenter, 'toast'>;
+  presenter: Pick<Presenter, 'toast'> & {
+    /** Shows `text`; `onShown` runs once it is on screen. Returns a withdraw. */
+    prompt(text: string, onShown: () => void): () => void;
+  };
   /** Monotonic enough for key timing. */
   now: () => number;
   /** Wall clock, for the request's expiry. */
@@ -65,11 +72,22 @@ interface Session {
   open: Map<GestureKey, number>;
 }
 
+/** A request whose prompt is queued but not on screen yet. */
+interface Waiting {
+  id: string;
+  expiresAt: number;
+  token: string;
+  generation: number;
+  withdraw: () => void;
+  expiry: unknown;
+}
+
 export function createGestureRecording(deps: GestureRecordingDeps): GestureRecording {
   let session: Session | null = null;
+  let waiting: Waiting | null = null;
   const handled: string[] = [];
 
-  const stillLinked = (s: Session): boolean =>
+  const stillLinked = (s: { token: string; generation: number }): boolean =>
     deps.deviceLink.generation() === s.generation && deps.deviceLink.current()?.token === s.token;
 
   function finish(s: Session): void {
@@ -98,27 +116,52 @@ export function createGestureRecording(deps: GestureRecordingDeps): GestureRecor
     );
   }
 
+  /** The prompt is on screen: the window starts now. */
+  function begin(w: Waiting): void {
+    if (waiting !== w) return;
+    waiting = null;
+    deps.clearTimeout(w.expiry);
+    if (!(w.expiresAt > deps.wallNow()) || !stillLinked(w)) return;
+    handled.push(w.id);
+    if (handled.length > HANDLED_MAX) handled.shift();
+    const s: Session = {
+      id: w.id,
+      token: w.token,
+      generation: w.generation,
+      firstDown: undefined,
+      events: [],
+      open: new Map(),
+    };
+    session = s;
+    deps.setTimeout(() => finish(s), RECORDING_MS);
+  }
+
   return {
     onRequest(request) {
       if (!request || typeof request.id !== 'string' || typeof request.expiresAt !== 'number')
         return;
-      if (session || handled.includes(request.id)) return;
-      if (!(request.expiresAt > deps.wallNow())) return;
+      if (session || waiting || handled.includes(request.id)) return;
+      const left = request.expiresAt - deps.wallNow();
+      if (!(left > 0)) return;
       const link = deps.deviceLink.current();
       if (!link) return;
-      handled.push(request.id);
-      if (handled.length > HANDLED_MAX) handled.shift();
-      const s: Session = {
+      const w: Waiting = {
         id: request.id,
+        expiresAt: request.expiresAt,
         token: link.token,
         generation: deps.deviceLink.generation(),
-        firstDown: undefined,
-        events: [],
-        open: new Map(),
+        withdraw: () => undefined,
+        expiry: undefined,
       };
-      session = s;
-      deps.presenter.toast(RECORDING_STARTED);
-      deps.setTimeout(() => finish(s), RECORDING_MS);
+      waiting = w;
+      // Not shown before the request expires: withdraw the prompt, keep the
+      // request unused.
+      w.expiry = deps.setTimeout(() => {
+        if (waiting !== w) return;
+        waiting = null;
+        w.withdraw();
+      }, left);
+      w.withdraw = deps.presenter.prompt(RECORDING_STARTED, () => begin(w));
     },
     active: () => session !== null,
     onKey(key, action) {

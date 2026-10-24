@@ -35,12 +35,16 @@ function fakeClient(): FakeRecordingClient {
   return c;
 }
 
-function setup(opts: { client?: RecordingClient; token?: string | null } = {}) {
+function setup(
+  opts: { client?: RecordingClient; token?: string | null; deferPrompt?: boolean } = {},
+) {
   const link = {
     token: opts.token === undefined ? TOKEN_A : opts.token,
     gen: 1,
   };
   const toasts: string[] = [];
+  /** Prompts waiting to be shown (only with `deferPrompt`). */
+  const prompts: Array<{ text: string; show: () => void; cancelled: boolean }> = [];
   const client = opts.client ?? fakeClient();
   const recording = createGestureRecording({
     client,
@@ -48,13 +52,31 @@ function setup(opts: { client?: RecordingClient; token?: string | null } = {}) {
       current: () => (link.token ? { token: link.token, owner: { kind: 'team' } } : null),
       generation: () => link.gen,
     },
-    presenter: { toast: (text) => toasts.push(text) },
+    presenter: {
+      toast: (text) => toasts.push(text),
+      prompt: (text, onShown) => {
+        const entry = {
+          text,
+          cancelled: false,
+          show: () => {
+            if (entry.cancelled) return;
+            toasts.push(text);
+            onShown();
+          },
+        };
+        prompts.push(entry);
+        if (!opts.deferPrompt) entry.show();
+        return () => {
+          entry.cancelled = true;
+        };
+      },
+    },
     now: () => Date.now(),
     wallNow: () => Date.now(),
     setTimeout: (fn, ms) => setTimeout(fn, ms),
     clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
   });
-  return { recording, client: client as FakeRecordingClient, toasts, link };
+  return { recording, client: client as FakeRecordingClient, toasts, link, prompts };
 }
 
 const soon = () => Date.now() + 60_000;
@@ -301,5 +323,60 @@ describe('record on device', () => {
     expect(client.posts).toHaveLength(1);
     for (const bad of [null, undefined, {}, { id: 3, expiresAt: 'x' }])
       expect(() => recording.onRequest(bad as never)).not.toThrow();
+  });
+});
+
+describe('the recording prompt', () => {
+  it('theWindowStartsWhenThePromptIsShown', async () => {
+    const { recording, client, prompts } = setup({ deferPrompt: true });
+    recording.onRequest({ id: ID, expiresAt: soon() });
+    expect(recording.active()).toBe(false);
+    // Queued behind other toasts, or no root mounted yet.
+    await vi.advanceTimersByTimeAsync(6000);
+    recording.onKey('DPAD_UP', 'down');
+    recording.onKey('DPAD_UP', 'up');
+    prompts[0]!.show();
+    expect(recording.active()).toBe(true);
+    await vi.advanceTimersByTimeAsync(RECORDING_MS - 1);
+    expect(recording.active()).toBe(true);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(recording.active()).toBe(false);
+    expect(client.posts).toEqual([{ id: ID, token: TOKEN_A, events: [] }]);
+  });
+
+  it('aRepeatedRequestWhilePromptWaitsQueuesNoSecondPrompt', async () => {
+    const { recording, prompts } = setup({ deferPrompt: true });
+    recording.onRequest({ id: ID, expiresAt: soon() });
+    recording.onRequest({ id: ID, expiresAt: soon() });
+    recording.onRequest({ id: ID_2, expiresAt: soon() });
+    expect(prompts).toHaveLength(1);
+  });
+
+  it('aPromptNotShownBeforeExpiryDoesNotConsumeTheRequest', async () => {
+    const { recording, client, prompts, toasts } = setup({ deferPrompt: true });
+    recording.onRequest({ id: ID, expiresAt: Date.now() + 5000 });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(prompts[0]!.cancelled).toBe(true);
+    prompts[0]!.show();
+    expect(recording.active()).toBe(false);
+    expect(toasts).toEqual([]);
+    // The same request, renewed by the server, still runs.
+    recording.onRequest({ id: ID, expiresAt: soon() });
+    expect(prompts).toHaveLength(2);
+    prompts[1]!.show();
+    expect(recording.active()).toBe(true);
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    expect(client.posts.map((p) => p.id)).toEqual([ID]);
+  });
+
+  it('aPromptShownAfterTheLinkChangedStartsNothing', async () => {
+    const { recording, client, prompts, link } = setup({ deferPrompt: true });
+    recording.onRequest({ id: ID, expiresAt: soon() });
+    link.token = TOKEN_B;
+    link.gen++;
+    prompts[0]!.show();
+    expect(recording.active()).toBe(false);
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    expect(client.posts).toEqual([]);
   });
 });

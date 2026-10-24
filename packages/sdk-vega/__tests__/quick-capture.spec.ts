@@ -816,3 +816,51 @@ describe('record on device on a device', () => {
     expect(posts(h)).toEqual([]);
   });
 });
+
+describe('recording boundaries on a device', () => {
+  const RECORDING = '0b9f1e2a-3c4d-4e5f-8a6b-7c8d9e0f1a2b';
+  const pending = () => ({
+    recording: { id: RECORDING, expiresAt: new Date(Date.now() + 60_000).toISOString() },
+  });
+
+  it('aKeyHeldAcrossTheRecordingEndTakesNoCapture', async () => {
+    const { h, client } = await setup({ link: TOKEN_A, linkExtra: pending() });
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    expect(client.quickCaptureParts().overlay!.snapshot().toast).toBe(RECORDING_STARTED);
+    await vi.advanceTimersByTimeAsync(9000);
+    // Play/Pause held from 9 s to 12 s, across the 10 s end of the window.
+    await holdKey(client, 'playpause', 3000);
+    await vi.advanceTimersByTimeAsync(CAPTURE_COOLDOWN_MS);
+    expect(ingest(h)).toHaveLength(0);
+    // Once released, a new long press captures again.
+    await holdKey(client, 'playpause', 1600);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest(h)).toHaveLength(1);
+  });
+
+  it('theWindowWaitsForTheOverlay', async () => {
+    const opts: { link: string; linkExtra: Record<string, unknown> } = {
+      link: TOKEN_A,
+      linkExtra: {},
+    };
+    const { h, client, toasts } = await setup(opts);
+    h.fetch.route('POST', `/api/device-link/recordings/${RECORDING}`, { status: 204 });
+    const overlay = client.quickCaptureParts().overlay!;
+    overlay.setMounted(false);
+    opts.linkExtra = pending();
+    client.refreshConfig();
+    await vi.advanceTimersByTimeAsync(12_000);
+    // Nothing on screen yet: the window has not started, so no upload, and a
+    // key pressed now is not recorded.
+    expect(h.fetch.all.filter((r) => r.url.includes('/recordings/'))).toHaveLength(0);
+    await tapKey(client, 'up');
+    overlay.setMounted(true);
+    expect(toasts).toContain(RECORDING_STARTED);
+    await tapKey(client, 'select');
+    await vi.advanceTimersByTimeAsync(RECORDING_MS);
+    const posts = h.fetch.all.filter((r) => r.url.includes('/recordings/'));
+    expect(JSON.parse(posts[0]!.body).events).toEqual([
+      { key: 'DPAD_CENTER', downMs: 0, upMs: 60 },
+    ]);
+  });
+});

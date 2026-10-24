@@ -40,6 +40,20 @@ export interface OverlayStore extends Presenter {
   retain(): () => void;
   /** Test helper: one manual registration, on or off. */
   setMounted(value: boolean): void;
+  /**
+   * Queues `text` like a toast, but `onShown` runs only once it is really on
+   * screen: the current toast, a root mounted, the app in the foreground. Its
+   * display time starts then. The queue cap never drops it. The returned
+   * function withdraws it if it has not been shown yet.
+   */
+  prompt(text: string, onShown: () => void): () => void;
+  /** The app's `AppState` is `active` (default true). */
+  setForeground(value: boolean): void;
+}
+
+interface Entry {
+  text: string;
+  onShown?: () => void;
 }
 
 export function createOverlayStore(deps: {
@@ -48,8 +62,12 @@ export function createOverlayStore(deps: {
 }): OverlayStore {
   let banner: { owner: object; title: string; subline: string } | null = null;
   let toast: string | null = null;
+  let current: Entry | null = null;
   let toastTimer: unknown;
-  const pending: string[] = [];
+  /** The current entry is a prompt waiting to be visible. */
+  let holding = false;
+  let foreground = true;
+  const pending: Entry[] = [];
   const listeners = new Set<() => void>();
   // One entry per mounted root: several AppRegistry roots can run at once,
   // and unmounting one must not disable the others.
@@ -71,15 +89,52 @@ export function createOverlayStore(deps: {
     });
   }
 
+  const visible = (): boolean => registrations.size > 0 && foreground;
+
+  function startTimer(): void {
+    toastTimer = deps.setTimeout(() => {
+      toastTimer = undefined;
+      next();
+    }, TOAST_MS);
+  }
+
+  /** Shows a held prompt once it can be seen. */
+  function release(): void {
+    const entry = current;
+    if (!holding || !entry || !visible()) return;
+    holding = false;
+    startTimer();
+    try {
+      entry.onShown?.();
+    } catch {
+      // A prompt's owner never breaks the overlay.
+    }
+  }
+
   function next(): void {
-    toast = pending.shift() ?? null;
-    if (toast !== null) {
-      toastTimer = deps.setTimeout(() => {
-        toastTimer = undefined;
-        next();
-      }, TOAST_MS);
+    current = pending.shift() ?? null;
+    toast = current ? current.text : null;
+    holding = false;
+    if (current) {
+      if (current.onShown) holding = true;
+      else startTimer();
     }
     emit();
+    release();
+  }
+
+  function enqueue(entry: Entry): void {
+    pending.push(entry);
+    if (current === null && toastTimer === undefined) {
+      next();
+      return;
+    }
+    // Over the cap, drop the oldest plain toast; a prompt is never dropped.
+    while (pending.length > TOAST_QUEUE_MAX) {
+      const index = pending.findIndex((e) => !e.onShown);
+      if (index < 0) break;
+      pending.splice(index, 1);
+    }
   }
 
   return {
@@ -94,13 +149,20 @@ export function createOverlayStore(deps: {
     },
     toast(text) {
       if (typeof text !== 'string' || text.length === 0) return;
-      if (toast === null && toastTimer === undefined) {
-        pending.push(text);
-        next();
-        return;
-      }
-      pending.push(text);
-      while (pending.length > TOAST_QUEUE_MAX) pending.shift();
+      enqueue({ text });
+    },
+    prompt(text, onShown) {
+      const entry: Entry = { text, onShown };
+      enqueue(entry);
+      return () => {
+        const index = pending.indexOf(entry);
+        if (index >= 0) pending.splice(index, 1);
+        else if (current === entry && holding) next();
+      };
+    },
+    setForeground(value) {
+      foreground = value;
+      release();
     },
     snapshot: () => snap,
     subscribe(fn) {
@@ -113,6 +175,7 @@ export function createOverlayStore(deps: {
     retain() {
       const registration = {};
       registrations.add(registration);
+      release();
       return () => {
         registrations.delete(registration);
       };
@@ -120,6 +183,7 @@ export function createOverlayStore(deps: {
     setMounted(value) {
       if (value) registrations.add(manual);
       else registrations.delete(manual);
+      release();
     },
   };
 }
