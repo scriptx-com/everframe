@@ -94,4 +94,63 @@ describe('root wrapper with several roots', () => {
     expect(first.container.textContent).toContain('Linking to Everframe · 47');
     expect(mounts).toBe(2);
   });
+
+  it('aSurfaceUpdateForTheSameRootKeepsTheAppMounted', () => {
+    const { provider, registry } = setup();
+    let appMounts = 0;
+    function App() {
+      useEffect(() => {
+        appMounts++;
+      }, []);
+      return createElement('p', { id: 'app' }, 'app');
+    }
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    roots.push(root);
+    const renderSurface = () => {
+      // AppRegistry.setSurfaceProps calls the provider again for the same root.
+      const Wrapper = provider({ rootTag: 1 }) as Wrapper;
+      act(() => root.render(createElement(Wrapper, null, createElement(App))));
+    };
+    renderSurface();
+    renderSurface();
+    expect(appMounts).toBe(1);
+
+    // The same holds with a host wrapper chained inside ours.
+    function HostWrapper(props: { children?: ReactNode }) {
+      return createElement('section', { 'data-host': 'host' }, props.children);
+    }
+    registry.setWrapperComponentProvider(() => HostWrapper);
+    renderSurface();
+    renderSurface();
+    renderSurface();
+    expect(container.querySelector('[data-host="host"] #app')).not.toBeNull();
+    // Adding the host wrapper remounts the app once; later updates do not.
+    expect(appMounts).toBe(2);
+  });
+
+  it('aHostProviderAnsweringDifferentlyForTheSameRootIsFollowed', () => {
+    const { provider, registry } = setup();
+    let current = 'first';
+    const hosts: Record<string, Wrapper> = {
+      first: (props) => createElement('section', { 'data-host': 'first' }, props.children),
+      second: (props) => createElement('section', { 'data-host': 'second' }, props.children),
+    };
+    registry.setWrapperComponentProvider(() => hosts[current]);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    roots.push(root);
+    const W1 = provider({ rootTag: 1 }) as Wrapper;
+    act(() => root.render(createElement(W1, null, 'app')));
+    expect(container.querySelector('[data-host="first"]')).not.toBeNull();
+    current = 'second';
+    const W2 = provider({ rootTag: 1 }) as Wrapper;
+    expect(W2).toBe(W1);
+    act(() => root.render(createElement(W2, null, 'app')));
+    expect(container.querySelector('[data-host="second"]')).not.toBeNull();
+    // Another root still gets its own wrapper.
+    expect(provider({ rootTag: 11 })).not.toBe(W1);
+  });
 });

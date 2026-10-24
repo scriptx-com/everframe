@@ -214,13 +214,22 @@ export function installRootWrapper(
       }
     };
 
+    interface RootEntry {
+      Wrapper: (props: WrapperProps) => ReactNode;
+      /** The host wrapper this root renders inside ours; read at render time. */
+      host: { current: ComponentType<WrapperProps> | null };
+    }
+
     /**
-     * One wrapper component per root: AppRegistry calls the provider once per
-     * root it runs, and a host provider may answer each root differently, so
-     * the resolved host wrapper is kept per root, never in a shared slot.
+     * One wrapper component per root, created once. AppRegistry calls the
+     * provider again for the same root (`setSurfaceProps`): a new component
+     * type there would unmount and remount the whole app. A host provider may
+     * answer each root differently, so the host wrapper is kept per root, in
+     * the entry the stable wrapper reads, never in a slot roots share.
      */
-    function createRootWrapper(Host: ComponentType<WrapperProps> | null) {
-      return function EverframeRoot(props: WrapperProps): ReactNode {
+    function createRootEntry(): RootEntry {
+      const host: RootEntry['host'] = { current: null };
+      function EverframeRoot(props: WrapperProps): ReactNode {
         const [snap, setSnap] = useState<OverlaySnapshot>(() => deps.store.snapshot());
         useEffect(() => {
           const release = deps.store.retain();
@@ -233,23 +242,49 @@ export function installRootWrapper(
         }, []);
         if (listen) useTVEventHandler(handler);
         const { children, ...rest } = props;
+        const Host = host.current;
         const content = Host ? el(Host, rest, children) : children;
         return el(Fragment, null, content, overlayLayer(snap));
-      };
+      }
+      return { Wrapper: EverframeRoot, host };
+    }
+
+    const byRootTag = new Map<string | number, RootEntry>();
+    // Without a root tag (not seen on React Native for Vega), one wrapper per
+    // resolved host wrapper keeps identity stable just the same.
+    const byHost = new Map<ComponentType<WrapperProps> | null, RootEntry>();
+
+    function resolveHost(params: unknown): ComponentType<WrapperProps> | null {
+      if (!hostProvider) return null;
+      try {
+        const resolved = hostProvider(params);
+        return typeof resolved === 'function' || (typeof resolved === 'object' && resolved !== null)
+          ? (resolved as ComponentType<WrapperProps>)
+          : null;
+      } catch {
+        return null;
+      }
     }
 
     const provider = (params: unknown): unknown => {
-      let Host: ComponentType<WrapperProps> | null = null;
-      if (hostProvider) {
-        try {
-          const resolved = hostProvider(params);
-          if (typeof resolved === 'function' || (typeof resolved === 'object' && resolved !== null))
-            Host = resolved as ComponentType<WrapperProps>;
-        } catch {
-          Host = null;
+      const Host = resolveHost(params);
+      const tag = (params as { rootTag?: unknown } | null | undefined)?.rootTag;
+      if (typeof tag === 'number' || typeof tag === 'string') {
+        let entry = byRootTag.get(tag);
+        if (!entry) {
+          entry = createRootEntry();
+          byRootTag.set(tag, entry);
         }
+        entry.host.current = Host;
+        return entry.Wrapper;
       }
-      return createRootWrapper(Host);
+      let entry = byHost.get(Host);
+      if (!entry) {
+        entry = createRootEntry();
+        entry.host.current = Host;
+        byHost.set(Host, entry);
+      }
+      return entry.Wrapper;
     };
 
     registry.setWrapperComponentProvider(provider);
