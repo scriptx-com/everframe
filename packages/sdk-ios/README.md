@@ -647,7 +647,9 @@ moving focus in your app while the banner shows.
   `Recording remote keys for 10 seconds`, records the keys pressed (at most
   32), sends them with its device token and shows `Keys sent to Everframe`.
   Nothing captures while it records, and every press still reaches the app.
-  A recording whose link changed or ended before the 10 s were up is not sent.
+  A request that arrives while the app is not on screen waits until it is, so
+  the prompt is seen. A recording whose link changed or ended before the 10 s
+  were up is not sent.
 - **Foreground refresh.** A linked Apple TV fetches its config when the app
   returns to the foreground, at most every 10 seconds, so a Record on device
   request reaches it without a relaunch. Unlinked Apple TVs never do.

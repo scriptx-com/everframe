@@ -99,13 +99,31 @@ final class TvGestureInput {
 
     /// Feeds one press event's changing presses. Returns whether to deliver
     /// the event: false only when every key event in it was consumed.
+    ///
+    /// The event is the unit of delivery, so swallowing is committed per
+    /// event: a press joins the swallowed set (its release will be kept too)
+    /// only when the whole event is withheld. When the event is delivered,
+    /// nothing in it counts as swallowed, and a duplicate of it is delivered.
     func handle(_ keys: [TvKeyEvent], window: UIWindow?) -> Bool {
         guard !keys.isEmpty else { return true }
-        var consumedAll = true
-        for key in keys where !consume(key, window: window) {
-            consumedAll = false
+        var judged: [(seen: Seen, consume: Bool, swallow: ObjectIdentifier?)] = []
+        var withheld = true
+        for event in keys {
+            let seen = Seen(press: event.press, phase: event.phase, at: event.at)
+            if let earlier = recent.first(where: { $0.seen == seen }) {
+                if !earlier.consumed { withheld = false }
+                continue
+            }
+            let verdict = judge(event, window: window)
+            if !verdict.consume { withheld = false }
+            judged.append((seen, verdict.consume, verdict.swallow))
         }
-        return !consumedAll
+        for entry in judged {
+            if withheld, let press = entry.swallow { swallowed.insert(press) }
+            recent.append((entry.seen, withheld))
+        }
+        if recent.count > Self.recentCapacity { recent.removeFirst(recent.count - Self.recentCapacity) }
+        return !withheld
     }
 
     func reset() {
@@ -132,31 +150,29 @@ final class TvGestureInput {
 
     // MARK: Per key event
 
-    /// Whether this key event is kept from the app.
-    private func consume(_ event: TvKeyEvent, window: UIWindow?) -> Bool {
-        let seen = Seen(press: event.press, phase: event.phase, at: event.at)
-        if let earlier = recent.first(where: { $0.seen == seen }) { return earlier.consumed }
-        let consumed = judge(event, window: window)
-        recent.append((seen, consumed))
-        if recent.count > Self.recentCapacity { recent.removeFirst(recent.count - Self.recentCapacity) }
-        return consumed
+    /// One key event's answer: whether it may be kept from the app, and the
+    /// press that joins the swallowed set if its whole event is withheld.
+    private struct Judgement {
+        var consume: Bool
+        var swallow: ObjectIdentifier?
     }
 
-    private func judge(_ event: TvKeyEvent, window: UIWindow?) -> Bool {
+    private func judge(_ event: TvKeyEvent, window: UIWindow?) -> Judgement {
         // A swallowed press's release is swallowed, whatever happened since.
         let releasesSwallowed = event.phase != .down && swallowed.remove(event.press) != nil
+        let pass = Judgement(consume: releasesSwallowed, swallow: nil)
 
         if let recording = seams.recording() {
             recording.feed(event)
             detector = nil
             cancelTimer()
-            return releasesSwallowed
+            return pass
         }
 
         guard let binding = seams.armedBinding() else {
             detector = nil
             cancelTimer()
-            return releasesSwallowed
+            return pass
         }
         if detector?.binding != binding {
             detector = TvGestureDetector(binding: binding)
@@ -166,9 +182,9 @@ final class TvGestureInput {
            seams.isEditingText(window) {
             detector?.dropPending()
             cancelTimer()
-            return releasesSwallowed
+            return pass
         }
-        guard var current = detector else { return releasesSwallowed }
+        guard var current = detector else { return pass }
         let verdict = current.feed(event)
         detector = current
         if let deadline = verdict.holdDeadline {
@@ -179,18 +195,13 @@ final class TvGestureInput {
         if verdict.fire {
             let decision = seams.route(.remote)
             // A sequence or chord's completing press is kept, with its release.
-            if decision.swallowKeys {
-                swallowed.insert(event.press)
-                return true
-            }
-            return releasesSwallowed
+            return decision.swallowKeys ? Judgement(consume: true, swallow: event.press) : pass
         }
         // A completion overlapping a swallowed gesture belongs to it.
         if event.phase == .down, verdict.consume, !swallowed.isEmpty {
-            swallowed.insert(event.press)
-            return true
+            return Judgement(consume: true, swallow: event.press)
         }
-        return releasesSwallowed
+        return pass
     }
 
     // MARK: Hold timer

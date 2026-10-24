@@ -72,8 +72,14 @@ final class GestureRecordingTests: XCTestCase {
     private var gate: RecordingSleepGate!
     private var slept: [TimeInterval] = []
     private var objects: [NSObject] = []
+    private var foreground = true
+    private var activations: [@MainActor () -> Void] = []
+    private var removedObservers = 0
 
     override func setUp() async throws {
+        foreground = true
+        activations = []
+        removedObservers = 0
         toasts = []
         uptime = 100
         wall = Date(timeIntervalSince1970: 1_000_000)
@@ -100,6 +106,11 @@ final class GestureRecordingTests: XCTestCase {
                 let transport = FakeRecordingTransport(endpoint: endpoint, sdkKey: sdkKey, succeeds: self.succeeds)
                 self.transports.append(transport)
                 return transport
+            },
+            isForegroundActive: { [unowned self] in self.foreground },
+            observeActivation: { [unowned self] body in
+                self.activations.append(body)
+                return GestureRecording.Observation { [unowned self] in self.removedObservers += 1 }
             }))
     }
 
@@ -209,6 +220,53 @@ final class GestureRecordingTests: XCTestCase {
         await finishWindow(recording)
         XCTAssertEqual(transports.count, 1)
         XCTAssertEqual(toasts, ["Recording remote keys for 10 seconds"])
+    }
+
+    /// A request that arrives while the app is in the background waits for a
+    /// foreground-active scene: the prompt must be seen, and the 10 s window
+    /// starts only then. It is not marked handled meanwhile.
+    func testDefersUntilAForegroundSceneThenStarts() async {
+        foreground = false
+        let recording = make()
+        recording.onRequest(request(), isCurrent: { true })
+        XCTAssertFalse(recording.isActive)
+        XCTAssertEqual(toasts, [])
+        XCTAssertEqual(slept, [])
+        XCTAssertEqual(activations.count, 1)
+        // A second request while waiting replaces the first; one observer.
+        recording.onRequest(request("rec-2"), isCurrent: { true })
+        XCTAssertEqual(activations.count, 1)
+        foreground = true
+        activations[0]()
+        XCTAssertTrue(recording.isActive)
+        XCTAssertEqual(toasts, ["Recording remote keys for 10 seconds"])
+        XCTAssertEqual(removedObservers, 1)
+        await finishWindow(recording)
+        XCTAssertEqual(transports.flatMap(\.posts).map(\.recordingId), ["rec-2"])
+        XCTAssertEqual(toasts, ["Recording remote keys for 10 seconds", "Keys sent to Everframe"])
+    }
+
+    func testADeferredRequestThatExpiresNeverStarts() {
+        foreground = false
+        let recording = make()
+        recording.onRequest(request(expiresIn: 30), isCurrent: { true })
+        wall = wall.addingTimeInterval(60)
+        foreground = true
+        activations.first?()
+        XCTAssertFalse(recording.isActive)
+        XCTAssertEqual(toasts, [])
+    }
+
+    func testTeardownDropsADeferredRequest() {
+        foreground = false
+        let recording = make()
+        recording.onRequest(request(), isCurrent: { true })
+        recording.teardown()
+        XCTAssertEqual(removedObservers, 1)
+        foreground = true
+        activations.first?()
+        XCTAssertFalse(recording.isActive)
+        XCTAssertEqual(toasts, [])
     }
 
     func testTeardownDropsTheRecording() async {

@@ -368,6 +368,44 @@ final class TvGestureInputTests: XCTestCase {
         XCTAssertEqual(routes, [])
     }
 
+    /// Both chord keys go down in one event: the event is delivered (the
+    /// first key was not consumed), so nothing in it counts as swallowed, and
+    /// the completing key's own release reaches the app too.
+    func testChordCompletedInOneDeliveredEventSwallowsNothing() {
+        decision = linked
+        binding = .chord(keys: ["SHIFT", "B"])
+        let shift = press()
+        let b = press()
+        now = 100
+        XCTAssertTrue(input.handle([
+            TvKeyEvent(key: "SHIFT", phase: .down, press: shift, at: 100),
+            TvKeyEvent(key: "B", phase: .down, press: b, at: 100),
+        ], window: nil))
+        XCTAssertEqual(routes, [.remote])
+        // A second window gets the same delivered event: still delivered.
+        XCTAssertTrue(input.handle([
+            TvKeyEvent(key: "SHIFT", phase: .down, press: shift, at: 100),
+            TvKeyEvent(key: "B", phase: .down, press: b, at: 100),
+        ], window: nil))
+        // Disarmed before the releases: only a swallowed press would be kept.
+        binding = nil
+        XCTAssertTrue(send("B", .up, b, at: 100.2), "its start reached the app, so its release does too")
+        XCTAssertTrue(send("SHIFT", .up, shift, at: 100.3))
+        XCTAssertFalse(input.needsPresses, "no swallowed press is left pending")
+    }
+
+    /// A withheld event's presses stay swallowed until their own release.
+    func testWithheldEventStillSwallowsItsRelease() {
+        decision = linked
+        binding = .chord(keys: ["SHIFT", "B"])
+        let shift = press()
+        let b = press()
+        XCTAssertTrue(send("SHIFT", .down, shift, at: 100))
+        XCTAssertFalse(send("B", .down, b, at: 100.1))
+        XCTAssertFalse(send("B", .up, b, at: 100.2))
+        XCTAssertTrue(send("SHIFT", .up, shift, at: 100.3))
+    }
+
     func testResetForgetsSwallowedPressesAndTheTimer() {
         decision = linked
         let p = press()
