@@ -29,7 +29,7 @@ export default defineConfig({
   target: 'es2019',
   platform: 'browser',
   outDir: 'dist',
-  external: ['react-native'],
+  external: ['react', 'react-native'],
   // Reports carry the installed package version (src/version.ts).
   define: { __EVERFRAME_VEGA_VERSION__: JSON.stringify(version) },
   // Internal workspace packages are private and never published: inline them.

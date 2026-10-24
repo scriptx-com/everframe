@@ -17,7 +17,8 @@ What it reports:
 What it does not report: native and C++ crashes, Hermes engine aborts, ANRs
 and watchdog kills. Those never reach JavaScript; Vega OS records them in its
 own crash reports. There is no screenshot, reporter UI, session replay or
-companion mode on Vega OS.
+companion mode on Vega OS. Team members can file quick captures from a linked
+device with the remote (see [Quick capture on Vega OS](#quick-capture-on-vega-os)).
 
 ## Install
 
@@ -25,7 +26,7 @@ companion mode on Vega OS.
 npm install @everframe/vega
 ```
 
-At the top of `index.js`, before `AppRegistry.registerComponent`:
+At the top of `index.js`, before any `AppRegistry` call:
 
 ```js
 import AsyncStorage from '@amazon-devices/react-native-async-storage__async-storage';
@@ -83,11 +84,77 @@ Metro and are not mapped.
 | `releaseHealth`              | `true`                  | Anonymous foreground sessions and fatal JavaScript release health; requires an explicit valid `appVersion`.                             |
 | `captureUnhandledRejections` | `true`                  | `false` stops reporting promise rejections.                                                                                             |
 | `device`                     | none                    | `{ model, osVersion }`, e.g. from `@amazon-devices/react-native-device-info`. React Native for Vega does not expose them to JavaScript. |
+| `quickCaptureEnabled`        | `true`                  | Quick capture on linked devices. `false`: no root wrapper, no config request, no key listening.                                         |
 | `enabled`                    | `true`                  | `false` turns the SDK off.                                                                                                              |
 | `endpoint`                   | `https://everframe.dev` | For self-testing only.                                                                                                                  |
 
 Dashboard settings (session replay, vitals, network bodies and the like) do
-not apply: the SDK does not fetch server config.
+not apply. The SDK reads only the quick-capture and device-linking switches
+from `/api/config`: one request per launch, and none with
+`quickCaptureEnabled: false`.
+
+## Quick capture on Vega OS
+
+A team member's Vega device can file quick captures with the remote: a long
+press of Play/Pause (about 1.5 s) files a capture attributed to the person or
+team the device is linked to. It needs no code beyond `init()`. End users of
+release builds see no change.
+
+What a press does, when quick capture is on for the app in the dashboard:
+
+| Device                    | Long press of Play/Pause                                                                    |
+| ------------------------- | ------------------------------------------------------------------------------------------- |
+| Linked to a person        | Files a capture as that person's private draft. Toast `Captured · {name}`.                  |
+| Linked as a team device   | Files a shared draft. Toast `Captured · team device`.                                       |
+| Not linked, debug build   | Files a shared draft (toast `Captured · {device model}`) and offers the device for linking. |
+| Not linked, release build | Nothing visible. Offers the device for linking if linking is on.                            |
+
+A debug build is `debugBuild` when you pass it, else React Native's `__DEV__`.
+
+**Linking a device.** In the dashboard, open Settings → Devices → Link a
+device. On the device, long press Play/Pause for about 1.5 s. The device shows
+`Linking to Everframe · 47`; pick the matching number in the dashboard. The
+device then shows `Linked to {name}`. Choose "team device" to link it to the
+team instead of yourself. Unlink a device from the same page; its next capture
+shows `This device was unlinked`, nothing is filed, and it behaves as an
+unlinked device again. If another teammate opens Link a device while you
+capture from a linked device, the capture's reply offers the device to them;
+when they pick its number, the device moves to them and that capture goes with
+it.
+
+**What a capture contains:** breadcrumbs, device, app and user details. There
+is no screenshot and no replay on Vega OS (the SDK is JavaScript only). If a
+capture cannot be sent right away it waits in `storage` and is retried, but
+only while the device is still linked to the same person or team; otherwise it
+is dropped, never filed under someone else.
+
+**Remote keys.** The SDK only listens to keys; it never consumes one. A long
+press of Play/Pause therefore also reaches your app, which typically toggles
+playback once. Taps of Play/Pause, held D-pad keys and fast paging never take a
+capture. While the device is not linked and linking is off, the SDK does no
+work per key.
+
+**The root wrapper.** `init()` installs a small root component with
+`AppRegistry.setWrapperComponentProvider`. It draws the linking banner and the
+toasts above your app without taking focus, and listens to remote keys with
+`useTVEventHandler`. Call `init()` before any `AppRegistry` call: a wrapper
+provider your app sets after `init()` is kept and rendered inside the SDK's,
+but one set before `init()` is replaced.
+
+**Security.** The device link is a token stored in the `storage` you pass
+(AsyncStorage; React Native for Vega has no secure storage API for
+JavaScript), bound to the endpoint and SDK key it was issued for, so a staging
+build never sends a production token. The token goes only in the
+`X-Everframe-Capture-Token` header of quick-capture uploads and config
+requests, and is never logged or put in a URL; a queued capture stores a
+one-way fingerprint of it, not the token. React Native for Vega's `fetch`
+follows HTTP redirects even when told not to, and forwards `X-Everframe-*`
+headers (not `Authorization`) to the redirect target, including another
+origin. The SDK discards any redirected response and never stores a token
+from one, but it cannot stop the request itself: point `endpoint` only at a
+server you trust not to redirect.
+
+Set `quickCaptureEnabled: false` to turn all of this off.
 
 ## How delivery works
 

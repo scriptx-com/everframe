@@ -678,12 +678,24 @@ importers:
       '@everframe/sdk-core':
         specifier: workspace:*
         version: link:../sdk-core
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
       acorn:
         specifier: ^8.11.0
         version: 8.18.0
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1(@noble/hashes@1.8.0(patch_hash=avlaf7panokdhlz5flselmziby))
       publint:
         specifier: ^0.3.0
         version: 0.3.24
+      react:
+        specifier: 19.2.5
+        version: 19.2.5
+      react-dom:
+        specifier: 19.2.5
+        version: 19.2.5(react@19.2.5)
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)

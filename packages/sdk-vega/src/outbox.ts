@@ -35,6 +35,14 @@ export interface OutboxItem extends OutboxBinding {
   enqueuedAt: number;
   attempts: number;
   fatal: boolean;
+  /** A quick capture: sent with the link rules, never with a reply token. */
+  quickCapture?: boolean;
+  /**
+   * A linked quick capture: the first 16 hex chars of SHA-256 of the device
+   * token it was captured under. Never the token. It is sent only while the
+   * device still holds that token.
+   */
+  linkFingerprint?: string;
 }
 
 export interface Outbox {
@@ -74,7 +82,10 @@ function isItem(value: unknown): value is OutboxItem {
     typeof item.attempts === 'number' &&
     typeof item.fatal === 'boolean' &&
     typeof item.endpoint === 'string' &&
-    typeof item.keyHash === 'string'
+    typeof item.keyHash === 'string' &&
+    (item.quickCapture === undefined || typeof item.quickCapture === 'boolean') &&
+    (item.linkFingerprint === undefined ||
+      (typeof item.linkFingerprint === 'string' && /^[0-9a-f]{16}$/.test(item.linkFingerprint)))
   );
 }
 

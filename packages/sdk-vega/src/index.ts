@@ -10,7 +10,8 @@
 //   import * as Everframe from '@everframe/vega';
 //   Everframe.init({ sdkKey: 'evf_live_…', storage: AsyncStorage, appVersion: '1.4.0' });
 //
-// Call init() at the top of index.js, before AppRegistry.registerComponent.
+// Call init() at the top of index.js, before AppRegistry.registerComponent:
+// it installs the SDK's root wrapper (quick capture on linked devices).
 // Native crashes, Hermes VM aborts and ANRs are not captured.
 import {
   createVegaClient,
@@ -21,6 +22,8 @@ import {
 import type { VegaBreadcrumb, VegaCaptureOptions, VegaConfig, VegaUser } from './config.js';
 import { readAppState, readDevice } from './device.js';
 import type { FetchLike } from './transport.js';
+import { AppRegistry } from 'react-native';
+import type { AppRegistryLike } from './overlay.js';
 
 export type {
   AsyncStorageLike,
@@ -52,6 +55,17 @@ const client = createVegaClient({
   },
   get hermes() {
     return host.HermesInternal;
+  },
+  // The root wrapper (quick capture) installs itself through AppRegistry.
+  get appRegistry() {
+    try {
+      return AppRegistry as unknown as AppRegistryLike;
+    } catch {
+      return undefined;
+    }
+  },
+  get crypto() {
+    return (globalThis as { crypto?: unknown }).crypto;
   },
   get fetch() {
     return typeof host.fetch === 'function'

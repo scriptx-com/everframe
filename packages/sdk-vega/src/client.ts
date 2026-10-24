@@ -14,7 +14,13 @@ import {
   type VegaConfig,
   type VegaUser,
 } from './config.js';
-import { buildVegaEnvelope } from './envelope.js';
+import { createDeviceLink, type DeviceLink } from './device-link.js';
+import {
+  createGestureDetector,
+  DEFAULT_TV_BINDING,
+  type GestureDetector,
+} from './gesture-detector.js';
+import { buildQuickCaptureEnvelope, buildVegaEnvelope } from './envelope.js';
 import { extractFacts, isErrorValue, renderLabel, renderValue } from './error-facts.js';
 import { uuidV4 } from './ids.js';
 import {
@@ -24,7 +30,31 @@ import {
   type OutboxBinding,
   type OutboxItem,
 } from './outbox.js';
-import { sendReport, type FetchLike } from './transport.js';
+import { createLinkClient, helloDevice } from './link-client.js';
+import { capturedToast, CAPTURE_FAILED, deviceLabel, DEVICE_UNLINKED } from './link-copy.js';
+import { createLinkStore } from './link-store.js';
+import { createNonce, linkScope, randomBytes, tokenFingerprint } from './link-token.js';
+import {
+  createOverlayStore,
+  installRootWrapper,
+  type AppRegistryLike,
+  type HWEventLike,
+  type OverlayStore,
+} from './overlay.js';
+import {
+  CAPTURE_COOLDOWN_MS,
+  CAPTURE_TOKEN_HEADER,
+  decide,
+  isArmed,
+  isDeviceUnlinked,
+  LINK_NONCE_HEADER,
+  parseLinkPending,
+  REPLIES_OPT_OUT_HEADER,
+  type GestureInput,
+} from './quick-capture.js';
+import { fetchRemoteConfig, type RemoteConfig } from './remote-config.js';
+import { keyAction, keyForVegaEvent } from './remote-keys.js';
+import { sendReport, type FetchLike, type SendDeps } from './transport.js';
 import { SDK_VERSION } from './version.js';
 import { createReleaseHealth, HEALTH_OUTBOX_KEY, type AppStateLike } from './release-health.js';
 import type { NativeExposurePointer } from '@everframe/protocol';
@@ -62,6 +92,10 @@ export interface VegaEnvironment {
   /** React Native's `__DEV__`. */
   dev: boolean;
   warn: (message: string) => void;
+  /** React Native's `AppRegistry`, for the root wrapper; absent means no quick capture. */
+  appRegistry?: AppRegistryLike | undefined;
+  /** `globalThis.crypto`, read only for `getRandomValues` (Vega OS 1.1 has none). */
+  crypto?: unknown;
 }
 
 export type RejectionStatus = 'observed' | 'unavailable' | 'disabled' | 'off';
@@ -88,9 +122,37 @@ export interface VegaClient {
   getStatus(): VegaStatus;
 }
 
+/** Quick-capture internals: the root wrapper and tests call these, the public API does not. */
+export interface QuickCaptureInternals {
+  /** The capture gesture fired. */
+  onGesture(): void;
+  /** One remote key event from the root wrapper. */
+  onRemoteKey(event: HWEventLike): void;
+  gestureInput(): GestureInput;
+  armed(): boolean;
+  /** Re-reads `/api/config`. */
+  refreshConfig(): void;
+  /** For tests only. */
+  quickCaptureParts(): {
+    overlay?: OverlayStore;
+    deviceLink?: DeviceLink;
+    remote: RemoteConfig | null;
+  };
+}
+
+/** What a live quick-capture upload carries besides the stored item. */
+interface LiveUpload {
+  /** The takeover nonce; set only on a linked device's live upload. */
+  nonce?: string;
+  /** The link generation when the capture was taken. */
+  generation: number;
+}
+
 /** How long a fatal may hold RN's default handler (which aborts the JS thread). */
 export const FATAL_HANDOFF_MS = 1500;
 export const RETRY_DELAYS_MS = [2_000, 10_000, 60_000, 300_000] as const;
+/** A linked device re-reads `/api/config` when it comes to the foreground, at most this often. */
+export const FOREGROUND_REFRESH_MS = 10_000;
 const AUTOMATIC_KEYS_MAX = 10;
 const VALUE_KEYS_MAX = 5;
 const HANDLED_KEYS_MAX = 10;
@@ -142,7 +204,7 @@ function cleanUser(user: VegaUser | null | undefined): VegaUser | null {
   return Object.keys(out).length > 0 ? out : null;
 }
 
-export function createVegaClient(env: VegaEnvironment): VegaClient {
+export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptureInternals {
   let config: ResolvedConfig | null = null;
   let health: ReturnType<typeof createReleaseHealth> | undefined;
   let binding: OutboxBinding | undefined;
@@ -167,6 +229,16 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
   const debug = (message: string) => {
     if (env.dev) env.warn(message);
   };
+  // Quick capture (only when init() installed the root wrapper).
+  let overlay: OverlayStore | undefined;
+  let deviceLink: DeviceLink | undefined;
+  let remote: RemoteConfig | null = null;
+  let configSeq = 0;
+  let configApplied = 0;
+  let lastConfigAt = -Infinity;
+  let gestureBusy = false;
+  let detector: GestureDetector | undefined;
+  let lastGestureAt = -Infinity;
 
   function admit(mechanism: Mechanism, fatal: boolean, key: string, value: unknown): boolean {
     if (fatal) return true;
@@ -251,8 +323,91 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
     }, retryDelay());
   }
 
+  function sendDeps(): SendDeps | undefined {
+    return env.fetch
+      ? { fetch: env.fetch, setTimeout: env.setTimeout, clearTimeout: env.clearTimeout }
+      : undefined;
+  }
+
+  async function settle(item: OutboxItem, outcome: 'sent' | 'drop' | 'retry'): Promise<void> {
+    if (!outbox) return;
+    if (outcome === 'retry') {
+      failures++;
+      notBefore.set(item.reportId, env.now() + retryDelay());
+      await outbox.recordAttempt(item.reportId);
+    } else {
+      if (outcome === 'sent') failures = 0;
+      notBefore.delete(item.reportId);
+      await outbox.remove(item.reportId);
+    }
+  }
+
+  async function dropUnsent(item: OutboxItem): Promise<'drop'> {
+    notBefore.delete(item.reportId);
+    await outbox?.remove(item.reportId);
+    return 'drop';
+  }
+
+  /**
+   * A quick capture. A linked one goes out only while the device still holds
+   * the token it was captured under, so a retry is never filed into the
+   * shared inbox or under the next owner. `live` is set only for the upload
+   * right after the gesture: only that one carries the takeover nonce and
+   * shows a toast.
+   */
+  async function attemptQuickCapture(
+    item: OutboxItem,
+    live: LiveUpload | undefined,
+  ): Promise<'sent' | 'drop' | 'retry' | 'wait'> {
+    if (!config || !outbox) return 'retry';
+    let token: string | null = null;
+    if (item.linkFingerprint !== undefined) {
+      if (!deviceLink) return dropUnsent(item);
+      if (!deviceLink.isLoaded()) return 'wait';
+      const current = deviceLink.current();
+      if (!current || tokenFingerprint(current.token) !== item.linkFingerprint) {
+        debug(
+          '[everframe] dropped a quick capture taken under a device link this device no longer holds',
+        );
+        return dropUnsent(item);
+      }
+      token = current.token;
+    }
+    const headers: Record<string, string> = { [REPLIES_OPT_OUT_HEADER]: '1' };
+    if (token) {
+      headers[CAPTURE_TOKEN_HEADER] = token;
+      if (live?.nonce) headers[LINK_NONCE_HEADER] = live.nonce;
+    }
+    const result = await sendReport(sendDeps()!, config.ingestUrl, config.sdkKey, item.body, {
+      headers,
+      readBody: true,
+    });
+    if (token && isDeviceUnlinked(result.status, result.body)) {
+      // Nothing was stored. The token is dead: drop the capture, then the link.
+      await dropUnsent(item);
+      // A late 403 for a token a takeover already replaced leaves the new
+      // link alone, and says nothing: the device is still linked.
+      const wasCurrent = deviceLink?.current()?.token === token;
+      await deviceLink?.forget(token);
+      if (live && wasCurrent) overlay?.toast(DEVICE_UNLINKED);
+      return 'drop';
+    }
+    await settle(item, result.outcome);
+    if (result.outcome === 'sent' && live?.nonce && token && deviceLink) {
+      const pending = parseLinkPending(result.body);
+      // A reply to an upload made under an older link never starts a takeover.
+      if (pending && deviceLink.generation() === live.generation)
+        deviceLink.beginAttempt(pending.attemptId, pending.number, live.nonce);
+    }
+    if (result.outcome === 'drop' && live) overlay?.toast(CAPTURE_FAILED);
+    return result.outcome;
+  }
+
   /** One attempt for one item; the item stays stored until the server answers for good. */
-  async function attempt(item: OutboxItem): Promise<'sent' | 'drop' | 'retry' | 'busy'> {
+  async function attempt(
+    item: OutboxItem,
+    live?: LiveUpload,
+  ): Promise<'sent' | 'drop' | 'retry' | 'busy' | 'wait'> {
     if (inFlight.has(item.reportId)) return 'busy';
     if (!config || !outbox || !binding || !env.fetch) return 'retry';
     // Never send a report anywhere but where it was captured for, nor under
@@ -267,21 +422,14 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
     }
     inFlight.add(item.reportId);
     try {
+      if (item.quickCapture === true) return await attemptQuickCapture(item, live);
       const result = await sendReport(
         { fetch: env.fetch, setTimeout: env.setTimeout, clearTimeout: env.clearTimeout },
         config.ingestUrl,
         config.sdkKey,
         item.body,
       );
-      if (result.outcome === 'retry') {
-        failures++;
-        notBefore.set(item.reportId, env.now() + retryDelay());
-        await outbox.recordAttempt(item.reportId);
-      } else {
-        if (result.outcome === 'sent') failures = 0;
-        notBefore.delete(item.reportId);
-        await outbox.remove(item.reportId);
-      }
+      await settle(item, result.outcome);
       return result.outcome;
     } catch {
       return 'retry';
@@ -305,7 +453,10 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
           retry = true;
           continue;
         }
-        if ((await attempt(item)) === 'retry') {
+        const outcome = await attempt(item);
+        // A linked quick capture waiting for the stored link to load.
+        if (outcome === 'wait') retry = true;
+        if (outcome === 'retry') {
           retry = true;
           // The server or network is down; later items would fail the same way.
           break;
@@ -322,14 +473,25 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
   }
 
   /** Persist first, then one live attempt. Resolves when both are done. */
-  async function deliver(item: OutboxItem): Promise<void> {
+  async function deliver(item: OutboxItem, live?: LiveUpload): Promise<void> {
     if (!outbox) return;
     await outbox.add(item);
-    if ((await attempt(item)) === 'retry') {
+    const outcome = await attempt(item, live);
+    if (outcome === 'retry' || outcome === 'wait') {
       if (!item.fatal) scheduleRetry();
     } else if (outbox.size() > 0 && !item.fatal) {
       void drain();
     }
+  }
+
+  function track(work: Promise<void>): Promise<void> {
+    const delivery: Promise<void> = work
+      .catch(() => undefined)
+      .then(() => {
+        deliveries.delete(delivery);
+      });
+    deliveries.add(delivery);
+    return delivery;
   }
 
   function capture(
@@ -351,13 +513,173 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
       capturing = false;
     }
     if (!item) return undefined;
-    const delivery: Promise<void> = deliver(item)
-      .catch(() => undefined)
-      .then(() => {
-        deliveries.delete(delivery);
+    return track(deliver(item));
+  }
+
+  function gestureInput(): GestureInput {
+    const loaded = deviceLink?.isLoaded() === true;
+    return {
+      quickCaptureEnabled:
+        phase === 'running' &&
+        config?.quickCaptureEnabled === true &&
+        remote?.quickCapture === true &&
+        overlay?.mounted() === true &&
+        loaded,
+      linkingEnabled: deviceLink?.linkingEnabled() === true,
+      linked: loaded && deviceLink?.current() != null,
+      debugBuild: config?.app.debug === true,
+    };
+  }
+
+  /** Builds, stores and sends one quick capture; the toast shows at once. */
+  function captureQuick(): void {
+    if (!config || !device || !binding || !deviceLink) return;
+    const current = deviceLink.current();
+    const generation = deviceLink.generation();
+    const reportId = uuidV4(env.random);
+    const envelope = buildQuickCaptureEnvelope({
+      reportId,
+      occurredAt: new Date(env.now()).toISOString(),
+      sdk: { ...SDK },
+      app: config.app,
+      device,
+      breadcrumbs: breadcrumbs.snapshot(),
+      user,
+    });
+    const item: OutboxItem = {
+      reportId,
+      body: JSON.stringify(envelope),
+      enqueuedAt: env.now(),
+      attempts: 0,
+      fatal: false,
+      ...binding,
+      quickCapture: true,
+      ...(current ? { linkFingerprint: tokenFingerprint(current.token) } : {}),
+    };
+    overlay?.toast(capturedToast(current?.owner ?? null, deviceLabel(config.device.model)));
+    const nonce = current
+      ? createNonce((n) => randomBytes(n, { crypto: env.crypto, random: env.random, now: env.now }))
+      : undefined;
+    void track(deliver(item, { ...(nonce ? { nonce } : {}), generation }));
+  }
+
+  function onGesture(): void {
+    if (gestureBusy || !deviceLink || !deviceLink.isLoaded()) return;
+    const now = env.now();
+    if (now - lastGestureAt < CAPTURE_COOLDOWN_MS) return;
+    const choice = decide(gestureInput());
+    if (!choice.capture && !choice.sendHello) return;
+    lastGestureAt = now;
+    gestureBusy = true;
+    try {
+      if (choice.capture) captureQuick();
+      if (choice.sendHello) deviceLink.sendHello();
+    } catch {
+      // A gesture never throws into the host.
+    } finally {
+      gestureBusy = false;
+    }
+  }
+
+  /**
+   * One remote key from the root wrapper. A disarmed device (every end user
+   * of a release build that is not linked, or an app with linking off) does
+   * no work per key: no detector, no timer. Keys are only observed, never
+   * consumed, so the app receives each one exactly as before.
+   */
+  function onRemoteKey(event: HWEventLike): void {
+    if (!isArmed(gestureInput())) {
+      detector?.reset();
+      return;
+    }
+    const action = keyAction(event?.eventKeyAction);
+    if (!action) return;
+    const key = keyForVegaEvent(event?.eventType);
+    if (!detector) {
+      detector = createGestureDetector(DEFAULT_TV_BINDING, {
+        now: env.now,
+        setTimeout: env.setTimeout,
+        clearTimeout: env.clearTimeout,
+        onFire: onGesture,
       });
-    deliveries.add(delivery);
-    return delivery;
+    }
+    detector.onKey(key, action);
+  }
+
+  function refreshConfig(): void {
+    const deps = sendDeps();
+    if (!config || !deviceLink || !deps || phase !== 'running') return;
+    const link = deviceLink;
+    const seq = ++configSeq;
+    lastConfigAt = env.now();
+    const sent = link.tokenForRequest();
+    void fetchRemoteConfig(deps, config.apiBase, config.sdkKey, sent)
+      .then((next) => {
+        // A failure keeps what the last good reply said; an older reply never
+        // overrides a newer one.
+        if (!next || seq < configApplied) return;
+        configApplied = seq;
+        remote = next;
+        link.applyConfig(sent, next);
+      })
+      .catch(() => undefined);
+  }
+
+  function startQuickCapture(resolved: ResolvedConfig): void {
+    const registry = env.appRegistry;
+    const deps = sendDeps();
+    if (!registry || !deps) return;
+    const store = createOverlayStore(env);
+    installRootWrapper(registry, { store, onKey: (event) => onRemoteKey(event) });
+    overlay = store;
+    deviceLink = createDeviceLink({
+      store: createLinkStore(resolved.storage),
+      client: createLinkClient(deps, resolved.apiBase, resolved.sdkKey),
+      scope: linkScope(resolved.apiBase, resolved.sdkKey),
+      presenter: store,
+      device: helloDevice({
+        model: resolved.device.model,
+        osVersion: resolved.device.osVersion,
+        appVersion: resolved.app.version,
+      }),
+      nonce: () =>
+        createNonce((n) =>
+          randomBytes(n, { crypto: env.crypto, random: env.random, now: env.now }),
+        ),
+      now: env.now,
+      setTimeout: env.setTimeout,
+      clearTimeout: env.clearTimeout,
+      refreshConfig,
+      debug,
+    });
+    // The foreground throttle starts at init: the first config request is
+    // already on its way once the link loads.
+    lastConfigAt = env.now();
+    void deviceLink.ready.then(() => {
+      refreshConfig();
+      // Linked captures stored by an earlier launch wait for the link.
+      if (outbox && outbox.size() > 0) void drain();
+    });
+    try {
+      env.appState?.addEventListener('change', (state) => {
+        try {
+          if (state !== 'active') {
+            // A hold never spans the app leaving the screen.
+            detector?.reset();
+            return;
+          }
+          // Only a linked device re-reads: its link may have been revoked or
+          // reassigned. End users' devices make one request per launch.
+          if (!deviceLink?.current()) return;
+          if (env.now() - lastConfigAt < FOREGROUND_REFRESH_MS) return;
+          refreshConfig();
+        } catch {
+          // Never into the host.
+        }
+      });
+    } catch {
+      // No lifecycle events: the config is read once per launch.
+    }
   }
 
   function describeRejection(rejection: unknown): string {
@@ -509,6 +831,13 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
         // A host whose ErrorUtils throws still gets captureException and replay.
       }
       installRejectionTracker();
+      if (resolved.quickCaptureEnabled) {
+        try {
+          startQuickCapture(resolved);
+        } catch {
+          // Quick capture failing to start leaves crash reporting untouched.
+        }
+      }
       void drain();
     },
     captureException(error, options) {
@@ -544,5 +873,21 @@ export function createVegaClient(env: VegaEnvironment): VegaClient {
         pending: outbox?.size() ?? 0,
       };
     },
+    onGesture,
+    onRemoteKey(event) {
+      try {
+        onRemoteKey(event);
+      } catch {
+        // Never into the host.
+      }
+    },
+    gestureInput,
+    armed: () => isArmed(gestureInput()),
+    refreshConfig,
+    quickCaptureParts: () => ({
+      ...(overlay ? { overlay } : {}),
+      ...(deviceLink ? { deviceLink } : {}),
+      remote,
+    }),
   };
 }
