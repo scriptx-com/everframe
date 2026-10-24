@@ -10,7 +10,7 @@ import Combine
 
 /// A dashboard-initiated attach request from the removed Companion flow.
 /// Nothing produces one any more.
-@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.")
 public struct CompanionAttachChallenge: Sendable, Equatable {
     public let code: String
     public let requestedByName: String
@@ -29,7 +29,7 @@ public struct CompanionAttachChallenge: Sendable, Equatable {
 }
 
 /// The removed Companion observation surface. Every value is idle.
-@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.")
+@available(*, deprecated, message: "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.")
 public final class CompanionAPI: ObservableObject, @unchecked Sendable {
     /// Always `.unpaired`.
     @Published public private(set) var state: CompanionState = .unpaired

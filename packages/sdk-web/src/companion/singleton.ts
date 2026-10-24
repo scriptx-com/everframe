@@ -12,35 +12,35 @@ import type { relay } from '@everframe/protocol';
 import { warnCompanionRemovedOnce } from './deprecation.js';
 
 /**
- * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+ * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
  */
 export type CompanionState = 'unpaired' | 'paired' | 'report_in_progress' | 'phone_disconnected';
 
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionStateHandler = (oldVal: CompanionState, newVal: CompanionState) => void;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionPairUrlHandler = (url: string | null) => void;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionCodeHandler = (code: string | null) => void;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionAttachedUserNameHandler = (name: string | null) => void;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionResolvedNameHandler = (name: string | null) => void;
 
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export interface CompanionAttachChallenge {
   code: string;
   requestedByName: string;
   ttlMs: number;
 }
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionAttachChallengeHandler = (c: CompanionAttachChallenge | null) => void;
 
 /**
  * The removed Companion observation surface. Every getter returns its idle
  * value and every `on*` returns an unsubscribe without calling its handler.
  *
- * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+ * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
  */
 export interface CompanionAPI {
   /** Always `'unpaired'`. */
@@ -74,10 +74,10 @@ export interface CompanionAPI {
 // callbacks annotated with these names keep compiling. Nothing produces these
 // values any more; there is no runtime behind them.
 
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type ReportSubmit = z.infer<typeof relay.ReportSubmit>;
 
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type RelayMessage =
   | z.infer<typeof relay.PairCreated>
   | z.infer<typeof relay.PairBonded>
@@ -92,7 +92,7 @@ export type RelayMessage =
   | z.infer<typeof relay.ReportRejected>
   | z.infer<typeof relay.ReportCancelled>;
 
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export interface RelayWSClient {
   start(): void;
   send(msg: RelayMessage): void;
@@ -101,7 +101,7 @@ export interface RelayWSClient {
   getCompanionAttribution(): string | null;
 }
 
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export interface ReportCounts {
   logs: number;
   network: number;
@@ -109,13 +109,13 @@ export interface ReportCounts {
   breadcrumbs?: number;
 }
 
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type AttachPinUiMode = 'builtin' | 'custom' | 'off';
 
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type BadgePosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
 
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export interface CompanionBadgeOptions {
   enabled?: boolean;
   position?: BadgePosition;
@@ -124,7 +124,7 @@ export interface CompanionBadgeOptions {
 /**
  * Every field is still accepted and ignored.
  *
- * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+ * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
  */
 export interface CompanionStartOptions {
   endpoint?: string;
@@ -160,7 +160,7 @@ const IDLE_API: CompanionAPI = Object.freeze({
 /**
  * Returns the idle Companion surface.
  *
- * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+ * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
  */
 export function createCompanion(): CompanionAPI {
   return IDLE_API;
@@ -169,7 +169,7 @@ export function createCompanion(): CompanionAPI {
 /**
  * Returns the idle Companion surface (the one `useCompanion()` reads).
  *
- * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+ * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
  */
 export function __getCompanionApi(): CompanionAPI {
   return IDLE_API;
@@ -179,7 +179,7 @@ export function __getCompanionApi(): CompanionAPI {
  * Logs the removal warning once per page. Opens no socket, starts no timer
  * and never throws.
  *
- * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+ * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
  */
 export function start(_opts: CompanionStartOptions = {}): void {
   warnCompanionRemovedOnce();
@@ -188,7 +188,7 @@ export function start(_opts: CompanionStartOptions = {}): void {
 /**
  * Does nothing.
  *
- * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+ * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
  */
 export function stop(): void {
   /* nothing to stop */

@@ -12,7 +12,7 @@ import androidx.annotation.VisibleForTesting
 
 /** The message every deprecated Companion symbol carries, and the one-time warning. */
 internal const val COMPANION_REMOVED_MESSAGE: String =
-    "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture."
+    "Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture."
 
 internal object CompanionDeprecation {
     /** How many times the warning has been logged in this process: 0 or 1. */

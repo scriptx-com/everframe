@@ -23,38 +23,38 @@
 import type * as web from '@everframe/web';
 
 export { createCompanion, start, stop } from '@everframe/web';
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionAPI = web.CompanionAPI;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionState = web.CompanionState;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionStateHandler = web.CompanionStateHandler;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionPairUrlHandler = web.CompanionPairUrlHandler;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionCodeHandler = web.CompanionCodeHandler;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionAttachedUserNameHandler = web.CompanionAttachedUserNameHandler;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionResolvedNameHandler = web.CompanionResolvedNameHandler;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionAttachChallenge = web.CompanionAttachChallenge;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionAttachChallengeHandler = web.CompanionAttachChallengeHandler;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionStartOptions = web.CompanionStartOptions;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type AttachPinUiMode = web.AttachPinUiMode;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type CompanionBadgeOptions = web.CompanionBadgeOptions;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type BadgePosition = web.BadgePosition;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type ReportSubmit = web.ReportSubmit;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type RelayMessage = web.RelayMessage;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type RelayWSClient = web.RelayWSClient;
-/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture. */
+/** @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture. */
 export type ReportCounts = web.ReportCounts;
 export { useCompanion } from './use-companion.js';

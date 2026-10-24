@@ -548,7 +548,7 @@ No app code is needed for either. Captures follow the same gates as in the
 simulator: `quickCaptureEnabled`, `reporterEnabled` and the dashboard's quick
 capture setting, no reporter on screen and one capture at a time.
 
-- **Link a device.** On the dashboard, open Settings → Devices and click
+- **Link a device.** On the dashboard, open Project settings → Devices and click
   **Link a device**, then shake the device. It shows a banner,
   `Linking to Everframe · <number>`, with the subline
   `A teammate is linking a device. If that's not you, ignore this.` Click the
@@ -766,7 +766,7 @@ posted, `RelayWSClient.connect()` logs one warning and opens nothing, and
 `CompanionCaptureBridge` and `CompanionPinPresenter.install()` do nothing. The
 `companionDeviceId`, `companionBadgeEnabled` and `companionBadgePosition`
 `EverframeConfig` parameters are accepted and ignored. To capture from a real
-device, link it under Settings → Devices in the dashboard and use quick
+device, link it under Project settings → Devices in the dashboard and use quick
 capture.
 
 ---

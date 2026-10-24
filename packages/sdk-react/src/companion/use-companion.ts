@@ -31,7 +31,7 @@ const IDLE: CompanionSnapshot = Object.freeze({
 /**
  * Returns the idle Companion snapshot — the same object on every render.
  *
- * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.
+ * @deprecated Everframe Companion has been removed; this call does nothing. Link the device under Project settings → Devices in the dashboard and use quick capture.
  */
 export function useCompanion(): {
   state: CompanionState;
