@@ -55,7 +55,7 @@ final class QuickCaptureTests: XCTestCase {
         submit: (@MainActor (ReporterSubmission.Inputs) async throws -> ReportResult)? = nil
     ) -> QuickCapture {
         let qc = QuickCapture()
-        qc.isSimulator = true
+        qc.hostMode = .simulator
         qc.isApplicationActive = { true }
         qc.environment = ["SIMULATOR_HOST_HOME": home, "SIMULATOR_DEVICE_NAME": "iPhone Test"]
         qc.showToast = { _ in }
@@ -156,7 +156,7 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertTrue(isIgnored(releaseOutcome), "\(releaseOutcome)")
 
         let device = makeArmed()
-        device.isSimulator = false
+        device.hostMode = .unsupported
         let deviceOutcome = await device.capture()
         XCTAssertTrue(isIgnored(deviceOutcome), "\(deviceOutcome)")
         XCTAssertFalse(device.isArmed)
@@ -209,9 +209,9 @@ final class QuickCaptureTests: XCTestCase {
         XCTAssertFalse(qc.forcesReplay)
         qc.publish(remote: CaptureHotkeyConfigWire(enabled: true, replay: true))
         XCTAssertTrue(qc.forcesReplay)
-        qc.isSimulator = false
-        XCTAssertFalse(qc.forcesReplay, "a device never forces replay")
-        qc.isSimulator = true
+        qc.hostMode = .unsupported
+        XCTAssertFalse(qc.forcesReplay, "an unsupported host never forces replay")
+        qc.hostMode = .simulator
         Everframe.captureGate = false
         XCTAssertFalse(qc.forcesReplay, "a closed kill switch never forces replay")
         Everframe.captureGate = true

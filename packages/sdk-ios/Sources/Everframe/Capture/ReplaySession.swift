@@ -566,6 +566,12 @@ public final class ReplaySession: NSObject {
         ShakeToReportTrigger.shared.publish(remoteEnabled: latest.shakeToReport?.enabled) {
             Everframe.shared.currentStartEpoch == startEpochAtCreation
         }
+        // Device linking first: a config that says this device's token is
+        // unlinked clears the link and disarms quick capture's linked gate
+        // here, so the `forcesReplay` read below already sees it.
+        DeviceLinkCoordinator.shared.publish(remote: latest.deviceLinking) {
+            Everframe.shared.currentStartEpoch == startEpochAtCreation
+        }
         QuickCapture.shared.publish(remote: latest.captureHotkey) {
             Everframe.shared.currentStartEpoch == startEpochAtCreation
         }

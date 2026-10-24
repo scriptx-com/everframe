@@ -243,7 +243,8 @@ compilation. Physical-device MetricKit callback delivery remains unqualified.
 > Everframe owns mobile shake-to-report. Buttons, overlays, key listeners, and every TV trigger remain host-owned.
 
 Shake-to-report is enabled locally by default on iPhone and iPad and controlled
-authoritatively by the dashboard. Disable it locally with
+authoritatively by the dashboard. On a linked or debug-build device, shake takes
+a quick capture instead (see [Quick capture](#real-iphones-and-ipads)). Disable it locally with
 `EverframeConfig(sdkKey: "…", shakeToReportEnabled: false)`. Local `true` never
 overrides a dashboard disable. The SDK observes UIKit's `.motionShake` event
 without Core Motion, permissions, privacy-manifest additions, or replacement
@@ -440,7 +441,14 @@ duplicate-true posts.
 For the cross-SDK contract statement see the top-level
 [README.md](../../README.md#triggers-are-a-host-app-concern).
 
-## Quick capture (simulators)
+## Quick capture
+
+Quick capture files a report with no UI: in the iOS simulator with a key
+press, and on a real iPhone or iPad with a shake once the device is linked to
+you (or runs a debug build). Titling and filing always happen on the
+dashboard, in the live capture card.
+
+### Simulators
 
 While you test a build in the iOS simulator, press **⇧B** (outside a text
 field) to file a report without opening the reporter. The tvOS simulator is not yet
@@ -467,9 +475,9 @@ dashboard. Like the reporter, a quick capture consumes the pending
   even while the simulator window's sidebar has focus; a chord with a letter
   needs a click on the device screen first, and a click on the screen is a tap
   the app sees.
-- **Simulators only.** It never runs on a physical device. Every simulator
-  build counts as a debug build, Release configuration included, unless the
-  app sets `EverframeConfig.debugBuild = false`.
+- **Debug builds.** Every simulator build counts as a debug build, Release
+  configuration included, unless the app sets `EverframeConfig.debugBuild = false`.
+  Real devices follow their own rules (next section).
   It also needs `reporterEnabled` and the dashboard's capture hotkey setting,
   and it does nothing while the reporter is on screen or a capture is still
   uploading. Shake-to-report is ignored while a quick capture is in flight,
@@ -520,6 +528,69 @@ dashboard. Like the reporter, a quick capture consumes the pending
   in the app's shared inbox. A capture that is queued offline and retried later goes out without
   the token. If you cannot use the CLI, create the file yourself as
   `{"token": "<token>"}`.
+
+### Real iPhones and iPads
+
+On a real device, **shake** is the capture gesture. It takes the same capture
+as ⇧B in the simulator (screenshot, replay window, logs, breadcrumbs and
+network) when either holds:
+
+- **The device is linked.** A linked device captures in any build, Release
+  included. A capture from a device linked to you is a private draft for you,
+  with the toast `Captured · <your name>`. A capture from a team device is a
+  shared draft, with the toast `Captured · team device`.
+- **The build is a debug build.** A development-signed build (or one started
+  with `debugBuild: true`) that is not linked captures to the app's shared
+  inbox, with the toast `Captured · <device name>`.
+
+No app code is needed for either. Captures follow the same gates as in the
+simulator: `quickCaptureEnabled`, `reporterEnabled` and the dashboard's quick
+capture setting, no reporter on screen and one capture at a time.
+
+- **Link a device.** On the dashboard, open Settings → Devices and click
+  **Link a device**, then shake the device. It shows a banner,
+  `Linking to Everframe · <number>`, with the subline
+  `A teammate is linking a device. If that's not you, ignore this.` Click the
+  matching number on the dashboard. The device shows `Linked to <your name>`.
+  Admins can choose **Link as team device** instead; the device then shows
+  `Linked as team device`. Nothing links on its own: a teammate always picks
+  the number. While no one is linking, a shake on an unlinked device asks the
+  server once and shows no banner.
+- **Hand a device over.** A linked device keeps capturing for its owner. When
+  another teammate clicks Link a device and the device is shaken, its capture
+  upload shows the banner too; picking the number moves the device, and that
+  capture, to the new teammate.
+- **Unlinking.** Unlinking a device on the dashboard revokes its link. The
+  device finds out at its next capture or config fetch. A capture sent with a
+  revoked link is not stored anywhere; the device shows
+  `This device was unlinked` and falls back to unlinked behavior.
+- **The token.** The device token is kept in the Keychain (this device only,
+  readable after first unlock), one per ingest origin and SDK key, and is sent
+  only to the origin that issued it, in `X-Everframe-Capture-Token` on quick
+  capture uploads and config fetches. The SDK never logs it. A linked capture
+  that is queued offline is retried only while the same link is still stored;
+  otherwise it is dropped, never filed into another inbox.
+- **Shake-to-report.** `shakeToReportEnabled` (and the dashboard's
+  shake-to-report setting) still decides only whether a shake opens the
+  reporter on an unlinked release build. Shake keeps capturing on linked and
+  debug devices with it off.
+- **Replay.** Linked devices and debug builds record session replay while
+  quick capture is armed and the dashboard's quick capture setting has replay
+  on, as in the simulator.
+- **End users.** Release builds on end users' devices behave exactly as
+  before: shake opens the reporter when shake-to-report allows it, and replay
+  is unaffected. The only visible difference is the rare linking banner if an
+  end user shakes during a teammate's two-minute linking window.
+- **Device linking off.** The dashboard's per-app device linking switch stops
+  devices from asking to link. `quickCaptureEnabled = false` (or the
+  dashboard's quick capture switch) turns off both quick capture and linking.
+- **tvOS.** Apple TV devices are not supported yet; a tvOS app behaves as before.
+- **Testing in a simulator.** Launch the app with `EVERFRAME_SIMULATE_DEVICE=1`
+  in its environment (for example
+  `SIMCTL_CHILD_EVERFRAME_SIMULATE_DEVICE=1 xcrun simctl launch <udid> <bundle-id>`)
+  to make an iPhone simulator behave as a real phone: the Darwin notification
+  `com.everframe.capture` (or **Device → Shake** in Simulator) then follows the
+  real-device rules, including linking. The switch is ignored on real devices.
 
 ---
 

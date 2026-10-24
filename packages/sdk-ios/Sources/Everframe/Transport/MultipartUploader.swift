@@ -55,6 +55,24 @@ public struct MultipartUploader {
         identityToken: String? = nil,
         urlSession: URLSession = .shared
     ) async throws -> (statusCode: Int, headers: [AnyHashable: Any]) {
+        let result = try await send(parts: parts, idempotencyKey: idempotencyKey,
+            companionAttribution: companionAttribution, captureToken: captureToken,
+            identityToken: identityToken, linkNonce: nil, urlSession: urlSession)
+        return (result.statusCode, result.headers)
+    }
+
+    /// `upload`, plus the response body and the device-link takeover nonce.
+    /// - Parameter linkNonce: fresh per linked quick-capture upload, sent as
+    ///   `X-Everframe-Link-Nonce`. SECURITY: never log it.
+    func send(
+        parts: [Part],
+        idempotencyKey: String,
+        companionAttribution: String? = nil,
+        captureToken: String? = nil,
+        identityToken: String? = nil,
+        linkNonce: String? = nil,
+        urlSession: URLSession = .shared
+    ) async throws -> (statusCode: Int, headers: [AnyHashable: Any], body: Data) {
 
         let boundary = "----Everframe\(UUID().uuidString)"
         let body = Self.buildBody(parts: parts, boundary: boundary)
@@ -97,6 +115,11 @@ public struct MultipartUploader {
             // companionAttribution above.
             req.setValue(identityToken, forHTTPHeaderField: IDENTITY_TOKEN_HEADER)
         }
+        if let linkNonce {
+            // SECURITY: never log this value — same posture as
+            // companionAttribution above.
+            req.setValue(linkNonce, forHTTPHeaderField: "X-Everframe-Link-Nonce")
+        }
 
         #if DEBUG
         print("[Everframe] POST \(ingestURL.absoluteString) bytes=\(body.count) boundary=\(boundary)")
@@ -121,7 +144,7 @@ public struct MultipartUploader {
             let bodyPreview = String(data: data.prefix(512), encoding: .utf8) ?? "<\(data.count) non-utf8 bytes>"
             print("[Everframe] response status=\(http.statusCode) body=\(bodyPreview)")
             #endif
-            return (http.statusCode, http.allHeaderFields)
+            return (http.statusCode, http.allHeaderFields, data)
         } catch {
             #if DEBUG
             let nsErr = error as NSError

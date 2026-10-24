@@ -305,6 +305,61 @@ public struct BrandingConfigWire: Decodable, Sendable, Equatable {
     }
 }
 
+/// Mirrors the server's `deviceLinking` block, sent only to callers that
+/// declare `devicelinking` in `X-Everframe-SDK-Features`. `enabled` is the
+/// app's device-linking switch. `link` is present only when the request
+/// carried an `evf_dev_` token, and says whether that token is still linked.
+/// `link.recording` (TV gesture recording) is ignored on phones.
+///
+/// Decoded leniently: a malformed block degrades to nil, and a malformed
+/// `link` degrades to nil on its own, keeping `enabled`.
+struct DeviceLinkingConfigWire: Decodable, Sendable, Equatable {
+    let enabled: Bool
+    let link: Link?
+    /// Not decoded. `ReplayConfigProvider.refresh()` sets it to the
+    /// fingerprint of the device token that request sent, or nil, so a reply
+    /// about an old token never clears or renames a newer one.
+    var requestTokenFingerprint: String?
+
+    struct Link: Equatable, Sendable {
+        let status: Status
+        /// Present only when `status == .linked`.
+        let owner: DeviceLinkOwner?
+    }
+
+    enum Status: Equatable, Sendable { case linked, unlinked }
+
+    init(enabled: Bool, link: Link? = nil, requestTokenFingerprint: String? = nil) {
+        self.enabled = enabled
+        self.link = link
+        self.requestTokenFingerprint = requestTokenFingerprint
+    }
+
+    private enum CodingKeys: String, CodingKey { case enabled, link }
+    private enum LinkKeys: String, CodingKey { case status, owner }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try c.decode(Bool.self, forKey: .enabled)
+        link = Self.decodeLink(c)
+        requestTokenFingerprint = nil
+    }
+
+    private static func decodeLink(_ c: KeyedDecodingContainer<CodingKeys>) -> Link? {
+        guard let l = try? c.nestedContainer(keyedBy: LinkKeys.self, forKey: .link),
+              let status = try? l.decode(String.self, forKey: .status) else { return nil }
+        switch status {
+        case "unlinked":
+            return Link(status: .unlinked, owner: nil)
+        case "linked":
+            guard let owner = try? l.decode(DeviceLinkOwner.self, forKey: .owner) else { return nil }
+            return Link(status: .linked, owner: owner)
+        default:
+            return nil
+        }
+    }
+}
+
 public struct ReplayConfig: Sendable, Equatable {
     public let nativeVideo: NativeVideoSettings?
     public let replayEnabled: Bool
@@ -326,6 +381,9 @@ public struct ReplayConfig: Sendable, Equatable {
     /// 2026-10-12), in 0...1. `nil` (an older server, or a value that failed validation) means 0:
     /// a crash-only session records nothing.
     public let crashOnlySamplingRate: Double?
+    /// The `deviceLinking` block (real-device quick capture). nil when the
+    /// server sent none or it was malformed.
+    internal var deviceLinking: DeviceLinkingConfigWire?
 
     public init(
         replayEnabled: Bool,
@@ -392,6 +450,7 @@ private struct ReplayConfigWire: Decodable {
     let vitalsEnabled: Bool?
     let vitalsSampleRate: Double?
     let crashOnlySamplingRate: Double?
+    let deviceLinking: DeviceLinkingConfigWire?
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -440,16 +499,17 @@ private struct ReplayConfigWire: Decodable {
         // Nil is already the fail-closed answer here, so it never has to sink the config.
         let crashOnly = (try? c.decodeIfPresent(Double.self, forKey: .crashOnlySamplingRate)) ?? nil
         crashOnlySamplingRate = crashOnly.flatMap { (0...1).contains($0) ? $0 : nil }
+        deviceLinking = (try? c.decodeIfPresent(DeviceLinkingConfigWire.self, forKey: .deviceLinking)) ?? nil
     }
 
     enum CodingKeys: String, CodingKey {
         case replayEnabled, replayDurationSec, samplingRate, breadcrumbs, networkBodies, identity
         case companionBadge, branding, nativeVideo, vitalsEnabled, vitalsSampleRate
-        case resources, shakeToReport, captureHotkey, crashOnlySamplingRate
+        case resources, shakeToReport, captureHotkey, crashOnlySamplingRate, deviceLinking
     }
 
     var config: ReplayConfig {
-        ReplayConfig(
+        var config = ReplayConfig(
             replayEnabled: replayEnabled,
             replayDurationSec: replayDurationSec,
             samplingRate: samplingRate,
@@ -466,6 +526,8 @@ private struct ReplayConfigWire: Decodable {
             vitalsSampleRate: vitalsSampleRate,
             crashOnlySamplingRate: crashOnlySamplingRate
         )
+        config.deviceLinking = deviceLinking
+        return config
     }
 }
 
@@ -497,6 +559,9 @@ public actor ReplayConfigProvider {
     private let fetcher: URLSessionFetching
     private let ttlSec: TimeInterval
     private let now: @Sendable () -> TimeInterval
+    /// The device-link token to send as `X-Everframe-Capture-Token`, read per
+    /// fetch. Only a valid `evf_dev_` token is sent. SECURITY: never log it.
+    private let deviceTokenProvider: @Sendable () -> String?
 
     /// Starts OFF. The ONLY mutation path is a fully decoded valid 200.
     private var cache: ReplayConfig = .off
@@ -535,7 +600,8 @@ public actor ReplayConfigProvider {
         fetcher: URLSessionFetching = URLSession.shared,
         ttlSec: TimeInterval = defaultConfigTtlSec,
         now: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
-        installIdProvider: @escaping @Sendable () -> String? = { nil }
+        installIdProvider: @escaping @Sendable () -> String? = { nil },
+        deviceTokenProvider: @escaping @Sendable () -> String? = { nil }
     ) {
         self.configUrl = configUrl
         self.sdkKey = sdkKey
@@ -543,21 +609,31 @@ public actor ReplayConfigProvider {
         self.ttlSec = ttlSec
         self.now = now
         self.installIdProvider = installIdProvider
+        self.deviceTokenProvider = deviceTokenProvider
     }
 
     /// Convenience: build the provider from the base ingest endpoint by appending
     /// `/api/config` (mirrors MultipartUploader's base-URL path-append).
+    ///
+    /// On a real iPhone or iPad the fetch carries the device-link token stored
+    /// for this origin and key. The default fetcher is the isolated report
+    /// session, whose redirect guard strips that token on a cross-origin redirect.
     public static func make(
         baseURL: URL = IngestEndpoint.url,
         sdkKey: String,
-        fetcher: URLSessionFetching = URLSession.shared,
+        fetcher: URLSessionFetching = ReportSubmitter.makeIsolatedSession(),
         installIdProvider: @escaping @Sendable () -> String? = { nil }
     ) -> ReplayConfigProvider {
         ReplayConfigProvider(
             configUrl: configURL(from: baseURL),
             sdkKey: sdkKey,
             fetcher: fetcher,
-            installIdProvider: installIdProvider
+            installIdProvider: installIdProvider,
+            deviceTokenProvider: {
+                QuickCaptureHostMode.current == .device
+                    ? DeviceLinkStore.shared.link(endpoint: baseURL, sdkKey: sdkKey)?.token
+                    : nil
+            }
         )
     }
 
@@ -644,6 +720,13 @@ public actor ReplayConfigProvider {
             // blocks so the server can gate each feature on capability rather
             // than version.
             req.setValue(Self.sdkFeaturesHeaderValue, forHTTPHeaderField: "X-Everframe-SDK-Features")
+            // The device-link token, read fresh. Its fingerprint goes with the
+            // reply so the link coordinator acts only on the token this
+            // request sent. SECURITY: never log the token.
+            let deviceToken = deviceTokenProvider().flatMap { DeviceLinkToken.isValid($0) ? $0 : nil }
+            if let deviceToken {
+                req.setValue(deviceToken, forHTTPHeaderField: "X-Everframe-Capture-Token")
+            }
             // Bound the request so a hung fetch cannot wedge the provider.
             req.timeoutInterval = ttlSec
 
@@ -664,7 +747,9 @@ public actor ReplayConfigProvider {
                 return false
             }
             // The ONLY path that mutates the cache: a fully decoded valid 200.
-            cache = wire.config
+            var config = wire.config
+            config.deviceLinking?.requestTokenFingerprint = deviceToken.map(DeviceLinkToken.fingerprint)
+            cache = config
             return true
         } catch {
             // network rejection / timeout / decode failure ⇒ fail closed silently.
@@ -681,9 +766,11 @@ extension ReplayConfigProvider {
     /// prerequisite for receiving it, not a formality. `capturetextguard` tells
     /// the server quick capture stands aside while a text input is first
     /// responder, so it may send a plain-key or Shift+key `captureHotkey.binding`;
-    /// callers without it get `Shift Shift`.
+    /// callers without it get `Shift Shift`. `devicelinking` asks for the
+    /// `deviceLinking` block. `capturegesture` (TV bindings) is deliberately
+    /// not declared: phones always use shake.
     public static let sdkFeaturesHeaderValue =
-        "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard"
+        "networkbodies, identity, companionbadge, branding, nativevideo, nativevideolowfps, vitals, resources, shaketoreport, crashonly, capturehotkey, capturetextguard, devicelinking"
 
     /// Test seam: decode a raw `/api/config` body exactly as `refresh()` does.
     static func __decodeForTesting(_ data: Data) throws -> ReplayConfig {

@@ -175,6 +175,11 @@ public enum ReporterSubmission {
         /// Quick-capture token, sent as `X-Everframe-Capture-Token`; never
         /// enters the envelope or the outbox. SECURITY: never log.
         public let captureToken: String?
+        /// Device-link takeover nonce for a linked quick capture, sent as
+        /// `X-Everframe-Link-Nonce`. SECURITY: never log.
+        public let linkNonce: String?
+        /// Receives the 2xx ingest body (which may carry `linkPending`).
+        public let onIngestAccepted: (@Sendable (Data) -> Void)?
 
         public init(
             captureResult: ScreenshotCapture.Result,
@@ -191,7 +196,9 @@ public enum ReporterSubmission {
             capturedSession: EFCapturedSession,
             companionAttribution: String? = nil,
             quickCapture: Bool = false,
-            captureToken: String? = nil
+            captureToken: String? = nil,
+            linkNonce: String? = nil,
+            onIngestAccepted: (@Sendable (Data) -> Void)? = nil
         ) {
             self.captureResult = captureResult
             self.shots = shots
@@ -214,6 +221,8 @@ public enum ReporterSubmission {
             self.companionAttribution = companionAttribution
             self.quickCapture = quickCapture
             self.captureToken = captureToken
+            self.linkNonce = linkNonce
+            self.onIngestAccepted = onIngestAccepted
         }
     }
 
@@ -742,7 +751,10 @@ public enum ReporterSubmission {
             // SECURITY: never log.
             captureToken: inputs.captureToken,
             identitySubject: capturedEpochStillCurrent ? inputs.capturedSession.user.identitySubject : nil,
-            identityToken: identityToken
+            identityToken: identityToken,
+            // Linked quick capture only. SECURITY: never log.
+            linkNonce: inputs.linkNonce,
+            onAccepted: inputs.onIngestAccepted
             )
         }
         do { return try await send(using: authorizedSubmitter) }
