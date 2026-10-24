@@ -1,5 +1,59 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.6.0
+
+### Minor Changes
+
+- 47aeb5e: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Quick capture on real Android phones. Link a phone to yourself from the dashboard (**Settings → Devices → Link a device**, then shake the phone and click the number its banner shows, `Linking to Everframe · 47`); the phone shows `Linked to <name>`, and from then on a shake files a quick capture for you, in debug and release builds, with the toast `Captured · <name>` (`Captured · team device` for a team device). Debug builds on real devices also take shared captures on shake without linking. An unlinked release build behaves as before: shake opens the reporter if shake-to-report is on, and it also says hello to an open dashboard link window.
+  - Shake now runs while quick capture is armed or device linking is on, whatever `shakeToReport`/`shakeToReportEnabled` say; those switches decide only whether an unlinked release build opens the reporter. A crash-only session (`reporterEnabled = false`) never listens for shake.
+  - Linked devices and debug builds record replay while quick capture is armed when the capture hotkey's replay setting is on. Unlinked release builds never do.
+  - A linked device can be taken over by another teammate, who opens **Link a device** while you shake.
+  - An unlinked or revoked device shows `This device was unlinked` and falls back to unlinked behavior; the refused capture is not filed in the shared inbox.
+  - The device token is encrypted under an AndroidKeyStore key in `noBackupFilesDir`, sent only to the ingest endpoint and SDK key that linked it, and never logged. A capture queued offline is sent later only while the same token is stored.
+  - `GET /api/config` declares the `devicelinking` capability.
+
+- 678b612: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Quick capture on Android TV. The gesture is a remote binding set per app on the dashboard, by default holding Play/Pause for 1.5 seconds. Link a TV like a phone: do the gesture while **Link a device** is open on the dashboard and click the number its banner shows. A linked TV then files a quick capture for you (`Captured · <name>`), a debug build files shared captures, and an unlinked release build shows nothing and only says hello to an open link window.
+  - Bindings are a long press, a sequence (keys in order within a time window) or a chord (keys held together), over the contract key names (`DPAD_*`, `BACK`, `MENU`, `MEDIA_PLAY_PAUSE`, `MEDIA_FAST_FORWARD`, `MEDIA_REWIND`, `PROG_*`, `A`–`Z`, `0`–`9`, `SHIFT`). A binding the SDK cannot follow exactly is ignored.
+  - Key handling: an unlinked device never has a key swallowed or changed. On a linked device the first press always reaches the app (so a Play/Pause long press toggles playback once at the start), then the long press's repeats are swallowed and its key-up arrives canceled; a sequence swallows only its last key and a chord only its completing key.
+  - **Record on device**: a linked device asked by the dashboard records up to 32 key presses for 10 seconds (`Recording remote keys for 10 seconds`, then `Keys sent to Everframe`) while the keys still reach the app, so the dashboard can build a binding from the real remote. Linked devices now refresh their config when the app comes to the foreground, at most every 10 seconds.
+  - Fire TV runs the same code; it is not verified yet.
+  - `GET /api/config` declares the `capturegesture` capability.
+
+- 9590c96: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  **Deprecated: Everframe Companion has been removed.** The documented Companion API stays as deprecated no-op stubs, so apps that follow the docs keep compiling. Pairing calls do nothing: the first `Everframe.startCompanion()` in a process logs one warning, "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.", and no socket, announce or timer is ever started. `Everframe.companion`'s flows hold their idle values forever (`state` is `CompanionState.Unpaired`; `pairUrl`, `code`, `attachedUserName`, `resolvedName` and `attachChallenge` are `null`), `Everframe.stopCompanion()` does nothing, and the `companionDeviceId`, `companionBadgeEnabled` and `companionBadgePosition` `EverframeConfig` parameters keep their positions and are ignored. These APIs are deleted at the next major version.
+
+  The SDK no longer sends the `X-Everframe-Companion-Attribution` header or declares the `companionbadge` capability; a config that still carries a `companionBadge` block decodes and the block is ignored. Crash-only sessions (`reporterEnabled = false`) no longer upgrade when a phone pairs. `ReporterTrigger.Companion` stays for reports filed by older builds.
+
+  Kept, deprecated: `Everframe.companion` (`dev.everframe.companion.Companion`), `AttachChallengeInfo`, `CompanionState`, `Everframe.startCompanion()` and `Everframe.stopCompanion()`. The quick-capture submit pipeline moved from `dev.everframe.companion.CompanionSubmissionComposer` to `dev.everframe.quickcapture.SubmissionComposer`, with the same API minus `companionAttribution`.
+
+  Removed (undocumented plumbing):
+  - `RelayWSClient` and `AttachPinUi`
+  - `CompanionBadge`, `CompanionBadgeLabel`, `CompanionBadgeOptions`, `CompanionBadgePosition`, `parseCompanionBadgePosition`, `parseCompanionBadgePositionOrNull` and `CompanionBadgeServerConfigSignal`
+  - `AnnounceDevice`, `CompanionDeviceId` and `CompanionDeviceFacts`
+  - `PreviewCapture`, `NormalizedRect`, `PreviewStopReason`, `CompanionPreviewSession` and `CompanionPreviewSessionApi`, and `ScreenshotCapture.capturePreviewFrame(...)`
+  - `CompanionCaptureBridge`
+  - `dev.everframe.companion.CompanionSubmissionComposer` (now `dev.everframe.quickcapture.SubmissionComposer`)
+  - `Everframe.__registerCompanionClient`, `__unregisterCompanionClient`, `__attachPinUiInstalled` and `__attachPinUiSuppressed`
+  - the `companionAttribution` parameter of `MultipartUploader.upload(...)` and `ReportSubmitter.submit(...)`
+  - the generated relay types in `dev.everframe.protocol.generated` (`RelayMessage`, `PairCreated`, `ReportSubmit`, `ReportAssembled` and their siblings)
+
+### Patch Changes
+
+- 34e8648: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Quick capture on debug Android emulators now triggers from inside the app: press ⇧B (on phone and TV emulators). The chord is skipped while a text field has focus (an `EditText`, a React Native `TextInput`, a Compose or Flutter text field), so typing a capital B stays typing; otherwise the key press is kept from the app. The dashboard's capture hotkey binding is used when it is Shift plus a letter or digit (such as `Shift+K`); any other binding (double Shift, ⌘, ⌃ or ⌥ combos, which the emulator cannot deliver) falls back to ⇧B. While a dialog or a React Native `Modal` is in front, ⇧B is not seen; the `com.everframe.CAPTURE` broadcast and `npx @everframe/cli capture` still trigger a capture there, but its screenshot shows the screen under the dialog.
+
+  The `Captured · <device name>` toast now appears as soon as the capture is taken and handed to the upload, instead of after the upload finishes. A queued upload adds no second toast (the `Captured · uploads when online` toast is gone), and an upload that is rejected and not queued follows with `Capture didn't upload`.
+
 ## 1.5.0
 
 ### Minor Changes

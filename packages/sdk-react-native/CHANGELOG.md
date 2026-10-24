@@ -1,5 +1,40 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.6.0
+
+### Minor Changes
+
+- 9590c96: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  **Deprecated: Everframe Companion has been removed.** The `companion` namespace stays as deprecated no-op stubs, so apps that follow the docs keep compiling. Pairing calls do nothing: the first `companion.start()` logs one warning, "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.", and reaches no native code. `companion.stop()` does nothing, `onRunning`, `onState`, `onPairUrl`, `onCode`, `onAttachedUserName`, `onResolvedName` and `onAttachChallenge` return an unsubscribe and never call their handler, and `useCompanion()` returns the same idle object on every render (`state: 'unpaired'`, `running: false`, every other value `null`). The `attachPinUi`, `companionDeviceId` and `companionBadge` config options are accepted and no longer forwarded to native. These APIs are deleted at the next major version.
+
+  The native SDKs no longer send the `X-Everframe-Companion-Attribution` header or declare the `companionbadge` capability, and crash-only sessions (`reporter: { disabled: true }`) no longer upgrade when a phone pairs. `ReporterTrigger` keeps `'companion'` for reports filed by older builds.
+
+  Removed:
+  - `companion.getEmitter` (`getEmitter` itself stays in the SDK's internals)
+  - the `startCompanion`, `stopCompanion` and `signalCompanionReportRequestReady` TurboModule methods, and the `attachPinUi`, `companionDeviceId`, `companionBadgeEnabled` and `companionBadgePosition` `ConfigOpts` fields
+  - the `everframe.companion.*` native events
+
+- f62459b: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Quick capture and device linking on real phones arrive through the native iOS and Android SDKs, with no config change and no JavaScript API: link a phone from the dashboard (**Settings → Devices → Link a device**, then shake it and click the number its banner shows) and a shake files a quick capture for you in any build; a debug build (`__DEV__`, or `debugBuild`) also takes shared captures on shake without linking, alongside the React Native development menu. Release builds on end users' phones behave as before. `shakeToReport` now controls only whether shake opens the reporter on an unlinked release build; `quickCapture: { enabled: false }` turns off quick capture and linking together.
+
+  On Android TV, a linked TV files a quick capture from the app's remote gesture, set per app on the dashboard (by default holding Play/Pause for 1.5 seconds, or recorded from the real remote with **Record on device**); an unlinked release TV shows nothing and only answers an open link window. Keys are swallowed only on linked TVs, and the first Play/Pause press still reaches the app, so playback toggles once before the capture. Apple TV is unchanged.
+
+### Patch Changes
+
+- 34e8648: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Quick capture on debug simulators and emulators is ⇧B inside the app on both platforms, skipped while a `TextInput` has focus (native iOS and Android SDK 1.5.1). `npx @everframe/cli capture` still works; `npx @everframe/cli hotkey` is no longer needed.
+
+- Updated dependencies [9590c96]
+- Updated dependencies [8d2b60a]
+- Updated dependencies [bb52a6c]
+  - @everframe/react@1.6.0
+
 ## 1.5.0
 
 ### Minor Changes

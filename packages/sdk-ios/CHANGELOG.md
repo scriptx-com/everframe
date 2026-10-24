@@ -1,5 +1,49 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.6.0
+
+### Minor Changes
+
+- 9590c96: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  **Deprecated: Everframe Companion has been removed.** The documented Companion API stays as deprecated no-op stubs, so apps that follow the docs keep compiling. Pairing calls do nothing: the first `RelayWSClient.connect()` in a process logs one warning, "Everframe Companion has been removed; this call does nothing. Link the device under Settings → Devices in the dashboard and use quick capture.", and no socket, announce or timer is ever started. `Everframe.shared.companion` is always `.unpaired` with `pairUrl`, `code`, `attachedUserName`, `resolvedName` and `attachChallenge` all `nil`, and the `everframeCompanion*` notifications are never posted. `CompanionCaptureBridge(client:)` and `CompanionPinPresenter.install()` do nothing, and the `companionDeviceId`, `companionBadgeEnabled` and `companionBadgePosition` `EverframeConfig` parameters are accepted and ignored. These APIs are deleted at the next major version.
+
+  The SDK no longer sends the `X-Everframe-Companion-Attribution` header or declares the `companionbadge` capability; a config that still carries a `companionBadge` block parses and the block is ignored. Crash-only sessions (`reporterEnabled: false`) no longer upgrade when a phone pairs. `ReporterTrigger.companion` stays for reports filed by older builds.
+
+  Kept, deprecated: `CompanionAPI` (`state`, `pairUrl`, `code`, `attachedUserName`, `resolvedName`, `attachChallenge`, `__setBuiltinPinUiSuppressed(_:)`), `CompanionState`, `CompanionAttachChallenge`, the `Notification.Name.everframeCompanion*` constants, `AttachPinUi`, `CompanionBadgeOptions`, `CompanionBadgePosition`, `RelayWSClient` (its convenience initializer, `connect()`, `disconnect()`), `CompanionCaptureBridge(client:)` and `CompanionPinPresenter.install()`.
+
+  Removed (undocumented plumbing):
+  - `RelayWSClient.send(_:)`, `sendBinary(_:)`, `backoffSchedule`, its test seams and its `URLSessionWebSocketDelegate` conformance
+  - `CompanionBadge`, `CompanionBadgeLabel` and `CompanionBadgeResolution`
+  - `AnnounceDevice`
+  - `CompanionAuthEpoch`, `PreviewStopReason`, `NormalizedRect`, `CompanionPreviewSessionApi` and `CompanionPreviewSession`
+  - `PreviewCapture`, `ScreenshotCapture.capturePreviewFrame(...)`, `ScreenshotCapture.PREVIEW_MAX_EDGE_PT` and `ScreenshotCapture.PREVIEW_QUALITY`
+  - `CompanionCaptureBridge.shouldAttachReactTreeNotification` and its `__*ForTesting` seams
+  - `CompanionAPI.__builtinPinUiInstalled` and `__builtinPinUiSuppressed`
+  - the `companionAttribution` parameter of `ReporterSubmission.Inputs`, `MultipartUploader.upload(...)` and `ReportSubmitter.submit(...)`
+  - the `upgraded` parameter of `NetworkBodyCaptureGate.locallyDisabled(for:)`
+  - `EverframeProtocol`'s generated relay types (`EverframeRelayMessage`, `EverframePairCreated`, `EverframeReportSubmit`, `EverframeReportAssembled` and their siblings)
+
+- 834b6f9: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Quick capture on real iPhones and iPads: shake files a capture for the team member the device is linked to, for the team on a team device, or to the shared inbox from a debug build. An unlinked device links itself when a teammate clicks Link a device on the dashboard and shakes it; no app code is needed. Release builds on end users' devices behave as before. The device token is kept in the Keychain and sent only to the ingest origin that issued it.
+
+- 6205923: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Quick capture on Apple TV: hold Play/Pause on a linked Apple TV, or in a debug build, to file a capture. Unlinked release builds behave as before; the gesture only lets a teammate link the device. Record on device works from Apple TV.
+
+### Patch Changes
+
+- 34e8648: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Simulator quick capture skips a binding that is also ordinary typing (a key alone or with Shift only, such as the new dashboard default ⇧B) while an editable text input is first responder: `UITextField`, an editable `UITextView`, and React Native or Flutter text inputs. Double Shift and chords with ⌘, ⌃ or ⌥ fire whatever has focus, as before.
+
+  The `Captured · <device name>` toast now appears as soon as the capture is taken and handed to the upload, instead of after the upload finishes. A queued upload adds no second toast (the `Captured · uploads when online` toast is gone), and an upload that is rejected and not queued follows with `Capture didn't upload`.
+
 ## 1.5.0
 
 ### Minor Changes

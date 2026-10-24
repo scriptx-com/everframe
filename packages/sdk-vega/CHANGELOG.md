@@ -1,5 +1,19 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.6.0
+
+### Minor Changes
+
+- 5ff600d: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Configurable capture gesture and Record on device on Vega OS. The SDK now negotiates `capturegesture` and follows the app's remote binding from the dashboard: a long press, a sequence (for example ↑↑↓↓ within a second) or a chord, over the keys a Vega remote can send (D-pad, Select, Back, Menu, Play/Pause, Fast forward, Rewind, digits). A binding that uses keys a Vega remote does not have (color keys, letters, Shift) turns the gesture off on the device, with one warning in debug builds; a missing or malformed binding keeps the default long press of Play/Pause. A linked device asked to record a gesture shows `Recording remote keys for 10 seconds`, records up to 32 key presses for 10 seconds, uploads them with its device token and shows `Keys sent to Everframe`; the capture gesture pauses meanwhile and keys still reach the app.
+
+- dbd5299: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Quick capture on linked Vega devices: device linking, long press Play/Pause, takeover. `init()` now installs a root wrapper with `AppRegistry.setWrapperComponentProvider` that listens to remote keys (never consuming one) and draws the linking banner and toasts. A long press of Play/Pause (about 1.5 s) on a device linked from the dashboard files a quick capture attributed to that person or team (`Captured · {name}`); an unlinked debug build files a shared draft, and an unlinked release build only offers itself for linking. The link token is stored in the `storage` you pass, bound to the endpoint and SDK key. A capture holds breadcrumbs, device, app and user details; there is no screenshot or replay on Vega OS. The SDK now makes one `GET /api/config` per launch; `quickCaptureEnabled: false` turns all of this off. `react` (>=18) is now a peer dependency.
+
 ## 1.5.0
 
 No changes in this package; released with the other Everframe packages at this version.

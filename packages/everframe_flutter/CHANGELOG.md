@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-## Unreleased
+## 1.6.0
 
 - Quick capture and device linking on real phones, through the native iOS and Android SDKs; no Dart API change. A shake on a phone linked on the dashboard (any build), or on a debug build, files a quick capture with the masked Flutter frame. `enableQuickCapture` is required for device captures too: without it a shake files nothing. `start(quickCapture: false)` also turns linking off. Release builds on end users' phones behave as before.
 - Quick capture's gesture is ⇧B in the app on both the iOS simulator and the Android emulator, skipped while a text field has focus. The native SDKs handle the key, so no Dart change is needed; this needs native Everframe 1.5.1. iOS simulators also take the dashboard's other bindings (double Shift, ⌘ combos); Android emulators use the dashboard binding only when it is Shift plus a letter or digit, and ⇧B otherwise. `npx @everframe/cli capture` still works.
