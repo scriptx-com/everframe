@@ -146,7 +146,65 @@ does not apply to Flutter replay. The
 buffer is not frozen, so recording continues, and a revoked buffer sends no
 replay. If the masked frame can't be produced safely, the capture fails and no
 image is sent. `disableQuickCapture()` removes the registration. Pass `quickCapture: false` to
-`start` to opt out entirely. Devices and release builds are unaffected.
+`start` to opt out entirely, device linking included.
+
+### Real phones
+
+On a real iPhone, iPad, or Android phone or tablet, **shake** takes a quick
+capture, handled by the native iOS and Android SDKs with no Dart code beyond
+`enableQuickCapture`. What uploads is the same masked Flutter frame (and
+replay snapshot, when you pass a `replayBuffer`) as in a simulator. A shake captures when the phone is linked, or when
+the build is a debug build:
+
+| Device                  | Shake                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| Linked to you           | Quick capture, a private draft for you. Toast `Captured · <your name>`.                                |
+| Linked as a team device | Quick capture, a shared draft. Toast `Captured · team device`.                                         |
+| Unlinked, debug build   | Quick capture, a shared draft. Toast `Captured · <device name>`. Also answers a dashboard link window. |
+| Unlinked, release build | As before. Also answers a dashboard link window.                                                       |
+
+- **Link a phone.** On the dashboard, open **Settings → Devices → Link a
+  device**, then shake the phone with the app running. A banner shows
+  `Linking to Everframe · 47` with the line
+  `A teammate is linking a device. If that's not you, ignore this.` Click the
+  same number on the dashboard; the phone shows `Linked to <your name>`.
+  Nothing links on its own: a teammate always picks the number. On iOS, if the
+  Keychain refuses to store the link, the phone shows `Linking failed` instead
+  and stays unlinked.
+- **Team devices.** An admin can pick **Link as team device** instead. The
+  phone shows `Linked as team device`, and its captures go to the shared inbox.
+- **Hand a phone over.** When another teammate opens **Link a device** and a
+  linked phone is shaken, the capture is filed as usual and the banner shows a
+  number; picking it moves the phone, and that capture, to the new teammate.
+- **Unlinking.** Unlink a phone under **Settings → Devices**. It finds out at
+  its next capture or config fetch and behaves as unlinked again. A capture
+  refused this way is not filed anywhere and shows `This device was unlinked`.
+  Android also shows that toast when a config fetch reports the unlink; iOS
+  clears the link silently then.
+- **`enableQuickCapture` is required.** Without it nothing uploads: a shake on
+  a linked or debug phone shows `Capture failed` on iOS and is ignored on
+  Android. `Capture failed` also appears when the masked frame can't be
+  produced safely, and `Capture didn't upload` when the upload was rejected and
+  not queued.
+- **Debug builds** take shared captures without linking. The native SDK
+  decides what counts as debug (a development-signed iOS build, a debuggable
+  Android build) unless `start(debugBuild:)` says otherwise.
+- **Replay.** The dashboard's capture-hotkey replay force still does not apply
+  to Flutter replay; the snapshot comes from your `replayBuffer`.
+- **End users see no change.** An unlinked release build never takes a quick
+  capture. The only new thing it can show is the matching-number banner, if
+  someone shakes it while a teammate has a link window open.
+- **Off switches.** The dashboard's per-app **Device linking** switch stops
+  phones from asking to link; the dashboard's capture hotkey switch or
+  `start(quickCapture: false)` turn off quick capture and linking together.
+- **The token** is kept in the iOS Keychain, or encrypted under an
+  AndroidKeyStore key on Android, bound to the ingest endpoint and SDK key that
+  linked it, and never logged.
+- **Android.** One long shake can fire the detector more than once, so a shake
+  within 2 seconds of a capture is ignored. The Android behavior arrives with
+  the native Android SDK release that includes it. Apple TV is unchanged;
+  Android TV follows the native Android SDK's remote-gesture rules (its README's
+  "Quick capture on Android TV" section).
 
 ## Flutter web
 

@@ -708,7 +708,10 @@ dashboard disable.
 
 In React Native and Expo development builds, use
 `shakeToReport: { enabled: !__DEV__ }` because the React Native development
-menu also uses shake. Production remains enabled by default.
+menu also uses shake. Production remains enabled by default. This only stops
+shake from opening the reporter: on a real phone, a development build still
+takes a quick capture on shake, and a linked phone captures in any build (see
+[Quick capture on phones](#quick-capture-on-phones)).
 
 #### Quick capture on simulators and emulators
 
@@ -719,7 +722,9 @@ other bindings the dashboard offers (double Shift, ⌘ combos); Android
 emulators use the dashboard binding only when it is Shift plus a letter or
 digit, and ⇧B otherwise. Run `npx @everframe/cli login` once so captures are attributed
 to you. It stays dark until the dashboard turns the capture hotkey on for the
-app, and never runs on devices or release builds. To opt this app out locally:
+app. Real phones use shake instead; see
+[Quick capture on phones](#quick-capture-on-phones). To opt this app out
+locally (simulators, emulators and phones alike, including device linking):
 
 ```tsx
 <EverframeProvider
@@ -731,7 +736,112 @@ app, and never runs on devices or release builds. To opt this app out locally:
 dashboard disable. A session started with `capture.screenshot` off ignores quick
 capture.
 
-All other gestures and keys are host-owned. The host app
+#### Quick capture on phones
+
+On a real iPhone, iPad, or Android phone or tablet, **shake** takes a quick
+capture: the same screenshot, replay window, logs, breadcrumbs and network as
+⇧B in a simulator, filed as a draft that you title on the dashboard. The native
+iOS and Android SDKs do all of it; there is no JavaScript API and nothing to
+add to your app. A shake captures when the device is linked, or when the build is a
+debug build:
+
+| Device                  | Shake                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| Linked to you           | Quick capture, a private draft for you. Toast `Captured · <your name>`.                                |
+| Linked as a team device | Quick capture, a shared draft. Toast `Captured · team device`.                                         |
+| Unlinked, debug build   | Quick capture, a shared draft. Toast `Captured · <device name>`. Also answers a dashboard link window. |
+| Unlinked, release build | As before: the reporter opens if `shakeToReport` allows it. Also answers a dashboard link window.      |
+
+- **Link a phone.** On the dashboard, open **Settings → Devices → Link a
+  device**, then shake the phone with the app running. A banner shows
+  `Linking to Everframe · 47` with the line
+  `A teammate is linking a device. If that's not you, ignore this.` Click the
+  same number on the dashboard; the phone shows `Linked to <your name>`.
+  Nothing links on its own: a teammate always picks the number. On iOS, if the
+  Keychain refuses to store the link, the phone shows `Linking failed` instead
+  and stays unlinked.
+- **Team devices.** An admin can pick **Link as team device** instead. The
+  phone shows `Linked as team device`, and its captures go to the shared inbox
+  for whoever is on the dashboard.
+- **Hand a phone over.** A linked phone keeps capturing for its owner. When
+  another teammate opens **Link a device** and the phone is shaken, the capture
+  is filed as usual and the banner shows a number; picking it moves the phone,
+  and that capture, to the new teammate.
+- **Unlinking.** Unlink a phone under **Settings → Devices**. It finds out at
+  its next capture or config fetch and behaves as unlinked again. A capture
+  refused this way is not filed anywhere and shows `This device was unlinked`.
+  Android also shows that toast when a config fetch reports the unlink; iOS
+  clears the link silently then.
+- **Other toasts.** `Capture didn't upload` follows a capture whose upload was
+  rejected and not queued; `Capture failed` replaces `Captured` when the
+  screenshot or the evidence could not be taken.
+- **Debug builds.** React Native sends `__DEV__` as the build type (override it
+  with `debugBuild`), so a Metro development build on a phone counts as debug
+  and a shake takes a shared capture without linking. In those builds the
+  React Native development menu also opens on the same shake, on both
+  platforms. To stop development builds from capturing, set
+  `quickCapture: { enabled: !__DEV__ }`, which also turns linking off for them.
+- **`shakeToReport` controls only the reporter.** While quick capture or device
+  linking is on, the native shake detector runs whatever `shakeToReport` says,
+  and `shakeToReport` decides only whether an unlinked release build opens the
+  reporter. Linked and debug phones keep capturing with it off.
+- **Replay.** With the dashboard's capture hotkey replay setting on, linked
+  phones (any build) and debug builds record session replay while quick capture
+  is armed, as simulators do.
+- **End users see no change.** An unlinked release build never takes a quick
+  capture and never records replay because of it. The only new thing it can
+  show is the matching-number banner, if someone shakes it while a teammate has
+  a link window open.
+- **Off switches.** The dashboard's per-app **Device linking** switch stops
+  phones from asking to link. The dashboard's capture hotkey switch,
+  `quickCapture: { enabled: false }` or `reporter: { disabled: true }` turn off
+  quick capture and linking together, and shake then behaves as before.
+- **The token.** The device token is kept in the iOS Keychain, or encrypted
+  under an AndroidKeyStore key on Android. It is bound to the ingest endpoint
+  and SDK key that linked it, sent only there, and never logged. A linked
+  capture queued offline is sent later only while the same link is still
+  stored; otherwise it is dropped, never filed into another inbox.
+- **Platform differences.** On Android, one long shake can fire the detector
+  more than once, so a shake within 2 seconds of a capture is ignored. Phones
+  and tablets are covered on both platforms. Apple TV behaves as before;
+  Android TV uses a remote gesture instead (below). The Android behavior ships
+  with the native Android SDK release that includes it.
+
+#### Quick capture on Android TV
+
+On Android TV the native Android SDK takes the same quick capture from a
+remote gesture that the dashboard sets per app. The default is **holding
+Play/Pause for 1.5 seconds**. Link the TV like a phone: open **Link a device**
+on the dashboard, do the gesture on the TV, and click the number its banner
+shows.
+
+| Device                  | Remote gesture                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| Linked to you           | Quick capture, a private draft for you. Toast `Captured · <your name>`.                                |
+| Linked as a team device | Quick capture, a shared draft. Toast `Captured · team device`.                                         |
+| Unlinked, debug build   | Quick capture, a shared draft. Toast `Captured · <device name>`. Also answers a dashboard link window. |
+| Unlinked, release build | Nothing visible. Only answers a dashboard link window.                                                 |
+
+- **Bindings.** In the dashboard's Quick capture card a binding is a long
+  press, a sequence (keys in order within a time window) or a chord (keys held
+  together). **Record on device** sets one from the remote you actually have:
+  pick one of your linked TVs, relaunch the app or bring it to the foreground,
+  and press the keys while it shows `Recording remote keys for 10 seconds`.
+- **Key handling.** An unlinked TV never has a key swallowed or changed, so
+  `TVEventHandler` sees every event as before. On a linked TV the first press
+  always reaches the app, so holding Play/Pause toggles playback once when the
+  press starts, before the capture. Once the gesture is recognized, a long
+  press's repeats are swallowed and its key-up arrives canceled; a sequence or
+  chord swallows only the key that completes it.
+- **Debug builds** follow `__DEV__` (or `debugBuild`), as on phones.
+- Everything else (end users, replay, takeover, unlinking, token storage and
+  the off switches) works as on phones. Apple TV gets no remote gesture yet.
+
+For the full rules, see the iOS SDK README's "Real iPhones and iPads" section
+and the Android SDK README's "Quick capture on real phones" and "Quick capture
+on Android TV" sections.
+
+Apart from quick capture, gestures and keys are host-owned. The host app
 calls `useEverframe().open()` (or the top-level `open()`)
 from whatever trigger makes sense for the target form factor.
 
