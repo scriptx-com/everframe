@@ -86,10 +86,8 @@ describe('published bundle', () => {
     const imports = [...code.matchAll(/^import\s[\s\S]*?from\s+["']([^"']+)["']/gm)].map(
       (m) => m[1],
     );
-    // `react` arrives with the root wrapper once init() installs it.
-    expect([...new Set(imports)].every((name) => name === 'react' || name === 'react-native')).toBe(
-      true,
-    );
+    // `react` is for the root wrapper (quick capture).
+    expect([...new Set(imports)].sort()).toEqual(['react', 'react-native']);
     expect(code).not.toMatch(/from ["'](?:zod|@everframe\/|@noble\/)/);
   });
 
@@ -103,5 +101,10 @@ describe('published bundle', () => {
 
   it('stays small', () => {
     expect(code.length).toBeLessThan(120 * 1024);
+  });
+
+  it('carries no device token or nonce literal and no console logging of link state', () => {
+    expect(code).not.toMatch(/evf_dev_[0-9A-Za-z]{32}/);
+    expect(code).not.toMatch(/console\.(log|info|debug)\(/);
   });
 });

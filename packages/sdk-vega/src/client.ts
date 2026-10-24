@@ -151,6 +151,8 @@ interface LiveUpload {
 /** How long a fatal may hold RN's default handler (which aborts the JS thread). */
 export const FATAL_HANDOFF_MS = 1500;
 export const RETRY_DELAYS_MS = [2_000, 10_000, 60_000, 300_000] as const;
+/** A linked device re-reads `/api/config` when it comes to the foreground, at most this often. */
+export const FOREGROUND_REFRESH_MS = 10_000;
 const AUTOMATIC_KEYS_MAX = 10;
 const VALUE_KEYS_MAX = 5;
 const HANDLED_KEYS_MAX = 10;
@@ -233,6 +235,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
   let remote: RemoteConfig | null = null;
   let configSeq = 0;
   let configApplied = 0;
+  let lastConfigAt = -Infinity;
   let gestureBusy = false;
   let detector: GestureDetector | undefined;
   let lastGestureAt = -Infinity;
@@ -605,6 +608,7 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
     if (!config || !deviceLink || !deps || phase !== 'running') return;
     const link = deviceLink;
     const seq = ++configSeq;
+    lastConfigAt = env.now();
     const sent = link.tokenForRequest();
     void fetchRemoteConfig(deps, config.apiBase, config.sdkKey, sent)
       .then((next) => {
@@ -645,11 +649,34 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
       refreshConfig,
       debug,
     });
+    // The foreground throttle starts at init: the first config request is
+    // already on its way once the link loads.
+    lastConfigAt = env.now();
     void deviceLink.ready.then(() => {
       refreshConfig();
       // Linked captures stored by an earlier launch wait for the link.
       if (outbox && outbox.size() > 0) void drain();
     });
+    try {
+      env.appState?.addEventListener('change', (state) => {
+        try {
+          if (state !== 'active') {
+            // A hold never spans the app leaving the screen.
+            detector?.reset();
+            return;
+          }
+          // Only a linked device re-reads: its link may have been revoked or
+          // reassigned. End users' devices make one request per launch.
+          if (!deviceLink?.current()) return;
+          if (env.now() - lastConfigAt < FOREGROUND_REFRESH_MS) return;
+          refreshConfig();
+        } catch {
+          // Never into the host.
+        }
+      });
+    } catch {
+      // No lifecycle events: the config is read once per launch.
+    }
   }
 
   function describeRejection(rejection: unknown): string {
