@@ -1,0 +1,65 @@
+.changeset/project-settings-devices.md
+  s_f1c043e85606b2::t_ee06c6834b4d1e 1-13
+packages/everframe_flutter/README.md
+  s_f1c043e85606b2::t_0476cca76dca70 166,179
+packages/sdk-android/android/README.md
+  s_f1c043e85606b2::t_412e71f0b3ece9 144,184,353
+packages/sdk-android/android/everframe-core/src/main/kotlin/dev/everframe/companion/CompanionDeprecation.kt
+  s_f1c043e85606b2::t_c1b114091bdef4 15
+packages/sdk-ios/README.md
+  s_f1c043e85606b2::t_119dda9afeb801 551,769
+packages/sdk-ios/Sources/Everframe/Companion/CompanionAPI.swift
+  s_f1c043e85606b2::t_1169109d8a4cc5 13,32
+packages/sdk-ios/Sources/Everframe/Companion/CompanionCaptureBridge.swift
+  s_f1c043e85606b2::t_7824fb59658c57 10
+packages/sdk-ios/Sources/Everframe/Companion/CompanionDeprecation.swift
+  s_f1c043e85606b2::t_62ba617a6c6315 14
+packages/sdk-ios/Sources/Everframe/Companion/CompanionState.swift
+  s_f1c043e85606b2::t_1af4b3b9e9f43f 11,21,25,29,33,37,41,45,49,53,57,61,65,69
+packages/sdk-ios/Sources/Everframe/Companion/RelayWSClient.swift
+  s_f1c043e85606b2::t_5e28bad4cecbd7 11,19,28,40
+packages/sdk-ios/Sources/Everframe/Config/EverframeConfig.swift
+  s_f1c043e85606b2::t_10a34c22ec5685 49,57,67
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_f1c043e85606b2::t_72970ff276283f 2587
+packages/sdk-ios/Sources/EverframeReporterUI/CompanionPinPresenter.swift
+  s_f1c043e85606b2::t_0b897dfbd22734 11
+packages/sdk-react-native/README.md
+  s_f1c043e85606b2::t_2c371a35b5f886 431,762,777
+packages/sdk-react-native/src/companion-deprecation.ts
+  s_f1c043e85606b2::t_74658b0e40f56b 9
+packages/sdk-react-native/src/companion.ts
+  s_f1c043e85606b2::t_eacc317c253e4f 10,13,27,36,42,47,52,57,62,67,72,92
+packages/sdk-react-native/src/runtime.ts
+  s_f1c043e85606b2::t_d91b5feefc55d4 201,207,213
+packages/sdk-react/src/companion/index.ts
+  s_f1c043e85606b2::t_daa75c70e34494 26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58
+packages/sdk-react/src/companion/use-companion.ts
+  s_f1c043e85606b2::t_81020cee2bc298 34
+packages/sdk-vega/README.md
+  s_f1c043e85606b2::t_ce817eb89e6fc0 115
+packages/sdk-web/README.md
+  s_f1c043e85606b2::t_0c800fbf11fe46 388,490
+packages/sdk-web/src/companion/deprecation.ts
+  s_f1c043e85606b2::t_5622d6f7657211 12
+packages/sdk-web/src/companion/singleton.ts
+  s_f1c043e85606b2::t_d2dcb837f072c0 15,19,21,23,25,27,30,36,43,77,80,95,104,112,115,118,127,163,172,182,191
+packages/sdk-web/src/ui.ts
+  s_f1c043e85606b2::t_ca537f1b9da6d3 25,34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "64dd912620b37eabddbf6fc0dabf0a1843ee87ad",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
