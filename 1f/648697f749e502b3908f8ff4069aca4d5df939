@@ -1,0 +1,111 @@
+.changeset/real-device-quick-capture-tvos.md
+  s_f1c043e85606b2::t_859aa84b8a3e40 1-8
+examples/tvos-replay/README.md
+  s_f1c043e85606b2::t_19fc6caec46c93 42-90
+examples/tvos-replay/Sources/App.swift
+  s_f1c043e85606b2::t_254710120e5213 19-32,34,41-46
+examples/tvos-replay/Sources/PressProbeController.swift
+  s_f1c043e85606b2::t_ca1834034dc1be 1-356
+examples/tvos-replay/Tests/PressProbeTests.swift
+  s_f1c043e85606b2::t_d5e7c20ee3d40b 1-95
+examples/tvos-replay/Tests/QuickCaptureRemoteTests.swift
+  s_f1c043e85606b2::t_637d20373556c5 1-125
+packages/cli/src/quick-capture/credentials.ts
+  s_f1c043e85606b2::t_cbd39ef9c613fb 3
+packages/sdk-ios/README.md
+  s_f1c043e85606b2::t_a437d248767e1f 447-450,588,596-663
+packages/sdk-ios/Sources/Everframe/Capture/BreadcrumbTapNavAdapters.swift
+  s_f1c043e85606b2::t_464e55821d6a53 525-535
+packages/sdk-ios/Sources/Everframe/Capture/ReplaySession.swift
+  s_f1c043e85606b2::t_c2ddd622662d38 552-555
+packages/sdk-ios/Sources/Everframe/Config/EverframeConfig.swift
+  s_f1c043e85606b2::t_4d6e8135b45db8 123-126
+packages/sdk-ios/Sources/Everframe/Config/ReplayConfigProvider.swift
+  s_f1c043e85606b2::t_f09cd905aece53 310-311,327-334,346-347,364,369-374,401-404,472,522-523,529,551,640,795-804
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkBanner.swift
+  s_f1c043e85606b2::t_b945be642339e9 8-10,14,22-24,34-35,39,44,51,58,71-74,76,80-82,90-98
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkClient.swift
+  s_f1c043e85606b2::t_aaf1e9a1fe91fd 7,9-11,50,110-128,130,137
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkCoordinator.swift
+  s_f1c043e85606b2::t_87dd38d4714825 52-55,83-88,151,162-170,176-182,194-198,227-235
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkForegroundRefresh.swift
+  s_f1c043e85606b2::t_078ed37c2460bf 1-117
+packages/sdk-ios/Sources/Everframe/DeviceLink/DeviceLinkWire.swift
+  s_f1c043e85606b2::t_24c7803fb9f028 230-264
+packages/sdk-ios/Sources/Everframe/DeviceLink/GestureRecording.swift
+  s_f1c043e85606b2::t_c47e52392082e6 1-202
+packages/sdk-ios/Sources/Everframe/Everframe.swift
+  s_f1c043e85606b2::t_999ff2548f44d0 1223-1224,1233-1237,1240,2428-2430,2433-2438
+packages/sdk-ios/Sources/Everframe/QuickCapture/CaptureGestureRouter.swift
+  s_f1c043e85606b2::t_f5afdcb982ff37 4-7,40-41,47-52,57
+packages/sdk-ios/Sources/Everframe/QuickCapture/CaptureGestureRule.swift
+  s_f1c043e85606b2::t_f0032b535b1f20 6-14,18-22,33-34,44-52,68-70
+packages/sdk-ios/Sources/Everframe/QuickCapture/GestureRecorder.swift
+  s_f1c043e85606b2::t_802373a0471485 1-47
+packages/sdk-ios/Sources/Everframe/QuickCapture/OverlayStyle.swift
+  s_f1c043e85606b2::t_7f5a0b5aa5b00d 1-68
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCapture.swift
+  s_f1c043e85606b2::t_87450c0515851d 5-8,21,89-91,93,122-123,134-144,222,258-261,342-367,527-529
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCaptureHostMode.swift
+  s_f1c043e85606b2::t_0423fcfdf722e2 5-23,28-31,33-35,41-42,44,46,52,54
+packages/sdk-ios/Sources/Everframe/QuickCapture/QuickCaptureToast.swift
+  s_f1c043e85606b2::t_a5a705327bd4ba 7-8,12,22-25,42,44,48,53,59,66-67,69-72,74,78-80,98-106
+packages/sdk-ios/Sources/Everframe/QuickCapture/TvGestureBinding.swift
+  s_f1c043e85606b2::t_2e531640277678 1-125
+packages/sdk-ios/Sources/Everframe/QuickCapture/TvGestureDetector.swift
+  s_f1c043e85606b2::t_087bf335579ec8 1-128
+packages/sdk-ios/Sources/Everframe/QuickCapture/TvGestureInput.swift
+  s_f1c043e85606b2::t_9146b7b14e7e8b 1-249
+packages/sdk-ios/Sources/Everframe/QuickCapture/TvRemoteKeys.swift
+  s_f1c043e85606b2::t_01c68ced33fb46 1-58
+packages/sdk-ios/Tests/EverframeTests/CaptureGestureConfigTests.swift
+  s_f1c043e85606b2::t_f1a01c775ea4fc 1-97
+packages/sdk-ios/Tests/EverframeTests/CaptureGestureRouterTests.swift
+  s_f1c043e85606b2::t_4b8c2385746652 72-86
+packages/sdk-ios/Tests/EverframeTests/CaptureGestureRuleTests.swift
+  s_f1c043e85606b2::t_cb16ea9649e64a 19-69
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkBannerTests.swift
+  s_f1c043e85606b2::t_ef2d01b06c0785 12-13,17-118
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkClientTests.swift
+  s_f1c043e85606b2::t_22143b9d576a87 145-185
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkCoordinatorTests.swift
+  s_f1c043e85606b2::t_fb39b16cc1763f 96,106,120-121,357-404
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkForegroundRefreshTests.swift
+  s_f1c043e85606b2::t_4d9ed148712ac8 1-72
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkSessionWiringTests.swift
+  s_f1c043e85606b2::t_06e0ededbe82be 38-78,80
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkWireTests.swift
+  s_f1c043e85606b2::t_627232a53b1f6e 115-141
+packages/sdk-ios/Tests/EverframeTests/DeviceLinkingConfigTests.swift
+  s_f1c043e85606b2::t_6adc08d123b656 45-48,50,77,83-119
+packages/sdk-ios/Tests/EverframeTests/GestureRecorderTests.swift
+  s_f1c043e85606b2::t_02137cac5b77e1 1-89
+packages/sdk-ios/Tests/EverframeTests/GestureRecordingTests.swift
+  s_f1c043e85606b2::t_079cd75aa712dd 1-281
+packages/sdk-ios/Tests/EverframeTests/QuickCaptureDeviceTests.swift
+  s_f1c043e85606b2::t_f3efb9dd5442af 327-336
+packages/sdk-ios/Tests/EverframeTests/TvGestureArmingTests.swift
+  s_f1c043e85606b2::t_c00938f7b2d870 1-108
+packages/sdk-ios/Tests/EverframeTests/TvGestureDetectorTests.swift
+  s_f1c043e85606b2::t_debd8c252bf5d2 1-222
+packages/sdk-ios/Tests/EverframeTests/TvGestureInputTests.swift
+  s_f1c043e85606b2::t_54825d8a2b21d1 1-419
+packages/sdk-ios/Tests/EverframeTests/TvRemoteKeysTests.swift
+  s_f1c043e85606b2::t_61f7b2a370652a 1-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1f648697f749e502b3908f8ff4069aca4d5df939",
+  "prompts": {},
+  "sessions": {
+    "s_f1c043e85606b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab08003b-b10e-496a-a8a5-30d58d2a13b7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
