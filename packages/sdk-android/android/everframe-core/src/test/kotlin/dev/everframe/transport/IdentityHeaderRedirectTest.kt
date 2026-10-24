@@ -224,4 +224,33 @@ class IdentityHeaderRedirectTest {
         assertEquals("cap_tok", serverA.takeRequest().getHeader("X-Everframe-Capture-Token"))
         assertEquals("cap_tok", serverA.takeRequest().getHeader("X-Everframe-Capture-Token"))
     }
+
+    @Test
+    fun `a cross-origin redirect strips the device token and the link nonce`() = runBlocking {
+        val deviceToken = "evf_dev_" + "Rd1r".repeat(8)
+        val nonce = dev.everframe.devicelink.LinkNonce.generate()
+        serverA.enqueue(
+            MockResponse().setResponseCode(307)
+                .setHeader("Location", serverB.url("/api/ingest").toString()),
+        )
+        serverB.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+        val submitter = ReportSubmitter(
+            config = makeConfig(),
+            outbox = outbox,
+            endpointOverride = serverA.url("/api/ingest").toString(),
+        )
+        submitter.submit(
+            envelopeBytes = "{}".toByteArray(),
+            idempotencyKey = "idem-redirect-nonce",
+            attachments = emptyList(),
+            captureToken = deviceToken,
+            deviceLink = dev.everframe.devicelink.DeviceLinkUpload(nonce) {},
+        )
+        val aRequest = serverA.takeRequest()
+        assertTrue("fixture sanity: A got the nonce", aRequest.getHeader(MultipartUploader.LINK_NONCE_HEADER) == nonce)
+        val bRequest = serverB.takeRequest()
+        // Compared, never printed.
+        assertTrue("B never gets the device token", bRequest.getHeader(MultipartUploader.CAPTURE_TOKEN_HEADER) == null)
+        assertTrue("B never gets the link nonce", bRequest.getHeader(MultipartUploader.LINK_NONCE_HEADER) == null)
+    }
 }

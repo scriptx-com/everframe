@@ -206,8 +206,14 @@ class QuickCaptureTest {
         assertTrue(QuickCapture.forcesReplay)
 
         QuickCapture.isEmulator = { false }
-        assertFalse("not an emulator", QuickCapture.forcesReplay)
+        assertTrue("a debug build forces on a real device too", QuickCapture.forcesReplay)
+        QuickCapture.install(app, localEnabled = true, debug = false)
+        QuickCapture.publishRemote(forcing)
+        assertFalse("an unlinked release build never forces", QuickCapture.forcesReplay)
         QuickCapture.isEmulator = { true }
+        QuickCapture.install(app, localEnabled = true, debug = true)
+        QuickCapture.publishRemote(forcing)
+        assertTrue(QuickCapture.forcesReplay)
 
         QuickCapture.teardown()
         assertFalse("torn down", QuickCapture.forcesReplay)
@@ -227,7 +233,7 @@ class QuickCaptureTest {
         QuickCapture.install(app, localEnabled = true, debug = true)
         QuickCapture.isEmulator = { true }
         QuickCapture.publishRemote(forcing)
-        assertFalse("no receiver installed (real device)", QuickCapture.forcesReplay)
+        assertTrue("no receiver needed: a debug build on a real device forces", QuickCapture.forcesReplay)
     }
 
     @Test
@@ -923,7 +929,23 @@ class QuickCaptureTest {
 
     @Test
     fun toastCopy() {
-        assertEquals("Captured · Pixel", QuickCapture.confirmedText("Pixel"))
+        assertEquals("Captured · Pixel", QuickCapture.confirmedText(CaptureAttribution.Shared(null), "Pixel"))
+        assertEquals("Captured · Pixel", QuickCapture.confirmedText(CaptureAttribution.Shared("adb-token"), "Pixel"))
+        val linked = dev.everframe.devicelink.StoredDeviceLink(
+            "evf_dev_" + "Tc0p".repeat(8), dev.everframe.devicelink.DeviceLinkOwner.User("Aurimas"), "scope",
+        )
+        assertEquals("Captured · Aurimas", QuickCapture.confirmedText(CaptureAttribution.Linked(linked, "n"), "Pixel"))
+        assertEquals(
+            "Captured · team device",
+            QuickCapture.confirmedText(
+                CaptureAttribution.Linked(
+                    dev.everframe.devicelink.StoredDeviceLink(linked.token, dev.everframe.devicelink.DeviceLinkOwner.Team, "scope"),
+                    "n",
+                ),
+                "Pixel",
+            ),
+        )
+        assertNull("the unlink toast comes from DeviceLink.forget", QuickCapture.toastText(QuickCaptureOutcome.Unlinked))
         assertNull(QuickCapture.toastText(QuickCaptureOutcome.Sent))
         assertNull(QuickCapture.toastText(QuickCaptureOutcome.Queued))
         assertEquals("Capture failed", QuickCapture.toastText(QuickCaptureOutcome.Failed))
@@ -1167,7 +1189,7 @@ class QuickCaptureTest {
     private fun shiftKey(action: Int) =
         KeyEvent(0L, 0L, action, KeyEvent.KEYCODE_SHIFT_LEFT, 0, if (action == KeyEvent.ACTION_DOWN) SHIFT else 0)
 
-    private fun confirmed() = QuickCapture.confirmedText(QuickCapture.deviceName(app))
+    private fun confirmed() = QuickCapture.confirmedText(CaptureAttribution.Shared(null), QuickCapture.deviceName(app))
 
     private fun receivers() = shadowOf(app).registeredReceivers.filter { it.intentFilter.hasAction(QuickCapture.ACTION) }
 

@@ -21,15 +21,18 @@ import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import dev.everframe.Everframe
 import dev.everframe.capture.ScreenshotCapture
 import dev.everframe.capture.video.FrozenReportCapture
@@ -287,6 +290,16 @@ internal object ReporterDialog {
                 decorFitsSystemWindows = false,
             ),
         ) {
+            // Device linking: while the reporter shows, the linking banner rides
+            // on this dialog's window. It is a panel of the window it attaches
+            // to, and this full-screen window would otherwise cover the matching
+            // number a teammate is waiting for. The reporter itself stays open.
+            val dialogView = LocalView.current
+            DisposableEffect(dialogView) {
+                val window = (dialogView.parent as? DialogWindowProvider)?.window
+                val overlay = window?.let { runCatching { dev.everframe.devicelink.SdkOverlayWindows.shown(it) }.getOrNull() }
+                onDispose { runCatching { overlay?.close() } }
+            }
             // BackHandler is redundant with dismissOnBackPress + onDismissRequest,
             // but listed in the plan's <action> step 3; included for parity.
             BackHandler(enabled = true) {

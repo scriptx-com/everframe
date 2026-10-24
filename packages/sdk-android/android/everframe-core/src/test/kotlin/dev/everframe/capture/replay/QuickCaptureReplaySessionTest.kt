@@ -157,7 +157,8 @@ class QuickCaptureReplaySessionTest {
             "flag malformed" to { installQuickCapture(); """{"enabled":true,"replay":"yes"}""" },
             "local opt-out" to { installQuickCapture(localEnabled = false); forcing },
             "release build" to { installQuickCapture(debug = false); forcing },
-            "real device" to { QuickCapture.isEmulator = { false }; installQuickCapture(); forcing },
+            // A debug build on a real device does force (real-device quick capture); an unlinked release one never does.
+            "unlinked release real device" to { QuickCapture.isEmulator = { false }; installQuickCapture(debug = false); forcing },
         )
         for ((name, arrange) in cases) {
             for (replayEnabled in listOf(false, true)) {

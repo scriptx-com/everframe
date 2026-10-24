@@ -93,7 +93,20 @@ internal class ShakeToReportGate(localEnabled: Boolean) {
     @Volatile var localEnabled: Boolean = localEnabled
     @Volatile var remoteEnabled: Boolean? = null
     @Volatile var foreground: Boolean = false
+
+    /**
+     * Real-device quick capture: the gesture is armed for a capture or a link hello
+     * (`CaptureGesture.isArmed`). Shake then listens whatever the shake-to-report switches say; those only
+     * decide whether an unlinked release phone opens the reporter.
+     */
+    @Volatile var gestureArmed: Boolean = false
     private var inFlight = false
+
+    /** Whether the accelerometer should be registered. */
+    fun shouldListen(): Boolean = foreground && ((localEnabled && remoteEnabled == true) || gestureArmed)
+
+    /** The local and dashboard shake-to-report switches: may a shake open the reporter. */
+    val reporterAllowed: Boolean get() = localEnabled && remoteEnabled == true
 
     /**
      * [quickCaptureInFlight]: an emulator quick capture holds the frozen evidence until it finishes, so a
@@ -132,9 +145,22 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
     internal fun localEnabled(config: EverframeConfig): Boolean =
         config.shakeToReportEnabled && config.reporterEnabled
 
+    /** Test seam: opens the reporter for a shake. */
+    @Volatile
+    internal var reporterOpener: suspend () -> Unit = { Everframe.report.open(dev.everframe.config.ReporterTrigger.Shake) }
+
+    /** The shake-to-report switches of the current session (see [ShakeToReportGate.reporterAllowed]). */
+    val reporterAllowed: Boolean get() = synchronized(lock) { gate }.reporterAllowed
+
+    /**
+     * [localEnabled] is the host's shake-to-report switch ([localEnabled] of the config). [reporterEnabled]
+     * false (a crash-only session) installs nothing at all; otherwise shake also runs while the capture
+     * gesture is armed ([publishGestureArmed]). Shake never runs on a TV.
+     */
     fun install(
         context: Context,
         localEnabled: Boolean,
+        reporterEnabled: Boolean = localEnabled,
         currentActivity: Activity?,
         isCurrent: () -> Boolean,
     ) {
@@ -151,7 +177,7 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
             synchronized(lock) {
                 if (generation != nextGeneration) return@synchronized
                 teardownPlatformLocked()
-                if (!localEnabled || isTelevision(app)) return@synchronized
+                if (!reporterEnabled || isTelevision(app)) return@synchronized
                 val nextSensorManager = app.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
                 val nextAccelerometer = nextSensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
                     ?: return@synchronized
@@ -174,11 +200,22 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
         }
     }
 
+    /** Real-device quick capture: whether the capture gesture is armed (see [ShakeToReportGate.gestureArmed]). */
+    fun publishGestureArmed(armed: Boolean, isCurrent: () -> Boolean) {
+        if (!isCurrent()) return
+        synchronized(lock) { gate.gestureArmed = armed }
+        mainHandler.post {
+            if (!isCurrent()) return@post
+            synchronized(lock) { reconcileRegistrationLocked() }
+        }
+    }
+
     fun teardown(isCurrent: () -> Boolean = { true }) {
         if (!isCurrent()) return
         synchronized(lock) {
             generation += 1
             gate.remoteEnabled = null
+            gate.gestureArmed = false
             gate.foreground = false
         }
         mainHandler.post {
@@ -190,10 +227,23 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
     override fun onSensorChanged(event: SensorEvent) {
         if (event.sensor.type != Sensor.TYPE_ACCELEROMETER || event.values.size < 3) return
         if (!detector.onAcceleration(event.timestamp, event.values[0], event.values[1], event.values[2])) return
+        onShake()
+    }
+
+    /**
+     * One detected shake. Ignored while a quick capture holds the frozen evidence or the reporter is on
+     * screen; otherwise the mode rule decides (`CaptureGesture`): a capture, a link hello, and the reporter
+     * only when the decision and the shake-to-report switches both allow it.
+     */
+    internal fun onShake() {
+        if (dev.everframe.quickcapture.QuickCapture.isCapturing || Everframe.report.isPresenting.value) return
+        val decision = dev.everframe.quickcapture.CaptureGesture.onGesture(dev.everframe.quickcapture.GestureSource.Shake)
+        if (!decision.openReporter) return
+        val gate = synchronized(lock) { gate }
         if (!tryBeginShake(gate)) return
         Everframe.sdkScope.launch(Dispatchers.Main.immediate) {
             try {
-                Everframe.report.open(dev.everframe.config.ReporterTrigger.Shake)
+                reporterOpener()
             } catch (_: Throwable) {
                 // Core can be used without reporter-ui; a gesture is a safe no-op then.
             } finally {
@@ -238,7 +288,7 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
     override fun onActivityDestroyed(activity: Activity) = Unit
 
     private fun reconcileRegistrationLocked() {
-        val shouldRegister = gate.localEnabled && gate.remoteEnabled == true && gate.foreground && accelerometer != null
+        val shouldRegister = gate.shouldListen() && accelerometer != null
         if (shouldRegister && !registered) {
             registered = sensorManager?.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI) == true
         } else if (!shouldRegister && registered) {
@@ -257,6 +307,19 @@ internal object ShakeToReportTrigger : SensorEventListener, Application.Activity
         resumedActivity = null
         registered = false
         detector.reset()
+    }
+
+    /** Tests only: the foreground flag an Activity resume or pause would set. */
+    internal fun __setForegroundForTesting(foreground: Boolean) {
+        synchronized(lock) {
+            gate.foreground = foreground
+            reconcileRegistrationLocked()
+        }
+    }
+
+    /** Tests only. */
+    internal fun __resetForTesting() {
+        reporterOpener = { Everframe.report.open(dev.everframe.config.ReporterTrigger.Shake) }
     }
 
     @Suppress("DEPRECATION")

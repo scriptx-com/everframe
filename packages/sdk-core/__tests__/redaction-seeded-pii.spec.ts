@@ -63,6 +63,29 @@ describe('PRIV-03: zero leakage on seeded-PII fixture', () => {
     },
   );
 
+  it('masks quick-capture device tokens and link nonces captured in network headers', () => {
+    const seeded = buildSeededPIIEnvelope();
+    (seeded.payload as { network: unknown }).network = [
+      {
+        method: 'POST',
+        url: 'https://everframe.dev/api/ingest',
+        status: 200,
+        startedAt: 1500,
+        headers: {
+          'X-Everframe-Capture-Token': 'evf_dev_' + 'a'.repeat(32),
+          'x-everframe-link-nonce': 'n'.repeat(40),
+          'content-type': 'application/json',
+        },
+      },
+    ];
+    const { envelope } = applyRedaction(seeded, {});
+    const headers = (envelope.payload.network as Array<{ headers: Record<string, string> }>)[0]!
+      .headers;
+    expect(headers['X-Everframe-Capture-Token']).toBe('[REDACTED]');
+    expect(headers['x-everframe-link-nonce']).toBe('[REDACTED]');
+    expect(headers['content-type']).toBe('application/json');
+  });
+
   it('JWT shape inline match in log message → [REDACTED:JWT]', () => {
     const seeded = buildSeededPIIEnvelope();
     const { envelope } = applyRedaction(seeded, {});

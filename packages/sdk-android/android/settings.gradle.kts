@@ -47,3 +47,9 @@ if (providers.gradleProperty("crashDefaultAcceptance").orNull == "true") {
     include(":crash-default-host")
     project(":crash-default-host").projectDir = file("../tests/crash-default-host/app")
 }
+
+// Real-device quick capture host; absent from normal SDK builds and publications.
+if (providers.gradleProperty("quickCaptureQualification").orNull == "true") {
+    include(":quick-capture-host")
+    project(":quick-capture-host").projectDir = file("../tests/quick-capture-host/app")
+}

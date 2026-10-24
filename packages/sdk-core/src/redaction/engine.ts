@@ -31,9 +31,11 @@ export interface RedactionConfig {
 // payload.network[].headers unless masked here. Current and legacy header
 // spellings authorize thread reads or bootstrap a device. The old spellings
 // are security sentinels for captured historical traffic, not public aliases.
+// Quick capture's device token and link nonce ride the native SDKs' ingest
+// and config requests, which a host may capture too.
 // Keep in parity with the server's redact.ts SENSITIVE_HEADERS.
 const SENSITIVE_HEADERS =
-  /^(authorization|x-api-key|set-cookie|cookie|proxy-authorization|x-everframe-device-token|x-everframe-identity-token|x-traceitx-device-token|x-traceitx-identity-token)$/i;
+  /^(authorization|x-api-key|set-cookie|cookie|proxy-authorization|x-everframe-device-token|x-everframe-identity-token|x-everframe-capture-token|x-everframe-link-nonce|x-traceitx-device-token|x-traceitx-identity-token)$/i;
 const SSN_US = /\b\d{3}-\d{2}-\d{4}\b/g;
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 const SAFE_TEXT_PROPS = new Set(['componentType', 'displayName']);

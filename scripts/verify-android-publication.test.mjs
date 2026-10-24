@@ -27,6 +27,9 @@ const coreClasses = {
   'dev/everframe/quickcapture/QuickCaptureHostEvidence.class':
     '<init> (Ldev/everframe/capture/ScreenshotCapture$CaptureResult;[BLjava/lang/String;)V',
   'dev/everframe/capture/ScreenshotCapture$CaptureResult.class': 'class',
+  'dev/everframe/devicelink/SdkOverlayWindows.class': 'shown',
+  'dev/everframe/devicelink/DeviceLinkUpload.class': 'class',
+  'dev/everframe/devicelink/LinkPending.class': 'class',
 };
 
 function zip(destination, entries) {
@@ -314,6 +317,42 @@ test('rejects a release core AAR whose quick-capture host evidence was renamed o
       rmSync(jar);
       const result = verify(repository);
       assert.notEqual(result.status, 0);
+      assert.match(`${result.stdout}\n${result.stderr}`, message);
+    } finally {
+      rmSync(repository, { recursive: true, force: true });
+    }
+  }
+});
+
+test('rejects a release core AAR missing the device-link types reporter-ui names', () => {
+  const linkTypes = ['SdkOverlayWindows', 'DeviceLinkUpload', 'LinkPending'];
+  const without = (entry) =>
+    Object.fromEntries(Object.entries(coreClasses).filter(([name]) => name !== entry));
+  const cases = linkTypes.map((type) => [
+    {
+      ...without(`dev/everframe/devicelink/${type}.class`),
+      'dev/everframe/devicelink/a.class': 'class',
+    },
+    new RegExp(`devicelink\\.${type}`),
+  ]);
+  cases.push([
+    { ...coreClasses, 'dev/everframe/devicelink/SdkOverlayWindows.class': 'class' },
+    /SdkOverlayWindows has no shown/,
+  ]);
+  for (const [classes, message] of cases) {
+    const repository = fixture();
+    try {
+      const prefix = path.join(repository, 'dev/everframe/core/0.9.0/core-0.9.0');
+      const jar = `${prefix}-classes.jar`;
+      zip(jar, classes);
+      rmSync(`${prefix}.aar`);
+      zip(`${prefix}.aar`, {
+        'AndroidManifest.xml': '<manifest package="dev.everframe" />',
+        'classes.jar': readFileSync(jar),
+      });
+      rmSync(jar);
+      const result = verify(repository);
+      assert.notEqual(result.status, 0, `accepted a core AAR for ${message}`);
       assert.match(`${result.stdout}\n${result.stderr}`, message);
     } finally {
       rmSync(repository, { recursive: true, force: true });

@@ -174,6 +174,34 @@ class CompanionSubmissionComposerTest {
         assertTrue(bare, bare.contains("companionAttribution=null"))
     }
 
+    /** Real-device quick capture: neither the device token nor the link nonce prints. */
+    @Test
+    fun composerInputsToStringRedacts() {
+        val activity = Robolectric.buildActivity(android.app.Activity::class.java).create().get()
+        val token = "evf_dev_" + "Sc7t".repeat(8)
+        val nonce = dev.everframe.devicelink.LinkNonce.generate()
+        val inputs = CompanionSubmissionComposer.Inputs(
+            capture = Everframe.__replayFreeze(),
+            activity = activity,
+            captureBitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888),
+            title = "",
+            description = "",
+            includeLogs = true,
+            includeNetwork = true,
+            includeMetadata = true,
+            hostExtra = null,
+            companionAttribution = null,
+            capturedSession = Everframe.captureSessionSnapshot(),
+            captureToken = token,
+            deviceLink = dev.everframe.devicelink.DeviceLinkUpload(nonce) {},
+        )
+        val text = inputs.toString()
+        assertFalse(text.contains(token))
+        assertFalse(text.contains(nonce))
+        assertTrue(text, text.contains("deviceLink=<redacted>"))
+        assertTrue(inputs.copy(deviceLink = null).toString().contains("deviceLink=null"))
+    }
+
     /**
      * Contract 2: submit() without a configured Everframe returns
      * `Cancelled("no_config")` — never throws, never NPEs. Mirrors iOS

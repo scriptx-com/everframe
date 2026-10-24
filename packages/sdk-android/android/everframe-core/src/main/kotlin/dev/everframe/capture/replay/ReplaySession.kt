@@ -39,7 +39,12 @@ class ReplaySession(
     private val activitySupplier: () -> Activity? = { Everframe.__activitySupplier?.invoke() },
     installIdProvider: () -> String? = { null },
     private val provider: ReplayConfigProvider = ReplayConfigProvider.make(baseUrl = baseUrl, sdkKey = sdkKey,
-        fetcher = defaultFetcher, installIdProvider = installIdProvider),
+        fetcher = defaultFetcher, installIdProvider = installIdProvider,
+        // Real-device quick capture: the stored device token rides each config fetch, only for the scope (ingest
+        // origin and SDK key) it was linked for. SECURITY: never log.
+        captureTokenProvider = dev.everframe.devicelink.DeviceLinkScope.of(baseUrl, sdkKey).let { scope ->
+            { dev.everframe.devicelink.DeviceLink.tokenForRequest(scope) }
+        }),
     private val context: Context? = null,
     private val originatingStartEpoch: Int = Everframe.currentStartEpochVolatile(),
     private val captureConsent: Boolean = Everframe.captureGate,
@@ -174,6 +179,9 @@ class ReplaySession(
 
     internal suspend fun refreshConfigNow(reusingConfirmedConfig: Boolean = false): Unit = refreshMutex.withLock {
         val capturedEpoch = epoch.get()
+        // A superseded or torn-down session fetches nothing: its request would be built for its own key and
+        // origin, long after a later start() moved on.
+        if (!currentGenerationValid(capturedEpoch)) return
         val confirmed = lastConfirmedConfig?.takeIf { reusingConfirmedConfig }
         val succeeded = confirmed != null || provider.refresh(force = true)
         val latest = confirmed ?: provider.current
@@ -191,6 +199,15 @@ class ReplaySession(
         dev.everframe.quickcapture.QuickCapture.publishRemote(latest.captureHotkey) {
             currentGenerationValid(capturedEpoch)
         }
+        // Device linking: a failed fetch keeps the last-good switch but never re-applies a link status,
+        // which described the token an earlier request carried.
+        dev.everframe.devicelink.DeviceLink.applyConfig(
+            latest.deviceLinking?.let { if (succeeded) it else it.copy(link = null) },
+        ) { currentGenerationValid(capturedEpoch) }
+        // Shake listens while the capture gesture is armed (quick capture allowed, or linking enabled).
+        dev.everframe.trigger.ShakeToReportTrigger.publishGestureArmed(
+            dev.everframe.quickcapture.CaptureGesture.isArmed(dev.everframe.quickcapture.CaptureGesture.currentInput(isTv = false)),
+        ) { currentGenerationValid(capturedEpoch) }
         if (!wasIdentityEnabled && isIdentityEnabled(latest) && currentGenerationValid(capturedEpoch)) Everframe.__warmIdentityToken()
         sharedBreadcrumbBuffer.applyConfig(latest.breadcrumbs) { currentGenerationValid(capturedEpoch) }
         // Report Resource Window (spec 2026-09-05). `windowSec` is read LIVE
@@ -431,7 +448,11 @@ class ReplaySession(
     }
 
     private companion object {
-        val sharedClient = OkHttpClient()
+        // The config fetch can carry the device link token: a cross-origin redirect drops it, exactly as on
+        // the ingest POST (OkHttp strips only `Authorization` by itself).
+        val sharedClient = OkHttpClient.Builder()
+            .addNetworkInterceptor(dev.everframe.transport.IdentityHeaderRedirectGuard)
+            .build()
         val defaultFetcher = ConfigFetcher { request -> sharedClient.newCall(request).execute() }
     }
 }

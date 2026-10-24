@@ -93,6 +93,11 @@ class MultipartUploader(private val client: OkHttpClient) {
         val responseBodyPreview: String?,
         internal val effectiveEnvelope: ByteArray? = null,
         internal val effectiveParts: List<Part>? = null,
+        /**
+         * Real-device quick capture: the 2xx body (first 4 KiB) of an upload that carried a link nonce, read in
+         * every build type so a `linkPending` answer is never missed. Null otherwise.
+         */
+        val successBody: String? = null,
     )
 
     /**
@@ -136,6 +141,12 @@ class MultipartUploader(private val client: OkHttpClient) {
          * SECURITY: never log this value.
          */
         captureToken: String? = null,
+        /**
+         * Real-device quick capture: the per-upload link nonce of a linked device, sent as
+         * `X-Everframe-Link-Nonce`. Null for every other upload and every outbox drain.
+         * SECURITY: never log this value.
+         */
+        linkNonce: String? = null,
     ): UploadResult = withContext(Dispatchers.IO) {
 
         var expected = authorization?.evaluate() ?: ReportAuthorizationDecision(true, true)
@@ -143,7 +154,7 @@ class MultipartUploader(private val client: OkHttpClient) {
         var payload = preparePayload(envelopeBytes, attachments, expected.replayAllowed)
         repeat(2) { attempt ->
             validatePayload(payload.first, payload.second)
-            listOfNotNull(endpoint, sdkKey, idempotencyKey, identityToken, companionAttribution, captureToken).forEach {
+            listOfNotNull(endpoint, sdkKey, idempotencyKey, identityToken, companionAttribution, captureToken, linkNonce).forEach {
                 require(it.length <= 16_384 && it.toByteArray(Charsets.UTF_8).size <= 16_384) { "Routing/header field exceeds limit" }
             }
             val body = multipartBody(payload.first, payload.second)
@@ -178,6 +189,10 @@ class MultipartUploader(private val client: OkHttpClient) {
                     if (captureToken != null) {
                         header(CAPTURE_TOKEN_HEADER, captureToken)
                     }
+                    // SECURITY: never log linkNonce — same posture as captureToken above.
+                    if (linkNonce != null) {
+                        header(LINK_NONCE_HEADER, linkNonce)
+                    }
                 }
                 .post(body)
                 .build()
@@ -200,7 +215,12 @@ class MultipartUploader(private val client: OkHttpClient) {
                                 val preview = if (resp.code !in 200..299 || BuildConfig.DEBUG) {
                                     txGuard("upload.body-preview") { resp.peekBody(2048).string().take(512) }
                                 } else null
-                                continuation.resume(UploadResult(resp.code, headers, preview, payload.first, payload.second))
+                                val successBody = if (linkNonce != null && resp.code in 200..299) {
+                                    txGuard("upload.success-body") { resp.peekBody(4096).string() }
+                                } else null
+                                continuation.resume(
+                                    UploadResult(resp.code, headers, preview, payload.first, payload.second, successBody),
+                                )
                             } catch (failure: Exception) { continuation.resumeWithException(failure) }
                         }
                     }
@@ -225,6 +245,7 @@ class MultipartUploader(private val client: OkHttpClient) {
 
     internal companion object {
         internal const val CAPTURE_TOKEN_HEADER = "X-Everframe-Capture-Token"
+        internal const val LINK_NONCE_HEADER = dev.everframe.devicelink.IngestLinkResponse.LINK_NONCE_HEADER
 
         internal fun multipartBody(envelope: ByteArray, parts: List<Part>): MultipartBody =
             MultipartBody.Builder().setType(MultipartBody.FORM).apply {

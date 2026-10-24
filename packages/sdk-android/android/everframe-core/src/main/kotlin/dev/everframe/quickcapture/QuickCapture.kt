@@ -25,8 +25,18 @@
 // tap breadcrumbs already install on every start), which asks [QuickCapture.armedChord] per key event and
 // stands aside while a text editor has focus.
 //
+// REAL DEVICES. A capture is allowed on a linked device (any build) or a debug build
+// ([QuickCapture.isAllowedOnThisDevice]); an unlinked release build is ignored (`not_allowed`). On real
+// devices the gesture is shake (`CaptureGesture`, `ShakeToReport`); the broadcast receiver and the Shift+B
+// chord stay debug-emulator only. A linked capture carries the device link token
+// (`X-Everframe-Capture-Token`) and a fresh link nonce, and its toast names the owner (`Captured · Aurimas`,
+// `Captured · team device`). An ingest `linkPending` answer starts a takeover attempt
+// ([dev.everframe.devicelink.DeviceLink.beginAttempt]); a `device_unlinked` refusal forgets the token and
+// shows `This device was unlinked` ([QuickCaptureOutcome.Unlinked]).
+//
 // The block's `replay` flag also records session replay while quick capture is armed, whatever the
-// app's `replayEnabled` ([QuickCapture.forcesReplay]).
+// app's `replayEnabled` ([QuickCapture.forcesReplay]): on linked devices and debug builds only, never on an
+// unlinked release build.
 //
 // A host that renders its own pixels (Flutter, which starts the SDK with `capture.screenshot = false`
 // and masks in Dart) installs an evidence provider through `Everframe.__setQuickCaptureEvidenceProvider`.
@@ -55,6 +65,13 @@ import dev.everframe.config.CaptureHotkeyConfigWire
 import dev.everframe.config.IngestEndpoint
 import dev.everframe.config.ReportResult
 import dev.everframe.config.ReporterTrigger
+import dev.everframe.devicelink.DeviceLink
+import dev.everframe.devicelink.DeviceLinkCopy
+import dev.everframe.devicelink.DeviceLinkScope
+import dev.everframe.devicelink.DeviceLinkUpload
+import dev.everframe.devicelink.IngestLinkResponse
+import dev.everframe.devicelink.LinkNonce
+import dev.everframe.devicelink.StoredDeviceLink
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
@@ -89,6 +106,22 @@ internal sealed interface QuickCaptureOutcome {
 
     /** The capture was handed off and confirmed, then the submission was cancelled or rejected and not queued. */
     data object Rejected : QuickCaptureOutcome
+
+    /** A linked capture was refused with `device_unlinked`: nothing was stored and the token is forgotten. */
+    data object Unlinked : QuickCaptureOutcome
+}
+
+/** Who a quick capture is filed for, resolved once per capture. SECURITY: never log. */
+internal sealed interface CaptureAttribution {
+    /** A linked device: its stored link and this upload's fresh link nonce. */
+    class Linked(val link: StoredDeviceLink, val nonce: String) : CaptureAttribution {
+        override fun toString(): String = "Linked(link=$link, nonce=<redacted>)"
+    }
+
+    /** Unlinked: the emulator's adb capture token when there is one (debug emulators), else none. */
+    class Shared(val captureToken: String?) : CaptureAttribution {
+        override fun toString(): String = "Shared(captureToken=${captureToken?.let { "<redacted>" }})"
+    }
 }
 
 internal object QuickCapture {
@@ -129,6 +162,11 @@ internal object QuickCapture {
     /** How long a host evidence provider may take before the capture fails. */
     @Volatile
     internal var evidenceTimeoutMs: Long = EVIDENCE_TIMEOUT_MS
+
+    /** Starts a takeover attempt named by an ingest `linkPending` answer, for the scope of the link it carried. */
+    @Volatile
+    internal var beginLinkAttempt: (attemptId: String, number: Int, nonce: String, scope: String) -> Unit =
+        { id, number, nonce, scope -> DeviceLink.beginAttempt(id, number, nonce, forScope = scope) }
 
     /** The capture the latest broadcast started. Tests await it; production never reads it. */
     @Volatile
@@ -238,18 +276,57 @@ internal object QuickCapture {
         }
 
     /**
-     * True while quick capture is armed (debug build, emulator, local opt-in, the dashboard's block enabled,
-     * the receiver installed, kill switch open) and the block's `replay` flag is set. `ReplaySession` then
-     * records replay even when `replayEnabled` is false; this never turns replay off. Release builds and
-     * real devices never install the receiver, so it is always false there. `ReplaySession` reads it at
-     * every config apply, right after publishing that config's block, so a disarm stops a forced
-     * recording at the next apply, and `kill()` tears the replay session down with it.
+     * True while quick capture is armed on a device allowed to capture ([isAllowedOnThisDevice]: a debug build
+     * or a linked device), with the local opt-in, the dashboard's block enabled and its `replay` flag set, and
+     * the kill switch open. `ReplaySession` then records replay even when `replayEnabled` is false; this never
+     * turns replay off. An unlinked release build (an end user's device) never forces. `ReplaySession` reads it
+     * at every config apply, right after publishing that config's block, so a disarm stops a forced recording
+     * at the next apply, and `kill()` tears the replay session down with it.
      */
     val forcesReplay: Boolean
         get() {
-            val flagged = synchronized(lock) { receiver != null && debug && localEnabled && remoteEnabled && remoteReplay }
-            return flagged && Everframe.captureGate && isEmulator()
+            val flagged = synchronized(lock) { localEnabled && remoteEnabled && remoteReplay }
+            return flagged && Everframe.captureGate && isAllowedOnThisDevice
         }
+
+    /**
+     * Quick capture runs on a debug build (emulator or real device) or a linked device of any build. An
+     * unlinked release build, an end user's device, never captures.
+     */
+    val isAllowedOnThisDevice: Boolean get() = debug || DeviceLink.current != null
+
+    /** The session's build type, as `start()` installed it. */
+    val isDebugBuild: Boolean get() = debug
+
+    /**
+     * Quick capture as the gesture sees it: the local `quickCaptureEnabled && reporterEnabled`, the dashboard's
+     * `captureHotkey.enabled`, and the kill switch. Whether this device may capture is the mode rule's call.
+     */
+    val gestureCaptureEnabled: Boolean get() = localEnabled && remoteEnabled && Everframe.captureGate
+
+    /**
+     * A linked device files under its token with a fresh nonce; otherwise the emulator's adb token, if any.
+     * [link] and [debugBuild] are the snapshot the capture's gate admitted, so eligibility and attribution never
+     * disagree. Null (the capture is refused) when [link] belongs to another scope than [capturedSession]'s
+     * ingest origin and SDK key (a restart whose link load has not landed yet, or one that replaced the session
+     * this capture belongs to), and for an unlinked release build, which may never file in the shared inbox.
+     */
+    internal fun resolveAttribution(
+        appContext: Context,
+        capturedSession: TXCapturedSession,
+        link: StoredDeviceLink?,
+        debugBuild: Boolean,
+    ): CaptureAttribution? {
+        if (link != null) {
+            val sdkKey = capturedSession.config?.sdkKey ?: return null
+            if (link.scope != DeviceLinkScope.of(IngestEndpoint.url, sdkKey)) return null
+            return CaptureAttribution.Linked(link, LinkNonce.generate())
+        }
+        if (!debugBuild) return null
+        // Read fresh per capture, only for the origin that issued it; the composer posts to `IngestEndpoint.url`.
+        return if (isEmulator()) CaptureAttribution.Shared(CaptureTokenReader.read(appContext, IngestEndpoint.url))
+        else CaptureAttribution.Shared(null)
+    }
 
     /** Called from `kill()`. */
     fun teardown(isCurrent: () -> Boolean = { true }) {
@@ -292,7 +369,13 @@ internal object QuickCapture {
         val activity = Everframe.__activitySupplier?.invoke()?.takeUnless { it.isFinishing || it.isDestroyed }
         // Read once: the gate and the pipeline must agree on the provider.
         val provider = evidenceProvider
-        ignoreReason(activity, provider != null)?.let { return QuickCaptureOutcome.Ignored(it) }
+        // One link snapshot decides both whether this device may capture and whom the capture is filed for: a
+        // config that unlinks the device meanwhile can't turn an admitted linked capture into a shared one.
+        val link = DeviceLink.current
+        val debugBuild = debug
+        ignoreReason(activity, provider != null, allowed = debugBuild || link != null)?.let {
+            return QuickCaptureOutcome.Ignored(it)
+        }
         if (!inFlight.compareAndSet(false, true)) return QuickCaptureOutcome.Ignored("in_flight")
         try {
             // The in-app reporter freezes before its dialog shows, and the companion never marks itself
@@ -300,9 +383,28 @@ internal object QuickCapture {
             // not freeze over or consume. Checked after the claim, so no capture of ours can slip between.
             if (Everframe.__replayHasReporterOwner) return QuickCaptureOutcome.Ignored("capture_frozen")
             val appContext = activity!!.applicationContext
+            // The session this capture belongs to, taken once before the attribution and any evidence, and
+            // carried to the submission. Its epoch is read in the same critical section as its config, so
+            // every later check and the routing agree on one session.
+            val capturedSession = Everframe.captureSessionSnapshot()
+            // Resolved once, against that session: the toast, the token and the nonce all describe the same
+            // attribution. A link for another scope, or a restart since the snapshot, refuses the capture.
+            val attribution = resolveAttribution(appContext, capturedSession, link, debugBuild)
+            if (attribution == null || !isCurrent(capturedSession)) {
+                toastText(QuickCaptureOutcome.Failed)?.let { toast(appContext, it) }
+                return QuickCaptureOutcome.Failed
+            }
             // Shown once the capture is handed off, before the upload finishes: the upload either succeeds or
             // queues the report, so only a rejection needs a second word.
-            val outcome = runPipeline(appContext, activity, provider) { toast(appContext, confirmedText(deviceName(appContext))) }
+            var outcome = runPipeline(appContext, activity, provider, attribution, capturedSession) {
+                toast(appContext, confirmedText(attribution, deviceName(appContext)))
+            }
+            if (outcome == QuickCaptureOutcome.Unlinked) {
+                // `forget` shows `This device was unlinked`. A refusal for a token that a takeover has since
+                // replaced keeps the new link; the capture still didn't upload.
+                val token = (attribution as? CaptureAttribution.Linked)?.link?.token
+                if (!DeviceLink.forget(onlyIfToken = token)) outcome = QuickCaptureOutcome.Rejected
+            }
             toastText(outcome)?.let { toast(appContext, it) }
             return outcome
         } finally {
@@ -310,9 +412,8 @@ internal object QuickCapture {
         }
     }
 
-    private fun ignoreReason(activity: Activity?, hasProvider: Boolean): String? = when {
-        !isEmulator() -> "not_emulator"
-        !debug -> "not_debug"
+    private fun ignoreReason(activity: Activity?, hasProvider: Boolean, allowed: Boolean): String? = when {
+        !allowed -> "not_allowed"
         !localEnabled -> "disabled"
         !remoteEnabled -> "remote_disabled"
         !Everframe.captureGate -> "kill_switch"
@@ -334,15 +435,14 @@ internal object QuickCapture {
         appContext: Context,
         activity: Activity,
         provider: (suspend () -> QuickCaptureHostEvidence?)?,
+        attribution: CaptureAttribution,
+        // Taken by `capture()` before the attribution; nothing after the screenshot reads the session again.
+        capturedSession: TXCapturedSession,
         confirm: suspend () -> Unit,
     ): QuickCaptureOutcome {
         val shot: ScreenshotCapture.CaptureResult
         val hostReplayVTree: ByteArray?
         val sdkName: String
-        // The session this capture belongs to, taken once before any evidence and carried to the submission.
-        // Its epoch is read in the same critical section as its config, so the check below and the routing
-        // agree on one session; nothing after the screenshot reads the session again.
-        val capturedSession = Everframe.captureSessionSnapshot()
         if (provider != null) {
             // The host's masked evidence replaces the native screenshot entirely; a null answer, a throw, or
             // no answer within the timeout fails without a fallback.
@@ -406,9 +506,21 @@ internal object QuickCapture {
                     companionAttribution = null,
                     capturedSession = capturedSession,
                     quickCapture = true,
-                    // Read fresh per capture. SECURITY: never log.
-                    // Only for the origin that issued it; the composer posts to `IngestEndpoint.url`.
-                    captureToken = CaptureTokenReader.read(appContext, IngestEndpoint.url),
+                    // SECURITY: never log. The device link token on a linked device (it wins over an emulator's
+                    // adb token), else the adb token read for this capture.
+                    captureToken = when (attribution) {
+                        is CaptureAttribution.Linked -> attribution.link.token
+                        is CaptureAttribution.Shared -> attribution.captureToken
+                    },
+                    deviceLink = (attribution as? CaptureAttribution.Linked)?.let { linked ->
+                        DeviceLinkUpload(linked.nonce) { pending ->
+                            // The answer can arrive after a restart: only this capture's own session, while its
+                            // link's scope is still the active one, may start the attempt.
+                            if (isCurrent(capturedSession) && DeviceLink.activeScope == linked.link.scope) {
+                                beginLinkAttempt(pending.attemptId, pending.number, linked.nonce, linked.link.scope)
+                            }
+                        }
+                    },
                     // The raw screenshot: no annotation canvas ran.
                     annotated = false,
                     hostReplayVTree = hostReplayVTree,
@@ -418,9 +530,14 @@ internal object QuickCapture {
             return when (result) {
                 is ReportResult.Submitted -> QuickCaptureOutcome.Sent.also { capture.finishConsumption() }
                 is ReportResult.Queued -> QuickCaptureOutcome.Queued.also { capture.finishConsumption() }
-                // Cancelled (kill switch, revoked session) or a terminal rejection the composer turned into one:
-                // nothing was sent and nothing is queued.
-                is ReportResult.Cancelled -> QuickCaptureOutcome.Rejected.also { capture.cancel() }
+                // A revoked device token: nothing was stored. `capture()` forgets the token.
+                is ReportResult.Cancelled -> if (result.reason == IngestLinkResponse.DEVICE_UNLINKED) {
+                    QuickCaptureOutcome.Unlinked.also { capture.cancel() }
+                } else {
+                    // Cancelled (kill switch, revoked session, a linked capture that could not be queued) or a
+                    // terminal rejection the composer turned into one: nothing was sent and nothing is queued.
+                    QuickCaptureOutcome.Rejected.also { capture.cancel() }
+                }
             }
         } catch (e: CancellationException) {
             capture.cancel()
@@ -455,8 +572,11 @@ internal object QuickCapture {
         }
     }
 
-    /** The toast shown when the capture is handed off, before its upload finishes. */
-    internal fun confirmedText(deviceName: String): String = "Captured · $deviceName"
+    /** The toast shown when the capture is handed off, before its upload finishes. Names who it is filed for. */
+    internal fun confirmedText(attribution: CaptureAttribution, deviceName: String): String = when (attribution) {
+        is CaptureAttribution.Linked -> DeviceLinkCopy.captured(attribution.link.owner)
+        is CaptureAttribution.Shared -> "Captured · $deviceName"
+    }
 
     /**
      * The toast after the pipeline ends, if any. A sent or queued capture was already confirmed and says nothing
@@ -464,6 +584,8 @@ internal object QuickCapture {
      */
     internal fun toastText(outcome: QuickCaptureOutcome): String? = when (outcome) {
         QuickCaptureOutcome.Sent, QuickCaptureOutcome.Queued, is QuickCaptureOutcome.Ignored -> null
+        // `DeviceLink.forget` shows `This device was unlinked`, so it never appears twice.
+        QuickCaptureOutcome.Unlinked -> null
         QuickCaptureOutcome.Failed -> "Capture failed"
         QuickCaptureOutcome.Rejected -> "Capture didn't upload"
     }
@@ -484,6 +606,9 @@ internal object QuickCapture {
         return named?.takeIf { it.isNotBlank() } ?: Build.MODEL ?: "emulator"
     }
 
+    /** Tests only: hold or release the one-capture-at-a-time claim. */
+    internal fun __setCapturingForTesting(capturing: Boolean) = inFlight.set(capturing)
+
     /** Tests only: restore the production seams and forget the last trigger. */
     internal fun __resetForTesting() {
         submitter = CompanionSubmissionComposer::submit
@@ -491,6 +616,7 @@ internal object QuickCapture {
         screenshotter = { activity, rects -> ScreenshotCapture.captureBeforeReporter(activity, rects) }
         freezer = { Everframe.__replayFreeze(it) }
         evidenceTimeoutMs = EVIDENCE_TIMEOUT_MS
+        beginLinkAttempt = { id, number, nonce, scope -> DeviceLink.beginAttempt(id, number, nonce, forScope = scope) }
         __lastTrigger = null
         inFlight.set(false)
     }

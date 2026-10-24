@@ -75,6 +75,23 @@ class ReporterDialogLifecycleTest {
         } finally { result.cancelAndJoin(); capture.cancel() }
     }
 
+    @Test fun theReporterWindowHostsTheLinkingBannerWhileItShows() = runBlocking {
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        val activity = controller.get()
+        activity.setContentView(android.widget.FrameLayout(activity))
+        val capture = Everframe.__replayFreeze()
+        val result = async(Dispatchers.Main) { ReporterDialog.show(activity, screenshot(), capture) }
+        try {
+            shadowOf(Looper.getMainLooper()).idle()
+            val windows = dev.everframe.devicelink.SdkOverlayWindows.current
+            assertEquals("the reporter window must host the linking banner", 1, windows.size)
+            assertNotSame(activity.window, windows.single())
+            result.cancelAndJoin()
+            shadowOf(Looper.getMainLooper()).idle()
+            assertTrue(dev.everframe.devicelink.SdkOverlayWindows.current.isEmpty())
+        } finally { result.cancelAndJoin(); capture.cancel() }
+    }
+
     @Test fun destructionReleasesPresentingAndCaptureAndAllowsAnotherOpen() = runBlocking {
         val host = Robolectric.buildActivity(ComponentActivity::class.java).setup()
         host.get().setContentView(android.widget.FrameLayout(host.get()))

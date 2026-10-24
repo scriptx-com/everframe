@@ -75,7 +75,7 @@ internal object CaptureTokenReader {
     private val HOST_LOOPBACK = setOf("localhost", "127.0.0.1")
     private const val EMULATOR_HOST_ALIAS = "10.0.2.2"
 
-    private fun originOf(url: String): Triple<String, String, Int>? {
+    internal fun originOf(url: String): Triple<String, String, Int>? {
         val uri = runCatching { URI(url.trim()) }.getOrNull() ?: return null
         val scheme = uri.scheme?.lowercase(Locale.ROOT)?.takeIf { it == "https" || it == "http" } ?: return null
         val host = uri.host?.lowercase(Locale.ROOT)?.takeIf { it.isNotEmpty() } ?: return null

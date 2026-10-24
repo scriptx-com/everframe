@@ -642,6 +642,10 @@ object Everframe {
     /** Deterministic test seam after immutable drain capture and before coroutine dispatch. */
     internal var __beforeDrainLaunchForTesting: (() -> Unit)? = null
 
+    /** Test seam: the device link store `start()` loads (real-device quick capture). Null uses `noBackupFilesDir`. */
+    @VisibleForTesting
+    internal var __deviceLinkStoreFactoryForTesting: ((Context) -> dev.everframe.devicelink.DeviceLinkStore)? = null
+
     /** Test-only reset for the start-tail delay hook. Production code does not call this. */
     @VisibleForTesting
     internal fun __resetStartTailDelayHookForTesting() {
@@ -1127,6 +1131,9 @@ object Everframe {
         dev.everframe.trigger.ShakeToReportTrigger.install(
             context = context,
             localEnabled = dev.everframe.trigger.ShakeToReportTrigger.localEnabled(config),
+            // Real-device quick capture: shake also runs for a capture or a link hello while the gesture is
+            // armed, but never in a crash-only session.
+            reporterEnabled = config.reporterEnabled,
             currentActivity = currentActivity,
             isCurrent = { currentStartEpochVolatile() == epoch },
         )
@@ -1200,6 +1207,22 @@ object Everframe {
             // (Shift+B), which it acts on only while QuickCapture is armed.
             txGuardVoid("start.breadcrumbTapNavAdapters") {
                 BreadcrumbTapNavAdapters.install(context, currentActivityRef?.get())
+            }
+            // Real-device quick capture: load the stored device link before the launch drain (so a capture
+            // a previous process queued under the device token is sent now, not skipped until some later
+            // drain) and before the first config fetch (`start.replay` below), so that fetch already carries
+            // the token. A synchronous read of one small file.
+            txGuardVoid("start.deviceLink") {
+                val linkContext = context.applicationContext
+                dev.everframe.devicelink.DeviceLink.install(
+                    store = __deviceLinkStoreFactoryForTesting?.invoke(linkContext)
+                        ?: dev.everframe.devicelink.DeviceLinkStore.forContext(linkContext),
+                    client = dev.everframe.devicelink.DeviceLinkClient(IngestEndpoint.url, config.sdkKey),
+                    scope = dev.everframe.devicelink.DeviceLinkScope.of(IngestEndpoint.url, config.sdkKey),
+                    device = { dev.everframe.devicelink.HelloDevice.collect(linkContext, config.debugBuild) },
+                    isCurrent = { currentStartEpochVolatile() == epoch },
+                    context = linkContext,
+                )
             }
             // Plan 05-06 (Wave-4 single-writer): drain outbox once at start, then
             // invoke the resolver-indirection installers. Drain runs FIRST so any
@@ -1585,6 +1608,7 @@ object Everframe {
             dev.everframe.vitals.VitalsServerConfigSignal.publish(null, stillThisKill)
             dev.everframe.trigger.ShakeToReportTrigger.teardown(stillThisKill)
             dev.everframe.quickcapture.QuickCapture.teardown(stillThisKill)
+            dev.everframe.devicelink.DeviceLink.teardown(stillThisKill)
         }
     }
 
