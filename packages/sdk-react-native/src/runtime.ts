@@ -668,6 +668,11 @@ export function createRuntime(config: EverframeProviderConfig): Runtime {
       NativeEverframe.recordScreen(name, data);
     },
     mount() {
+      // A host can mount a new root before the old root's cleanup runs (Android recreates
+      // the activity while the JS runtime survives). Hand over instead of throwing; the
+      // stale owner's own late unmount() is then a no-op.
+      const previous = __getCurrentContext() as Partial<Pick<Runtime, 'unmount'>> | null;
+      if (previous && previous !== runtime) previous.unmount?.();
       if (__getCurrentContext()) {
         throw new EverframeNotMountedError(
           'EverframeProvider already mounted — single-instance enforcement (T-06-05-04)',

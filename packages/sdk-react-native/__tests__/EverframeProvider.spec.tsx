@@ -10,6 +10,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import NativeEverframe from '../src/NativeEverframe.js';
 import { createRuntime, type EverframeProviderConfig } from '../src/runtime.js';
 import {
+  __getCurrentContext,
   __setCurrentContext,
   addBreadcrumb as topLevelAddBreadcrumb,
   captureException as topLevelCaptureException,
@@ -140,12 +141,33 @@ describe('EverframeProvider — slim runtime (D-05/D-07 flip)', () => {
     rt.unmount();
   });
 
-  it('double-mount throws EverframeNotMountedError (single-instance enforcement)', () => {
+  it('mounting the same runtime twice throws EverframeNotMountedError', () => {
+    const rt = createRuntime({ sdkKey: 'k' });
+    rt.mount();
+    expect(() => rt.mount()).toThrow(/already mounted/);
+    rt.unmount();
+  });
+
+  it('a second runtime takes over from a still-mounted one instead of throwing', () => {
     const rt1 = createRuntime({ sdkKey: 'k' });
     rt1.mount();
     const rt2 = createRuntime({ sdkKey: 'k' });
-    expect(() => rt2.mount()).toThrow(/already mounted/);
+    expect(() => rt2.mount()).not.toThrow();
+    expect(__getCurrentContext()).toBe(rt2);
+    expect(rt1.getPromiseRejectionStatus()).toMatchObject({ reason: 'no-mount' });
+    rt2.unmount();
+  });
+
+  it("the replaced runtime's late unmount leaves the new owner mounted", () => {
+    const rt1 = createRuntime({ sdkKey: 'k' });
+    rt1.mount();
+    const rt2 = createRuntime({ sdkKey: 'k' });
+    rt2.mount();
     rt1.unmount();
+    expect(__getCurrentContext()).toBe(rt2);
+    expect(rt2.getPromiseRejectionStatus()).not.toMatchObject({ reason: 'no-mount' });
+    rt2.unmount();
+    expect(__getCurrentContext()).toBeNull();
   });
 
   // Task 14 — addBreadcrumb: object-form JS API → positional TurboModule
