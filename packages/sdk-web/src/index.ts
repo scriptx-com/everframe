@@ -144,6 +144,14 @@ export type {
   RelayWSClient,
   ReportCounts,
 } from './companion/singleton.js';
+/**
+ * @internal Real-device quick capture on Samsung Tizen and LG webOS TVs.
+ * `init()` installs it; `@everframe/react`'s Provider installs it from this
+ * entry. A no-op on every other browser. Not product API.
+ */
+export { installQuickCapture as __installQuickCapture } from './quickcapture/install.js';
+export type { QuickCaptureInstall } from './quickcapture/install.js';
+export type { QuickCaptureHost } from './quickcapture/host.js';
 
 // ── Test seams ──────────────────────────────────────────────────────────
 // Not product API. Exported only because `@everframe/react`'s specs — which

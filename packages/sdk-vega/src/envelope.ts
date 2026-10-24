@@ -211,3 +211,47 @@ export function buildVegaEnvelope(input: VegaEnvelopeInput): ReportEnvelope {
   envelope.captureControl.degradedReason = 'crash-capture';
   return envelope;
 }
+
+/** What a Vega quick capture cannot hold: no screenshot, view tree or focus from JavaScript. */
+export const QUICK_CAPTURE_EXCLUDED = ['screenshot', 'uiTree', 'focus'];
+
+export interface QuickCaptureEnvelopeInput {
+  reportId: string;
+  occurredAt: string;
+  sdk: ReportEnvelope['sdk'];
+  app: { name: string; version: string; build?: string; debug: boolean };
+  device: DeviceMetadata;
+  breadcrumbs: Breadcrumb[];
+  user: VegaUser | null;
+}
+
+/**
+ * A quick capture: a manual report (no `source`) with `quickCapture: true`,
+ * breadcrumbs, device, app and user, and no attachments. The server files it
+ * as a draft.
+ */
+export function buildQuickCaptureEnvelope(input: QuickCaptureEnvelopeInput): ReportEnvelope {
+  const envelope = buildEnvelope({
+    reportId: input.reportId,
+    submittedAt: input.occurredAt,
+    sdk: input.sdk,
+    reporter: {
+      title: '',
+      description: '',
+      ...(input.user ? { user: input.user } : {}),
+    },
+    draft: {
+      title: '',
+      description: '',
+      excludedArtifacts: [...QUICK_CAPTURE_EXCLUDED],
+      annotations: [],
+      redactions: [],
+    },
+    breadcrumbs: input.breadcrumbs,
+    device: input.device,
+    app: input.app,
+    attachments: [],
+  });
+  envelope.quickCapture = true;
+  return envelope;
+}

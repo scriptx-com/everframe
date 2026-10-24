@@ -10,7 +10,8 @@
       "./react-island-*.js",
       "./browser-*.js",
       "./snapdom-*.js",
-      "./tv-snapshot-*.js"
+      "./tv-snapshot-*.js",
+      "./quick-capture-runtime-*.js"
     ]
   },
   {
@@ -24,7 +25,8 @@
       "./react-island-*.js",
       "./browser-*.js",
       "./snapdom-*.js",
-      "./tv-snapshot-*.js"
+      "./tv-snapshot-*.js",
+      "./quick-capture-runtime-*.js"
     ]
   }
 ]

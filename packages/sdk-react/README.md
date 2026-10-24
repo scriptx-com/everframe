@@ -134,6 +134,14 @@ hotkey, no replies button or inbox, and `open()` rejects with
 sampling rate (0 by default) and network bodies stay off. See
 [crash-only sessions](../../docs/session-replay.md#crash-only-sessions).
 
+### Samsung and LG TVs
+
+On a Samsung Tizen or LG webOS TV, the provider sets up device linking and the
+remote capture gesture the same way `@everframe/web` does. Pass
+`debugBuild: true` for debug builds and `quickCapture: { disabled: true }` to
+turn it off. See
+[Quick capture on Samsung and LG TVs](../sdk-web/README.md#quick-capture-on-samsung-and-lg-tvs).
+
 ## Strict-CSP environments
 
 If your app sets a strict CSP (`script-src 'self' 'nonce-...'`), thread the nonce into the SDK so screenshot capture's dynamically-injected styles are accepted:

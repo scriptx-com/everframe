@@ -28,6 +28,12 @@ export {
   getBrandingServerConfig,
   ResourcesServerConfig,
   getResourcesServerConfig,
+  CaptureHotkeyServerConfig,
+  DeviceLinkOwnerWire,
+  DeviceLinkStatusWire,
+  DeviceLinkingServerConfig,
+  CaptureGestureServerConfig,
+  CAPTURE_TOKEN_HEADER,
 } from './config-provider.js';
 export type {
   ReplayConfig,

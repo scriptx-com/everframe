@@ -75,6 +75,70 @@ export const BREADCRUMBS_CONFIG_DEFAULT: BreadcrumbsConfig = Object.freeze({
  * equivalent: keep the validated known fields, silently drop unknown ones,
  * never fail the parse over them.
  */
+/**
+ * Real-device quick capture (spec 2026-10-23, web TVs). Three blocks, each
+ * emitted only for an SDK that declared its own feature token
+ * (`capturehotkey`, `devicelinking`, `capturegesture`). Same posture as
+ * companionBadge/branding: nested `.strip()`, and a malformed block degrades
+ * to absent (quick capture off, no link status applied) instead of failing
+ * the whole `GET /api/config` parse.
+ */
+export const CaptureHotkeyServerConfig = z
+  .object({
+    enabled: z.boolean(),
+    binding: z.string(),
+    replay: z.boolean(),
+  })
+  .strip();
+export type CaptureHotkeyServerConfig = z.infer<typeof CaptureHotkeyServerConfig>;
+
+export const DeviceLinkOwnerWire = z.union([
+  z.object({ kind: z.literal('user'), name: z.string() }).strip(),
+  z.object({ kind: z.literal('team') }).strip(),
+]);
+export type DeviceLinkOwnerWire = z.infer<typeof DeviceLinkOwnerWire>;
+
+/**
+ * The link status for the `evf_dev_` token the request carried. Any status
+ * other than `linked` reads as `unlinked`. A malformed `owner` or `recording`
+ * degrades to absent on its own, so it never hides the status.
+ */
+export const DeviceLinkStatusWire = z
+  .object({
+    status: z
+      .string()
+      .transform((s): 'linked' | 'unlinked' => (s === 'linked' ? 'linked' : 'unlinked')),
+    owner: DeviceLinkOwnerWire.optional().catch(undefined),
+    recording: z
+      .object({ id: z.string(), expiresAt: z.string() })
+      .strip()
+      .optional()
+      .catch(undefined),
+  })
+  .strip();
+export type DeviceLinkStatusWire = z.infer<typeof DeviceLinkStatusWire>;
+
+export const DeviceLinkingServerConfig = z
+  .object({
+    enabled: z.boolean(),
+    link: DeviceLinkStatusWire.optional().catch(undefined),
+  })
+  .strip();
+export type DeviceLinkingServerConfig = z.infer<typeof DeviceLinkingServerConfig>;
+
+/** The TV binding stays `unknown` here; the web SDK validates it. */
+export const CaptureGestureServerConfig = z
+  .object({
+    tv: z.unknown().optional(),
+  })
+  .strip();
+export type CaptureGestureServerConfig = z.infer<typeof CaptureGestureServerConfig>;
+
+/** Header that carries a device (`evf_dev_`) or capture (`evf_cap_`) token. */
+export const CAPTURE_TOKEN_HEADER = 'X-Everframe-Capture-Token';
+
+const DEVICE_LINK_TOKEN_RE = /^evf_dev_[0-9A-Za-z]{32}$/;
+
 export const NetworkBodiesServerConfig = z
   .object({
     captureBodies: z.boolean(),
@@ -318,6 +382,11 @@ export const ReplayConfigResponse = z
     // degrades to absent, like `vitalsSampleRate`, rather than failing the
     // whole parse.
     crashOnlySamplingRate: z.number().min(0).max(1).optional().catch(undefined),
+    // Real-device quick capture (spec 2026-10-23). Each is sent only to SDKs
+    // that declare its own feature token, for the same .strict() reason.
+    captureHotkey: CaptureHotkeyServerConfig.optional().catch(undefined),
+    deviceLinking: DeviceLinkingServerConfig.optional().catch(undefined),
+    captureGesture: CaptureGestureServerConfig.optional().catch(undefined),
   })
   .strict();
 
@@ -375,6 +444,14 @@ export interface ConfigProviderDeps {
    * fetch that never fires is not.
    */
   installIdProvider?: () => string | null;
+  /**
+   * Real-device quick capture: the stored device token, read once per fetch.
+   * Sent as `X-Everframe-Capture-Token` only when it is a well-formed
+   * `evf_dev_` token, and then with `redirect: 'error'` so it never follows
+   * a redirect to another origin. A throw or `null` sends no header and
+   * never blocks the fetch. The token is never traced.
+   */
+  captureTokenProvider?: () => string | null;
 }
 
 export interface ConfigProviderRefreshOptions {
@@ -426,6 +503,13 @@ export interface ConfigProvider {
    * mistaken for a fresh success by a caller like the body-gate flag above.
    */
   refresh(opts?: ConfigProviderRefreshOptions): Promise<boolean>;
+  /**
+   * The capture token the committed config (`get()`) was fetched with, or
+   * `null` when it carried none. A failed or superseded fetch never changes
+   * it, so `deviceLinking.link` is always read against the token it
+   * describes. Optional so existing fakes still type-check.
+   */
+  committedCaptureToken?(): string | null;
 }
 
 /**
@@ -495,10 +579,15 @@ export function createConfigProvider(deps: ConfigProviderDeps): ConfigProvider {
   // could re-arm anything (e.g. the web adapter's `bodyGateFailedClosed`).
   let requestSeq = 0;
   let latestStartedSeq = 0;
+  let committedToken: string | null = null;
 
   return {
     get(): ReplayConfig {
       return cache;
+    },
+
+    committedCaptureToken(): string | null {
+      return committedToken;
     },
 
     async refresh(opts?: ConfigProviderRefreshOptions): Promise<boolean> {
@@ -514,6 +603,17 @@ export function createConfigProvider(deps: ConfigProviderDeps): ConfigProvider {
       // call order, not by however the fetch happens to interleave/resolve.
       const mySeq = ++requestSeq;
       latestStartedSeq = mySeq;
+      // Read once, before the first await, so the token this request carries
+      // is the token its response is committed against.
+      let sentToken: string | null = null;
+      if (deps.captureTokenProvider) {
+        try {
+          const t = deps.captureTokenProvider();
+          if (typeof t === 'string' && DEVICE_LINK_TOKEN_RE.test(t)) sentToken = t;
+        } catch {
+          sentToken = null;
+        }
+      }
       try {
         const headers: Record<string, string> = {
           Authorization: `Bearer ${sdkKey}`,
@@ -529,12 +629,17 @@ export function createConfigProvider(deps: ConfigProviderDeps): ConfigProvider {
         // boundWait backstops engines with NO abort primitive at all
         // (timeoutSignal null): the wait is bounded even when the request
         // itself cannot be cancelled.
+        const init: RequestInit = {
+          method: 'GET',
+          headers,
+          signal: timeoutSignal(ttlMs),
+        };
+        if (sentToken !== null) {
+          headers[CAPTURE_TOKEN_HEADER] = sentToken;
+          init.redirect = 'error';
+        }
         const res = await boundWait(
-          fetchImpl(withInstallId(configUrl, deps.installIdProvider), {
-            method: 'GET',
-            headers,
-            signal: timeoutSignal(ttlMs),
-          }),
+          fetchImpl(withInstallId(configUrl, deps.installIdProvider), init),
           ttlMs,
         );
         // Non-200 ⇒ fail closed (keep current cache).
@@ -575,11 +680,13 @@ export function createConfigProvider(deps: ConfigProviderDeps): ConfigProvider {
         // the MOST RECENTLY STARTED refresh (the mySeq/latestStartedSeq
         // check above already guarantees that).
         cache = parsed.data;
+        committedToken = sentToken;
         __traceReplay('config.refresh', {
           ok: true,
           reason: 'ok',
           replayEnabled: cache.replayEnabled,
           samplingRate: cache.samplingRate,
+          carriedToken: sentToken !== null,
         });
         return true;
       } catch (err) {

@@ -227,3 +227,47 @@ and the reference still show them.
 regular), © 2022 The Instrument Serif Project Authors, licensed under the SIL
 Open Font License 1.1 (`LICENSES/OFL-1.1.txt`). A distinctive serif, so a
 substituted font is obvious in a render.
+
+### Key-delivery page (`--page keys`)
+
+`--page keys` serves `perf/tv-device/keys.html` instead, the spike page behind
+the TV quick-capture key map (`src/quickcapture/remote-keys.ts`). It runs no
+SDK code. It logs every `keydown`/`keyup` that reaches `window` in the capture
+phase as `{type, key, code, keyCode, repeat, dtMs, focus}`, plus `blur`,
+`visibilitychange` and the `play`/`pause` events of a playing `<video>` (a
+canvas stream, so no media file is needed). Each line is posted to `/results`,
+printed and appended to `out/keys.jsonl`. `?focus=tile` (the default) focuses
+a tile; `?focus=video` focuses the video. On Tizen the page first posts
+`tizen.tvinputdevice.getSupportedKeys()` and registers every supported Menu,
+media, color and digit key.
+
+```sh
+node perf/tv-device-harness.mjs --page keys --target chrome79 --host <LAN IP> --package
+ares-install -d <device> perf/tv-device/out/com.everframe.tvkeys_0.0.1_all.ipk
+ares-launch -d <device> com.everframe.tvkeys
+```
+
+With `--package` it also writes a Tizen hosted shell in `out/tizen-app/`
+(`perf/tv-device/tizen-app/config.xml`, which declares the
+`tv.inputdevice` privilege, plus the redirect). Package and install it with
+Tizen Studio on a real Samsung TV: `tizen package -t wgt -s <profile> --
+out/tizen-app`, `sdb connect <ip>`, `tizen install -n <wgt> -t <device>`. The
+Samsung TV emulator does not run on Apple Silicon.
+
+What to record for each engine: whether every contract key reaches the page;
+the Play/Pause codes (combined `MediaPlayPause` 10252/179, or separate Play
+415 / Pause 19); for a 2 s hold of Play/Pause, the repeat cadence, whether
+`repeat` is set, whether `keyup` arrives, and whether the `<video>` toggles
+once; whether a system UI takes the long press; the span of an `↑↑↓↓`; and the
+Back and Menu codes.
+
+Last run (2026-10-24): no TV was used. The page ran in Playwright Chromium with
+a Tizen and a webOS user agent (and a `tizen.tvinputdevice` stub), with
+synthetic input sent through CDP `Input.dispatchKeyEvent`. Every TV `keyCode`
+reached the page unchanged in both focus modes (arrows, Enter, 461, 10009,
+10252, 179, 415, 19, 417, 412, 403–406, letters, digits, Shift); `repeat` was
+set on auto-repeated downs, one `keyup` ended a hold, and a 4-tap `↑↑↓↓` at
+human speed spanned about 700 ms. No key toggled the page's `<video>`:
+desktop Chromium leaves media keys to the page. This checks the harness and
+the browser's event path only. Real Tizen and webOS engines are not measured
+yet; their rows are manual checks.

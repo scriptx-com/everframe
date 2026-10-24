@@ -78,6 +78,14 @@ export interface VegaConfig {
   /** Anonymous foreground sessions and fatal JavaScript release health. Default true; never debug. */
   releaseHealth?: boolean;
   /**
+   * Quick capture on linked devices: a long press of Play/Pause files a
+   * capture attributed to the person or team the device is linked to (see the
+   * README). Needs nothing else from the app; end users of release builds see
+   * no change. `false` turns it off: no root wrapper, no config request and
+   * no key listening. Default `true`.
+   */
+  quickCaptureEnabled?: boolean;
+  /**
    * Device facts React Native for Vega does not expose to JavaScript, for
    * hosts that read them from `@amazon-devices/react-native-device-info`.
    */
@@ -93,6 +101,9 @@ export interface ResolvedConfig {
   storage: AsyncStorageLike | undefined;
   app: { name: string; version: string; build?: string; debug: boolean };
   ingestUrl: string;
+  /** The endpoint without a trailing slash: `{apiBase}/api/config` and `/api/device-link/*`. */
+  apiBase: string;
+  quickCaptureEnabled: boolean;
   captureUnhandledRejections: boolean;
   releaseHealth: boolean;
   device: { model?: string; osVersion?: string };
@@ -134,6 +145,8 @@ export function resolveConfig(config: VegaConfig, dev: boolean): ResolvedConfig 
       debug: debugBuild,
     },
     ingestUrl: `${endpoint}/api/ingest`,
+    apiBase: endpoint,
+    quickCaptureEnabled: config.quickCaptureEnabled !== false,
     captureUnhandledRejections: config.captureUnhandledRejections !== false,
     releaseHealth:
       config.releaseHealth !== false &&

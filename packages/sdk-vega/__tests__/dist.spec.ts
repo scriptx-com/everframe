@@ -82,9 +82,12 @@ describe('published bundle', () => {
     expect(FORBIDDEN_GLOBALS.filter((name) => names.has(name))).toEqual([]);
   });
 
-  it('imports only react-native and inlines everything else', () => {
-    const imports = [...code.matchAll(/^import\s.*?from\s+["']([^"']+)["']/gm)].map((m) => m[1]);
-    expect(imports).toEqual(['react-native']);
+  it('imports only react and react-native and inlines everything else', () => {
+    const imports = [...code.matchAll(/^import\s[\s\S]*?from\s+["']([^"']+)["']/gm)].map(
+      (m) => m[1],
+    );
+    // `react` is for the root wrapper (quick capture).
+    expect([...new Set(imports)].sort()).toEqual(['react', 'react-native']);
     expect(code).not.toMatch(/from ["'](?:zod|@everframe\/|@noble\/)/);
   });
 
@@ -98,5 +101,10 @@ describe('published bundle', () => {
 
   it('stays small', () => {
     expect(code.length).toBeLessThan(120 * 1024);
+  });
+
+  it('carries no device token or nonce literal and no console logging of link state', () => {
+    expect(code).not.toMatch(/evf_dev_[0-9A-Za-z]{32}/);
+    expect(code).not.toMatch(/console\.(log|info|debug)\(/);
   });
 });

@@ -54,4 +54,11 @@ export interface WebEverframeConfig extends EverframeConfig {
    * URLs (default stripped — signed CDN/license URLs carry tokens).
    */
   vitals?: { enabled?: boolean; sampleRate?: number; captureSourceQuery?: boolean };
+  /**
+   * Quick capture on Samsung Tizen and LG webOS TVs (device linking and the
+   * remote capture gesture). CLIENT VETO only: `disabled: true` turns it off
+   * on this app whatever the dashboard says; it can never turn it on. Other
+   * browsers never run it.
+   */
+  quickCapture?: { disabled?: boolean };
 }

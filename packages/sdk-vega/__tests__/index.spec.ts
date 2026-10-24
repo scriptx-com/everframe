@@ -51,6 +51,33 @@ describe('public entry', () => {
     });
   });
 
+  it('installs the root wrapper through AppRegistry from init()', async () => {
+    const sdk = await import('../src/index.js');
+    // The same (reset) module instance the SDK imported.
+    const { AppRegistry } = await import('./stubs/react-native.js');
+    const fetch = createFetch([200]);
+    fetch.route('GET', '/api/config', { status: 200, body: {} });
+    Object.assign(host, { ErrorUtils: createErrorUtils(), fetch, __DEV__: false });
+    const before = AppRegistry.wrapperProviders.length;
+    sdk.init({ sdkKey: 'evf_live_key', storage: createStorage(), appVersion: '2.0.0' });
+    expect(AppRegistry.wrapperProviders).toHaveLength(before + 1);
+    await vi.waitFor(() =>
+      expect(fetch.all.filter((r) => r.url.endsWith('/api/config'))).toHaveLength(1),
+    );
+  });
+
+  it('installs nothing with quickCaptureEnabled: false', async () => {
+    const sdk = await import('../src/index.js');
+    const { AppRegistry } = await import('./stubs/react-native.js');
+    const fetch = createFetch([200]);
+    Object.assign(host, { ErrorUtils: createErrorUtils(), fetch, __DEV__: false });
+    const before = AppRegistry.wrapperProviders.length;
+    sdk.init({ sdkKey: 'evf_live_key', storage: createStorage(), quickCaptureEnabled: false });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(AppRegistry.wrapperProviders).toHaveLength(before);
+    expect(fetch.all).toHaveLength(0);
+  });
+
   it('exports only the documented API', async () => {
     const sdk = await import('../src/index.js');
     expect(Object.keys(sdk).sort()).toEqual([

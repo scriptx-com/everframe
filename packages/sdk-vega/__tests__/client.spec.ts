@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createVegaClient, FATAL_HANDOFF_MS, RETRY_DELAYS_MS } from '../src/client.js';
+import {
+  createVegaClient,
+  FATAL_HANDOFF_MS,
+  FOREGROUND_REFRESH_MS,
+  RETRY_DELAYS_MS,
+} from '../src/client.js';
+import { LINK_STORAGE_KEY } from '../src/link-store.js';
+import { linkScope } from '../src/link-token.js';
+import type { AppStateLike } from '../src/release-health.js';
 import { SDK_VERSION } from '../src/version.js';
 import {
   BUILD_DIR,
@@ -494,5 +502,171 @@ describe('credential-named metadata', () => {
       user: 'u-1',
     });
     expectValidEnvelope(fetch.requests[0]!.envelope);
+  });
+});
+
+describe('quick capture wiring', () => {
+  const TOKEN = 'evf_dev_' + 'a1B2'.repeat(8);
+  const ENDPOINT = 'https://everframe.dev';
+  const CONFIG = { captureHotkey: { enabled: true }, deviceLinking: { enabled: true } };
+
+  function wired(
+    opts: {
+      config?: Record<string, unknown>;
+      link?: { endpoint?: string; key?: string };
+      configReply?: { status: number; body?: unknown };
+      appState?: AppStateLike;
+      statuses?: number[];
+    } = {},
+  ) {
+    const providers: unknown[] = [];
+    const appRegistry = {
+      setWrapperComponentProvider(provider: unknown) {
+        providers.push(provider);
+      },
+    };
+    const harness = createEnv({
+      appRegistry,
+      ...(opts.appState ? { appState: opts.appState } : {}),
+      ...(opts.statuses ? { statuses: opts.statuses } : {}),
+    });
+    harness.fetch.route('GET', '/api/config', opts.configReply ?? { status: 200, body: CONFIG });
+    const storage = createStorage();
+    if (opts.link) {
+      const scope = linkScope(opts.link.endpoint ?? ENDPOINT, opts.link.key ?? SDK_KEY);
+      storage.data.set(
+        LINK_STORAGE_KEY,
+        JSON.stringify({ v: 1, s: scope, t: TOKEN, o: { kind: 'user', name: 'Aurimas' } }),
+      );
+    }
+    const client = createVegaClient(harness.env);
+    client.init({ sdkKey: SDK_KEY, storage, appVersion: '1.4.0', ...(opts.config ?? {}) });
+    client.quickCaptureParts().overlay?.setMounted(true);
+    const configs = () => harness.fetch.all.filter((r) => r.url.endsWith('/api/config'));
+    return { ...harness, client, storage, providers, configs };
+  }
+
+  it('releaseEndUserMakesOneConfigRequestAndNothingElse', async () => {
+    vi.useFakeTimers();
+    const w = wired({ config: { debugBuild: false } });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(w.providers).toHaveLength(1);
+    expect(w.fetch.all.map((r) => `${r.method} ${r.url}`)).toEqual([
+      'GET https://everframe.dev/api/config',
+    ]);
+    expect(w.configs()[0]!.headers).not.toHaveProperty('X-Everframe-Capture-Token');
+    expect(w.warnings).toEqual([]);
+    expect(w.client.armed()).toBe(true);
+  });
+
+  it('firstConfigCarriesStoredToken', async () => {
+    vi.useFakeTimers();
+    const w = wired({ link: {} });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(w.configs()).toHaveLength(1);
+    expect(w.configs()[0]!.headers['X-Everframe-Capture-Token']).toBe(TOKEN);
+    expect(w.configs()[0]!.headers['X-Everframe-SDK-Features']).toBe(
+      'capturehotkey, devicelinking, capturegesture',
+    );
+  });
+
+  it('configCarriesNoTokenForAnotherScope', async () => {
+    vi.useFakeTimers();
+    for (const link of [{ endpoint: 'https://staging.everframe.dev' }, { key: 'evf_live_other' }]) {
+      const w = wired({ link });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(w.configs()).toHaveLength(1);
+      expect(w.configs()[0]!.headers).not.toHaveProperty('X-Everframe-Capture-Token');
+      expect(w.client.quickCaptureParts().deviceLink!.current()).toBeNull();
+      // The other scope's record stays for when the app goes back to it.
+      expect(w.storage.data.get(LINK_STORAGE_KEY)).toContain(TOKEN);
+    }
+  });
+
+  it('quickCaptureOffInstallsNothing', async () => {
+    vi.useFakeTimers();
+    for (const config of [{ quickCaptureEnabled: false }, { enabled: false }]) {
+      let listeners = 0;
+      const appState: AppStateLike = {
+        currentState: 'active',
+        addEventListener: () => {
+          listeners++;
+          return { remove() {} };
+        },
+      };
+      const w = wired({ config: { ...config, releaseHealth: false }, appState });
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(w.providers).toHaveLength(0);
+      expect(w.configs()).toHaveLength(0);
+      expect(listeners).toBe(0);
+      expect(w.client.quickCaptureParts()).toEqual({ remote: null });
+    }
+  });
+
+  it('configFailureLeavesGestureInert', async () => {
+    vi.useFakeTimers();
+    for (const reply of [{ status: 500 }, { status: 0 }, { status: 200, body: 'nope' }]) {
+      const w = wired({ link: {}, configReply: reply, config: { debugBuild: true } });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(w.client.armed()).toBe(false);
+      w.client.onGesture();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(w.fetch.all.filter((r) => !r.url.endsWith('/api/config'))).toEqual([]);
+    }
+  });
+
+  it('foregroundRefreshOnlyWhileLinkedAndThrottled', async () => {
+    vi.useFakeTimers();
+    const makeAppState = () => {
+      const listeners: Array<(v: unknown) => void> = [];
+      const appState: AppStateLike = {
+        currentState: 'active',
+        addEventListener: (_e, l) => {
+          listeners.push(l);
+          return { remove() {} };
+        },
+      };
+      return { appState, emit: (v: string) => listeners.forEach((l) => l(v)) };
+    };
+    const unlinked = makeAppState();
+    const u = wired({ appState: unlinked.appState, config: { releaseHealth: false } });
+    await vi.advanceTimersByTimeAsync(FOREGROUND_REFRESH_MS * 2);
+    unlinked.emit('background');
+    unlinked.emit('active');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(u.configs()).toHaveLength(1);
+
+    const linked = makeAppState();
+    const l = wired({ link: {}, appState: linked.appState, config: { releaseHealth: false } });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(l.configs()).toHaveLength(1);
+    linked.emit('active');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(l.configs()).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(FOREGROUND_REFRESH_MS);
+    linked.emit('background');
+    linked.emit('active');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(l.configs()).toHaveLength(2);
+    expect(l.configs()[1]!.headers['X-Everframe-Capture-Token']).toBe(TOKEN);
+    linked.emit('active');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(l.configs()).toHaveLength(2);
+  });
+
+  it('crashReportingUnchanged', async () => {
+    const plain = start();
+    const w = wired({ link: {} });
+    for (const run of [plain, w]) {
+      run.errorUtils.handler!(vegaError('player state was null'), true);
+      await vi.waitFor(() => expect(run.errorUtils.previous).toHaveLength(1));
+    }
+    const a = plain.fetch.requests[0]!;
+    const b = w.fetch.requests[0]!;
+    expect(b.headers).toEqual(a.headers);
+    expect(b.headers).not.toHaveProperty('X-Everframe-Capture-Token');
+    expect(b.envelope.source).toBe('crash');
+    expect(b.envelope.quickCapture).toBeUndefined();
+    expect(Object.keys(b.envelope).sort()).toEqual(Object.keys(a.envelope).sort());
   });
 });

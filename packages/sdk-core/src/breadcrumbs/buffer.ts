@@ -51,6 +51,11 @@ export interface BreadcrumbBuffer {
   freeze(): void;
   /** Drop the frozen snapshot (reporter cancelled). Live capture continues. */
   discardAndResume(): void;
+  /**
+   * Whether a frozen snapshot is held (between freeze() and takeFrozen() /
+   * discardAndResume()). Optional so hand-written buffers still type-check.
+   */
+  isFrozen?(): boolean;
   /** Return + clear the frozen snapshot, or null if freeze() was never called. */
   takeFrozen(): Breadcrumb[] | null;
   /** Zeroize everything (logout / identity change). */
@@ -125,6 +130,10 @@ export function createBreadcrumbBuffer(deps: BreadcrumbBufferDeps = {}): Breadcr
 
     discardAndResume(): void {
       frozen = null;
+    },
+
+    isFrozen(): boolean {
+      return frozen !== null;
     },
 
     takeFrozen(): Breadcrumb[] | null {

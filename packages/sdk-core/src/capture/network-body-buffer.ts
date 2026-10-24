@@ -34,6 +34,11 @@ export interface NetworkBodyBuffer {
   freeze(): void;
   takeFrozen(): NetworkBodyEntry[] | null;
   discardAndResume(): void;
+  /**
+   * Whether a frozen snapshot is held (between freeze() and takeFrozen() /
+   * discardAndResume()). Optional so hand-written buffers still type-check.
+   */
+  isFrozen?(): boolean;
   clear(): void;
   /**
    * F17 (round-4 review) — PERMANENT zeroization + append gate, distinct from
@@ -142,6 +147,9 @@ export function createNetworkBodyBuffer(deps: NetworkBodyBufferDeps = {}): Netwo
     },
     discardAndResume(): void {
       frozen = null;
+    },
+    isFrozen(): boolean {
+      return frozen !== null;
     },
     clear(): void {
       entries.length = 0;

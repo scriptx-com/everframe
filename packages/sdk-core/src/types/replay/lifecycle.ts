@@ -70,6 +70,13 @@ export interface ReplayLifecycleDeps {
   random?: () => number;
   /** Injectable monotonic clock (ms). Defaults to performance.now (or Date.now). */
   now?: () => number;
+  /**
+   * Real-device quick capture (spec 2026-10-23): true while quick capture is
+   * armed on a linked or debug device with `captureHotkey.replay`. Bypasses
+   * `replayEnabled` and the sampling draw. `locallyDisabled` still wins. Read
+   * on every start attempt and by `reevaluate()`; a throw reads as false.
+   */
+  forced?: () => boolean;
 }
 
 export interface ReplayLifecycle {
@@ -90,6 +97,13 @@ export interface ReplayLifecycle {
   cancel(): void;
   /** Any→DISCARDED→IDLE (logout/identity change). Always zeroizes; no auto-resume. */
   forceDiscard(): void;
+  /**
+   * Re-check a buffer that only `forced` started. Once forcing ends, the
+   * buffer is kept (and from then on owned by sampling) when the normal gate
+   * admits the session, and otherwise discarded and stopped (state IDLE). Any
+   * other state, or a buffer the sampling gate admitted, is left alone.
+   */
+  reevaluate(): void;
 }
 
 function defaultNow(): number {
@@ -104,8 +118,13 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
   const random = deps.random ?? Math.random;
   const now = deps.now ?? defaultNow;
   const sessionKind = deps.sessionKind ?? ((): ReplaySessionKind => 'report');
+  const forcedDep = deps.forced;
 
   let state: ReplayState = 'IDLE';
+  /** What opened the current buffer. Kept across complete()/cancel() resumes. */
+  let startedBy: 'sampling' | 'forced' | null = null;
+  /** A reevaluate() that arrived while FROZEN, applied when the buffer resumes. */
+  let reevaluatePending = false;
   /** The session's single sampling draw (CONFIG-04), compared against the live rate. */
   let samplingDraw: number | null = null;
   /** Kinds whose rate has admitted this session. Kept for the whole session. */
@@ -116,10 +135,67 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
 
   const replay = adapter.replay;
 
+  function isVetoed(): boolean {
+    const vetoed = typeof locallyDisabled === 'function' ? locallyDisabled() : locallyDisabled;
+    return vetoed === true;
+  }
+
   /** Effective enablement: server says ON AND the client has not vetoed (never force-ON). */
   function effectiveEnabled(): boolean {
-    const vetoed = typeof locallyDisabled === 'function' ? locallyDisabled() : locallyDisabled;
-    return getConfig().replayEnabled === true && vetoed !== true;
+    return getConfig().replayEnabled === true && !isVetoed();
+  }
+
+  function isForced(): boolean {
+    if (!forcedDep) return false;
+    try {
+      return forcedDep() === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * The sampling gate for the session's current kind, against the ONE held
+   * draw (see tryStart). Records an admission, which then lasts the session.
+   */
+  function samplingAdmits(): { admitted: boolean; kind: ReplaySessionKind } {
+    if (samplingDraw === null) {
+      samplingDraw = random();
+    }
+    const kind = sessionKind();
+    // An upgrade never stops a recording: an upgraded session inherits the
+    // crash-only admission, even after a later cut to both rates.
+    if (kind === 'upgraded' && admittedKinds.has('crashOnly')) admittedKinds.add('upgraded');
+    if (!admittedKinds.has(kind)) {
+      if (!(samplingDraw < replaySamplingRate(getConfig(), kind))) {
+        return { admitted: false, kind };
+      }
+      admittedKinds.add(kind);
+    }
+    return { admitted: true, kind };
+  }
+
+  /**
+   * Resume after complete()/cancel(), applying a reevaluation remembered
+   * while FROZEN: a buffer only forcing started, whose forcing has ended and
+   * which the normal gate does not admit, is not restarted (IDLE, recorder
+   * stopped).
+   */
+  function resumeOrEnd(): void {
+    const pending = reevaluatePending;
+    reevaluatePending = false;
+    if (pending && startedBy === 'forced' && !isForced()) {
+      if (effectiveEnabled() && samplingAdmits().admitted) {
+        startedBy = 'sampling';
+      } else {
+        state = 'IDLE';
+        startedBy = null;
+        replay?.stop();
+        __traceReplay('lifecycle.reevaluate', { applied: true, reason: 'on_resume' });
+        return;
+      }
+    }
+    beginBuffering();
   }
 
   /** Begin (or resume) the rolling buffer at the current configured duration. */
@@ -145,6 +221,14 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
         __traceReplay('lifecycle.tryStart', { from, started: false, reason: 'not_idle' });
         return false;
       }
+      // Quick capture's forcing bypasses the server switch and the sampling
+      // draw, never the client veto.
+      if (!isVetoed() && isForced()) {
+        startedBy = 'forced';
+        beginBuffering();
+        __traceReplay('lifecycle.tryStart', { from, started: true, reason: 'forced' });
+        return true;
+      }
       if (!effectiveEnabled()) {
         __traceReplay('lifecycle.tryStart', { from, started: false, reason: 'disabled' });
         return false;
@@ -165,25 +249,17 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
       // already recording from resuming (after a forced discard, say). A kind
       // that has not admitted the session is still compared against its live
       // rate, as before.
-      if (samplingDraw === null) {
-        samplingDraw = random();
+      const { admitted, kind } = samplingAdmits();
+      if (!admitted) {
+        __traceReplay('lifecycle.tryStart', {
+          from,
+          started: false,
+          reason: 'sampled_out',
+          kind,
+        });
+        return false;
       }
-      const kind = sessionKind();
-      // An upgrade never stops a recording: an upgraded session inherits the
-      // crash-only admission, even after a later cut to both rates.
-      if (kind === 'upgraded' && admittedKinds.has('crashOnly')) admittedKinds.add('upgraded');
-      if (!admittedKinds.has(kind)) {
-        if (!(samplingDraw < replaySamplingRate(getConfig(), kind))) {
-          __traceReplay('lifecycle.tryStart', {
-            from,
-            started: false,
-            reason: 'sampled_out',
-            kind,
-          });
-          return false;
-        }
-        admittedKinds.add(kind);
-      }
+      startedBy = 'sampling';
       beginBuffering();
       __traceReplay('lifecycle.tryStart', { from, started: true, kind });
       return true;
@@ -216,7 +292,7 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
         ...(capture ? { durationMs: capture.durationMs } : {}),
       });
       // Resume a fresh buffer for the next report.
-      beginBuffering();
+      resumeOrEnd();
       return capture;
     },
 
@@ -230,7 +306,7 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
       state = 'DISCARDED';
       __traceReplay('lifecycle.cancel', { from, applied: true });
       // Resume a fresh (zeroized) buffer for the next report.
-      beginBuffering();
+      resumeOrEnd();
     },
 
     forceDiscard(): void {
@@ -244,7 +320,34 @@ export function createReplayLifecycle(deps: ReplayLifecycleDeps): ReplayLifecycl
       }
       replay?.discardAndResume();
       state = 'IDLE';
+      startedBy = null;
+      reevaluatePending = false;
       __traceReplay('lifecycle.forceDiscard', { from, applied: true });
+    },
+
+    reevaluate(): void {
+      if (state === 'FROZEN' && startedBy === 'forced') {
+        // The freeze belongs to a capture in progress; decide at its resume.
+        reevaluatePending = true;
+        __traceReplay('lifecycle.reevaluate', { applied: false, reason: 'pending_frozen' });
+        return;
+      }
+      if (state !== 'BUFFERING' || startedBy !== 'forced' || isForced()) {
+        __traceReplay('lifecycle.reevaluate', { applied: false });
+        return;
+      }
+      if (effectiveEnabled() && samplingAdmits().admitted) {
+        startedBy = 'sampling';
+        __traceReplay('lifecycle.reevaluate', { applied: false, reason: 'sampled_in' });
+        return;
+      }
+      replay?.discardAndResume();
+      state = 'IDLE';
+      startedBy = null;
+      // discardAndResume leaves the recorder observing; nothing owns this
+      // buffer any more, so stop it until a later tryStart.
+      replay?.stop();
+      __traceReplay('lifecycle.reevaluate', { applied: true });
     },
   };
 }
