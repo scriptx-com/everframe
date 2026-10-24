@@ -385,8 +385,11 @@ export function createVegaClient(env: VegaEnvironment): VegaClient & QuickCaptur
     if (token && isDeviceUnlinked(result.status, result.body)) {
       // Nothing was stored. The token is dead: drop the capture, then the link.
       await dropUnsent(item);
+      // A late 403 for a token a takeover already replaced leaves the new
+      // link alone, and says nothing: the device is still linked.
+      const wasCurrent = deviceLink?.current()?.token === token;
       await deviceLink?.forget(token);
-      if (live) overlay?.toast(DEVICE_UNLINKED);
+      if (live && wasCurrent) overlay?.toast(DEVICE_UNLINKED);
       return 'drop';
     }
     await settle(item, result.outcome);

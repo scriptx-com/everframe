@@ -325,7 +325,7 @@ describe('quick capture on a device', () => {
   });
 
   it('deviceUnlinkedForReplacedTokenKeepsNewLink', async () => {
-    const { h, client } = await setup({ link: TOKEN_A });
+    const { h, client, toasts } = await setup({ link: TOKEN_A });
     let release: () => void = () => undefined;
     h.fetch.route('POST', '/api/ingest', {
       status: 403,
@@ -344,8 +344,11 @@ describe('quick capture on a device', () => {
     await vi.advanceTimersByTimeAsync(CHECK_INTERVAL_MS);
     expect(link.current()?.token).toBe(TOKEN_B);
     release();
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(TOAST_MS * 3);
     expect(link.current()?.token).toBe(TOKEN_B);
+    // The late 403 was for a token the device no longer holds: no unlink toast.
+    expect(toasts).not.toContain('This device was unlinked');
+    expect(toasts).toContain('Linked as team device');
   });
 
   it('transientFailureQueuesFingerprintNotToken', async () => {

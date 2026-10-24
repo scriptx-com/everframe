@@ -684,6 +684,9 @@ importers:
       acorn:
         specifier: ^8.11.0
         version: 8.18.0
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1(@noble/hashes@1.8.0(patch_hash=avlaf7panokdhlz5flselmziby))
       publint:
         specifier: ^0.3.0
         version: 0.3.24

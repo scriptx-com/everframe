@@ -66,6 +66,7 @@
     "@everframe/sdk-core": "workspace:*",
     "@types/react": "^19.0.0",
     "acorn": "^8.11.0",
+    "jsdom": "^29.1.1",
     "publint": "^0.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

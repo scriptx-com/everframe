@@ -34,9 +34,11 @@ export interface OverlaySnapshot {
 export interface OverlayStore extends Presenter {
   snapshot(): OverlaySnapshot;
   subscribe(fn: () => void): () => void;
-  /** True while the root wrapper is mounted (its effect ran). */
+  /** True while at least one root wrapper is mounted (its effect ran). */
   mounted(): boolean;
-  /** Called by the root wrapper's effect. */
+  /** One mounted root wrapper; call the returned function when it unmounts. */
+  retain(): () => void;
+  /** Test helper: one manual registration, on or off. */
   setMounted(value: boolean): void;
 }
 
@@ -49,7 +51,10 @@ export function createOverlayStore(deps: {
   let toastTimer: unknown;
   const pending: string[] = [];
   const listeners = new Set<() => void>();
-  let isMounted = false;
+  // One entry per mounted root: several AppRegistry roots can run at once,
+  // and unmounting one must not disable the others.
+  const registrations = new Set<object>();
+  const manual = {};
   let snap: OverlaySnapshot = { banner: null, toast: null };
 
   function emit(): void {
@@ -104,9 +109,17 @@ export function createOverlayStore(deps: {
         listeners.delete(fn);
       };
     },
-    mounted: () => isMounted,
+    mounted: () => registrations.size > 0,
+    retain() {
+      const registration = {};
+      registrations.add(registration);
+      return () => {
+        registrations.delete(registration);
+      };
+    },
     setMounted(value) {
-      isMounted = value;
+      if (value) registrations.add(manual);
+      else registrations.delete(manual);
     },
   };
 }
@@ -191,7 +204,6 @@ export function installRootWrapper(
 ): void {
   try {
     let hostProvider: HostProvider | null = null;
-    let Host: ComponentType<WrapperProps> | null = null;
     const listen = typeof useTVEventHandler === 'function';
     // One stable handler: `useTVEventHandler` resubscribes when it changes.
     const handler = (event: unknown): void => {
@@ -202,25 +214,32 @@ export function installRootWrapper(
       }
     };
 
-    function EverframeRoot(props: WrapperProps): ReactNode {
-      const [snap, setSnap] = useState<OverlaySnapshot>(() => deps.store.snapshot());
-      useEffect(() => {
-        deps.store.setMounted(true);
-        const off = deps.store.subscribe(() => setSnap(deps.store.snapshot()));
-        setSnap(deps.store.snapshot());
-        return () => {
-          off();
-          deps.store.setMounted(false);
-        };
-      }, []);
-      if (listen) useTVEventHandler(handler);
-      const { children, ...rest } = props;
-      const content = Host ? el(Host, rest, children) : children;
-      return el(Fragment, null, content, overlayLayer(snap));
+    /**
+     * One wrapper component per root: AppRegistry calls the provider once per
+     * root it runs, and a host provider may answer each root differently, so
+     * the resolved host wrapper is kept per root, never in a shared slot.
+     */
+    function createRootWrapper(Host: ComponentType<WrapperProps> | null) {
+      return function EverframeRoot(props: WrapperProps): ReactNode {
+        const [snap, setSnap] = useState<OverlaySnapshot>(() => deps.store.snapshot());
+        useEffect(() => {
+          const release = deps.store.retain();
+          const off = deps.store.subscribe(() => setSnap(deps.store.snapshot()));
+          setSnap(deps.store.snapshot());
+          return () => {
+            off();
+            release();
+          };
+        }, []);
+        if (listen) useTVEventHandler(handler);
+        const { children, ...rest } = props;
+        const content = Host ? el(Host, rest, children) : children;
+        return el(Fragment, null, content, overlayLayer(snap));
+      };
     }
 
     const provider = (params: unknown): unknown => {
-      Host = null;
+      let Host: ComponentType<WrapperProps> | null = null;
       if (hostProvider) {
         try {
           const resolved = hostProvider(params);
@@ -230,7 +249,7 @@ export function installRootWrapper(
           Host = null;
         }
       }
-      return EverframeRoot;
+      return createRootWrapper(Host);
     };
 
     registry.setWrapperComponentProvider(provider);
