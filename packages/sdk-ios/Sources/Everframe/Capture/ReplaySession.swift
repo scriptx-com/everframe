@@ -512,7 +512,7 @@ public final class ReplaySession: NSObject {
         NetworkBodyRingBuffer.shared.setTotalBudget(
             latest.networkBodies?.bodyTotalBudget ?? 262_144)
         configBox.value = latest
-        // Codex round-2 fix — `kill()` clears the branding box (Everframe
+        // `kill()` clears the branding box (Everframe
         // .swift), but only from an async `Task { @MainActor in ... }`
         // dispatched AFTER `kill()`'s synchronous section returns (unlike
         // `start()`'s session-boundary reset, which clears it
