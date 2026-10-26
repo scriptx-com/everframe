@@ -183,10 +183,37 @@ function EfU_DebugBuild() as boolean
     return CreateObject("roAppInfo").IsDev()
 end function
 
+' The app's own version. Roku limits the manifest version to major.minor.build,
+' so a channel can declare its real version in the optional manifest key
+' everframe_app_version. Used only when it is 1-64 characters, not blank, and
+' free of control characters (U+0000-U+001F); otherwise roAppInfo.GetVersion().
+function EfU_AppVersion() as string
+    return EfU_AppVersionFrom(CreateObject("roAppInfo"))
+end function
+
+' Testable core: `ai` is anything with GetValue(key) and GetVersion().
+function EfU_AppVersionFrom(ai as object) as string
+    declared = ai.GetValue("everframe_app_version")
+    if type(declared) = "String" or type(declared) = "roString" then
+        n = Len(declared)
+        if n >= 1 and n <= 64 and Len(declared.Trim()) > 0 then
+            ok = true
+            for i = 1 to n
+                if Asc(Mid(declared, i, 1)) < 32 then
+                    ok = false
+                    exit for
+                end if
+            end for
+            if ok then return declared
+        end if
+    end if
+    return ai.GetVersion()
+end function
+
 ' This session's app version/build/debug flag as JSON { "v", "b"?, "d" }.
 function EfU_VersionJson() as string
     ai = CreateObject("roAppInfo")
-    out = { "v": ai.GetVersion(), "d": EfU_DebugBuildHere() }
+    out = { "v": EfU_AppVersion(), "d": EfU_DebugBuildHere() }
     build = ai.GetValue("build_version")
     if build <> invalid and build <> "" then out["b"] = build
     return FormatJson(out)

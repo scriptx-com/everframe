@@ -306,6 +306,26 @@ time is clamped to the frozen start time (zero elapsed time). Timestamps never
 select which session owns an exit. See [release health](../../docs/release-health.md#roku)
 for how these observations are counted.
 
+### Reporting your app's own version
+
+Roku limits the manifest version to `major.minor.build` (for example
+`1.0.1205000`), so a channel cannot report a version like `12.5.0` through
+`roAppInfo.GetVersion()`. To report your own, add the optional key
+`everframe_app_version` to your `manifest`:
+
+```
+major_version=1
+minor_version=0
+build_version=1205000
+everframe_app_version=12.5.0
+```
+
+The SDK then uses `12.5.0` as the app version in crash reports and release
+health. Use it when you want Roku to line up with the version your other
+platforms report. The value is sent exactly as written. It must be 1-64
+characters, not blank, and contain no control characters; otherwise the SDK
+ignores it and uses `roAppInfo.GetVersion()`. Without the key nothing changes.
+
 ## Endpoint
 
 Reports go to `https://everframe.dev` by default. The `endpoint` option in `start()` exists for self-testing only.
