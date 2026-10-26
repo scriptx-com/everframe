@@ -410,13 +410,16 @@ public struct EverframeApp: Codable {
     public let debug: Bool?
     public let jsBundle: EverframeJSBundle?
     public let name, version: String
+    public let id, installerPackage: String?
 
-    public init(build: String?, debug: Bool?, jsBundle: EverframeJSBundle? = nil, name: String, version: String) {
+    public init(build: String?, debug: Bool?, jsBundle: EverframeJSBundle? = nil, name: String, version: String, id: String? = nil, installerPackage: String? = nil) {
         self.build = build
         self.debug = debug
         self.jsBundle = jsBundle
         self.name = name
         self.version = version
+        self.id = id
+        self.installerPackage = installerPackage
     }
 }
 
@@ -443,14 +446,18 @@ public extension EverframeApp {
         debug: Bool?? = nil,
         jsBundle: EverframeJSBundle?? = nil,
         name: String? = nil,
-        version: String? = nil
+        version: String? = nil,
+        id: String?? = nil,
+        installerPackage: String?? = nil
     ) -> EverframeApp {
         return EverframeApp(
             build: build ?? self.build,
             debug: debug ?? self.debug,
             jsBundle: jsBundle ?? self.jsBundle,
             name: name ?? self.name,
-            version: version ?? self.version
+            version: version ?? self.version,
+            id: id ?? self.id,
+            installerPackage: installerPackage ?? self.installerPackage
         )
     }
 
@@ -543,8 +550,13 @@ public struct EverframeDevice: Codable {
     public let screenSize: EverframeScreenSize
     public let timezone: String
     public let userAgent: String?
+    public let manufacturer, brand: String?
+    public let cpuAbi: [String]?
+    public let emulator: Bool?
+    public let totalMemory: Int?
+    public let runtimeVersions: [String: String]?
 
-    public init(locale: String, model: String?, os: String, osVersion: String, pixelRatio: Double, screenSize: EverframeScreenSize, timezone: String, userAgent: String?) {
+    public init(locale: String, model: String?, os: String, osVersion: String, pixelRatio: Double, screenSize: EverframeScreenSize, timezone: String, userAgent: String?, manufacturer: String? = nil, brand: String? = nil, cpuAbi: [String]? = nil, emulator: Bool? = nil, totalMemory: Int? = nil, runtimeVersions: [String: String]? = nil) {
         self.locale = locale
         self.model = model
         self.os = os
@@ -553,6 +565,12 @@ public struct EverframeDevice: Codable {
         self.screenSize = screenSize
         self.timezone = timezone
         self.userAgent = userAgent
+        self.manufacturer = manufacturer
+        self.brand = brand
+        self.cpuAbi = cpuAbi
+        self.emulator = emulator
+        self.totalMemory = totalMemory
+        self.runtimeVersions = runtimeVersions
     }
 }
 
@@ -582,7 +600,13 @@ public extension EverframeDevice {
         pixelRatio: Double? = nil,
         screenSize: EverframeScreenSize? = nil,
         timezone: String? = nil,
-        userAgent: String?? = nil
+        userAgent: String?? = nil,
+        manufacturer: String?? = nil,
+        brand: String?? = nil,
+        cpuAbi: [String]?? = nil,
+        emulator: Bool?? = nil,
+        totalMemory: Int?? = nil,
+        runtimeVersions: [String: String]?? = nil
     ) -> EverframeDevice {
         return EverframeDevice(
             locale: locale ?? self.locale,
@@ -592,7 +616,13 @@ public extension EverframeDevice {
             pixelRatio: pixelRatio ?? self.pixelRatio,
             screenSize: screenSize ?? self.screenSize,
             timezone: timezone ?? self.timezone,
-            userAgent: userAgent ?? self.userAgent
+            userAgent: userAgent ?? self.userAgent,
+            manufacturer: manufacturer ?? self.manufacturer,
+            brand: brand ?? self.brand,
+            cpuAbi: cpuAbi ?? self.cpuAbi,
+            emulator: emulator ?? self.emulator,
+            totalMemory: totalMemory ?? self.totalMemory,
+            runtimeVersions: runtimeVersions ?? self.runtimeVersions
         )
     }
 

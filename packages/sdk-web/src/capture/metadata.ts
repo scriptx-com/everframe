@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 'use client';
+import { describeWebRuntimeDevice } from '@everframe/protocol';
 import type { DeviceMetadata } from '@everframe/sdk-core';
+import { globalScope } from '../internal/global-scope.js';
+import { tvApiDevice, tvAppIdentifier } from './tv-device.js';
 
 /**
  * Parse OS + version from navigator.userAgent. Best-effort; UA strings are unreliable
@@ -32,9 +35,23 @@ interface NavigatorWithConnection extends Navigator {
   connection?: { effectiveType?: string };
 }
 
+function currentWindow(): unknown {
+  try {
+    return globalScope();
+  } catch {
+    return {};
+  }
+}
+
 export function getDeviceMetadata(): DeviceMetadata {
   const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
-  const { os, osVersion } = parseUA(ua);
+  const runtime = describeWebRuntimeDevice(ua);
+  // A TV names its own OS; a browser's OS comes from the user agent.
+  const tv = runtime.platform === 'web' ? {} : tvApiDevice(runtime.platform, currentWindow());
+  const { os, osVersion } =
+    runtime.os !== undefined
+      ? { os: runtime.os, osVersion: tv.osVersion ?? runtime.osVersion ?? '' }
+      : parseUA(ua);
   const meta: DeviceMetadata = {
     os,
     osVersion,
@@ -52,5 +69,24 @@ export function getDeviceMetadata(): DeviceMetadata {
   // Raw UA so triagers can disambiguate cases our regex-based OS parser
   // can't capture (browser engine + version, in-app webviews, etc.).
   if (ua.length > 0) meta.userAgent = ua;
+  const manufacturer = tv.manufacturer ?? runtime.manufacturer;
+  if (manufacturer) meta.manufacturer = manufacturer;
+  const model = tv.model ?? runtime.model;
+  if (model) meta.model = model;
+  if (tv.totalMemory !== undefined) meta.totalMemory = tv.totalMemory;
+  const runtimeVersions = { ...runtime.runtimeVersions, ...tv.runtimeVersions };
+  if (Object.keys(runtimeVersions).length > 0) meta.runtimeVersions = runtimeVersions;
   return meta;
+}
+
+/** The TV's own app ID (Tizen, webOS); undefined in a browser. */
+export function getAppIdentifier(): string | undefined {
+  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  const platform = describeWebRuntimeDevice(ua).platform;
+  if (platform === 'web') return undefined;
+  return tvAppIdentifier(
+    platform,
+    currentWindow(),
+    typeof location === 'undefined' ? undefined : location.pathname,
+  );
 }

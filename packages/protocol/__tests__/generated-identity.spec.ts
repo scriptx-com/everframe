@@ -62,7 +62,7 @@ describe('generated Everframe protocol identity', () => {
     );
     expect(source).toMatch(/\ndata class NativeExposure \(\n {4}val app: NativeExposureApp,\n/u);
     expect(source).toMatch(
-      /\n@Serializable\ndata class App \(\n {4}val build: String\? = null,\n {4}val debug: Boolean\? = null,\n {4}val name: String,\n {4}val version: String,\n {4}val jsBundle: JSBundle\? = null\n\)/u,
+      /\n@Serializable\ndata class App \(\n {4}val build: String\? = null,\n {4}val debug: Boolean\? = null,\n {4}val name: String,\n {4}val version: String,\n {4}val jsBundle: JSBundle\? = null,\n {4}val id: String\? = null,\n {4}val installerPackage: String\? = null\n\)/u,
     );
     // Spelled in two parts so the repository-wide check for the retired field stays clean.
     expect(source).not.toContain('native' + 'BuildId');

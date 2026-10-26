@@ -222,6 +222,7 @@ export type {
 } from './release-health-alert.js';
 
 export * from './web-runtime-platform.js';
+export * from './web-runtime-device.js';
 export {
   NativeReleaseHealthRecordSchema,
   NativeReleaseHealthExposureSchema,

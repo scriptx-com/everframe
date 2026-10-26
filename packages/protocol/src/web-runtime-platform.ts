@@ -24,6 +24,7 @@ export function detectWebRuntimePlatform(userAgent: string): WebRuntimePlatform 
   if (/Web0S|webOS|WebAppManager/i.test(userAgent)) return 'webos';
   if (/VIDAA/i.test(userAgent)) return 'vidaa';
   if (/TitanOS/i.test(userAgent)) return 'titanos';
-  if (/\bVega(?:\b|OS)/i.test(userAgent)) return 'vega';
+  // Kepler is Vega OS's engineering name; its web views say `Kepler 2.0`.
+  if (/\bVega(?:\b|OS)|\bKepler \d/i.test(userAgent)) return 'vega';
   return 'web';
 }

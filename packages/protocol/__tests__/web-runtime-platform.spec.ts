@@ -12,6 +12,11 @@ it.each([
   ['Linux VIDAA', 'vidaa'],
   ['Linux TitanOS', 'titanos'],
   ['Vega/1.0', 'vega'],
+  [
+    'Mozilla/5.0 (Linux; Kepler 2.0; AFTCA002 user/515; wv) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Chrome/144.0.7559.246 Safari/537.36',
+    'vega',
+  ],
+  ['Mozilla/5.0 (Linux; Android 9; AFTMM) AppleWebKit/537.36', 'web'],
   ['unknown SmartTV', 'web'],
 ])('classifies %s as %s', (ua, platform) => {
   expect((protocol as any).detectWebRuntimePlatform?.(ua)).toBe(platform);

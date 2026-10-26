@@ -40,7 +40,7 @@ export interface BuildEnvelopeInput {
   /** Server-config trim overrides (spec §6 byteBudget / consoleEntryCap). */
   breadcrumbTrim?: { byteBudget?: number; consoleEntryCap?: number };
   device: DeviceMetadata;
-  app: { name: string; version: string; build?: string; debug?: boolean };
+  app: { name: string; version: string; build?: string; debug?: boolean; id?: string };
   route?: string;
   attachments: AttachmentRef[];
 }

@@ -657,6 +657,14 @@
             },
             "debug": {
               "type": "boolean"
+            },
+            "id": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "installerPackage": {
+              "type": "string",
+              "maxLength": 256
             }
           },
           "required": [
@@ -705,6 +713,43 @@
             "userAgent": {
               "type": "string",
               "maxLength": 1024
+            },
+            "manufacturer": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "brand": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "cpuAbi": {
+              "type": "array",
+              "maxItems": 8,
+              "items": {
+                "type": "string",
+                "maxLength": 32
+              }
+            },
+            "emulator": {
+              "type": "boolean"
+            },
+            "totalMemory": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "runtimeVersions": {
+              "type": "object",
+              "maxProperties": 16,
+              "propertyNames": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "additionalProperties": {
+                "type": "string",
+                "maxLength": 128
+              }
             }
           },
           "required": [

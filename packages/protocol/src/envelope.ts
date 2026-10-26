@@ -190,6 +190,11 @@ export const ReportEnvelope = z
             /** True when the SDK detected a debug or development build (or `debugBuild` was set).
              * The server never creates a release from a debug build. Absent means a release build. */
             debug: z.boolean().optional(),
+            /** The platform's own app identifier: Android package, Apple bundle ID, webOS or
+             * Tizen app ID, Roku channel ID. Absent where the platform has none (a web page). */
+            id: z.string().max(256).optional(),
+            /** Android: the store that installed the app (`com.android.vending`, `com.amazon.venezia`). */
+            installerPackage: z.string().max(256).optional(),
           })
           .passthrough(),
         device: z
@@ -208,6 +213,21 @@ export const ReportEnvelope = z
              * doesn't catch. Schema cap defends against unbounded UA strings.
              */
             userAgent: z.string().max(1024).optional(),
+            // Static device identity (2026-10-26), named as Bugsnag names them so the
+            // two read alike. All optional: an SDK sends what its platform can tell.
+            manufacturer: z.string().max(100).optional(),
+            brand: z.string().max(100).optional(),
+            /** Supported CPU ABIs, preferred first (`arm64-v8a`, `armeabi-v7a`). */
+            cpuAbi: z.array(z.string().max(32)).max(8).optional(),
+            /** True on an emulator or simulator. */
+            emulator: z.boolean().optional(),
+            /** Physical memory in bytes. */
+            totalMemory: z.number().int().nonnegative().optional(),
+            /** Engine and runtime versions: `chrome`, `androidApiLevel`, `reactNative`, `hermes`. */
+            runtimeVersions: z
+              .record(z.string().min(1).max(64), z.string().max(128))
+              .refine((v) => Object.keys(v).length <= 16, 'At most 16 runtime versions')
+              .optional(),
           })
           .passthrough(),
         route: z.string().optional(),
