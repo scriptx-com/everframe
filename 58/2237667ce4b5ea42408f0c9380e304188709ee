@@ -1,0 +1,23 @@
+packages/sdk-web/__tests__/capture/metadata.spec.ts
+  s_bbee05dceec491::t_35cbfe31fb0a03 137-161
+packages/sdk-web/src/capture/metadata.ts
+  s_bbee05dceec491::t_07cd1b8755a785 7,50-55,92-101
+packages/sdk-web/src/capture/tv-device.ts
+  s_bbee05dceec491::t_ab889bc55c5399 37-45,138,143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "582237667ce4b5ea42408f0c9380e304188709ee",
+  "prompts": {},
+  "sessions": {
+    "s_bbee05dceec491": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a85b7e2-2c2e-4144-b69b-f0dfda573be7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
