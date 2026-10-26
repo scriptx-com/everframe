@@ -80,6 +80,15 @@ describe('describeWebRuntimeDevice', () => {
     });
   });
 
+  it('prefers the maker the HbbTV token names over the platform default', () => {
+    const toshiba = VIDAA.replace('(+DRM; Hisense; 55A7KQ;', '(+DRM; Toshiba; 55UA5D63DG;');
+    expect(describeWebRuntimeDevice(toshiba)).toMatchObject({
+      platform: 'vidaa',
+      manufacturer: 'Toshiba',
+      model: '55UA5D63DG',
+    });
+  });
+
   it('marks a Fire TV web view as a TV but keeps it web', () => {
     expect(
       describeWebRuntimeDevice('Mozilla/5.0 (Linux; Android 9; AFTMM Build/PS7633) Chrome/120.0'),

@@ -109,8 +109,6 @@ export function describeWebRuntimeDevice(userAgent: string | null | undefined): 
   }
 
   out.os = OS_NAME[platform];
-  const manufacturer = MANUFACTURER[platform];
-  if (manufacturer) out.manufacturer = manufacturer;
   const hbb = hbbTvDevice(ua);
   let m: RegExpExecArray | null;
   switch (platform) {
@@ -140,6 +138,9 @@ export function describeWebRuntimeDevice(userAgent: string | null | undefined): 
       break;
   }
   if (!out.model && nonEmpty(hbb.model)) out.model = hbb.model;
-  if (!out.manufacturer && nonEmpty(hbb.manufacturer)) out.manufacturer = hbb.manufacturer;
+  // A maker the user agent names wins over the platform's usual one: VIDAA
+  // also runs on Toshiba TVs, Tizen on some Bang & Olufsen sets.
+  const manufacturer = out.manufacturer ?? hbb.manufacturer ?? MANUFACTURER[platform];
+  if (manufacturer) out.manufacturer = manufacturer;
   return out;
 }

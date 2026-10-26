@@ -71,7 +71,7 @@ describe('generated Everframe protocol identity', () => {
   it('generated Swift writes the pointer app build as an explicit null and debug and keeps EverframeApp', () => {
     const source = readFileSync(path.join(swiftRoot, 'Generated.swift'), 'utf8');
     expect(source).toContain(
-      'public struct EverframeApp: Codable {\n    public let build: String?\n    public let debug: Bool?\n    public let jsBundle: EverframeJSBundle?\n    public let name, version: String\n',
+      'public struct EverframeApp: Codable {\n    public let build: String?\n    public let debug: Bool?\n    public let id, installerPackage: String?\n    public let jsBundle: EverframeJSBundle?\n    public let name, version: String\n',
     );
     expect(source).toContain('public struct EverframeNativeExposureApp: Codable {');
     expect(source).toContain(

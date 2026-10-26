@@ -168,12 +168,14 @@ data class Device (
     val screenSize: ScreenSize,
     val timezone: String,
     val userAgent: String? = null,
-    val manufacturer: String? = null,
     val brand: String? = null,
-    val cpuAbi: List<String>? = null,
+
+    @SerialName("cpuAbi")
+    val cpuABI: List<String>? = null,
     val emulator: Boolean? = null,
-    val totalMemory: Long? = null,
-    val runtimeVersions: Map<String, String>? = null
+    val manufacturer: String? = null,
+    val runtimeVersions: Map<String, String>? = null,
+    val totalMemory: Long? = null
 )
 
 @Serializable

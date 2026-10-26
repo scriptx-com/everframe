@@ -408,18 +408,18 @@ public extension EverframeContext {
 public struct EverframeApp: Codable {
     public let build: String?
     public let debug: Bool?
+    public let id, installerPackage: String?
     public let jsBundle: EverframeJSBundle?
     public let name, version: String
-    public let id, installerPackage: String?
 
-    public init(build: String?, debug: Bool?, jsBundle: EverframeJSBundle? = nil, name: String, version: String, id: String? = nil, installerPackage: String? = nil) {
+    public init(build: String?, debug: Bool?, id: String? = nil, installerPackage: String? = nil, jsBundle: EverframeJSBundle? = nil, name: String, version: String) {
         self.build = build
         self.debug = debug
+        self.id = id
+        self.installerPackage = installerPackage
         self.jsBundle = jsBundle
         self.name = name
         self.version = version
-        self.id = id
-        self.installerPackage = installerPackage
     }
 }
 
@@ -444,20 +444,20 @@ public extension EverframeApp {
     func with(
         build: String?? = nil,
         debug: Bool?? = nil,
+        id: String?? = nil,
+        installerPackage: String?? = nil,
         jsBundle: EverframeJSBundle?? = nil,
         name: String? = nil,
-        version: String? = nil,
-        id: String?? = nil,
-        installerPackage: String?? = nil
+        version: String? = nil
     ) -> EverframeApp {
         return EverframeApp(
             build: build ?? self.build,
             debug: debug ?? self.debug,
+            id: id ?? self.id,
+            installerPackage: installerPackage ?? self.installerPackage,
             jsBundle: jsBundle ?? self.jsBundle,
             name: name ?? self.name,
-            version: version ?? self.version,
-            id: id ?? self.id,
-            installerPackage: installerPackage ?? self.installerPackage
+            version: version ?? self.version
         )
     }
 
@@ -543,34 +543,41 @@ public enum EverframeJSBundlePlatform: String, Codable {
 
 // MARK: - EverframeDevice
 public struct EverframeDevice: Codable {
+    public let brand: String?
+    public let cpuABI: [String]?
+    public let emulator: Bool?
     public let locale: String
+    public let manufacturer: String?
     public let model: String?
     public let os, osVersion: String
     public let pixelRatio: Double
+    public let runtimeVersions: [String: String]?
     public let screenSize: EverframeScreenSize
     public let timezone: String
-    public let userAgent: String?
-    public let manufacturer, brand: String?
-    public let cpuAbi: [String]?
-    public let emulator: Bool?
     public let totalMemory: Int?
-    public let runtimeVersions: [String: String]?
+    public let userAgent: String?
 
-    public init(locale: String, model: String?, os: String, osVersion: String, pixelRatio: Double, screenSize: EverframeScreenSize, timezone: String, userAgent: String?, manufacturer: String? = nil, brand: String? = nil, cpuAbi: [String]? = nil, emulator: Bool? = nil, totalMemory: Int? = nil, runtimeVersions: [String: String]? = nil) {
+    public enum CodingKeys: String, CodingKey {
+        case brand
+        case cpuABI = "cpuAbi"
+        case emulator, locale, manufacturer, model, os, osVersion, pixelRatio, runtimeVersions, screenSize, timezone, totalMemory, userAgent
+    }
+
+    public init(brand: String? = nil, cpuABI: [String]? = nil, emulator: Bool? = nil, locale: String, manufacturer: String? = nil, model: String?, os: String, osVersion: String, pixelRatio: Double, runtimeVersions: [String: String]? = nil, screenSize: EverframeScreenSize, timezone: String, totalMemory: Int? = nil, userAgent: String?) {
+        self.brand = brand
+        self.cpuABI = cpuABI
+        self.emulator = emulator
         self.locale = locale
+        self.manufacturer = manufacturer
         self.model = model
         self.os = os
         self.osVersion = osVersion
         self.pixelRatio = pixelRatio
+        self.runtimeVersions = runtimeVersions
         self.screenSize = screenSize
         self.timezone = timezone
-        self.userAgent = userAgent
-        self.manufacturer = manufacturer
-        self.brand = brand
-        self.cpuAbi = cpuAbi
-        self.emulator = emulator
         self.totalMemory = totalMemory
-        self.runtimeVersions = runtimeVersions
+        self.userAgent = userAgent
     }
 }
 
@@ -593,36 +600,36 @@ public extension EverframeDevice {
     }
 
     func with(
+        brand: String?? = nil,
+        cpuABI: [String]?? = nil,
+        emulator: Bool?? = nil,
         locale: String? = nil,
+        manufacturer: String?? = nil,
         model: String?? = nil,
         os: String? = nil,
         osVersion: String? = nil,
         pixelRatio: Double? = nil,
+        runtimeVersions: [String: String]?? = nil,
         screenSize: EverframeScreenSize? = nil,
         timezone: String? = nil,
-        userAgent: String?? = nil,
-        manufacturer: String?? = nil,
-        brand: String?? = nil,
-        cpuAbi: [String]?? = nil,
-        emulator: Bool?? = nil,
         totalMemory: Int?? = nil,
-        runtimeVersions: [String: String]?? = nil
+        userAgent: String?? = nil
     ) -> EverframeDevice {
         return EverframeDevice(
+            brand: brand ?? self.brand,
+            cpuABI: cpuABI ?? self.cpuABI,
+            emulator: emulator ?? self.emulator,
             locale: locale ?? self.locale,
+            manufacturer: manufacturer ?? self.manufacturer,
             model: model ?? self.model,
             os: os ?? self.os,
             osVersion: osVersion ?? self.osVersion,
             pixelRatio: pixelRatio ?? self.pixelRatio,
+            runtimeVersions: runtimeVersions ?? self.runtimeVersions,
             screenSize: screenSize ?? self.screenSize,
             timezone: timezone ?? self.timezone,
-            userAgent: userAgent ?? self.userAgent,
-            manufacturer: manufacturer ?? self.manufacturer,
-            brand: brand ?? self.brand,
-            cpuAbi: cpuAbi ?? self.cpuAbi,
-            emulator: emulator ?? self.emulator,
             totalMemory: totalMemory ?? self.totalMemory,
-            runtimeVersions: runtimeVersions ?? self.runtimeVersions
+            userAgent: userAgent ?? self.userAgent
         )
     }
 
