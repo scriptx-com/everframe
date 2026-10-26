@@ -1,0 +1,62 @@
+packages/protocol/src/web-runtime-device.ts
+  s_bbee05dceec491::t_4eff634a4995c1 1-145
+packages/sdk-web/src/capture/tv-device.ts
+  s_bbee05dceec491::t_86fffca0bf3eff 1-133
+  s_bbee05dceec491::t_de3e9f47505ca2 134-138
+.changeset/device-identity-protocol.md
+  s_bbee05dceec491::t_4b9733de3465f3 1-9
+.changeset/web-tv-device-identity.md
+  s_bbee05dceec491::t_f2412c62776e86 1-8
+packages/protocol/__tests__/envelope-device-identity.spec.ts
+  s_bbee05dceec491::t_f9d40689358e4e 1-76
+packages/protocol/__tests__/generated-identity.spec.ts
+  s_bbee05dceec491::t_a2af56ec934c7e 65
+packages/protocol/__tests__/web-runtime-device.spec.ts
+  s_bbee05dceec491::t_10b1ca4d19d618 1-109
+packages/protocol/__tests__/web-runtime-platform.spec.ts
+  s_bbee05dceec491::t_3aba646fd8665b 15-19
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_bbee05dceec491::t_f7133471607c88 660-667,716-752
+packages/protocol/src/envelope.ts
+  s_bbee05dceec491::t_ddadfbf0544522 193-197,216-230
+packages/protocol/src/index.ts
+  s_bbee05dceec491::t_46647b5cdfa6c3 225
+packages/protocol/src/web-runtime-platform.ts
+  s_bbee05dceec491::t_d93fdd025f8dbd 27-28
+packages/sdk-android/android/everframe-protocol/src/main/kotlin/dev/everframe/protocol/generated/Generated.kt
+  s_bbee05dceec491::t_91989bc7722a3a 134-136,170-176
+packages/sdk-core/src/crash/build.ts
+  s_bbee05dceec491::t_90381f8317bba6 48
+packages/sdk-core/src/envelope-builder.ts
+  s_bbee05dceec491::t_bc9abe69c393a6 43
+packages/sdk-core/src/types/platform.ts
+  s_bbee05dceec491::t_92d3019e6e538c 40-48
+packages/sdk-ios/Sources/EverframeProtocol/Generated.swift
+  s_bbee05dceec491::t_44896757b02d6e 413,415,421-422,449-451,458-460,553-557,559,568-573,603-609,619-625
+packages/sdk-web/__tests__/capture/metadata.spec.ts
+  s_bbee05dceec491::t_145a8121169ccc 5-6,61-159
+packages/sdk-web/src/adapter.ts
+  s_bbee05dceec491::t_debda22b1191fb 121-124,1784
+packages/sdk-web/src/capture/metadata.ts
+  s_bbee05dceec491::t_ecc3937bd72fad 4,6-7,38-45,48-54,72-78,81-92
+packages/sdk-web/src/quickcapture/hello-device.ts
+  s_bbee05dceec491::t_ca7e7d5fe49af5 9
+packages/sdk-web/src/transport/draft-to-envelope.ts
+  s_bbee05dceec491::t_9503ca7674dbb8 28-29,136,411
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "334ccf995c24d2454d26e2e9a6368b4fe6d72e3b",
+  "prompts": {},
+  "sessions": {
+    "s_bbee05dceec491": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a85b7e2-2c2e-4144-b69b-f0dfda573be7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
