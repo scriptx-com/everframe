@@ -65,16 +65,24 @@ enum NativeCrashContextFiles {
                 if errno != 0 { throw posixError() }
                 break
             }
-            var chars = entry.pointee.d_name
-            let name = withUnsafePointer(to: &chars) { pointer in
-                pointer.withMemoryRebound(to: CChar.self, capacity: Int(NAME_MAX) + 1) { String(validatingUTF8: $0) }
-            }
-            guard let name else { throw Failure.unknownEntry }
+            guard let name = name(of: entry) else { throw Failure.unknownEntry }
             if name == "." || name == ".." { continue }
             guard names.count < maximum else { throw Failure.capacity }
             names.append(name)
         }
         return names
+    }
+
+    /// readdir sizes each entry to its name (`d_reclen`), not to `dirent`, so the name is read in
+    /// place: copying the fixed 1024-byte `d_name` reads past the buffer and can fault.
+    static func name(of entry: UnsafePointer<dirent>) -> String? {
+        guard let lengthOffset = MemoryLayout<dirent>.offset(of: \dirent.d_namlen),
+              let nameOffset = MemoryLayout<dirent>.offset(of: \dirent.d_name) else { return nil }
+        let raw = UnsafeRawPointer(entry)
+        let length = Int(raw.load(fromByteOffset: lengthOffset, as: UInt16.self))
+        guard length <= Int(NAME_MAX) else { return nil }
+        let bytes = UnsafeRawBufferPointer(start: raw.advanced(by: nameOffset), count: length)
+        return String(bytes: bytes, encoding: .utf8)
     }
 
     static func read(_ url: URL, maximum: Int) throws -> Data {
