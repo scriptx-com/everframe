@@ -4,7 +4,7 @@
 import { describeWebRuntimeDevice } from '@everframe/protocol';
 import type { DeviceMetadata } from '@everframe/sdk-core';
 import { globalScope } from '../internal/global-scope.js';
-import { tvApiDevice, tvAppIdentifier } from './tv-device.js';
+import { tvApiDevice, tvAppIdentifier, type TvApiDevice } from './tv-device.js';
 
 /**
  * Parse OS + version from navigator.userAgent. Best-effort; UA strings are unreliable
@@ -47,7 +47,12 @@ export function getDeviceMetadata(): DeviceMetadata {
   const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
   const runtime = describeWebRuntimeDevice(ua);
   // A TV names its own OS; a browser's OS comes from the user agent.
-  const tv = runtime.platform === 'web' ? {} : tvApiDevice(runtime.platform, currentWindow());
+  let tv: TvApiDevice = {};
+  try {
+    if (runtime.platform !== 'web') tv = tvApiDevice(runtime.platform, currentWindow());
+  } catch {
+    // A host object that throws in a way the probes did not foresee costs only the TV's own facts.
+  }
   const { os, osVersion } =
     runtime.os !== undefined
       ? { os: runtime.os, osVersion: tv.osVersion ?? runtime.osVersion ?? '' }
@@ -84,9 +89,14 @@ export function getAppIdentifier(): string | undefined {
   const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
   const platform = describeWebRuntimeDevice(ua).platform;
   if (platform === 'web') return undefined;
-  return tvAppIdentifier(
-    platform,
-    currentWindow(),
-    typeof location === 'undefined' ? undefined : location.pathname,
-  );
+  // Both report builders call this on the submit path: an ID is never worth a report.
+  try {
+    return tvAppIdentifier(
+      platform,
+      currentWindow(),
+      typeof location === 'undefined' ? undefined : location.pathname,
+    );
+  } catch {
+    return undefined;
+  }
 }

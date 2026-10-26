@@ -34,6 +34,15 @@ function call(target: Probe, name: string, ...args: unknown[]): unknown {
   }
 }
 
+/** One scalar off a host object; a throwing getter answers undefined. */
+function field(target: Probe, key: string): unknown {
+  try {
+    return target?.[key];
+  } catch {
+    return undefined;
+  }
+}
+
 function prop(target: unknown, ...path: string[]): Probe {
   let node: unknown = target;
   try {
@@ -126,12 +135,12 @@ export function tvAppIdentifier(
 ): string | undefined {
   if (platform === 'tizen') {
     const app = call(prop(win, 'tizen', 'application'), 'getCurrentApplication');
-    return text(prop(app, 'appInfo')?.['id'], 256);
+    return text(field(prop(app, 'appInfo'), 'id'), 256);
   }
   if (platform === 'webos') {
     const palm = prop(win, 'PalmSystem');
     // `identifier` is `<appId> <processId>` on some firmware.
-    const id = text(palm?.['identifier'], 256) ?? text(call(palm, 'getIdentifier'), 256);
+    const id = text(field(palm, 'identifier'), 256) ?? text(call(palm, 'getIdentifier'), 256);
     return id?.split(' ')[0] ?? webOsAppIdFromPath(pathname);
   }
   return undefined;

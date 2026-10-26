@@ -134,6 +134,31 @@ describe('getDeviceMetadata on a TV', () => {
     expect(getAppIdentifier()).toBe('com.mwaretv.app');
   });
 
+  it('omits the app ID when its getters throw', () => {
+    setUA(
+      'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 Chrome/79.0.3945.79 WebAppManager',
+    );
+    const palm = {};
+    Object.defineProperty(palm, 'identifier', {
+      get() {
+        throw new Error('denied');
+      },
+    });
+    scope['PalmSystem'] = palm;
+    expect(getAppIdentifier()).toBeUndefined();
+    expect(getDeviceMetadata().os).toBe('webOS');
+
+    setUA('Mozilla/5.0 (SMART-TV; LINUX; Tizen 8.0) AppleWebKit/537.36');
+    const appInfo = {};
+    Object.defineProperty(appInfo, 'id', {
+      get() {
+        throw new Error('denied');
+      },
+    });
+    scope['tizen'] = { application: { getCurrentApplication: () => ({ appInfo }) } };
+    expect(getAppIdentifier()).toBeUndefined();
+  });
+
   it('keeps a desktop browser free of TV fields', () => {
     setUA(
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
