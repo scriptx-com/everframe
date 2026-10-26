@@ -1,0 +1,27 @@
+packages/sdk-ios/Tests/EverframeTests/NativeCrashContextFilesTests.swift
+  s_330c2dbf2b3dc9::t_1c6f2091a4402e 40
+  s_330c2dbf2b3dc9::t_73dde295b29762 30-31,33
+  s_330c2dbf2b3dc9::t_c1df0f3f35d551 1-29,32,34-39,41-54
+packages/sdk-ios/Sources/Everframe/Crash/NativeCrashContextFiles.swift
+  s_330c2dbf2b3dc9::t_249d526141c155 68
+  s_330c2dbf2b3dc9::t_840b44dcf24bc4 76-77,79-85
+  s_330c2dbf2b3dc9::t_47e7b28cbf3778 78,86-87
+.changeset/ios-dirent-name-overread.md
+  s_330c2dbf2b3dc9::t_f3d7eadd2162a2 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cdbb3eed4657bdefc8034900d2edb5dc15c12682",
+  "prompts": {},
+  "sessions": {
+    "s_330c2dbf2b3dc9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "24175f43-09cf-450b-817b-77ce0c65e0c8",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
