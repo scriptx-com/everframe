@@ -12,10 +12,12 @@ drops below 99% crash-free sessions". Admins set it up on the project's
   last 7 days before it can alert, from 20 to 1,000,000 (100 by default);
 - the webhook endpoint to send to, from any app in the project.
 
-Everframe checks the rule about every five minutes, for every version of the
-project's Android, iOS, React Native, web and React apps, with all platforms counted
-together. When a version drops below the target, it sends one
-`release_health.threshold_reached` webhook with event schema 2.0, over the
+Everframe checks the rule about every five minutes, for every release of the
+project's Android, iOS, React Native, web and React apps. A release alerts when
+all its platforms counted together drop below the target, or when any one
+platform does with at least the minimum number of sessions of its own. It then
+sends one
+`release_health.threshold_reached` webhook with event schema 2.1, over the
 normal signed webhook transport. `ReleaseHealthThresholdEventSchema` in
 `packages/protocol/src/release-health-alert.ts` is the exact shape, and every
 event is checked against it before it is sent.
@@ -36,13 +38,14 @@ not depend on the detailed report upload.
 {
   "id": "28c4a9ef-855f-47fc-a903-f4dc7dbe424a",
   "type": "release_health.threshold_reached",
-  "schemaVersion": "2.0",
+  "schemaVersion": "2.1",
   "createdAt": "2026-10-09T00:00:05.000Z",
   "data": {
     "projectId": "6f1c0b52-3d4e-4a8b-9c2d-7e5f6a1b2c3d",
     "ruleId": "b7e2d9a4-1c3f-4e5a-8b6d-9f0a1b2c3d4e",
     "version": "2.4.0",
     "platforms": ["android", "ios"],
+    "belowTargetPlatforms": [],
     "window": { "days": 7, "from": "2026-10-02T00:00:00.000Z", "to": "2026-10-09T00:00:00.000Z" },
     "observedAt": "2026-10-09T00:00:00.000Z",
     "target": { "basisPoints": 9900, "minSessions": 100 },
@@ -59,9 +62,15 @@ Everything except `id`, `type`, `schemaVersion` and `createdAt` is in `data`.
 - `projectId` and `ruleId` name the project and its rule.
 - `version` is the app version, 1 to 64 UTF-16 code units, exactly as the SDKs
   read it; see [versions and builds](release-health.md#versions-and-builds).
-- `platforms` lists the sorted, unique runtime platforms with sessions in the
-  window: `android`, `ios`, `web`, `tizen`, `webos`, `vega`, `vidaa`, `titanos`.
+- `platforms` lists the sorted, unique platforms the release page shows for the
+  window: `android`, `ios`, `roku`, `tvos`, `web`, `tizen`, `webos`, `vega`,
+  `vidaa`, `titanos`, `xbox`.
   React Native apps count under their native platform; React uses the web runtime.
+- `belowTargetPlatforms` lists, sorted by `platform`, each platform that is below
+  the target on its own, with its `sessions` and `crashFreeSessions` (same
+  meaning as the totals). The event is sent when the total or any platform
+  reaches the minimum and is below target; the list is empty only when the total
+  itself is below target.
 - `window` covers sessions that started at or after `from` and at or before `to`
   and that Everframe still keeps. `days` is always 7, and `to` equals
   `observedAt`.
@@ -114,13 +123,15 @@ Deleting the webhook endpoint the rule sends to deletes the rule too.
 ## Retries and cancellations
 
 Deduplicate by `id`. Retries keep `id` and `createdAt`, but Everframe rechecks
-the version before every attempt, so `platforms`, `window`, `observedAt`,
-`sessions` and `crashFreeSessions` can change between attempts. Don't assume
+the release before every attempt, so `platforms`, `belowTargetPlatforms`,
+`window`, `observedAt`, `sessions` and `crashFreeSessions` can change between
+attempts. Don't assume
 byte-identical retry bodies.
 
 An undelivered event is cancelled, and never sent, when:
 
-- the version is no longer below the target when it is rechecked;
+- neither the release nor any of its platforms is below the target when it is
+  rechecked;
 - the rule was edited, turned off or deleted after the event was created;
 - the endpoint was disabled, or its app moved to another project;
 - the crash report it is stored with expired, was erased, or its app moved to
