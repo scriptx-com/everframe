@@ -1,0 +1,19 @@
+packages/everframe_flutter/CHANGELOG.md
+  s_458e717232bfe0::t_b2ce82f3ffbc68 4-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "accb6f894cd517bd9b4d788ed4c342383ce1bb15",
+  "prompts": {},
+  "sessions": {
+    "s_458e717232bfe0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0d2c99fc-2dea-4b9f-b00e-b9bb17b689e6",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
