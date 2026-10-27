@@ -118,6 +118,14 @@ export const ReleaseHealthThresholdEventSchema = z
         },
       )
       .refine(
+        // Every session belongs to exactly one platform, so the listed platforms can never hold more than the release.
+        ({ belowTargetPlatforms: entries, sessions }) =>
+          (['total', 'completed', 'crashed', 'unknown'] as const).every(
+            (field) => entries.reduce((sum, e) => sum + e.sessions[field], 0) <= sessions[field],
+          ),
+        { message: "The listed platforms' sessions cannot exceed the release's sessions" },
+      )
+      .refine(
         ({ belowTargetPlatforms, target }) =>
           belowTargetPlatforms.every((entry) => resolved(entry.sessions) >= target.minSessions),
         { message: 'A platform needs at least minSessions completed or crashed sessions' },

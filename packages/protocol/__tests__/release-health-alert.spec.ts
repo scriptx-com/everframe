@@ -161,6 +161,27 @@ describe('release_health.threshold_reached 2.1', () => {
       },
     ],
     [
+      'a platform with more crashes than the release',
+      (v: any) => {
+        Object.assign(v.data, platformBreach().data);
+        v.data.sessions = { total: 1000, completed: 1000, crashed: 0, unknown: 0 };
+        v.data.crashFreeSessions = 1;
+      },
+    ],
+    [
+      'platforms that together hold more sessions than the release',
+      (v: any) => {
+        Object.assign(v.data, platformBreach().data);
+        v.data.platforms = ['android', 'ios', 'web'];
+        v.data.sessions = { total: 150, completed: 146, crashed: 4, unknown: 0 };
+        v.data.crashFreeSessions = 146 / 150;
+        v.data.belowTargetPlatforms.unshift({
+          ...v.data.belowTargetPlatforms[0],
+          platform: 'android',
+        });
+      },
+    ],
+    [
       'an entry absent from platforms',
       (v: any) => {
         Object.assign(v.data, platformBreach().data);
