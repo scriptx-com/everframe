@@ -214,10 +214,14 @@ export {
 export {
   RELEASE_HEALTH_ALERT_SCHEMA_VERSION,
   ReleaseHealthAlertTargetSchema,
+  ReleaseHealthBelowTargetPlatformSchema,
+  ReleaseHealthTargetSchema,
   ReleaseHealthThresholdEventSchema,
 } from './release-health-alert.js';
 export type {
   ReleaseHealthAlertTarget,
+  ReleaseHealthBelowTargetPlatform,
+  ReleaseHealthTarget,
   ReleaseHealthThresholdEvent,
 } from './release-health-alert.js';
 
