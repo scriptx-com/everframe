@@ -64,6 +64,44 @@ describe('installNavigationCrumbs', () => {
   });
 });
 
+describe('installNavigationCrumbs with read-only history methods', () => {
+  const lock = (method: 'pushState' | 'replaceState'): void => {
+    Object.defineProperty(history, method, {
+      value: History.prototype[method],
+      writable: false,
+      configurable: true,
+    });
+  };
+  afterEach(() => {
+    delete (history as unknown as Record<string, unknown>)['pushState'];
+    delete (history as unknown as Record<string, unknown>)['replaceState'];
+  });
+
+  it('skips the locked method instead of throwing, and still records popstate', () => {
+    lock('pushState');
+    lock('replaceState');
+    const { crumbs, sink } = collect();
+    let un: () => void = () => undefined;
+    expect(() => {
+      un = installNavigationCrumbs(sink, allOn);
+    }).not.toThrow();
+    uninstalls.push(() => expect(un).not.toThrow());
+
+    history.pushState(null, '', '/locked');
+    expect(crumbs).toHaveLength(0);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    expect(crumbs[0]).toMatchObject({ kind: 'navigation', data: { from: '/', to: '/locked' } });
+  });
+
+  it('still patches the method that is writable', () => {
+    lock('pushState');
+    const { crumbs, sink } = collect();
+    uninstalls.push(installNavigationCrumbs(sink, allOn));
+    history.replaceState(null, '', '/replaced');
+    expect(crumbs[0]).toMatchObject({ data: { from: '/', to: '/replaced' } });
+  });
+});
+
 describe('installLifecycleCrumbs', () => {
   it('emits a lifecycle crumb on visibilitychange', () => {
     const { crumbs, sink } = collect();
