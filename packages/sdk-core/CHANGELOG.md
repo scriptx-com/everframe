@@ -1,5 +1,20 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 0.7.0
+
+### Minor Changes
+
+- 334ccf9: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Reports may carry static app and device identity: `context.app.id` (package, bundle, webOS or Tizen app ID) and `installerPackage`, and `context.device.manufacturer`, `brand`, `cpuAbi`, `emulator`, `totalMemory` and `runtimeVersions`. All optional. `describeWebRuntimeDevice` reads a TV's OS, version, maker and model from its user agent, and `detectWebRuntimePlatform` now recognises Vega OS web views (`Kepler`).
+
+### Patch Changes
+
+- Updated dependencies [334ccf9]
+- Updated dependencies [290eb69]
+  - @everframe/protocol@0.11.0
+
 ## 0.6.3
 
 ### Patch Changes

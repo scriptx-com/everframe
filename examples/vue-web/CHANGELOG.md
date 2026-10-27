@@ -1,5 +1,12 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 0.0.13
+
+### Patch Changes
+
+- Updated dependencies [334ccf9]
+  - @everframe/web@1.7.0
+
 ## 0.0.12
 
 ### Patch Changes

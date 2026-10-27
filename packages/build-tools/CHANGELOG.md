@@ -1,5 +1,13 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [334ccf9]
+- Updated dependencies [290eb69]
+  - @everframe/protocol@0.11.0
+
 ## 0.0.3
 
 ### Patch Changes

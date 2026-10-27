@@ -1,5 +1,11 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 0.0.15
+
+### Patch Changes
+
+- @everframe/react@1.7.0
+
 ## 0.0.14
 
 ### Patch Changes
