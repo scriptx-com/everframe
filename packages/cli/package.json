@@ -19,7 +19,7 @@
     "crash-reporting"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=20"
   },
   "bin": {
     "everframe": "./dist/index.js"

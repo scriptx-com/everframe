@@ -20,7 +20,7 @@
     "crash-reporting"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=20"
   },
   "exports": {
     "./vite": {
