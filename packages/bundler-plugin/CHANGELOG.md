@@ -1,5 +1,18 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.6.5
+
+### Minor Changes
+
+- d93de4d: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  The source-map upload has an overall time limit, 10 minutes by default and set with the new `uploadTimeoutMs` option. At the limit, requests in flight are aborted and the upload fails. Before, the plugin set no limit, so a stalled server or retry backoff could keep the build running indefinitely.
+
+### Patch Changes
+
+- @everframe/cli@1.7.0
+
 ## 1.6.4
 
 ### Patch Changes

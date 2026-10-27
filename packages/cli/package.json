@@ -1,6 +1,6 @@
 {
   "name": "@everframe/cli",
-  "version": "1.6.4",
+  "version": "1.6.5",
   "private": false,
   "description": "Command-line tool for uploading source maps and build artifacts to Everframe.",
   "type": "module",

@@ -1,5 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.6.5
+
 ## 1.6.4
 
 ### Patch Changes

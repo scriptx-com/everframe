@@ -1,5 +1,11 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.6.5
+
+### Patch Changes
+
+- @everframe/cli@1.7.0
+
 ## 1.6.4
 
 ### Patch Changes
