@@ -1,5 +1,14 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.6.4
+
+### Patch Changes
+
+- c9a61e9: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  The build tooling now supports Node 20: `@everframe/cli`, `@everframe/bundler-plugin`, `@everframe/metro` and `@everframe/expo` declare `node >=20` instead of `>=22`. Nothing in them needed Node 22, but the stricter range made `yarn install` fail outright on Node 20 projects that added one of them, as Yarn 1 enforces `engines` by default.
+
 ## 1.6.2
 
 No changes in this package; released with the other Everframe packages at this version.
