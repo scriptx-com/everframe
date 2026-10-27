@@ -1,0 +1,25 @@
+packages/sdk-web/__tests__/init-readonly-history.spec.ts
+  s_458e717232bfe0::t_5c5f4aecd98943 1-87
+.changeset/web-readonly-history.md
+  s_458e717232bfe0::t_3939a87c509699 1-8
+packages/sdk-web/__tests__/capture/breadcrumbs.spec.ts
+  s_458e717232bfe0::t_2c901f44c816ce 67-104
+packages/sdk-web/src/capture/breadcrumbs.ts
+  s_458e717232bfe0::t_e1d738f28523d2 101-108,132-146,150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8e92d6bb3006f0e9537d4d9a17e5afd474359b5e",
+  "prompts": {},
+  "sessions": {
+    "s_458e717232bfe0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0d2c99fc-2dea-4b9f-b00e-b9bb17b689e6",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
