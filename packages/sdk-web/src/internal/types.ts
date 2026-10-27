@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import type { EverframeConfig } from '@everframe/sdk-core';
+import type { BreadcrumbInput, EverframeConfig } from '@everframe/sdk-core';
 import type { ReporterTheme } from '../branding/theme.js';
 import type { HostVisualCapture } from '../capture/host-visual.js';
 
@@ -61,4 +61,13 @@ export interface WebEverframeConfig extends EverframeConfig {
    * browsers never run it.
    */
   quickCapture?: { disabled?: boolean };
+  /**
+   * Which kinds the SDK records breadcrumbs for on its own (taps, network,
+   * console, navigation, lifecycle, uncaught errors). CLIENT VETO only: the
+   * effective set is this list intersected with the dashboard's, so it can
+   * turn kinds off on this app but never turn one on. Unset keeps the
+   * dashboard's set. Breadcrumbs added with `addBreadcrumb` are recorded
+   * whatever their kind.
+   */
+  breadcrumbs?: { kinds?: Array<BreadcrumbInput['kind']> };
 }
