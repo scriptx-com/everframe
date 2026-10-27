@@ -1,0 +1,28 @@
+packages/bundler-plugin/CHANGELOG.md
+  h_af305fd8f2c5c5 3-14
+packages/bundler-plugin/package.json
+  h_af305fd8f2c5c5 3
+packages/cli/CHANGELOG.md
+  h_af305fd8f2c5c5 3-11
+packages/cli/package.json
+  h_af305fd8f2c5c5 3
+packages/expo/CHANGELOG.md
+  h_af305fd8f2c5c5 3-14
+packages/expo/package.json
+  h_af305fd8f2c5c5 3
+packages/metro/CHANGELOG.md
+  h_af305fd8f2c5c5 3-11
+packages/metro/package.json
+  h_af305fd8f2c5c5 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "12671176a93f75fc2399a1d688c0e2bf99db52b7",
+  "prompts": {},
+  "humans": {
+    "h_af305fd8f2c5c5": {
+      "author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
