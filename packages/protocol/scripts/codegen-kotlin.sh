@@ -186,10 +186,41 @@ if (bundleIndex < 0) throw new Error('codegen-kotlin: App.jsBundle missing');
 appProperties.splice(bundleIndex, 1);
 appProperties[appProperties.length - 1] += ',';
 appProperties.push('    val jsBundle: JSBundle? = null');
+// Static app identity (2026-10-26) goes after it, for the same reason.
+for (const name of ['id', 'installerPackage']) {
+  const index = appProperties.indexOf(`    val ${name}: String? = null,`);
+  if (index < 0) throw new Error(`codegen-kotlin: App.${name} missing`);
+  appProperties.splice(index, 1);
+}
+appProperties[appProperties.length - 1] += ',';
+appProperties.push('    val id: String? = null,', '    val installerPackage: String? = null');
 rewritten = rewritten.replace(appPattern, `data class App (\n${appProperties.join('\n')}\n)`);
 // The pointer's app must not take the envelope app's published name.
-if (!/\n@Serializable\ndata class App \(\n    val build: String\? = null,\n    val debug: Boolean\? = null,\n    val name: String,\n    val version: String,\n    val jsBundle: JSBundle\? = null\n\)/.test(rewritten)) {
+if (!/\n@Serializable\ndata class App \(\n    val build: String\? = null,\n    val debug: Boolean\? = null,\n    val name: String,\n    val version: String,\n    val jsBundle: JSBundle\? = null,\n    val id: String\? = null,\n    val installerPackage: String\? = null\n\)/.test(rewritten)) {
   throw new Error('codegen-kotlin: App was renamed or reshaped');
+}
+// Static device identity (2026-10-26) is appended after the existing positional properties.
+const devicePattern = /data class Device \(\n([\s\S]*?)\n\)/;
+const deviceMatch = rewritten.match(devicePattern);
+if (!deviceMatch) throw new Error('codegen-kotlin: Device block missing');
+let deviceBody = deviceMatch[1];
+const deviceAdditions = [
+  ['    val brand: String? = null,\n', '    val brand: String? = null'],
+  ['\n    @SerialName("cpuAbi")\n    val cpuABI: List<String>? = null,\n\n',
+    '\n    @SerialName("cpuAbi")\n    val cpuABI: List<String>? = null'],
+  ['    val emulator: Boolean? = null,\n', '    val emulator: Boolean? = null'],
+  ['    val manufacturer: String? = null,\n', '    val manufacturer: String? = null'],
+  ['    val runtimeVersions: Map<String, String>? = null,\n', '    val runtimeVersions: Map<String, String>? = null'],
+  ['    val totalMemory: Long? = null,\n', '    val totalMemory: Long? = null'],
+];
+for (const [generated] of deviceAdditions) {
+  if (!deviceBody.includes(generated)) throw new Error(`codegen-kotlin: Device field moved: ${generated.trim()}`);
+  deviceBody = deviceBody.replace(generated, '');
+}
+deviceBody = deviceBody.replace(/^\n+/, '');
+rewritten = rewritten.replace(devicePattern, `data class Device (\n${deviceBody},\n${deviceAdditions.map(([, appended]) => appended).join(',\n')}\n)`);
+if (!/\ndata class Device \(\n    val locale: String,\n    val model: String\? = null,\n    val os: String,\n    val osVersion: String,\n    val pixelRatio: Double,\n    val screenSize: ScreenSize,\n    val timezone: String,\n    val userAgent: String\? = null,\n    val brand/.test(rewritten)) {
+  throw new Error('codegen-kotlin: Device was reshaped');
 }
 const formatPattern = /@Serializable\nenum class Format\(val value: String\) \{[\s\S]*?\n\}\n/u;
 if (!formatPattern.test(rewritten)) {

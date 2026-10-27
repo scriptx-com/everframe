@@ -118,7 +118,10 @@ import {
   __setCaptureAccepting,
 } from './capture/buffers.js';
 import { captureFocusedNode as captureFocusedNodeImpl } from './capture/focus.js';
-import { getDeviceMetadata as getDeviceMetadataImpl } from './capture/metadata.js';
+import {
+  getAppIdentifier as getAppIdentifierImpl,
+  getDeviceMetadata as getDeviceMetadataImpl,
+} from './capture/metadata.js';
 import { createOutbox } from './outbox/index.js';
 import { beginErrorReplay, ERROR_REPLAY_DEADLINE_MS } from './capture/replay/error-replay.js';
 import {
@@ -1778,6 +1781,7 @@ export function createWebPlatformAdapter(
               app: {
                 name: _config.appName ?? 'unknown',
                 version: _config.appVersion ?? '0.0.0',
+                ...((id) => (id !== undefined ? { id } : {}))(getAppIdentifierImpl()),
                 ...((build) => (build !== undefined ? { build } : {}))(
                   resolveAppBuild(_config.appBuild),
                 ),

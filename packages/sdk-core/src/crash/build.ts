@@ -45,7 +45,7 @@ export interface BuildCrashEnvelopeInput {
   sdk: ReportEnvelope['sdk'];
   breadcrumbs: Breadcrumb[];
   device: DeviceMetadata;
-  app: { name: string; version: string; build?: string; debug?: boolean };
+  app: { name: string; version: string; build?: string; debug?: boolean; id?: string };
   route?: string;
   redaction: RedactionConfig;
   captureOptions?: CaptureExceptionOptions;

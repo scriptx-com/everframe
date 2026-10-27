@@ -6,6 +6,7 @@
 import { globalScope } from '../internal/global-scope.js';
 import { PKG_VERSION } from '../internal/version.js';
 import { currentUserAgent, type HelloDevice, type TvPlatform } from '../devicelink/tv-platform.js';
+import { tizenModel } from '../capture/tv-device.js';
 
 const WEBOS_DEVICE_INFO_TIMEOUT_MS = 1_000;
 
@@ -14,27 +15,6 @@ function clean(value: unknown, max: number): string {
   const trimmed = value.replace(/\s+/g, ' ').trim();
   if (trimmed.length === 0) return 'unknown';
   return trimmed.slice(0, max);
-}
-
-function tizenModel(win: unknown): string | null {
-  try {
-    const info = (win as { webapis?: { productinfo?: Record<string, unknown> } }).webapis
-      ?.productinfo;
-    if (!info) return null;
-    for (const name of ['getRealModel', 'getModel']) {
-      const fn = info[name];
-      if (typeof fn !== 'function') continue;
-      try {
-        const v: unknown = (fn as () => unknown).call(info);
-        if (typeof v === 'string' && v.trim().length > 0) return v;
-      } catch {
-        /* try the next probe */
-      }
-    }
-  } catch {
-    /* fall through */
-  }
-  return null;
 }
 
 interface WebOsDeviceInfo {

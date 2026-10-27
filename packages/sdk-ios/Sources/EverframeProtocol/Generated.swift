@@ -408,12 +408,15 @@ public extension EverframeContext {
 public struct EverframeApp: Codable {
     public let build: String?
     public let debug: Bool?
+    public let id, installerPackage: String?
     public let jsBundle: EverframeJSBundle?
     public let name, version: String
 
-    public init(build: String?, debug: Bool?, jsBundle: EverframeJSBundle? = nil, name: String, version: String) {
+    public init(build: String?, debug: Bool?, id: String? = nil, installerPackage: String? = nil, jsBundle: EverframeJSBundle? = nil, name: String, version: String) {
         self.build = build
         self.debug = debug
+        self.id = id
+        self.installerPackage = installerPackage
         self.jsBundle = jsBundle
         self.name = name
         self.version = version
@@ -441,6 +444,8 @@ public extension EverframeApp {
     func with(
         build: String?? = nil,
         debug: Bool?? = nil,
+        id: String?? = nil,
+        installerPackage: String?? = nil,
         jsBundle: EverframeJSBundle?? = nil,
         name: String? = nil,
         version: String? = nil
@@ -448,6 +453,8 @@ public extension EverframeApp {
         return EverframeApp(
             build: build ?? self.build,
             debug: debug ?? self.debug,
+            id: id ?? self.id,
+            installerPackage: installerPackage ?? self.installerPackage,
             jsBundle: jsBundle ?? self.jsBundle,
             name: name ?? self.name,
             version: version ?? self.version
@@ -536,22 +543,40 @@ public enum EverframeJSBundlePlatform: String, Codable {
 
 // MARK: - EverframeDevice
 public struct EverframeDevice: Codable {
+    public let brand: String?
+    public let cpuABI: [String]?
+    public let emulator: Bool?
     public let locale: String
+    public let manufacturer: String?
     public let model: String?
     public let os, osVersion: String
     public let pixelRatio: Double
+    public let runtimeVersions: [String: String]?
     public let screenSize: EverframeScreenSize
     public let timezone: String
+    public let totalMemory: Int?
     public let userAgent: String?
 
-    public init(locale: String, model: String?, os: String, osVersion: String, pixelRatio: Double, screenSize: EverframeScreenSize, timezone: String, userAgent: String?) {
+    public enum CodingKeys: String, CodingKey {
+        case brand
+        case cpuABI = "cpuAbi"
+        case emulator, locale, manufacturer, model, os, osVersion, pixelRatio, runtimeVersions, screenSize, timezone, totalMemory, userAgent
+    }
+
+    public init(brand: String? = nil, cpuABI: [String]? = nil, emulator: Bool? = nil, locale: String, manufacturer: String? = nil, model: String?, os: String, osVersion: String, pixelRatio: Double, runtimeVersions: [String: String]? = nil, screenSize: EverframeScreenSize, timezone: String, totalMemory: Int? = nil, userAgent: String?) {
+        self.brand = brand
+        self.cpuABI = cpuABI
+        self.emulator = emulator
         self.locale = locale
+        self.manufacturer = manufacturer
         self.model = model
         self.os = os
         self.osVersion = osVersion
         self.pixelRatio = pixelRatio
+        self.runtimeVersions = runtimeVersions
         self.screenSize = screenSize
         self.timezone = timezone
+        self.totalMemory = totalMemory
         self.userAgent = userAgent
     }
 }
@@ -575,23 +600,35 @@ public extension EverframeDevice {
     }
 
     func with(
+        brand: String?? = nil,
+        cpuABI: [String]?? = nil,
+        emulator: Bool?? = nil,
         locale: String? = nil,
+        manufacturer: String?? = nil,
         model: String?? = nil,
         os: String? = nil,
         osVersion: String? = nil,
         pixelRatio: Double? = nil,
+        runtimeVersions: [String: String]?? = nil,
         screenSize: EverframeScreenSize? = nil,
         timezone: String? = nil,
+        totalMemory: Int?? = nil,
         userAgent: String?? = nil
     ) -> EverframeDevice {
         return EverframeDevice(
+            brand: brand ?? self.brand,
+            cpuABI: cpuABI ?? self.cpuABI,
+            emulator: emulator ?? self.emulator,
             locale: locale ?? self.locale,
+            manufacturer: manufacturer ?? self.manufacturer,
             model: model ?? self.model,
             os: os ?? self.os,
             osVersion: osVersion ?? self.osVersion,
             pixelRatio: pixelRatio ?? self.pixelRatio,
+            runtimeVersions: runtimeVersions ?? self.runtimeVersions,
             screenSize: screenSize ?? self.screenSize,
             timezone: timezone ?? self.timezone,
+            totalMemory: totalMemory ?? self.totalMemory,
             userAgent: userAgent ?? self.userAgent
         )
     }

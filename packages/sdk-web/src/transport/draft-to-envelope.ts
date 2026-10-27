@@ -25,7 +25,8 @@ import { stampActiveVitals } from '../vitals/stamp-active-vitals.js';
 import { stampResources } from '../resources/stamp.js';
 import { resolveAppBuild } from '../build-identity.js';
 import { resolveDebugBuild } from '../debug-build.js';
-import { detectWebRuntimePlatform } from '@everframe/protocol';
+import { describeWebRuntimeDevice, detectWebRuntimePlatform } from '@everframe/protocol';
+import { getAppIdentifier } from '../capture/metadata.js';
 
 /** One baked (or raw) screenshot shot bound for a single attachment (report-window overhaul). */
 export interface BundleScreenshot {
@@ -132,6 +133,7 @@ export function inferFormFactor(
   metadata: DeviceMetadata | null,
 ): 'phone' | 'tablet' | 'desktop' | 'tv' {
   if (!metadata) return 'desktop';
+  if (metadata.userAgent && describeWebRuntimeDevice(metadata.userAgent).tv) return 'tv';
   const os = metadata.os.toLowerCase();
   if (os.includes('ios')) return 'phone';
   if (os.includes('ipados')) return 'tablet';
@@ -406,6 +408,7 @@ export function draftToEnvelope(
     app: {
       name: config.appName ?? 'unknown-app',
       version: config.appVersion ?? '0.0.0',
+      ...((id) => (id !== undefined ? { id } : {}))(getAppIdentifier()),
       ...((build) => (build !== undefined ? { build } : {}))(resolveAppBuild(config.appBuild)),
       debug: resolveDebugBuild(
         config.debugBuild,

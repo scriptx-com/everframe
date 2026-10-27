@@ -91,9 +91,25 @@ source = source.replace(exposureAppPattern, block => block.slice(0, -1) + `
     }
 }`);
 // The pointer's app must not take the envelope app's published name.
-if (!source.includes('public struct EverframeApp: Codable {\n    public let build: String?\n    public let debug: Bool?\n    public let jsBundle: EverframeJSBundle?\n    public let name, version: String\n')) {
+if (!source.includes('public struct EverframeApp: Codable {\n    public let build: String?\n    public let debug: Bool?\n    public let id, installerPackage: String?\n    public let jsBundle: EverframeJSBundle?\n    public let name, version: String\n')) {
   throw new Error('codegen-swift: EverframeApp was renamed or reshaped');
 }
+// Static app and device identity (2026-10-26) defaults to nil, so existing call sites compile unchanged.
+const defaultNil = (pattern, params, what) => {
+  const signature = source.match(pattern)?.[0];
+  if (!signature) throw new Error(`codegen-swift: ${what} init missing`);
+  let rewritten = signature;
+  for (const param of params) {
+    if (!rewritten.includes(`${param},`)) throw new Error(`codegen-swift: ${what} ${param} missing`);
+    rewritten = rewritten.replace(`${param},`, `${param} = nil,`);
+  }
+  source = source.replace(signature, rewritten);
+};
+defaultNil(/public init\(build: String\?, debug: Bool\?, id: String\?[^\n]*/,
+  ['id: String?', 'installerPackage: String?'], 'EverframeApp');
+defaultNil(/public init\(brand: String\?, cpuABI: [^\n]*/,
+  ['brand: String?', 'cpuABI: [String]?', 'emulator: Bool?', 'manufacturer: String?',
+    'runtimeVersions: [String: String]?', 'totalMemory: Int?'], 'EverframeDevice');
 source = source.replace(/recoveredStall: EverframeRecoveredStallEvidence\?,/g, 'recoveredStall: EverframeRecoveredStallEvidence? = nil,');
 for (const [generated, stable] of Object.entries({
   DiagnosticAndroid: 'Android', DiagnosticAttribution: 'Attribution',

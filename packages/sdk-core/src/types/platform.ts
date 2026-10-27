@@ -37,6 +37,15 @@ export interface DeviceMetadata {
    * UA overrides). Web SDK only — native SDKs leave this undefined.
    */
   userAgent?: string;
+  /** Static device identity; each SDK sends what its platform can tell. */
+  manufacturer?: string;
+  brand?: string;
+  cpuAbi?: string[];
+  emulator?: boolean;
+  /** Physical memory in bytes. */
+  totalMemory?: number;
+  /** Engine and runtime versions, e.g. `{ chrome: '120.0.6099.270' }`. */
+  runtimeVersions?: Record<string, string>;
 }
 
 export interface ReportDraft {

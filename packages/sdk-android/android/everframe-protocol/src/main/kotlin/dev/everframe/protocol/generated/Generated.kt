@@ -131,7 +131,9 @@ data class App (
     val debug: Boolean? = null,
     val name: String,
     val version: String,
-    val jsBundle: JSBundle? = null
+    val jsBundle: JSBundle? = null,
+    val id: String? = null,
+    val installerPackage: String? = null
 )
 
 @Serializable
@@ -165,7 +167,15 @@ data class Device (
     val pixelRatio: Double,
     val screenSize: ScreenSize,
     val timezone: String,
-    val userAgent: String? = null
+    val userAgent: String? = null,
+    val brand: String? = null,
+
+    @SerialName("cpuAbi")
+    val cpuABI: List<String>? = null,
+    val emulator: Boolean? = null,
+    val manufacturer: String? = null,
+    val runtimeVersions: Map<String, String>? = null,
+    val totalMemory: Long? = null
 )
 
 @Serializable
