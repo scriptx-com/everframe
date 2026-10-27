@@ -1542,6 +1542,19 @@ export function createWebPlatformAdapter(
     }
     return clientKinds ? { ...cfg, kinds: cfg.kinds.filter((k) => clientKinds.includes(k)) } : cfg;
   };
+  // The route an error report carries: the live path, or what the host's
+  // `reportRoute` makes of it. A throwing mapper sends no route (fail closed:
+  // a host maps routes because the raw path can carry a credential).
+  const reportRouteFor = (pathname: string): { route?: string } => {
+    const map = _config.reportRoute;
+    if (!map) return { route: pathname };
+    try {
+      const route = map(pathname);
+      return typeof route === 'string' && route ? { route } : {};
+    } catch {
+      return {};
+    }
+  };
   const crumbGate: KindGate = (kind) => {
     const cfg = breadcrumbsConfig();
     return cfg.enabled && cfg.kinds.includes(kind);
@@ -1797,7 +1810,7 @@ export function createWebPlatformAdapter(
                   typeof location === 'undefined' ? null : location,
                 ),
               },
-              ...(typeof window !== 'undefined' ? { route: window.location.pathname } : {}),
+              ...(typeof window !== 'undefined' ? reportRouteFor(window.location.pathname) : {}),
               redaction: crashRedaction,
               ...(captureOptions === undefined ? {} : { captureOptions }),
               // Self-declared recognition (spec 2026-08-12). Read HERE, at
