@@ -12,9 +12,11 @@ drops below 99% crash-free sessions". Admins set it up on the project's
   last 7 days before it can alert, from 20 to 1,000,000 (100 by default);
 - the webhook endpoint to send to, from any app in the project.
 
-Everframe checks the rule about every five minutes, for every version of the
-project's Android, iOS, React Native, web and React apps, with all platforms counted
-together. When a version drops below the target, it sends one
+Everframe checks the rule about every five minutes, for every release of the
+project's Android, iOS, React Native, web and React apps. A release alerts when
+all its platforms counted together drop below the target, or when any one
+platform does with at least the minimum number of sessions of its own. It then
+sends one
 `release_health.threshold_reached` webhook with event schema 2.1, over the
 normal signed webhook transport. `ReleaseHealthThresholdEventSchema` in
 `packages/protocol/src/release-health-alert.ts` is the exact shape, and every
@@ -121,13 +123,15 @@ Deleting the webhook endpoint the rule sends to deletes the rule too.
 ## Retries and cancellations
 
 Deduplicate by `id`. Retries keep `id` and `createdAt`, but Everframe rechecks
-the version before every attempt, so `platforms`, `window`, `observedAt`,
-`sessions` and `crashFreeSessions` can change between attempts. Don't assume
+the release before every attempt, so `platforms`, `belowTargetPlatforms`,
+`window`, `observedAt`, `sessions` and `crashFreeSessions` can change between
+attempts. Don't assume
 byte-identical retry bodies.
 
 An undelivered event is cancelled, and never sent, when:
 
-- the version is no longer below the target when it is rechecked;
+- neither the release nor any of its platforms is below the target when it is
+  rechecked;
 - the rule was edited, turned off or deleted after the event was created;
 - the endpoint was disabled, or its app moved to another project;
 - the crash report it is stored with expired, was erased, or its app moved to
