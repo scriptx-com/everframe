@@ -98,6 +98,14 @@ const HISTORY_MARKER = Symbol.for('__everframe_patched_history__');
  * installNavigationCrumbs — patches history.pushState/replaceState and listens
  * for popstate; emits `navigation` crumbs as `from → to` (pathname + search).
  * Same-URL transitions are no-ops. Idempotent via the history marker symbol.
+ *
+ * A host may install those methods read-only (an analytics guard that keeps a
+ * tag from hooking them does). Assigning one then throws in strict mode, and
+ * that used to abort the whole adapter mid-construction: init() threw after the
+ * crash hooks were live but before the breadcrumb buffer was bound, so errors
+ * still went out with no breadcrumbs and the host had no handle to kill. A
+ * method that can't be patched is skipped; its transitions go unrecorded, and
+ * popstate still works.
  */
 export function installNavigationCrumbs(sink: CrumbSink, gate: KindGate): () => void {
   if (typeof window === 'undefined' || typeof history === 'undefined') {
@@ -121,21 +129,25 @@ export function installNavigationCrumbs(sink: CrumbSink, gate: KindGate): () => 
     }
   };
 
-  const origPush = history.pushState.bind(history);
-  const origReplace = history.replaceState.bind(history);
-  history.pushState = (...args: Parameters<History['pushState']>): void => {
-    origPush(...args);
-    emit();
-  };
-  history.replaceState = (...args: Parameters<History['replaceState']>): void => {
-    origReplace(...args);
-    emit();
-  };
+  const restores: Array<() => void> = [];
+  for (const method of ['pushState', 'replaceState'] as const) {
+    const orig = history[method].bind(history);
+    try {
+      history[method] = (...args: Parameters<History['pushState']>): void => {
+        orig(...args);
+        emit();
+      };
+      restores.push(() => {
+        history[method] = orig;
+      });
+    } catch {
+      /* read-only: skip this method — DEFE-02 */
+    }
+  }
   window.addEventListener('popstate', emit);
 
   return () => {
-    history.pushState = origPush;
-    history.replaceState = origReplace;
+    for (const restore of restores) restore();
     window.removeEventListener('popstate', emit);
     delete slot[HISTORY_MARKER];
   };
