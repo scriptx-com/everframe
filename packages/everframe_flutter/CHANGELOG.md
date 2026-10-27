@@ -1,6 +1,11 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
+## 1.6.2
+
+- Through the native iOS SDK, a rare crash (`EXC_BAD_ACCESS` in `_platform_memmove`) while the SDK listed its crash and release-health stores is fixed. It affected 1.1.0 through 1.6.1, once a session had collected more than about 115 crash-context files. No Dart API change.
+- Through `@everframe/web`, Flutter web apps on Samsung Tizen, LG webOS, Hisense VIDAA, Titan OS and Vega OS TVs report the real device: OS and version, maker, model, the TV's app ID where it has one, and form factor `tv`.
+
 ## 1.6.1
 
 - Devices are linked from **Project settings → Devices** in the dashboard now, not the organization's Settings. The README says so.
