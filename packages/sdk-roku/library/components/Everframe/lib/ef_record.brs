@@ -20,7 +20,7 @@ function EfR_FromException(e as dynamic, mechanism as string, handled as boolean
         "exceptionType": EfF_ExceptionType(e.number),
         message: EfU_Truncate(e.message, 4096),
         frames: EfF_FromBacktrace(e.backtrace),
-        "appVersion": CreateObject("roAppInfo").GetVersion(),
+        "appVersion": EfU_AppVersion(),
         "appDebug": EfU_DebugBuild(),
         crumbs: []
     }

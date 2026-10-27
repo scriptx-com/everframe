@@ -370,6 +370,18 @@ or user counts. Effective `debugBuild` defaults to `roAppInfo.IsDev()`. Debug
 launches neither collect nor send health. Set `debugBuild: false` explicitly
 only when you intend a sideloaded build to count as a release.
 
+Roku limits the manifest version to `major.minor.build` (for example
+`1.0.1205000`), so by default a channel reports that string. To report your
+real version, such as `12.5.0`, add the optional key to your `manifest`:
+
+```
+everframe_app_version=12.5.0
+```
+
+The value is used as written when it is 1-64 characters, not blank, and free of
+control characters. Otherwise the SDK falls back to `roAppInfo.GetVersion()`.
+See the [Roku README](../packages/sdk-roku/README.md#reporting-your-apps-own-version).
+
 Only the OS exit code `EXIT_USER_NAV` confirms normal completion. Only
 `EXIT_BRIGHTSCRIPT_CRASH` and `EXIT_NATIVE_CRASH` count as confirmed crashes.
 Memory pressure, resource limits, system kills, stops/timeouts and other OS

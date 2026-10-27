@@ -36,7 +36,7 @@ function EfX_ToRecord(info as object) as object
         message: "App exited: " + info.exit_code,
         frames: [],
         thread: "main",
-        "appVersion": CreateObject("roAppInfo").GetVersion(),
+        "appVersion": EfU_AppVersion(),
         "appDebug": EfU_DebugBuild(),
         crumbs: [],
         "exitInfo": meta

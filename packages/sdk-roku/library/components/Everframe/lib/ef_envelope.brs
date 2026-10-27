@@ -13,7 +13,7 @@ function EfE_Context(sdkVersion as string) as object
     end if
     size = di.GetDisplaySize()
     locale = CreateObject("roRegex", "_", "").ReplaceAll(di.GetCurrentLocale(), "-")
-    app = { name: ai.GetTitle(), version: ai.GetVersion(), debug: EfU_DebugBuild() }
+    app = { name: ai.GetTitle(), version: EfU_AppVersion(), debug: EfU_DebugBuild() }
     build = ai.GetValue("build_version")
     if build <> invalid and build <> "" then app.build = build
     return {
