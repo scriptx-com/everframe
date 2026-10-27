@@ -49,6 +49,7 @@ describe('vite', () => {
     expect(assets).toContain(`${js}.map`);
     expect(upload).toHaveBeenCalledWith(
       expect.objectContaining({ buildId: 'b1', root: join(root, 'dist') }),
+      { deadline: expect.any(Number) },
     );
   });
 
@@ -128,6 +129,7 @@ describe('vite', () => {
     expect(upload).toHaveBeenCalledTimes(1);
     expect(upload).toHaveBeenCalledWith(
       expect.objectContaining({ root: join(root, 'dist', 'client') }),
+      { deadline: expect.any(Number) },
     );
     const server = await readdir(join(root, 'dist', 'server'));
     expect(server.some((f) => f.endsWith('.map'))).toBe(false);

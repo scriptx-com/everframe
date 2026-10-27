@@ -25,7 +25,9 @@ describe('rollup', () => {
       ],
     });
     await bundle.write({ file: join(root, 'build', 'bundle.js'), format: 'es' });
-    expect(upload).toHaveBeenCalledWith(expect.objectContaining({ root: join(root, 'build') }));
+    expect(upload).toHaveBeenCalledWith(expect.objectContaining({ root: join(root, 'build') }), {
+      deadline: expect.any(Number),
+    });
     expect(await readFile(join(root, 'build', 'bundle.js'), 'utf8')).toContain(
       '__EVERFRAME_BUILD__',
     );
