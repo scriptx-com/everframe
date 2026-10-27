@@ -1,0 +1,40 @@
+examples/react-web/CHANGELOG.md
+  h_af305fd8f2c5c5 3-9
+examples/react-web/package.json
+  h_af305fd8f2c5c5 3
+examples/smarttv-tester/CHANGELOG.md
+  h_af305fd8f2c5c5 3-8
+examples/smarttv-tester/package.json
+  h_af305fd8f2c5c5 3
+examples/vue-web/CHANGELOG.md
+  h_af305fd8f2c5c5 3-9
+examples/vue-web/package.json
+  h_af305fd8f2c5c5 3
+packages/identity/CHANGELOG.md
+  h_af305fd8f2c5c5 3-4
+packages/identity/package.json
+  h_af305fd8f2c5c5 3
+packages/sdk-react/CHANGELOG.md
+  h_af305fd8f2c5c5 3-4
+packages/sdk-react/package.json
+  h_af305fd8f2c5c5 3
+packages/sdk-react/src/internal/version.ts
+  h_af305fd8f2c5c5 11
+packages/sdk-web/CHANGELOG.md
+  h_af305fd8f2c5c5 3-11
+packages/sdk-web/package.json
+  h_af305fd8f2c5c5 3
+packages/sdk-web/src/internal/version.ts
+  h_af305fd8f2c5c5 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "87ad73b431804394a722f56758cb1ff3150f6703",
+  "prompts": {},
+  "humans": {
+    "h_af305fd8f2c5c5": {
+      "author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
