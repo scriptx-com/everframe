@@ -53,6 +53,9 @@ next build --webpack
   deployed (default `true`).
 - `apiUrl`: defaults to `EVERFRAME_API_URL`, else the production API,
   `https://everframe.dev/api/v1`.
+- `uploadTimeoutMs`: the overall limit for the upload, default 10 minutes. At
+  the limit, requests in flight are aborted and the upload fails, so a stalled
+  server can't hang the build.
 
 Uploads need `EVERFRAME_API_TOKEN`, a token with the `artifacts:write` scope.
 Without it a local build warns, skips the upload and still removes the maps

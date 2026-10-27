@@ -269,6 +269,23 @@ accepted capture determining handled/unhandled classification. Explicit and
 automatic capture each have an independent allowance of one report per
 fingerprint and ten per SDK instance. Transport retries retain the report ID.
 
+## Choosing breadcrumb kinds
+
+The SDK records breadcrumbs on its own for taps, network requests, console
+lines, navigations, page visibility and uncaught errors; the dashboard picks
+which. `breadcrumbs.kinds` narrows that list for this app, whatever the
+dashboard says, and can never add a kind the dashboard has off:
+
+```ts
+init({
+  sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
+  // No taps, network or console: this app shows credentials on buttons and in API paths.
+  breadcrumbs: { kinds: ['navigation', 'lifecycle', 'error'] },
+});
+```
+
+Breadcrumbs added with `addBreadcrumb` are recorded whatever their kind.
+
 ## Triggers
 
 Everframe installs no visible "report a bug" button by default — same

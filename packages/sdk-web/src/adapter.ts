@@ -1526,14 +1526,21 @@ export function createWebPlatformAdapter(
   // Live breadcrumbs config — server block when resolved, spec defaults before
   // (and when the server omits the block: breadcrumbs are default-ON, the
   // deliberate contrast to replay's fail-closed OFF).
+  //
+  // `breadcrumbs.kinds` is a client veto: the host's list narrows the
+  // dashboard's, never widens it. Applied here so the crumb gate below and the
+  // network-body gate (which needs the `network` kind) both see it.
+  const clientKinds = _config.breadcrumbs?.kinds;
   const breadcrumbsConfig = (): BreadcrumbsConfig => {
+    let cfg: BreadcrumbsConfig;
     try {
-      return configProvider
+      cfg = configProvider
         ? getBreadcrumbsConfig(configProvider.get())
         : BREADCRUMBS_CONFIG_DEFAULT;
     } catch {
-      return BREADCRUMBS_CONFIG_DEFAULT;
+      cfg = BREADCRUMBS_CONFIG_DEFAULT;
     }
+    return clientKinds ? { ...cfg, kinds: cfg.kinds.filter((k) => clientKinds.includes(k)) } : cfg;
   };
   const crumbGate: KindGate = (kind) => {
     const cfg = breadcrumbsConfig();

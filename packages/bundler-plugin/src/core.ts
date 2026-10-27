@@ -13,7 +13,17 @@ export interface EverframeBundlerOptions {
   /** Remove maps after upload so they are never deployed (default true). */
   deleteAfterUpload?: boolean;
   apiUrl?: string;
+  /**
+   * Overall time limit for the source-map upload, in milliseconds (default 10
+   * minutes). At the limit, requests in flight are aborted and the upload
+   * fails (`upload_time_budget_exhausted`), so a stalled server can't hang the
+   * build.
+   */
+  uploadTimeoutMs?: number;
 }
+
+/** Default overall upload limit: long enough for a large build on a slow link. */
+export const DEFAULT_UPLOAD_TIMEOUT_MS = 10 * 60_000;
 
 export interface Settings {
   appId: string;
@@ -22,6 +32,7 @@ export interface Settings {
   apiUrl: string;
   token: string | undefined;
   ci: boolean;
+  uploadTimeoutMs: number;
 }
 
 const APP_ID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -47,6 +58,7 @@ export function resolveSettings(
     apiUrl: options.apiUrl ?? env.EVERFRAME_API_URL ?? 'https://everframe.dev/api/v1',
     token: env.EVERFRAME_API_TOKEN || undefined,
     ci: isCi(env),
+    uploadTimeoutMs: options.uploadTimeoutMs ?? DEFAULT_UPLOAD_TIMEOUT_MS,
   };
 }
 
@@ -92,12 +104,17 @@ export async function finishBuild(
     if (settings.deleteAfterUpload) await deleteMaps(outputDir);
     return;
   }
-  await (deps.upload ?? uploadBuild)({
-    appId: settings.appId,
-    buildId: settings.buildId,
-    root: outputDir,
-    apiUrl: settings.apiUrl,
-    token: settings.token,
-    deleteAfterUpload: settings.deleteAfterUpload,
-  });
+  await (deps.upload ?? uploadBuild)(
+    {
+      appId: settings.appId,
+      buildId: settings.buildId,
+      root: outputDir,
+      apiUrl: settings.apiUrl,
+      token: settings.token,
+      deleteAfterUpload: settings.deleteAfterUpload,
+    },
+    // The uploader sets no overall limit of its own; without this, a stalled
+    // server (or retry backoff) kept the build process alive indefinitely.
+    { deadline: Date.now() + settings.uploadTimeoutMs },
+  );
 }

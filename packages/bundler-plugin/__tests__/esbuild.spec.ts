@@ -31,7 +31,9 @@ describe('esbuild', () => {
       plugins: [plugin],
       logLevel: 'silent',
     });
-    expect(upload).toHaveBeenCalledWith(expect.objectContaining({ root: join(root, 'out') }));
+    expect(upload).toHaveBeenCalledWith(expect.objectContaining({ root: join(root, 'out') }), {
+      deadline: expect.any(Number),
+    });
     expect(await readFile(join(root, 'out', 'main.js'), 'utf8')).toContain('__EVERFRAME_BUILD__');
   });
 
@@ -45,7 +47,9 @@ describe('esbuild', () => {
       plugins: [plugin],
       logLevel: 'silent',
     });
-    expect(upload).toHaveBeenCalledWith(expect.objectContaining({ root: join(root, 'dist') }));
+    expect(upload).toHaveBeenCalledWith(expect.objectContaining({ root: join(root, 'dist') }), {
+      deadline: expect.any(Number),
+    });
   });
 
   it('does nothing without minify or NODE_ENV=production', async () => {

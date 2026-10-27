@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  DEFAULT_UPLOAD_TIMEOUT_MS,
   finishBuild,
   identityBanner,
   resolvePluginSettings,
@@ -107,8 +108,55 @@ describe('finishBuild', () => {
         token: 't',
         deleteAfterUpload: true,
       }),
+      { deadline: expect.any(Number) },
     );
     expect(upload.mock.calls[0]![0]).not.toHaveProperty('urlPrefix');
+  });
+
+  it('gives the upload an overall deadline: 10 minutes, or uploadTimeoutMs', async () => {
+    const dir = await output();
+    const upload = vi.fn().mockResolvedValue({ buildUuid: 'u', status: 'ready', artifacts: [] });
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    try {
+      await finishBuild(dir, resolveSettings({ appId: APP }, { EVERFRAME_API_TOKEN: 't' }), {
+        upload,
+      });
+      await finishBuild(
+        dir,
+        resolveSettings({ appId: APP, uploadTimeoutMs: 5_000 }, { EVERFRAME_API_TOKEN: 't' }),
+        { upload },
+      );
+    } finally {
+      vi.restoreAllMocks();
+    }
+    expect(upload.mock.calls[0]![1]).toEqual({ deadline: 1_000 + DEFAULT_UPLOAD_TIMEOUT_MS });
+    expect(upload.mock.calls[1]![1]).toEqual({ deadline: 6_000 });
+  });
+
+  it('a server that never answers fails the upload at the deadline instead of hanging', async () => {
+    const dir = await output();
+    // Never answers; only the request's abort signal ends it.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: unknown, init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(init.signal!.reason));
+          }),
+      ),
+    );
+    const started = Date.now();
+    try {
+      await expect(
+        finishBuild(
+          dir,
+          resolveSettings({ appId: APP, uploadTimeoutMs: 200 }, { EVERFRAME_API_TOKEN: 't' }),
+        ),
+      ).rejects.toThrow(/upload_time_budget_exhausted|request_failed:timeout/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(Date.now() - started).toBeLessThan(5_000);
   });
 
   it('fails in CI without a token', async () => {
