@@ -1,0 +1,27 @@
+.changeset/tooling-node-20.md
+  s_458e717232bfe0::t_664aa740d49ced 1-11
+packages/bundler-plugin/package.json
+  s_458e717232bfe0::t_bb8a413ca39d15 23
+packages/cli/package.json
+  s_458e717232bfe0::t_6c89d900689232 22
+packages/expo/package.json
+  s_458e717232bfe0::t_18626fa5a38738 21
+packages/metro/package.json
+  s_458e717232bfe0::t_e68acac7c1ef59 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c9a61e97c28d6e26dca833aec658dde7124c7e5b",
+  "prompts": {},
+  "sessions": {
+    "s_458e717232bfe0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0d2c99fc-2dea-4b9f-b00e-b9bb17b689e6",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
