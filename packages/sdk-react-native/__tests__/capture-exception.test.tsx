@@ -440,3 +440,105 @@ describe('public captureException ownership', () => {
     },
   );
 });
+
+// Mware TV, October 2026: Notifee's createTriggerNotification failed in Java, React Native turned
+// the rejection into an Error with no JavaScript frames, and the report arrived without a stack.
+describe('the native stack of a failed native-module call', () => {
+  const NOTIFEE =
+    'java.lang.RuntimeException: Failed to create an instance of class NotifeeCoreDatabase';
+  function rejection(extra: Record<string, unknown>, stack = `java.lang.Exception: ${NOTIFEE}`) {
+    return Object.assign(new Error(NOTIFEE), { name: 'java.lang.Exception', stack }, extra);
+  }
+  function sent(value: unknown): Record<string, unknown> {
+    mount().captureException(value);
+    return JSON.parse(handled.mock.calls.at(-1)![0] as string);
+  }
+
+  it('sends the Java frames of an Android rejection as JVM stack lines', () => {
+    const facts = sent(
+      rejection({
+        nativeStackAndroid: [
+          {
+            class: 'app.notifee.core.database.NotifeeCoreDatabase',
+            methodName: 'getDatabase',
+            file: 'NotifeeCoreDatabase.java',
+            lineNumber: 37,
+          },
+          {
+            class: 'app.notifee.core.Notifee',
+            methodName: 'createTriggerNotification',
+            file: null,
+            lineNumber: -1,
+          },
+          {
+            class: 'dalvik.system.VMStack',
+            methodName: 'getThreadStackTrace',
+            file: null,
+            lineNumber: -2,
+          },
+        ],
+      }),
+    );
+    expect(facts).toMatchObject({
+      exceptionType: 'java.lang.Exception',
+      message: NOTIFEE,
+      framesRaw: [
+        'at app.notifee.core.database.NotifeeCoreDatabase.getDatabase(NotifeeCoreDatabase.java:37)',
+        'at app.notifee.core.Notifee.createTriggerNotification(Unknown Source)',
+        'at dalvik.system.VMStack.getThreadStackTrace(Native Method)',
+      ],
+    });
+  });
+
+  it('sends the symbols of an iOS rejection without their per-launch addresses', () => {
+    // iOS keeps the name Error: only the Android bridge copies the exception class into it.
+    const facts = sent(
+      rejection(
+        {
+          name: 'Error',
+          nativeStackIOS: [
+            '0   React                               0x0000000104a1c2e8 RCTJSErrorFromCodeMessageAndNSError + 132',
+            '1   Notifee                             0x0000000104b5f7a0 -[NotifeeApiModule createTriggerNotification:trigger:resolve:reject:] + 300',
+            '',
+          ],
+        },
+        'Error: The operation could not be completed',
+      ),
+    );
+    expect(facts.framesRaw).toEqual([
+      '0   React                               RCTJSErrorFromCodeMessageAndNSError + 132',
+      '1   Notifee                             -[NotifeeApiModule createTriggerNotification:trigger:resolve:reject:] + 300',
+    ]);
+  });
+
+  it('keeps the JavaScript frames when there are any', () => {
+    const facts = sent(
+      rejection(
+        { nativeStackAndroid: [{ class: 'a.B', methodName: 'c', file: 'B.java', lineNumber: 1 }] },
+        `java.lang.Exception: ${NOTIFEE}\n at schedule (bundle.js:12:3)`,
+      ),
+    );
+    expect(facts.framesRaw).toEqual(['at schedule (bundle.js:12:3)']);
+  });
+
+  it('bounds the frames and survives hostile or malformed native stacks', () => {
+    const many = Array.from({ length: 300 }, (_, i) => ({
+      class: 'a.B',
+      methodName: `m${i}`,
+      file: 'B.java',
+      lineNumber: i,
+    }));
+    expect((sent(rejection({ nativeStackAndroid: many })).framesRaw as string[]).length).toBe(256);
+    const hostile = rejection({});
+    Object.defineProperty(hostile, 'nativeStackAndroid', {
+      get() {
+        throw new Error('hostile');
+      },
+    });
+    expect(sent(hostile)).toMatchObject({ exceptionType: 'java.lang.Exception', framesRaw: [] });
+    expect(
+      sent(rejection({ nativeStackAndroid: 'nope', nativeStackIOS: [42, null, { a: 1 }] }))
+        .framesRaw,
+    ).toEqual([]);
+  });
+});

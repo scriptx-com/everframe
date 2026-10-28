@@ -130,6 +130,69 @@ export function renderLabel(value: unknown): string {
   }
 }
 
+/** A bounded string field of a native frame, or '' for anything else. */
+function frameText(frame: object, key: string): string {
+  const value = read(frame, key);
+  return typeof value === 'string' ? value.slice(0, MAX_RAW) : '';
+}
+
+/** The array a native stack field holds, bounded, or [] for anything else (a hostile value included). */
+function boundedItems(error: object, key: string): unknown[] {
+  try {
+    const value = read(error, key);
+    if (!Array.isArray(value)) return [];
+    const length = read(value, 'length');
+    const count = typeof length === 'number' ? Math.min(length, MAX_FRAMES) : 0;
+    const items: unknown[] = [];
+    for (let i = 0; i < count; i++) items.push(read(value, i));
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+/** A JVM frame as the JVM writes a stack line: `at class.method(File.java:12)`. */
+function androidLine(frame: unknown): string | null {
+  if (!frame || typeof frame !== 'object') return null;
+  const owner = frameText(frame, 'class');
+  const method = frameText(frame, 'methodName');
+  if (!owner && !method) return null;
+  const file = frameText(frame, 'file');
+  const line = read(frame, 'lineNumber');
+  const location =
+    line === -2
+      ? 'Native Method'
+      : file
+        ? typeof line === 'number' && Number.isInteger(line) && line >= 0
+          ? `${file}:${line}`
+          : file
+        : 'Unknown Source';
+  return `at ${owner}.${method}(${location})`.slice(0, MAX_RAW);
+}
+
+/** An iOS callStackSymbols line without its load address, which changes every launch. */
+function iosLine(frame: unknown): string | null {
+  if (typeof frame !== 'string' || frame.trim() === '') return null;
+  return frame
+    .slice(0, MAX_RAW)
+    .replace(/^(\s*\d+\s+\S+\s+)0x[0-9a-fA-F]+\s+/, '$1')
+    .trim();
+}
+
+/**
+ * The native stack React Native attaches to a failed native-module call. React Native builds that
+ * error from native code, so its JavaScript stack names no frames, and the failure (Notifee's, on
+ * Mware TV, October 2026) arrived with none. Android sends `nativeStackAndroid` ({class,
+ * methodName, file, lineNumber}); iOS sends `nativeStackIOS` (callStackSymbols at the rejection).
+ */
+function nativeStackLines(error: object): string[] {
+  const android = boundedItems(error, 'nativeStackAndroid').map(androidLine);
+  const lines = android.some((line) => line !== null)
+    ? android
+    : boundedItems(error, 'nativeStackIOS').map(iosLine);
+  return lines.filter((line): line is string => line !== null);
+}
+
 export function extractFacts(
   value: unknown,
   renderOther: (value: unknown) => string = renderValue,
@@ -167,5 +230,7 @@ export function extractFacts(
     first = false;
     if (!header) framesRaw.push(line);
   }
+  // Only when JavaScript named no frame: a JavaScript stack says where the app called from.
+  if (framesRaw.length === 0) framesRaw.push(...nativeStackLines(error));
   return { exceptionType, message, framesRaw };
 }
