@@ -171,14 +171,20 @@ function androidLine(frame: unknown): string | null {
 }
 
 /**
- * An iOS callStackSymbols line without its load address, which changes every launch. The image
- * column may hold spaces (`Native Probe`), so the address is the first `0x` token after it.
+ * An iOS callStackSymbols line without the addresses that change every launch. The image column
+ * may hold spaces (`Native Probe`), so the load address is the first `0x` token after it. An
+ * unsymbolicated frame names its image's base address instead of a symbol (`0x104a00000 +
+ * 115432`): it reads as the image and its offset (`MyApp + 115432`), as crash reports write it.
  */
 function iosLine(frame: unknown): string | null {
   if (typeof frame !== 'string') return null;
   const text = frame.slice(0, MAX_RAW);
   if (text.trim() === '') return null;
-  return text.replace(/^(\s*\d+\s+.+?\s)0x[0-9a-fA-F]+\s+/, '$1').trim();
+  const line = text.replace(/^(\s*\d+\s+.+?\s)0x[0-9a-fA-F]+\s+/, '$1').trim();
+  const unsymbolicated = /^(\d+\s+)(.+?)(\s+)0x[0-9a-fA-F]+(\s+\+\s+\d+)$/.exec(line);
+  return unsymbolicated
+    ? `${unsymbolicated[1]}${unsymbolicated[2]}${unsymbolicated[3]}${unsymbolicated[2]}${unsymbolicated[4]}`
+    : line;
 }
 
 /**

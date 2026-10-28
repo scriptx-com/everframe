@@ -500,6 +500,7 @@ describe('the native stack of a failed native-module call', () => {
             '0   React                               0x0000000104a1c2e8 RCTJSErrorFromCodeMessageAndNSError + 132',
             '1   Notifee                             0x0000000104b5f7a0 -[NotifeeApiModule createTriggerNotification:trigger:resolve:reject:] + 300',
             '2   Native Probe                        0x00000001009f3b10 main + 64',
+            '3   MyApp                               0x0000000104a1c2e8 0x104a00000 + 115432',
             '',
             ' '.repeat(5_000_000),
           ],
@@ -511,6 +512,7 @@ describe('the native stack of a failed native-module call', () => {
       '0   React                               RCTJSErrorFromCodeMessageAndNSError + 132',
       '1   Notifee                             -[NotifeeApiModule createTriggerNotification:trigger:resolve:reject:] + 300',
       '2   Native Probe                        main + 64',
+      '3   MyApp                               MyApp + 115432',
     ]);
   });
 
