@@ -1,0 +1,27 @@
+packages/protocol/schemas-json/envelope.v1.schema.json
+  s_cf8117dc0506ec::t_1dfc7b0767e492 612-614
+packages/sdk-core/__tests__/crash-build.spec.ts
+  s_cf8117dc0506ec::t_d6b8fbb1358024 263-268
+packages/sdk-core/src/crash/options.ts
+  s_cf8117dc0506ec::t_f6cfa04c793b13 15-16,18
+packages/sdk-react-native/__tests__/capture-exception.test.tsx
+  s_cf8117dc0506ec::t_f0c5383a1eb030 130-145
+packages/sdk-react-native/src/errors.ts
+  s_cf8117dc0506ec::t_0dd24617e9e0ab 220-224,227-228,378
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8f747d2e8a68c2b3430133cb065b2d865edfc02a",
+  "prompts": {},
+  "sessions": {
+    "s_cf8117dc0506ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac89f9b1-dd66-437a-8fdc-5227bacd4608",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
