@@ -1,5 +1,13 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 0.0.22
+
+### Patch Changes
+
+- Updated dependencies [d512955]
+- Updated dependencies [d563012]
+  - @everframe/react-native@1.7.0
+
 ## 0.0.21
 
 ### Patch Changes

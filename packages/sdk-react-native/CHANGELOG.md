@@ -1,5 +1,19 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.6.7
+
+### Minor Changes
+
+- d512955: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  `captureException(error, { componentStack })` takes React's component stack from an app's own error boundary (`info.componentStack` in `componentDidCatch`; `null` is ignored). It goes under the error's message, as it already does for errors no boundary catches, so the dashboard can say which components an error happened in.
+
+- d563012: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  Errors from a failed native-module call now carry the native stack. React Native builds these errors in native code, so their JavaScript stack has no frames, and a rejected call (such as a Java exception in a notifications library) used to arrive with no stack at all. When the JavaScript stack is empty, the Java frames React Native attaches on Android (`nativeStackAndroid`) are sent as JVM stack lines, and the iOS call stack (`nativeStackIOS`) is sent without its per-launch addresses, so one failure keeps one fingerprint.
+
 ## 1.6.2
 
 ### Patch Changes

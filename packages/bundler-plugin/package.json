@@ -1,6 +1,6 @@
 {
   "name": "@everframe/bundler-plugin",
-  "version": "1.6.5",
+  "version": "1.6.7",
   "private": false,
   "description": "Bundler plugin that stamps an Everframe build identity into web bundles and uploads their source maps.",
   "type": "module",

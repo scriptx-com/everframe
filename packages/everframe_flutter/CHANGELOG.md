@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
-## Unreleased
+## 1.6.7
 
 - Released with the coordinated Everframe mobile release. Its changes are in `@everframe/react-native`: errors from a failed native-module call carry the native stack, and `captureException` takes a `componentStack`. The Android and iOS SDKs, the Flutter bridges and the Dart API are unchanged from 1.6.2.
 
