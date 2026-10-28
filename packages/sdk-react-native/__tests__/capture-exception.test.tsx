@@ -516,6 +516,14 @@ describe('the native stack of a failed native-module call', () => {
     ]);
   });
 
+  it('reads a malformed iOS line once, without backtracking', () => {
+    const malformed = Array<string>(256).fill(`0${' '.repeat(1000)}x`);
+    const started = performance.now();
+    const facts = sent(rejection({ name: 'Error', nativeStackIOS: malformed }, 'Error: x'));
+    expect(performance.now() - started).toBeLessThan(500);
+    expect((facts.framesRaw as string[])[0]).toBe(`0${' '.repeat(1000)}x`.slice(0, 1024).trim());
+  });
+
   it('keeps the JavaScript frames when there are any', () => {
     const facts = sent(
       rejection(

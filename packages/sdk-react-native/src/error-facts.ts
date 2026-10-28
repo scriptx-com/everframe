@@ -170,21 +170,43 @@ function androidLine(frame: unknown): string | null {
   return `at ${owner}.${method}(${location})`.slice(0, MAX_RAW);
 }
 
+const ADDRESS = /^0x[0-9a-fA-F]+$/;
+const DIGITS = /^\d+$/;
+
 /**
- * An iOS callStackSymbols line without the addresses that change every launch. The image column
- * may hold spaces (`Native Probe`), so the load address is the first `0x` token after it. An
- * unsymbolicated frame names its image's base address instead of a symbol (`0x104a00000 +
- * 115432`): it reads as the image and its offset (`MyApp + 115432`), as crash reports write it.
+ * An iOS callStackSymbols line (`2   MyApp   0x104a1c2e8 -[Player play] + 64`) without the
+ * addresses that change every launch. The image column may hold spaces (`Native Probe`), so the
+ * load address is the first `0x` token after it. An unsymbolicated frame names its image's base
+ * address instead of a symbol (`0x104a00000 + 115432`): it reads as the image and its offset
+ * (`MyApp + 115432`), as crash reports write it. Tokens, not one pattern: a line is read once,
+ * however malformed.
  */
 function iosLine(frame: unknown): string | null {
   if (typeof frame !== 'string') return null;
-  const text = frame.slice(0, MAX_RAW);
-  if (text.trim() === '') return null;
-  const line = text.replace(/^(\s*\d+\s+.+?\s)0x[0-9a-fA-F]+\s+/, '$1').trim();
-  const unsymbolicated = /^(\d+\s+)(.+?)(\s+)0x[0-9a-fA-F]+(\s+\+\s+\d+)$/.exec(line);
-  return unsymbolicated
-    ? `${unsymbolicated[1]}${unsymbolicated[2]}${unsymbolicated[3]}${unsymbolicated[2]}${unsymbolicated[4]}`
-    : line;
+  const text = frame.slice(0, MAX_RAW).trim();
+  if (text === '') return null;
+  const tokens: Array<{ value: string; start: number }> = [];
+  const word = /\S+/g;
+  for (let match = word.exec(text); match; match = word.exec(text))
+    tokens.push({ value: match[0], start: match.index });
+  if (tokens.length < 3 || !DIGITS.test(tokens[0]!.value)) return text;
+  const at = tokens.findIndex((token, i) => i >= 2 && ADDRESS.test(token.value));
+  if (at === -1) return text;
+  const head = text.slice(0, tokens[at]!.start);
+  const rest = tokens.slice(at + 1);
+  if (
+    rest.length === 3 &&
+    ADDRESS.test(rest[0]!.value) &&
+    rest[1]!.value === '+' &&
+    DIGITS.test(rest[2]!.value)
+  ) {
+    const image = text.slice(
+      tokens[1]!.start,
+      tokens[at - 1]!.start + tokens[at - 1]!.value.length,
+    );
+    return `${head}${image} + ${rest[2]!.value}`;
+  }
+  return rest.length > 0 ? `${head}${text.slice(rest[0]!.start)}` : head.trimEnd();
 }
 
 /**
