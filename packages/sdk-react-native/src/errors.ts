@@ -5,6 +5,7 @@ import NativeEverframe from './NativeEverframe.js';
 import { extractFacts, renderLabel } from './error-facts.js';
 import { normalizeCrashDetails } from '@everframe/protocol';
 import {
+  captureOptionComponentStack,
   extractCrashCauseChain,
   redactStringContent,
   type CaptureExceptionOptions,
@@ -372,7 +373,13 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
     prepareRejection,
     submitRejection,
     captureException(error, options) {
-      capture(error, true, false, options);
+      capture(
+        error,
+        true,
+        false,
+        options,
+        captureOptionComponentStack(options)?.slice(0, MAX_MESSAGE),
+      );
     },
     dispose() {
       if (!active) return;

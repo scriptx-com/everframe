@@ -20,7 +20,7 @@ import { buildEnvelope } from '../envelope-builder.js';
 import { redactStringContent, type RedactionConfig } from '../redaction/index.js';
 import { computeCrashFingerprint } from './fingerprint.js';
 import { MAX_MESSAGE, MAX_RAW, type CrashFacts } from './extract.js';
-import type { CaptureExceptionOptions } from './options.js';
+import { captureOptionComponentStack, type CaptureExceptionOptions } from './options.js';
 
 const TITLE_MAX = 200;
 /**
@@ -53,9 +53,12 @@ export interface BuildCrashEnvelopeInput {
    * React's component stack for an error no boundary caught. Redacted and
    * appended to the crash message after `This error is located at:`; the
    * report title keeps the bare message. Grouping is unchanged: the
-   * fingerprint reads the type and frames only.
+   * fingerprint reads the type and frames only. Without it, the stack an app's
+   * own boundary passes in `captureOptions.componentStack` is used.
    */
   componentStack?: string;
+  /** Web: the browser had translated the page when the error happened. */
+  pageTranslated?: boolean;
   /**
    * Active `setUser` value at crash time, or null. A crash from a known
    * person is exactly as useful to attribute as a filed report, so this
@@ -78,8 +81,9 @@ export function buildCrashEnvelope(input: BuildCrashEnvelopeInput): {
     0,
     MAX_MESSAGE,
   );
-  const message = input.componentStack
-    ? withComponentStack(bareMessage, redactStringContent(input.componentStack, input.redaction))
+  const componentStack = input.componentStack ?? captureOptionComponentStack(input.captureOptions);
+  const message = componentStack
+    ? withComponentStack(bareMessage, redactStringContent(componentStack, input.redaction))
     : bareMessage;
   // NOTE (adaptation): under this repo's `exactOptionalPropertyTypes: true`,
   // spreading `f: CrashFrame` (whose optional props like `function`/`file`
@@ -113,6 +117,7 @@ export function buildCrashEnvelope(input: BuildCrashEnvelopeInput): {
     occurredAt: input.occurredAt,
     fingerprint,
     ...(details ? { details } : {}),
+    ...(input.pageTranslated ? { pageTranslated: true } : {}),
   };
 
   const envelope = buildEnvelope({

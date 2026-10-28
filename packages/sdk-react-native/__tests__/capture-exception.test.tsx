@@ -112,6 +112,21 @@ describe('public captureException ownership', () => {
     }
   });
 
+  it("appends an app boundary's component stack to the message, as React Native titles it", () => {
+    const runtime = mount();
+    runtime.captureException(error('boundary'), {
+      componentStack: '\n    at PreviewPane\n    at Sandbox',
+    });
+    runtime.captureException(error('blank'), { componentStack: null });
+    const [withStack, withoutStack] = handled.mock.calls.map(([payload]) =>
+      JSON.parse(payload as string),
+    );
+    expect(withStack.message).toBe(
+      'boom\n\nThis error is located at:\n    at PreviewPane\n    at Sandbox',
+    );
+    expect(withoutStack.message).toBe('boom');
+  });
+
   it('disabled reporting gates both hook/facade and automatic capture', () => {
     const { result } = renderHook(useEverframe, {
       wrapper: provider({ crashReporting: { disabled: true } }),

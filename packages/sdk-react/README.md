@@ -102,7 +102,9 @@ The provider then hands the same error on unchanged: an error boundary of yours
 around the provider still catches it, and otherwise React reports it to the
 page, where the SDK recognises it and does not report it again. Errors that a
 boundary inside the provider catches are not reported automatically; call
-`captureException` from that boundary's `componentDidCatch`. A React 18
+`captureException` from that boundary's `componentDidCatch`, with React's
+component stack so the error page says which components it happened in:
+`captureException(error, { componentStack: info.componentStack })`. A React 18
 development build reports a failed render or effect to `window.onerror` before
 any boundary sees it, so in development such an error can arrive as a non-fatal
 error, instead of or as well as the fatal report.

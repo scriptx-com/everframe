@@ -9,4 +9,5 @@ export { createCrashThrottle } from './throttle.js';
 export type { CrashThrottle } from './throttle.js';
 export { buildCrashEnvelope } from './build.js';
 export type { BuildCrashEnvelopeInput } from './build.js';
+export { captureOptionComponentStack } from './options.js';
 export type { CaptureExceptionOptions } from './options.js';

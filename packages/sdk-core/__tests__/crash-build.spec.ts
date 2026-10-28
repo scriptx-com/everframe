@@ -223,4 +223,60 @@ describe('buildCrashEnvelope (spec 2026-07-18)', () => {
       ),
     ).toBe(true);
   });
+
+  it("appends the component stack an app's own boundary passes as an option, redacted", () => {
+    const input = base();
+    input.facts.message = 'Failed to remove a node';
+    const { envelope, fingerprint } = buildCrashEnvelope({
+      ...input,
+      handled: true,
+      captureOptions: { componentStack: '\n    at PreviewPane\n    at Card 123-45-6789' },
+    });
+
+    expect(envelope.payload.crash?.message).toBe(
+      'Failed to remove a node\n\nThis error is located at:' +
+        '\n    at PreviewPane\n    at Card [REDACTED:SSN]',
+    );
+    expect(envelope.reporter.title).toBe('TypeError: Failed to remove a node');
+    expect(envelope.payload.crash?.details).toEqual({ severity: 'error' });
+    expect(fingerprint).toBe(buildCrashEnvelope(input).fingerprint);
+    expect(() => ReportEnvelope.parse(envelope)).not.toThrow();
+  });
+
+  it('prefers the uncaught component stack and ignores an option that is not a string', () => {
+    const input = base();
+    input.facts.message = 'boom';
+    const both = buildCrashEnvelope({
+      ...input,
+      componentStack: '\n    at Uncaught',
+      captureOptions: { componentStack: '\n    at Option' },
+    });
+    expect(both.envelope.payload.crash?.message).toBe(
+      'boom\n\nThis error is located at:\n    at Uncaught',
+    );
+
+    const hostile = {
+      get componentStack(): string {
+        throw new Error('no');
+      },
+    };
+    for (const captureOptions of [{ componentStack: 42 }, { componentStack: '  ' }, hostile]) {
+      const { envelope } = buildCrashEnvelope({
+        ...input,
+        captureOptions: captureOptions as unknown as { componentStack: string },
+      });
+      expect(envelope.payload.crash?.message).toBe('boom');
+    }
+  });
+
+  it('records a translated page only when it was translated', () => {
+    const translated = buildCrashEnvelope({ ...base(), pageTranslated: true });
+    expect(translated.envelope.payload.crash?.pageTranslated).toBe(true);
+    expect(ReportEnvelope.parse(translated.envelope).payload.crash?.pageTranslated).toBe(true);
+
+    for (const input of [{ ...base(), pageTranslated: false }, base()]) {
+      const { envelope } = buildCrashEnvelope(input);
+      expect(envelope.payload.crash).not.toHaveProperty('pageTranslated');
+    }
+  });
 });
