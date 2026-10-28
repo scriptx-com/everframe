@@ -148,6 +148,7 @@ import {
 import { PKG_VERSION } from './internal/version.js';
 import { captureUserSnapshot } from './internal/user-snapshot.js';
 import { globalScope } from './internal/global-scope.js';
+import { isPageTranslated } from './internal/page-translation.js';
 import { resolveAppBuild } from './build-identity.js';
 import { resolveDebugBuild } from './debug-build.js';
 import { detectWebRuntimePlatform, ReleaseHealthSubjectSchema } from '@everframe/protocol';
@@ -1774,6 +1775,7 @@ export function createWebPlatformAdapter(
               ...(uncaughtReact?.componentStack
                 ? { componentStack: uncaughtReact.componentStack }
                 : {}),
+              pageTranslated: isPageTranslated(),
               occurredAt: new Date().toISOString(),
               reportId: crashReportId,
               submittedAt: new Date().toISOString(),

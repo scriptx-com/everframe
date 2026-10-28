@@ -86,6 +86,13 @@ export const CrashPayload = z
     occurredAt: z.string().datetime(),
     /** Client grouping heuristic — 16 lowercase hex chars (see spec). */
     fingerprint: z.string().regex(/^[0-9a-f]{16}$/),
+    /**
+     * Web: the browser had translated the page when the error happened (Chrome
+     * marks the root element `translated-ltr` / `translated-rtl`). Translation
+     * rewrites text nodes under React, the usual cause of a NotFoundError from
+     * `removeChild` or `insertBefore`. Absent when not translated or unknown.
+     */
+    pageTranslated: z.boolean().optional(),
   })
   .passthrough()
   .superRefine((value, ctx) => {

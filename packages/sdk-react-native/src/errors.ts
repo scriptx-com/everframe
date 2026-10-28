@@ -5,6 +5,7 @@ import NativeEverframe from './NativeEverframe.js';
 import { extractFacts, renderLabel } from './error-facts.js';
 import { normalizeCrashDetails } from '@everframe/protocol';
 import {
+  captureOptionComponentStack,
   extractCrashCauseChain,
   redactStringContent,
   type CaptureExceptionOptions,
@@ -216,13 +217,15 @@ export function createCaptureController(opts: InstallErrorHandlerOptions): Captu
         return;
       }
       const facts = extractFacts(error);
+      // An app boundary's stack is read here, under the reentrancy latch: its
+      // getter is the caller's code and may call captureException again.
+      const stack =
+        componentStack ??
+        (explicit ? captureOptionComponentStack(options)?.slice(0, MAX_MESSAGE) : undefined);
       // Exactly how RN titles a component error, so the native layer can match
       // RN's fatal wrapper and the dashboard can fold the component stack.
-      if (componentStack !== undefined) {
-        facts.message = `${facts.message}${COMPONENT_STACK_PREFIX}${componentStack}`.slice(
-          0,
-          MAX_MESSAGE,
-        );
+      if (stack !== undefined) {
+        facts.message = `${facts.message}${COMPONENT_STACK_PREFIX}${stack}`.slice(0, MAX_MESSAGE);
       }
       const keys = explicit ? handledKeys : automaticKeys;
       const key = captureKey(facts);

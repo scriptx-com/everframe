@@ -177,6 +177,39 @@ describe('captureException', () => {
     }
   });
 
+  it("sends an app boundary's component stack with the message, and whether the page was translated", async () => {
+    handle = init({ sdkKey: 'pk_test' });
+    document.documentElement.classList.add('translated-ltr');
+    try {
+      // jsdom's DOMException is not an Error, as it is in browsers; the name is what matters here.
+      const error = new Error(
+        "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.",
+      );
+      error.name = 'NotFoundError';
+      handle.captureException(error, {
+        componentStack: '\n    at PreviewPane\n    at SandboxPage',
+      });
+    } finally {
+      document.documentElement.classList.remove('translated-ltr');
+    }
+
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    const crash = sent[0]!.payload.crash!;
+    expect(crash.message).toBe(
+      "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node." +
+        '\n\nThis error is located at:\n    at PreviewPane\n    at SandboxPage',
+    );
+    expect(crash.pageTranslated).toBe(true);
+    expect(crash.handled).toBe(true);
+  });
+
+  it('leaves the translation flag out on an untranslated page', async () => {
+    handle = init({ sdkKey: 'pk_test' });
+    handle.captureException(failure());
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]!.payload.crash).not.toHaveProperty('pageTranslated');
+  });
+
   it('keeps classification fixed when untyped callers supply handled or fatal fields', async () => {
     handle = init({ sdkKey: 'pk_test' });
     const options = {

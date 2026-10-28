@@ -57,6 +57,7 @@ export {
   extractCrashCauseChain,
   createCrashThrottle,
   buildCrashEnvelope,
+  captureOptionComponentStack,
 } from './crash/index.js';
 export type {
   CrashFacts,

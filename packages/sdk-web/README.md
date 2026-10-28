@@ -210,7 +210,7 @@ interface Everframe {
   setIdentityToken(source: IdentityTokenSource): void;
   setExtra(value: string): void;
   addBreadcrumb(input: AddBreadcrumbInput): void;
-  captureException(error: unknown): void;
+  captureException(error: unknown, options?: CaptureExceptionOptions): void;
   threads: {
     // Two-way replies — list/read/reply/delete, plus subscribe/refresh for
     // live updates. See EverframeClient['threads'] for the full shape.
@@ -231,7 +231,7 @@ interface Everframe {
 | `setIdentityToken(source)` | Signed-JWT-based recognition; accepts a token string or a provider function the SDK re-asks as it nears expiry.                                                                                                                                                                                                                                                  |
 | `setExtra(value)`          | Free-form string attached to the next report as host-supplied context.                                                                                                                                                                                                                                                                                           |
 | `addBreadcrumb(input)`     | Manually record a breadcrumb (`{ message, kind?, level?, data? }`) into the trail every report carries.                                                                                                                                                                                                                                                          |
-| `captureException(error)`  | Reports a caught exception as handled and nonfatal, without opening UI. Uses existing redaction, context, and outbox delivery.                                                                                                                                                                                                                                   |
+| `captureException(error)`  | Reports a caught exception as handled and nonfatal, without opening UI. Uses existing redaction, context, and outbox delivery. Options: `severity`, `context`, `metadata`, `componentStack`.                                                                                                                                                                     |
 | `threads`                  | Two-way replies — list/read/reply to conversations attached to reports from this device.                                                                                                                                                                                                                                                                         |
 | `kill()`                   | Stops this instance from capturing or submitting anything further; the mounted UI and seams stay in place. A reporter already **open** when this lands is not submitted either: pressing Send discards the report, shows "Reporting is turned off — this report was not sent.", and settles a pending `open()` with `{ status: 'cancelled', reason: 'killed' }`. |
 | `destroy()`                | Full teardown — hotkey, listeners, thread polling, the mounted host element, and the sdk-core client. Safe to call more than once. A host with client-side routing can `init()`/`destroy()` many times per page load without accumulating listeners.                                                                                                             |
@@ -268,6 +268,28 @@ The same error object is captured once per SDK instance, with the first
 accepted capture determining handled/unhandled classification. Explicit and
 automatic capture each have an independent allowance of one report per
 fingerprint and ten per SDK instance. Transport retries retain the report ID.
+
+### From a React error boundary
+
+React passes the component stack to `componentDidCatch`. Pass it on, so the
+error page says which components the error happened in, with their names read
+through your source map:
+
+```tsx
+componentDidCatch(error: Error, info: React.ErrorInfo) {
+  everframe.captureException(error, { componentStack: info.componentStack });
+}
+```
+
+This matters most for errors React throws itself, such as
+`NotFoundError: Failed to execute 'removeChild' on 'Node'`, whose stack holds
+only React's own frames. The component stack goes under the message; the
+error's title and grouping stay the same.
+
+Errors also record whether the browser had translated the page (Chrome marks
+the page when it does). Translation rewrites text React rendered, the most
+common cause of that `removeChild` error, and the dashboard says so when the
+page was translated.
 
 ## Choosing breadcrumb kinds
 
