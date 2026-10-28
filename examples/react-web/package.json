@@ -1,6 +1,6 @@
 {
   "name": "examples-react-web",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "private": true,
   "type": "module",
   "scripts": {

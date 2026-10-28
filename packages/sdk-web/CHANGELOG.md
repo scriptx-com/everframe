@@ -1,5 +1,19 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.6.6
+
+### Minor Changes
+
+- 2355833: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  `captureException(error, { componentStack })` takes React's component stack from an app's own error boundary (`info.componentStack` in `componentDidCatch`; `null` is ignored). It goes under the error's message, as it already does for errors the SDK's own boundary catches, so the dashboard can say which components an error happened in and map their names through the source map. Errors also record whether the browser had translated the page, the most common cause of React's `NotFoundError` from `removeChild` or `insertBefore`.
+
+- 3026471: <!-- SPDX-License-Identifier: MIT -->
+  <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
+
+  `init({ reportRoute })` decides the route an error report carries (`context.route`). It is called when the error is captured, with the page's path at that moment; return a shape (`/invite/:id`) or `null` for no route. By default the path is sent as is. Apps whose URLs carry credentials can now keep them out of error reports, including an error that lands mid-navigation, after the URL changed but before the app rendered the new route. A throwing `reportRoute` sends no route.
+
 ## 1.6.5
 
 ### Minor Changes
