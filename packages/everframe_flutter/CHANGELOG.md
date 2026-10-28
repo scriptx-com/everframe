@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- SPDX-FileCopyrightText: 2026 ScriptX -->
 
+## Unreleased
+
+- Released with the coordinated Everframe mobile release. Its changes are in `@everframe/react-native`: errors from a failed native-module call carry the native stack, and `captureException` takes a `componentStack`. The Android and iOS SDKs, the Flutter bridges and the Dart API are unchanged from 1.6.2.
+
 ## 1.6.2
 
 - Through the native iOS SDK, a rare crash (`EXC_BAD_ACCESS` in `_platform_memmove`) while the SDK listed its crash and release-health stores is fixed. It affected 1.1.0 through 1.6.1, once a session had collected more than about 115 crash-context files. No Dart API change.
