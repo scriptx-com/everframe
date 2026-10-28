@@ -130,6 +130,99 @@ export function renderLabel(value: unknown): string {
   }
 }
 
+/** A bounded string field of a native frame, or '' for anything else. */
+function frameText(frame: object, key: string): string {
+  const value = read(frame, key);
+  return typeof value === 'string' ? value.slice(0, MAX_RAW) : '';
+}
+
+/** The array a native stack field holds, bounded, or [] for anything else (a hostile value included). */
+function boundedItems(error: object, key: string): unknown[] {
+  try {
+    const value = read(error, key);
+    if (!Array.isArray(value)) return [];
+    const length = read(value, 'length');
+    const count = typeof length === 'number' ? Math.min(length, MAX_FRAMES) : 0;
+    const items: unknown[] = [];
+    for (let i = 0; i < count; i++) items.push(read(value, i));
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+/** A JVM frame as the JVM writes a stack line: `at class.method(File.java:12)`. */
+function androidLine(frame: unknown): string | null {
+  if (!frame || typeof frame !== 'object') return null;
+  const owner = frameText(frame, 'class');
+  const method = frameText(frame, 'methodName');
+  if (!owner && !method) return null;
+  const file = frameText(frame, 'file');
+  const line = read(frame, 'lineNumber');
+  const location =
+    line === -2
+      ? 'Native Method'
+      : file
+        ? typeof line === 'number' && Number.isInteger(line) && line >= 0
+          ? `${file}:${line}`
+          : file
+        : 'Unknown Source';
+  return `at ${owner}.${method}(${location})`.slice(0, MAX_RAW);
+}
+
+const ADDRESS = /^0x[0-9a-fA-F]+$/;
+const DIGITS = /^\d+$/;
+
+/**
+ * An iOS callStackSymbols line (`2   MyApp   0x104a1c2e8 -[Player play] + 64`) without the
+ * addresses that change every launch. The image column may hold spaces (`Native Probe`), so the
+ * load address is the first `0x` token after it. An unsymbolicated frame names its image's base
+ * address instead of a symbol (`0x104a00000 + 115432`): it reads as the image and its offset
+ * (`MyApp + 115432`), as crash reports write it. Tokens, not one pattern: a line is read once,
+ * however malformed.
+ */
+function iosLine(frame: unknown): string | null {
+  if (typeof frame !== 'string') return null;
+  const text = frame.slice(0, MAX_RAW).trim();
+  if (text === '') return null;
+  const tokens: Array<{ value: string; start: number }> = [];
+  const word = /\S+/g;
+  for (let match = word.exec(text); match; match = word.exec(text))
+    tokens.push({ value: match[0], start: match.index });
+  if (tokens.length < 3 || !DIGITS.test(tokens[0]!.value)) return text;
+  const at = tokens.findIndex((token, i) => i >= 2 && ADDRESS.test(token.value));
+  if (at === -1) return text;
+  const head = text.slice(0, tokens[at]!.start);
+  const rest = tokens.slice(at + 1);
+  if (
+    rest.length === 3 &&
+    ADDRESS.test(rest[0]!.value) &&
+    rest[1]!.value === '+' &&
+    DIGITS.test(rest[2]!.value)
+  ) {
+    const image = text.slice(
+      tokens[1]!.start,
+      tokens[at - 1]!.start + tokens[at - 1]!.value.length,
+    );
+    return `${head}${image} + ${rest[2]!.value}`;
+  }
+  return rest.length > 0 ? `${head}${text.slice(rest[0]!.start)}` : head.trimEnd();
+}
+
+/**
+ * The native stack React Native attaches to a failed native-module call. React Native builds that
+ * error from native code, so its JavaScript stack names no frames, and the failure (Notifee's, on
+ * Mware TV, October 2026) arrived with none. Android sends `nativeStackAndroid` ({class,
+ * methodName, file, lineNumber}); iOS sends `nativeStackIOS` (callStackSymbols at the rejection).
+ */
+function nativeStackLines(error: object): string[] {
+  const android = boundedItems(error, 'nativeStackAndroid').map(androidLine);
+  const lines = android.some((line) => line !== null)
+    ? android
+    : boundedItems(error, 'nativeStackIOS').map(iosLine);
+  return lines.filter((line): line is string => line !== null);
+}
+
 export function extractFacts(
   value: unknown,
   renderOther: (value: unknown) => string = renderValue,
@@ -167,5 +260,7 @@ export function extractFacts(
     first = false;
     if (!header) framesRaw.push(line);
   }
+  // Only when JavaScript named no frame: a JavaScript stack says where the app called from.
+  if (framesRaw.length === 0) framesRaw.push(...nativeStackLines(error));
   return { exceptionType, message, framesRaw };
 }
