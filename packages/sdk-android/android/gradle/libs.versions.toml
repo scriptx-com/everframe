@@ -6,7 +6,7 @@
 
 [versions]
 agp = "8.7.2"                       # AGP 8.7.x (LOCKED per CONTEXT carry-forward)
-kotlin = "2.1.0"                    # Kotlin 2.1.x stable
+kotlin = "2.4.21"                    # Kotlin 2.1.x stable
 # Compose 1.8.3 + Material3 1.3.2, which need androidx.lifecycle 2.8.7. Do not
 # raise past 2025.07.00 while AGP 8.7 is supported: Compose 1.9 needs lifecycle
 # 2.9, and the lint checks lifecycle 2.9 and Compose runtime 1.9 ship crash AGP
