@@ -1,0 +1,46 @@
+packages/sdk-core/src/crash/options.ts
+  s_cf8117dc0506ec::t_73e5626f6051e3 10-17
+  s_cf8117dc0506ec::t_cf20b926311338 18-29
+.changeset/crash-component-stack-option.md
+  s_cf8117dc0506ec::t_6356b78953ddea 1-9
+packages/protocol/src/crash.ts
+  s_cf8117dc0506ec::t_be4d4f09770140 89-95
+packages/sdk-core/__tests__/crash-build.spec.ts
+  s_cf8117dc0506ec::t_10ece978d3ec6f 226-281
+packages/sdk-core/src/crash/build.ts
+  s_cf8117dc0506ec::t_5cff0f83c7adc6 23,56-57,60-61,84-86,120
+packages/sdk-core/src/crash/index.ts
+  s_cf8117dc0506ec::t_b206166beaf812 12
+packages/sdk-core/src/index.ts
+  s_cf8117dc0506ec::t_4e44921b40fb29 60
+packages/sdk-react-native/__tests__/capture-exception.test.tsx
+  s_cf8117dc0506ec::t_aa22cba882fe2c 115-129
+packages/sdk-react-native/src/errors.ts
+  s_cf8117dc0506ec::t_6dd0802a01b6a8 8,376-382
+packages/sdk-react/README.md
+  s_cf8117dc0506ec::t_a5591260eceb01 105-107
+packages/sdk-web/README.md
+  s_cf8117dc0506ec::t_017d06e1fa41be 213,234,272-293
+packages/sdk-web/__tests__/capture-exception.spec.ts
+  s_cf8117dc0506ec::t_ea9b7b4329401f 180-212
+packages/sdk-web/src/adapter.ts
+  s_cf8117dc0506ec::t_abc6288d78b1b9 151,1778
+packages/sdk-web/src/internal/page-translation.ts
+  s_cf8117dc0506ec::t_1dd1407edfc835 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "23558331287a766bca17363c066fb62731e0d855",
+  "prompts": {},
+  "sessions": {
+    "s_cf8117dc0506ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac89f9b1-dd66-437a-8fdc-5227bacd4608",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
