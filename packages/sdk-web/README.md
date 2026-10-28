@@ -308,6 +308,24 @@ init({
 
 Breadcrumbs added with `addBreadcrumb` are recorded whatever their kind.
 
+## The route an error report carries
+
+Each error report carries the page's path at the moment of the error
+(`context.route`). If your URLs carry credentials, such as `/invite/<token>`,
+map the path with `reportRoute`, or return `null` to send no route:
+
+```ts
+init({
+  sdkKey: 'evf_live_xxxxxxxxxxxxxxxx',
+  reportRoute: (path) => path.replace(/^\/invite\/[^/]+/, '/invite/:id'),
+});
+```
+
+It runs when the error is captured, with the live path, so it also covers an
+error that lands mid-navigation. If it throws, no route is sent. The SDK's own
+navigation breadcrumbs record URLs too; leave `navigation` out of
+`breadcrumbs.kinds` (above) for such an app.
+
 ## Triggers
 
 Everframe installs no visible "report a bug" button by default — same

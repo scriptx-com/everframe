@@ -70,4 +70,14 @@ export interface WebEverframeConfig extends EverframeConfig {
    * whatever their kind.
    */
   breadcrumbs?: { kinds?: Array<BreadcrumbInput['kind']> };
+  /**
+   * The route an error report carries (`context.route`). Called when the error
+   * is captured, with the page's path at that moment; by default the path is
+   * sent as is. An app whose URLs carry credentials (`/invite/<token>`) can
+   * return a shape instead (`/invite/:id`), or `null` to send no route. Because
+   * it reads the live path, it also covers an error that lands mid-navigation,
+   * after the URL changed but before the app rendered the new route. If it
+   * throws, no route is sent.
+   */
+  reportRoute?: (pathname: string) => string | null;
 }
