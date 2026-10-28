@@ -127,6 +127,22 @@ describe('public captureException ownership', () => {
     expect(withoutStack.message).toBe('boom');
   });
 
+  it("reads a boundary's component stack under the reentrancy latch", () => {
+    const runtime = mount();
+    const thrown = error('reentrant');
+    const options = {
+      get componentStack(): string {
+        runtime.captureException(thrown);
+        return '\n    at PreviewPane';
+      },
+    };
+    runtime.captureException(thrown, options);
+    expect(handled).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(handled.mock.calls[0]![0] as string).message).toBe(
+      'boom\n\nThis error is located at:\n    at PreviewPane',
+    );
+  });
+
   it('disabled reporting gates both hook/facade and automatic capture', () => {
     const { result } = renderHook(useEverframe, {
       wrapper: provider({ crashReporting: { disabled: true } }),

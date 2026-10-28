@@ -260,6 +260,12 @@ describe('buildCrashEnvelope (spec 2026-07-18)', () => {
         throw new Error('no');
       },
     };
+    // React's ErrorInfo.componentStack is optional: passing it as it is must compile.
+    const info: { componentStack?: string | null } = {};
+    expect(
+      buildCrashEnvelope({ ...input, captureOptions: { componentStack: info.componentStack } })
+        .envelope.payload.crash?.message,
+    ).toBe('boom');
     for (const captureOptions of [{ componentStack: 42 }, { componentStack: '  ' }, hostile]) {
       const { envelope } = buildCrashEnvelope({
         ...input,

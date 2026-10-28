@@ -12,9 +12,10 @@ export interface CaptureExceptionOptions {
    * `componentDidCatch(error, info)` passes it as `info.componentStack`. The
    * dashboard shows it under the message and maps its names through the
    * source map, so an error thrown inside React itself still says which
-   * components it happened in. React types it `string | null`; null is ignored.
+   * components it happened in. React types it as optional and nullable, so
+   * `info.componentStack` can be passed as it is; null is ignored.
    */
-  componentStack?: string | null;
+  componentStack?: string | null | undefined;
 }
 
 /** The host's `componentStack` option, when it is a non-blank string. A hostile getter yields none. */
