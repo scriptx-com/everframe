@@ -170,13 +170,15 @@ function androidLine(frame: unknown): string | null {
   return `at ${owner}.${method}(${location})`.slice(0, MAX_RAW);
 }
 
-/** An iOS callStackSymbols line without its load address, which changes every launch. */
+/**
+ * An iOS callStackSymbols line without its load address, which changes every launch. The image
+ * column may hold spaces (`Native Probe`), so the address is the first `0x` token after it.
+ */
 function iosLine(frame: unknown): string | null {
-  if (typeof frame !== 'string' || frame.trim() === '') return null;
-  return frame
-    .slice(0, MAX_RAW)
-    .replace(/^(\s*\d+\s+\S+\s+)0x[0-9a-fA-F]+\s+/, '$1')
-    .trim();
+  if (typeof frame !== 'string') return null;
+  const text = frame.slice(0, MAX_RAW);
+  if (text.trim() === '') return null;
+  return text.replace(/^(\s*\d+\s+.+?\s)0x[0-9a-fA-F]+\s+/, '$1').trim();
 }
 
 /**

@@ -499,7 +499,9 @@ describe('the native stack of a failed native-module call', () => {
           nativeStackIOS: [
             '0   React                               0x0000000104a1c2e8 RCTJSErrorFromCodeMessageAndNSError + 132',
             '1   Notifee                             0x0000000104b5f7a0 -[NotifeeApiModule createTriggerNotification:trigger:resolve:reject:] + 300',
+            '2   Native Probe                        0x00000001009f3b10 main + 64',
             '',
+            ' '.repeat(5_000_000),
           ],
         },
         'Error: The operation could not be completed',
@@ -508,6 +510,7 @@ describe('the native stack of a failed native-module call', () => {
     expect(facts.framesRaw).toEqual([
       '0   React                               RCTJSErrorFromCodeMessageAndNSError + 132',
       '1   Notifee                             -[NotifeeApiModule createTriggerNotification:trigger:resolve:reject:] + 300',
+      '2   Native Probe                        main + 64',
     ]);
   });
 
