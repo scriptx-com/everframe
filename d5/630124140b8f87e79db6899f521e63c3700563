@@ -1,0 +1,23 @@
+.changeset/react-native-native-module-stacks.md
+  s_cf8117dc0506ec::t_5db7916d16b0dd 1-8
+packages/sdk-react-native/__tests__/capture-exception.test.tsx
+  s_cf8117dc0506ec::t_8003961a7166cc 443-544
+packages/sdk-react-native/src/error-facts.ts
+  s_cf8117dc0506ec::t_63567c57dc6f15 133-195,233-234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d5630124140b8f87e79db6899f521e63c3700563",
+  "prompts": {},
+  "sessions": {
+    "s_cf8117dc0506ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac89f9b1-dd66-437a-8fdc-5227bacd4608",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
