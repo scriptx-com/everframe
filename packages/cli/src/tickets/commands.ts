@@ -23,6 +23,7 @@ const COMMON = {
   project: { type: 'string' },
   'idempotency-key': { type: 'string' },
   json: { type: 'boolean' },
+  help: { type: 'boolean', short: 'h' },
 } as const;
 
 const OPTIONS = {
@@ -44,12 +45,13 @@ const OPTIONS = {
   },
 } as const;
 
-export const TICKET_USAGE = [
-  'Usage:',
-  '  everframe ticket create --title <text> [--description <text> | --description-file <path>] [--attach <image>]... [--project <uuid>] [--board <uuid>] [--column <uuid>] [--idempotency-key <key>] [--json]',
+export const TICKET_LINES = [
+  '  everframe ticket create --title <text> [--description <text> | --description-file <path>] [--attach <image>...] [--project <uuid>] [--board <uuid>] [--column <uuid>] [--idempotency-key <key>] [--json]',
   '  everframe ticket attach <ticket> <image>... [--project <uuid>] [--idempotency-key <key>] [--json]',
-  '  everframe ticket comment <ticket> (--body <text> | --body-file <path>) [--attach <image>]... [--project <uuid>] [--idempotency-key <key>] [--json]',
-].join('\n');
+  '  everframe ticket comment <ticket> (--body <text> | --body-file <path>) [--attach <image>...] [--project <uuid>] [--idempotency-key <key>] [--json]',
+];
+
+export const TICKET_USAGE = ['Usage:', ...TICKET_LINES].join('\n');
 
 class BadInput extends Error {}
 
@@ -68,8 +70,7 @@ async function textFrom(inline: string | undefined, file: string | undefined, wh
 export async function ticketCommand(argv: string[], deps: TicketDeps): Promise<number> {
   const { env } = deps;
   const sub = argv[0];
-  const wantsHelp = (a: string[]) => a.some((x) => x === '--help' || x === '-h');
-  if (sub === '--help' || sub === '-h' || (sub !== undefined && wantsHelp(argv.slice(1)))) {
+  if (sub === '--help' || sub === '-h') {
     deps.out(TICKET_USAGE);
     return 0;
   }
@@ -82,25 +83,52 @@ export async function ticketCommand(argv: string[], deps: TicketDeps): Promise<n
   const err = (s: string) => deps.err(redact(s, env.EVERFRAME_API_TOKEN));
 
   let values: Record<string, string | string[] | boolean | undefined>;
-  let positionals: string[];
+  const positionals: string[] = [];
+  const attach: string[] = [];
   try {
-    ({ values, positionals } = parseArgs({
+    const parsed = parseArgs({
       args: argv.slice(1),
       strict: true,
-      allowPositionals: sub !== 'create',
+      allowPositionals: true,
+      tokens: true,
       options: OPTIONS[sub],
-    }) as { values: typeof values; positionals: string[] });
+    });
+    values = parsed.values as typeof values;
+    // `--attach` takes every following positional until the next option, and may repeat.
+    // Read the files from the tokens only: values.attach would count them twice.
+    let inAttach = false;
+    for (const t of parsed.tokens) {
+      if (t.kind === 'option') {
+        inAttach = (t.name as string) === 'attach';
+        if (inAttach && t.value !== undefined) attach.push(t.value);
+      } else if (t.kind === 'positional') {
+        (inAttach ? attach : positionals).push(t.value);
+      } else {
+        inAttach = false;
+      }
+    }
   } catch {
     err(`everframe: ticket ${sub}: invalid arguments`);
     return 2;
   }
+  if (values.help) {
+    out(TICKET_USAGE);
+    return 0;
+  }
   const str = (k: string) => values[k] as string | undefined;
-  const list = (k: string) => (values[k] as string[] | undefined) ?? [];
 
   try {
     let ref: { ticket: string; projectId?: string } | undefined;
-    let filePaths = list('attach');
-    if (sub !== 'create') {
+    let filePaths = attach;
+    const idempotencyKey = str('idempotency-key');
+    if (
+      idempotencyKey !== undefined &&
+      (idempotencyKey.trim().length < 1 || idempotencyKey.trim().length > 255)
+    )
+      throw new BadInput('--idempotency-key must be 1 to 255 characters');
+    if (sub === 'create') {
+      if (positionals.length > 0) throw new BadInput('unexpected argument; use --attach for files');
+    } else {
       const [arg, ...rest] = positionals;
       const parsed = arg === undefined ? null : parseTicketArg(arg);
       if (!parsed) throw new BadInput('give a ticket number, uuid or dashboard link');
@@ -138,7 +166,7 @@ export async function ticketCommand(argv: string[], deps: TicketDeps): Promise<n
       deps.client ??
       createTicketClient({ apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL, token: token ?? '' });
     const projectId = str('project') ?? ref?.projectId ?? (env.EVERFRAME_PROJECT_ID || undefined);
-    const key = str('idempotency-key') ?? (deps.newKey ?? randomUUID)();
+    const key = idempotencyKey?.trim() ?? (deps.newKey ?? randomUUID)();
 
     let step: string = 'upload';
     let currentFile = '';

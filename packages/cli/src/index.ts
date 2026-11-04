@@ -14,7 +14,7 @@ import { dsymUploadBuildCommand } from './apple-command.js';
 import { DEFAULT_API_URL, redact, uploadBudget } from './defaults.js';
 import { homedir } from 'node:os';
 import { captureCommand, linkCommand } from './quick-capture/commands.js';
-import { ticketCommand } from './tickets/commands.js';
+import { TICKET_LINES, ticketCommand } from './tickets/commands.js';
 import { defaultOpenBrowser, loginCommand, logoutCommand } from './quick-capture/login.js';
 import { defaultRunner } from './quick-capture/devices.js';
 import { hotkeyCommand } from './quick-capture/hotkey.js';
@@ -82,9 +82,7 @@ const HELP = `Usage:
   everframe logout   (revoke and remove your quick capture login)
   everframe link   (copy your login to running Android emulators)
   everframe capture [--device <udid|name|serial>]   (trigger a quick capture on a simulator or emulator; in the app, press Shift+B outside a text field)
-  everframe ticket create --title <text> [--description <text> | --description-file <path>] [--attach <image>]... [--project <uuid>] [--board <uuid>] [--column <uuid>] [--idempotency-key <key>] [--json]
-  everframe ticket attach <ticket> <image>... [--project <uuid>] [--idempotency-key <key>] [--json]
-  everframe ticket comment <ticket> (--body <text> | --body-file <path>) [--attach <image>]... [--project <uuid>] [--idempotency-key <key>] [--json]
+${TICKET_LINES.join('\n')}
 
 Tickets: <ticket> is a number, a uuid or a dashboard link (the link also sets the project). At most 10 files of 25 MiB each; the server decides which types it accepts.
 
