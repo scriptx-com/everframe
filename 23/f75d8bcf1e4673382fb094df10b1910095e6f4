@@ -1,0 +1,25 @@
+packages/cli/__tests__/ticket-commands.spec.ts
+  s_d74f3496d34fb6::t_4c9e0f3788c573 91-107
+packages/cli/__tests__/ticket-ref.spec.ts
+  s_d74f3496d34fb6::t_db4ce9a3dcc6dd 23-26,28-31
+packages/cli/src/tickets/commands.ts
+  s_d74f3496d34fb6::t_0359c61fe725dc 136-140
+packages/cli/src/tickets/ref.ts
+  s_d74f3496d34fb6::t_ed882028de9c3c 13-15,30-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "23f75d8bcf1e4673382fb094df10b1910095e6f4",
+  "prompts": {},
+  "sessions": {
+    "s_d74f3496d34fb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "28a22df7-5458-4e20-8932-00794016bd73",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
