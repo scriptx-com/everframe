@@ -114,6 +114,45 @@ describe('ticket attach and comment', () => {
   });
 });
 
+describe('--attach forms', () => {
+  it('create: several files after one flag, repeated flags, and --attach=', async () => {
+    expect(await run(['create', '--title', 'x', '--attach', png, png2])).toBe(0);
+    expect(client.createTicket.mock.calls[0][0].attachmentIds).toEqual(['att-1', 'att-2']);
+    n = 0;
+    expect(await run(['create', '--title', 'x', '--attach', png, png2, '--attach', png])).toBe(0);
+    expect(client.createTicket.mock.calls[1][0].attachmentIds).toEqual(['att-1', 'att-2', 'att-3']);
+    n = 0;
+    expect(await run(['create', `--attach=${png}`, png2, '--title', 'x'])).toBe(0);
+    expect(client.createTicket.mock.calls[2][0].attachmentIds).toEqual(['att-1', 'att-2']);
+    expect(client.upload).toHaveBeenCalledTimes(7);
+  });
+  it('create: a stray positional exits 2 without a client call', async () => {
+    expect(await run(['create', '--title', 'x', png])).toBe(2);
+    expect(await run(['create', '--attach', png, '--title', 'x', png2])).toBe(2);
+    expect(client.upload).not.toHaveBeenCalled();
+    expect(client.createTicket).not.toHaveBeenCalled();
+  });
+  it('comment: ticket first, then several files after one flag', async () => {
+    expect(await run(['comment', '7', '--attach', png, png2, '--body', 'hi', '--json'])).toBe(0);
+    expect(client.upload).toHaveBeenCalledTimes(2);
+    expect(client.comment.mock.calls[0][1]).toEqual({
+      body: 'hi',
+      attachmentIds: ['att-1', 'att-2'],
+    });
+    expect(client.comment.mock.calls[0][0]).toBe('7');
+  });
+  it('comment: repeated flags and --attach= keep order', async () => {
+    expect(
+      await run(['comment', '7', `--attach=${png}`, png2, '--attach', png, '--body', 'hi']),
+    ).toBe(0);
+    expect(client.comment.mock.calls[0][1].attachmentIds).toEqual(['att-1', 'att-2', 'att-3']);
+  });
+  it('a ticket placed after --attach is read as a file and exits 2', async () => {
+    expect(await run(['comment', '--attach', png, '7', '--body', 'hi'])).toBe(2);
+    expect(client.upload).not.toHaveBeenCalled();
+  });
+});
+
 describe('shared behaviour', () => {
   it('bad file -> exit 2 and no client call', async () => {
     expect(await run(['attach', '5', join(dir, 'missing.png')])).toBe(2);
@@ -187,6 +226,22 @@ describe('shared behaviour', () => {
 });
 
 describe('bad input exits 2 without a client call', () => {
+  it('a --help value is not help', async () => {
+    expect(await run(['comment', '7', '--body', '--help'])).toBe(2);
+    expect(out).toEqual([]);
+    none();
+  });
+  it('an invalid --idempotency-key, before any upload', async () => {
+    for (const key of ['', '   ', 'k'.repeat(256)]) {
+      expect(
+        await run(['comment', '7', '--body', 'x', '--attach', png, '--idempotency-key', key]),
+      ).toBe(2);
+    }
+    none();
+    expect(await run(['comment', '7', '--body', 'x', '--idempotency-key', 'k'.repeat(255)])).toBe(
+      0,
+    );
+  });
   const none = () => {
     expect(client.upload).not.toHaveBeenCalled();
     expect(client.createTicket).not.toHaveBeenCalled();

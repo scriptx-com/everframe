@@ -83,6 +83,34 @@ describe('ticket client', () => {
     expect(h.sleeps).toEqual([7000]);
   });
 
+  it('caps Retry-After at 60 seconds', async () => {
+    const h = harness([
+      json(429, { error: 'rate_limit_exceeded' }, { 'Retry-After': '3600' }),
+      json(201, ticket),
+    ]);
+    await h.client.createTicket({ title: 'T' }, 'k');
+    expect(h.sleeps).toEqual([60000]);
+  });
+
+  it('retries an unparseable 2xx on a keyed write with the same key', async () => {
+    const h = harness([new Response('<html>proxy</html>', { status: 200 }), json(201, ticket)]);
+    await expect(h.client.createTicket({ title: 'T' }, 'same')).resolves.toMatchObject({
+      id: '12',
+    });
+    expect(h.calls).toHaveLength(2);
+    expect(header(h.calls[0]!, 'idempotency-key')).toBe('same');
+    expect(header(h.calls[1]!, 'idempotency-key')).toBe('same');
+  });
+
+  it('fails fast on an unparseable 2xx upload', async () => {
+    const h = harness([new Response('nope', { status: 201 }), json(201, { id: 'a' })]);
+    const err = await h.client
+      .upload({ path: 'x', name: 'x.png', bytes: Buffer.from([1]) })
+      .catch((e: unknown) => e);
+    expect(err).toMatchObject({ step: 'upload', code: 'invalid_server_response' });
+    expect(h.calls).toHaveLength(1);
+  });
+
   it('treats a general-limiter 429 body as retryable with rate_limit_exceeded', async () => {
     const body = { statusCode: 429, error: 'Too Many Requests', message: 'slow down' };
     const h = harness(Array.from({ length: 4 }, () => json(429, body)));
