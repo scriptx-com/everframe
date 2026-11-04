@@ -36,7 +36,7 @@ function harness(responses: Array<Response | Error>, now?: () => number) {
     apiUrl: 'https://api.test/api/v1',
     token: TOKEN,
     fetch: fetchFn,
-    now,
+    ...(now ? { now } : {}),
     sleep: async (ms) => {
       sleeps.push(ms);
     },
@@ -251,5 +251,35 @@ describe('ticket client', () => {
     ]);
     const e2 = (await n.client.createTicket({ title: 'T' }, 'k').catch((e: unknown) => e)) as Error;
     expect(e2.message).not.toContain(TOKEN);
+  });
+
+  it('does not follow a redirect: a 307 fails with no second request', async () => {
+    const h = harness([
+      new Response(null, { status: 307, headers: { location: 'https://evil.test/x' } }),
+      json(201, ticket),
+    ]);
+    const err = await h.client.createTicket({ title: 'T' }, 'k').catch((e: unknown) => e);
+    expect(err).toMatchObject({ step: 'create', status: 307, code: 'unexpected_redirect' });
+    expect(h.calls).toHaveLength(1);
+    expect(h.calls[0]!.init.redirect).toBe('manual');
+  });
+
+  it('rejects a non-loopback http API URL before any request', () => {
+    const fetchFn = vi.fn();
+    for (const apiUrl of ['http://example.com/api/v1', 'ftp://x/api/v1', 'not a url']) {
+      expect(() =>
+        createTicketClient({ apiUrl, token: TOKEN, fetch: fetchFn as unknown as typeof fetch }),
+      ).toThrow('invalid_api_url');
+    }
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('allows http on loopback hosts', () => {
+    for (const apiUrl of [
+      'http://127.0.0.1:4000/api/v1',
+      'http://localhost:4000/api/v1',
+      'http://[::1]:4000/api/v1',
+    ])
+      expect(() => createTicketClient({ apiUrl, token: TOKEN })).not.toThrow();
   });
 });

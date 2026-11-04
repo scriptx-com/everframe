@@ -162,9 +162,20 @@ export async function ticketCommand(argv: string[], deps: TicketDeps): Promise<n
       err(`everframe: ${MISSING_TICKET_TOKEN}`);
       return 1;
     }
-    const client =
-      deps.client ??
-      createTicketClient({ apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL, token: token ?? '' });
+    let client: NonNullable<TicketDeps['client']>;
+    try {
+      client =
+        deps.client ??
+        createTicketClient({
+          apiUrl: env.EVERFRAME_API_URL ?? DEFAULT_API_URL,
+          token: token ?? '',
+        });
+    } catch {
+      err(
+        'everframe: invalid_api_url. https is required (http is allowed only for localhost). Check EVERFRAME_API_URL.',
+      );
+      return 1;
+    }
     const projectId = str('project') ?? ref?.projectId ?? (env.EVERFRAME_PROJECT_ID || undefined);
     const key = idempotencyKey?.trim() ?? (deps.newKey ?? randomUUID)();
 

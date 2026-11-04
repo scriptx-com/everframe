@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
 import { redact } from '../defaults.js';
+import { apiBase } from '../upload.js';
 
 export type TicketStep = 'upload' | 'create' | 'attach' | 'comment';
 
@@ -96,7 +97,8 @@ export function createTicketClient(o: TicketClientOptions) {
   const sleep = o.sleep ?? defaultSleep;
   const now = o.now ?? Date.now;
   const maxAttempts = Math.max(1, o.maxAttempts ?? DEFAULT_MAX_ATTEMPTS);
-  const base = o.apiUrl.replace(/\/+$/, '');
+  // Same rules as the build upload: https, or http on loopback only. Throws before any request.
+  const base = apiBase(o.apiUrl);
 
   async function request<T>(
     step: TicketStep,
@@ -112,12 +114,16 @@ export function createTicketClient(o: TicketClientOptions) {
           method: 'POST',
           headers: { Authorization: `Bearer ${o.token}`, ...init.headers },
           body: init.body,
+          // fetch would resend the body and token to a 307/308 target.
+          redirect: 'manual',
           signal: AbortSignal.timeout(init.timeoutMs),
         });
       } catch {
         last = new TicketApiError(step, null, 'network_error');
       }
       if (response) {
+        if (response.status >= 300 && response.status < 400)
+          throw sanitize(new TicketApiError(step, response.status, 'unexpected_redirect'));
         let parsed: unknown;
         try {
           parsed = await response.json();

@@ -197,6 +197,18 @@ describe('shared behaviour', () => {
     expect(code).toBe(1);
     expect(err.join('\n')).toContain('tickets:write');
   });
+  it('a non-loopback http EVERFRAME_API_URL exits 1 before any request', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const code = await ticketCommand(['comment', '7', '--body', 'x'], {
+      env: { EVERFRAME_API_TOKEN: TOKEN, EVERFRAME_API_URL: 'http://example.com/api/v1' },
+      out: (s) => out.push(s),
+      err: (s) => err.push(s),
+    });
+    expect(code).toBe(1);
+    expect(err.join('\n')).toContain('invalid_api_url');
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
   it('--help prints the ticket usage and exits 0', async () => {
     for (const argv of [
       ['--help'],
