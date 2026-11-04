@@ -1,0 +1,21 @@
+packages/cli/src/index.ts
+  s_d74f3496d34fb6::t_22dc2b6e3ddd86 17,85
+packages/cli/src/tickets/commands.ts
+  s_d74f3496d34fb6::t_f1bcf2f57569a6 26,48-49,51-54,73,86-87,89,92-93,95-109,114-117,122-131,169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "047d8dc28856cdbde51340eb221f4b2792ff4156",
+  "prompts": {},
+  "sessions": {
+    "s_d74f3496d34fb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "28a22df7-5458-4e20-8932-00794016bd73",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
