@@ -216,7 +216,9 @@ export async function ticketCommand(argv: string[], deps: TicketDeps): Promise<n
       const failed = error instanceof TicketApiError ? error.step : step;
       err(`everframe: ${failed} failed: ${code}${currentFile ? ` (${currentFile})` : ''}`);
       if (code === 'project_required')
-        err('pass --project, set EVERFRAME_PROJECT_ID, or use the ticket link');
+        err(
+          'pass --project, set EVERFRAME_PROJECT_ID, or paste a ticket link that contains the project id',
+        );
       return 1;
     }
   } catch (error) {

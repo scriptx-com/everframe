@@ -168,7 +168,9 @@ describe('shared behaviour', () => {
     expect(await run(['comment', '7', '--body', 'x'])).toBe(1);
     const text = err.join('\n');
     expect(text).toContain('everframe: comment failed: project_required');
-    expect(text).toContain('pass --project, set EVERFRAME_PROJECT_ID, or use the ticket link');
+    expect(text).toContain(
+      'pass --project, set EVERFRAME_PROJECT_ID, or paste a ticket link that contains the project id',
+    );
   });
   it('--json prints the API response', async () => {
     await run(['create', '--title', 'x', '--json']);
