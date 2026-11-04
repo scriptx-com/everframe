@@ -118,14 +118,13 @@ export async function ticketCommand(argv: string[], deps: TicketDeps): Promise<n
   const str = (k: string) => values[k] as string | undefined;
 
   try {
-    let ref: { ticket: string; projectId?: string } | undefined;
+    let ref: { ticket: string; projectId?: string; projectSlug?: string } | undefined;
     let filePaths = attach;
     const idempotencyKey = str('idempotency-key');
-    if (
-      idempotencyKey !== undefined &&
-      (idempotencyKey.trim().length < 1 || idempotencyKey.trim().length > 255)
-    )
-      throw new BadInput('--idempotency-key must be 1 to 255 characters');
+    if (idempotencyKey !== undefined && !/^[\x21-\x7e]{1,255}$/.test(idempotencyKey.trim()))
+      throw new BadInput(
+        '--idempotency-key must be 1 to 255 visible ASCII characters (no spaces or control characters)',
+      );
     if (sub === 'create') {
       if (positionals.length > 0) throw new BadInput('unexpected argument; use --attach for files');
     } else {
