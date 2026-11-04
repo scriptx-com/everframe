@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 ScriptX
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createTicketClient, TicketApiError } from '../src/tickets/client.js';
 
 const TOKEN = 'efk_secret_token_value';
@@ -21,7 +21,7 @@ const json = (status: number, body: unknown, headers: Record<string, string> = {
   });
 
 type Call = { url: string; init: RequestInit };
-function harness(responses: Array<Response | Error>) {
+function harness(responses: Array<Response | Error>, now?: () => number) {
   const calls: Call[] = [];
   const sleeps: number[] = [];
   const queue = [...responses];
@@ -36,6 +36,7 @@ function harness(responses: Array<Response | Error>) {
     apiUrl: 'https://api.test/api/v1',
     token: TOKEN,
     fetch: fetchFn,
+    now,
     sleep: async (ms) => {
       sleeps.push(ms);
     },
@@ -45,7 +46,12 @@ function harness(responses: Array<Response | Error>) {
 const header = (c: Call, name: string) => new Headers(c.init.headers).get(name);
 
 describe('ticket client', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('retries a 503 and a network error, then succeeds', async () => {
+    // Jitter is Math.floor(random * 251): 0 at random=0, 250 at random just under 1.
+    const random = vi.spyOn(Math, 'random');
+    random.mockReturnValueOnce(0).mockReturnValueOnce(0.999999);
     const h = harness([
       json(503, { error: 'unavailable' }),
       new TypeError('fetch failed'),
@@ -55,10 +61,7 @@ describe('ticket client', () => {
     expect(result.id).toBe('12');
     expect(h.calls).toHaveLength(3);
     expect(h.sleeps).toHaveLength(2);
-    expect(h.sleeps[0]).toBeGreaterThanOrEqual(1000);
-    expect(h.sleeps[0]).toBeLessThan(1250);
-    expect(h.sleeps[1]).toBeGreaterThanOrEqual(2000);
-    expect(h.sleeps[1]).toBeLessThan(2250);
+    expect(h.sleeps).toEqual([1000, 2250]);
   });
 
   it('reuses the same Idempotency-Key on every attempt of createTicket', async () => {
@@ -90,6 +93,47 @@ describe('ticket client', () => {
     ]);
     await h.client.createTicket({ title: 'T' }, 'k');
     expect(h.sleeps).toEqual([60000]);
+  });
+
+  it('waits until an HTTP-date Retry-After', async () => {
+    const now = Date.parse('2026-11-04T12:00:00Z');
+    const h = harness(
+      [
+        json(429, {}, { 'Retry-After': 'Wed, 04 Nov 2026 12:00:09 GMT' }),
+        json(429, {}, { 'Retry-After': 'Wed, 04 Nov 2026 11:00:00 GMT' }),
+        json(429, {}, { 'Retry-After': 'Wed, 04 Nov 2026 14:00:00 GMT' }),
+        json(201, ticket),
+      ],
+      () => now,
+    );
+    await h.client.createTicket({ title: 'T' }, 'k');
+    expect(h.sleeps).toEqual([9000, 0, 60000]);
+  });
+
+  it.each([
+    ['empty object', {}],
+    ['error body', { error: 'x' }],
+  ])('treats a 2xx %s on create as invalid_server_response and retries', async (_n, body) => {
+    const h = harness([json(201, body), json(201, ticket)]);
+    await expect(h.client.createTicket({ title: 'T' }, 'k')).resolves.toMatchObject({ id: '12' });
+    expect(h.calls).toHaveLength(2);
+    const bad = harness(Array.from({ length: 4 }, () => json(201, body)));
+    await expect(bad.client.createTicket({ title: 'T' }, 'k')).rejects.toMatchObject({
+      step: 'create',
+      code: 'invalid_server_response',
+    });
+  });
+
+  it.each([
+    ['empty object', {}],
+    ['error body', { error: 'x' }],
+  ])('fails fast on a 2xx %s upload', async (_n, body) => {
+    const h = harness([json(201, body), json(201, { id: 'a' })]);
+    const err = await h.client
+      .upload({ path: 'x', name: 'x.png', bytes: Buffer.from([1]) })
+      .catch((e: unknown) => e);
+    expect(err).toMatchObject({ step: 'upload', code: 'invalid_server_response' });
+    expect(h.calls).toHaveLength(1);
   });
 
   it('retries an unparseable 2xx on a keyed write with the same key', async () => {

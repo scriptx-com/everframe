@@ -11,6 +11,8 @@ export interface TicketClientOptions {
   fetch?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   maxAttempts?: number;
+  /** Clock for HTTP-date Retry-After values; defaults to `Date.now`. */
+  now?: () => number;
 }
 
 export class TicketApiError extends Error {
@@ -54,6 +56,14 @@ const REQUEST_TIMEOUT_MS = 60_000;
 const UPLOAD_TIMEOUT_MS = 5 * 60_000;
 const CODE_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
 
+/** A 2xx body is only a success if it carries the fields the CLI reads. */
+function hasShape(step: TicketStep, body: unknown): boolean {
+  if (!body || typeof body !== 'object') return false;
+  const b = body as { id?: unknown; url?: unknown };
+  if (typeof b.id !== 'string' || b.id === '') return false;
+  return step === 'upload' || typeof b.url === 'string';
+}
+
 const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -65,12 +75,18 @@ function errorCode(status: number, body: unknown): string {
   return `http_${status}`;
 }
 
-function retryDelay(response: Response | undefined, attempt: number): number {
-  const retryAfter = response?.headers.get('retry-after');
+function retryDelay(
+  response: Response | undefined,
+  attempt: number,
+  now: () => number = Date.now,
+): number {
+  const retryAfter = response?.headers.get('retry-after')?.trim();
   if (retryAfter) {
     const seconds = Number(retryAfter);
-    if (retryAfter.trim() !== '' && Number.isFinite(seconds) && seconds >= 0)
+    if (Number.isFinite(seconds) && seconds >= 0)
       return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
+    const date = Date.parse(retryAfter);
+    if (Number.isFinite(date)) return Math.min(Math.max(0, date - now()), MAX_RETRY_AFTER_MS);
   }
   return 1000 * 2 ** (attempt - 1) + Math.floor(Math.random() * 251);
 }
@@ -78,6 +94,7 @@ function retryDelay(response: Response | undefined, attempt: number): number {
 export function createTicketClient(o: TicketClientOptions) {
   const fetcher = o.fetch ?? fetch;
   const sleep = o.sleep ?? defaultSleep;
+  const now = o.now ?? Date.now;
   const maxAttempts = Math.max(1, o.maxAttempts ?? DEFAULT_MAX_ATTEMPTS);
   const base = o.apiUrl.replace(/\/+$/, '');
 
@@ -108,7 +125,7 @@ export function createTicketClient(o: TicketClientOptions) {
           parsed = undefined;
         }
         if (response.status === expectedStatus || (response.ok && response.status < 300)) {
-          if (parsed && typeof parsed === 'object') return parsed as T;
+          if (hasShape(step, parsed)) return parsed as T;
           last = new TicketApiError(step, response.status, 'invalid_server_response');
           // A keyed write replays on retry; an upload has no key and would leave an orphan.
           if (step === 'upload') throw sanitize(last);
@@ -119,7 +136,7 @@ export function createTicketClient(o: TicketClientOptions) {
         const retryable = response.status === 429 || response.status >= 500;
         if (!retryable) throw sanitize(last);
       }
-      if (attempt < maxAttempts) await sleep(retryDelay(response, attempt));
+      if (attempt < maxAttempts) await sleep(retryDelay(response, attempt, now));
     }
     throw sanitize(last as TicketApiError);
   }
