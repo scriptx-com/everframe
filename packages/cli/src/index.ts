@@ -14,6 +14,7 @@ import { dsymUploadBuildCommand } from './apple-command.js';
 import { DEFAULT_API_URL, redact, uploadBudget } from './defaults.js';
 import { homedir } from 'node:os';
 import { captureCommand, linkCommand } from './quick-capture/commands.js';
+import { ticketCommand } from './tickets/commands.js';
 import { defaultOpenBrowser, loginCommand, logoutCommand } from './quick-capture/login.js';
 import { defaultRunner } from './quick-capture/devices.js';
 import { hotkeyCommand } from './quick-capture/hotkey.js';
@@ -81,15 +82,21 @@ const HELP = `Usage:
   everframe logout   (revoke and remove your quick capture login)
   everframe link   (copy your login to running Android emulators)
   everframe capture [--device <udid|name|serial>]   (trigger a quick capture on a simulator or emulator; in the app, press Shift+B outside a text field)
+  everframe ticket create --title <text> [--description <text> | --description-file <path>] [--attach <image>]... [--project <uuid>] [--board <uuid>] [--column <uuid>] [--idempotency-key <key>] [--json]
+  everframe ticket attach <ticket> <image>... [--project <uuid>] [--idempotency-key <key>] [--json]
+  everframe ticket comment <ticket> (--body <text> | --body-file <path>) [--attach <image>]... [--project <uuid>] [--idempotency-key <key>] [--json]
+
+Tickets: <ticket> is a number, a uuid or a dashboard link (the link also sets the project). At most 10 files of 25 MiB each; the server decides which types it accepts.
 
 Device builds: uploads are asynchronous by default; --wait observes readiness within a total 600-second budget (override with --timeout).
 
 Build provenance: --commit <full-sha> overrides captured or detected source identity.
 
 Environment:
-  EVERFRAME_API_TOKEN  API token with artifacts:write scope (required)
+  EVERFRAME_API_TOKEN  API token (required): artifacts:write scope for upload commands, tickets:write for ticket commands
   EVERFRAME_API_URL    API base URL (default: ${DEFAULT_API_URL})
   EVERFRAME_APP_ID     Default application UUID for upload commands
+  EVERFRAME_PROJECT_ID Default project UUID for ticket commands (--project or a ticket link wins)
   EVERFRAME_SYMBOLS_STRICT  Set to 1 to fail builds when symbols cannot be uploaded (default: warn)
   EVERFRAME_UPLOAD_TIMEOUT_SECONDS  Overall upload time limit (default 600 for build integrations)
 `;
@@ -308,6 +315,19 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
     } catch {
       // The error is not echoed: it may carry a path, a URL or a token.
       console.error(`everframe: ${argv[0]} failed`);
+      return 1;
+    }
+  }
+  if (argv[0] === 'ticket') {
+    try {
+      return await ticketCommand(argv.slice(1), {
+        env,
+        out: (s) => console.log(s),
+        err: (s) => console.error(s),
+      });
+    } catch {
+      // The error is not echoed: it may carry a path, a URL or a token.
+      console.error('everframe: ticket failed');
       return 1;
     }
   }
