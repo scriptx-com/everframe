@@ -1,0 +1,19 @@
+.changeset/ticket-cli-commands.md
+  s_d74f3496d34fb6::t_4044339c2ec3e0 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3ef50aed7883802ba7b3e96b348e8d8b63fb220",
+  "prompts": {},
+  "sessions": {
+    "s_d74f3496d34fb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "28a22df7-5458-4e20-8932-00794016bd73",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aurimas Mickys <aurimasmickys@gmail.com>"
+    }
+  }
+}
