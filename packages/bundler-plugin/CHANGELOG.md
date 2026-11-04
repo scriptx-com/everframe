@@ -1,5 +1,12 @@
 <!-- SPDX-License-Identifier: MIT -->
 
+## 1.7.0
+
+### Patch Changes
+
+- Updated dependencies [30f756b]
+  - @everframe/cli@1.7.0
+
 ## 1.6.7
 
 No changes in this package; released with the other Everframe packages at this version.
