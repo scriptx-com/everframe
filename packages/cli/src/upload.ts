@@ -80,7 +80,7 @@ class InvalidServerResponse extends Error {
 const MAX_ATTEMPTS = 3;
 const MAX_WAIT_MS = 30_000;
 
-function apiBase(input: string): string {
+export function apiBase(input: string): string {
   let url: URL;
   try {
     url = new URL(input);
