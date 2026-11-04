@@ -108,9 +108,12 @@ export function createTicketClient(o: TicketClientOptions) {
           parsed = undefined;
         }
         if (response.status === expectedStatus || (response.ok && response.status < 300)) {
-          if (!parsed || typeof parsed !== 'object')
-            throw new TicketApiError(step, response.status, 'invalid_server_response');
-          return parsed as T;
+          if (parsed && typeof parsed === 'object') return parsed as T;
+          last = new TicketApiError(step, response.status, 'invalid_server_response');
+          // A keyed write replays on retry; an upload has no key and would leave an orphan.
+          if (step === 'upload') throw sanitize(last);
+          if (attempt < maxAttempts) await sleep(retryDelay(undefined, attempt));
+          continue;
         }
         last = new TicketApiError(step, response.status, errorCode(response.status, parsed));
         const retryable = response.status === 429 || response.status >= 500;
