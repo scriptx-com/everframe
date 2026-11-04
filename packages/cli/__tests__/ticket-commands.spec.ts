@@ -156,4 +156,71 @@ describe('shared behaviour', () => {
     expect(code).toBe(1);
     expect(err.join('\n')).toContain('tickets:write');
   });
+  it('--help prints the ticket usage and exits 0', async () => {
+    for (const argv of [
+      ['--help'],
+      ['-h'],
+      ['create', '--help'],
+      ['attach', '-h'],
+      ['comment', '--help'],
+    ]) {
+      out = [];
+      expect(await run(argv)).toBe(0);
+      expect(out.join('\n')).toContain('everframe ticket create');
+      expect(out.join('\n')).toContain('everframe ticket attach');
+      expect(out.join('\n')).toContain('everframe ticket comment');
+    }
+    expect(client.upload).not.toHaveBeenCalled();
+  });
+  it('a TicketApiError carrying the token is redacted on the err sink', async () => {
+    client.comment.mockRejectedValueOnce(new TicketApiError('comment', 400, `bad_${TOKEN}`));
+    expect(await run(['comment', '7', '--body', 'x'])).toBe(1);
+    expect(err.join('\n')).toContain('comment failed');
+    expect(err.join('\n')).not.toContain(TOKEN);
+  });
+  it('a --json response containing the token is redacted on the out sink', async () => {
+    client.createTicket.mockResolvedValueOnce({ id: 'x', echoed: TOKEN });
+    expect(await run(['create', '--title', 'x', '--json'])).toBe(0);
+    expect(out.join('\n')).toContain('"id":"x"');
+    expect(out.join('\n')).not.toContain(TOKEN);
+  });
+});
+
+describe('bad input exits 2 without a client call', () => {
+  const none = () => {
+    expect(client.upload).not.toHaveBeenCalled();
+    expect(client.createTicket).not.toHaveBeenCalled();
+    expect(client.attach).not.toHaveBeenCalled();
+    expect(client.comment).not.toHaveBeenCalled();
+  };
+  it('create with both --description and --description-file', async () => {
+    const f = join(dir, 'd.txt');
+    writeFileSync(f, 'd');
+    expect(
+      await run(['create', '--title', 'x', '--description', 'a', '--description-file', f]),
+    ).toBe(2);
+    none();
+  });
+  it('attach with no files', async () => {
+    expect(await run(['attach', '5'])).toBe(2);
+    none();
+  });
+  it('comment with an extra positional', async () => {
+    expect(await run(['comment', '7', png, '--body', 'x'])).toBe(2);
+    none();
+  });
+  it('comment with neither or both --body/--body-file', async () => {
+    const f = join(dir, 'b2.txt');
+    writeFileSync(f, 'b');
+    expect(await run(['comment', '7'])).toBe(2);
+    expect(await run(['comment', '7', '--body', 'x', '--body-file', f])).toBe(2);
+    none();
+  });
+  it('11 --attach files', async () => {
+    const args = ['create', '--title', 'x'];
+    for (let i = 0; i < 11; i++) args.push('--attach', png);
+    expect(await run(args)).toBe(2);
+    expect(err.join('\n')).toContain('11');
+    none();
+  });
 });

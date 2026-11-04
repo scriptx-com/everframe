@@ -44,6 +44,13 @@ const OPTIONS = {
   },
 } as const;
 
+export const TICKET_USAGE = [
+  'Usage:',
+  '  everframe ticket create --title <text> [--description <text> | --description-file <path>] [--attach <image>]... [--project <uuid>] [--board <uuid>] [--column <uuid>] [--idempotency-key <key>] [--json]',
+  '  everframe ticket attach <ticket> <image>... [--project <uuid>] [--idempotency-key <key>] [--json]',
+  '  everframe ticket comment <ticket> (--body <text> | --body-file <path>) [--attach <image>]... [--project <uuid>] [--idempotency-key <key>] [--json]',
+].join('\n');
+
 class BadInput extends Error {}
 
 async function textFrom(inline: string | undefined, file: string | undefined, what: string) {
@@ -61,6 +68,11 @@ async function textFrom(inline: string | undefined, file: string | undefined, wh
 export async function ticketCommand(argv: string[], deps: TicketDeps): Promise<number> {
   const { env } = deps;
   const sub = argv[0];
+  const wantsHelp = (a: string[]) => a.some((x) => x === '--help' || x === '-h');
+  if (sub === '--help' || sub === '-h' || (sub !== undefined && wantsHelp(argv.slice(1)))) {
+    deps.out(TICKET_USAGE);
+    return 0;
+  }
   if (sub !== 'create' && sub !== 'attach' && sub !== 'comment') {
     deps.err('everframe: ticket needs create, attach or comment');
     return 2;
