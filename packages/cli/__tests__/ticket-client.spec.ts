@@ -204,6 +204,30 @@ describe('ticket client', () => {
     expect(err).toMatchObject({ step: 'comment', status: null, code: 'network_error' });
   });
 
+  it('retries an upload only when the connection was never made', async () => {
+    const refused = Object.assign(new TypeError('fetch failed'), {
+      cause: { code: 'ECONNREFUSED' },
+    });
+    const ok = { id: 'a1', filename: 'a.png', contentType: 'image/png', sizeBytes: 3 };
+    const file = { path: 'a.png', name: 'a.png', bytes: Buffer.from([1]) };
+    const h = harness([refused, json(201, ok)]);
+    expect((await h.client.upload(file)).id).toBe('a1');
+    expect(h.calls).toHaveLength(2);
+    const reset = Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } });
+    const h2 = harness([reset, json(201, ok)]);
+    await expect(h2.client.upload(file)).rejects.toMatchObject({ code: 'network_error' });
+    expect(h2.calls).toHaveLength(1);
+    const h3 = harness([new Error('socket hang up'), json(201, ok)]);
+    await expect(h3.client.upload(file)).rejects.toMatchObject({ code: 'network_error' });
+    expect(h3.calls).toHaveLength(1);
+  });
+
+  it('retries a keyed write after a generic socket error', async () => {
+    const h = harness([new Error('socket hang up'), json(201, ticket)]);
+    await h.client.createTicket({ title: 'T' }, 'k');
+    expect(h.calls).toHaveLength(2);
+  });
+
   it('sends the upload as multipart with the original filename', async () => {
     const name = 'Screenshot 2026-11-03 at 10.15.42 ą.png';
     const h = harness([

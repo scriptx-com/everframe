@@ -65,6 +65,12 @@ function hasShape(step: TicketStep, body: unknown): boolean {
   return step === 'upload' || typeof b.url === 'string';
 }
 
+const NEVER_SENT = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN']);
+function neverSent(error: unknown): boolean {
+  const cause = (error as { cause?: { code?: unknown } } | null)?.cause;
+  return typeof cause?.code === 'string' && NEVER_SENT.has(cause.code);
+}
+
 const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -118,8 +124,10 @@ export function createTicketClient(o: TicketClientOptions) {
           redirect: 'manual',
           signal: AbortSignal.timeout(init.timeoutMs),
         });
-      } catch {
+      } catch (error) {
         last = new TicketApiError(step, null, 'network_error');
+        // An unkeyed upload may have reached the server; only retry if it certainly did not.
+        if (step === 'upload' && !neverSent(error)) throw sanitize(last);
       }
       if (response) {
         if (response.status >= 300 && response.status < 400)
