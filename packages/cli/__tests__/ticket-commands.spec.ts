@@ -88,6 +88,23 @@ describe('ticket attach and comment', () => {
     expect(client.attach).toHaveBeenCalledWith('142', ['att-1'], P, 'key-1');
     expect(client.upload.mock.calls[0][1]).toBe(P);
   });
+  it('a slug link needs --project and never falls back to the env project', async () => {
+    const link = 'https://everframe.dev/admin/projects/my-app/boards/bugs?card=142';
+    const env = { EVERFRAME_API_TOKEN: TOKEN, EVERFRAME_PROJECT_ID: 'env' };
+    expect(await run(['attach', link, png], env)).toBe(2);
+    expect(err.join('')).toContain('pass --project <project uuid>');
+    expect(client.upload).not.toHaveBeenCalled();
+    expect(client.attach).not.toHaveBeenCalled();
+    expect(await run(['attach', link, png, '--project', P], env)).toBe(0);
+    expect(client.attach).toHaveBeenCalledWith('142', ['att-1'], P, 'key-1');
+  });
+  it.each(['ą', 'a\nb', 'a b'])('rejects idempotency key %j before any request', async (key) => {
+    expect(await run(['create', '--title', 'x', '--attach', png, '--idempotency-key', key])).toBe(
+      2,
+    );
+    expect(client.upload).not.toHaveBeenCalled();
+    expect(client.createTicket).not.toHaveBeenCalled();
+  });
   it('--project beats the link project', async () => {
     const link = `https://everframe.dev/admin/projects/${P}/boards/${B}?card=142`;
     const other = '11111111-2222-4333-8444-555555555555';

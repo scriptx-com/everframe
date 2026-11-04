@@ -133,6 +133,11 @@ export async function ticketCommand(argv: string[], deps: TicketDeps): Promise<n
       const parsed = arg === undefined ? null : parseTicketArg(arg);
       if (!parsed) throw new BadInput('give a ticket number, uuid or dashboard link');
       ref = parsed;
+      // A slug is not an id the API accepts; never fall back to another project for it.
+      if (parsed.projectSlug !== undefined && !str('project'))
+        throw new BadInput(
+          'this link names the project by its slug; pass --project <project uuid>',
+        );
       if (sub === 'attach') {
         if (rest.length === 0) throw new BadInput('attach needs at least one file');
         filePaths = rest;

@@ -10,7 +10,9 @@ const isTicketId = (value: string): boolean => NUMBER.test(value) || UUID.test(v
  * A ticket reference: a ticket number, a ticket uuid, or a dashboard link such as
  * `https://everframe.dev/admin/projects/<uuid|slug>/boards/<uuid|slug>?card=142`.
  */
-export function parseTicketArg(arg: string): { ticket: string; projectId?: string } | null {
+export function parseTicketArg(
+  arg: string,
+): { ticket: string; projectId?: string; projectSlug?: string } | null {
   const value = arg.trim();
   if (isTicketId(value)) return { ticket: value };
   let url: URL;
@@ -25,5 +27,7 @@ export function parseTicketArg(arg: string): { ticket: string; projectId?: strin
   if (!match || !card || !isTicketId(card)) return null;
   // Browser links address projects by slug; the API only accepts a uuid project id.
   const project = match[1] as string;
-  return UUID.test(project) ? { ticket: card, projectId: project } : { ticket: card };
+  return UUID.test(project)
+    ? { ticket: card, projectId: project }
+    : { ticket: card, projectSlug: project };
 }

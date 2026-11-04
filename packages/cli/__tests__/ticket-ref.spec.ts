@@ -20,9 +20,15 @@ describe('parseTicketArg', () => {
   it('accepts slug links, setting a project only for a uuid project', () => {
     const at = (project: string, board: string) =>
       `https://everframe.dev/admin/projects/${project}/boards/${board}?card=142`;
-    expect(parseTicketArg(at('my-app', 'bugs'))).toEqual({ ticket: '142' });
+    expect(parseTicketArg(at('my-app', 'bugs'))).toEqual({
+      ticket: '142',
+      projectSlug: 'my-app',
+    });
     expect(parseTicketArg(at(P, 'bugs'))).toEqual({ ticket: '142', projectId: P });
-    expect(parseTicketArg(at('my-app', B))).toEqual({ ticket: '142' });
+    expect(parseTicketArg(at('my-app', B))).toEqual({
+      ticket: '142',
+      projectSlug: 'my-app',
+    });
   });
   it('rejects anything else', () => {
     for (const bad of [
