@@ -222,6 +222,19 @@ describe('ticket client', () => {
     expect(h3.calls).toHaveLength(1);
   });
 
+  it('retries an upload on 429 and 503 but not on an ambiguous 5xx', async () => {
+    const ok = { id: 'a1', filename: 'a.png', contentType: 'image/png', sizeBytes: 3 };
+    const file = { path: 'a.png', name: 'a.png', bytes: Buffer.from([1]) };
+    const h = harness([json(429, { error: 'slow' }), json(503, { error: 'busy' }), json(201, ok)]);
+    expect((await h.client.upload(file)).id).toBe('a1');
+    expect(h.calls).toHaveLength(3);
+    for (const status of [500, 502, 504]) {
+      const h2 = harness([json(status, { error: 'x' }), json(201, ok)]);
+      await expect(h2.client.upload(file)).rejects.toMatchObject({ step: 'upload', status });
+      expect(h2.calls).toHaveLength(1);
+    }
+  });
+
   it('retries a keyed write after a generic socket error', async () => {
     const h = harness([new Error('socket hang up'), json(201, ticket)]);
     await h.client.createTicket({ title: 'T' }, 'k');

@@ -147,7 +147,12 @@ export function createTicketClient(o: TicketClientOptions) {
           continue;
         }
         last = new TicketApiError(step, response.status, errorCode(response.status, parsed));
-        const retryable = response.status === 429 || response.status >= 500;
+        // An unkeyed upload retries only answers that mean nothing was stored; a 500,
+        // 502 or 504 may arrive after the file was saved and would leave an orphan.
+        const retryable =
+          step === 'upload'
+            ? response.status === 429 || response.status === 503
+            : response.status === 429 || response.status >= 500;
         if (!retryable) throw sanitize(last);
       }
       if (attempt < maxAttempts) await sleep(retryDelay(response, attempt, now));
